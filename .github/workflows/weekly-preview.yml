@@ -6,10 +6,12 @@ on:
 
 jobs:
   packaging:
+    if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
+        ref: dev
         fetch-depth: 0
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
@@ -24,12 +26,16 @@ jobs:
         sed -i 's/name\ =\ monai$/name\ =\ monai-weekly/g' setup.cfg
         echo "__commit_id__ = \"$HEAD_COMMIT_ID\"" >> monai/__init__.py
         git diff setup.cfg monai/__init__.py
-        # build tar.gz and wheel
         git config user.name "CI Builder"
-        git config user.email "monai.miccai2019@gmail.com"
+        git config user.email "monai.contact@gmail.com"
         git add setup.cfg monai/__init__.py
         git commit -m "Weekly build at $HEAD_COMMIT_ID"
-        git tag 0.5.dev$(date +'%y%U')
+        export YEAR_WEEK=$(date +'%y%U')
+        echo "Year week for tag is ${YEAR_WEEK}"
+        if ! [[ $YEAR_WEEK =~ ^[0-9]{4}$ ]] ; then echo "Wrong 'year week' format.  Should be 4 digits."; exit 1 ; fi
+        git tag "0.7.dev${YEAR_WEEK}"
+        git log -1
+        git tag --list
         python setup.py sdist bdist_wheel
 
     - name: Publish to PyPI

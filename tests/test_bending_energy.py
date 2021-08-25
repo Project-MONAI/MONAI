@@ -1,3 +1,14 @@
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import unittest
 
 import numpy as np
@@ -6,30 +17,32 @@ from parameterized import parameterized
 
 from monai.losses.deform import BendingEnergyLoss
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 TEST_CASES = [
     [
         {},
-        {"input": torch.ones((1, 3, 5, 5, 5))},
+        {"pred": torch.ones((1, 3, 5, 5, 5), device=device)},
         0.0,
     ],
     [
         {},
-        {"input": torch.arange(0, 5)[None, None, None, None, :].expand(1, 3, 5, 5, 5)},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, None, :].expand(1, 3, 5, 5, 5)},
         0.0,
     ],
     [
         {},
-        {"input": torch.arange(0, 5)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2},
         4.0,
     ],
     [
         {},
-        {"input": torch.arange(0, 5)[None, None, None, :].expand(1, 3, 5, 5) ** 2},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, :].expand(1, 3, 5, 5) ** 2},
         4.0,
     ],
     [
         {},
-        {"input": torch.arange(0, 5)[None, None, :].expand(1, 3, 5) ** 2},
+        {"pred": torch.arange(0, 5, device=device)[None, None, :].expand(1, 3, 5) ** 2},
         4.0,
     ],
 ]
@@ -44,24 +57,24 @@ class TestBendingEnergy(unittest.TestCase):
     def test_ill_shape(self):
         loss = BendingEnergyLoss()
         # not in 3-d, 4-d, 5-d
-        with self.assertRaisesRegex(AssertionError, ""):
-            loss.forward(torch.ones((1, 3)))
-        with self.assertRaisesRegex(AssertionError, ""):
-            loss.forward(torch.ones((1, 3, 5, 5, 5, 5)))
+        with self.assertRaisesRegex(ValueError, ""):
+            loss.forward(torch.ones((1, 3), device=device))
+        with self.assertRaisesRegex(ValueError, ""):
+            loss.forward(torch.ones((1, 3, 5, 5, 5, 5), device=device))
         # spatial_dim < 5
-        with self.assertRaisesRegex(AssertionError, ""):
-            loss.forward(torch.ones((1, 3, 4, 5, 5)))
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
+            loss.forward(torch.ones((1, 3, 4, 5, 5), device=device))
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 5, 4, 5)))
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 5, 5, 4)))
 
     def test_ill_opts(self):
-        input = torch.rand(1, 3, 5, 5, 5)
+        pred = torch.rand(1, 3, 5, 5, 5).to(device=device)
         with self.assertRaisesRegex(ValueError, ""):
-            BendingEnergyLoss(reduction="unknown")(input)
+            BendingEnergyLoss(reduction="unknown")(pred)
         with self.assertRaisesRegex(ValueError, ""):
-            BendingEnergyLoss(reduction=None)(input)
+            BendingEnergyLoss(reduction=None)(pred)
 
 
 if __name__ == "__main__":

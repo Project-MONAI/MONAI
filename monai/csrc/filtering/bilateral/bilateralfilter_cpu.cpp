@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -158,7 +158,7 @@ torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, 
   // Preparing output tensor.
   torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
-  AT_DISPATCH_FLOATING_TYPES_AND_HALF(inputTensor.type(), "BilateralFilterCpu", ([&] {
+  AT_DISPATCH_FLOATING_TYPES_AND_HALF(inputTensor.scalar_type(), "BilateralFilterCpu", ([&] {
                                         BilateralFilterCpu<scalar_t>(
                                             inputTensor, outputTensor, spatialSigma, colorSigma);
                                       }));

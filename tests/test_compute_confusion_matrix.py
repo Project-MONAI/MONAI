@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import ConfusionMatrixMetric, get_confusion_matrix
+from monai.metrics import (
+    ConfusionMatrixMetric,
+    compute_confusion_matrix_metric,
+    do_metric_reduction,
+    get_confusion_matrix,
+)
 
 # input data
 data: Dict[Any, Any] = {
@@ -59,6 +64,9 @@ data_clf: Dict[Any, Any] = {
     "y": torch.tensor([[1, 0, 0], [0, 1, 0]]),
     "compute_sample": False,
     "include_background": True,
+    "metric_name": "tpr",
+    "reduction": "mean_channel",
+    "get_not_nans": True,
 }
 
 # 1. test confusion matrix
@@ -140,6 +148,7 @@ for idx in range(len(metric_names)):
         TEST_CASE[0]["include_background"] = True
         TEST_CASE[0]["metric_name"] = metric_names[idx]
         TEST_CASE[0]["reduction"] = reduction
+        TEST_CASE[0]["get_not_nans"] = True
         if reduction == "mean_batch":
             result = result_mean_batch[idx]
         elif reduction == "mean":
@@ -154,6 +163,7 @@ for reduction in ["mean", "mean_batch"]:
     TEST_CASE_MULTIPLE[0]["include_background"] = True
     TEST_CASE_MULTIPLE[0]["metric_name"] = metric_names
     TEST_CASE_MULTIPLE[0]["reduction"] = reduction
+    TEST_CASE_MULTIPLE[0]["get_not_nans"] = True
     if reduction == "mean_batch":
         result = result_mean_batch
     elif reduction == "mean":
@@ -187,6 +197,7 @@ for idx in range(2):
         TEST_CASE[0]["include_background"] = True
         TEST_CASE[0]["reduction"] = reduction
         TEST_CASE[0]["metric_name"] = metric_names[idx]
+        TEST_CASE[0]["get_not_nans"] = True
         if reduction == "sum":
             TEST_CASE.append(result_sum[idx])
             TEST_CASE.append(not_nans_sum[idx])
@@ -220,45 +231,52 @@ class TestConfusionMatrix(unittest.TestCase):
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE)
     def test_compute_sample(self, input_data, expected_value):
         params = input_data.copy()
-        vals = dict()
+        vals = {}
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result, _ = metric(**vals)
+        metric(**vals)
+        result, _ = metric.aggregate()[0]
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS)
     def test_compute_sample_multiple_metrics(self, input_data, expected_values):
         params = input_data.copy()
-        vals = dict()
+        vals = {}
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        results = metric(**vals)
-        for idx in range(0, len(results), 2):
-            result = results[idx]
-            expected_value = expected_values[int(idx / 2)]
+        metric(**vals)
+        results = metric.aggregate()
+        for idx in range(len(results)):
+            result = results[idx][0]
+            expected_value = expected_values[idx]
             np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_NAN)
     def test_compute_sample_with_nan(self, input_data, expected_value, expected_not_nans):
         params = input_data.copy()
-        vals = dict()
+        vals = {}
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result, not_nans = metric(**vals)
+        metric(**vals)
+        result, not_nans = metric.aggregate()[0]
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
         np.testing.assert_allclose(not_nans, expected_not_nans, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand([TEST_CASES_CLF])
     def test_clf_with_nan(self, input_data, expected_value):
         params = input_data.copy()
-        vals = dict()
+        vals = {}
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
         result = metric(**vals)
+        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        result, _ = metric.aggregate()[0]
+        expected_value, _ = do_metric_reduction(expected_value, "mean_channel")
+        expected_value = compute_confusion_matrix_metric("tpr", expected_value)
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
 

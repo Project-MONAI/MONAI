@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -58,5 +58,4 @@ class MaxAvgPool(nn.Module):
         Returns:
             Tensor in shape (batch, 2*channel, spatial_1[, spatial_2, ...]).
         """
-        x_d = torch.cat([self.max_pool(x), self.avg_pool(x)], dim=1)
-        return x_d
+        return torch.cat([self.max_pool(x), self.avg_pool(x)], dim=1)

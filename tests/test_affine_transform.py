@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -311,7 +311,7 @@ class TestAffineTransform(unittest.TestCase):
         with self.assertRaises(RuntimeError):  # dtype doesn't match
             affine = torch.as_tensor([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0]], dtype=torch.float64)
             image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
-            out = AffineTransform((1, 2))(image, affine)
+            AffineTransform((1, 2))(image, affine)
 
     def test_forward_2d(self):
         x = torch.rand(2, 1, 4, 4)

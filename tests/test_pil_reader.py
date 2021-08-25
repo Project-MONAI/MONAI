@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -49,6 +49,7 @@ class TestPNGReader(unittest.TestCase):
 
         self.assertTupleEqual(tuple(result[1]["spatial_shape"]), meta_shape)
         self.assertTupleEqual(result[0].shape, expected_shape)
+        test_image = np.moveaxis(test_image, 0, 1)
         if result[0].shape == test_image.shape:
             np.testing.assert_allclose(result[0], test_image)
         else:
@@ -68,6 +69,7 @@ class TestPNGReader(unittest.TestCase):
 
         self.assertTupleEqual(tuple(result[1]["spatial_shape"]), meta_shape)
         self.assertTupleEqual(result[0].shape, expected_shape)
+        test_image = np.moveaxis(test_image, 0, 1)
         np.testing.assert_allclose(result[0], test_image)
 
 

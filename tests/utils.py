@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import datetime
 import functools
 import importlib
@@ -16,27 +17,56 @@ import os
 import queue
 import sys
 import tempfile
+import time
 import traceback
 import unittest
 import warnings
+from functools import partial
 from io import BytesIO
 from subprocess import PIPE, Popen
-from typing import Optional
+from typing import Callable, Optional, Tuple
 from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
-from monai.utils.module import get_torch_version_tuple
+from monai.utils.module import version_leq
 
 nib, _ = optional_import("nibabel")
-ver, has_pkg_res = optional_import("pkg_resources", name="parse_version")
 
 quick_test_var = "QUICKTEST"
+
+
+def clone(data: NdarrayTensor) -> NdarrayTensor:
+    """
+    Clone data independent of type.
+
+    Args:
+        data (NdarrayTensor): This can be a Pytorch Tensor or numpy array.
+
+    Returns:
+        Any: Cloned data object
+    """
+    return copy.deepcopy(data)
+
+
+def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
+    """
+    Assert that all values of two data objects are close.
+
+    Args:
+        a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
+        b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
+    """
+    a = a.cpu() if isinstance(a, torch.Tensor) else a
+    b = b.cpu() if isinstance(b, torch.Tensor) else b
+    np.testing.assert_allclose(a, b, *args, **kwargs)
 
 
 def test_pretrained_networks(network, input_param, device):
@@ -47,17 +77,21 @@ def test_pretrained_networks(network, input_param, device):
     return net
 
 
+def test_is_quick():
+    return os.environ.get(quick_test_var, "").lower() == "true"
+
+
 def skip_if_quick(obj):
     """
     Skip the unit tests if environment variable `quick_test_var=true`.
     For example, the user can skip the relevant tests by setting ``export QUICKTEST=true``.
     """
-    is_quick = os.environ.get(quick_test_var, "").lower() == "true"
+    is_quick = test_is_quick()
 
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
 
 
-class SkipIfNoModule(object):
+class SkipIfNoModule:
     """Decorator to be used if test should be skipped
     when optional module is not present."""
 
@@ -69,7 +103,7 @@ class SkipIfNoModule(object):
         return unittest.skipIf(self.module_missing, f"optional module not present: {self.module_name}")(obj)
 
 
-class SkipIfModule(object):
+class SkipIfModule:
     """Decorator to be used if test should be skipped
     when optional module is present."""
 
@@ -81,18 +115,18 @@ class SkipIfModule(object):
         return unittest.skipIf(self.module_avail, f"Skipping because optional module present: {self.module_name}")(obj)
 
 
-def skip_if_no_cpp_extention(obj):
+def skip_if_no_cpp_extension(obj):
     """
-    Skip the unit tests if the cpp extention isnt available
+    Skip the unit tests if the cpp extension is not available
     """
-    return unittest.skipIf(not USE_COMPILED, "Skipping cpp extention tests")(obj)
+    return unittest.skipUnless(USE_COMPILED, "Skipping cpp extension tests")(obj)
 
 
 def skip_if_no_cuda(obj):
     """
     Skip the unit tests if torch.cuda.is_available is False
     """
-    return unittest.skipIf(not torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
+    return unittest.skipUnless(torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
 
 
 def skip_if_windows(obj):
@@ -102,16 +136,14 @@ def skip_if_windows(obj):
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
 
 
-class SkipIfBeforePyTorchVersion(object):
+class SkipIfBeforePyTorchVersion:
     """Decorator to be used if test should be skipped
     with PyTorch versions older than that given."""
 
     def __init__(self, pytorch_version_tuple):
         self.min_version = pytorch_version_tuple
-        if has_pkg_res:
-            self.version_too_old = ver(torch.__version__) < ver(".".join(map(str, self.min_version)))
-        else:
-            self.version_too_old = get_torch_version_tuple() < self.min_version
+        test_ver = ".".join(map(str, self.min_version))
+        self.version_too_old = torch.__version__ != test_ver and version_leq(torch.__version__, test_ver)
 
     def __call__(self, obj):
         return unittest.skipIf(
@@ -119,16 +151,14 @@ class SkipIfBeforePyTorchVersion(object):
         )(obj)
 
 
-class SkipIfAtLeastPyTorchVersion(object):
+class SkipIfAtLeastPyTorchVersion:
     """Decorator to be used if test should be skipped
-    with PyTorch versions older than that given."""
+    with PyTorch versions newer than or equal to that given."""
 
     def __init__(self, pytorch_version_tuple):
         self.max_version = pytorch_version_tuple
-        if has_pkg_res:
-            self.version_too_new = ver(torch.__version__) >= ver(".".join(map(str, self.max_version)))
-        else:
-            self.version_too_new = get_torch_version_tuple() >= self.max_version
+        test_ver = ".".join(map(str, self.max_version))
+        self.version_too_new = version_leq(test_ver, torch.__version__)
 
     def __call__(self, obj):
         return unittest.skipIf(
@@ -149,6 +179,19 @@ def make_nifti_image(array, affine=None):
     nib.save(test_image, image_name)
     os.close(temp_f)
     return image_name
+
+
+def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):
+    """Create random affine transformation (with values == -1, 0 or 1)."""
+    rs = np.random.random.__self__ if random_state is None else random_state  # type: ignore
+
+    vals = rs.choice([-1, 1], size=ndim)
+    positions = rs.choice(range(ndim), size=ndim, replace=False)
+    af = np.zeros([ndim + 1, ndim + 1])
+    af[ndim, ndim] = 1
+    for i, (v, p) in enumerate(zip(vals, positions)):
+        af[i, p] = v
+    return af
 
 
 class DistTestCase(unittest.TestCase):
@@ -220,7 +263,11 @@ class DistCall:
         """
         self.nnodes = int(nnodes)
         self.nproc_per_node = int(nproc_per_node)
-        self.node_rank = int(os.environ.get("NODE_RANK", "0")) if node_rank is None else node_rank
+        if self.nnodes < 1 or self.nproc_per_node < 1:
+            raise ValueError(
+                f"number of nodes and processes per node must be >= 1, got {self.nnodes} and {self.nproc_per_node}"
+            )
+        self.node_rank = int(os.environ.get("NODE_RANK", "0")) if node_rank is None else int(node_rank)
         self.master_addr = master_addr
         self.master_port = np.random.randint(10000, 20000) if master_port is None else master_port
 
@@ -234,7 +281,6 @@ class DistCall:
         self.timeout = datetime.timedelta(0, timeout)
         self.daemon = daemon
         self.method = method
-        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)
         self.verbose = verbose
 
     def run_process(self, func, local_rank, args, kwargs, results):
@@ -252,6 +298,7 @@ class DistCall:
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)
 
             if torch.cuda.is_available():
+                os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
                 torch.cuda.set_device(int(local_rank))
 
             dist.init_process_group(
@@ -262,6 +309,11 @@ class DistCall:
                 rank=int(os.environ["RANK"]),
             )
             func(*args, **kwargs)
+            # the primary node lives longer to
+            # avoid _store_based_barrier, RuntimeError: Broken pipe
+            # as the TCP store daemon is on the rank 0
+            if int(os.environ["RANK"]) == 0:
+                time.sleep(0.1)
             results.put(True)
         except Exception as e:
             results.put(False)
@@ -269,40 +321,38 @@ class DistCall:
         finally:
             os.environ.clear()
             os.environ.update(_env)
-            dist.destroy_process_group()
+            try:
+                dist.destroy_process_group()
+            except RuntimeError as e:
+                warnings.warn(f"While closing process group: {e}.")
 
     def __call__(self, obj):
         if not torch.distributed.is_available():
             return unittest.skipIf(True, "Skipping distributed tests because not torch.distributed.is_available()")(obj)
+        if torch.cuda.is_available() and torch.cuda.device_count() < self.nproc_per_node:
+            return unittest.skipIf(
+                True,
+                f"Skipping distributed tests because it requires {self.nnodes} devices "
+                f"but got {torch.cuda.device_count()}",
+            )(obj)
 
         _cache_original_func(obj)
 
         @functools.wraps(obj)
         def _wrapper(*args, **kwargs):
-            if self.method:
-                try:
-                    torch.multiprocessing.set_start_method(self.method, force=True)
-                except (RuntimeError, ValueError):
-                    pass
+            tmp = torch.multiprocessing.get_context(self.method)
             processes = []
-            results = torch.multiprocessing.Queue()
+            results = tmp.Queue()
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
             for proc_rank in range(self.nproc_per_node):
-                p = torch.multiprocessing.Process(
-                    target=self.run_process, args=(func, proc_rank, args, kwargs, results)
+                p = tmp.Process(
+                    target=self.run_process, args=(func, proc_rank, args, kwargs, results), daemon=self.daemon
                 )
-                if self.daemon is not None:
-                    p.daemon = self.daemon
                 p.start()
                 processes.append(p)
             for p in processes:
                 p.join()
-                if self.method:
-                    try:
-                        torch.multiprocessing.set_start_method(self._original_method, force=True)
-                    except (RuntimeError, ValueError):
-                        pass
                 assert results.get(), "Distributed call failed."
 
         return _wrapper
@@ -340,7 +390,6 @@ class TimedCall:
         self.force_quit = force_quit
         self.skip_timing = skip_timing
         self.method = method
-        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)  # remember the default method
 
     @staticmethod
     def run_process(func, args, kwargs, results):
@@ -360,18 +409,11 @@ class TimedCall:
 
         @functools.wraps(obj)
         def _wrapper(*args, **kwargs):
-
-            if self.method:
-                try:
-                    torch.multiprocessing.set_start_method(self.method, force=True)
-                except (RuntimeError, ValueError):
-                    pass
+            tmp = torch.multiprocessing.get_context(self.method)
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
-            results = torch.multiprocessing.Queue()
-            p = torch.multiprocessing.Process(target=TimedCall.run_process, args=(func, args, kwargs, results))
-            if self.daemon is not None:
-                p.daemon = self.daemon
+            results = tmp.Queue()
+            p = tmp.Process(target=TimedCall.run_process, args=(func, args, kwargs, results), daemon=self.daemon)
             p.start()
 
             p.join(timeout=self.timeout_seconds)
@@ -398,17 +440,10 @@ class TimedCall:
                 res = results.get(block=False)
             except queue.Empty:  # no result returned, took too long
                 pass
-            finally:
-                if self.method:
-                    try:
-                        torch.multiprocessing.set_start_method(self._original_method, force=True)
-                    except (RuntimeError, ValueError):
-                        pass
             if isinstance(res, Exception):  # other errors from obj
                 if hasattr(res, "traceback"):
                     raise RuntimeError(res.traceback) from res
-                else:
-                    raise res
+                raise res
             if timeout_error:  # no force_quit finished
                 raise timeout_error
             return res
@@ -442,7 +477,9 @@ class NumpyImageTestCase2D(unittest.TestCase):
     num_classes = 3
 
     def setUp(self):
-        im, msk = create_test_image_2d(self.im_shape[0], self.im_shape[1], 4, 20, 0, self.num_classes)
+        im, msk = create_test_image_2d(
+            self.im_shape[0], self.im_shape[1], num_objs=4, rad_max=20, noise_max=0.0, num_seg_classes=self.num_classes
+        )
 
         self.imt = im[None, None]
         self.seg1 = (msk[None, None] > 0).astype(np.float32)
@@ -464,7 +501,15 @@ class NumpyImageTestCase3D(unittest.TestCase):
     num_classes = 3
 
     def setUp(self):
-        im, msk = create_test_image_3d(self.im_shape[0], self.im_shape[1], self.im_shape[2], 4, 20, 0, self.num_classes)
+        im, msk = create_test_image_3d(
+            self.im_shape[0],
+            self.im_shape[1],
+            self.im_shape[2],
+            num_objs=4,
+            rad_max=20,
+            noise_max=0.0,
+            num_seg_classes=self.num_classes,
+        )
 
         self.imt = im[None, None]
         self.seg1 = (msk[None, None] > 0).astype(np.float32)
@@ -533,17 +578,24 @@ def query_memory(n=2):
     """
     Find best n idle devices and return a string of device ids.
     """
-    bash_string = "nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used --format=csv,noheader,nounits"
+    bash_string = "nvidia-smi --query-gpu=power.draw,temperature.gpu,memory.used --format=csv,noheader,nounits"
 
     try:
         p1 = Popen(bash_string.split(), stdout=PIPE)
         output, error = p1.communicate()
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
-        free_memory = np.asarray(free_memory, dtype=np.float).T
+        free_memory = np.asarray(free_memory, dtype=float).T
+        free_memory[1] += free_memory[0]  # combine 0/1 column measures
         ids = np.lexsort(free_memory)[:n]
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []
-    return ",".join([f"{int(x)}" for x in ids])
+    return ",".join(f"{int(x)}" for x in ids)
+
+
+TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
+if torch.cuda.is_available():
+    gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
+    TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
 
 
 if __name__ == "__main__":

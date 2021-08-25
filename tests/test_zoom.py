@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,14 +31,14 @@ class TestZoom(NumpyImageTestCase2D):
         _order = 0
         if mode.endswith("linear"):
             _order = 1
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(zoom_scipy(channel, zoom=zoom, mode="nearest", order=_order, prefilter=False))
         expected = np.stack(expected).astype(np.float32)
         np.testing.assert_allclose(zoomed, expected, atol=1.0)
 
     def test_keep_size(self):
-        zoom_fn = Zoom(zoom=[0.6, 0.6], keep_size=True, align_corners=True)
+        zoom_fn = Zoom(zoom=[0.6, 0.6], keep_size=True, align_corners=True, padding_mode="constant", constant_values=2)
         zoomed = zoom_fn(self.imt[0], mode="bilinear")
         np.testing.assert_allclose(zoomed.shape, self.imt.shape[1:])
 

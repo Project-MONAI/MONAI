@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,8 @@ import torch.nn as nn
 from monai.networks.blocks import ADN, Convolution
 from monai.networks.layers.simplelayers import ChannelPad
 from monai.utils import ChannelMatching
+
+__all__ = ["HighResBlock", "HighResNet"]
 
 DEFAULT_LAYER_PARAMS_3D = (
     # initial conv layer
@@ -41,6 +43,7 @@ class HighResBlock(nn.Module):
         dilation: Union[Sequence[int], int] = 1,
         norm_type: Union[Tuple, str] = ("batch", {"affine": True}),
         acti_type: Union[Tuple, str] = ("relu", {"inplace": True}),
+        bias: bool = False,
         channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ) -> None:
         """
@@ -54,6 +57,9 @@ class HighResBlock(nn.Module):
                 Defaults to ``("batch", {"affine": True})``.
             acti_type: {``"relu"``, ``"prelu"``, ``"relu6"``}
                 Non-linear activation using ReLU or PReLU. Defaults to ``"relu"``.
+            bias: whether to have a bias term in convolution blocks. Defaults to False.
+                According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
+                if a conv layer is directly followed by a batch norm layer, bias should be False.
             channel_matching: {``"pad"``, ``"project"``}
                 Specifies handling residual branch and conv branch channel mismatches. Defaults to ``"pad"``.
 
@@ -83,6 +89,8 @@ class HighResBlock(nn.Module):
                     out_channels=_out_chns,
                     kernel_size=kernel_size,
                     dilation=dilation,
+                    bias=bias,
+                    conv_only=True,
                 )
             )
             _in_chns = _out_chns
@@ -114,6 +122,9 @@ class HighResNet(nn.Module):
             Defaults to ``("relu", {"inplace": True})``.
         dropout_prob: probability of the feature map to be zeroed
             (only applies to the penultimate conv layer).
+        bias: whether to have a bias term in convolution blocks. Defaults to False.
+            According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
+            if a conv layer is directly followed by a batch norm layer, bias should be False.
         layer_params: specifying key parameters of each layer/block.
         channel_matching: {``"pad"``, ``"project"``}
             Specifies handling residual branch and conv branch channel mismatches. Defaults to ``"pad"``.
@@ -130,6 +141,7 @@ class HighResNet(nn.Module):
         norm_type: Union[str, tuple] = ("batch", {"affine": True}),
         acti_type: Union[str, tuple] = ("relu", {"inplace": True}),
         dropout_prob: Optional[Union[Tuple, str, float]] = 0.0,
+        bias: bool = False,
         layer_params: Sequence[Dict] = DEFAULT_LAYER_PARAMS_3D,
         channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ) -> None:
@@ -149,6 +161,7 @@ class HighResNet(nn.Module):
                 adn_ordering="NA",
                 act=acti_type,
                 norm=norm_type,
+                bias=bias,
             )
         )
 
@@ -166,6 +179,7 @@ class HighResNet(nn.Module):
                         dilation=_dilation,
                         norm_type=norm_type,
                         acti_type=acti_type,
+                        bias=bias,
                         channel_matching=channel_matching,
                     )
                 )
@@ -183,6 +197,7 @@ class HighResNet(nn.Module):
                 adn_ordering="NAD",
                 act=acti_type,
                 norm=norm_type,
+                bias=bias,
                 dropout=dropout_prob,
             )
         )
@@ -198,6 +213,7 @@ class HighResNet(nn.Module):
                 adn_ordering="NAD",
                 act=acti_type,
                 norm=norm_type,
+                bias=bias,
                 dropout=dropout_prob,
             )
         )

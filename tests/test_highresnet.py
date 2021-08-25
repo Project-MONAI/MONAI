@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -53,7 +53,7 @@ class TestHighResNet(DistTestCase):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
-    @TimedCall(seconds=400, force_quit=True)
+    @TimedCall(seconds=800, force_quit=True)
     def test_script(self):
         input_param, input_shape, expected_shape = TEST_CASE_1
         net = HighResNet(**input_param)

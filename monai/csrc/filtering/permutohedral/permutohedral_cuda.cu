@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -38,7 +38,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 32
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -46,7 +46,8 @@ SOFTWARE.
 #include <torch/extension.h>
 #include <THC/THCAtomics.cuh>
 
-#include "hash_table.cu"
+#include "hash_table.cuh"
+#include "permutohedral.h"
 #include "utils/meta_macros.h"
 
 template <typename scalar_t>
@@ -529,6 +530,8 @@ void PermutohedralCuda(scalar_t* values, scalar_t* positions, int elementCount, 
 
   destroyHashTable<scalar_t>();
   cudaFree(table_values);
+  cudaFree(scaleFactor);
+  cudaFree(matrix);
 }
 
 #define DECLARATION(dc, fc)                                                                                         \

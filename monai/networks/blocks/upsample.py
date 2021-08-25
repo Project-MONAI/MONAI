@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Pad, Pool
 from monai.networks.utils import icnr_init, pixelshuffle
-from monai.utils import InterpolateMode, UpsampleMode, ensure_tuple_rep
+from monai.utils import InterpolateMode, UpsampleMode, ensure_tuple_rep, look_up_option
 
 __all__ = ["Upsample", "UpSample", "SubpixelUpsample", "Subpixelupsample", "SubpixelUpSample"]
 
@@ -40,6 +40,7 @@ class UpSample(nn.Sequential):
         in_channels: Optional[int] = None,
         out_channels: Optional[int] = None,
         scale_factor: Union[Sequence[float], float] = 2,
+        size: Optional[Union[Tuple[int], int]] = None,
         mode: Union[UpsampleMode, str] = UpsampleMode.DECONV,
         pre_conv: Optional[Union[nn.Module, str]] = "default",
         interp_mode: Union[InterpolateMode, str] = InterpolateMode.LINEAR,
@@ -53,26 +54,31 @@ class UpSample(nn.Sequential):
             in_channels: number of channels of the input image.
             out_channels: number of channels of the output image. Defaults to `in_channels`.
             scale_factor: multiplier for spatial size. Has to match input size if it is a tuple. Defaults to 2.
+            size: spatial size of the output image.
+                Only used when ``mode`` is ``UpsampleMode.NONTRAINABLE``.
+                In torch.nn.functional.interpolate, only one of `size` or `scale_factor` should be defined,
+                thus if size is defined, `scale_factor` will not be used.
+                Defaults to None.
             mode: {``"deconv"``, ``"nontrainable"``, ``"pixelshuffle"``}. Defaults to ``"deconv"``.
-            pre_conv: a conv block applied before upsampling. Defaults to None.
+            pre_conv: a conv block applied before upsampling. Defaults to "default".
                 When ``conv_block`` is ``"default"``, one reserved conv layer will be utilized when
                 Only used in the "nontrainable" or "pixelshuffle" mode.
             interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
-                Only used when ``mode`` is ``UpsampleMode.NONTRAINABLE``.
+                Only used in the "nontrainable" mode.
                 If ends with ``"linear"`` will use ``spatial dims`` to determine the correct interpolation.
                 This corresponds to linear, bilinear, trilinear for 1D, 2D, and 3D respectively.
                 The interpolation mode. Defaults to ``"linear"``.
                 See also: https://pytorch.org/docs/stable/nn.html#upsample
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
-                Only used in the nontrainable mode.
+                Only used in the "nontrainable" mode.
             bias: whether to have a bias term in the default preconv and deconv layers. Defaults to True.
             apply_pad_pool: if True the upsampled tensor is padded then average pooling is applied with a kernel the
                 size of `scale_factor` with a stride of 1. See also: :py:class:`monai.networks.blocks.SubpixelUpsample`.
-                Only used in the pixelshuffle mode.
+                Only used in the "pixelshuffle" mode.
         """
         super().__init__()
         scale_factor_ = ensure_tuple_rep(scale_factor, dimensions)
-        up_mode = UpsampleMode(mode)
+        up_mode = look_up_option(mode, UpsampleMode)
         if up_mode == UpsampleMode.DECONV:
             if not in_channels:
                 raise ValueError(f"in_channels needs to be specified in the '{mode}' mode.")
@@ -98,6 +104,10 @@ class UpSample(nn.Sequential):
                 )
             elif pre_conv is not None and pre_conv != "default":
                 self.add_module("preconv", pre_conv)  # type: ignore
+            elif pre_conv is None and (out_channels != in_channels):
+                raise ValueError(
+                    "in the nontrainable mode, if not setting pre_conv, out_channels should equal to in_channels."
+                )
 
             interp_mode = InterpolateMode(interp_mode)
             linear_mode = [InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.TRILINEAR]
@@ -105,7 +115,12 @@ class UpSample(nn.Sequential):
                 interp_mode = linear_mode[dimensions - 1]
             self.add_module(
                 "upsample_non_trainable",
-                nn.Upsample(scale_factor=scale_factor_, mode=interp_mode.value, align_corners=align_corners),
+                nn.Upsample(
+                    size=size,
+                    scale_factor=None if size else scale_factor_,
+                    mode=interp_mode.value,
+                    align_corners=align_corners,
+                ),
             )
         elif up_mode == UpsampleMode.PIXELSHUFFLE:
             self.add_module(
@@ -143,9 +158,9 @@ class SubpixelUpsample(nn.Module):
     https://arxiv.org/abs/1609.05158
 
     The pixel shuffle mechanism refers to:
-    https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/PixelShuffle.cpp
+    https://pytorch.org/docs/stable/generated/torch.nn.PixelShuffle.html#torch.nn.PixelShuffle.
     and:
-    https://github.com/pytorch/pytorch/pull/6340/files
+    https://github.com/pytorch/pytorch/pull/6340.
 
     """
 

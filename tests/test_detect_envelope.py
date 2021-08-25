@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -98,7 +98,7 @@ TEST_CASE_INVALID_N = [
 
 TEST_CASE_INVALID_DTYPE = [
     {},
-    np.expand_dims(np.array(hann_windowed_sine, dtype=np.complex), 0),  # complex numbers are invalid
+    np.expand_dims(np.array(hann_windowed_sine, dtype=complex), 0),  # complex numbers are invalid
     "__call__",  # method expected to raise exception
 ]
 
@@ -156,7 +156,7 @@ class TestHilbertTransformNoFFTMod(unittest.TestCase):
 @SkipIfAtLeastPyTorchVersion((1, 7))
 class TestDetectEnvelopeInvalidPyTorch(unittest.TestCase):
     def test_invalid_pytorch_error(self):
-        with self.assertRaisesRegexp(InvalidPyTorchVersionError, "version"):
+        with self.assertRaisesRegex(InvalidPyTorchVersionError, "version"):
             DetectEnvelope()
 
 

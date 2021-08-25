@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -52,7 +52,8 @@ class TestRandRotate2D(NumpyImageTestCase2D):
             self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(np.float32)
-        np.testing.assert_allclose(expected, rotated[0])
+        good = np.sum(np.isclose(expected, rotated[0], atol=1e-3))
+        self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 pixels")
 
 
 class TestRandRotate3D(NumpyImageTestCase3D):

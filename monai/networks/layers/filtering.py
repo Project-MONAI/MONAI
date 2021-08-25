@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@ from monai.utils.module import optional_import
 
 _C, _ = optional_import("monai._C")
 
-__all__ = ["BilateralFilter"]
+__all__ = ["BilateralFilter", "PHLFilter"]
 
 
 class BilateralFilter(torch.autograd.Function):
@@ -32,7 +32,7 @@ class BilateralFilter(torch.autograd.Function):
         input: input tensor.
 
         spatial sigma: the standard deviation of the spatial blur. Higher values can
-            hurt performace when not using the approximate method (see fast approx).
+            hurt performance when not using the approximate method (see fast approx).
 
         color sigma: the standard deviation of the color blur. Lower values preserve
             edges better whilst higher values tend to a simple gaussian spatial blur.
@@ -47,12 +47,55 @@ class BilateralFilter(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, input, spatial_sigma=5, color_sigma=0.5, fast_approx=True):
-        ctx.save_for_backward(spatial_sigma, color_sigma, fast_approx)
+        ctx.ss = spatial_sigma
+        ctx.cs = color_sigma
+        ctx.fa = fast_approx
         output_data = _C.bilateral_filter(input, spatial_sigma, color_sigma, fast_approx)
         return output_data
 
     @staticmethod
     def backward(ctx, grad_output):
-        spatial_sigma, color_sigma, fast_approx = ctx.saved_variables
+        spatial_sigma, color_sigma, fast_approx = ctx.ss, ctx.cs, ctx.fa
         grad_input = _C.bilateral_filter(grad_output, spatial_sigma, color_sigma, fast_approx)
-        return grad_input
+        return grad_input, None, None, None
+
+
+class PHLFilter(torch.autograd.Function):
+    """
+    Filters input based on arbitrary feature vectors. Uses a permutohedral
+    lattice data structure to efficiently approximate n-dimensional gaussian
+    filtering. Complexity is broadly independent of kernel size. Most applicable
+    to higher filter dimensions and larger kernel sizes.
+
+    See:
+        https://graphics.stanford.edu/papers/permutohedral/
+
+    Args:
+        input: input tensor to be filtered.
+
+        features: feature tensor used to filter the input.
+
+        sigmas: the standard deviations of each feature in the filter.
+
+    Returns:
+        output (torch.Tensor): output tensor.
+    """
+
+    @staticmethod
+    def forward(ctx, input, features, sigmas=None):
+
+        scaled_features = features
+        if sigmas is not None:
+            for i in range(features.size(1)):
+                scaled_features[:, i, ...] /= sigmas[i]
+
+        ctx.save_for_backward(scaled_features)
+        output_data = _C.phl_filter(input, scaled_features)
+        return output_data
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        raise NotImplementedError("PHLFilter does not currently support Backpropagation")
+        # scaled_features, = ctx.saved_variables
+        # grad_input = _C.phl_filter(grad_output, scaled_features)
+        # return grad_input

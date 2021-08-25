@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,13 +14,15 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import DenseNet, densenet121
+from monai.networks.nets import DenseNet, DenseNet121
 from monai.visualize import OcclusionSensitivity
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3).to(device)
+out_channels_2d = 4
+out_channels_3d = 3
+model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=out_channels_2d).to(device)
 model_3d = DenseNet(
-    spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,)
+    spatial_dims=3, in_channels=1, out_channels=out_channels_3d, init_features=2, growth_rate=2, block_config=(6,)
 ).to(device)
 model_2d.eval()
 model_3d.eval()
@@ -32,27 +34,23 @@ TEST_CASE_0 = [
     },
     {
         "x": torch.rand(1, 1, 48, 64).to(device),
-        "class_idx": torch.tensor([[0]], dtype=torch.int64).to(device),
         "b_box": [-1, -1, 2, 40, 1, 62],
     },
+    (1, 1, 39, 62, out_channels_2d),
     (1, 1, 39, 62),
 ]
 # 3D w/ bounding box and stride
 TEST_CASE_1 = [
-    {
-        "nn_module": model_3d,
-        "n_batch": 10,
-        "stride": 2,
-    },
+    {"nn_module": model_3d, "n_batch": 10, "stride": (2, 1, 2), "mask_size": (16, 15, 14)},
     {
         "x": torch.rand(1, 1, 6, 6, 6).to(device),
-        "class_idx": None,
         "b_box": [-1, -1, 2, 3, -1, -1, -1, -1],
     },
+    (1, 1, 2, 6, 6, out_channels_3d),
     (1, 1, 2, 6, 6),
 ]
 
-TEST_CASE_FAIL = [  # 2D should fail, since 3 stride values given
+TEST_CASE_FAIL_0 = [  # 2D should fail, since 3 stride values given
     {
         "nn_module": model_2d,
         "n_batch": 10,
@@ -60,23 +58,38 @@ TEST_CASE_FAIL = [  # 2D should fail, since 3 stride values given
     },
     {
         "x": torch.rand(1, 1, 48, 64).to(device),
-        "class_idx": None,
         "b_box": [-1, -1, 2, 3, -1, -1],
+    },
+]
+
+TEST_CASE_FAIL_1 = [  # 2D should fail, since stride is not a factor of image size
+    {
+        "nn_module": model_2d,
+        "stride": 3,
+    },
+    {
+        "x": torch.rand(1, 1, 48, 64).to(device),
     },
 ]
 
 
 class TestComputeOcclusionSensitivity(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
-    def test_shape(self, init_data, call_data, expected_shape):
+    def test_shape(self, init_data, call_data, map_expected_shape, most_prob_expected_shape):
         occ_sens = OcclusionSensitivity(**init_data)
-        result = occ_sens(**call_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+        m, most_prob = occ_sens(**call_data)
+        self.assertTupleEqual(m.shape, map_expected_shape)
+        self.assertTupleEqual(most_prob.shape, most_prob_expected_shape)
+        # most probable class should be of type int, and should have min>=0, max<num_classes
+        self.assertEqual(most_prob.dtype, torch.int64)
+        self.assertGreaterEqual(most_prob.min(), 0)
+        self.assertLess(most_prob.max(), m.shape[-1])
 
-    def test_fail(self):
-        occ_sens = OcclusionSensitivity(**TEST_CASE_FAIL[0])
+    @parameterized.expand([TEST_CASE_FAIL_0, TEST_CASE_FAIL_1])
+    def test_fail(self, init_data, call_data):
+        occ_sens = OcclusionSensitivity(**init_data)
         with self.assertRaises(ValueError):
-            occ_sens(**TEST_CASE_FAIL[1])
+            occ_sens(**call_data)
 
 
 if __name__ == "__main__":

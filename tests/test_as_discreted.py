@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,9 +25,9 @@ TEST_CASE_1 = [
         "threshold_values": False,
         "logit_thresh": 0.5,
     },
-    {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]), "label": torch.tensor([[[[0, 1]]]])},
-    {"pred": torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]]), "label": torch.tensor([[[[1.0, 0.0]], [[0.0, 1.0]]]])},
-    (1, 2, 1, 2),
+    {"pred": torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]), "label": torch.tensor([[[0, 1]]])},
+    {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]]), "label": torch.tensor([[[1.0, 0.0]], [[0.0, 1.0]]])},
+    (2, 1, 2),
 ]
 
 TEST_CASE_2 = [
@@ -39,9 +39,9 @@ TEST_CASE_2 = [
         "threshold_values": [True, False],
         "logit_thresh": 0.6,
     },
-    {"pred": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]), "label": torch.tensor([[[[0, 1], [1, 1]]]])},
-    {"pred": torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]]), "label": torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]])},
-    (1, 1, 2, 2),
+    {"pred": torch.tensor([[[0.0, 1.0], [2.0, 3.0]]]), "label": torch.tensor([[[0, 1], [1, 1]]])},
+    {"pred": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]]), "label": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]])},
+    (1, 2, 2),
 ]
 
 TEST_CASE_3 = [
@@ -53,14 +53,21 @@ TEST_CASE_3 = [
         "threshold_values": False,
         "logit_thresh": 0.5,
     },
-    {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]])},
-    {"pred": torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]])},
-    (1, 2, 1, 2),
+    {"pred": torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]])},
+    {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]])},
+    (2, 1, 2),
+]
+
+TEST_CASE_4 = [
+    {"keys": "pred", "rounding": "torchrounding"},
+    {"pred": torch.tensor([[[0.123, 1.345], [2.567, 3.789]]])},
+    {"pred": torch.tensor([[[0.0, 1.0], [3.0, 4.0]]])},
+    (1, 2, 2),
 ]
 
 
 class TestAsDiscreted(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value_shape(self, input_param, test_input, output, expected_shape):
         result = AsDiscreted(**input_param)(test_input)
         torch.testing.assert_allclose(result["pred"], output["pred"])

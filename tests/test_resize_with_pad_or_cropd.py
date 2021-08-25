@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ TEST_CASES = [
         (3, 15, 8, 8),
     ],
     [
-        {"keys": "img", "spatial_size": [15, 4, 8], "mode": "constant"},
+        {"keys": "img", "spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "constant_values": 1},
         {"img": np.zeros((3, 8, 8, 4))},
         (3, 15, 4, 8),
     ],

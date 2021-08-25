@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,6 +11,7 @@
 
 import unittest
 
+import numpy as np
 from parameterized import parameterized
 
 from monai.data import partition_dataset_classes
@@ -59,8 +60,8 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [
     {
-        "data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
-        "classes": [2, 0, 2, 1, 3, 2, 2, 0, 2, 0, 3, 3, 1, 3],
+        "data": np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]),
+        "classes": np.array([2, 0, 2, 1, 3, 2, 2, 0, 2, 0, 3, 3, 1, 3]),
         "ratios": [1, 2],
         "num_partitions": None,
         "shuffle": True,

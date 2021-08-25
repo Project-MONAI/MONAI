@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,7 +34,6 @@ class TestPatchDataset(unittest.TestCase):
         output = []
         n_workers = 0 if sys.platform == "win32" else 2
         for item in DataLoader(result, batch_size=3, num_workers=n_workers):
-            print(item)
             output.append("".join(item))
         expected = ["vwx", "yzh", "ell", "owo", "rld"]
         self.assertEqual(output, expected)
@@ -42,7 +41,7 @@ class TestPatchDataset(unittest.TestCase):
     def test_loading_array(self):
         set_determinism(seed=1234)
         # image dataset
-        images = [np.arange(16, dtype=np.float).reshape(1, 4, 4), np.arange(16, dtype=np.float).reshape(1, 4, 4)]
+        images = [np.arange(16, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
         # image patch sampler
         n_samples = 8
         sampler = RandSpatialCropSamples(roi_size=(3, 3), num_samples=n_samples, random_center=True, random_size=False)

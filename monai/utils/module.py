@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -8,17 +8,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import inspect
+import enum
 import sys
+import warnings
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
-from typing import Any, Callable, List, Sequence, Tuple, Union
+from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
 
 import torch
-
-from .misc import ensure_tuple
 
 OPTIONAL_IMPORT_MSG_FMT = "{}"
 
@@ -27,15 +25,125 @@ __all__ = [
     "OptionalImportError",
     "exact_version",
     "export",
+    "damerau_levenshtein_distance",
+    "look_up_option",
     "min_version",
     "optional_import",
     "load_submodules",
     "get_full_type_name",
-    "has_option",
     "get_package_version",
     "get_torch_version_tuple",
     "PT_BEFORE_1_7",
+    "version_leq",
 ]
+
+
+def look_up_option(opt_str, supported: Collection, default="no_default"):
+    """
+    Look up the option in the supported collection and return the matched item.
+    Raise a value error possibly with a guess of the closest match.
+
+    Args:
+        opt_str: The option string or Enum to look up.
+        supported: The collection of supported options, it can be list, tuple, set, dict, or Enum.
+        default: If it is given, this method will return `default` when `opt_str` is not found,
+            instead of raising a `ValueError`. Otherwise, it defaults to `"no_default"`,
+            so that the method may raise a `ValueError`.
+
+    Examples:
+
+    .. code-block:: python
+
+        from enum import Enum
+        from monai.utils import look_up_option
+        class Color(Enum):
+            RED = "red"
+            BLUE = "blue"
+        look_up_option("red", Color)  # <Color.RED: 'red'>
+        look_up_option(Color.RED, Color)  # <Color.RED: 'red'>
+        look_up_option("read", Color)
+        # ValueError: By 'read', did you mean 'red'?
+        # 'read' is not a valid option.
+        # Available options are {'blue', 'red'}.
+        look_up_option("red", {"red", "blue"})  # "red"
+
+    Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/utilities/util_common.py#L249
+    """
+    if not isinstance(opt_str, Hashable):
+        raise ValueError(f"Unrecognized option type: {type(opt_str)}:{opt_str}.")
+    if isinstance(opt_str, str):
+        opt_str = opt_str.strip()
+    if isinstance(supported, enum.EnumMeta):
+        if isinstance(opt_str, str) and opt_str in {item.value for item in cast(Iterable[enum.Enum], supported)}:
+            # such as: "example" in MyEnum
+            return supported(opt_str)
+        if isinstance(opt_str, enum.Enum) and opt_str in supported:
+            # such as: MyEnum.EXAMPLE in MyEnum
+            return opt_str
+    elif isinstance(supported, Mapping) and opt_str in supported:
+        # such as: MyDict[key]
+        return supported[opt_str]
+    elif isinstance(supported, Collection) and opt_str in supported:
+        return opt_str
+
+    if default != "no_default":
+        return default
+
+    # find a close match
+    set_to_check: set
+    if isinstance(supported, enum.EnumMeta):
+        set_to_check = {item.value for item in cast(Iterable[enum.Enum], supported)}
+    else:
+        set_to_check = set(supported) if supported is not None else set()
+    if not set_to_check:
+        raise ValueError(f"No options available: {supported}.")
+    edit_dists = {}
+    opt_str = f"{opt_str}"
+    for key in set_to_check:
+        edit_dist = damerau_levenshtein_distance(f"{key}", opt_str)
+        if edit_dist <= 3:
+            edit_dists[key] = edit_dist
+
+    supported_msg = f"Available options are {set_to_check}.\n"
+    if edit_dists:
+        guess_at_spelling = min(edit_dists, key=edit_dists.get)  # type: ignore
+        raise ValueError(
+            f"By '{opt_str}', did you mean '{guess_at_spelling}'?\n"
+            + f"'{opt_str}' is not a valid option.\n"
+            + supported_msg
+        )
+    raise ValueError(f"Unsupported option '{opt_str}', " + supported_msg)
+
+
+def damerau_levenshtein_distance(s1: str, s2: str):
+    """
+    Calculates the Damerau–Levenshtein distance between two strings for spelling correction.
+    https://en.wikipedia.org/wiki/Damerau–Levenshtein_distance
+    """
+    if s1 == s2:
+        return 0
+    string_1_length = len(s1)
+    string_2_length = len(s2)
+    if not s1:
+        return string_2_length
+    if not s2:
+        return string_1_length
+    d = {(i, -1): i + 1 for i in range(-1, string_1_length + 1)}
+    for j in range(-1, string_2_length + 1):
+        d[(-1, j)] = j + 1
+
+    for i, s1i in enumerate(s1):
+        for j, s2j in enumerate(s2):
+            cost = 0 if s1i == s2j else 1
+            d[(i, j)] = min(
+                d[(i - 1, j)] + 1,  # deletion
+                d[(i, j - 1)] + 1,  # insertion
+                d[(i - 1, j - 1)] + cost,  # substitution
+            )
+            if i and j and s1i == s2[j - 1] and s1[i - 1] == s2j:
+                d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
+
+    return d[string_1_length - 1, string_2_length - 1]
 
 
 def export(modname):
@@ -73,7 +181,7 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
             try:
                 mod = import_module(name)
-                importer.find_module(name).load_module(name)
+                importer.find_module(name).load_module(name)  # type: ignore
                 submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
@@ -85,8 +193,7 @@ def get_full_type_name(typeobj):
     module = typeobj.__module__
     if module is None or module == str.__class__.__module__:
         return typeobj.__name__  # Avoid reporting __builtin__
-    else:
-        return module + "." + typeobj.__name__
+    return module + "." + typeobj.__name__
 
 
 def min_version(the_module, min_version_str: str = "") -> bool:
@@ -96,17 +203,21 @@ def min_version(the_module, min_version_str: str = "") -> bool:
     Returns True if the module's version is greater or equal to the 'min_version'.
     When min_version_str is not provided, it always returns True.
     """
-    if min_version_str:
-        mod_version = tuple(int(x) for x in the_module.__version__.split(".")[:2])
-        required = tuple(int(x) for x in min_version_str.split(".")[:2])
-        return mod_version >= required
-    return True  # always valid version
+    if not min_version_str or not hasattr(the_module, "__version__"):
+        return True  # always valid version
+
+    mod_version = tuple(int(x) for x in the_module.__version__.split(".")[:2])
+    required = tuple(int(x) for x in min_version_str.split(".")[:2])
+    return mod_version >= required
 
 
 def exact_version(the_module, version_str: str = "") -> bool:
     """
     Returns True if the module's __version__ matches version_str
     """
+    if not hasattr(the_module, "__version__"):
+        warnings.warn(f"{the_module} has no attribute __version__ in exact_version check.")
+        return False
     return bool(the_module.__version__ == version_str)
 
 
@@ -189,7 +300,8 @@ def optional_import(
         the_module = import_module(module)
         if not allow_namespace_pkg:
             is_namespace = getattr(the_module, "__file__", None) is None and hasattr(the_module, "__path__")
-            assert not is_namespace
+            if is_namespace:
+                raise AssertionError
         if name:  # user specified to load class/function/... from the module
             the_module = getattr(the_module, name)
     except Exception as import_exception:  # any exceptions during import
@@ -237,34 +349,14 @@ def optional_import(
     return _LazyRaise(), False
 
 
-def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
-    """
-    Return a boolean indicating whether the given callable `obj` has the `keywords` in its signature.
-    """
-    if not callable(obj):
-        return False
-    sig = inspect.signature(obj)
-    return all(key in sig.parameters for key in ensure_tuple(keywords))
-
-
 def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
     """
     Try to load package and get version. If not found, return `default`.
-
-    If the package was already loaded, leave it. If wasn't previously loaded, unload it.
     """
-    dep_ver = default
-    dep_already_loaded = dep_name not in sys.modules
-
     dep, has_dep = optional_import(dep_name)
-    if has_dep:
-        if hasattr(dep, "__version__"):
-            dep_ver = dep.__version__
-        # if not previously loaded, unload it
-        if not dep_already_loaded:
-            del dep
-            del sys.modules[dep_name]
-    return dep_ver
+    if has_dep and hasattr(dep, "__version__"):
+        return dep.__version__
+    return default
 
 
 def get_torch_version_tuple():
@@ -275,12 +367,42 @@ def get_torch_version_tuple():
     return tuple((int(x) for x in torch.__version__.split(".")[:2]))
 
 
-PT_BEFORE_1_7 = True
-ver, has_ver = optional_import("pkg_resources", name="parse_version")
-try:
+def version_leq(lhs, rhs):
+    """Returns True if version `lhs` is earlier or equal to `rhs`."""
+
+    ver, has_ver = optional_import("pkg_resources", name="parse_version")
     if has_ver:
-        PT_BEFORE_1_7 = ver(torch.__version__) < ver("1.7")
-    else:
-        PT_BEFORE_1_7 = get_torch_version_tuple() < (1, 7)
+        return ver(lhs) <= ver(rhs)
+
+    def _try_cast(val):
+        val = val.strip()
+        try:
+            m = match("(\\d+)(.*)", val)
+            if m is not None:
+                val = m.groups()[0]
+                return int(val)
+            return val
+        except ValueError:
+            return val
+
+    # remove git version suffixes if present
+    lhs = lhs.split("+", 1)[0]
+    rhs = rhs.split("+", 1)[0]
+
+    # parse the version strings in this basic way without `packaging` package
+    lhs = map(_try_cast, lhs.split("."))
+    rhs = map(_try_cast, rhs.split("."))
+
+    for l, r in zip(lhs, rhs):
+        if l != r:
+            if isinstance(l, int) and isinstance(r, int):
+                return l < r
+            return f"{l}" < f"{r}"
+
+    return True
+
+
+try:
+    PT_BEFORE_1_7 = torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0")
 except (AttributeError, TypeError):
-    pass
+    PT_BEFORE_1_7 = True

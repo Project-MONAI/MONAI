@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ from tests.utils import NumpyImageTestCase2D
 class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
     def test_scaling(self):
         img = self.imt
-        data = dict()
+        data = {}
         data["img"] = img
         lower = 10
         upper = 99
@@ -38,7 +38,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
 
     def test_relative_scaling(self):
         img = self.imt
-        data = dict()
+        data = {}
         data["img"] = img
         lower = 10
         upper = 99
@@ -59,16 +59,16 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
 
     def test_invalid_instantiation(self):
         self.assertRaises(
-            AssertionError, ScaleIntensityRangePercentilesd, keys=["img"], lower=-1, upper=99, b_min=0, b_max=255
+            ValueError, ScaleIntensityRangePercentilesd, keys=["img"], lower=-1, upper=99, b_min=0, b_max=255
         )
         self.assertRaises(
-            AssertionError, ScaleIntensityRangePercentilesd, keys=["img"], lower=101, upper=99, b_min=0, b_max=255
+            ValueError, ScaleIntensityRangePercentilesd, keys=["img"], lower=101, upper=99, b_min=0, b_max=255
         )
         self.assertRaises(
-            AssertionError, ScaleIntensityRangePercentilesd, keys=["img"], lower=30, upper=-2, b_min=0, b_max=255
+            ValueError, ScaleIntensityRangePercentilesd, keys=["img"], lower=30, upper=-2, b_min=0, b_max=255
         )
         self.assertRaises(
-            AssertionError, ScaleIntensityRangePercentilesd, keys=["img"], lower=30, upper=1000, b_min=0, b_max=255
+            ValueError, ScaleIntensityRangePercentilesd, keys=["img"], lower=30, upper=1000, b_min=0, b_max=255
         )
 
 

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,13 +10,15 @@
 # limitations under the License.
 
 
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
+import torch
 import torch.nn as nn
+from torch.nn.functional import interpolate
 
-from monai.networks.blocks.dynunet_block import *
+from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
 
-__all__ = ["DynUNet", "DynUnet", "Dynunet"]
+__all__ = ["DynUNet", "DynUnet", "Dynunet", "dynunet"]
 
 
 class DynUNetSkipLayer(nn.Module):
@@ -24,7 +26,7 @@ class DynUNetSkipLayer(nn.Module):
     Defines a layer in the UNet topology which combines the downsample and upsample pathways with the skip connection.
     The member `next_layer` may refer to instances of this class or the final bottleneck layer at the bottom the UNet
     structure. The purpose of using a recursive class like this is to get around the Torchscript restrictions on
-    looping over lists of layers and accumulating lists of output tensors which much be indexed. The `heads` list is
+    looping over lists of layers and accumulating lists of output tensors which must be indexed. The `heads` list is
     shared amongst all the instances of this class and is used to store the output from the supervision heads during
     forward passes of the network.
     """
@@ -68,7 +70,13 @@ class DynUNet(nn.Module):
     The first and last kernel and stride values of the input sequences are used for input block and
     bottleneck respectively, and the rest value(s) are used for downsample and upsample blocks.
     Therefore, pleasure ensure that the length of input sequences (``kernel_size`` and ``strides``)
-    is no less than 3 in order to have at least one downsample upsample blocks.
+    is no less than 3 in order to have at least one downsample and upsample blocks.
+
+    To meet the requirements of the structure, the input size for each spatial dimension should be divisible
+    by `2 * the product of all strides in the corresponding dimension`. The output size for each spatial dimension
+    equals to the input size of the correponding dimension divided by the stride in strides[0].
+    For example, if `strides=((1, 2, 4), 2, 1, 1)`, the minimal spatial size of the input is `(8, 16, 32)`, and
+    the spatial size of the output is `(8, 8, 8)`.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -76,13 +84,27 @@ class DynUNet(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         strides: convolution strides for each blocks.
-        upsample_kernel_size: convolution kernel size for transposed convolution layers.
-        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-            feature normalization type and arguments.
+        upsample_kernel_size: convolution kernel size for transposed convolution layers. The values should
+            equal to strides[1:].
+        norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
+        deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
+            If ``True``, in training mode, the forward function will output not only the last feature
+            map, but also the previous feature maps that come from the intermediate up sample layers.
+            In order to unify the return type (the restriction of TorchScript), all intermediate
+            feature maps are interpolated into the same size as the last feature map and stacked together
+            (with a new dimension in the first axis)into one single tensor.
+            For instance, if there are three feature maps with shapes: (1, 2, 32, 24), (1, 2, 16, 12) and
+            (1, 2, 8, 6). The last two will be interpolated into (1, 2, 32, 24), and the stacked tensor
+            will has the shape (1, 3, 2, 8, 6).
+            When calculating the loss, you can use torch.unbind to get all feature maps can compute the loss
+            one by one with the ground truth, then do a weighted average for all losses to achieve the final loss.
+            (To be added: a corresponding tutorial link)
+
         deep_supr_num: number of feature maps that will output during deep supervision head. The
-            value should be less than the number of up sample layers. Defaults to 1.
+            value should be larger than 0 and less than the number of up sample layers.
+            Defaults to 1.
         res_block: whether to use residual connection based convolution blocks during the network.
-            Defaults to ``True``.
+            Defaults to ``False``.
     """
 
     def __init__(
@@ -93,7 +115,8 @@ class DynUNet(nn.Module):
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
         upsample_kernel_size: Sequence[Union[Sequence[int], int]],
-        norm_name: str = "instance",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,
     ):
@@ -112,6 +135,7 @@ class DynUNet(nn.Module):
         self.bottleneck = self.get_bottleneck()
         self.upsamples = self.get_upsamples()
         self.output_block = self.get_output_block(0)
+        self.deep_supervision = deep_supervision
         self.deep_supervision_heads = self.get_deep_supervision_heads()
         self.deep_supr_num = deep_supr_num
         self.apply(self.initialize_weights)
@@ -130,13 +154,17 @@ class DynUNet(nn.Module):
             shouldn't be associated with a supervision head.
             """
 
-            assert len(downsamples) == len(upsamples), f"{len(downsamples)} != {len(upsamples)}"
-            assert (len(downsamples) - len(superheads)) in (1, 0), f"{len(downsamples)}-(0,1) != {len(superheads)}"
+            if len(downsamples) != len(upsamples):
+                raise AssertionError(f"{len(downsamples)} != {len(upsamples)}")
+            if (len(downsamples) - len(superheads)) not in (1, 0):
+                raise AssertionError(f"{len(downsamples)}-(0,1) != {len(superheads)}")
 
             if len(downsamples) == 0:  # bottom of the network, pass the bottleneck block
                 return bottleneck
-            elif index == 0:  # don't associate a supervision head with self.input_block
+            if index == 0:  # don't associate a supervision head with self.input_block
                 current_head, rest_heads = nn.Identity(), superheads
+            elif not self.deep_supervision:  # bypass supervision heads by passing nn.Identity in place of a real one
+                current_head, rest_heads = nn.Identity(), superheads[1:]
             else:
                 current_head, rest_heads = superheads[0], superheads[1:]
 
@@ -156,33 +184,38 @@ class DynUNet(nn.Module):
     def check_kernel_stride(self):
         kernels, strides = self.kernel_size, self.strides
         error_msg = "length of kernel_size and strides should be the same, and no less than 3."
-        assert len(kernels) == len(strides) and len(kernels) >= 3, error_msg
+        if not (len(kernels) == len(strides) and len(kernels) >= 3):
+            raise AssertionError(error_msg)
 
-        for idx in range(len(kernels)):
-            kernel, stride = kernels[idx], strides[idx]
+        for idx, k_i in enumerate(kernels):
+            kernel, stride = k_i, strides[idx]
             if not isinstance(kernel, int):
                 error_msg = "length of kernel_size in block {} should be the same as spatial_dims.".format(idx)
-                assert len(kernel) == self.spatial_dims, error_msg
+                if len(kernel) != self.spatial_dims:
+                    raise AssertionError(error_msg)
             if not isinstance(stride, int):
                 error_msg = "length of stride in block {} should be the same as spatial_dims.".format(idx)
-                assert len(stride) == self.spatial_dims, error_msg
+                if len(stride) != self.spatial_dims:
+                    raise AssertionError(error_msg)
 
     def check_deep_supr_num(self):
         deep_supr_num, strides = self.deep_supr_num, self.strides
         num_up_layers = len(strides) - 1
-        error_msg = "deep_supr_num should be less than the number of up sample layers."
-        assert 1 <= deep_supr_num < num_up_layers, error_msg
+        if deep_supr_num >= num_up_layers:
+            raise AssertionError("deep_supr_num should be less than the number of up sample layers.")
+        if deep_supr_num < 1:
+            raise AssertionError("deep_supr_num should be larger than 0.")
 
     def forward(self, x):
         out = self.skip_layers(x)
-        return self.output_block(out)
-
-    def get_feature_maps(self):
-        """
-        Return the feature maps.
-
-        """
-        return self.heads[1 : self.deep_supr_num + 1]
+        out = self.output_block(out)
+        if self.training and self.deep_supervision:
+            out_all = [out]
+            feature_maps = self.heads[1 : self.deep_supr_num + 1]
+            for feature_map in feature_maps:
+                out_all.append(interpolate(feature_map, out.shape[2:]))
+            return torch.stack(out_all, dim=1)
+        return out
 
     def get_input_block(self):
         return self.conv_block(
@@ -266,14 +299,10 @@ class DynUNet(nn.Module):
 
     @staticmethod
     def initialize_weights(module):
-        name = module.__class__.__name__.lower()
-        if "conv3d" in name or "conv2d" in name:
-            nn.init.kaiming_normal_(module.weight, a=0.01)
+        if isinstance(module, (nn.Conv3d, nn.Conv2d, nn.ConvTranspose3d, nn.ConvTranspose2d)):
+            module.weight = nn.init.kaiming_normal_(module.weight, a=0.01)
             if module.bias is not None:
-                nn.init.constant_(module.bias, 0)
-        elif "norm" in name:
-            nn.init.normal_(module.weight, 1.0, 0.02)
-            nn.init.zeros_(module.bias)
+                module.bias = nn.init.constant_(module.bias, 0)
 
 
-DynUnet = Dynunet = DynUNet
+DynUnet = Dynunet = dynunet = DynUNet

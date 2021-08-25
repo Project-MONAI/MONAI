@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +18,7 @@ from monai.transforms import RandCropByPosNegLabeld
 
 TEST_CASE_0 = [
     {
-        "keys": ["image", "extral", "label"],
+        "keys": ["image", "extra", "label"],
         "label_key": "label",
         "spatial_size": [-1, 2, 2],
         "pos": 1,
@@ -29,10 +29,9 @@ TEST_CASE_0 = [
     },
     {
         "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "extral": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+        "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
         "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "affine": np.eye(3),
-        "shape": "CHWD",
+        "image_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
     },
     list,
     (3, 3, 2, 2),
@@ -40,7 +39,7 @@ TEST_CASE_0 = [
 
 TEST_CASE_1 = [
     {
-        "keys": ["image", "extral", "label"],
+        "keys": ["image", "extra", "label"],
         "label_key": "label",
         "spatial_size": [2, 2, 2],
         "pos": 1,
@@ -51,10 +50,9 @@ TEST_CASE_1 = [
     },
     {
         "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "extral": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+        "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
         "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "affine": np.eye(3),
-        "shape": "CHWD",
+        "label_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
     },
     list,
     (3, 2, 2, 2),
@@ -62,7 +60,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     {
-        "keys": ["image", "extral", "label"],
+        "keys": ["image", "extra", "label"],
         "label_key": "label",
         "spatial_size": [2, 2, 2],
         "pos": 1,
@@ -73,10 +71,9 @@ TEST_CASE_2 = [
     },
     {
         "image": np.zeros([3, 3, 3, 3]) - 1,
-        "extral": np.zeros([3, 3, 3, 3]),
+        "extra": np.zeros([3, 3, 3, 3]),
         "label": np.ones([3, 3, 3, 3]),
-        "affine": np.eye(3),
-        "shape": "CHWD",
+        "extra_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
     },
     list,
     (3, 2, 2, 2),
@@ -89,8 +86,14 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
         result = RandCropByPosNegLabeld(**input_param)(input_data)
         self.assertIsInstance(result, expected_type)
         self.assertTupleEqual(result[0]["image"].shape, expected_shape)
-        self.assertTupleEqual(result[0]["extral"].shape, expected_shape)
+        self.assertTupleEqual(result[0]["extra"].shape, expected_shape)
         self.assertTupleEqual(result[0]["label"].shape, expected_shape)
+        _len = len(tuple(input_data.keys()))
+        self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
+        for i, item in enumerate(result):
+            self.assertEqual(item["image_meta_dict"]["patch_index"], i)
+            self.assertEqual(item["label_meta_dict"]["patch_index"], i)
+            self.assertEqual(item["extra_meta_dict"]["patch_index"], i)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -15,6 +15,7 @@ limitations under the License.
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
+#include "bilateral.h"
 #include "filtering/permutohedral/permutohedral.h"
 #include "utils/meta_macros.h"
 #include "utils/tensor_description.h"
@@ -29,6 +30,9 @@ template <typename scalar_t, int C, int D>
 __global__ void FeatureCreation(const scalar_t* inputTensor, scalar_t* outputData, scalar_t* outputFeatures) {
   int elementIndex = blockIdx.x * blockDim.x + threadIdx.x;
   int batchIndex = blockIdx.y;
+
+  if (elementIndex >= cChannelStride)
+    return;
 
   int dataBatchOffset = batchIndex * cBatchStride;
   int featureBatchOffset = batchIndex * (D + C) * cChannelStride;
@@ -56,6 +60,10 @@ template <typename scalar_t, int C>
 __global__ void WriteOutput(const scalar_t* data, scalar_t* outputTensor) {
   int elementIndex = blockIdx.x * blockDim.x + threadIdx.x;
   int batchIndex = blockIdx.y;
+
+  if (elementIndex >= cChannelStride)
+    return;
+
   int batchOffset = batchIndex * cBatchStride;
 
 #pragma unroll
@@ -88,16 +96,19 @@ void BilateralFilterPHLCuda(
   cudaMalloc(&data, desc.batchCount * desc.channelStride * desc.channelCount * sizeof(scalar_t));
   cudaMalloc(&features, desc.batchCount * desc.channelStride * featureChannelCount * sizeof(scalar_t));
 
-  // Prparing constant memory
+  // Preparing constant memory
   cudaMemcpyToSymbol(cBatchStride, &desc.batchStride, sizeof(int));
   cudaMemcpyToSymbol(cChannelStride, &desc.channelStride, sizeof(int));
   cudaMemcpyToSymbol(cSpatialStrides, desc.strides, sizeof(int) * desc.dimensions);
   cudaMemcpyToSymbol(cInvSpatialSigma, &invSpatialSigma, sizeof(float));
   cudaMemcpyToSymbol(cInvColorSigma, &invColorSigma, sizeof(float));
 
+#define BLOCK_SIZE 32
+
   // Creating features
   FeatureCreation<scalar_t, C, D>
-      <<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(inputTensorData, data, features);
+      <<<dim3(int(desc.channelStride / BLOCK_SIZE) + 1, desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
+          inputTensorData, data, features);
 
   // Filtering data with respect to the features for each sample in batch
   for (int batchIndex = 0; batchIndex < desc.batchCount; batchIndex++) {
@@ -108,7 +119,8 @@ void BilateralFilterPHLCuda(
   }
 
   // Writing output
-  WriteOutput<scalar_t, C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(data, outputTensorData);
+  WriteOutput<scalar_t, C><<<dim3(int(desc.channelStride / BLOCK_SIZE) + 1, desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
+      data, outputTensorData);
 
   cudaFree(data);
   cudaFree(features);
@@ -119,12 +131,12 @@ torch::Tensor BilateralFilterPHLCuda(torch::Tensor inputTensor, float spatialSig
   torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
 #define CASE(c, d)                                                                       \
-  AT_DISPATCH_FLOATING_TYPES(inputTensor.type(), "BilateralFilterCudaPHL", ([&] {        \
+  AT_DISPATCH_FLOATING_TYPES(inputTensor.scalar_type(), "BilateralFilterCudaPHL", ([&] { \
                                BilateralFilterPHLCuda<scalar_t, c, d>(                   \
                                    inputTensor, outputTensor, spatialSigma, colorSigma); \
                              }));
 
-  SWITCH_AB(CASE, 16, 3, inputTensor.size(1), inputTensor.dim() - 2);
+  SWITCH_AB(CASE, BF_CUDA_MAX_CHANNELS, BF_CUDA_MAX_SPATIAL_DIMENSION, inputTensor.size(1), inputTensor.dim() - 2);
 
   return outputTensor;
 }

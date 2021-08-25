@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -86,6 +86,14 @@ class TestOrientationdCase(unittest.TestCase):
         code = nib.aff2axcodes(res["seg_meta_dict"]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("R", "A", "S"))
         code = nib.aff2axcodes(res["img_meta_dict"]["affine"], ornt.ornt_transform.labels)
+        self.assertEqual(code, ("R", "A", "S"))
+
+    def test_orntd_no_metadata(self):
+        data = {"seg": np.ones((2, 1, 2, 3))}
+        ornt = Orientationd(keys="seg", axcodes="RAS")
+        res = ornt(data)
+        np.testing.assert_allclose(res["seg"].shape, (2, 1, 2, 3))
+        code = nib.aff2axcodes(res["seg_meta_dict"]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("R", "A", "S"))
 
 

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,7 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import ShiftIntensityd
+from monai.transforms import IntensityStatsd, ShiftIntensityd
 from tests.utils import NumpyImageTestCase2D
 
 
@@ -23,6 +23,16 @@ class TestShiftIntensityd(NumpyImageTestCase2D):
         shifter = ShiftIntensityd(keys=[key], offset=1.0)
         result = shifter({key: self.imt})
         expected = self.imt + 1.0
+        np.testing.assert_allclose(result[key], expected)
+
+    def test_factor(self):
+        key = "img"
+        stats = IntensityStatsd(keys=key, ops="max", key_prefix="orig")
+        shifter = ShiftIntensityd(keys=[key], offset=1.0, factor_key=["orig_max"])
+        data = {key: self.imt, key + "_meta_dict": {"affine": None}}
+
+        result = shifter(stats(data))
+        expected = self.imt + 1.0 * np.nanmax(self.imt)
         np.testing.assert_allclose(result[key], expected)
 
 

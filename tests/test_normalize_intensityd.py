@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,54 +12,77 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import NormalizeIntensityd
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
-TEST_CASE_1 = [
-    {"keys": ["img"], "nonzero": True},
-    {"img": np.array([0.0, 3.0, 0.0, 4.0])},
-    np.array([0.0, -1.0, 0.0, 1.0]),
-]
-
-TEST_CASE_2 = [
-    {
-        "keys": ["img"],
-        "subtrahend": np.array([3.5, 3.5, 3.5, 3.5]),
-        "divisor": np.array([0.5, 0.5, 0.5, 0.5]),
-        "nonzero": True,
-    },
-    {"img": np.array([0.0, 3.0, 0.0, 4.0])},
-    np.array([0.0, -1.0, 0.0, 1.0]),
-]
-
-TEST_CASE_3 = [
-    {"keys": ["img"], "nonzero": True},
-    {"img": np.array([0.0, 0.0, 0.0, 0.0])},
-    np.array([0.0, 0.0, 0.0, 0.0]),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    for q in TEST_NDARRAYS:
+        TESTS.append(
+            [
+                {"keys": ["img"], "nonzero": True},
+                {"img": p(np.array([0.0, 3.0, 0.0, 4.0]))},
+                np.array([0.0, -1.0, 0.0, 1.0]),
+            ]
+        )
+        TESTS.append(
+            [
+                {
+                    "keys": ["img"],
+                    "subtrahend": q(np.array([3.5, 3.5, 3.5, 3.5])),
+                    "divisor": q(np.array([0.5, 0.5, 0.5, 0.5])),
+                    "nonzero": True,
+                },
+                {"img": p(np.array([0.0, 3.0, 0.0, 4.0]))},
+                np.array([0.0, -1.0, 0.0, 1.0]),
+            ]
+        )
+        TESTS.append(
+            [
+                {"keys": ["img"], "nonzero": True},
+                {"img": p(np.array([0.0, 0.0, 0.0, 0.0]))},
+                np.array([0.0, 0.0, 0.0, 0.0]),
+            ]
+        )
 
 
 class TestNormalizeIntensityd(NumpyImageTestCase2D):
-    def test_image_normalize_intensityd(self):
+    @parameterized.expand([[p] for p in TEST_NDARRAYS])
+    def test_image_normalize_intensityd(self, im_type):
         key = "img"
+        im = im_type(self.imt)
         normalizer = NormalizeIntensityd(keys=[key])
-        normalized = normalizer({key: self.imt})
+        normalized = normalizer({key: im})[key]
         expected = (self.imt - np.mean(self.imt)) / np.std(self.imt)
-        np.testing.assert_allclose(normalized[key], expected, rtol=1e-5)
+        self.assertEqual(type(im), type(normalized))
+        if isinstance(normalized, torch.Tensor):
+            self.assertEqual(im.device, normalized.device)
+        assert_allclose(normalized, expected, rtol=1e-3)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand(TESTS)
     def test_nonzero(self, input_param, input_data, expected_data):
+        key = "img"
         normalizer = NormalizeIntensityd(**input_param)
-        np.testing.assert_allclose(expected_data, normalizer(input_data)["img"])
+        normalized = normalizer(input_data)[key]
+        self.assertEqual(type(input_data[key]), type(normalized))
+        if isinstance(normalized, torch.Tensor):
+            self.assertEqual(input_data[key].device, normalized.device)
+        assert_allclose(normalized, expected_data)
 
-    def test_channel_wise(self):
+    @parameterized.expand([[p] for p in TEST_NDARRAYS])
+    def test_channel_wise(self, im_type):
         key = "img"
         normalizer = NormalizeIntensityd(keys=key, nonzero=True, channel_wise=True)
-        input_data = {key: np.array([[0.0, 3.0, 0.0, 4.0], [0.0, 4.0, 0.0, 5.0]])}
+        input_data = {key: im_type(np.array([[0.0, 3.0, 0.0, 4.0], [0.0, 4.0, 0.0, 5.0]]))}
+        normalized = normalizer(input_data)[key]
+        self.assertEqual(type(input_data[key]), type(normalized))
+        if isinstance(normalized, torch.Tensor):
+            self.assertEqual(input_data[key].device, normalized.device)
         expected = np.array([[0.0, -1.0, 0.0, 1.0], [0.0, -1.0, 0.0, 1.0]])
-        np.testing.assert_allclose(expected, normalizer(input_data)[key])
+        assert_allclose(normalized, expected)
 
 
 if __name__ == "__main__":

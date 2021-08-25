@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -130,9 +130,8 @@ class TverskyLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
+        if target.shape != input.shape:
+            raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         p0 = input
         p1 = 1 - p0
@@ -140,7 +139,7 @@ class TverskyLoss(_Loss):
         g1 = 1 - g0
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(input.shape)))
+        reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis

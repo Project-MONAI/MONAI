@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,7 @@ TEST_CASE_RES_BASIC_BLOCK = []
 for spatial_dims in range(2, 4):
     for kernel_size in [1, 3]:
         for stride in [1, 2]:
-            for norm_name in ["group", "batch", "instance"]:
+            for norm_name in [("GROUP", {"num_groups": 16}), ("batch", {"track_running_stats": False}), "instance"]:
                 for in_size in [15, 16]:
                     padding = get_padding(kernel_size, stride)
                     if not isinstance(padding, int):

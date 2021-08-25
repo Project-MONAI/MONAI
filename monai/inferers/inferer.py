@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,20 +10,35 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Sequence, Union
+from typing import Any, Callable, Optional, Sequence, Union
 
 import torch
+import torch.nn as nn
 
 from monai.inferers.utils import sliding_window_inference
 from monai.utils import BlendMode, PytorchPadMode
+from monai.visualize import CAM, GradCAM, GradCAMpp
 
-__all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer"]
+__all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer"]
 
 
 class Inferer(ABC):
     """
     A base class for model inference.
     Extend this class to support operations during inference, e.g. a sliding window method.
+
+    Example code::
+
+        device = torch.device("cuda:0")
+        data = ToTensor()(LoadImage()(filename=img_path)).to(device)
+        model = UNet(...).to(device)
+        inferer = SlidingWindowInferer(...)
+
+        model.eval()
+        with torch.no_grad():
+            pred = inferer(inputs=data, network=model)
+        ...
+
     """
 
     @abstractmethod
@@ -53,6 +68,7 @@ class Inferer(ABC):
 class SimpleInferer(Inferer):
     """
     SimpleInferer is the normal inference method that run model forward() directly.
+    Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
 
     """
 
@@ -83,6 +99,7 @@ class SlidingWindowInferer(Inferer):
     """
     Sliding window method for model inference,
     with `sw_batch_size` windows for every model.forward().
+    Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
 
     Args:
         roi_size: the window size to execute SlidingWindow evaluation.
@@ -175,3 +192,54 @@ class SlidingWindowInferer(Inferer):
             *args,
             **kwargs,
         )
+
+
+class SaliencyInferer(Inferer):
+    """
+    SaliencyInferer is inference with activation maps.
+
+    Args:
+        cam_name: expected CAM method name, should be: "CAM", "GradCAM" or "GradCAMpp".
+        target_layers: name of the model layer to generate the feature map.
+        class_idx: index of the class to be visualized. if None, default to argmax(logits).
+        args: other optional args to be passed to the `__init__` of cam.
+        kwargs: other optional keyword args to be passed to `__init__` of cam.
+
+    """
+
+    def __init__(self, cam_name: str, target_layers: str, class_idx: Optional[int] = None, *args, **kwargs) -> None:
+        Inferer.__init__(self)
+        if cam_name.lower() not in ("cam", "gradcam", "gradcampp"):
+            raise ValueError("cam_name should be: 'CAM', 'GradCAM' or 'GradCAMpp'.")
+        self.cam_name = cam_name.lower()
+        self.target_layers = target_layers
+        self.class_idx = class_idx
+        self.args = args
+        self.kwargs = kwargs
+
+    def __call__(  # type: ignore
+        self,
+        inputs: torch.Tensor,
+        network: nn.Module,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        """Unified callable function API of Inferers.
+
+        Args:
+            inputs: model input data for inference.
+            network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: other optional args to be passed to the `__call__` of cam.
+            kwargs: other optional keyword args to be passed to `__call__` of cam.
+
+        """
+        cam: Union[CAM, GradCAM, GradCAMpp]
+        if self.cam_name == "cam":
+            cam = CAM(network, self.target_layers, *self.args, **self.kwargs)
+        elif self.cam_name == "gradcam":
+            cam = GradCAM(network, self.target_layers, *self.args, **self.kwargs)
+        else:
+            cam = GradCAMpp(network, self.target_layers, *self.args, **self.kwargs)
+
+        return cam(inputs, self.class_idx, *args, **kwargs)

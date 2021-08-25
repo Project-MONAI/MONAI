@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,6 +20,8 @@ from monai.networks.layers.convutils import calculate_out_shape, same_padding
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import Reshape
 from monai.utils import ensure_tuple, ensure_tuple_rep
+
+__all__ = ["Regressor"]
 
 
 class Regressor(nn.Module):
@@ -78,7 +80,7 @@ class Regressor(nn.Module):
 
         padding = same_padding(kernel_size)
 
-        self.final_size = np.asarray(self.in_shape, np.int)
+        self.final_size = np.asarray(self.in_shape, dtype=int)
         self.reshape = Reshape(*self.out_shape)
 
         # encode stage
@@ -86,7 +88,7 @@ class Regressor(nn.Module):
             layer = self._get_layer(echannel, c, s, i == len(channels) - 1)
             echannel = c  # use the output channel number as the input for the next loop
             self.net.add_module("layer_%i" % i, layer)
-            self.final_size = calculate_out_shape(self.final_size, kernel_size, s, padding)
+            self.final_size = calculate_out_shape(self.final_size, kernel_size, s, padding)  # type: ignore
 
         self.final = self._get_final_layer((echannel,) + self.final_size)
 

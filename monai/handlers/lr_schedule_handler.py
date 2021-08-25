@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,13 +14,14 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.utils import ensure_tuple, min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
 class LrScheduleHandler:

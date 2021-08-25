@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -25,6 +25,7 @@ limitations under the License.
 // TODO:
 // . [DONE] generic 3d
 // . [DONE] generic 2d
+// . [DONE] generic 1d
 // . sliding nearest 3d
 // . sliding nearest 2d
 // . sliding linear 3d
@@ -37,6 +38,7 @@ limitations under the License.
 // . input bound/inter are always vectors -> clean unused constructors
 
 #include <ATen/ATen.h>
+#include <limits>
 #include <tuple>
 #include "bounds_common.h"
 #include "interpolation_common.h"
@@ -71,6 +73,411 @@ MONAI_NAMESPACE_DEVICE { // cuda
   namespace { // anonymous namespace > everything inside has internal linkage
 
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  //                        INDEXING UTILS
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  // This class reads and sets all the parameters that will later be used
+  // by the algorithm in PushPullImpl. All of this is done outside of the
+  // implementation class so that we do not depend on generic types. The
+  // point is to pre-allocate all necessary tensors so that we can check
+  // if they're all compatible with 32 bit math. If it's the case, we can
+  // dispatch to a 32b cuda implementation, which might increase
+  // performance. Else, we use 64 bit math to compute offsets.
+  // (On CPU, we always use 64 bit offsets because it doesn't make a huge
+  // difference. It would be different if we had a vectorized
+  // implementation as in PyTorch).
+  class PushPullAllocator {
+   public:
+    static constexpr int64_t max_int32 = std::numeric_limits<int32_t>::max();
+
+    // ~~~ CONSTRUCTORS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    MONAI_HOST
+    PushPullAllocator(
+        int dim,
+        BoundVectorRef bound,
+        InterpolationVectorRef interpolation,
+        bool extrapolate,
+        bool do_pull,
+        bool do_push,
+        bool do_count,
+        bool do_grad,
+        bool do_sgrad)
+        : dim(dim),
+          bound0(bound.size() > 0 ? bound[0] : BoundType::Replicate),
+          bound1(
+              bound.size() > 1       ? bound[1]
+                  : bound.size() > 0 ? bound[0]
+                                     : BoundType::Replicate),
+          bound2(
+              bound.size() > 2       ? bound[2]
+                  : bound.size() > 1 ? bound[1]
+                  : bound.size() > 0 ? bound[0]
+                                     : BoundType::Replicate),
+          interpolation0(interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
+          interpolation1(
+              interpolation.size() > 1       ? interpolation[1]
+                  : interpolation.size() > 0 ? interpolation[0]
+                                             : InterpolationType::Linear),
+          interpolation2(
+              interpolation.size() > 2       ? interpolation[2]
+                  : interpolation.size() > 1 ? interpolation[1]
+                  : interpolation.size() > 0 ? interpolation[0]
+                                             : InterpolationType::Linear),
+          extrapolate(extrapolate),
+          do_pull(do_pull),
+          do_push(do_push),
+          do_count(do_count),
+          do_grad(do_grad),
+          do_sgrad(do_sgrad) {
+      iso = interpolation0 == interpolation1 && interpolation0 == interpolation2;
+    }
+
+    // ~~~ FUNCTORS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    // Usually used for pull:
+    // - do_pull  -> return source[grid]
+    // - do_push  -> fails
+    // - do_grad  -> return J(source)[grid]
+    // - do_sgrad -> return H(source)[grid]
+    MONAI_HOST void ioset(const Tensor& source, const Tensor& grid) {
+      init_all();
+      init_source(source);
+      init_grid(grid);
+      init_output();
+    }
+
+    // Usually used for pull_backward:
+    // - do_pull  -> return source[grid]
+    // - do_push  -> return push(target, grid, source.shape)
+    // - do_grad  -> return J(source)[grid]
+    // - do_sgrad -> return H(source)[grid]
+    MONAI_HOST void ioset(const Tensor& source, const Tensor& grid, const Tensor& target) {
+      init_all();
+      init_source(source);
+      init_grid(grid);
+      init_target(target);
+      init_output();
+    }
+
+    // Usually used for push:
+    // - do_pull  -> fails
+    // - do_push  -> return push(target, grid, source_size)
+    // - do_grad  -> fails
+    // - do_sgrad -> fails
+    MONAI_HOST void ioset(IntArrayRef source_size, const Tensor& grid, const Tensor& target) {
+      init_all();
+      init_source(source_size);
+      init_grid(grid);
+      init_target(target);
+      init_output();
+    }
+
+    // Usually used for count:
+    // - do_pull  -> fails
+    // - do_push  -> return push(ones, grid, source_size)
+    // - do_grad  -> fails
+    // - do_sgrad -> fails
+    MONAI_HOST void ioset(IntArrayRef source_size, const Tensor& grid) {
+      init_all();
+      init_source(source_size);
+      init_grid(grid);
+      init_output();
+    }
+
+    // We just check that all tensors that we own are compatible with 32b math
+    bool canUse32BitIndexMath(int64_t max_elem = max_int32) const {
+      return src_32b_ok && trgt_32b_ok && grid_32b_ok && grad_32b_ok && out_32b_ok;
+    }
+
+   private:
+    // Copied from aten/src/ATen/native/IndexingUtils.cpp in PyTorch 1.6.
+    // It is used to decide to which pointer type we should dispatch to.
+    // Basically, we need to make sure that the "furthest" element we need
+    // to reach is less than max_elem away.
+    static bool tensorCanUse32BitIndexMath(const Tensor& t, int64_t max_elem = max_int32) {
+      int64_t elements = t.numel();
+      if (elements >= max_elem) {
+        return false;
+      }
+      if (elements == 0) {
+        return max_elem > 0;
+      }
+
+      int64_t offset = 0;
+      int64_t linearId = elements - 1;
+
+      // NOTE: Assumes all strides are positive, which is true for now
+      for (int i = t.dim() - 1; i >= 0; --i) {
+        int64_t curDimIndex = linearId % t.size(i);
+        int64_t curDimOffset = curDimIndex * t.stride(i);
+        offset += curDimOffset;
+        linearId /= t.size(i);
+      }
+
+      if (offset >= max_elem) {
+        return false;
+      }
+
+      return true;
+    }
+
+    // ~~~ COMPONENTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    MONAI_HOST void init_all();
+    MONAI_HOST void init_source(const Tensor& source);
+    MONAI_HOST void init_source(IntArrayRef source_size);
+    MONAI_HOST void init_grid(const Tensor& grid);
+    MONAI_HOST void init_target(const Tensor& target);
+    MONAI_HOST void init_output();
+
+    // ~~~ OPTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    int dim; // dimensionality (2 or 3)
+    BoundType bound0; // boundary condition  // x|W
+    BoundType bound1; // boundary condition  // y|H
+    BoundType bound2; // boundary condition  // z|D
+    InterpolationType interpolation0; // interpolation order // x|W
+    InterpolationType interpolation1; // interpolation order // y|H
+    InterpolationType interpolation2; // interpolation order // z|D
+    bool iso; // isotropic interpolation?
+    bool extrapolate; // compute out-of-bound values
+    bool do_pull; // sample a volume
+    bool do_push; // splat a volume
+    bool do_count; // splatting weights (= jacobian determinant)
+    bool do_grad; // backprop: gradient of grid // pull
+    bool do_sgrad; // sample spatial gradients
+
+    // ~~~ NAVIGATORS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    std::deque<Tensor> output;
+    TensorOptions src_opt;
+    TensorOptions grid_opt;
+    TensorOptions trgt_opt;
+    int64_t N;
+    int64_t C;
+    int64_t src_X;
+    int64_t src_Y;
+    int64_t src_Z;
+    int64_t trgt_X;
+    int64_t trgt_Y;
+    int64_t trgt_Z;
+    int64_t trgt_K;
+    int64_t src_sN;
+    int64_t src_sC;
+    int64_t src_sX;
+    int64_t src_sY;
+    int64_t src_sZ;
+    bool src_32b_ok;
+    void* src_ptr;
+    int64_t trgt_sN;
+    int64_t trgt_sC;
+    int64_t trgt_sX;
+    int64_t trgt_sY;
+    int64_t trgt_sZ;
+    int64_t trgt_sK;
+    bool trgt_32b_ok;
+    void* trgt_ptr;
+    int64_t grid_sN;
+    int64_t grid_sC;
+    int64_t grid_sX;
+    int64_t grid_sY;
+    int64_t grid_sZ;
+    bool grid_32b_ok;
+    void* grid_ptr;
+    int64_t out_sN;
+    int64_t out_sC;
+    int64_t out_sX;
+    int64_t out_sY;
+    int64_t out_sZ;
+    int64_t out_sK; // gradient dimension
+    bool out_32b_ok;
+    void* out_ptr;
+    int64_t grad_sN;
+    int64_t grad_sC;
+    int64_t grad_sX;
+    int64_t grad_sY;
+    int64_t grad_sZ;
+    bool grad_32b_ok;
+    void* grad_ptr;
+
+    // Allow PushPullImpl's constructor to access PushPullAllocator's
+    // private members.
+    template <typename scalar_t, typename offset_t>
+    friend class PushPullImpl;
+  };
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  //                          INITIALISATION
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  MONAI_HOST
+  void PushPullAllocator::init_all() {
+    src_opt = grid_opt = trgt_opt = TensorOptions();
+    N = C = 1L;
+    src_X = src_Y = src_Z = 1L;
+    trgt_X = trgt_Y = trgt_Z = 1L;
+    trgt_K = 0L;
+    src_sN = src_sC = src_sX = src_sY = src_sZ = 0L;
+    grid_sN = grid_sC = grid_sX = grid_sY = grid_sZ = 0L;
+    grad_sN = grad_sC = grad_sX = grad_sY = grad_sZ = 0L;
+    trgt_sN = trgt_sC = trgt_sX = trgt_sY = trgt_sZ = trgt_sK = 0L;
+    out_sN = out_sC = out_sX = out_sY = out_sZ = out_sK = 0L;
+    src_ptr = trgt_ptr = grid_ptr = out_ptr = grad_ptr = static_cast<float*>(0);
+    src_32b_ok = trgt_32b_ok = grid_32b_ok = out_32b_ok = grad_32b_ok = true;
+  }
+
+  MONAI_HOST
+  void PushPullAllocator::init_source(const Tensor& source) {
+    N = source.size(0);
+    C = source.size(1);
+    src_X = source.size(2);
+    src_Y = dim < 2 ? 1L : source.size(3);
+    src_Z = dim < 3 ? 1L : source.size(4);
+    src_sN = source.stride(0);
+    src_sC = source.stride(1);
+    src_sX = source.stride(2);
+    src_sY = dim < 2 ? 0L : source.stride(3);
+    src_sZ = dim < 3 ? 0L : source.stride(4);
+    src_ptr = source.data_ptr();
+    src_opt = source.options();
+    src_32b_ok = tensorCanUse32BitIndexMath(source);
+  }
+
+  MONAI_HOST
+  void PushPullAllocator::init_source(IntArrayRef source_size) {
+    src_X = source_size[0];
+    src_Y = dim < 2 ? 1L : source_size[1];
+    src_Z = dim < 3 ? 1L : source_size[2];
+  }
+
+  MONAI_HOST
+  void PushPullAllocator::init_grid(const Tensor& grid) {
+    N = grid.size(0);
+    trgt_X = grid.size(1);
+    trgt_Y = dim < 2 ? 1L : grid.size(2);
+    trgt_Z = dim < 3 ? 1L : grid.size(3);
+    grid_sN = grid.stride(0);
+    grid_sX = grid.stride(1);
+    grid_sY = dim < 2 ? 0L : grid.stride(2);
+    grid_sZ = dim < 3 ? 0L : grid.stride(3);
+    grid_sC = grid.stride(dim == 1 ? 2 : dim == 2 ? 3 : 4);
+    grid_ptr = grid.data_ptr();
+    grid_opt = grid.options();
+    grid_32b_ok = tensorCanUse32BitIndexMath(grid);
+  }
+
+  MONAI_HOST
+  void PushPullAllocator::init_target(const Tensor& target) {
+    N = target.size(0);
+    C = target.size(1);
+    trgt_X = target.size(2);
+    trgt_Y = dim < 2 ? 1L : target.size(3);
+    trgt_Z = dim < 3 ? 1L : target.size(4);
+    trgt_K = target.dim() == dim + 3 ? target.size(dim == 1 ? 3 : dim == 2 ? 4 : 5) : 0L;
+    trgt_sN = target.stride(0);
+    trgt_sC = target.stride(1);
+    trgt_sX = target.stride(2);
+    trgt_sY = dim < 2 ? 0L : target.stride(3);
+    trgt_sZ = dim < 3 ? 0L : target.stride(4);
+    trgt_sK = target.dim() == dim + 3 ? target.stride(dim == 1 ? 3 : dim == 2 ? 4 : 5) : 0L;
+    trgt_ptr = target.data_ptr();
+    trgt_opt = target.options();
+    trgt_32b_ok = tensorCanUse32BitIndexMath(target);
+  }
+
+  MONAI_HOST
+  void PushPullAllocator::init_output() {
+    output.clear();
+    if (do_pull) {
+      if (dim == 1)
+        output.push_back(at::empty({N, C, trgt_X}, src_opt));
+      else if (dim == 2)
+        output.push_back(at::empty({N, C, trgt_X, trgt_Y}, src_opt));
+      else
+        output.push_back(at::empty({N, C, trgt_X, trgt_Y, trgt_Z}, src_opt));
+      auto pull = output.back();
+      out_sN = pull.stride(0);
+      out_sC = pull.stride(1);
+      out_sX = pull.stride(2);
+      out_sY = dim < 2 ? 0L : pull.stride(3);
+      out_sZ = dim < 3 ? 0L : pull.stride(4);
+      out_sK = 0L;
+      out_ptr = pull.data_ptr();
+      out_32b_ok = tensorCanUse32BitIndexMath(pull);
+    } else if (do_sgrad) {
+      if (dim == 1)
+        output.push_back(at::empty({N, C, trgt_X, 1}, src_opt));
+      else if (dim == 2)
+        output.push_back(at::empty({N, C, trgt_X, trgt_Y, 2}, src_opt));
+      else
+        output.push_back(at::empty({N, C, trgt_X, trgt_Y, trgt_Z, 3}, src_opt));
+      auto sgrad = output.back();
+      out_sN = sgrad.stride(0);
+      out_sC = sgrad.stride(1);
+      out_sX = sgrad.stride(2);
+      out_sY = dim < 2 ? 0L : sgrad.stride(3);
+      out_sZ = dim < 3 ? 0L : sgrad.stride(4);
+      out_sK = sgrad.stride(dim == 1 ? 3 : dim == 2 ? 4 : 5);
+      out_ptr = sgrad.data_ptr();
+      out_32b_ok = tensorCanUse32BitIndexMath(sgrad);
+
+      if (iso && interpolation0 == InterpolationType::Nearest)
+        sgrad.zero_();
+      if (iso && interpolation0 == InterpolationType::Linear && dim == 1)
+        sgrad.zero_();
+    } else if (do_push) {
+      if (dim == 1)
+        output.push_back(at::zeros({N, C, src_X}, trgt_opt));
+      else if (dim == 2)
+        output.push_back(at::zeros({N, C, src_X, src_Y}, trgt_opt));
+      else
+        output.push_back(at::zeros({N, C, src_X, src_Y, src_Z}, trgt_opt));
+      auto push = output.back();
+      out_sN = push.stride(0);
+      out_sC = push.stride(1);
+      out_sX = push.stride(2);
+      out_sY = dim < 2 ? 0L : push.stride(3);
+      out_sZ = dim < 3 ? 0L : push.stride(4);
+      out_sK = 0L;
+      out_ptr = push.data_ptr();
+      out_32b_ok = tensorCanUse32BitIndexMath(push);
+    } else if (do_count) {
+      if (dim == 1)
+        output.push_back(at::zeros({N, 1, src_X}, grid_opt));
+      else if (dim == 2)
+        output.push_back(at::zeros({N, 1, src_X, src_Y}, grid_opt));
+      else
+        output.push_back(at::zeros({N, 1, src_X, src_Y, src_Z}, grid_opt));
+      auto count = output.back();
+      out_sN = count.stride(0);
+      out_sC = count.stride(1);
+      out_sX = count.stride(2);
+      out_sY = dim < 2 ? 0L : count.stride(3);
+      out_sZ = dim < 3 ? 0L : count.stride(4);
+      out_sK = 0L;
+      out_ptr = count.data_ptr();
+      out_32b_ok = tensorCanUse32BitIndexMath(count);
+    }
+    if (do_grad) {
+      if (dim == 1)
+        output.push_back(at::zeros({N, trgt_X, 1}, grid_opt));
+      else if (dim == 2)
+        output.push_back(at::zeros({N, trgt_X, trgt_Y, 2}, grid_opt));
+      else
+        output.push_back(at::zeros({N, trgt_X, trgt_Y, trgt_Z, 3}, grid_opt));
+      auto grad = output.back();
+      grad_sN = grad.stride(0);
+      grad_sX = grad.stride(1);
+      grad_sY = dim < 2 ? 0L : grad.stride(2);
+      grad_sZ = dim < 3 ? 0L : grad.stride(3);
+      grad_sC = grad.stride(dim == 1 ? 2 : dim == 2 ? 3 : 4);
+      grad_ptr = grad.data_ptr();
+      out_32b_ok = tensorCanUse32BitIndexMath(grad);
+
+      if (iso && interpolation0 == InterpolationType::Nearest)
+        grad.zero_();
+    }
+  }
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   //                        GENERIC PUSHPULL CLASS
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // This class implements the bulk of the code.
@@ -79,131 +486,64 @@ MONAI_NAMESPACE_DEVICE { // cuda
   template <typename scalar_t, typename offset_t>
   class PushPullImpl {
    public:
-    // ~~~ CONSTRUCTORS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    MONAI_HOST
-    PushPullImpl(
-        int dim,
-        BoundVectorRef bound,
-        InterpolationVectorRef interpolation,
-        bool extrapolate,
-        bool do_pull,
-        bool do_push,
-        bool do_count,
-        bool do_grad,
-        bool do_sgrad)
-        : dim(dim),
-          bound0(bound.size() > 0 ? bound[0] : BoundType::Replicate),
-          bound1(bound.size() > 1 ? bound[1] : bound.size() > 0 ? bound[0] : BoundType::Replicate),
-          bound2(
-              bound.size() > 2 ? bound[2]
-                               : bound.size() > 1 ? bound[1] : bound.size() > 0 ? bound[0] : BoundType::Replicate),
-          interpolation0(interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
-          interpolation1(
-              interpolation.size() > 1 ? interpolation[1]
-                                       : interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
-          interpolation2(
-              interpolation.size() > 2
-                  ? interpolation[2]
-                  : interpolation.size() > 1 ? interpolation[1]
-                                             : interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
-          extrapolate(extrapolate),
-          do_pull(do_pull),
-          do_push(do_push),
-          do_count(do_count),
-          do_grad(do_grad),
-          do_sgrad(do_sgrad) {
-      iso = interpolation0 == interpolation1 && interpolation0 == interpolation2;
-    }
-
-    MONAI_HOST
-    PushPullImpl(
-        int dim,
-        BoundType bound,
-        InterpolationVectorRef interpolation,
-        bool extrapolate,
-        bool do_pull,
-        bool do_push,
-        bool do_count,
-        bool do_grad,
-        bool do_sgrad)
-        : dim(dim),
-          bound0(bound),
-          bound1(bound),
-          bound2(bound),
-          interpolation0(interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
-          interpolation1(
-              interpolation.size() > 1 ? interpolation[1]
-                                       : interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
-          interpolation2(
-              interpolation.size() > 2
-                  ? interpolation[2]
-                  : interpolation.size() > 1 ? interpolation[1]
-                                             : interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
-          extrapolate(extrapolate),
-          do_pull(do_pull),
-          do_push(do_push),
-          do_count(do_count),
-          do_grad(do_grad),
-          do_sgrad(do_sgrad) {
-      iso = interpolation0 == interpolation1 && interpolation0 == interpolation2;
-    }
-
-    MONAI_HOST
-    PushPullImpl(
-        int dim,
-        BoundVectorRef bound,
-        InterpolationType interpolation,
-        bool extrapolate,
-        bool do_pull,
-        bool do_push,
-        bool do_count,
-        bool do_grad,
-        bool do_sgrad)
-        : dim(dim),
-          bound0(bound.size() > 0 ? bound[0] : BoundType::Replicate),
-          bound1(bound.size() > 1 ? bound[1] : bound.size() > 0 ? bound[0] : BoundType::Replicate),
-          bound2(
-              bound.size() > 2 ? bound[2]
-                               : bound.size() > 1 ? bound[1] : bound.size() > 0 ? bound[0] : BoundType::Replicate),
-          interpolation0(interpolation),
-          interpolation1(interpolation),
-          interpolation2(interpolation),
-          extrapolate(extrapolate),
-          do_pull(do_pull),
-          do_push(do_push),
-          do_count(do_count),
-          do_grad(do_grad),
-          do_sgrad(do_sgrad) {
-      iso = interpolation0 == interpolation1 && interpolation0 == interpolation2;
-    }
-
-    MONAI_HOST
-    PushPullImpl(
-        int dim,
-        BoundType bound,
-        InterpolationType interpolation,
-        bool extrapolate,
-        bool do_pull,
-        bool do_push,
-        bool do_count,
-        bool do_grad,
-        bool do_sgrad)
-        : dim(dim),
-          bound0(bound),
-          bound1(bound),
-          bound2(bound),
-          interpolation0(interpolation),
-          interpolation1(interpolation),
-          interpolation2(interpolation),
-          extrapolate(extrapolate),
-          do_pull(do_pull),
-          do_push(do_push),
-          do_count(do_count),
-          do_grad(do_grad),
-          do_sgrad(do_sgrad) {
-      iso = interpolation0 == interpolation1 && interpolation0 == interpolation2;
-    }
+    // ~~~ CONSTRUCTOR ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    PushPullImpl(const PushPullAllocator& info)
+        : output(info.output),
+          dim(info.dim),
+          bound0(info.bound0),
+          bound1(info.bound1),
+          bound2(info.bound2),
+          interpolation0(info.interpolation0),
+          interpolation1(info.interpolation1),
+          interpolation2(info.interpolation1),
+          iso(info.iso),
+          extrapolate(info.extrapolate),
+          do_pull(info.do_pull),
+          do_push(info.do_push),
+          do_count(info.do_count),
+          do_grad(info.do_grad),
+          do_sgrad(info.do_sgrad),
+          N(static_cast<offset_t>(info.N)),
+          C(static_cast<offset_t>(info.C)),
+          src_X(static_cast<offset_t>(info.src_X)),
+          src_Y(static_cast<offset_t>(info.src_Y)),
+          src_Z(static_cast<offset_t>(info.src_Z)),
+          trgt_X(static_cast<offset_t>(info.trgt_X)),
+          trgt_Y(static_cast<offset_t>(info.trgt_Y)),
+          trgt_Z(static_cast<offset_t>(info.trgt_Z)),
+          trgt_K(static_cast<offset_t>(info.trgt_K)),
+          src_sN(static_cast<offset_t>(info.src_sN)),
+          src_sC(static_cast<offset_t>(info.src_sC)),
+          src_sX(static_cast<offset_t>(info.src_sX)),
+          src_sY(static_cast<offset_t>(info.src_sY)),
+          src_sZ(static_cast<offset_t>(info.src_sZ)),
+          src_ptr(static_cast<scalar_t*>(info.src_ptr)),
+          trgt_sN(static_cast<offset_t>(info.trgt_sN)),
+          trgt_sC(static_cast<offset_t>(info.trgt_sC)),
+          trgt_sX(static_cast<offset_t>(info.trgt_sX)),
+          trgt_sY(static_cast<offset_t>(info.trgt_sY)),
+          trgt_sZ(static_cast<offset_t>(info.trgt_sZ)),
+          trgt_sK(static_cast<offset_t>(info.trgt_sK)),
+          trgt_ptr(static_cast<scalar_t*>(info.trgt_ptr)),
+          grid_sN(static_cast<offset_t>(info.grid_sN)),
+          grid_sC(static_cast<offset_t>(info.grid_sC)),
+          grid_sX(static_cast<offset_t>(info.grid_sX)),
+          grid_sY(static_cast<offset_t>(info.grid_sY)),
+          grid_sZ(static_cast<offset_t>(info.grid_sZ)),
+          grid_ptr(static_cast<scalar_t*>(info.grid_ptr)),
+          out_sN(static_cast<offset_t>(info.out_sN)),
+          out_sC(static_cast<offset_t>(info.out_sC)),
+          out_sX(static_cast<offset_t>(info.out_sX)),
+          out_sY(static_cast<offset_t>(info.out_sY)),
+          out_sZ(static_cast<offset_t>(info.out_sZ)),
+          out_sK(static_cast<offset_t>(info.out_sK)),
+          out_ptr(static_cast<scalar_t*>(info.out_ptr)),
+          grad_sN(static_cast<offset_t>(info.grad_sN)),
+          grad_sC(static_cast<offset_t>(info.grad_sC)),
+          grad_sX(static_cast<offset_t>(info.grad_sX)),
+          grad_sY(static_cast<offset_t>(info.grad_sY)),
+          grad_sZ(static_cast<offset_t>(info.grad_sZ)),
+          grad_ptr(static_cast<scalar_t*>(info.grad_ptr)) {}
 
     // ~~~ PUBLIC VALUE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -232,39 +572,9 @@ MONAI_NAMESPACE_DEVICE { // cuda
     // }
 
     // ~~~ FUNCTORS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    MONAI_HOST void ioset // Pull
-        (const Tensor& source, const Tensor& grid) {
-      init_all();
-      init_source(source);
-      init_grid(grid);
-      init_output();
-    }
 
-    MONAI_HOST void ioset(const Tensor& source, const Tensor& grid, const Tensor& target) {
-      init_all();
-      init_source(source);
-      init_grid(grid);
-      init_target(target);
-      init_output();
-    }
-
-    MONAI_HOST void ioset // Push
-        (IntArrayRef source_size, const Tensor& grid, const Tensor& target) {
-      init_all();
-      init_source(source_size);
-      init_grid(grid);
-      init_target(target);
-      init_output();
-    }
-
-    MONAI_HOST void ioset // Count
-        (IntArrayRef source_size, const Tensor& grid) {
-      init_all();
-      init_source(source_size);
-      init_grid(grid);
-      init_output();
-    }
-
+    // Loop over voxels that belong to one CUDA block
+    // This function is called by the CUDA kernel
     MONAI_DEVICE void loop(int threadIdx, int blockIdx, int blockDim, int gridDim) const;
 
     MONAI_HOST MONAI_DEVICE int64_t voxcount() const {
@@ -273,14 +583,18 @@ MONAI_NAMESPACE_DEVICE { // cuda
 
    private:
     // ~~~ COMPONENTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    MONAI_HOST void init_all();
-    MONAI_HOST void init_source(const Tensor& source);
-    MONAI_HOST void init_source(IntArrayRef source_size);
-    MONAI_HOST void init_grid(const Tensor& grid);
-    MONAI_HOST void init_target(const Tensor& target);
-    MONAI_HOST void init_output();
+    MONAI_DEVICE void check1d(offset_t w, offset_t n) const;
     MONAI_DEVICE void check2d(offset_t w, offset_t h, offset_t n) const;
     MONAI_DEVICE void check3d(offset_t w, offset_t h, offset_t d, offset_t n) const;
+    MONAI_DEVICE void interpolate1d(scalar_t x, offset_t w, offset_t n) const;
+    MONAI_DEVICE void interpolate1d_nearest(scalar_t x, offset_t w, offset_t n) const;
+    MONAI_DEVICE void interpolate1d_linear(scalar_t x, offset_t w, offset_t n) const;
+    MONAI_DEVICE void interpolate1d_sliding(scalar_t x, offset_t w, offset_t n) const { /*TODO*/
+    }
+    MONAI_DEVICE void interpolate1d_sliding_nearest(scalar_t x, offset_t w, offset_t n) const { /*TODO*/
+    }
+    MONAI_DEVICE void interpolate1d_sliding_linear(scalar_t x, offset_t w, offset_t n) const { /*TODO*/
+    }
     MONAI_DEVICE void interpolate2d(scalar_t x, scalar_t y, offset_t w, offset_t h, offset_t n) const;
     MONAI_DEVICE void interpolate2d_nearest(scalar_t x, scalar_t y, offset_t w, offset_t h, offset_t n) const;
     MONAI_DEVICE void interpolate2d_bilinear(scalar_t x, scalar_t y, offset_t w, offset_t h, offset_t n) const;
@@ -355,9 +669,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     bool do_sgrad; // sample spatial gradients
 
     // ~~~ NAVIGATORS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    TensorOptions src_opt;
-    TensorOptions grid_opt;
-    TensorOptions trgt_opt;
     offset_t N;
     offset_t C;
     offset_t src_X;
@@ -402,157 +713,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
   };
 
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  //                          INITIALISATION
-  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-  template <typename scalar_t, typename offset_t>
-  void PushPullImpl<scalar_t, offset_t>::init_all() {
-    src_opt = grid_opt = trgt_opt = TensorOptions();
-    N = C = static_cast<offset_t>(1);
-    src_X = src_Y = src_Z = static_cast<offset_t>(1);
-    trgt_X = trgt_Y = trgt_Z = trgt_K = static_cast<offset_t>(1);
-    src_sN = src_sC = src_sX = src_sY = src_sZ = static_cast<offset_t>(0);
-    grid_sN = grid_sC = grid_sX = grid_sY = grid_sZ = static_cast<offset_t>(0);
-    grad_sN = grad_sC = grad_sX = grad_sY = grad_sZ = static_cast<offset_t>(0);
-    trgt_sN = trgt_sC = trgt_sX = trgt_sY = trgt_sZ = trgt_sK = static_cast<offset_t>(0);
-    out_sN = out_sC = out_sX = out_sY = out_sZ = out_sK = static_cast<offset_t>(0);
-    src_ptr = trgt_ptr = grid_ptr = out_ptr = grad_ptr = static_cast<scalar_t*>(0);
-  }
-
-  template <typename scalar_t, typename offset_t>
-  MONAI_HOST void PushPullImpl<scalar_t, offset_t>::init_source(const Tensor& source) {
-    N = source.size(0);
-    C = source.size(1);
-    src_X = source.size(2);
-    src_Y = source.size(3);
-    src_Z = dim == 2 ? static_cast<offset_t>(1) : source.size(4);
-    src_sN = source.stride(0);
-    src_sC = source.stride(1);
-    src_sX = source.stride(2);
-    src_sY = source.stride(3);
-    src_sZ = dim == 2 ? static_cast<offset_t>(0) : source.stride(4);
-    src_ptr = source.data_ptr<scalar_t>();
-    src_opt = source.options();
-  }
-
-  template <typename scalar_t, typename offset_t>
-  MONAI_HOST void PushPullImpl<scalar_t, offset_t>::init_source(IntArrayRef source_size) {
-    src_X = source_size[0];
-    src_Y = source_size[1];
-    src_Z = dim == 2 ? static_cast<offset_t>(1) : source_size[2];
-  }
-
-  template <typename scalar_t, typename offset_t>
-  MONAI_HOST void PushPullImpl<scalar_t, offset_t>::init_grid(const Tensor& grid) {
-    N = grid.size(0);
-    trgt_X = grid.size(1);
-    trgt_Y = grid.size(2);
-    trgt_Z = dim == 2 ? static_cast<offset_t>(1) : grid.size(3);
-    grid_sN = grid.stride(0);
-    grid_sX = grid.stride(1);
-    grid_sY = grid.stride(2);
-    grid_sZ = dim == 2 ? static_cast<offset_t>(0) : grid.stride(3);
-    grid_sC = grid.stride(dim == 2 ? 3 : 4);
-    grid_ptr = grid.data_ptr<scalar_t>();
-    grid_opt = grid.options();
-  }
-
-  template <typename scalar_t, typename offset_t>
-  MONAI_HOST void PushPullImpl<scalar_t, offset_t>::init_target(const Tensor& target) {
-    N = target.size(0);
-    C = target.size(1);
-    trgt_X = target.size(2);
-    trgt_Y = target.size(3);
-    trgt_Z = dim == 2 ? static_cast<offset_t>(1) : target.size(4);
-    trgt_K = target.dim() == dim + 3 ? target.size(dim == 2 ? 4 : 5) : static_cast<offset_t>(1);
-    trgt_sN = target.stride(0);
-    trgt_sC = target.stride(1);
-    trgt_sX = target.stride(2);
-    trgt_sY = target.stride(3);
-    trgt_sZ = dim == 2 ? static_cast<offset_t>(0) : target.stride(4);
-    trgt_sK = target.dim() == dim + 3 ? target.stride(dim == 2 ? 4 : 5) : static_cast<offset_t>(0);
-    trgt_ptr = target.data_ptr<scalar_t>();
-    trgt_opt = target.options();
-  }
-
-  template <typename scalar_t, typename offset_t>
-  MONAI_HOST void PushPullImpl<scalar_t, offset_t>::init_output() {
-    output.clear();
-    if (do_pull) {
-      if (dim == 2)
-        output.push_back(at::empty({N, C, trgt_X, trgt_Y}, src_opt));
-      else
-        output.push_back(at::empty({N, C, trgt_X, trgt_Y, trgt_Z}, src_opt));
-      auto pull = output.back();
-      out_sN = pull.stride(0);
-      out_sC = pull.stride(1);
-      out_sX = pull.stride(2);
-      out_sY = pull.stride(3);
-      out_sZ = dim == 2 ? static_cast<offset_t>(0) : pull.stride(4);
-      out_sK = static_cast<offset_t>(0);
-      out_ptr = pull.template data_ptr<scalar_t>();
-    } else if (do_sgrad) {
-      if (dim == 2)
-        output.push_back(at::empty({N, C, trgt_X, trgt_Y, 2}, src_opt));
-      else
-        output.push_back(at::empty({N, C, trgt_X, trgt_Y, trgt_Z, 3}, src_opt));
-      auto sgrad = output.back();
-      out_sN = sgrad.stride(0);
-      out_sC = sgrad.stride(1);
-      out_sX = sgrad.stride(2);
-      out_sY = sgrad.stride(3);
-      out_sZ = dim == 2 ? static_cast<offset_t>(0) : sgrad.stride(4);
-      out_sK = sgrad.stride(dim == 2 ? 4 : 5);
-      out_ptr = sgrad.template data_ptr<scalar_t>();
-
-      if (iso && interpolation0 == InterpolationType::Nearest)
-        sgrad.zero_();
-    } else if (do_push) {
-      if (dim == 2)
-        output.push_back(at::zeros({N, C, src_X, src_Y}, trgt_opt));
-      else
-        output.push_back(at::zeros({N, C, src_X, src_Y, src_Z}, trgt_opt));
-      auto push = output.back();
-      out_sN = push.stride(0);
-      out_sC = push.stride(1);
-      out_sX = push.stride(2);
-      out_sY = push.stride(3);
-      out_sZ = dim == 2 ? static_cast<offset_t>(0) : push.stride(4);
-      out_sK = static_cast<offset_t>(0);
-      out_ptr = push.template data_ptr<scalar_t>();
-    } else if (do_count) {
-      if (dim == 2)
-        output.push_back(at::zeros({N, 1, src_X, src_Y}, grid_opt));
-      else
-        output.push_back(at::zeros({N, 1, src_X, src_Y, src_Z}, grid_opt));
-      auto count = output.back();
-      out_sN = count.stride(0);
-      out_sC = count.stride(1);
-      out_sX = count.stride(2);
-      out_sY = count.stride(3);
-      out_sZ = dim == 2 ? static_cast<offset_t>(0) : count.stride(4);
-      out_sK = static_cast<offset_t>(0);
-      out_ptr = count.template data_ptr<scalar_t>();
-    }
-    if (do_grad) {
-      if (dim == 2)
-        output.push_back(at::zeros({N, src_X, src_Y, 2}, grid_opt));
-      else
-        output.push_back(at::zeros({N, src_X, src_Y, src_Z, 3}, grid_opt));
-      auto grad = output.back();
-      grad_sN = grad.stride(0);
-      grad_sX = grad.stride(1);
-      grad_sY = grad.stride(2);
-      grad_sZ = dim == 2 ? static_cast<offset_t>(0) : grad.stride(3);
-      grad_sC = grad.stride(dim == 2 ? 3 : 4);
-      grad_ptr = grad.template data_ptr<scalar_t>();
-
-      if (iso && interpolation0 == InterpolationType::Nearest)
-        grad.zero_();
-    }
-  }
-
-  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   //                             LOOP
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -571,7 +731,9 @@ MONAI_NAMESPACE_DEVICE { // cuda
       h = (i / trgt_Z) % trgt_Y;
       d = i % trgt_Z;
 
-      if (dim == 2)
+      if (dim == 1)
+        check1d(w, n);
+      else if (dim == 2)
         check2d(w, h, n);
       else
         check3d(w, h, d, n);
@@ -585,54 +747,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
   // Here, we:
   // 1) read the [x,y,z] source coordinate for the current target voxel
   // 3) check if the source coordinate is in bounds
-
-  template <typename scalar_t, typename offset_t>
-  MONAI_DEVICE void PushPullImpl<scalar_t, offset_t>::check2d(offset_t w, offset_t h, offset_t n) const {
-    // get the corresponding input x, y, z co-ordinates from grid
-    scalar_t* grid_ptr_NXY = grid_ptr + n * grid_sN + w * grid_sX + h * grid_sY;
-    scalar_t x = *grid_ptr_NXY;
-    scalar_t y = grid_ptr_NXY[grid_sC];
-
-    // Check if out-of-bound
-    if (!(extrapolate ||
-          (inbounds(x, src_X, static_cast<scalar_t>(TINY)) && inbounds(y, src_Y, static_cast<scalar_t>(TINY))))) {
-      if (do_pull || do_sgrad) {
-        scalar_t* out_ptr_NCXY = out_ptr + n * out_sN + w * out_sZ + h * out_sY;
-        for (offset_t c = 0; c < C; ++c, out_ptr_NCXY += out_sC) {
-          *out_ptr_NCXY = static_cast<scalar_t>(0);
-          if (do_sgrad)
-            out_ptr_NCXY[out_sK] = static_cast<scalar_t>(0);
-        }
-      }
-      if (do_grad) {
-        scalar_t* grad_ptr_NXY = grad_ptr + n * grad_sN + w * grad_sX + h * grad_sY;
-        (*grad_ptr_NXY) = static_cast<scalar_t>(0);
-        grad_ptr_NXY[grad_sC] = static_cast<scalar_t>(0);
-      }
-      return;
-    }
-
-    // Next step
-    if (bound0 == BoundType::Sliding) {
-      if (iso)
-        switch (static_cast<int>(interpolation0)) {
-          case 0:
-            return interpolate2d_sliding_nearest(x, y, w, h, n);
-          case 1:
-            return interpolate2d_sliding_bilinear(x, y, w, h, n);
-        }
-      return interpolate2d_sliding(x, y, w, h, n);
-    } else {
-      if (iso)
-        switch (static_cast<int>(interpolation0)) {
-          case 0:
-            return interpolate2d_nearest(x, y, w, h, n);
-          case 1:
-            return interpolate2d_bilinear(x, y, w, h, n);
-        }
-      return interpolate2d(x, y, w, h, n);
-    }
-  }
 
   template <typename scalar_t, typename offset_t>
   MONAI_DEVICE void PushPullImpl<scalar_t, offset_t>::check3d(offset_t w, offset_t h, offset_t d, offset_t n) const {
@@ -687,6 +801,100 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
   }
 
+  template <typename scalar_t, typename offset_t>
+  MONAI_DEVICE void PushPullImpl<scalar_t, offset_t>::check2d(offset_t w, offset_t h, offset_t n) const {
+    // get the corresponding input x, y, z co-ordinates from grid
+    scalar_t* grid_ptr_NXY = grid_ptr + n * grid_sN + w * grid_sX + h * grid_sY;
+    scalar_t x = *grid_ptr_NXY;
+    scalar_t y = grid_ptr_NXY[grid_sC];
+
+    // Check if out-of-bound
+    if (!(extrapolate ||
+          (inbounds(x, src_X, static_cast<scalar_t>(TINY)) && inbounds(y, src_Y, static_cast<scalar_t>(TINY))))) {
+      if (do_pull || do_sgrad) {
+        scalar_t* out_ptr_NCXY = out_ptr + n * out_sN + w * out_sX + h * out_sY;
+        for (offset_t c = 0; c < C; ++c, out_ptr_NCXY += out_sC) {
+          *out_ptr_NCXY = static_cast<scalar_t>(0);
+          if (do_sgrad)
+            out_ptr_NCXY[out_sK] = static_cast<scalar_t>(0);
+        }
+      }
+      if (do_grad) {
+        scalar_t* grad_ptr_NXY = grad_ptr + n * grad_sN + w * grad_sX + h * grad_sY;
+        (*grad_ptr_NXY) = static_cast<scalar_t>(0);
+        grad_ptr_NXY[grad_sC] = static_cast<scalar_t>(0);
+      }
+      return;
+    }
+
+    // Next step
+    if (bound0 == BoundType::Sliding) {
+      if (iso)
+        switch (static_cast<int>(interpolation0)) {
+          case 0:
+            return interpolate2d_sliding_nearest(x, y, w, h, n);
+          case 1:
+            return interpolate2d_sliding_bilinear(x, y, w, h, n);
+        }
+      return interpolate2d_sliding(x, y, w, h, n);
+    } else {
+      if (iso)
+        switch (static_cast<int>(interpolation0)) {
+          case 0:
+            return interpolate2d_nearest(x, y, w, h, n);
+          case 1:
+            return interpolate2d_bilinear(x, y, w, h, n);
+        }
+      return interpolate2d(x, y, w, h, n);
+    }
+  }
+
+  template <typename scalar_t, typename offset_t>
+  MONAI_DEVICE void PushPullImpl<scalar_t, offset_t>::check1d(offset_t w, offset_t n) const {
+    // get the corresponding input x, y, z co-ordinates from grid
+    scalar_t* grid_ptr_NX = grid_ptr + n * grid_sN + w * grid_sX;
+    scalar_t x = *grid_ptr_NX;
+
+    // Check if out-of-bound
+    if (!(extrapolate || inbounds(x, src_X, static_cast<scalar_t>(TINY)))) {
+      if (do_pull || do_sgrad) {
+        scalar_t* out_ptr_NCX = out_ptr + n * out_sN + w * out_sX;
+        for (offset_t c = 0; c < C; ++c, out_ptr_NCX += out_sC) {
+          *out_ptr_NCX = static_cast<scalar_t>(0);
+          if (do_sgrad)
+            out_ptr_NCX[out_sK] = static_cast<scalar_t>(0);
+        }
+      }
+      if (do_grad) {
+        scalar_t* grad_ptr_NX = grad_ptr + n * grad_sN + w * grad_sX;
+        (*grad_ptr_NX) = static_cast<scalar_t>(0);
+        grad_ptr_NX[grad_sC] = static_cast<scalar_t>(0);
+      }
+      return;
+    }
+
+    // Next step
+    if (bound0 == BoundType::Sliding) {
+      if (iso)
+        switch (static_cast<int>(interpolation0)) {
+          case 0:
+            return interpolate1d_sliding_nearest(x, w, n);
+          case 1:
+            return interpolate1d_sliding_linear(x, w, n);
+        }
+      return interpolate1d_sliding(x, w, n);
+    } else {
+      if (iso)
+        switch (static_cast<int>(interpolation0)) {
+          case 0:
+            return interpolate1d_nearest(x, w, n);
+          case 1:
+            return interpolate1d_linear(x, w, n);
+        }
+      return interpolate1d(x, w, n);
+    }
+  }
+
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   //                     GENERIC INTERPOLATION 3D
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -718,7 +926,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
     if (trgt_ptr && (do_push || do_grad))
       for (offset_t c = 0; c < C; ++c, trgt_ptr_NCXYZ += trgt_sC) {
         target[c] = *trgt_ptr_NCXYZ;
-        if (trgt_K > 1) {
+        if (trgt_K > 0) {
           target[c + C] = trgt_ptr_NCXYZ[trgt_sK];
           target[c + C * 2] = trgt_ptr_NCXYZ[trgt_sK * 2];
         }
@@ -836,7 +1044,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
 
           // ~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
           else if (do_push) {
-            if (trgt_K == 1) {
+            if (trgt_K == 0) {
               // Diff w.r.t. push/pull
               scalar_t* out_ptr_NC = out_ptr_NC0;
               for (offset_t c = 0; c < C; ++c, out_ptr_NC += out_sC)
@@ -859,7 +1067,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
 
           // ~~~~~~~~~~~~~~~~~~~~~~~~~~~ Grad ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
           if (do_grad) {
-            if (trgt_K == 1) {
+            if (trgt_K == 0) {
               // Diff w.r.t. pull/push
               scalar_t* src_ptr_NC = src_ptr_NC0;
               scalar_t dot = static_cast<scalar_t>(0);
@@ -928,7 +1136,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
     if (trgt_ptr && (do_push || do_grad))
       for (offset_t c = 0; c < C; ++c, trgt_ptr_NCXY += trgt_sC) {
         target[c] = *trgt_ptr_NCXY;
-        if (trgt_K > 1) {
+        if (trgt_K > 0) {
           target[c + C] = trgt_ptr_NCXY[trgt_sK];
         }
       }
@@ -1021,7 +1229,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         else if (do_push) {
-          if (trgt_K == 1) {
+          if (trgt_K == 0) {
             // Diff w.r.t. push/pull
             scalar_t* out_ptr_NC = out_ptr_NC0;
             for (offset_t c = 0; c < C; ++c, out_ptr_NC += out_sC)
@@ -1043,7 +1251,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Grad ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if (do_grad) {
-          if (trgt_K == 1) {
+          if (trgt_K == 0) {
             // Diff w.r.t. pull/push
             scalar_t* src_ptr_NC = src_ptr_NC0;
             scalar_t dot = static_cast<scalar_t>(0);
@@ -1077,6 +1285,150 @@ MONAI_NAMESPACE_DEVICE { // cuda
       scalar_t* grad_ptr_NXY = grad_ptr + n * grad_sN + w * grad_sX + h * grad_sY;
       (*grad_ptr_NXY) = ogx;
       grad_ptr_NXY[grad_sC] = ogy;
+    }
+  }
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  //                     GENERIC INTERPOLATION 1D
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  template <typename scalar_t, typename offset_t>
+  MONAI_DEVICE void PushPullImpl<scalar_t, offset_t>::interpolate1d(scalar_t x, offset_t w, offset_t n) const {
+    // Get corner pixel values from (x, y)
+    offset_t bx0, bx1;
+    interpolation::bounds(interpolation0, x, bx0, bx1);
+    offset_t dbx = bx1 - bx0;
+
+    // Pre-compute offsets and target value
+    scalar_t* src_ptr_NC0 = src_ptr + n * src_sN;
+    scalar_t* out_ptr_NC0 = out_ptr + n * out_sN;
+    scalar_t* out_ptr_NCX0 = out_ptr + n * out_sN + w * out_sX;
+    scalar_t* trgt_ptr_NCX = trgt_ptr + n * trgt_sN + w * trgt_sX;
+    scalar_t target[2 * MONAI_MAX_NUM_CHANNELS];
+    if (trgt_ptr && (do_push || do_grad))
+      for (offset_t c = 0; c < C; ++c, trgt_ptr_NCX += trgt_sC) {
+        target[c] = *trgt_ptr_NCX;
+        if (trgt_K > 0) {
+          target[c + C] = trgt_ptr_NCX[trgt_sK];
+        }
+      }
+
+    // Initialize output
+    scalar_t* out_ptr_NCX = out_ptr_NCX0;
+    if (do_pull || do_sgrad) {
+      for (offset_t c = 0; c < C; ++c, out_ptr_NCX += out_sC) {
+        *out_ptr_NCX = static_cast<scalar_t>(0);
+        if (do_sgrad) {
+          out_ptr_NCX[out_sK] = static_cast<scalar_t>(0);
+        }
+      }
+    }
+
+    // Pre-compute indices/weights/grad
+    scalar_t wx[8]; // B-spline weights
+    scalar_t gx[8]; // B-spline derivatives
+    scalar_t hx[8]; // B-spline 2nd derivatives
+    offset_t ix[8]; // Warped indices
+    uint8_t sx[8]; // Warped indices
+
+    {
+      scalar_t *owx = static_cast<scalar_t*>(wx), *ogx = static_cast<scalar_t*>(gx), *ohx = static_cast<scalar_t*>(hx);
+      offset_t* oix = static_cast<offset_t*>(ix);
+      uint8_t* osx = static_cast<uint8_t*>(sx);
+      for (offset_t bx = bx0; bx <= bx1; ++bx) {
+        scalar_t dx = x - bx;
+        *(owx++) = interpolation::fastweight(interpolation0, dx);
+        if (do_grad || do_sgrad)
+          *(ogx++) = interpolation::fastgrad(interpolation0, dx);
+        if (do_grad && trgt_sK > 1)
+          *(ohx++) = interpolation::fasthess(interpolation0, dx);
+        *(osx++) = bound::sign(bound0, bx, src_X);
+        *(oix++) = bound::index(bound0, bx, src_X);
+      }
+    }
+
+    // Convolve coefficients with basis functions
+    scalar_t ogx;
+    ogx = static_cast<scalar_t>(0);
+    for (offset_t i = 0; i <= dbx; ++i) {
+      offset_t oox = ix[i] * out_sX;
+      offset_t osx = ix[i] * src_sX;
+      uint8_t sxx = sx[i];
+      scalar_t wxx = wx[i];
+      scalar_t gxx = gx[i];
+      scalar_t hxx = hx[i];
+
+      // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Pull ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      if (do_pull) {
+        scalar_t* src_ptr_NC = src_ptr_NC0;
+        scalar_t* out_ptr_NCX = out_ptr_NCX0;
+        for (offset_t c = 0; c < C; ++c, out_ptr_NCX += out_sC, src_ptr_NC += src_sC)
+          *out_ptr_NCX += bound::get(src_ptr_NC, osx, sxx) * wxx;
+      }
+
+      // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SGrad ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      else if (do_sgrad) {
+        scalar_t* src_ptr_NC = src_ptr_NC0;
+        scalar_t* out_ptr_NCX = out_ptr_NCX0;
+        for (offset_t c = 0; c < C; ++c, out_ptr_NCX += out_sC, src_ptr_NC += src_sC) {
+          scalar_t src = bound::get(src_ptr_NC, osx, sxx);
+          *out_ptr_NCX += src * gxx;
+        }
+      }
+
+      // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      else if (do_push) {
+        if (trgt_K == 0) {
+          // Diff w.r.t. push/pull
+          scalar_t* out_ptr_NC = out_ptr_NC0;
+          for (offset_t c = 0; c < C; ++c, out_ptr_NC += out_sC)
+            bound::add(out_ptr_NC, oox, wxx * target[c], sxx);
+        } else {
+          // Diff w.r.t. sgrad
+          scalar_t* out_ptr_NC = out_ptr_NC0;
+          for (offset_t c = 0; c < C; ++c, out_ptr_NC += out_sC) {
+            scalar_t val = gxx * target[c];
+            bound::add(out_ptr_NC, oox, val, sxx);
+          }
+        }
+      }
+
+      // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Count ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      else if (do_count) {
+        bound::add(out_ptr_NC0, oox, wxx, sxx);
+      }
+
+      // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Grad ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      if (do_grad) {
+        if (trgt_K == 0) {
+          // Diff w.r.t. pull/push
+          scalar_t* src_ptr_NC = src_ptr_NC0;
+          scalar_t dot = static_cast<scalar_t>(0);
+          for (offset_t c = 0; c < C; ++c, src_ptr_NC += src_sC) {
+            scalar_t src = bound::get(src_ptr_NC, osx, sxx);
+            dot += (trgt_ptr ? src * target[c] : src);
+            // trgt_ptr == 0 in the backward pass of 'count'
+          }
+          ogx += gxx * dot;
+        } else {
+          // Diff w.r.t. sgrad
+          scalar_t* src_ptr_NC = src_ptr_NC0;
+          scalar_t dot;
+          dot = static_cast<scalar_t>(0);
+          for (offset_t c = 0; c < C; ++c, src_ptr_NC += src_sC) {
+            scalar_t src = bound::get(src_ptr_NC, osx, sxx);
+            dot += src * target[c];
+          }
+          ogx += hxx * dot;
+        }
+      }
+
+    } // x
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Grad ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if (do_grad) {
+      scalar_t* grad_ptr_NX = grad_ptr + n * grad_sN + w * grad_sX;
+      (*grad_ptr_NX) = ogx;
     }
   }
 
@@ -1169,7 +1521,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       scalar_t* trgt_ptr_NCXYZ = trgt_ptr + n * trgt_sN + w * trgt_sX + h * trgt_sY + d * trgt_sZ;
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
 
-      if (trgt_K == 1) {
+      if (trgt_K == 0) {
         // backward w.r.t. push/pull
         for (offset_t c = 0; c < C; ++c, trgt_ptr_NCXYZ += trgt_sC, src_ptr_NC += src_sC) {
           scalar_t src;
@@ -1331,7 +1683,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       o111 = ix1 * out_sX + iy1 * out_sY + iz1 * out_sZ;
       scalar_t* trgt_ptr_NCXYZ = trgt_ptr + n * trgt_sN + w * trgt_sX + h * trgt_sY + d * trgt_sZ;
       scalar_t* out_ptr_NC = out_ptr + n * out_sN;
-      if (trgt_K == 1) {
+      if (trgt_K == 0) {
         // Diff w.r.t. push/pull
         for (offset_t c = 0; c < C; ++c, trgt_ptr_NCXYZ += trgt_sC, out_ptr_NC += out_sC) {
           scalar_t trgt = *trgt_ptr_NCXYZ;
@@ -1416,7 +1768,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     scalar_t w10 = dx1 * dy0;
     scalar_t w01 = dx0 * dy1;
     scalar_t w11 = dx1 * dy1;
-    ;
 
     // Sign (/!\ compute sign before warping indices)
     int8_t sx1 = bound::sign(bound0, ix0 + 1, src_X);
@@ -1455,7 +1806,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       scalar_t* trgt_ptr_NCXY = trgt_ptr + n * trgt_sN + w * trgt_sX + h * trgt_sY;
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
 
-      if (trgt_K == 1) {
+      if (trgt_K == 0) {
         // backward w.r.t. push/pull
         for (offset_t c = 0; c < C; ++c, trgt_ptr_NCXY += trgt_sC, src_ptr_NC += src_sC) {
           scalar_t src;
@@ -1502,9 +1853,9 @@ MONAI_NAMESPACE_DEVICE { // cuda
         }
       }
 
-      scalar_t* grad_ptr_NXYZ = grad_ptr + n * grad_sN + w * grad_sX + h * grad_sY;
-      (*grad_ptr_NXYZ) = gx;
-      grad_ptr_NXYZ[grad_sC] = gy;
+      scalar_t* grad_ptr_NXY = grad_ptr + n * grad_sN + w * grad_sX + h * grad_sY;
+      (*grad_ptr_NXY) = gx;
+      grad_ptr_NXY[grad_sC] = gy;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Pull ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_pull) {
@@ -1546,7 +1897,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       o11 = ix1 * out_sX + iy1 * out_sY;
       scalar_t* trgt_ptr_NCXY = trgt_ptr + n * trgt_sN + w * trgt_sX + h * trgt_sY;
       scalar_t* out_ptr_NC = out_ptr + n * out_sN;
-      if (trgt_K == 1) {
+      if (trgt_K == 0) {
         // Diff w.r.t. push/pull
         for (offset_t c = 0; c < C; ++c, trgt_ptr_NCXY += trgt_sC, out_ptr_NC += out_sC) {
           scalar_t trgt = *trgt_ptr_NCXY;
@@ -1588,6 +1939,123 @@ MONAI_NAMESPACE_DEVICE { // cuda
   }
 
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  //                     LINEAR INTERPOLATION 1D
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  template <typename scalar_t, typename offset_t>
+  MONAI_DEVICE void PushPullImpl<scalar_t, offset_t>::interpolate1d_linear(scalar_t x, offset_t w, offset_t n) const {
+    // Get corner pixel values from (x)
+    offset_t ix0 = static_cast<offset_t>(std::floor(x));
+
+    // Interpolation weights (inversely proportional to distance)
+    scalar_t w1 = x - ix0;
+    scalar_t w0 = 1. - w1;
+
+    // Sign (/!\ compute sign before warping indices)
+    int8_t s1 = bound::sign(bound0, ix0 + 1, src_X);
+    int8_t s0 = bound::sign(bound0, ix0, src_X);
+
+    // Warp indices
+    offset_t ix1;
+    ix1 = bound::index(bound0, ix0 + 1, src_X);
+    ix0 = bound::index(bound0, ix0, src_X);
+
+    // Offsets into source volume
+    offset_t o0, o1;
+    if (do_pull || do_grad || do_sgrad) {
+      o0 = ix0 * src_sX;
+      o1 = ix1 * src_sX;
+    }
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if (do_grad) {
+      if (trgt_K == 0) {
+        // backward w.r.t. push/pull
+
+        o0 = ix0 * src_sX;
+        o1 = ix1 * src_sX;
+        scalar_t gx = static_cast<scalar_t>(0);
+        scalar_t* trgt_ptr_NCX = trgt_ptr + n * trgt_sN + w * trgt_sX;
+        scalar_t* src_ptr_NC = src_ptr + n * src_sN;
+
+        for (offset_t c = 0; c < C; ++c, trgt_ptr_NCX += trgt_sC, src_ptr_NC += src_sC) {
+          scalar_t src;
+          scalar_t trgt = trgt_ptr ? *trgt_ptr_NCX : static_cast<scalar_t>(1);
+          // ^ trgt_ptr == 0 during the backward pass of count
+          src = bound::get(src_ptr_NC, o0, s0);
+          if (trgt_ptr)
+            src *= trgt;
+          gx -= src;
+          src = bound::get(src_ptr_NC, o1, s1);
+          if (trgt_ptr)
+            src *= trgt;
+          gx += src;
+        }
+
+        scalar_t* grad_ptr_NX = grad_ptr + n * grad_sN + w * grad_sX;
+        (*grad_ptr_NX) = gx;
+      } else {
+        // backward w.r.t. sgrad
+        // -> zero (make sure this is done at initialization)
+      }
+    }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Pull ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if (do_pull) {
+      o0 = ix0 * src_sX;
+      o1 = ix1 * src_sX;
+      scalar_t* out_ptr_NCX = out_ptr + n * out_sN + w * out_sX;
+      scalar_t* src_ptr_NC = src_ptr + n * src_sN;
+      for (offset_t c = 0; c < C; ++c, out_ptr_NCX += out_sC, src_ptr_NC += src_sC) {
+        *out_ptr_NCX = bound::get(src_ptr_NC, o0, s0) * w0 + bound::get(src_ptr_NC, o1, s1) * w1;
+      }
+    }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SGrad ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    else if (do_sgrad) {
+      o0 = ix0 * src_sX;
+      o1 = ix1 * src_sX;
+      scalar_t* out_ptr_NCX = out_ptr + n * out_sN + w * out_sX;
+      scalar_t* src_ptr_NC = src_ptr + n * src_sN;
+
+      for (offset_t c = 0; c < C; ++c, out_ptr_NCX += out_sC, src_ptr_NC += src_sC) {
+        *out_ptr_NCX = bound::get(src_ptr_NC, o1, s1) - bound::get(src_ptr_NC, o0, s0);
+      }
+    }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    else if (do_push) {
+      // Offsets into 'push' volume
+      o0 = ix0 * out_sX;
+      o1 = ix1 * out_sX;
+      scalar_t* trgt_ptr_NCX = trgt_ptr + n * trgt_sN + w * trgt_sX;
+      scalar_t* out_ptr_NC = out_ptr + n * out_sN;
+      if (trgt_K == 0) {
+        // Diff w.r.t. push/pull
+        for (offset_t c = 0; c < C; ++c, trgt_ptr_NCX += trgt_sC, out_ptr_NC += out_sC) {
+          scalar_t trgt = *trgt_ptr_NCX;
+          bound::add(out_ptr_NC, o0, w0 * trgt, s0);
+          bound::add(out_ptr_NC, o1, w1 * trgt, s1);
+        }
+      } else {
+        // Diff w.r.t. sgrad
+        for (offset_t c = 0; c < C; ++c, trgt_ptr_NCX += trgt_sC, out_ptr_NC += out_sC) {
+          scalar_t trgt0 = *trgt_ptr_NCX;
+          bound::add(out_ptr_NC, o0, -trgt0, s0);
+          bound::add(out_ptr_NC, o1, trgt0, s1);
+        }
+      }
+    }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    else if (do_count) {
+      // Offsets into 'push' volume
+      o0 = ix0 * out_sX;
+      o1 = ix1 * out_sX;
+
+      scalar_t* out_ptr_N = out_ptr + n * out_sN;
+      bound::add(out_ptr_N, o0, w0, s0);
+      bound::add(out_ptr_N, o1, w1, s1);
+    }
+  }
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   //                  NEAREST NEIGHBOR INTERPOLATION 3D
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1621,7 +2089,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
       for (offset_t c = 0; c < C; ++c, out_ptr_NCXYZ += out_sC, src_ptr_NC += src_sC)
         *out_ptr_NCXYZ = bound::get(src_ptr_NC, o, s);
-    } else if (do_push && trgt_K == 1) {
+    } else if (do_push && trgt_K == 0) {
       offset_t o = iz * out_sZ + iy * out_sY + ix * out_sX;
       scalar_t* trgt_ptr_NCXYZ = trgt_ptr + n * trgt_sN + w * trgt_sX + h * trgt_sY + d * trgt_sZ;
       scalar_t* out_ptr_NC = out_ptr + n * out_sN;
@@ -1664,7 +2132,7 @@ MONAI_NAMESPACE_DEVICE { // cuda
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
       for (offset_t c = 0; c < C; ++c, out_ptr_NCXY += out_sC, src_ptr_NC += src_sC)
         *out_ptr_NCXY = bound::get(src_ptr_NC, o, s);
-    } else if (do_push && trgt_K == 1) {
+    } else if (do_push && trgt_K == 0) {
       offset_t o = iy * out_sY + ix * out_sX;
       scalar_t* trgt_ptr_NCXY = trgt_ptr + n * trgt_sN + w * trgt_sX + h * trgt_sY;
       scalar_t* out_ptr_NC = out_ptr + n * out_sN;
@@ -1677,6 +2145,39 @@ MONAI_NAMESPACE_DEVICE { // cuda
         bound::add(out_ptr_NC, o, static_cast<scalar_t>(1), s);
     }
   }
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  //                  NEAREST NEIGHBOR INTERPOLATION 1D
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  template <typename scalar_t, typename offset_t>
+  MONAI_DEVICE void PushPullImpl<scalar_t, offset_t>::interpolate1d_nearest(scalar_t x, offset_t w, offset_t n) const {
+    offset_t i = static_cast<offset_t>(std::round(x));
+
+    // Boundary condition (/!\ compute sign before warping indices)
+    int8_t s = bound::sign(bound0, i, src_X);
+    i = bound::index(bound0, i, src_X);
+
+    if (do_pull) {
+      offset_t o = i * src_sX;
+      scalar_t* out_ptr_NCX = out_ptr + n * out_sN + w * out_sX;
+      scalar_t* src_ptr_NC = src_ptr + n * src_sN;
+      for (offset_t c = 0; c < C; ++c, out_ptr_NCX += out_sC, src_ptr_NC += src_sC)
+        *out_ptr_NCX = bound::get(src_ptr_NC, o, s);
+    } else if (do_push && trgt_K == 0) {
+      offset_t o = i * out_sX;
+      scalar_t* trgt_ptr_NCX = trgt_ptr + n * trgt_sN + w * trgt_sX;
+      scalar_t* out_ptr_NC = out_ptr + n * out_sN;
+      for (offset_t c = 0; c < C; ++c, trgt_ptr_NCX += trgt_sC, out_ptr_NC += out_sC)
+        bound::add(out_ptr_NC, o, *trgt_ptr_NCX, s);
+    } else if (do_count) {
+      offset_t o = i * out_sX;
+      scalar_t* out_ptr_NC = out_ptr + n * out_sN;
+      for (offset_t c = 0; c < C; ++c, out_ptr_NC += out_sC)
+        bound::add(out_ptr_NC, o, static_cast<scalar_t>(1), s);
+    }
+  }
+
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   //            LINEAR INTERPOLATION 3D + SLIDING BOUNDARY
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1724,8 +2225,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
   PUSHPULL_INSTANTIATE1(BoundType); \
   PUSHPULL_INSTANTIATE1(BoundVectorRef)
 
-  // ~~~ CUDA ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
   // Two arguments (source, grid)
   // > `bound` and `interpolation` can be single arguments or vectors.
   template <typename BoundType, typename InterpolationType, typename SourceType>
@@ -1740,12 +2239,20 @@ MONAI_NAMESPACE_DEVICE { // cuda
       bool do_count,
       bool do_grad,
       bool do_sgrad) {
+    PushPullAllocator info(
+        grid.dim() - 2, bound, interpolation, extrapolate, do_pull, do_push, do_count, do_grad, do_sgrad);
+    info.ioset(source, grid);
+
     return AT_DISPATCH_FLOATING_TYPES_AND_HALF(grid.scalar_type(), "pushpull", [&] {
-      PushPullImpl<scalar_t, int64_t> f(
-          grid.dim() - 2, bound, interpolation, extrapolate, do_pull, do_push, do_count, do_grad, do_sgrad);
-      f.ioset(source, grid);
-      pushpull_kernel<<<GET_BLOCKS(f.voxcount()), CUDA_NUM_THREADS, 0, at::cuda::getCurrentCUDAStream()>>>(f);
-      return f.output;
+      if (info.canUse32BitIndexMath()) {
+        PushPullImpl<scalar_t, int32_t> algo(info);
+        pushpull_kernel<<<GET_BLOCKS(algo.voxcount()), CUDA_NUM_THREADS, 0, at::cuda::getCurrentCUDAStream()>>>(algo);
+        return algo.output;
+      } else {
+        PushPullImpl<scalar_t, int64_t> algo(info);
+        pushpull_kernel<<<GET_BLOCKS(algo.voxcount()), CUDA_NUM_THREADS, 0, at::cuda::getCurrentCUDAStream()>>>(algo);
+        return algo.output;
+      }
     });
   }
 
@@ -1765,17 +2272,24 @@ MONAI_NAMESPACE_DEVICE { // cuda
       bool do_count,
       bool do_grad,
       bool do_sgrad) {
+    PushPullAllocator info(
+        grid.dim() - 2, bound, interpolation, extrapolate, do_pull, do_push, do_count, do_grad, do_sgrad);
+    info.ioset(source, grid, target);
+
     return AT_DISPATCH_FLOATING_TYPES_AND_HALF(grid.scalar_type(), "pushpull", [&] {
-      PushPullImpl<scalar_t, int64_t> f(
-          grid.dim() - 2, bound, interpolation, extrapolate, do_pull, do_push, do_count, do_grad, do_sgrad);
-      f.ioset(source, grid, target);
-      pushpull_kernel<<<GET_BLOCKS(f.voxcount()), CUDA_NUM_THREADS, 0, at::cuda::getCurrentCUDAStream()>>>(f);
-      return f.output;
+      if (info.canUse32BitIndexMath()) {
+        PushPullImpl<scalar_t, int32_t> algo(info);
+        pushpull_kernel<<<GET_BLOCKS(algo.voxcount()), CUDA_NUM_THREADS, 0, at::cuda::getCurrentCUDAStream()>>>(algo);
+        return algo.output;
+      } else {
+        PushPullImpl<scalar_t, int64_t> algo(info);
+        pushpull_kernel<<<GET_BLOCKS(algo.voxcount()), CUDA_NUM_THREADS, 0, at::cuda::getCurrentCUDAStream()>>>(algo);
+        return algo.output;
+      }
     });
   }
 
   PUSHPULL_INSTANTIATE;
 
-} // namespace <device>
-
+} // namespace gpu
 } // namespace monai

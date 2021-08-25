@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,6 +34,16 @@ TEST_CASES = [
         {"dimensions": 3, "in_channels": 4, "mode": "nontrainable"},
         (16, 4, 32, 24, 48),
         (16, 4, 64, 48, 96),
+    ],  # 4-channel 3D, batch 16
+    [
+        {"dimensions": 3, "in_channels": 4, "mode": "nontrainable", "size": 64},
+        (16, 4, 32, 24, 48),
+        (16, 4, 64, 64, 64),
+    ],  # 4-channel 3D, batch 16
+    [
+        {"dimensions": 3, "in_channels": 4, "mode": "nontrainable", "size": (64, 24, 48)},
+        (16, 4, 32, 24, 48),
+        (16, 4, 64, 24, 48),
     ],  # 4-channel 3D, batch 16
     [
         {"dimensions": 3, "in_channels": 1, "mode": "deconv", "scale_factor": 3, "align_corners": False},

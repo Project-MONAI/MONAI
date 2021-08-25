@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -26,10 +26,10 @@ limitations under the License.
       value.layout() == at::kStrided,                                     \
       "(): expected " #value "to have torch.strided layout, but it has ", \
       value.layout());
-#define CHECK_SPATIAL_2D_OR_3D(value)                               \
-  TORCH_CHECK(                                                      \
-      (value.dim() == 4 || value.dim() == 5),                       \
-      "(): expected 4D or 5D " #value " but got input with sizes ", \
+#define CHECK_SPATIAL_1D_2D_OR_3D(value)                                \
+  TORCH_CHECK(                                                          \
+      (value.dim() == 3 || value.dim() == 4 || value.dim() == 5),       \
+      "(): expected 3D, 4D or 5D " #value " but got input with sizes ", \
       value.sizes());
 #define CHECK_GRID_COMPONENT(value, dim)           \
   TORCH_CHECK(                                     \
@@ -42,18 +42,18 @@ limitations under the License.
 #define CHECK_SAME_DEVICE(value1, value2)     \
   TORCH_CHECK(                                \
       value1.device() == value2.device(),     \
-      "(): expected " #value2 " and " #value2 \
+      "(): expected " #value1 " and " #value2 \
       " to be on same device, "               \
-      "but " #value2 " is on ",               \
+      "but " #value1 " is on ",               \
       value1.device(),                        \
       " and " #value2 " is on ",              \
       value2.device());
 #define CHECK_SAME_DTYPE(value1, value2)      \
   TORCH_CHECK(                                \
       value1.dtype() == value2.dtype(),       \
-      "(): expected " #value2 " and " #value2 \
+      "(): expected " #value1 " and " #value2 \
       " to have the same dtype, "             \
-      "but " #value2 " has ",                 \
+      "but " #value1 " has ",                 \
       value1.dtype(),                         \
       " and " #value2 " has ",                \
       value2.dtype());
@@ -67,14 +67,15 @@ limitations under the License.
         i,                                                                                    \
         " being empty");                                                                      \
   }
-#define CHECK_GRID_TARGET_COMPAT(value1, value2)                                                                  \
-  TORCH_CHECK(                                                                                                    \
-      value2.size(0) == value1.size(0) && value2.size(2) == value1.size(1) && value2.size(3) == value1.size(2) && \
-          (value2.dim() == 4 || value2.size(4) == value1.size(3)),                                                \
-      "(): expected " #value2 " and " #value1                                                                     \
-      " to have same batch, width, height and (optionally) depth sizes, but got " #value2 " with sizes ",         \
-      value2.sizes(),                                                                                             \
-      " and " #value1 " with sizes ",                                                                             \
+#define CHECK_GRID_TARGET_COMPAT(value1, value2)                                                          \
+  TORCH_CHECK(                                                                                            \
+      value2.size(0) == value1.size(0) && (value2.dim() <= 2 || value2.size(2) == value1.size(1)) &&      \
+          (value2.dim() <= 3 || value2.size(3) == value1.size(2)) &&                                      \
+          (value2.dim() <= 4 || value2.size(4) == value1.size(3)),                                        \
+      "(): expected " #value2 " and " #value1                                                             \
+      " to have same batch, width, height and (optionally) depth sizes, but got " #value2 " with sizes ", \
+      value2.sizes(),                                                                                     \
+      " and " #value1 " with sizes ",                                                                     \
       value1.sizes());
 #define CHECK_SPATIAL_LENGTH(value, dim) \
   TORCH_CHECK(((int64_t)(value.size()) == dim - 2), "(): expected ", dim, #value " elements but got ", value.size());

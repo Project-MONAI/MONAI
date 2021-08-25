@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,7 +37,7 @@ class TestZoomd(NumpyImageTestCase2D):
         _order = 0
         if mode.endswith("linear"):
             _order = 1
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(zoom_scipy(channel, zoom=zoom, mode="nearest", order=_order, prefilter=False))
         expected = np.stack(expected).astype(np.float32)
@@ -45,7 +45,7 @@ class TestZoomd(NumpyImageTestCase2D):
 
     def test_keep_size(self):
         key = "img"
-        zoom_fn = Zoomd(key, zoom=0.6, keep_size=True)
+        zoom_fn = Zoomd(key, zoom=0.6, keep_size=True, padding_mode="constant", constant_values=2)
         zoomed = zoom_fn({key: self.imt[0]})
         self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 

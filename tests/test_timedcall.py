@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,13 +10,14 @@
 # limitations under the License.
 
 import multiprocessing
+import sys
 import time
 import unittest
 
 from tests.utils import TimedCall
 
 
-@TimedCall(seconds=10, force_quit=False)
+@TimedCall(seconds=10 if sys.platform == "linux" else 60, force_quit=False)
 def case_1_seconds(arg=None):
     time.sleep(1)
     return "good" if not arg else arg

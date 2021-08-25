@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -51,24 +51,23 @@ void BilateralFilterPHLCpu(
       }
 
       // Spatial features
-      int offsetRemanider = i;
+      int offsetRemainder = i;
 
       for (int d = 0; d < desc.dimensions; d++) {
-        int coord = offsetRemanider / desc.strides[d];
-        offsetRemanider -= coord * desc.strides[d];
+        int coord = offsetRemainder / desc.strides[d];
+        offsetRemainder -= coord * desc.strides[d];
 
         features[i * featureChannels + desc.channelCount + d] = invSpatialSigma * coord;
       }
     }
 
     // Filtering data with respect to the features.
-    scalar_t* output =
-        PermutohedralCPU<scalar_t>(data, features, desc.channelCount, featureChannels, desc.channelStride);
+    PermutohedralCPU<scalar_t>(data, features, desc.channelCount, featureChannels, desc.channelStride);
 
     // Writing output tensor.
     for (int i = 0; i < desc.channelStride; i++) {
       for (int c = 0; c < desc.channelCount; c++) {
-        outputTensorData[batchOffset + i + c * desc.channelStride] = output[i * desc.channelCount + c];
+        outputTensorData[batchOffset + i + c * desc.channelStride] = data[i * desc.channelCount + c];
       }
     }
   }
@@ -81,7 +80,7 @@ void BilateralFilterPHLCpu(
 torch::Tensor BilateralFilterPHLCpu(torch::Tensor inputTensor, float spatialSigma, float colorSigma) {
   torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
-  AT_DISPATCH_FLOATING_TYPES(inputTensor.type(), "BilateralFilterPhlCpu", ([&] {
+  AT_DISPATCH_FLOATING_TYPES(inputTensor.scalar_type(), "BilateralFilterPhlCpu", ([&] {
                                BilateralFilterPHLCpu<scalar_t>(inputTensor, outputTensor, spatialSigma, colorSigma);
                              }));
 

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,21 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence
+from typing import Callable
 
-import torch
-
-from monai.metrics import ConfusionMatrixMetric, compute_confusion_matrix_metric
-from monai.metrics.utils import MetricReduction, do_metric_reduction
-from monai.utils import exact_version, optional_import
-
-NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_version, "NotComputableError")
-Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
-reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
-sync_all_reduce, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "sync_all_reduce")
+from monai.handlers.ignite_metric import IgniteMetric
+from monai.metrics import ConfusionMatrixMetric
+from monai.metrics.utils import MetricReduction
 
 
-class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to optional_import
+class ConfusionMatrix(IgniteMetric):
     """
     Compute confusion matrix related metrics from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -32,9 +25,8 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
         self,
         include_background: bool = True,
         metric_name: str = "hit_rate",
-        compute_sample: bool = False,
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
+        save_details: bool = True,
     ) -> None:
         """
 
@@ -48,80 +40,26 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
                 ``"informedness"``, ``"markedness"``]
                 Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
                 and you can also input those names instead.
-            compute_sample: if ``True``, each sample's metric will be computed first.
-                If ``False``, the confusion matrix for all samples will be accumulated first. Defaults to ``False``.
-            output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-            device: device specification in case of distributed computation usage.
+            output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
+                construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
+                lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
+                for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
+                output_transform can be `lambda x: (x["pred"], x["label"])`.
+            save_details: whether to save metric computation details per image, for example: TP/TN/FP/FN of every image.
+                default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
             :py:meth:`monai.metrics.confusion_matrix`
         """
-        super().__init__(output_transform, device=device)
-        self.confusion_matrix = ConfusionMatrixMetric(
+        metric_fn = ConfusionMatrixMetric(
             include_background=include_background,
             metric_name=metric_name,
-            compute_sample=compute_sample,
+            compute_sample=False,
             reduction=MetricReduction.MEAN,
         )
-        self._sum = 0.0
-        self._num_examples = 0
-        self.compute_sample = compute_sample
         self.metric_name = metric_name
-        self._total_tp = 0.0
-        self._total_fp = 0.0
-        self._total_tn = 0.0
-        self._total_fn = 0.0
-
-    @reinit__is_reduced
-    def reset(self) -> None:
-        self._sum = 0.0
-        self._num_examples = 0
-        self._total_tp = 0.0
-        self._total_fp = 0.0
-        self._total_tn = 0.0
-        self._total_fn = 0.0
-
-    @reinit__is_reduced
-    def update(self, output: Sequence[torch.Tensor]) -> None:
-        """
-        Args:
-            output: sequence with contents [y_pred, y].
-
-        Raises:
-            ValueError: When ``output`` length is not 2. This metric can only support y_pred and y.
-
-        """
-        if len(output) != 2:
-            raise ValueError(f"output must have length 2, got {len(output)}.")
-        y_pred, y = output
-        if self.compute_sample is True:
-            score, not_nans = self.confusion_matrix(y_pred, y)
-            not_nans = int(not_nans.item())
-
-            # add all items in current batch
-            self._sum += score.item() * not_nans
-            self._num_examples += not_nans
-        else:
-            confusion_matrix = self.confusion_matrix(y_pred, y)
-            confusion_matrix, _ = do_metric_reduction(confusion_matrix, MetricReduction.SUM)
-            self._total_tp += confusion_matrix[0].item()
-            self._total_fp += confusion_matrix[1].item()
-            self._total_tn += confusion_matrix[2].item()
-            self._total_fn += confusion_matrix[3].item()
-
-    @sync_all_reduce("_sum", "_num_examples", "_total_tp", "_total_fp", "_total_tn", "_total_fn")
-    def compute(self):
-        """
-        Raises:
-            NotComputableError: When ``compute`` is called before an ``update`` occurs.
-
-        """
-        if self.compute_sample is True:
-            if self._num_examples == 0:
-                raise NotComputableError(
-                    "ConfusionMatrix metric must have at least one example before it can be computed."
-                )
-            return self._sum / self._num_examples
-        else:
-            confusion_matrix = torch.tensor([self._total_tp, self._total_fp, self._total_tn, self._total_fn])
-            return compute_confusion_matrix_metric(self.metric_name, confusion_matrix)
+        super().__init__(
+            metric_fn=metric_fn,
+            output_transform=output_transform,
+            save_details=save_details,
+        )

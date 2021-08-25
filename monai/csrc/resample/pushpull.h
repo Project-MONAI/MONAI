@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -69,8 +69,8 @@ at::Tensor grid_pull(
   CHECK_STRIDED(grid_opt)
   CHECK_SAME_DEVICE(input_opt, grid_opt)
   CHECK_SAME_DTYPE(input_opt, grid_opt)
-  CHECK_SPATIAL_2D_OR_3D(input)
-  CHECK_SPATIAL_2D_OR_3D(grid)
+  CHECK_SPATIAL_1D_2D_OR_3D(input)
+  CHECK_SPATIAL_1D_2D_OR_3D(grid)
   CHECK_GRID_COMPONENT(grid, grid.dim())
   CHECK_SPATIAL_NOT_EMPTY(input)
   CHECK_SPATIAL_NOT_EMPTY(grid)
@@ -165,8 +165,8 @@ at::Tensor grid_push(
   CHECK_STRIDED(grid_opt)
   CHECK_SAME_DEVICE(input_opt, grid_opt)
   CHECK_SAME_DTYPE(input_opt, grid_opt)
-  CHECK_SPATIAL_2D_OR_3D(input)
-  CHECK_SPATIAL_2D_OR_3D(grid)
+  CHECK_SPATIAL_1D_2D_OR_3D(input)
+  CHECK_SPATIAL_1D_2D_OR_3D(grid)
   CHECK_GRID_COMPONENT(grid, grid.dim())
   CHECK_SPATIAL_NOT_EMPTY(input)
   CHECK_SPATIAL_NOT_EMPTY(grid)
@@ -175,7 +175,10 @@ at::Tensor grid_push(
   CHECK_VEC_NOT_EMPTY(interpolation_mode);
 
   if (source_size.empty()) {
-    auto size = c10::IntArrayRef({input.size(2), input.size(3), input.dim() == 5 ? input.size(4) : 1});
+    auto size = c10::IntArrayRef(
+        {input.dim() >= 3 ? input.size(2) : 1,
+         input.dim() >= 4 ? input.size(3) : 1,
+         input.dim() >= 5 ? input.size(4) : 1});
     if (input.is_cuda())
 #ifdef WITH_CUDA
       return cuda::pushpull(
@@ -295,14 +298,15 @@ at::Tensor grid_count(
   CHECK_DEFINED(grid)
   auto grid_opt = grid.options();
   CHECK_STRIDED(grid_opt)
-  CHECK_SPATIAL_2D_OR_3D(grid)
+  CHECK_SPATIAL_1D_2D_OR_3D(grid)
   CHECK_GRID_COMPONENT(grid, grid.dim())
   CHECK_SPATIAL_NOT_EMPTY(grid)
   CHECK_VEC_NOT_EMPTY(bound_mode);
   CHECK_VEC_NOT_EMPTY(interpolation_mode);
 
   if (source_size.empty()) {
-    auto size = c10::IntArrayRef({grid.size(1), grid.size(2), grid.dim() == 5 ? grid.size(3) : 1});
+    auto size = c10::IntArrayRef(
+        {grid.dim() >= 3 ? grid.size(2) : 1, grid.dim() >= 4 ? grid.size(3) : 1, grid.dim() >= 5 ? grid.size(4) : 1});
     if (grid.is_cuda())
 #ifdef WITH_CUDA
       return cuda::pushpull(
@@ -422,8 +426,8 @@ at::Tensor grid_grad(
   CHECK_STRIDED(grid_opt)
   CHECK_SAME_DEVICE(input_opt, grid_opt)
   CHECK_SAME_DTYPE(input_opt, grid_opt)
-  CHECK_SPATIAL_2D_OR_3D(input)
-  CHECK_SPATIAL_2D_OR_3D(grid)
+  CHECK_SPATIAL_1D_2D_OR_3D(input)
+  CHECK_SPATIAL_1D_2D_OR_3D(grid)
   CHECK_GRID_COMPONENT(grid, grid.dim())
   CHECK_SPATIAL_NOT_EMPTY(input)
   CHECK_SPATIAL_NOT_EMPTY(grid)

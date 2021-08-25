@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,6 +27,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (255 * img).astype(np.uint8)
             write_png(img, image_name, scale=255)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     def test_write_gray_1height(self):
@@ -36,6 +37,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (65535 * img).astype(np.uint16)
             write_png(img, image_name, scale=65535)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     def test_write_gray_1channel(self):
@@ -45,6 +47,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (255 * img).astype(np.uint8).squeeze(2)
             write_png(img, image_name, scale=255)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     def test_write_rgb(self):
@@ -54,6 +57,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (255 * img).astype(np.uint8)
             write_png(img, image_name, scale=255)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     def test_write_2channels(self):
@@ -63,6 +67,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (255 * img).astype(np.uint8)
             write_png(img, image_name, scale=255)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     def test_write_output_shape(self):

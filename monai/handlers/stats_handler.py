@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,19 +15,20 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import torch
 
-from monai.utils import exact_version, is_scalar, optional_import
+from monai.config import IgniteInfo
+from monai.utils import is_scalar, min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
 
 
-class StatsHandler(object):
+class StatsHandler:
     """
     StatsHandler defines a set of Ignite Event-handlers for all the log printing logics.
     It's can be used for any Ignite Engine(trainer, validator and evaluator).
@@ -44,7 +45,7 @@ class StatsHandler(object):
         self,
         epoch_print_logger: Optional[Callable[[Engine], Any]] = None,
         iteration_print_logger: Optional[Callable[[Engine], Any]] = None,
-        output_transform: Callable = lambda x: x,
+        output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         name: Optional[str] = None,
         tag_name: str = DEFAULT_TAG,
@@ -59,9 +60,11 @@ class StatsHandler(object):
             iteration_print_logger: customized callable printer for iteration level logging.
                 Must accept parameter "engine", use default printer if None.
             output_transform: a callable that is used to transform the
-                ``ignite.engine.output`` into a scalar to print, or a dictionary of {key: scalar}.
+                ``ignite.engine.state.output`` into a scalar to print, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
                 By default this value logging happens when every iteration completed.
+                The default behavior is to print loss from output[0] as output is a decollated list
+                and we replicated loss value for every item of the decollated list.
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to print synced epoch number
                 with the trainer engine.
@@ -164,17 +167,21 @@ class StatsHandler(object):
             out_str += self.key_var_format.format(name, value)
         self.logger.info(out_str)
 
-        if hasattr(engine.state, "key_metric_name"):
-            if hasattr(engine.state, "best_metric") and hasattr(engine.state, "best_metric_epoch"):
-                out_str = f"Key metric: {engine.state.key_metric_name} "
-                out_str += f"best value: {engine.state.best_metric} at epoch: {engine.state.best_metric_epoch}"
+        if (
+            hasattr(engine.state, "key_metric_name")
+            and hasattr(engine.state, "best_metric")
+            and hasattr(engine.state, "best_metric_epoch")
+        ):
+            out_str = f"Key metric: {engine.state.key_metric_name} "
+            out_str += f"best value: {engine.state.best_metric} at epoch: {engine.state.best_metric_epoch}"
         self.logger.info(out_str)
 
     def _default_iteration_print(self, engine: Engine) -> None:
         """
         Execute iteration log operation based on Ignite engine.state data.
         Print the values from Ignite state.logs dict.
-        Default behavior is to print loss from output[1], skip if output[1] is not loss.
+        The default behavior is to print loss from output[0] as output is a decollated list and we replicated loss
+        value for every item of the decollated list.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -196,17 +203,18 @@ class StatsHandler(object):
                         " {}:{}".format(name, type(value))
                     )
                     continue  # not printing multi dimensional output
-                out_str += self.key_var_format.format(name, value.item() if torch.is_tensor(value) else value)
+                out_str += self.key_var_format.format(name, value.item() if isinstance(value, torch.Tensor) else value)
+        elif is_scalar(loss):  # not printing multi dimensional output
+            out_str += self.key_var_format.format(
+                self.tag_name, loss.item() if isinstance(loss, torch.Tensor) else loss
+            )
         else:
-            if is_scalar(loss):  # not printing multi dimensional output
-                out_str += self.key_var_format.format(self.tag_name, loss.item() if torch.is_tensor(loss) else loss)
-            else:
-                warnings.warn(
-                    "ignoring non-scalar output in StatsHandler,"
-                    " make sure `output_transform(engine.state.output)` returns"
-                    " a scalar or a dictionary of key and scalar pairs to avoid this warning."
-                    " {}".format(type(loss))
-                )
+            warnings.warn(
+                "ignoring non-scalar output in StatsHandler,"
+                " make sure `output_transform(engine.state.output)` returns"
+                " a scalar or a dictionary of key and scalar pairs to avoid this warning."
+                " {}".format(type(loss))
+            )
 
         if not out_str:
             return  # no value to print

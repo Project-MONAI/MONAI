@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -131,7 +131,8 @@ class TestHausdorffDistance(unittest.TestCase):
                 batch, n_class = 2, 3
                 batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
                 batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
-                result, _ = hd_metric(batch_seg_1, batch_seg_2)
+                hd_metric(batch_seg_1, batch_seg_2)
+                result = hd_metric.aggregate()
                 expected_value_curr = expected_value[ct]
                 np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
                 ct += 1
@@ -141,10 +142,11 @@ class TestHausdorffDistance(unittest.TestCase):
         [seg_1, seg_2] = input_data
         seg_1 = torch.tensor(seg_1)
         seg_2 = torch.tensor(seg_2)
-        hd_metric = HausdorffDistanceMetric(include_background=False)
+        hd_metric = HausdorffDistanceMetric(include_background=False, get_not_nans=True)
         batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0)
         batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0)
-        result, not_nans = hd_metric(batch_seg_1, batch_seg_2)
+        hd_metric(batch_seg_1, batch_seg_2)
+        result, not_nans = hd_metric.aggregate()
         np.testing.assert_allclose(0, result, rtol=1e-7)
         np.testing.assert_allclose(0, not_nans, rtol=1e-7)
 

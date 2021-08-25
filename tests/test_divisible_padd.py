@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {"keys": ["img"], "k": 7, "mode": "constant"},
+    {"keys": ["img"], "k": 7, "mode": "constant", "method": "end"},
     {"img": np.zeros((3, 8, 7))},
     np.zeros((3, 14, 7)),
 ]

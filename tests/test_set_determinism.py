@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import numpy as np
 import torch
 
 from monai.utils import get_seed, set_determinism
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda
 
 
 class TestSetDeterminism(unittest.TestCase):
@@ -47,6 +48,22 @@ class TestSetDeterminism(unittest.TestCase):
         self.assertTrue(torch.backends.cudnn.deterministic)
         self.assertTrue(not torch.backends.cudnn.benchmark)
         set_determinism(seed=None)
+
+
+class TestSetFlag(unittest.TestCase):
+    def setUp(self):
+        set_determinism(1, use_deterministic_algorithms=True)
+
+    @SkipIfBeforePyTorchVersion((1, 8))  # beta feature
+    @skip_if_no_cuda
+    def test_algo(self):
+        with self.assertRaises(RuntimeError):
+            x = torch.randn(20, 16, 50, 44, 31, requires_grad=True, device="cuda:0")
+            y = torch.nn.AvgPool3d((3, 2, 2), stride=(2, 1, 2))(x)
+            y.sum().backward()
+
+    def tearDown(self):
+        set_determinism(None, use_deterministic_algorithms=False)
 
 
 if __name__ == "__main__":

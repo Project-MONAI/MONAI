@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -115,8 +115,8 @@ class TestRand3DElasticd(unittest.TestCase):
         for key in res:
             result = res[key]
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
-            self.assertEqual(torch.is_tensor(result), torch.is_tensor(expected))
-            if torch.is_tensor(result):
+            self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected, torch.Tensor))
+            if isinstance(result, torch.Tensor):
                 np.testing.assert_allclose(result.cpu().numpy(), expected.cpu().numpy(), rtol=1e-4, atol=1e-4)
             else:
                 np.testing.assert_allclose(result, expected, rtol=1e-4, atol=1e-4)

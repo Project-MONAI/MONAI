@@ -1,6 +1,6 @@
 :github_url: https://github.com/Project-MONAI/MONAI
 
-.. MONAI documentation master file, created by
+.. MONAI documentation main file, created by
    sphinx-quickstart on Wed Feb  5 09:40:29 2020.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
@@ -11,7 +11,7 @@ Project MONAI
 
 *Medical Open Network for AI*
 
-MONAI is a `PyTorch <https://pytorch.org/>`_-based, `open-source <https://github.com/Project-MONAI/MONAI/blob/master/LICENSE>`_ framework
+MONAI is a `PyTorch <https://pytorch.org/>`_-based, `open-source <https://github.com/Project-MONAI/MONAI/blob/dev/LICENSE>`_ framework
 for deep learning in healthcare imaging, part of `PyTorch Ecosystem <https://pytorch.org/ecosystem/>`_.
 
 Its ambitions are:
@@ -45,24 +45,14 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
    :maxdepth: 1
    :caption: Feature highlights
 
+   whatsnew
    highlights.md
 
 .. toctree::
    :maxdepth: 1
-   :caption: APIs
+   :caption: API Reference
 
-   apps
-   transforms
-   losses
-   networks
-   metrics
-   optimizers
-   data
-   engines
-   inferers
-   handlers
-   visualize
-   utils
+   api
 
 .. toctree::
   :maxdepth: 1
@@ -70,12 +60,11 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
 
   installation
 
+.. toctree::
+  :maxdepth: 1
+  :caption: Contributing
 
-Contributing
-------------
-
-For guidance on making a contribution to MONAI, see the `contributing guidelines
-<https://github.com/Project-MONAI/MONAI/blob/master/CONTRIBUTING.md>`_.
+  contrib
 
 
 Links
@@ -86,14 +75,13 @@ Links
 - Code: https://github.com/Project-MONAI/MONAI
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
-- Changelog: https://github.com/Project-MONAI/MONAI/blob/master/CHANGELOG.md
+- Changelog: https://github.com/Project-MONAI/MONAI/blob/dev/CHANGELOG.md
 - Wiki: https://github.com/Project-MONAI/MONAI/wiki
 - FAQ: https://github.com/Project-MONAI/MONAI/wiki/Frequently-asked-questions-and-answers
 - Test status: https://github.com/Project-MONAI/MONAI/actions
 - PyPI package: https://pypi.org/project/monai/
+- Weekly previews: https://pypi.org/project/monai-weekly/
 - Docker Hub: https://hub.docker.com/r/projectmonai/monai
-- Google Group: https://groups.google.com/forum/#!forum/project-monai
-- Reddit: https://www.reddit.com/r/projectmonai/
 
 
 Indices and tables

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,15 +30,15 @@ for mode in ["pixelshuffle", "nontrainable", "deconv", None]:
     CASES_1D.append(
         [
             kwargs,
-            (10, 5, 17),
-            (10, 8, 17),
+            (10, 5, 33),
+            (10, 8, 33),
         ]
     )
 
 CASES_2D = []
 for mode in ["pixelshuffle", "nontrainable", "deconv"]:
-    for d1 in range(17, 64, 14):
-        for d2 in range(63, 18, -21):
+    for d1 in range(33, 64, 14):
+        for d2 in range(63, 33, -21):
             in_channels, out_channels = 2, 3
             CASES_2D.append(
                 [
@@ -62,8 +62,8 @@ CASES_3D = [
             "features": (16, 20, 21, 22, 23, 11),
             "upsample": "pixelshuffle",
         },
-        (2, 1, 16, 17, 18),
-        (2, 2, 16, 17, 18),
+        (2, 1, 33, 34, 35),
+        (2, 2, 33, 34, 35),
     ],
     [  # 2-channel 3D, batch 3
         {
@@ -73,8 +73,8 @@ CASES_3D = [
             "features": (14, 15, 16, 17, 18, 11),
             "upsample": "deconv",
         },
-        (3, 2, 16, 17, 18),
-        (3, 7, 16, 17, 18),
+        (3, 2, 33, 37, 34),
+        (3, 7, 33, 37, 34),
     ],
     [  # 4-channel 3D, batch 5
         {
@@ -84,8 +84,8 @@ CASES_3D = [
             "features": (14, 15, 16, 17, 18, 10),
             "upsample": "nontrainable",
         },
-        (5, 4, 19, 84, 16),
-        (5, 2, 19, 84, 16),
+        (5, 4, 34, 35, 37),
+        (5, 2, 34, 35, 37),
     ],
 ]
 

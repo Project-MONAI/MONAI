@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import CenterSpatialCrop
@@ -26,9 +27,15 @@ TEST_CASE_2 = [
     np.array([[[1, 2], [2, 3]]]),
 ]
 
+TEST_CASE_3 = [
+    {"roi_size": [2, 2, 2]},
+    torch.randint(0, 2, size=[3, 3, 3, 3], device="cuda" if torch.cuda.is_available() else "cpu"),
+    (3, 2, 2, 2),
+]
+
 
 class TestCenterSpatialCrop(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_3])
     def test_shape(self, input_param, input_data, expected_shape):
         result = CenterSpatialCrop(**input_param)(input_data)
         np.testing.assert_allclose(result.shape, expected_shape)

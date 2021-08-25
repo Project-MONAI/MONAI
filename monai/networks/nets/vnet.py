@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,8 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 
+__all__ = ["VNet"]
+
 
 def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
     if act == "prelu":
@@ -27,7 +29,7 @@ def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
 
 
 class LUConv(nn.Module):
-    def __init__(self, spatial_dims: int, nchan: int, act: Union[Tuple[str, Dict], str]):
+    def __init__(self, spatial_dims: int, nchan: int, act: Union[Tuple[str, Dict], str], bias: bool = False):
         super(LUConv, self).__init__()
 
         self.act_function = get_acti_layer(act, nchan)
@@ -38,6 +40,7 @@ class LUConv(nn.Module):
             kernel_size=5,
             act=None,
             norm=Norm.BATCH,
+            bias=bias,
         )
 
     def forward(self, x):
@@ -46,15 +49,22 @@ class LUConv(nn.Module):
         return out
 
 
-def _make_nconv(spatial_dims: int, nchan: int, depth: int, act: Union[Tuple[str, Dict], str]):
+def _make_nconv(spatial_dims: int, nchan: int, depth: int, act: Union[Tuple[str, Dict], str], bias: bool = False):
     layers = []
     for _ in range(depth):
-        layers.append(LUConv(spatial_dims, nchan, act))
+        layers.append(LUConv(spatial_dims, nchan, act, bias))
     return nn.Sequential(*layers)
 
 
 class InputTransition(nn.Module):
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, act: Union[Tuple[str, Dict], str]):
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        act: Union[Tuple[str, Dict], str],
+        bias: bool = False,
+    ):
         super(InputTransition, self).__init__()
 
         if 16 % in_channels != 0:
@@ -70,6 +80,7 @@ class InputTransition(nn.Module):
             kernel_size=5,
             act=None,
             norm=Norm.BATCH,
+            bias=bias,
         )
 
     def forward(self, x):
@@ -89,6 +100,7 @@ class DownTransition(nn.Module):
         act: Union[Tuple[str, Dict], str],
         dropout_prob: Optional[float] = None,
         dropout_dim: int = 3,
+        bias: bool = False,
     ):
         super(DownTransition, self).__init__()
 
@@ -97,11 +109,11 @@ class DownTransition(nn.Module):
         dropout_type: Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout3d]] = Dropout[Dropout.DROPOUT, dropout_dim]
 
         out_channels = 2 * in_channels
-        self.down_conv = conv_type(in_channels, out_channels, kernel_size=2, stride=2)
+        self.down_conv = conv_type(in_channels, out_channels, kernel_size=2, stride=2, bias=bias)
         self.bn1 = norm_type(out_channels)
         self.act_function1 = get_acti_layer(act, out_channels)
         self.act_function2 = get_acti_layer(act, out_channels)
-        self.ops = _make_nconv(spatial_dims, out_channels, nconvs, act)
+        self.ops = _make_nconv(spatial_dims, out_channels, nconvs, act, bias)
         self.dropout = dropout_type(dropout_prob) if dropout_prob is not None else None
 
     def forward(self, x):
@@ -154,7 +166,14 @@ class UpTransition(nn.Module):
 
 
 class OutputTransition(nn.Module):
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, act: Union[Tuple[str, Dict], str]):
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        act: Union[Tuple[str, Dict], str],
+        bias: bool = False,
+    ):
         super(OutputTransition, self).__init__()
 
         conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
@@ -167,6 +186,7 @@ class OutputTransition(nn.Module):
             kernel_size=5,
             act=None,
             norm=Norm.BATCH,
+            bias=bias,
         )
         self.conv2 = conv_type(out_channels, out_channels, kernel_size=1)
 
@@ -199,6 +219,10 @@ class VNet(nn.Module):
             - ``dropout_dim = 1``, randomly zeroes some of the elements for each channel.
             - ``dropout_dim = 2``, Randomly zeroes out entire channels (a channel is a 2D feature map).
             - ``dropout_dim = 3``, Randomly zeroes out entire channels (a channel is a 3D feature map).
+        bias: whether to have a bias term in convolution blocks. Defaults to False.
+            According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
+            if a conv layer is directly followed by a batch norm layer, bias should be False.
+
     """
 
     def __init__(
@@ -209,21 +233,23 @@ class VNet(nn.Module):
         act: Union[Tuple[str, Dict], str] = ("elu", {"inplace": True}),
         dropout_prob: float = 0.5,
         dropout_dim: int = 3,
+        bias: bool = False,
     ):
         super().__init__()
 
-        assert spatial_dims == 2 or spatial_dims == 3, "spatial_dims can only be 2 or 3."
+        if spatial_dims not in (2, 3):
+            raise AssertionError("spatial_dims can only be 2 or 3.")
 
-        self.in_tr = InputTransition(spatial_dims, in_channels, 16, act)
-        self.down_tr32 = DownTransition(spatial_dims, 16, 1, act)
-        self.down_tr64 = DownTransition(spatial_dims, 32, 2, act)
-        self.down_tr128 = DownTransition(spatial_dims, 64, 3, act, dropout_prob=dropout_prob)
-        self.down_tr256 = DownTransition(spatial_dims, 128, 2, act, dropout_prob=dropout_prob)
+        self.in_tr = InputTransition(spatial_dims, in_channels, 16, act, bias=bias)
+        self.down_tr32 = DownTransition(spatial_dims, 16, 1, act, bias=bias)
+        self.down_tr64 = DownTransition(spatial_dims, 32, 2, act, bias=bias)
+        self.down_tr128 = DownTransition(spatial_dims, 64, 3, act, dropout_prob=dropout_prob, bias=bias)
+        self.down_tr256 = DownTransition(spatial_dims, 128, 2, act, dropout_prob=dropout_prob, bias=bias)
         self.up_tr256 = UpTransition(spatial_dims, 256, 256, 2, act, dropout_prob=dropout_prob)
         self.up_tr128 = UpTransition(spatial_dims, 256, 128, 2, act, dropout_prob=dropout_prob)
         self.up_tr64 = UpTransition(spatial_dims, 128, 64, 1, act)
         self.up_tr32 = UpTransition(spatial_dims, 64, 32, 1, act)
-        self.out_tr = OutputTransition(spatial_dims, 32, out_channels, act)
+        self.out_tr = OutputTransition(spatial_dims, 32, out_channels, act, bias=bias)
 
     def forward(self, x):
         out16 = self.in_tr(x)

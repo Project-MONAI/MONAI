@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -74,8 +74,9 @@ if torch.cuda.device_count() > 1:
 
 class TestNovograd(unittest.TestCase):
     """
-    This class takes `Pytorch's test_optim function
-    <https://github.com/pytorch/pytorch/blob/master/test/test_optim.py>`_ for reference.
+    This class takes `Pytorch's test_optim function:
+    https://github.com/pytorch/pytorch/blob/v1.9.0/test/test_optim.py for reference.
+
     """
 
     @parameterized.expand(TEST_CASES_ALL)

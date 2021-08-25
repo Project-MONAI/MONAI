@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,13 +14,14 @@ import unittest
 import numpy as np
 import torch
 from parameterized import parameterized
+from torch.autograd import gradcheck
 
 from monai.networks.layers.filtering import BilateralFilter
-from tests.utils import skip_if_no_cpp_extention, skip_if_no_cuda
+from tests.utils import skip_if_no_cpp_extension, skip_if_no_cuda
 
 TEST_CASES = [
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 1 channel, low spatial sigma, low color sigma",
         # Spatial and Color Sigmas
         (1, 0.2),
@@ -52,7 +53,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 1 channel, low spatial sigma, high color sigma",
         # Spatial and Color Sigmas
         (1, 0.9),
@@ -84,7 +85,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 1 channel, high spatial sigma, low color sigma",
         # Spatial and Color Sigmas
         (4, 0.2),
@@ -116,7 +117,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 1 channel, high spatial sigma, high color sigma",
         # Sigmas
         (4, 0.9),
@@ -148,7 +149,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 4 channel, low spatial sigma, high color sigma",
         # Spatial and Color Sigmas
         (1, 0.9),
@@ -182,7 +183,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "2 dimension, 1 channel, high spatial sigma, high color sigma",
         # Sigmas
         (4, 0.9),
@@ -226,7 +227,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "2 dimension, 4 channel, high spatial sigma, high color sigma",
         # Spatial and Color Sigmas
         (4, 0.9),
@@ -284,7 +285,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "3 dimension, 1 channel, high spatial sigma, high color sigma",
         # Sigmas
         (4, 0.9),
@@ -360,10 +361,10 @@ TEST_CASES = [
 ]
 
 
-@skip_if_no_cpp_extention
-class BilateralFilterTestCaseCpuPrecised(unittest.TestCase):
+@skip_if_no_cpp_extension
+class BilateralFilterTestCaseCpuPrecise(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_cpu_precised(self, test_case_description, sigmas, input, expected):
+    def test_cpu_precise(self, test_case_description, sigmas, input, expected):
 
         # Params to determine the implementation to test
         device = torch.device("cpu")
@@ -376,12 +377,29 @@ class BilateralFilterTestCaseCpuPrecised(unittest.TestCase):
         # Ensure result are as expected
         np.testing.assert_allclose(output, expected, atol=1e-5)
 
+    @parameterized.expand(TEST_CASES)
+    def test_cpu_precise_backwards(self, test_case_description, sigmas, input, expected):
+
+        # Params to determine the implementation to test
+        device = torch.device("cpu")
+        fast_approx = False
+
+        # Prepare input tensor
+        input_tensor = torch.from_numpy(np.array(input)).to(dtype=torch.float, device=device)
+        input_tensor.requires_grad = True
+
+        # Prepare args
+        args = (input_tensor, *sigmas, fast_approx)
+
+        # Run grad check
+        gradcheck(BilateralFilter.apply, args, raise_exception=False)
+
 
 @skip_if_no_cuda
-@skip_if_no_cpp_extention
-class BilateralFilterTestCaseCudaPrecised(unittest.TestCase):
+@skip_if_no_cpp_extension
+class BilateralFilterTestCaseCudaPrecise(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_cuda_precised(self, test_case_description, sigmas, input, expected):
+    def test_cuda_precise(self, test_case_description, sigmas, input, expected):
 
         # Skip this test
         if not torch.cuda.is_available():
@@ -397,6 +415,23 @@ class BilateralFilterTestCaseCudaPrecised(unittest.TestCase):
 
         # Ensure result are as expected
         np.testing.assert_allclose(output, expected, atol=1e-5)
+
+    @parameterized.expand(TEST_CASES)
+    def test_cuda_precise_backwards(self, test_case_description, sigmas, input, expected):
+
+        # Params to determine the implementation to test
+        device = torch.device("cuda")
+        fast_approx = False
+
+        # Prepare input tensor
+        input_tensor = torch.from_numpy(np.array(input)).to(dtype=torch.float, device=device)
+        input_tensor.requires_grad = True
+
+        # Prepare args
+        args = (input_tensor, *sigmas, fast_approx)
+
+        # Run grad check
+        gradcheck(BilateralFilter.apply, args, raise_exception=False)
 
 
 if __name__ == "__main__":

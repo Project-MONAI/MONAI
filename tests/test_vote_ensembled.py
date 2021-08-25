@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,33 +38,33 @@ TEST_CASE_2 = [
     torch.tensor([[[[1.0]], [[0.0]]]]),
 ]
 
-# shape: [1, 1, 2, 1]
+# shape: [1, 2, 1]
 TEST_CASE_3 = [
     {"keys": ["pred0", "pred1", "pred2"], "output_key": "output", "num_classes": 3},
     {
-        "pred0": torch.tensor([[[[0], [2]]]]),
-        "pred1": torch.tensor([[[[0], [2]]]]),
-        "pred2": torch.tensor([[[[1], [1]]]]),
+        "pred0": torch.tensor([[[0], [2]]]),
+        "pred1": torch.tensor([[[0], [2]]]),
+        "pred2": torch.tensor([[[1], [1]]]),
     },
-    torch.tensor([[[[0], [2]]]]),
+    torch.tensor([[[0], [2]]]),
 ]
 
-# shape: [1, 1, 2, 1]
+# shape: [1, 2, 1]
 TEST_CASE_4 = [
     {"keys": ["pred0", "pred1", "pred2"], "output_key": "output", "num_classes": 5},
     {
-        "pred0": torch.tensor([[[[0], [2]]]]),
-        "pred1": torch.tensor([[[[0], [2]]]]),
-        "pred2": torch.tensor([[[[1], [1]]]]),
+        "pred0": torch.tensor([[[0], [2]]]),
+        "pred1": torch.tensor([[[0], [2]]]),
+        "pred2": torch.tensor([[[1], [1]]]),
     },
-    torch.tensor([[[[0], [2]]]]),
+    torch.tensor([[[0], [2]]]),
 ]
 
-# shape: [2]
+# shape: [1]
 TEST_CASE_5 = [
     {"keys": ["pred0", "pred1", "pred2"], "output_key": "output", "num_classes": 3},
-    {"pred0": torch.tensor([0, 2]), "pred1": torch.tensor([0, 2]), "pred2": torch.tensor([1, 1])},
-    torch.tensor([0, 2]),
+    {"pred0": torch.tensor([2]), "pred1": torch.tensor([2]), "pred2": torch.tensor([1])},
+    torch.tensor([2]),
 ]
 
 

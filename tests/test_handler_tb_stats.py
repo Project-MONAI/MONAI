@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,7 +25,7 @@ class TestHandlerTBStats(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return batch + 1.0
+                return [batch + 1.0]
 
             engine = Engine(_train_func)
 
@@ -39,6 +39,7 @@ class TestHandlerTBStats(unittest.TestCase):
             stats_handler = TensorBoardStatsHandler(log_dir=tempdir)
             stats_handler.attach(engine)
             engine.run(range(3), max_epochs=2)
+            stats_handler.close()
             # check logging output
             self.assertTrue(len(glob.glob(tempdir)) > 0)
 
@@ -47,7 +48,7 @@ class TestHandlerTBStats(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return batch + 1.0
+                return [batch + 1.0]
 
             engine = Engine(_train_func)
 
@@ -60,10 +61,11 @@ class TestHandlerTBStats(unittest.TestCase):
             # set up testing handler
             writer = SummaryWriter(log_dir=tempdir)
             stats_handler = TensorBoardStatsHandler(
-                writer, output_transform=lambda x: {"loss": x * 2.0}, global_epoch_transform=lambda x: x * 3.0
+                writer, output_transform=lambda x: {"loss": x[0] * 2.0}, global_epoch_transform=lambda x: x * 3.0
             )
             stats_handler.attach(engine)
             engine.run(range(3), max_epochs=2)
+            writer.close()
             # check logging output
             self.assertTrue(len(glob.glob(tempdir)) > 0)
 

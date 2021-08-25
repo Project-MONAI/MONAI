@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import SpatialCrop
@@ -39,6 +40,15 @@ TEST_CASES = [
         (3, 3, 3, 3),
         (3, 0, 3, 3),
     ],
+    [
+        {"roi_slices": [slice(s, e) for s, e in zip([-1, -2, 0], [None, None, 2])]},
+        (3, 3, 3, 3),
+        (3, 1, 2, 2),
+    ],
+]
+
+TEST_ERRORS = [
+    [{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}],
 ]
 
 
@@ -48,6 +58,17 @@ class TestSpatialCrop(unittest.TestCase):
         input_data = np.random.randint(0, 2, size=input_shape)
         result = SpatialCrop(**input_param)(input_data)
         self.assertTupleEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_CASES)
+    def test_tensor_shape(self, input_param, input_shape, expected_shape):
+        input_data = torch.randint(0, 2, size=input_shape, device="cuda" if torch.cuda.is_available() else "cpu")
+        result = SpatialCrop(**input_param)(input_data)
+        self.assertTupleEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_ERRORS)
+    def test_error(self, input_param):
+        with self.assertRaises(ValueError):
+            SpatialCrop(**input_param)
 
 
 if __name__ == "__main__":

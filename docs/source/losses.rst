@@ -48,6 +48,11 @@ Segmentation Losses
 .. autoclass:: DiceCELoss
     :members:
 
+`DiceFocalLoss`
+~~~~~~~~~~~~~~~
+.. autoclass:: DiceFocalLoss
+    :members:
+
 `FocalLoss`
 ~~~~~~~~~~~
 .. autoclass:: FocalLoss
@@ -64,4 +69,27 @@ Registration Losses
 `BendingEnergyLoss`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: BendingEnergyLoss
+    :members:
+
+`LocalNormalizedCrossCorrelationLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: LocalNormalizedCrossCorrelationLoss
+    :members:
+
+`GlobalMutualInformationLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GlobalMutualInformationLoss
+    :members:
+
+Loss Wrappers
+-------------
+
+`MultiScaleLoss`
+~~~~~~~~~~~~~~~~
+.. autoclass:: MultiScaleLoss
+    :members:
+
+`MaskedLoss`
+~~~~~~~~~~~~
+.. autoclass:: MaskedLoss
     :members:

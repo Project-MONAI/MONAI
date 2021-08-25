@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -12,9 +12,17 @@ limitations under the License.
 */
 
 #pragma once
+
+#include <torch/extension.h>
+
+#define PHL_CUDA_MAX_CHANNELS 16
+#define PHL_CUDA_MAX_FEATURES 19
+
 template <typename scalar_t>
-scalar_t* PermutohedralCPU(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount);
+void PermutohedralCPU(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount);
 #ifdef WITH_CUDA
 template <typename scalar_t, int dc, int fc>
 void PermutohedralCuda(scalar_t* data, scalar_t* features, int elementCount, bool accurate);
 #endif
+
+torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features);

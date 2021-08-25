@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers import same_padding
-from monai.networks.layers.factories import Act, Conv, Norm
+from monai.networks.layers.factories import Conv
 
 
 class SimpleASPP(nn.Module):
@@ -37,8 +37,9 @@ class SimpleASPP(nn.Module):
         conv_out_channels: int,
         kernel_sizes: Sequence[int] = (1, 3, 3, 3),
         dilations: Sequence[int] = (1, 2, 4, 6),
-        norm_type=Norm.BATCH,
-        acti_type=Act.LEAKYRELU,
+        norm_type: Optional[Union[Tuple, str]] = "BATCH",
+        acti_type: Optional[Union[Tuple, str]] = "LEAKYRELU",
+        bias: bool = False,
     ) -> None:
         """
         Args:
@@ -54,6 +55,9 @@ class SimpleASPP(nn.Module):
                 Defaults to batch norm.
             acti_type: final kernel-size-one convolution activation type.
                 Defaults to leaky ReLU.
+            bias: whether to have a bias term in convolution blocks. Defaults to False.
+                According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
+                if a conv layer is directly followed by a batch norm layer, bias should be False.
 
         Raises:
             ValueError: When ``kernel_sizes`` length differs from ``dilations``.
@@ -88,6 +92,7 @@ class SimpleASPP(nn.Module):
             kernel_size=1,
             act=acti_type,
             norm=norm_type,
+            bias=bias,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

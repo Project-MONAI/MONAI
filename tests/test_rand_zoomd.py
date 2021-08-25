@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,7 +37,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
         random_zoom.set_random_state(1234)
 
         zoomed = random_zoom({key: self.imt[0]})
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(zoom_scipy(channel, zoom=random_zoom._zoom, mode="nearest", order=0, prefilter=False))
         expected = np.stack(expected).astype(np.float32)
@@ -45,7 +45,15 @@ class TestRandZoomd(NumpyImageTestCase2D):
 
     def test_keep_size(self):
         key = "img"
-        random_zoom = RandZoomd(key, prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True)
+        random_zoom = RandZoomd(
+            keys=key,
+            prob=1.0,
+            min_zoom=0.6,
+            max_zoom=0.7,
+            keep_size=True,
+            padding_mode="constant",
+            constant_values=2,
+        )
         zoomed = random_zoom({key: self.imt[0]})
         self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 

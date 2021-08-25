@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,11 +19,12 @@ from typing import Any, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config import USE_COMPILED
+from monai.config import USE_COMPILED, DtypeLike
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -31,6 +32,7 @@ from monai.transforms.utils import (
     create_scale,
     create_shear,
     create_translate,
+    map_spatial_axes,
 )
 from monai.utils import (
     GridSampleMode,
@@ -41,10 +43,39 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    issequenceiterable,
     optional_import,
 )
+from monai.utils.enums import TransformBackends
+from monai.utils.module import look_up_option
 
 nib, _ = optional_import("nibabel")
+
+__all__ = [
+    "Spacing",
+    "Orientation",
+    "Flip",
+    "Resize",
+    "Rotate",
+    "Zoom",
+    "Rotate90",
+    "RandRotate90",
+    "RandRotate",
+    "RandFlip",
+    "RandAxisFlip",
+    "RandZoom",
+    "AffineGrid",
+    "RandAffineGrid",
+    "RandDeformGrid",
+    "Resample",
+    "Affine",
+    "RandAffine",
+    "Rand2DElastic",
+    "Rand3DElastic",
+    "AddCoordinateChannels",
+]
+
+RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
 
 
 class Spacing(Transform):
@@ -59,11 +90,17 @@ class Spacing(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         """
         Args:
-            pixdim: output voxel spacing.
+            pixdim: output voxel spacing. if providing a single number, will use it for the first dimension.
+                items of the pixdim sequence map to the spatial dimensions of input image, if length
+                of pixdim sequence is longer than image spatial dimensions, will ignore the longer part,
+                if shorter, will pad with `1.0`.
+                if the components of the `pixdim` are non-positive values, the transform will use the
+                corresponding components of the original pixdim, which is computed from the `affine`
+                matrix of input image.
             diagonal: whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
 
@@ -86,11 +123,12 @@ class Spacing(Transform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
 
@@ -101,7 +139,8 @@ class Spacing(Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: DtypeLike = None,
+        output_spatial_shape: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Args:
@@ -118,13 +157,16 @@ class Spacing(Transform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            output_spatial_shape: specify the shape of the output data_array. This is typically useful for
+                the inverse of `Spacingd` where sometimes we could not compute the exact shape due to the quantization
+                error with the affine.
 
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
             ValueError: When ``pixdim`` is nonpositive.
 
         Returns:
-            data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
+            data_array (resampled into `self.pixdim`), original affine, current affine.
 
         """
         _dtype = dtype or self.dtype or data_array.dtype
@@ -137,11 +179,11 @@ class Spacing(Transform):
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_ = to_affine_nd(sr, affine)
+
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
-            out_d = np.append(out_d, [1.0] * (out_d.size - sr))
-        if np.any(out_d <= 0):
-            raise ValueError(f"pixdim must be positive, got {out_d}.")
+            out_d = np.append(out_d, [1.0] * (sr - out_d.size))
+
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
@@ -159,8 +201,8 @@ class Spacing(Transform):
         # resample
         affine_xform = AffineTransform(
             normalized=False,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=look_up_option(mode or self.mode, GridSampleMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
             align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
@@ -168,10 +210,11 @@ class Spacing(Transform):
             # AffineTransform requires a batch dim
             torch.as_tensor(np.ascontiguousarray(data_array).astype(_dtype)).unsqueeze(0),
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
-            spatial_size=output_shape,
+            spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
         )
-        output_data = output_data.squeeze(0).detach().cpu().numpy().astype(np.float32)
+        output_data = np.asarray(output_data.squeeze(0).detach().cpu().numpy(), dtype=np.float32)  # type: ignore
         new_affine = to_affine_nd(affine, new_affine)
+
         return output_data, affine, new_affine
 
 
@@ -242,7 +285,8 @@ class Orientation(Transform):
         if self.as_closest_canonical:
             spatial_ornt = src
         else:
-            assert self.axcodes is not None
+            if self.axcodes is None:
+                raise AssertionError
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
             if len(dst) < sr:
                 raise ValueError(
@@ -253,46 +297,59 @@ class Orientation(Transform):
         ornt[:, 0] += 1  # skip channel dim
         ornt = np.concatenate([np.array([[0, 1]]), ornt])
         shape = data_array.shape[1:]
-        data_array = nib.orientations.apply_orientation(data_array, ornt)
+        data_array = np.ascontiguousarray(nib.orientations.apply_orientation(data_array, ornt))
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
         new_affine = to_affine_nd(affine, new_affine)
+
         return data_array, affine, new_affine
 
 
 class Flip(Transform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
-    Uses ``np.flip`` in practice. See numpy.flip for additional details.
-    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
+    Uses ``np.flip`` in practice. See numpy.flip for additional details:
+    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html.
 
     Args:
         spatial_axis: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+
     """
 
-    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]]) -> None:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        flipped = list()
-        for channel in img:
-            flipped.append(np.flip(channel, self.spatial_axis))
-        return np.stack(flipped).astype(img.dtype)
+        if isinstance(img, np.ndarray):
+            return np.ascontiguousarray(np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis)))
+        else:
+            return torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
 
 
 class Resize(Transform):
     """
-    Resize the input image to given spatial size.
+    Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
 
     Args:
         spatial_size: expected shape of spatial dimensions after resize operation.
-            if the components of the `spatial_size` are non-positive values, the transform will use the
+            if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
+        size_mode: should be "all" or "longest", if "all", will use `spatial_size` for all the spatial dims,
+            if "longest", rescale the image so that only the longest side is equal to specified `spatial_size`,
+            which must be an int number in this case, keeping the aspect ratio of the initial image, refer to:
+            https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
+            #albumentations.augmentations.geometric.resize.LongestMaxSize.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -304,11 +361,13 @@ class Resize(Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
+        size_mode: str = "all",
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
-        self.mode: InterpolateMode = InterpolateMode(mode)
+        self.size_mode = look_up_option(size_mode, ["all", "longest"])
+        self.spatial_size = spatial_size
+        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
 
     def __call__(
@@ -331,28 +390,35 @@ class Resize(Transform):
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
-        input_ndim = img.ndim - 1  # spatial ndim
-        output_ndim = len(self.spatial_size)
-        if output_ndim > input_ndim:
-            input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
-            img = img.reshape(input_shape)
-        elif output_ndim < input_ndim:
-            raise ValueError(
-                "len(spatial_size) must be greater or equal to img spatial dimensions, "
-                f"got spatial_size={output_ndim} img={input_ndim}."
-            )
-        spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
+        if self.size_mode == "all":
+            input_ndim = img.ndim - 1  # spatial ndim
+            output_ndim = len(ensure_tuple(self.spatial_size))
+            if output_ndim > input_ndim:
+                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+                img = img.reshape(input_shape)
+            elif output_ndim < input_ndim:
+                raise ValueError(
+                    "len(spatial_size) must be greater or equal to img spatial dimensions, "
+                    f"got spatial_size={output_ndim} img={input_ndim}."
+                )
+            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
+        else:  # for the "longest" mode
+            img_size = img.shape[1:]
+            if not isinstance(self.spatial_size, int):
+                raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
+            scale = self.spatial_size / max(img_size)
+            spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
         resized = torch.nn.functional.interpolate(  # type: ignore
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
-            size=spatial_size,
-            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
+            size=spatial_size_,
+            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
         resized = resized.squeeze(0).detach().cpu().numpy()
-        return resized
+        return np.asarray(resized)
 
 
-class Rotate(Transform):
+class Rotate(Transform, ThreadUnsafe):
     """
     Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
 
@@ -381,14 +447,15 @@ class Rotate(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
+        self._rotation_matrix: Optional[np.ndarray] = None
 
     def __call__(
         self,
@@ -396,7 +463,7 @@ class Rotate(Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: DtypeLike = None,
     ) -> np.ndarray:
         """
         Args:
@@ -426,7 +493,7 @@ class Rotate(Transform):
             raise ValueError(f"Unsupported img dimension: {input_ndim}, available options are [2, 3].")
         _angle = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
         transform = create_rotate(input_ndim, _angle)
-        shift = create_translate(input_ndim, (im_shape - 1) / 2)
+        shift = create_translate(input_ndim, ((im_shape - 1) / 2).tolist())
         if self.keep_size:
             output_shape = im_shape
         else:
@@ -434,14 +501,14 @@ class Rotate(Transform):
                 (len(im_shape), -1)
             )
             corners = transform[:-1, :-1] @ corners
-            output_shape = (corners.ptp(axis=1) + 0.5).astype(int)
-        shift_1 = create_translate(input_ndim, -(output_shape - 1) / 2)
+            output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
+        shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
         transform = shift @ transform @ shift_1
 
         xform = AffineTransform(
             normalized=False,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=look_up_option(mode or self.mode, GridSampleMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
             align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
@@ -450,8 +517,15 @@ class Rotate(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output = output.squeeze(0).detach().cpu().numpy().astype(np.float32)
-        return output
+        self._rotation_matrix = transform
+        return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+
+    def get_rotation_matrix(self) -> Optional[np.ndarray]:
+        """
+        Get the most recently applied rotation matrix
+        This is not thread-safe.
+        """
+        return self._rotation_matrix
 
 
 class Zoom(Transform):
@@ -477,6 +551,9 @@ class Zoom(Transform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         keep_size: Should keep original size (padding/slicing if needed), default is True.
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
 
     def __init__(
@@ -486,12 +563,14 @@ class Zoom(Transform):
         padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
+        **np_kwargs,
     ) -> None:
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
+        self.np_kwargs = np_kwargs
 
     def __call__(
         self,
@@ -499,7 +578,7 @@ class Zoom(Transform):
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> np.ndarray:
+    ):
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -520,7 +599,7 @@ class Zoom(Transform):
             recompute_scale_factor=True,
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             scale_factor=list(_zoom),
-            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
+            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
         zoomed = zoomed.squeeze(0).detach().cpu().numpy()
@@ -537,14 +616,17 @@ class Zoom(Transform):
             elif diff < 0:  # need slicing
                 slice_vec[idx] = slice(half, half + od)
 
-        padding_mode = self.padding_mode if padding_mode is None else NumpyPadMode(padding_mode)
-        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value)
+        padding_mode = look_up_option(self.padding_mode if padding_mode is None else padding_mode, NumpyPadMode)
+        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value, **self.np_kwargs)  # type: ignore
         return zoomed[tuple(slice_vec)]
 
 
 class Rotate90(Transform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
+    See np.rot90 for additional details:
+    https://numpy.org/doc/stable/reference/generated/numpy.rot90.html.
+
     """
 
     def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
@@ -553,22 +635,25 @@ class Rotate90(Transform):
             k: number of times to rotate by 90 degrees.
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
+                If axis is negative it counts from the last to the first axis.
         """
         self.k = k
-        self.spatial_axes = spatial_axes
+        spatial_axes_: Tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
+        if len(spatial_axes_) != 2:
+            raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
+        self.spatial_axes = spatial_axes_
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rotated = list()
-        for channel in img:
-            rotated.append(np.rot90(channel, self.k, self.spatial_axes))
-        return np.stack(rotated).astype(img.dtype)
+
+        result: np.ndarray = np.rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes))
+        return result.astype(img.dtype)
 
 
-class RandRotate90(Randomizable, Transform):
+class RandRotate90(RandomizableTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -583,16 +668,15 @@ class RandRotate90(Randomizable, Transform):
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
-        self.prob = min(max(prob, 0.0), 1.0)
+        RandomizableTransform.__init__(self, prob)
         self.max_k = max_k
         self.spatial_axes = spatial_axes
 
-        self._do_transform = False
         self._rand_k = 0
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._rand_k = self.R.randint(self.max_k) + 1
-        self._do_transform = self.R.random() < self.prob
+        super().randomize(None)
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
@@ -606,7 +690,7 @@ class RandRotate90(Randomizable, Transform):
         return rotator(img)
 
 
-class RandRotate(Randomizable, Transform):
+class RandRotate(RandomizableTransform):
     """
     Randomly rotate the input arrays.
 
@@ -644,8 +728,9 @@ class RandRotate(Randomizable, Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
+        dtype: DtypeLike = np.float64,
     ) -> None:
+        RandomizableTransform.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
@@ -656,20 +741,18 @@ class RandRotate(Randomizable, Transform):
         if len(self.range_z) == 1:
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
-        self.prob = prob
         self.keep_size = keep_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
 
-        self._do_transform = False
         self.x = 0.0
         self.y = 0.0
         self.z = 0.0
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
+        super().randomize(None)
         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
@@ -680,7 +763,7 @@ class RandRotate(Randomizable, Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: DtypeLike = None,
     ) -> np.ndarray:
         """
         Args:
@@ -703,15 +786,15 @@ class RandRotate(Randomizable, Transform):
         rotator = Rotate(
             angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
             keep_size=self.keep_size,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=look_up_option(mode or self.mode, GridSampleMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,
         )
-        return rotator(img)
+        return np.array(rotator(img))
 
 
-class RandFlip(Randomizable, Transform):
+class RandFlip(RandomizableTransform):
     """
     Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
@@ -722,26 +805,57 @@ class RandFlip(Randomizable, Transform):
         spatial_axis: Spatial axes along which to flip over. Default is None.
     """
 
+    backend = Flip.backend
+
     def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
-        self.prob = prob
+        RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
-        self._do_transform = False
 
-    def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
-
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        self.randomize()
+        self.randomize(None)
         if not self._do_transform:
             return img
         return self.flipper(img)
 
 
-class RandZoom(Randomizable, Transform):
+class RandAxisFlip(RandomizableTransform):
+    """
+    Randomly select a spatial axis and flip along it.
+    See numpy.flip for additional details.
+    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
+
+    Args:
+        prob: Probability of flipping.
+
+    """
+
+    backend = Flip.backend
+
+    def __init__(self, prob: float = 0.1) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self._axis: Optional[int] = None
+
+    def randomize(self, data: NdarrayOrTensor) -> None:
+        super().randomize(None)
+        self._axis = self.R.randint(data.ndim - 1)
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+        """
+        self.randomize(data=img)
+        if not self._do_transform:
+            return img
+        flipper = Flip(spatial_axis=self._axis)
+        return flipper(img)
+
+
+class RandZoom(RandomizableTransform):
     """
     Randomly zooms input arrays with given probability within given zoom range.
 
@@ -768,6 +882,9 @@ class RandZoom(Randomizable, Transform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         keep_size: Should keep original size (pad if needed), default is True.
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
 
     def __init__(
@@ -779,21 +896,23 @@ class RandZoom(Randomizable, Transform):
         padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
+        **np_kwargs,
     ) -> None:
+        RandomizableTransform.__init__(self, prob)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
-        assert len(self.min_zoom) == len(self.max_zoom), "min_zoom and max_zoom must have same length."
-        self.prob = prob
-        self.mode: InterpolateMode = InterpolateMode(mode)
-        self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
+        if len(self.min_zoom) != len(self.max_zoom):
+            raise AssertionError("min_zoom and max_zoom must have same length.")
+        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
+        self.padding_mode: NumpyPadMode = look_up_option(padding_mode, NumpyPadMode)
         self.align_corners = align_corners
         self.keep_size = keep_size
+        self.np_kwargs = np_kwargs
 
-        self._do_transform = False
         self._zoom: Sequence[float] = [1.0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
+        super().randomize(None)
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
 
     def __call__(
@@ -828,13 +947,16 @@ class RandZoom(Randomizable, Transform):
         elif len(self._zoom) == 2 and img.ndim > 3:
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
             self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(self._zoom, keep_size=self.keep_size)
-        return zoomer(
-            img,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
-            align_corners=self.align_corners if align_corners is None else align_corners,
-        ).astype(_dtype)
+        zoomer = Zoom(self._zoom, keep_size=self.keep_size, **self.np_kwargs)
+        return np.asarray(
+            zoomer(
+                img,
+                mode=look_up_option(mode or self.mode, InterpolateMode),
+                padding_mode=look_up_option(padding_mode or self.padding_mode, NumpyPadMode),
+                align_corners=self.align_corners if align_corners is None else align_corners,
+            ),
+            dtype=_dtype,
+        )
 
 
 class AffineGrid(Transform):
@@ -842,24 +964,27 @@ class AffineGrid(Transform):
     Affine transforms on the coordinates.
 
     Args:
-        rotate_params: angle range in radians. rotate_params[0] with be used to generate the 1st rotation
-            parameter from `uniform[-rotate_params[0], rotate_params[0])`. Similarly, `rotate_params[1]` and
-            `rotate_params[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-        shear_params: shear_params[0] with be used to generate the 1st shearing parameter from
-            `uniform[-shear_params[0], shear_params[0])`. Similarly, `shear_params[1]` to
-            `shear_params[N]` controls the range of the uniform distribution used to generate the 2nd to
-            N-th parameter.
-        translate_params : translate_params[0] with be used to generate the 1st shift parameter from
-            `uniform[-translate_params[0], translate_params[0])`. Similarly, `translate_params[1]`
-            to `translate_params[N]` controls the range of the uniform distribution used to generate
-            the 2nd to N-th parameter.
-        scale_params: scale_params[0] with be used to generate the 1st scaling factor from
-            `uniform[-scale_params[0], scale_params[0]) + 1.0`. Similarly, `scale_params[1]` to
-            `scale_params[N]` controls the range of the uniform distribution used to generate the 2nd to
-            N-th parameter.
-        as_tensor_output: whether to output tensor instead of numpy array.
-            defaults to True.
+        rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
+            Defaults to no rotation.
+        shear_params: shearing factors for affine matrix, take a 3D affine as example::
+
+            [
+                [1.0, params[0], params[1], 0.0],
+                [params[2], 1.0, params[3], 0.0],
+                [params[4], params[5], 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+
+            a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
+        translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
+            pixel/voxel relative to the center of the input image. Defaults to no translation.
+        scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
+            a tuple of 3 floats for 3D. Defaults to `1.0`.
+        as_tensor_output: whether to output tensor instead of numpy array, defaults to True.
         device: device to store the output grid data.
+        affine: If applied, ignore the params (`rotate_params`, etc.) and use the
+            supplied matrix. Should be square with each side = num of image spatial
+            dimensions + 1.
 
     """
 
@@ -871,6 +996,7 @@ class AffineGrid(Transform):
         scale_params: Optional[Union[Sequence[float], float]] = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
+        affine: Optional[Union[np.ndarray, torch.Tensor]] = None,
     ) -> None:
         self.rotate_params = rotate_params
         self.shear_params = shear_params
@@ -880,9 +1006,13 @@ class AffineGrid(Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
+        self.affine = affine
+
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
-    ) -> Union[np.ndarray, torch.Tensor]:
+        self,
+        spatial_size: Optional[Sequence[int]] = None,
+        grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
+    ) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
         """
         Args:
             spatial_size: output grid size.
@@ -898,58 +1028,73 @@ class AffineGrid(Transform):
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
-        spatial_dims = len(grid.shape) - 1
-        affine = np.eye(spatial_dims + 1)
-        if self.rotate_params:
-            affine = affine @ create_rotate(spatial_dims, self.rotate_params)
-        if self.shear_params:
-            affine = affine @ create_shear(spatial_dims, self.shear_params)
-        if self.translate_params:
-            affine = affine @ create_translate(spatial_dims, self.translate_params)
-        if self.scale_params:
-            affine = affine @ create_scale(spatial_dims, self.scale_params)
-        affine = torch.as_tensor(np.ascontiguousarray(affine), device=self.device)
+        affine: Union[torch.Tensor, np.ndarray]
+        if self.affine is None:
+            spatial_dims = len(grid.shape) - 1
+            affine = np.eye(spatial_dims + 1)
+            if self.rotate_params:
+                affine = affine @ create_rotate(spatial_dims, self.rotate_params)
+            if self.shear_params:
+                affine = affine @ create_shear(spatial_dims, self.shear_params)
+            if self.translate_params:
+                affine = affine @ create_translate(spatial_dims, self.translate_params)
+            if self.scale_params:
+                affine = affine @ create_scale(spatial_dims, self.scale_params)
+        else:
+            affine = self.affine
 
-        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
+        if isinstance(affine, np.ndarray):
+            affine = torch.as_tensor(np.ascontiguousarray(affine))
+
+        grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
+            affine = affine.to(self.device)
             grid = grid.to(self.device)
         grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
-        if self.as_tensor_output:
-            return grid
-        return grid.cpu().numpy()
+        if grid is None or not isinstance(grid, torch.Tensor):
+            raise ValueError("Unknown grid.")
+        return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy()), affine
 
 
 class RandAffineGrid(Randomizable, Transform):
     """
     Generate randomised affine grid.
+
     """
 
     def __init__(
         self,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
         Args:
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
-                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` to
-                `shear_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]`
-                to `translate_range[N]` controls the range of the uniform distribution used to generate
-                the 2nd to N-th parameter.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` to
-                `scale_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
+                take a 3D affine as example::
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select voxels to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             as_tensor_output: whether to output tensor instead of numpy array.
                 defaults to True.
             device: device to store the output grid data.
@@ -972,19 +1117,29 @@ class RandAffineGrid(Randomizable, Transform):
 
         self.as_tensor_output = as_tensor_output
         self.device = device
+        self.affine: Optional[Union[np.ndarray, torch.Tensor]] = None
+
+    def _get_rand_param(self, param_range, add_scalar: float = 0.0):
+        out_param = []
+        for f in param_range:
+            if issequenceiterable(f):
+                if len(f) != 2:
+                    raise ValueError("If giving range as [min,max], should only have two elements per dim.")
+                out_param.append(self.R.uniform(f[0], f[1]) + add_scalar)
+            elif f is not None:
+                out_param.append(self.R.uniform(-f, f) + add_scalar)
+        return out_param
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        if self.rotate_range:
-            self.rotate_params = [self.R.uniform(-f, f) for f in self.rotate_range if f is not None]
-        if self.shear_range:
-            self.shear_params = [self.R.uniform(-f, f) for f in self.shear_range if f is not None]
-        if self.translate_range:
-            self.translate_params = [self.R.uniform(-f, f) for f in self.translate_range if f is not None]
-        if self.scale_range:
-            self.scale_params = [self.R.uniform(-f, f) + 1.0 for f in self.scale_range if f is not None]
+        self.rotate_params = self._get_rand_param(self.rotate_range)
+        self.shear_params = self._get_rand_param(self.shear_range)
+        self.translate_params = self._get_rand_param(self.translate_range)
+        self.scale_params = self._get_rand_param(self.scale_range, 1.0)
 
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
+        self,
+        spatial_size: Optional[Sequence[int]] = None,
+        grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
@@ -1003,7 +1158,12 @@ class RandAffineGrid(Randomizable, Transform):
             as_tensor_output=self.as_tensor_output,
             device=self.device,
         )
-        return affine_grid(spatial_size, grid)
+        grid, self.affine = affine_grid(spatial_size, grid)
+        return grid
+
+    def get_transformation_matrix(self) -> Optional[Union[np.ndarray, torch.Tensor]]:
+        """Get the most recently applied transformation matrix"""
+        return self.affine
 
 
 class RandDeformGrid(Randomizable, Transform):
@@ -1035,14 +1195,14 @@ class RandDeformGrid(Randomizable, Transform):
 
         self.rand_mag = 1.0
         self.as_tensor_output = as_tensor_output
-        self.random_offset = 0.0
+        self.random_offset: np.ndarray
         self.device = device
 
     def randomize(self, grid_size: Sequence[int]) -> None:
         self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
-    def __call__(self, spatial_size: Sequence[int]) -> Union[np.ndarray, torch.Tensor]:
+    def __call__(self, spatial_size: Sequence[int]):
         """
         Args:
             spatial_size: spatial size of the grid.
@@ -1078,8 +1238,8 @@ class Resample(Transform):
             as_tensor_output: whether to return a torch tensor. Defaults to False.
             device: device on which the tensor will be allocated.
         """
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.as_tensor_output = as_tensor_output
         self.device = device
 
@@ -1102,10 +1262,11 @@ class Resample(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
 
-        if not torch.is_tensor(img):
+        if not isinstance(img, torch.Tensor):
             img = torch.as_tensor(np.ascontiguousarray(img))
-        assert grid is not None, "Error, grid argument must be supplied as an ndarray or tensor "
-        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
+        if grid is None:
+            raise AssertionError("Error, grid argument must be supplied as an ndarray or tensor ")
+        grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
             img = img.to(self.device)
             grid = grid.to(self.device)
@@ -1115,14 +1276,16 @@ class Resample(Transform):
                 grid[i] += (dim - 1.0) / 2.0
             grid = grid[:-1] / grid[-1:]
             grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
-            _padding_mode = self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value
+            _padding_mode = look_up_option(
+                self.padding_mode if padding_mode is None else padding_mode, GridSamplePadMode
+            ).value
             if _padding_mode == "zeros":
                 bound = 7
             elif _padding_mode == "border":
                 bound = 0
             else:
                 bound = 1
-            _interp_mode = self.mode.value if mode is None else GridSampleMode(mode).value
+            _interp_mode = look_up_option(self.mode if mode is None else mode, GridSampleMode).value
             out = grid_pull(
                 img.unsqueeze(0).float(),
                 grid.unsqueeze(0).float(),
@@ -1145,13 +1308,15 @@ class Resample(Transform):
                 align_corners=True,
             )[0]
         if self.as_tensor_output:
-            return out
-        return out.cpu().numpy()
+            return torch.as_tensor(out)
+        return np.asarray(out.cpu().numpy())
 
 
 class Affine(Transform):
     """
     Transform ``img`` given the affine parameters.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1165,6 +1330,7 @@ class Affine(Transform):
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
+        image_only: bool = False,
     ) -> None:
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
@@ -1172,14 +1338,24 @@ class Affine(Transform):
         Args:
             rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
                 Defaults to no rotation.
-            shear_params: a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
+            shear_params: shearing factors for affine matrix, take a 3D affine as example::
+
+                [
+                    [1.0, params[0], params[1], 0.0],
+                    [params[2], 1.0, params[3], 0.0],
+                    [params[4], params[5], 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+
+                a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
-            scale_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Defaults to no scaling.
+            scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
+                a tuple of 3 floats for 3D. Defaults to `1.0`.
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the `spatial_size` are non-positive values, the transform will use the
+                if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
@@ -1191,6 +1367,7 @@ class Affine(Transform):
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
+            image_only: if True return only the image volume, otherwise return (image, affine).
         """
         self.affine_grid = AffineGrid(
             rotate_params=rotate_params,
@@ -1200,10 +1377,11 @@ class Affine(Transform):
             as_tensor_output=True,
             device=device,
         )
+        self.image_only = image_only
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
 
     def __call__(
         self,
@@ -1211,7 +1389,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ):
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1228,27 +1406,30 @@ class Affine(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        grid = self.affine_grid(spatial_size=sp_size)
-        return self.resampler(
-            img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
-        )
+        grid, affine = self.affine_grid(spatial_size=sp_size)
+        ret = self.resampler(img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
+
+        return ret if self.image_only else (ret, affine)
 
 
-class RandAffine(Randomizable, Transform):
+class RandAffine(RandomizableTransform):
     """
     Random affine transform.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
         self,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
-        spatial_size: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
+        cache_grid: bool = False,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -1256,25 +1437,32 @@ class RandAffine(Randomizable, Transform):
         Args:
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
-                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` to
-                `shear_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]`
-                to `translate_range[N]` controls the range of the uniform distribution used to generate
-                the 2nd to N-th parameter.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` to
-                `scale_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
+                take a 3D affine as example::
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select pixel/voxel to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the `spatial_size` are non-positive values, the transform will use the
+                if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
@@ -1283,6 +1471,9 @@ class RandAffine(Randomizable, Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            cache_grid: whether to cache the identity sampling grid.
+                If the spatial size is not dynamically defined by input image, enabling this option could
+                accelerate the transform.
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
@@ -1291,6 +1482,7 @@ class RandAffine(Randomizable, Transform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
+        RandomizableTransform.__init__(self, prob)
 
         self.rand_affine_grid = RandAffineGrid(
             rotate_range=rotate_range,
@@ -1303,11 +1495,46 @@ class RandAffine(Randomizable, Transform):
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
+        self.cache_grid = cache_grid
+        self._cached_grid = self._init_identity_cache()
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
 
-        self.do_transform = False
-        self.prob = prob
+    def _init_identity_cache(self):
+        """
+        Create cache of the identity grid if cache_grid=True and spatial_size is known.
+        """
+        if self.spatial_size is None:
+            if self.cache_grid:
+                warnings.warn(
+                    "cache_grid=True is not compatible with the dynamic spatial_size, please specify 'spatial_size'."
+                )
+            return None
+        _sp_size = ensure_tuple(self.spatial_size)
+        _ndim = len(_sp_size)
+        if _sp_size != fall_back_tuple(_sp_size, [1] * _ndim) or _sp_size != fall_back_tuple(_sp_size, [2] * _ndim):
+            # dynamic shape because it falls back to different outcomes
+            if self.cache_grid:
+                warnings.warn(
+                    "cache_grid=True is not compatible with the dynamic spatial_size "
+                    f"'spatial_size={self.spatial_size}', please specify 'spatial_size'."
+                )
+            return None
+        return torch.tensor(create_grid(spatial_size=_sp_size)).to(self.rand_affine_grid.device)
+
+    def get_identity_grid(self, spatial_size: Sequence[int]):
+        """
+        Return a cached or new identity grid depends on the availability.
+
+        Args:
+            spatial_size: non-dynamic spatial size
+        """
+        ndim = len(spatial_size)
+        if spatial_size != fall_back_tuple(spatial_size, [1] * ndim) or spatial_size != fall_back_tuple(
+            spatial_size, [2] * ndim
+        ):
+            raise RuntimeError(f"spatial_size should not be dynamic, got {spatial_size}.")
+        return create_grid(spatial_size=spatial_size) if self._cached_grid is None else self._cached_grid
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -1317,7 +1544,7 @@ class RandAffine(Randomizable, Transform):
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self.do_transform = self.R.rand() < self.prob
+        super().randomize(None)
         self.rand_affine_grid.randomize()
 
     def __call__(
@@ -1343,20 +1570,26 @@ class RandAffine(Randomizable, Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
-
+        # if not doing transform and spatial size doesn't change, nothing to do
+        # except convert to float and convert numpy/torch
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        if self.do_transform:
-            grid = self.rand_affine_grid(spatial_size=sp_size)
-        else:
-            grid = create_grid(spatial_size=sp_size)
+        do_resampling = self._do_transform or (sp_size != ensure_tuple(img.shape[1:]))
+        if not do_resampling:
+            img = img.float() if isinstance(img, torch.Tensor) else img.astype("float32")
+            return torch.Tensor(img) if self.resampler.as_tensor_output else np.array(img)
+        grid = self.get_identity_grid(sp_size)
+        if self._do_transform:
+            grid = self.rand_affine_grid(grid=grid)
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
 
 
-class Rand2DElastic(Randomizable, Transform):
+class Rand2DElastic(RandomizableTransform):
     """
-    Random elastic deformation and affine in 2D
+    Random elastic deformation and affine in 2D.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1364,11 +1597,11 @@ class Rand2DElastic(Randomizable, Transform):
         spacing: Union[Tuple[float, float], float],
         magnitude_range: Tuple[float, float],
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -1381,21 +1614,30 @@ class Rand2DElastic(Randomizable, Transform):
             prob: probability of returning a randomized elastic transform.
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` controls
-                the range of the uniform distribution used to generate the 2nd parameter.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]` controls
-                the range of the uniform distribution used to generate the 2nd parameter.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` controls
-                the range of the uniform distribution used to generate the 2nd parameter.
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 2 floats for 2D) for affine matrix, take a 2D affine as example::
+
+                    [
+                        [1.0, params[0], 0.0],
+                        [params[1], 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select pixel to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the `spatial_size` are non-positive values, the transform will use the
+                if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
@@ -1412,6 +1654,7 @@ class Rand2DElastic(Randomizable, Transform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
+        RandomizableTransform.__init__(self, prob)
         self.deform_grid = RandDeformGrid(
             spacing=spacing, magnitude_range=magnitude_range, as_tensor_output=True, device=device
         )
@@ -1426,10 +1669,8 @@ class Rand2DElastic(Randomizable, Transform):
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
-        self.prob = prob
-        self.do_transform = False
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -1440,7 +1681,7 @@ class Rand2DElastic(Randomizable, Transform):
         return self
 
     def randomize(self, spatial_size: Sequence[int]) -> None:
-        self.do_transform = self.R.rand() < self.prob
+        super().randomize(None)
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
@@ -1466,12 +1707,12 @@ class Rand2DElastic(Randomizable, Transform):
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(spatial_size=sp_size)
-        if self.do_transform:
+        if self._do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
             grid = self.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
                 recompute_scale_factor=True,
-                input=grid.unsqueeze(0),
+                input=torch.as_tensor(grid).unsqueeze(0),
                 scale_factor=list(ensure_tuple(self.deform_grid.spacing)),
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
@@ -1482,9 +1723,11 @@ class Rand2DElastic(Randomizable, Transform):
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
 
-class Rand3DElastic(Randomizable, Transform):
+class Rand3DElastic(RandomizableTransform):
     """
-    Random elastic deformation and affine in 3D
+    Random elastic deformation and affine in 3D.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1492,11 +1735,11 @@ class Rand3DElastic(Randomizable, Transform):
         sigma_range: Tuple[float, float],
         magnitude_range: Tuple[float, float],
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -1511,23 +1754,31 @@ class Rand3DElastic(Randomizable, Transform):
             prob: probability of returning a randomized elastic transform.
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
-                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` and `shear_range[2]`
-                controls the range of the uniform distribution used to generate the 2nd and 3rd parameters.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]` and
-                `translate_range[2]` controls the range of the uniform distribution used to generate
-                the 2nd and 3rd parameters.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` and `scale_range[2]`
-                controls the range of the uniform distribution used to generate the 2nd and 3rd parameters.
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 6 floats for 3D) for affine matrix, take a 3D affine as example::
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select voxel to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             spatial_size: specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the `spatial_size` are non-positive values, the transform will use the
+                if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, 32, -1)` will be adapted
                 to `(32, 32, 64)` if the third spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
@@ -1544,19 +1795,18 @@ class Rand3DElastic(Randomizable, Transform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
+        RandomizableTransform.__init__(self, prob)
         self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.device = device
 
-        self.prob = prob
-        self.do_transform = False
-        self.rand_offset = None
+        self.rand_offset: np.ndarray
         self.magnitude = 1.0
         self.sigma = 1.0
 
@@ -1568,8 +1818,8 @@ class Rand3DElastic(Randomizable, Transform):
         return self
 
     def randomize(self, grid_size: Sequence[int]) -> None:
-        self.do_transform = self.R.rand() < self.prob
-        if self.do_transform:
+        super().randomize(None)
+        if self._do_transform:
             self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
         self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
@@ -1598,11 +1848,55 @@ class Rand3DElastic(Randomizable, Transform):
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(grid_size=sp_size)
         grid = create_grid(spatial_size=sp_size)
-        if self.do_transform:
-            assert self.rand_offset is not None
+        if self._do_transform:
+            if self.rand_offset is None:
+                raise AssertionError
             grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
             gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
             offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
+
+
+class AddCoordinateChannels(Transform):
+    """
+    Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
+    to allow feeding of the patch's location into the network.
+
+    This can be seen as a input-only version of CoordConv:
+
+    Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
+    """
+
+    def __init__(
+        self,
+        spatial_channels: Sequence[int],
+    ) -> None:
+        """
+        Args:
+            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
+                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
+                coordinates of the input's three spatial dimensions (0 is reserved for the channel dimension).
+        """
+        self.spatial_channels = spatial_channels
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
+        """
+        Args:
+            img: data to be transformed, assuming `img` is channel first.
+        """
+        if max(self.spatial_channels) > img.ndim - 1:
+            raise ValueError(
+                f"input has {img.ndim-1} spatial dimensions, cannot add AddCoordinateChannels channel for "
+                f"dim {max(self.spatial_channels)}."
+            )
+        if 0 in self.spatial_channels:
+            raise ValueError("cannot add AddCoordinateChannels channel for dimension 0, as 0 is channel dim.")
+
+        spatial_dims = img.shape[1:]
+        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing="ij"))
+        # only keep required dimensions. need to subtract 1 since im will be 0-based
+        # but user input is 1-based (because channel dim is 0)
+        coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
+        return np.concatenate((img, coord_channels), axis=0)

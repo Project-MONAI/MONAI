@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,11 +18,11 @@ PY_REQUIRED_MAJOR = 3
 PY_REQUIRED_MINOR = 6
 
 version_dict = get_versions()
-__version__ = version_dict.get("version", "0+unknown")
-__revision_id__ = version_dict.get("full-revisionid", None)
+__version__: str = version_dict.get("version", "0+unknown")
+__revision_id__: str = version_dict.get("full-revisionid")
 del get_versions, version_dict
 
-__copyright__ = "(c) 2020 MONAI Consortium"
+__copyright__ = "(c) 2020 - 2021 MONAI Consortium"
 
 __basedir__ = os.path.dirname(__file__)
 
@@ -44,3 +44,19 @@ load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
 
 # load all modules, this will trigger all export decorations
 load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
+
+__all__ = [
+    "apps",
+    "config",
+    "data",
+    "engines",
+    "handlers",
+    "inferers",
+    "losses",
+    "metrics",
+    "networks",
+    "optimizers",
+    "transforms",
+    "utils",
+    "visualize",
+]

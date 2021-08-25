@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,32 +19,32 @@ from monai.transforms import MeanEnsemble
 
 TEST_CASE_1 = [
     {"weights": None},
-    [torch.ones(2, 2, 2, 2), torch.ones(2, 2, 2, 2) + 2],
-    torch.ones(2, 2, 2, 2) + 1,
+    [torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2],
+    torch.ones(2, 2, 2) + 1,
 ]
 
 TEST_CASE_2 = [
     {"weights": None},
-    torch.stack([torch.ones(2, 2, 2, 2), torch.ones(2, 2, 2, 2) + 2]),
-    torch.ones(2, 2, 2, 2) + 1,
+    torch.stack([torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2]),
+    torch.ones(2, 2, 2) + 1,
 ]
 
 TEST_CASE_3 = [
     {"weights": [1, 3]},
-    [torch.ones(2, 2, 2, 2), torch.ones(2, 2, 2, 2) + 2],
-    torch.ones(2, 2, 2, 2) * 2.5,
+    [torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2],
+    torch.ones(2, 2, 2) * 2.5,
 ]
 
 TEST_CASE_4 = [
-    {"weights": [[[1, 3]], [[3, 1]]]},
-    [torch.ones(2, 2, 2, 2), torch.ones(2, 2, 2, 2) + 2],
-    torch.ones(2, 2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(1, 2, 1, 1),
+    {"weights": [[1, 3], [3, 1]]},
+    [torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2],
+    torch.ones(2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(2, 1, 1),
 ]
 
 TEST_CASE_5 = [
-    {"weights": np.array([[[1, 3]], [[3, 1]]])},
-    [torch.ones(2, 2, 2, 2), torch.ones(2, 2, 2, 2) + 2],
-    torch.ones(2, 2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(1, 2, 1, 1),
+    {"weights": np.array([[1, 3], [3, 1]])},
+    [torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2],
+    torch.ones(2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(2, 1, 1),
 ]
 
 TEST_CASE_6 = [

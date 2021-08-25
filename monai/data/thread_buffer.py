@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,8 @@
 
 from queue import Empty, Full, Queue
 from threading import Thread
+
+from monai.data import DataLoader, Dataset
 
 
 class ThreadBuffer:
@@ -73,3 +75,18 @@ class ThreadBuffer:
                     pass  # queue was empty this time, try again
         finally:
             self.stop()  # ensure thread completion
+
+
+class ThreadDataLoader(DataLoader):
+    """
+    Subclass of `DataLoader` using a `ThreadBuffer` object to implement `__iter__` method asynchronously. This will
+    iterate over data from the loader as expected however the data is generated on a separate thread. Use this class
+    where a `DataLoader` instance is required and not just an iterable object.
+    """
+
+    def __init__(self, dataset: Dataset, num_workers: int = 0, **kwargs):
+        super().__init__(dataset, num_workers, **kwargs)
+
+    def __iter__(self):
+        buffer = ThreadBuffer(super().__iter__())
+        yield from buffer

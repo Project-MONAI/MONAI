@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -98,7 +98,7 @@ class TestAutoEncoder(unittest.TestCase):
 
     def test_channel_stride_difference(self):
         with self.assertRaises(ValueError):
-            net = AutoEncoder(**TEST_CASE_FAIL)
+            AutoEncoder(**TEST_CASE_FAIL)
 
 
 if __name__ == "__main__":

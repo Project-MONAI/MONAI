@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -138,6 +138,24 @@ class TestRandWeightedCrop3D(NumpyImageTestCase3D):
         np.testing.assert_allclose(result[0]["img"].shape, (1, 48, 64, 80))
         np.testing.assert_allclose(result[0]["seg"].shape, (1, 48, 64, 80))
         np.testing.assert_allclose(np.asarray(crop.centers), [[24, 32, 40], [24, 32, 40], [24, 32, 40]])
+
+    def test_rand_weighted_crop_patch_index(self):
+        img = self.imt[0]
+        n_samples = 3
+        crop = RandWeightedCropd(("img", "seg"), "w", (10, -1, -1), n_samples)
+        weight = np.zeros_like(img)
+        weight[0, 7, 17] = 1.1
+        weight[0, 13, 31] = 1.1
+        weight[0, 24, 21] = 1
+        crop.set_random_state(10)
+        result = crop({"img": img, "seg": self.segn[0], "w": weight, "img_meta_dict": {"affine": None}})
+        self.assertTrue(len(result) == n_samples)
+        np.testing.assert_allclose(np.asarray(crop.centers), [[14, 32, 40], [41, 32, 40], [20, 32, 40]])
+        for i in range(n_samples):
+            np.testing.assert_allclose(result[i]["img"].shape, (1, 10, 64, 80))
+            np.testing.assert_allclose(result[i]["seg"].shape, (1, 10, 64, 80))
+            np.testing.assert_allclose(result[i]["img_meta_dict"]["patch_index"], i)
+            np.testing.assert_allclose(result[i]["seg_meta_dict"]["patch_index"], i)
 
 
 if __name__ == "__main__":

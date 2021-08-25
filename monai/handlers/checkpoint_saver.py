@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,20 +10,21 @@
 # limitations under the License.
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Dict, Optional
 
-from monai.utils import exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.utils import min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "Checkpoint")
-BaseSaveHandler, _ = optional_import("ignite.handlers.checkpoint", "0.4.2", exact_version, "BaseSaveHandler")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.handlers import DiskSaver
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-    DiskSaver, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "DiskSaver")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    DiskSaver, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "DiskSaver")
 
 
 class CheckpointSaver:
@@ -55,6 +56,16 @@ class CheckpointSaver:
             metric in descending order.
         key_metric_filename: set a fixed filename to set the best metric model, if not None,
             `key_metric_n_saved` should be 1 and only keep the best metric model.
+        key_metric_save_state: whether to save the tracking list of key metric in the checkpoint file.
+            if `True`, then will save an object in the checkpoint file with key `checkpointer` to be
+            consistent with the `include_self` arg of `Checkpoint` in ignite:
+            https://pytorch.org/ignite/v0.4.5/generated/ignite.handlers.checkpoint.Checkpoint.html.
+            typically, it's used to resume training and compare current metric with previous N values.
+        key_metric_greater_or_equal: if `True`, the latest equally scored model is stored. Otherwise,
+            save the the first equally scored model. default to `False`.
+        key_metric_negative_sign: whether adding a negative sign to the metric score to compare metrics,
+            because for error-like metrics, smaller is better(objects with larger score are retained).
+            default to `False`.
         epoch_level: save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
         save_interval: save checkpoint every N epochs, default is 0 to save no checkpoint.
@@ -84,13 +95,18 @@ class CheckpointSaver:
         key_metric_name: Optional[str] = None,
         key_metric_n_saved: int = 1,
         key_metric_filename: Optional[str] = None,
+        key_metric_save_state: bool = False,
+        key_metric_greater_or_equal: bool = False,
+        key_metric_negative_sign: bool = False,
         epoch_level: bool = True,
         save_interval: int = 0,
         n_saved: Optional[int] = None,
     ) -> None:
-        assert save_dir is not None, "must provide directory to save the checkpoints."
+        if save_dir is None:
+            raise AssertionError("must provide directory to save the checkpoints.")
         self.save_dir = save_dir
-        assert save_dict is not None and len(save_dict) > 0, "must provide source objects to save."
+        if not (save_dict is not None and len(save_dict) > 0):
+            raise AssertionError("must provide source objects to save.")
         self.save_dict = save_dict
         self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
@@ -105,7 +121,9 @@ class CheckpointSaver:
             """
 
             def __init__(self, dirname: str, filename: Optional[str] = None):
-                super().__init__(dirname=dirname, require_empty=False)
+                # set `atomic=False` as `atomic=True` only gives read/write permission to the user who saved the file,
+                # without group/others read permission
+                super().__init__(dirname=dirname, require_empty=False, atomic=False)
                 self.filename = filename
 
             def __call__(self, checkpoint: Dict, filename: str, metadata: Optional[Dict] = None) -> None:
@@ -142,7 +160,8 @@ class CheckpointSaver:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
                     )
-                return round(engine.state.metrics[metric_name], 4)
+
+                return (-1 if key_metric_negative_sign else 1) * engine.state.metrics[metric_name]
 
             if key_metric_filename is not None and key_metric_n_saved > 1:
                 raise ValueError("if using fixed filename to save the best metric model, we should only save 1 model.")
@@ -154,6 +173,8 @@ class CheckpointSaver:
                 score_function=_score_func,
                 score_name="key_metric",
                 n_saved=key_metric_n_saved,
+                include_self=key_metric_save_state,
+                greater_or_equal=key_metric_greater_or_equal,
             )
 
         if save_interval > 0:
@@ -169,6 +190,32 @@ class CheckpointSaver:
                 score_name="epoch" if self.epoch_level else "iteration",
                 n_saved=n_saved,
             )
+
+    def load_state_dict(self, state_dict: Dict) -> None:
+        """
+        Utility to resume the internal state of key metric tracking list if configured to save
+        checkpoints based on the key metric value.
+        Note to set `key_metric_save_state=True` when saving the previous checkpoint.
+
+        Example::
+
+            CheckpointSaver(
+                ...
+                save_key_metric=True,
+                key_metric_save_state=True,  # config to also save the state of this saver
+            ).attach(engine)
+            engine.run(...)
+
+            # resumed training with a new CheckpointSaver
+            saver = CheckpointSaver(save_key_metric=True, ...)
+            # load the previous key metric tracking list into saver
+            CheckpointLoader("/test/model.pt"), {"checkpointer": saver}).attach(engine)
+
+        """
+        if self._key_metric_checkpoint is not None:
+            self._key_metric_checkpoint.load_state_dict(state_dict)
+        else:
+            warnings.warn("no key metric checkpoint saver to resume the key metric tracking list.")
 
     def attach(self, engine: Engine) -> None:
         """
@@ -202,12 +249,15 @@ class CheckpointSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
+        if not callable(self._final_checkpoint):
+            raise AssertionError("Error: _final_checkpoint function not specified.")
         # delete previous saved final checkpoint if existing
         self._delete_previous_final_ckpt()
         self._final_checkpoint(engine)
-        assert self.logger is not None
-        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
+        if self.logger is None:
+            raise AssertionError
+        if not hasattr(self.logger, "info"):
+            raise AssertionError("Error, provided logger has not info attribute.")
         self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
 
     def exception_raised(self, engine: Engine, e: Exception) -> None:
@@ -219,13 +269,16 @@ class CheckpointSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
             e: the exception caught in Ignite during engine.run().
         """
-        assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
+        if not callable(self._final_checkpoint):
+            raise AssertionError("Error: _final_checkpoint function not specified.")
         # delete previous saved final checkpoint if existing
         self._delete_previous_final_ckpt()
         self._final_checkpoint(engine)
-        assert self.logger is not None
-        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
-        self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
+        if self.logger is None:
+            raise AssertionError
+        if not hasattr(self.logger, "info"):
+            raise AssertionError("Error, provided logger has not info attribute.")
+        self.logger.info(f"Exception raised, saved the last checkpoint: {self._final_checkpoint.last_checkpoint}")
         raise e
 
     def metrics_completed(self, engine: Engine) -> None:
@@ -234,7 +287,8 @@ class CheckpointSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        assert callable(self._key_metric_checkpoint), "Error: _key_metric_checkpoint function not specified."
+        if not callable(self._key_metric_checkpoint):
+            raise AssertionError("Error: _key_metric_checkpoint function not specified.")
         self._key_metric_checkpoint(engine)
 
     def interval_completed(self, engine: Engine) -> None:
@@ -244,10 +298,13 @@ class CheckpointSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        assert callable(self._interval_checkpoint), "Error: _interval_checkpoint function not specified."
+        if not callable(self._interval_checkpoint):
+            raise AssertionError("Error: _interval_checkpoint function not specified.")
         self._interval_checkpoint(engine)
-        assert self.logger is not None
-        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
+        if self.logger is None:
+            raise AssertionError
+        if not hasattr(self.logger, "info"):
+            raise AssertionError("Error, provided logger has not info attribute.")
         if self.epoch_level:
             self.logger.info(f"Saved checkpoint at epoch: {engine.state.epoch}")
         else:

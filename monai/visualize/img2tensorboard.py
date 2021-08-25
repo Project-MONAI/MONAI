@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
+from monai.config import NdarrayTensor
 from monai.transforms import rescale_array
 from monai.utils import optional_import
 
@@ -40,7 +41,8 @@ def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale
         scale_factor: amount to multiply values by. if the image data is between 0 and 1, using 255 for this value will
             scale it to displayable range
     """
-    assert len(image.shape) == 3, "3D image tensors expected to be in `HWD` format, len(image.shape) != 3"
+    if len(image.shape) != 3:
+        raise AssertionError("3D image tensors expected to be in `HWD` format, len(image.shape) != 3")
 
     ims = [(np.asarray((image[:, :, i])) * scale_factor).astype(np.uint8) for i in range(image.shape[2])]
     ims = [GifImage.fromarray(im) for im in ims]
@@ -95,7 +97,7 @@ def make_animated_gif_summary(
 
     for it_i in range(min(max_out, list(image.shape)[0])):
         one_channel_img: Union[torch.Tensor, np.ndarray] = (
-            image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(image) else image[it_i, :, :, :]
+            image[it_i, :, :, :].squeeze(dim=0) if isinstance(image, torch.Tensor) else image[it_i, :, :, :]
         )
         summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, scale_factor)
     return summary_op
@@ -143,7 +145,7 @@ def add_animated_gif_no_channels(
     Args:
         writer: Tensorboard SummaryWriter to write to
         tag: Data identifier
-        image_tensor: tensor for the image to add, expected to be in CHWD format
+        image_tensor: tensor for the image to add, expected to be in HWD format
         max_out: maximum number of slices to animate through
         scale_factor: amount to multiply values by. If the image data is between 0 and 1,
                               using 255 for this value will scale it to displayable range
@@ -158,7 +160,7 @@ def add_animated_gif_no_channels(
 
 
 def plot_2d_or_3d_image(
-    data: Union[torch.Tensor, np.ndarray],
+    data: Union[NdarrayTensor, List[NdarrayTensor]],
     step: int,
     writer: SummaryWriter,
     index: int = 0,
@@ -173,7 +175,8 @@ def plot_2d_or_3d_image(
 
     Args:
         data: target data to be plotted as image on the TensorBoard.
-            The data is expected to have 'NCHW[D]' dimensions, and only plot the first in the batch.
+            The data is expected to have 'NCHW[D]' dimensions or a list of data with `CHW[D]` dimensions,
+            and only plot the first in the batch.
         step: current step to plot in a chart.
         writer: specify TensorBoard SummaryWriter to plot the image.
         index: plot which element in the input data batch, default is the first element.
@@ -181,10 +184,11 @@ def plot_2d_or_3d_image(
         max_frames: number of frames for 2D-t plot.
         tag: tag of the plotted image on TensorBoard.
     """
-    d = data[index].detach().cpu().numpy() if torch.is_tensor(data) else data[index]
+    data_index = data[index]
+    d: np.ndarray = data_index.detach().cpu().numpy() if isinstance(data_index, torch.Tensor) else data_index
 
     if d.ndim == 2:
-        d = rescale_array(d, 0, 1)
+        d = rescale_array(d, 0, 1)  # type: ignore
         dataformats = "HW"
         writer.add_image(f"{tag}_{dataformats}", d, step, dataformats=dataformats)
         return

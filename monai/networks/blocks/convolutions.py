@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,6 +29,34 @@ class Convolution(nn.Sequential):
     if ``conv_only`` set to ``True``::
 
         -- (Conv|ConvTrans) --
+
+    For example:
+
+    .. code-block:: python
+
+        from monai.networks.blocks import Convolution
+
+        conv = Convolution(
+            dimensions=3,
+            in_channels=1,
+            out_channels=1,
+            adn_ordering="ADN",
+            act=("prelu", {"init": 0.2}),
+            dropout=0.1,
+            norm=("layer", {"normalized_shape": (10, 10, 10)}),
+        )
+        print(conv)
+
+    output::
+
+        Convolution(
+          (conv): Conv3d(1, 1, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          (adn): ADN(
+            (A): PReLU(num_parameters=1)
+            (D): Dropout(p=0.1, inplace=False)
+            (N): LayerNorm((10, 10, 10), eps=1e-05, elementwise_affine=True)
+          )
+        )
 
     Args:
         dimensions: number of spatial dimensions.
@@ -94,6 +122,7 @@ class Convolution(nn.Sequential):
             padding = same_padding(kernel_size, dilation)
         conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
 
+        conv: nn.Module
         if is_transposed:
             if output_padding is None:
                 output_padding = stride_minus_kernel_padding(1, strides)
@@ -140,6 +169,44 @@ class Convolution(nn.Sequential):
 class ResidualUnit(nn.Module):
     """
     Residual module with multiple convolutions and a residual connection.
+
+    For example:
+
+    .. code-block:: python
+
+        from monai.networks.blocks import ResidualUnit
+
+        convs = ResidualUnit(
+            dimensions=3,
+            in_channels=1,
+            out_channels=1,
+            adn_ordering="AN",
+            act=("prelu", {"init": 0.2}),
+            norm=("layer", {"normalized_shape": (10, 10, 10)}),
+        )
+        print(convs)
+
+    output::
+
+        ResidualUnit(
+          (conv): Sequential(
+            (unit0): Convolution(
+              (conv): Conv3d(1, 1, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+              (adn): ADN(
+                (A): PReLU(num_parameters=1)
+                (N): LayerNorm((10, 10, 10), eps=1e-05, elementwise_affine=True)
+              )
+            )
+            (unit1): Convolution(
+              (conv): Conv3d(1, 1, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+              (adn): ADN(
+                (A): PReLU(num_parameters=1)
+                (N): LayerNorm((10, 10, 10), eps=1e-05, elementwise_affine=True)
+              )
+            )
+          )
+          (residual): Identity()
+        )
 
     Args:
         dimensions: number of spatial dimensions.

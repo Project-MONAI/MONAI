@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,7 +75,7 @@ class TestDeterminism(DistTestCase):
     def tearDown(self):
         set_determinism(seed=None)
 
-    @TimedCall(seconds=30)
+    @TimedCall(seconds=150)
     def test_training(self):
         set_determinism(seed=0)
         loss, step = run_test(device=self.device)

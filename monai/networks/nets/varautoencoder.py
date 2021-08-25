@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,6 +19,8 @@ from torch.nn import functional as F
 from monai.networks.layers.convutils import calculate_out_shape, same_padding
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.nets import AutoEncoder
+
+__all__ = ["VarAutoEncoder"]
 
 
 class VarAutoEncoder(AutoEncoder):
@@ -41,12 +43,13 @@ class VarAutoEncoder(AutoEncoder):
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: Optional[Union[Tuple, str, float]] = None,
+        bias: bool = True,
     ) -> None:
 
         self.in_channels, *self.in_shape = in_shape
 
         self.latent_size = latent_size
-        self.final_size = np.asarray(self.in_shape, np.int)
+        self.final_size = np.asarray(self.in_shape, dtype=int)
 
         super().__init__(
             dimensions,
@@ -63,12 +66,13 @@ class VarAutoEncoder(AutoEncoder):
             act,
             norm,
             dropout,
+            bias,
         )
 
         padding = same_padding(self.kernel_size)
 
         for s in strides:
-            self.final_size = calculate_out_shape(self.final_size, self.kernel_size, s, padding)
+            self.final_size = calculate_out_shape(self.final_size, self.kernel_size, s, padding)  # type: ignore
 
         linear_size = int(np.product(self.final_size)) * self.encoded_channels
         self.mu = nn.Linear(linear_size, self.latent_size)

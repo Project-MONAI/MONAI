@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ from typing import Tuple
 
 import numpy as np
 import torch
+from ignite.engine import Engine
 
 from monai.handlers import SurfaceDistance
 
@@ -48,7 +49,8 @@ def create_spherical_seg_3d(
 
 
 sampler_sphere = torch.Tensor(create_spherical_seg_3d(radius=20, centre=(20, 20, 20))).unsqueeze(0).unsqueeze(0)
-sampler_sphere_gt = torch.Tensor(create_spherical_seg_3d(radius=20, centre=(10, 20, 20))).unsqueeze(0).unsqueeze(0)
+# test input a list of channel-first tensor
+sampler_sphere_gt = [torch.Tensor(create_spherical_seg_3d(radius=20, centre=(10, 20, 20))).unsqueeze(0)]
 sampler_sphere_zeros = torch.zeros_like(sampler_sphere)
 
 TEST_SAMPLE_1 = [sampler_sphere, sampler_sphere_gt]
@@ -62,6 +64,13 @@ class TestHandlerSurfaceDistance(unittest.TestCase):
 
     def test_compute(self):
         sur_metric = SurfaceDistance(include_background=True)
+
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        sur_metric.attach(engine, "surface_distance")
+
         y_pred, y = TEST_SAMPLE_1
         sur_metric.update([y_pred, y])
         self.assertAlmostEqual(sur_metric.compute(), 4.17133, places=4)
@@ -71,10 +80,9 @@ class TestHandlerSurfaceDistance(unittest.TestCase):
         y_pred, y = TEST_SAMPLE_3
         sur_metric.update([y_pred, y])
         self.assertAlmostEqual(sur_metric.compute(), float("inf"))
-        self.assertAlmostEqual(sur_metric._num_examples, 3)
         y_pred, y = TEST_SAMPLE_4
         sur_metric.update([y_pred, y])
-        self.assertAlmostEqual(sur_metric._num_examples, 3)
+        self.assertAlmostEqual(sur_metric.compute(), float("inf"))
 
     def test_shape_mismatch(self):
         sur_metric = SurfaceDistance(include_background=True)

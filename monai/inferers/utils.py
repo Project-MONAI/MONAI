@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@ import torch
 import torch.nn.functional as F
 
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
-from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple
+from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple, look_up_option
 
 __all__ = ["sliding_window_inference"]
 
@@ -82,7 +82,8 @@ def sliding_window_inference(
 
     """
     num_spatial_dims = len(inputs.shape) - 2
-    assert 0 <= overlap < 1, "overlap must be >= 0 and < 1."
+    if overlap < 0 or overlap >= 1:
+        raise AssertionError("overlap must be >= 0 and < 1.")
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size
@@ -102,7 +103,7 @@ def sliding_window_inference(
         diff = max(roi_size[k - 2] - inputs.shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
-    inputs = F.pad(inputs, pad=pad_size, mode=PytorchPadMode(padding_mode).value, value=cval)
+    inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode).value, value=cval)
 
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 

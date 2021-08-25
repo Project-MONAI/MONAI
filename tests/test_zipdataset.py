@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,8 +28,7 @@ class Dataset_(torch.utils.data.Dataset):
     def __getitem__(self, index):
         if self.index_only:
             return index
-        else:
-            return 1, 2, index
+        return 1, 2, index
 
 
 TEST_CASE_1 = [[Dataset_(5), Dataset_(5), Dataset_(5)], None, (0, 0, 0), 5]
@@ -52,6 +51,18 @@ class TestZipDataset(unittest.TestCase):
         test_dataset = ZipDataset(datasets=datasets, transform=transform)
         self.assertEqual(test_dataset[0], expected_output)
         self.assertEqual(len(test_dataset), expected_length)
+
+    def test_slicing(self):
+        test_dataset = ZipDataset(datasets=[Dataset_(5), Dataset_(5), Dataset_(5)], transform=None)
+        subset = test_dataset[0:2]
+        self.assertEqual(subset[-1], (1, 1, 1))
+        self.assertEqual(len(subset), 2)
+
+    def test_sequence(self):
+        test_dataset = ZipDataset(datasets=[Dataset_(5), Dataset_(5), Dataset_(5)], transform=None)
+        subset = test_dataset[[1, 3, 4]]
+        self.assertEqual(subset[-1], (4, 4, 4))
+        self.assertEqual(len(subset), 3)
 
 
 if __name__ == "__main__":

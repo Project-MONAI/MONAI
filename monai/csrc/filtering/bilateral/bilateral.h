@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -14,7 +14,9 @@ limitations under the License.
 #pragma once
 
 #include <torch/extension.h>
-#include "utils/common_utils.h"
+
+#define BF_CUDA_MAX_CHANNELS 16
+#define BF_CUDA_MAX_SPATIAL_DIMENSION 3
 
 torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatial_sigma, float color_sigma);
 torch::Tensor BilateralFilterPHLCpu(torch::Tensor input, float spatial_sigma, float color_sigma);
@@ -24,19 +26,4 @@ torch::Tensor BilateralFilterCuda(torch::Tensor input, float spatial_sigma, floa
 torch::Tensor BilateralFilterPHLCuda(torch::Tensor input, float spatial_sigma, float color_sigma);
 #endif
 
-torch::Tensor BilateralFilter(torch::Tensor input, float spatial_sigma, float color_sigma, bool usePHL) {
-  torch::Tensor (*filterFunction)(torch::Tensor, float, float);
-
-#ifdef WITH_CUDA
-  if (torch::cuda::is_available() && input.is_cuda()) {
-    CHECK_CONTIGUOUS_CUDA(input);
-    filterFunction = usePHL ? &BilateralFilterPHLCuda : &BilateralFilterCuda;
-  } else {
-    filterFunction = usePHL ? &BilateralFilterPHLCpu : &BilateralFilterCpu;
-  }
-#else
-  filterFunction = usePHL ? &BilateralFilterPHLCpu : &BilateralFilterCpu;
-#endif
-
-  return filterFunction(input, spatial_sigma, color_sigma);
-}
+torch::Tensor BilateralFilter(torch::Tensor input, float spatial_sigma, float color_sigma, bool usePHL);

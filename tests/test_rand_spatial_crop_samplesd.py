@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import RandSpatialCropSamplesd
+from monai.transforms import Compose, RandSpatialCropSamplesd, ToTensord
 
 TEST_CASE_1 = [
     {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True},
@@ -70,8 +70,27 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
         for item, expected in zip(result, expected_shape):
             self.assertTupleEqual(item["img"].shape, expected)
             self.assertTupleEqual(item["seg"].shape, expected)
+        for i, item in enumerate(result):
+            self.assertEqual(item["img_meta_dict"]["patch_index"], i)
+            self.assertEqual(item["seg_meta_dict"]["patch_index"], i)
         np.testing.assert_allclose(item["img"], expected_last["img"])
         np.testing.assert_allclose(item["seg"], expected_last["seg"])
+
+    def test_deep_copy(self):
+        data = {"img": np.ones((1, 10, 11, 12))}
+        num_samples = 3
+        sampler = RandSpatialCropSamplesd(
+            keys=["img"],
+            roi_size=(3, 3, 3),
+            num_samples=num_samples,
+            random_center=True,
+            random_size=False,
+        )
+        transform = Compose([ToTensord(keys="img"), sampler])
+        samples = transform(data)
+        self.assertEqual(len(samples), num_samples)
+        for sample in samples:
+            self.assertEqual(len(sample["img_transforms"]), len(transform))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,7 +57,7 @@ def stride_minus_kernel_padding(
 
 
 def calculate_out_shape(
-    in_shape: Union[Sequence[int], int],
+    in_shape: Union[Sequence[int], int, np.ndarray],
     kernel_size: Union[Sequence[int], int],
     stride: Union[Sequence[int], int],
     padding: Union[Sequence[int], int],
@@ -104,7 +104,7 @@ def gaussian_1d(
         1D torch tensor
 
     """
-    sigma = torch.as_tensor(sigma, dtype=torch.float, device=sigma.device if torch.is_tensor(sigma) else None)
+    sigma = torch.as_tensor(sigma, dtype=torch.float, device=sigma.device if isinstance(sigma, torch.Tensor) else None)
     device = sigma.device
     if truncated <= 0.0:
         raise ValueError(f"truncated must be positive, got {truncated}.")
@@ -149,7 +149,7 @@ def polyval(coef, x) -> torch.Tensor:
     Returns:
         1D torch tensor
     """
-    device = x.device if torch.is_tensor(x) else None
+    device = x.device if isinstance(x, torch.Tensor) else None
     coef = torch.as_tensor(coef, dtype=torch.float, device=device)
     if coef.ndim == 0 or (len(coef) < 1):
         return torch.zeros(x.shape)
@@ -161,7 +161,7 @@ def polyval(coef, x) -> torch.Tensor:
 
 
 def _modified_bessel_0(x: torch.Tensor) -> torch.Tensor:
-    x = torch.as_tensor(x, dtype=torch.float, device=x.device if torch.is_tensor(x) else None)
+    x = torch.as_tensor(x, dtype=torch.float, device=x.device if isinstance(x, torch.Tensor) else None)
     if torch.abs(x) < 3.75:
         y = x * x / 14.0625
         return polyval([0.45813e-2, 0.360768e-1, 0.2659732, 1.2067492, 3.0899424, 3.5156229, 1.0], y)
@@ -182,7 +182,7 @@ def _modified_bessel_0(x: torch.Tensor) -> torch.Tensor:
 
 
 def _modified_bessel_1(x: torch.Tensor) -> torch.Tensor:
-    x = torch.as_tensor(x, dtype=torch.float, device=x.device if torch.is_tensor(x) else None)
+    x = torch.as_tensor(x, dtype=torch.float, device=x.device if isinstance(x, torch.Tensor) else None)
     if torch.abs(x) < 3.75:
         y = x * x / 14.0625
         _coef = [0.32411e-3, 0.301532e-2, 0.2658733e-1, 0.15084934, 0.51498869, 0.87890594, 0.5]
@@ -207,7 +207,7 @@ def _modified_bessel_1(x: torch.Tensor) -> torch.Tensor:
 def _modified_bessel_i(n: int, x: torch.Tensor) -> torch.Tensor:
     if n < 2:
         raise ValueError(f"n must be greater than 1, got n={n}.")
-    x = torch.as_tensor(x, dtype=torch.float, device=x.device if torch.is_tensor(x) else None)
+    x = torch.as_tensor(x, dtype=torch.float, device=x.device if isinstance(x, torch.Tensor) else None)
     if x == 0.0:
         return x
     device = x.device

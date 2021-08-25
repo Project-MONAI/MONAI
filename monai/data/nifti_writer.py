@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 
+from monai.config import DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
@@ -27,12 +28,12 @@ def write_nifti(
     affine: Optional[np.ndarray] = None,
     target_affine: Optional[np.ndarray] = None,
     resample: bool = True,
-    output_spatial_shape: Optional[Sequence[int]] = None,
+    output_spatial_shape: Union[Sequence[int], np.ndarray, None] = None,
     mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
     padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
     align_corners: bool = False,
-    dtype: Optional[np.dtype] = np.float64,
-    output_dtype: Optional[np.dtype] = np.float32,
+    dtype: DtypeLike = np.float64,
+    output_dtype: DtypeLike = np.float32,
 ) -> None:
     """
     Write numpy data into NIfTI files to disk.  This function converts data
@@ -51,8 +52,15 @@ def write_nifti(
     13.333x13.333 pixels. In this case `output_spatial_shape` could be specified so
     that this function writes image data to a designated shape.
 
-    When `affine` and `target_affine` are None, the data will be saved with an
-    identity matrix as the image affine.
+    The saved `affine` matrix follows:
+    - If `affine` equals to `target_affine`, save the data with `target_affine`.
+    - If `resample=False`, transform `affine` to `new_affine` based on the orientation
+    of `target_affine` and save the data with `new_affine`.
+    - If `resample=True`, save the data with `target_affine`, if explicitly specify
+    the `output_spatial_shape`, the shape of saved data is not computed by `target_affine`.
+    - If `target_affine` is None, set `target_affine=affine` and save.
+    - If `affine` and `target_affine` are None, the data will be saved with an identity
+    matrix as the image affine.
 
     This function assumes the NIfTI dimension notations.
     Spatially it supports up to three dimensions, that is, H, HW, HWD for
@@ -85,11 +93,11 @@ def write_nifti(
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
-            If None, use the data type of input data. To be compatible with other modules,
-            the output data type is always ``np.float32``.
+            If None, use the data type of input data.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
     """
-    assert isinstance(data, np.ndarray), "input data must be numpy array."
+    if not isinstance(data, np.ndarray):
+        raise AssertionError("input data must be numpy array.")
     dtype = dtype or data.dtype
     sr = min(data.ndim, 3)
     if affine is None:
@@ -114,7 +122,7 @@ def write_nifti(
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
     if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, _affine))
         nib.save(results_img, file_name)
         return
 
@@ -125,7 +133,7 @@ def write_nifti(
     transform = np.linalg.inv(_affine) @ target_affine
     if output_spatial_shape is None:
         output_spatial_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)
-    output_spatial_shape_ = list(output_spatial_shape)
+    output_spatial_shape_ = list(output_spatial_shape) if output_spatial_shape is not None else []
     if data.ndim > 3:  # multi channel, resampling each channel
         while len(output_spatial_shape_) < 3:
             output_spatial_shape_ = output_spatial_shape_ + [1]

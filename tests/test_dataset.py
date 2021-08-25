@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -66,6 +66,8 @@ class TestDataset(unittest.TestCase):
             dataset = Dataset(data=test_data, transform=LoadImaged(keys=["image", "label", "extra"]))
             data1_simple = dataset[0]
             data2_simple = dataset[1]
+            data3_simple = dataset[-1]
+            data4_simple = dataset[[0, 1]]
 
             self.assertTupleEqual(data1_simple["image"].shape, expected_shape)
             self.assertTupleEqual(data1_simple["label"].shape, expected_shape)
@@ -73,6 +75,17 @@ class TestDataset(unittest.TestCase):
             self.assertTupleEqual(data2_simple["image"].shape, expected_shape)
             self.assertTupleEqual(data2_simple["label"].shape, expected_shape)
             self.assertTupleEqual(data2_simple["extra"].shape, expected_shape)
+            self.assertTupleEqual(data3_simple["image"].shape, expected_shape)
+            self.assertTupleEqual(data3_simple["label"].shape, expected_shape)
+            self.assertTupleEqual(data3_simple["extra"].shape, expected_shape)
+            self.assertTupleEqual(data4_simple[0]["image"].shape, expected_shape)
+            self.assertTupleEqual(data4_simple[1]["label"].shape, expected_shape)
+            self.assertTupleEqual(data4_simple[-1]["extra"].shape, expected_shape)
+
+            data4_list = dataset[0:1]
+            self.assertEqual(len(data4_list), 1)
+            for d in data4_list:
+                self.assertTupleEqual(d["image"].shape, expected_shape)
 
 
 if __name__ == "__main__":

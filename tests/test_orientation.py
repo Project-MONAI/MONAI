@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -114,6 +114,9 @@ class TestOrientationCase(unittest.TestCase):
     def test_ornt(self, init_param, img, data_param, expected_data, expected_code):
         ornt = Orientation(**init_param)
         res = ornt(img, **data_param)
+        if not isinstance(res, tuple):
+            np.testing.assert_allclose(res, expected_data)
+            return
         np.testing.assert_allclose(res[0], expected_data)
         original_affine = data_param["affine"]
         np.testing.assert_allclose(original_affine, res[1])

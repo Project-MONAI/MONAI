@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -50,10 +50,10 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
         self.assertTrue(np.allclose(expected_img, scaler(img)))
 
     def test_invalid_instantiation(self):
-        self.assertRaises(AssertionError, ScaleIntensityRangePercentiles, lower=-10, upper=99, b_min=0, b_max=255)
-        self.assertRaises(AssertionError, ScaleIntensityRangePercentiles, lower=101, upper=99, b_min=0, b_max=255)
-        self.assertRaises(AssertionError, ScaleIntensityRangePercentiles, lower=30, upper=-20, b_min=0, b_max=255)
-        self.assertRaises(AssertionError, ScaleIntensityRangePercentiles, lower=30, upper=900, b_min=0, b_max=255)
+        self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=-10, upper=99, b_min=0, b_max=255)
+        self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=101, upper=99, b_min=0, b_max=255)
+        self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=30, upper=-20, b_min=0, b_max=255)
+        self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=30, upper=900, b_min=0, b_max=255)
 
 
 if __name__ == "__main__":

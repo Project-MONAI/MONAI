@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,14 +25,14 @@ TEST_CASE_SEGRESNET = []
 for spatial_dims in range(2, 4):
     for init_filters in [8, 16]:
         for dropout_prob in [None, 0.2]:
-            for norm_name in ["group", "batch", "instance"]:
+            for norm in [("GROUP", {"num_groups": 8}), ("batch", {"track_running_stats": False}), "instance"]:
                 for upsample_mode in UpsampleMode:
                     test_case = [
                         {
                             "spatial_dims": spatial_dims,
                             "init_filters": init_filters,
                             "dropout_prob": dropout_prob,
-                            "norm_name": norm_name,
+                            "norm": norm,
                             "upsample_mode": upsample_mode,
                             "use_conv_final": False,
                         },

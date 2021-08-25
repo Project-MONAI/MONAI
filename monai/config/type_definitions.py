@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,7 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Collection, Hashable, Iterable, Union
+from typing import Collection, Hashable, Iterable, Sequence, TypeVar, Union
+
+import numpy as np
+import torch
+
+__all__ = ["KeysCollection", "IndexSelection", "DtypeLike", "NdarrayTensor", "NdarrayOrTensor", "TensorOrList"]
 
 """Commonly used concepts
 This module provides naming and type specifications for commonly used concepts
@@ -48,4 +53,30 @@ The IndexSelection type is used to for defining variables
 that store a subset of indices to select items from a List or Array like objects.
 The indices must be integers, and if a container of indices is specified, the
 container must be iterable.
+"""
+
+
+DtypeLike = Union[np.dtype, type, None]
+"""Type of datatypes
+
+Adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like.py
+"""
+
+NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
+"""NdarrayTensor
+
+Generic type which can represent either a numpy.ndarray or a torch.Tensor
+Unlike Union can create a dependence between parameter(s) / return(s)
+"""
+
+NdarrayOrTensor = Union[np.ndarray, torch.Tensor]
+"""NdarrayOrTensor
+
+Union of numpy.ndarray and torch.Tensor to be used for typing
+"""
+
+TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]
+"""TensorOrList
+
+The TensorOrList type is used for defining `batch-first Tensor` or `list of channel-first Tensor`.
 """

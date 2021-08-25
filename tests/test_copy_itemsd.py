@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,12 +31,12 @@ TEST_CASE_4 = [["img", "seg"], 2, ["img_1", "seg_1", "img_2", "seg_2"]]
 class TestCopyItemsd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_numpy_values(self, keys, times, names):
-        input_data = {"img": np.array([[0, 1], [1, 2]]), "seg": np.array([[0, 1], [1, 2]])}
+        input_data = {"img": np.array([[0, 1], [1, 2]]), "seg": np.array([[3, 4], [4, 5]])}
         result = CopyItemsd(keys=keys, times=times, names=names)(input_data)
         for name in ensure_tuple(names):
             self.assertTrue(name in result)
-            result[name] += 1
-            np.testing.assert_allclose(result[name], np.array([[1, 2], [2, 3]]))
+        result["img_1"] += 1
+        np.testing.assert_allclose(result["img_1"], np.array([[1, 2], [2, 3]]))
         np.testing.assert_allclose(result["img"], np.array([[0, 1], [1, 2]]))
 
     def test_tensor_values(self):

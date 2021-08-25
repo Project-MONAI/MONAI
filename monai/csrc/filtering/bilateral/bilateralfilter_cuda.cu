@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -15,6 +15,7 @@ limitations under the License.
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
+#include "bilateral.h"
 #include "utils/meta_macros.h"
 #include "utils/tensor_description.h"
 
@@ -35,6 +36,9 @@ __global__ void BilateralFilterCudaKernel1D(scalar_t* input, scalar_t* output) {
 
   int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
   int batchOffset = blockIdx.y * cBatchStride;
+
+  if (homeOffset >= cColorStride)
+    return;
 
   scalar_t weightSum = 0;
 
@@ -78,6 +82,9 @@ __global__ void BilateralFilterCudaKernel2D(scalar_t* input, scalar_t* output) {
 
   int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
   int batchOffset = blockIdx.y * cBatchStride;
+
+  if (homeOffset >= cColorStride)
+    return;
 
   int homeX = homeOffset / cStrides[0];
   int homeY = (homeOffset - homeX * cStrides[0]) / cStrides[1];
@@ -131,6 +138,9 @@ __global__ void BilateralFilterCudaKernel3D(scalar_t* input, scalar_t* output) {
 
   int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
   int batchOffset = blockIdx.y * cBatchStride;
+
+  if (homeOffset >= cColorStride)
+    return;
 
   int homeX = homeOffset / cStrides[0];
   int homeY = (homeOffset - homeX * cStrides[0]) / cStrides[1];
@@ -211,22 +221,27 @@ void BilateralFilterCuda(torch::Tensor inputTensor, torch::Tensor outputTensor, 
   cudaMemcpyToSymbol(cKernel, kernel, sizeof(float) * kernelSize);
   cudaMemcpyToSymbol(cColorExponentFactor, &colorExponentFactor, sizeof(float));
 
+#define BLOCK_SIZE 32
+
   AT_DISPATCH_FLOATING_TYPES_AND_HALF(
-      inputTensor.type(), "BilateralFilterCudaKernel", ([&] {
+      inputTensor.scalar_type(), "BilateralFilterCudaKernel", ([&] {
         // Dispatch kernel. (Partial template function specialisation not supported at present so using this switch
         // instead)
         switch (D) {
           case (1):
-            BilateralFilterCudaKernel1D<scalar_t, C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(
-                inputTensor.data_ptr<scalar_t>(), outputTensor.data_ptr<scalar_t>());
+            BilateralFilterCudaKernel1D<scalar_t, C>
+                <<<dim3(int(desc.channelStride / BLOCK_SIZE) + 1, desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
+                    inputTensor.data_ptr<scalar_t>(), outputTensor.data_ptr<scalar_t>());
             break;
           case (2):
-            BilateralFilterCudaKernel2D<scalar_t, C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(
-                inputTensor.data_ptr<scalar_t>(), outputTensor.data_ptr<scalar_t>());
+            BilateralFilterCudaKernel2D<scalar_t, C>
+                <<<dim3(int(desc.channelStride / BLOCK_SIZE) + 1, desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
+                    inputTensor.data_ptr<scalar_t>(), outputTensor.data_ptr<scalar_t>());
             break;
           case (3):
-            BilateralFilterCudaKernel3D<scalar_t, C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(
-                inputTensor.data_ptr<scalar_t>(), outputTensor.data_ptr<scalar_t>());
+            BilateralFilterCudaKernel3D<scalar_t, C>
+                <<<dim3(int(desc.channelStride / BLOCK_SIZE) + 1, desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
+                    inputTensor.data_ptr<scalar_t>(), outputTensor.data_ptr<scalar_t>());
             break;
         }
       }));
@@ -239,7 +254,7 @@ torch::Tensor BilateralFilterCuda(torch::Tensor inputTensor, float spatialSigma,
   torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
 #define CASE(c, d) BilateralFilterCuda<c, d>(inputTensor, outputTensor, spatialSigma, colorSigma);
-  SWITCH_AB(CASE, 16, 3, inputTensor.size(1), inputTensor.dim() - 2);
+  SWITCH_AB(CASE, BF_CUDA_MAX_CHANNELS, BF_CUDA_MAX_SPATIAL_DIMENSION, inputTensor.size(1), inputTensor.dim() - 2);
 
   return outputTensor;
 }

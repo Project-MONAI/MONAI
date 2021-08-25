@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,18 +41,19 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [None, (128, 128, 128)]
 
 
+class _InplaceXform(Transform):
+    def __call__(self, data):
+        if data:
+            data[0] = data[0] + np.pi
+        else:
+            data.append(1)
+        return data
+
+
 class TestDataset(unittest.TestCase):
     def test_cache(self):
         """testing no inplace change to the hashed item"""
         items = [[list(range(i))] for i in range(5)]
-
-        class _InplaceXform(Transform):
-            def __call__(self, data):
-                if data:
-                    data[0] = data[0] + np.pi
-                else:
-                    data.append(1)
-                return data
 
         with tempfile.TemporaryDirectory() as tempdir:
             ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir)
@@ -98,26 +99,49 @@ class TestDataset(unittest.TestCase):
             dataset_postcached = PersistentDataset(data=test_data, transform=transform, cache_dir=cache_dir)
             data1_postcached = dataset_postcached[0]
             data2_postcached = dataset_postcached[1]
+            data3_postcached = dataset_postcached[0:2]
 
-        if transform is None:
-            self.assertEqual(data1_precached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
-            self.assertEqual(data2_precached["label"], os.path.join(tempdir, "test_label2.nii.gz"))
-            self.assertEqual(data1_postcached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
-            self.assertEqual(data2_postcached["extra"], os.path.join(tempdir, "test_extra2.nii.gz"))
-        else:
-            self.assertTupleEqual(data1_precached["image"].shape, expected_shape)
-            self.assertTupleEqual(data1_precached["label"].shape, expected_shape)
-            self.assertTupleEqual(data1_precached["extra"].shape, expected_shape)
-            self.assertTupleEqual(data2_precached["image"].shape, expected_shape)
-            self.assertTupleEqual(data2_precached["label"].shape, expected_shape)
-            self.assertTupleEqual(data2_precached["extra"].shape, expected_shape)
+            if transform is None:
+                self.assertEqual(data1_precached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
+                self.assertEqual(data2_precached["label"], os.path.join(tempdir, "test_label2.nii.gz"))
+                self.assertEqual(data1_postcached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
+                self.assertEqual(data2_postcached["extra"], os.path.join(tempdir, "test_extra2.nii.gz"))
+            else:
+                self.assertTupleEqual(data1_precached["image"].shape, expected_shape)
+                self.assertTupleEqual(data1_precached["label"].shape, expected_shape)
+                self.assertTupleEqual(data1_precached["extra"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached["image"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached["label"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached["extra"].shape, expected_shape)
 
-            self.assertTupleEqual(data1_postcached["image"].shape, expected_shape)
-            self.assertTupleEqual(data1_postcached["label"].shape, expected_shape)
-            self.assertTupleEqual(data1_postcached["extra"].shape, expected_shape)
-            self.assertTupleEqual(data2_postcached["image"].shape, expected_shape)
-            self.assertTupleEqual(data2_postcached["label"].shape, expected_shape)
-            self.assertTupleEqual(data2_postcached["extra"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached["image"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached["label"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached["extra"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached["image"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached["label"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached["extra"].shape, expected_shape)
+                for d in data3_postcached:
+                    self.assertTupleEqual(d["image"].shape, expected_shape)
+
+            # update the data to cache
+            test_data_new = [
+                {
+                    "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
+                },
+                {
+                    "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
+                },
+            ]
+            dataset_postcached.set_data(data=test_data_new)
+            # test new exchanged cache content
+            if transform is None:
+                self.assertEqual(dataset_postcached[0]["image"], os.path.join(tempdir, "test_image1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[0]["label"], os.path.join(tempdir, "test_label1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
 
 
 if __name__ == "__main__":

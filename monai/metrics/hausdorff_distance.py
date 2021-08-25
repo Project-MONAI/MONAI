@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,20 +15,23 @@ from typing import Optional, Union
 import numpy as np
 import torch
 
-from monai.metrics.utils import *
+from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
+
+from .metric import CumulativeIterationMetric
 
 __all__ = ["HausdorffDistanceMetric", "compute_hausdorff_distance", "compute_percent_hausdorff_distance"]
 
 
-class HausdorffDistanceMetric:
+class HausdorffDistanceMetric(CumulativeIterationMetric):
     """
     Compute Hausdorff Distance between two tensors. It can support both multi-classes and multi-labels tasks.
     It supports both directed and non-directed Hausdorff distance calculation. In addition, specify the `percentile`
-    parameter can get the percentile of the distance.
-    Input `y_pred` (BNHW[D] where N is number of classes) is compared with ground truth `y` (BNHW[D]).
+    parameter can get the percentile of the distance. Input `y_pred` is compared with ground truth `y`.
     `y_preds` is expected to have binarized predictions and `y` should be in one-hot format.
     You can use suitable transforms in ``monai.transforms.post`` first to achieve binarized values.
+    `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
+    The implementation refers to `DeepMind's implementation <https://github.com/deepmind/surface-distance>`_.
 
     Args:
         include_background: whether to include distance computation on the first channel of
@@ -41,7 +44,9 @@ class HausdorffDistanceMetric:
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+            Define the mode to reduce computation result. Defaults to ``"mean"``.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
+            Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
 
     """
 
@@ -52,6 +57,7 @@ class HausdorffDistanceMetric:
         percentile: Optional[float] = None,
         directed: bool = False,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -59,8 +65,9 @@ class HausdorffDistanceMetric:
         self.percentile = percentile
         self.directed = directed
         self.reduction = reduction
+        self.get_not_nans = get_not_nans
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -73,15 +80,17 @@ class HausdorffDistanceMetric:
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
+        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
+            raise ValueError("y_pred and y must be PyTorch Tensor.")
         if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred is not a binarized tensor here!")
+            warnings.warn("y_pred should be a binarized tensor.")
         if not torch.all(y.byte() == y):
             raise ValueError("y should be a binarized tensor.")
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute (BxC) for each channel for each batch
-        f = compute_hausdorff_distance(
+        return compute_hausdorff_distance(
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
@@ -90,9 +99,18 @@ class HausdorffDistanceMetric:
             directed=self.directed,
         )
 
+    def aggregate(self):  # type: ignore
+        """
+        Execute reduction logic for the output of `compute_hausdorff_distance`.
+
+        """
+        data = self.get_buffer()
+        if not isinstance(data, torch.Tensor):
+            raise ValueError("the data to aggregate must be PyTorch Tensor.")
+
         # do metric reduction
-        f, not_nans = do_metric_reduction(f, self.reduction)
-        return f, not_nans
+        f, not_nans = do_metric_reduction(data, self.reduction)
+        return (f, not_nans) if self.get_not_nans else f
 
 
 def compute_hausdorff_distance(
@@ -127,9 +145,10 @@ def compute_hausdorff_distance(
             y_pred=y_pred,
             y=y,
         )
-
-    y = y.float()
-    y_pred = y_pred.float()
+    if isinstance(y, torch.Tensor):
+        y = y.float()
+    if isinstance(y_pred, torch.Tensor):
+        y_pred = y_pred.float()
 
     if y.shape != y_pred.shape:
         raise ValueError("y_pred and y should have same shapes.")
@@ -138,6 +157,11 @@ def compute_hausdorff_distance(
     hd = np.empty((batch_size, n_class))
     for b, c in np.ndindex(batch_size, n_class):
         (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c])
+        if not np.any(edges_gt):
+            warnings.warn(f"the ground truth of class {c} is all 0, this may result in nan/inf distance.")
+        if not np.any(edges_pred):
+            warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
+
         distance_1 = compute_percent_hausdorff_distance(edges_pred, edges_gt, distance_metric, percentile)
         if directed:
             hd[b, c] = distance_1
@@ -166,7 +190,6 @@ def compute_percent_hausdorff_distance(
     if not percentile:
         return surface_distance.max()
 
-    elif 0 <= percentile <= 100:
+    if 0 <= percentile <= 100:
         return np.percentile(surface_distance, percentile)
-    else:
-        raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")
+    raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")

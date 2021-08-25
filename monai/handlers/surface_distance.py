@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,20 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence
+from typing import Callable
 
-import torch
-
+from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import SurfaceDistanceMetric
-from monai.utils import MetricReduction, exact_version, optional_import
-
-NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_version, "NotComputableError")
-Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
-reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
-sync_all_reduce, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "sync_all_reduce")
+from monai.utils import MetricReduction
 
 
-class SurfaceDistance(Metric):  # type: ignore[valid-type, misc] # due to optional_import
+class SurfaceDistance(IgniteMetric):
     """
     Computes surface distance from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -33,7 +27,7 @@ class SurfaceDistance(Metric):  # type: ignore[valid-type, misc] # due to option
         symmetric: bool = False,
         distance_metric: str = "euclidean",
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
+        save_details: bool = True,
     ) -> None:
         """
 
@@ -44,52 +38,23 @@ class SurfaceDistance(Metric):  # type: ignore[valid-type, misc] # due to option
                 `seg_pred` and `seg_gt`. Defaults to ``False``.
             distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
                 the metric used to compute surface distance. Defaults to ``"euclidean"``.
-            output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-            device: device specification in case of distributed computation usage.
+            output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
+                construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
+                lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
+                for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
+                output_transform can be `lambda x: (x["pred"], x["label"])`.
+            save_details: whether to save metric computation details per image, for example: surface dice
+                of every image. default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         """
-        super().__init__(output_transform, device=device)
-        self.hd = SurfaceDistanceMetric(
+        metric_fn = SurfaceDistanceMetric(
             include_background=include_background,
             symmetric=symmetric,
             distance_metric=distance_metric,
             reduction=MetricReduction.MEAN,
         )
-        self._sum = 0.0
-        self._num_examples = 0
-
-    @reinit__is_reduced
-    def reset(self) -> None:
-        self._sum = 0.0
-        self._num_examples = 0
-
-    @reinit__is_reduced
-    def update(self, output: Sequence[torch.Tensor]) -> None:
-        """
-        Args:
-            output: sequence with contents [y_pred, y].
-
-        Raises:
-            ValueError: When ``output`` length is not 2. The metric can only support y_pred and y.
-
-        """
-        if len(output) != 2:
-            raise ValueError(f"output must have length 2, got {len(output)}.")
-        y_pred, y = output
-        score, not_nans = self.hd(y_pred, y)
-        not_nans = int(not_nans.item())
-
-        # add all items in current batch
-        self._sum += score.item() * not_nans
-        self._num_examples += not_nans
-
-    @sync_all_reduce("_sum", "_num_examples")
-    def compute(self) -> float:
-        """
-        Raises:
-            NotComputableError: When ``compute`` is called before an ``update`` occurs.
-
-        """
-        if self._num_examples == 0:
-            raise NotComputableError("SurfaceDistance must have at least one example before it can be computed.")
-        return self._sum / self._num_examples
+        super().__init__(
+            metric_fn=metric_fn,
+            output_transform=output_transform,
+            save_details=save_details,
+        )

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,11 +14,13 @@ from typing import Sequence, Union
 
 import torch
 
-from monai.metrics.utils import *
-from monai.utils import MetricReduction
+from monai.metrics.utils import do_metric_reduction, ignore_background
+from monai.utils import MetricReduction, ensure_tuple
+
+from .metric import CumulativeIterationMetric
 
 
-class ConfusionMatrixMetric:
+class ConfusionMatrixMetric(CumulativeIterationMetric):
     """
     Compute confusion matrix related metrics. This function supports to calculate all metrics mentioned in:
     `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
@@ -43,14 +45,15 @@ class ConfusionMatrixMetric:
             Except for input only one metric, multiple metrics are also supported via input a sequence of metric names, such as
             ("sensitivity", "precision", "recall"), if ``compute_sample`` is ``True``, multiple ``f`` and ``not_nans`` will be
             returned with the same order as input names when calling the class.
-        compute_sample: if ``True``, each sample's metric will be computed first. If ``False``, the confusion matrix for each image
-            (the output of function ``get_confusion_matrix``) will be returned. In this way, users should achieve the confusion
-            matrixes for all images during an epoch and then use ``compute_confusion_matrix_metric`` to calculate the metric.
-            Defaults to ``False``.
+        compute_sample: when reducing, if ``True``, each sample's metric will be computed based on each confusion matrix first.
+            if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Reduction will only be employed when
-            ``compute_sample`` is ``True``. Defaults to ``"mean"``.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns [(metric, not_nans), ...]. If False,
+            aggregate() returns [metric, ...].
+            Here `not_nans` count the number of not nans for True Positive, False Positive, True Negative and False Negative.
+            Its shape depends on the shape of the metric, and it has one more dimension with size 4. For example, if the shape
+            of the metric is [3, 3], `not_nans` has the shape [3, 3, 4].
 
     """
 
@@ -60,14 +63,16 @@ class ConfusionMatrixMetric:
         metric_name: Union[Sequence[str], str] = "hit_rate",
         compute_sample: bool = False,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
-        self.metric_name = metric_name
+        self.metric_name = ensure_tuple(metric_name)
         self.compute_sample = compute_sample
         self.reduction = reduction
+        self.get_not_nans = get_not_nans
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
         Args:
             y_pred: input data to compute. It must be one-hot format and first dim is batch.
@@ -78,43 +83,50 @@ class ConfusionMatrixMetric:
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than two dimensions.
         """
+        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
+            raise ValueError("y_pred and y must be PyTorch Tensor.")
         # check binarized input
         if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred is not a binarized tensor here!")
+            warnings.warn("y_pred should be a binarized tensor.")
         if not torch.all(y.byte() == y):
             raise ValueError("y should be a binarized tensor.")
         # check dimension
         dims = y_pred.ndimension()
         if dims < 2:
             raise ValueError("y_pred should have at least two dimensions.")
-        elif dims == 2 or (dims == 3 and y_pred.shape[-1] == 1):
+        if dims == 2 or (dims == 3 and y_pred.shape[-1] == 1):
             if self.compute_sample:
                 warnings.warn("As for classification task, compute_sample should be False.")
                 self.compute_sample = False
 
-        confusion_matrix = get_confusion_matrix(
+        return get_confusion_matrix(
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
         )
 
-        if self.compute_sample:
-            if isinstance(self.metric_name, str):
-                confusion_matrix = compute_confusion_matrix_metric(self.metric_name, confusion_matrix)
-                f, not_nans = do_metric_reduction(confusion_matrix, self.reduction)
-                return f, not_nans
+    def aggregate(self):  # type: ignore
+        """
+        Execute reduction for the confusion matrix values.
+
+        """
+        data = self.get_buffer()
+        if not isinstance(data, torch.Tensor):
+            raise ValueError("the data to aggregate must be PyTorch Tensor.")
+
+        results = []
+        for metric_name in self.metric_name:
+            if self.compute_sample:
+                sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, data)
+                f, not_nans = do_metric_reduction(sub_confusion_matrix, self.reduction)
             else:
-                if len(self.metric_name) < 1:
-                    raise ValueError("the sequence should at least has on metric name.")
-                results = []
-                for metric_name in self.metric_name:
-                    sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, confusion_matrix)
-                    f, not_nans = do_metric_reduction(sub_confusion_matrix, self.reduction)
-                    results.append(f)
-                    results.append(not_nans)
-                return results
-        else:
-            return confusion_matrix
+                f, not_nans = do_metric_reduction(data, self.reduction)
+                f = compute_confusion_matrix_metric(metric_name, f)
+            if self.get_not_nans:
+                results.append((f, not_nans))
+            else:
+                results.append(f)
+        return results
 
 
 def get_confusion_matrix(
@@ -264,8 +276,7 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
 
     if isinstance(denominator, torch.Tensor):
         return torch.where(denominator != 0, numerator / denominator, nan_tensor)
-    else:
-        return numerator / denominator
+    return numerator / denominator
 
 
 def check_confusion_matrix_metric_name(metric_name: str):
@@ -284,37 +295,36 @@ def check_confusion_matrix_metric_name(metric_name: str):
     metric_name = metric_name.lower()
     if metric_name in ["sensitivity", "recall", "hit_rate", "true_positive_rate", "tpr"]:
         return "tpr"
-    elif metric_name in ["specificity", "selectivity", "true_negative_rate", "tnr"]:
+    if metric_name in ["specificity", "selectivity", "true_negative_rate", "tnr"]:
         return "tnr"
-    elif metric_name in ["precision", "positive_predictive_value", "ppv"]:
+    if metric_name in ["precision", "positive_predictive_value", "ppv"]:
         return "ppv"
-    elif metric_name in ["negative_predictive_value", "npv"]:
+    if metric_name in ["negative_predictive_value", "npv"]:
         return "npv"
-    elif metric_name in ["miss_rate", "false_negative_rate", "fnr"]:
+    if metric_name in ["miss_rate", "false_negative_rate", "fnr"]:
         return "fnr"
-    elif metric_name in ["fall_out", "false_positive_rate", "fpr"]:
+    if metric_name in ["fall_out", "false_positive_rate", "fpr"]:
         return "fpr"
-    elif metric_name in ["false_discovery_rate", "fdr"]:
+    if metric_name in ["false_discovery_rate", "fdr"]:
         return "fdr"
-    elif metric_name in ["false_omission_rate", "for"]:
+    if metric_name in ["false_omission_rate", "for"]:
         return "for"
-    elif metric_name in ["prevalence_threshold", "pt"]:
+    if metric_name in ["prevalence_threshold", "pt"]:
         return "pt"
-    elif metric_name in ["threat_score", "critical_success_index", "ts", "csi"]:
+    if metric_name in ["threat_score", "critical_success_index", "ts", "csi"]:
         return "ts"
-    elif metric_name in ["accuracy", "acc"]:
+    if metric_name in ["accuracy", "acc"]:
         return "acc"
-    elif metric_name in ["balanced_accuracy", "ba"]:
+    if metric_name in ["balanced_accuracy", "ba"]:
         return "ba"
-    elif metric_name in ["f1_score", "f1"]:
+    if metric_name in ["f1_score", "f1"]:
         return "f1"
-    elif metric_name in ["matthews_correlation_coefficient", "mcc"]:
+    if metric_name in ["matthews_correlation_coefficient", "mcc"]:
         return "mcc"
-    elif metric_name in ["fowlkes_mallows_index", "fm"]:
+    if metric_name in ["fowlkes_mallows_index", "fm"]:
         return "fm"
-    elif metric_name in ["informedness", "bookmaker_informedness", "bm"]:
+    if metric_name in ["informedness", "bookmaker_informedness", "bm"]:
         return "bm"
-    elif metric_name in ["markedness", "deltap", "mk"]:
+    if metric_name in ["markedness", "deltap", "mk"]:
         return "mk"
-    else:
-        raise NotImplementedError("the metric is not implemented.")
+    raise NotImplementedError("the metric is not implemented.")

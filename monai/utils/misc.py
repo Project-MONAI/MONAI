@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,14 +10,39 @@
 # limitations under the License.
 
 import collections.abc
+import inspect
 import itertools
 import random
+import types
+import warnings
 from ast import literal_eval
 from distutils.util import strtobool
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
+
+from monai.utils.module import get_torch_version_tuple
+
+__all__ = [
+    "zip_with",
+    "star_zip_with",
+    "first",
+    "issequenceiterable",
+    "ensure_tuple",
+    "ensure_tuple_size",
+    "ensure_tuple_rep",
+    "fall_back_tuple",
+    "is_scalar_tensor",
+    "is_scalar",
+    "progress_bar",
+    "get_seed",
+    "set_determinism",
+    "list_to_dict",
+    "MAX_SEED",
+    "copy_to_device",
+    "ImageMetaKey",
+]
 
 _seed = None
 _flag_deterministic = torch.backends.cudnn.deterministic
@@ -52,9 +77,9 @@ def issequenceiterable(obj: Any) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string.
     """
-    if torch.is_tensor(obj):
+    if isinstance(obj, torch.Tensor):
         return int(obj.dim()) > 0  # a 0-d tensor is not iterable
-    return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, str)
+    return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, (str, bytes))
 
 
 def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
@@ -98,15 +123,21 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
         ValueError: Sequence must have length 3, got length 2.
 
     """
+    if isinstance(tup, torch.Tensor):
+        tup = tup.detach().cpu().numpy()
+    if isinstance(tup, np.ndarray):
+        tup = tup.tolist()
     if not issequenceiterable(tup):
         return (tup,) * dim
-    elif len(tup) == dim:
+    if len(tup) == dim:
         return tuple(tup)
 
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
 
 
-def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple[Any, ...]:
+def fall_back_tuple(
+    user_provided: Any, default: Union[Sequence, np.ndarray], func: Callable = lambda x: x and x > 0
+) -> Tuple[Any, ...]:
     """
     Refine `user_provided` according to the `default`, and returns as a validated tuple.
 
@@ -151,13 +182,11 @@ def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lamb
 
 
 def is_scalar_tensor(val: Any) -> bool:
-    if torch.is_tensor(val) and val.ndim == 0:
-        return True
-    return False
+    return isinstance(val, torch.Tensor) and val.ndim == 0
 
 
 def is_scalar(val: Any) -> bool:
-    if torch.is_tensor(val) and val.ndim == 0:
+    if isinstance(val, torch.Tensor) and val.ndim == 0:
         return True
     return bool(np.isscalar(val))
 
@@ -172,7 +201,7 @@ def progress_bar(index: int, count: int, desc: Optional[str] = None, bar_len: in
         bar_len: the total length of the bar on screen, default is 30 char.
         newline: whether to print in a new line for every index.
     """
-    end = "\r" if newline is False else "\r\n"
+    end = "\r" if not newline else "\r\n"
     filled_len = int(bar_len * index // count)
     bar = f"{desc} " if desc is not None else ""
     bar += "[" + "=" * filled_len + " " * (bar_len - filled_len) + "]"
@@ -187,6 +216,7 @@ def get_seed() -> Optional[int]:
 
 def set_determinism(
     seed: Optional[int] = np.iinfo(np.uint32).max,
+    use_deterministic_algorithms: Optional[bool] = None,
     additional_settings: Optional[Union[Sequence[Callable[[int], Any]], Callable[[int], Any]]] = None,
 ) -> None:
     """
@@ -197,8 +227,8 @@ def set_determinism(
             It is recommended to set a large seed, i.e. a number that has a good balance
             of 0 and 1 bits. Avoid having many 0 bits in the seed.
             if set to None, will disable deterministic training.
-        additional_settings: additional settings
-            that need to set random seed.
+        use_deterministic_algorithms: Set whether PyTorch operations must use "deterministic" algorithms.
+        additional_settings: additional settings that need to set random seed.
 
     """
     if seed is None:
@@ -227,6 +257,15 @@ def set_determinism(
         torch.backends.cudnn.deterministic = _flag_deterministic
         torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
 
+    if use_deterministic_algorithms is not None:
+        torch_ver = get_torch_version_tuple()
+        if torch_ver >= (1, 9):
+            torch.use_deterministic_algorithms(use_deterministic_algorithms)
+        elif torch_ver >= (1, 7):
+            torch.set_deterministic(use_deterministic_algorithms)  # beta feature
+        else:
+            warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
+
 
 def list_to_dict(items):
     """
@@ -245,7 +284,7 @@ def list_to_dict(items):
             value = items[1].strip(" \n\r\t'")
         return key, value
 
-    d = dict()
+    d = {}
     if items:
         for item in items:
             key, value = _parse_var(item)
@@ -262,27 +301,57 @@ def list_to_dict(items):
     return d
 
 
-_torch_to_np_dtype = {
-    torch.bool: np.bool,
-    torch.uint8: np.uint8,
-    torch.int8: np.int8,
-    torch.int16: np.int16,
-    torch.int32: np.int32,
-    torch.int64: np.int64,
-    torch.float16: np.float16,
-    torch.float32: np.float32,
-    torch.float64: np.float64,
-    torch.complex64: np.complex64,
-    torch.complex128: np.complex128,
-}
-_np_to_torch_dtype = {value: key for key, value in _torch_to_np_dtype.items()}
+def copy_to_device(
+    obj: Any,
+    device: Optional[Union[str, torch.device]],
+    non_blocking: bool = True,
+    verbose: bool = False,
+) -> Any:
+    """
+    Copy object or tuple/list/dictionary of objects to ``device``.
+
+    Args:
+        obj: object or tuple/list/dictionary of objects to move to ``device``.
+        device: move ``obj`` to this device. Can be a string (e.g., ``cpu``, ``cuda``,
+            ``cuda:0``, etc.) or of type ``torch.device``.
+        non_blocking_transfer: when `True`, moves data to device asynchronously if
+            possible, e.g., moving CPU Tensors with pinned memory to CUDA devices.
+        verbose: when `True`, will print a warning for any elements of incompatible type
+            not copied to ``device``.
+    Returns:
+        Same as input, copied to ``device`` where possible. Original input will be
+            unchanged.
+    """
+
+    if hasattr(obj, "to"):
+        return obj.to(device, non_blocking=non_blocking)
+    if isinstance(obj, tuple):
+        return tuple(copy_to_device(o, device, non_blocking) for o in obj)
+    if isinstance(obj, list):
+        return [copy_to_device(o, device, non_blocking) for o in obj]
+    if isinstance(obj, dict):
+        return {k: copy_to_device(o, device, non_blocking) for k, o in obj.items()}
+    if verbose:
+        fn_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
+        warnings.warn(f"{fn_name} called with incompatible type: " + f"{type(obj)}. Data will be returned unchanged.")
+
+    return obj
 
 
-def dtype_torch_to_numpy(dtype):
-    """Convert a torch dtype to its numpy equivalent."""
-    return _torch_to_np_dtype[dtype]
+class ImageMetaKey:
+    """
+    Common key names in the meta data header of images
+    """
+
+    FILENAME_OR_OBJ = "filename_or_obj"
+    PATCH_INDEX = "patch_index"
 
 
-def dtype_numpy_to_torch(dtype):
-    """Convert a numpy dtype to its torch equivalent."""
-    return _np_to_torch_dtype[dtype]
+def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
+    """
+    Return a boolean indicating whether the given callable `obj` has the `keywords` in its signature.
+    """
+    if not callable(obj):
+        return False
+    sig = inspect.signature(obj)
+    return all(key in sig.parameters for key in ensure_tuple(keywords))

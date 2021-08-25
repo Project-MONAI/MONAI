@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,6 +24,7 @@ class DistributedSamplerTest(DistTestCase):
         data = [1, 2, 3, 4, 5]
         sampler = DistributedSampler(dataset=data, shuffle=False)
         samples = np.array([data[i] for i in list(sampler)])
+        self.assertEqual(dist.get_rank(), sampler.rank)
         if dist.get_rank() == 0:
             np.testing.assert_allclose(samples, np.array([1, 3, 5]))
 
@@ -35,6 +36,7 @@ class DistributedSamplerTest(DistTestCase):
         data = [1, 2, 3, 4, 5]
         sampler = DistributedSampler(dataset=data, shuffle=False, even_divisible=False)
         samples = np.array([data[i] for i in list(sampler)])
+        self.assertEqual(dist.get_rank(), sampler.rank)
         if dist.get_rank() == 0:
             np.testing.assert_allclose(samples, np.array([1, 3, 5]))
 

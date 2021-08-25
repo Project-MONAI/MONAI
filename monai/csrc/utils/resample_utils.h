@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -62,7 +62,9 @@ namespace monai {
 template <typename scalar_t, typename offset_t>
 static inline void cpuAtomicAdd(scalar_t* ptr, offset_t offset, scalar_t value) {
 #if AT_PARALLEL_OPENMP
+#if _OPENMP
 #pragma omp atomic
+#endif
 #endif
   ptr[offset] += value;
 }
