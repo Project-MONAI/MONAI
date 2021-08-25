@@ -21,6 +21,7 @@ from PIL import Image
 
 from monai.data import ITKReader
 from monai.transforms import EnsureChannelFirst, LoadImage
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_1 = [{"image_only": False}, ["test_image.nii.gz"], None]
 
@@ -61,9 +62,10 @@ class TestEnsureChannelFirst(unittest.TestCase):
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
-            result, header = LoadImage(**input_param)(filenames)
-            result = EnsureChannelFirst()(result, header)
-            self.assertEqual(result.shape[0], len(filenames))
+            for p in TEST_NDARRAYS:
+                result, header = LoadImage(**input_param)(filenames)
+                result = EnsureChannelFirst()(p(result), header)
+                self.assertEqual(result.shape[0], len(filenames))
 
     @parameterized.expand([TEST_CASE_7])
     def test_itk_dicom_series_reader(self, input_param, filenames, original_channel_dim):

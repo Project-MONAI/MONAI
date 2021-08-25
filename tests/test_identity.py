@@ -11,17 +11,16 @@
 
 import unittest
 
-import numpy as np
-
 from monai.transforms.utility.array import Identity
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestIdentity(NumpyImageTestCase2D):
     def test_identity(self):
-        img = self.imt
-        identity = Identity()
-        self.assertTrue(np.allclose(img, identity(img)))
+        for p in TEST_NDARRAYS:
+            img = p(self.imt)
+            identity = Identity()
+            assert_allclose(img, identity(img))
 
 
 if __name__ == "__main__":
