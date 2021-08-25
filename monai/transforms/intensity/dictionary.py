@@ -1452,7 +1452,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         holes: int,
         spatial_size: Union[Sequence[int], int],
-        fill_value: Union[Tuple[Union[float, int]], Union[float, int]] = 0,
+        fill_value: Union[Tuple[float, float], float] = 0,
         max_holes: Optional[int] = None,
         max_spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
@@ -1493,7 +1493,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
                             raise ValueError("fill_value should contain 2 numbers if providing the `min` and `max`.")
                         d[key][h] = self.R.uniform(self.fill_value[0], self.fill_value[1], size=d[key][h].shape)
                     else:
-                        d[key][h] = self.fill_value  # type: ignore
+                        d[key][h] = self.fill_value
         return d
 
 
