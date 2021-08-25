@@ -61,6 +61,7 @@ TEST_CASE_5 = [
     {"img": np.random.rand(3, 3, 3, 4)},
 ]
 
+
 class TestRandCoarseDropoutd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, input_param, input_data):
