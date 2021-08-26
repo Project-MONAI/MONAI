@@ -326,7 +326,7 @@ Intensity
      :special-members: __call__
 
 `LocalPatchShuffling`
-""""""""""""""""""""
+"""""""""""""""""""""
 .. autoclass:: LocalPatchShuffling
     :members:
     :special-members: __call__
