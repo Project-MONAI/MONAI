@@ -15,16 +15,24 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RemoveRepeatedChanneld
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    {"keys": ["img"], "repeats": 2},
-    {"img": np.array([[1, 2], [1, 2], [3, 4], [3, 4]]), "seg": np.array([[1, 2], [1, 2], [3, 4], [3, 4]])},
-    (2, 2),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            {"keys": ["img"], "repeats": 2},
+            {
+                "img": p(np.array([[1, 2], [1, 2], [3, 4], [3, 4]])),
+                "seg": p(np.array([[1, 2], [1, 2], [3, 4], [3, 4]])),
+            },
+            (2, 2),
+        ]
+    )
 
 
 class TestRemoveRepeatedChanneld(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RemoveRepeatedChanneld(**input_param)(input_data)
         self.assertEqual(result["img"].shape, expected_shape)

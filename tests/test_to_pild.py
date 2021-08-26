@@ -14,11 +14,11 @@ from typing import TYPE_CHECKING
 from unittest import skipUnless
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import ToPILd
 from monai.utils import optional_import
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImageImage
@@ -29,36 +29,20 @@ else:
     pil_image_fromarray, has_pil = optional_import("PIL.Image", name="fromarray")
     PILImageImage, _ = optional_import("PIL.Image", name="Image")
 
-TEST_CASE_ARRAY_1 = [{"keys": "image"}, {"image": np.array([[1.0, 2.0], [3.0, 4.0]])}]
-TEST_CASE__TENSOR_1 = [{"keys": "image"}, {"image": torch.tensor([[1.0, 2.0], [3.0, 4.0]])}]
+im = [[1.0, 2.0], [3.0, 4.0]]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append([{"keys": "image"}, {"image": p(im)}])
+TESTS.append([{"keys": "image"}, {"image": pil_image_fromarray(np.array(im))}])
 
 
 class TestToPIL(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_ARRAY_1])
+    @parameterized.expand(TESTS)
     @skipUnless(has_pil, "Requires `pillow` package.")
-    def test_numpy_input(self, input_param, test_data):
-        self.assertTrue(isinstance(test_data[input_param["keys"]], np.ndarray))
+    def test_values(self, input_param, test_data):
         result = ToPILd(**input_param)(test_data)[input_param["keys"]]
         self.assertTrue(isinstance(result, PILImageImage))
-        np.testing.assert_allclose(np.array(result), test_data[input_param["keys"]])
-
-    @parameterized.expand([TEST_CASE__TENSOR_1])
-    @skipUnless(has_pil, "Requires `pillow` package.")
-    def test_tensor_input(self, input_param, test_data):
-        self.assertTrue(isinstance(test_data[input_param["keys"]], torch.Tensor))
-        result = ToPILd(**input_param)(test_data)[input_param["keys"]]
-        self.assertTrue(isinstance(result, PILImageImage))
-        np.testing.assert_allclose(np.array(result), test_data[input_param["keys"]].numpy())
-
-    @parameterized.expand([TEST_CASE_ARRAY_1])
-    @skipUnless(has_pil, "Requires `pillow` package.")
-    def test_pil_input(self, input_param, test_data):
-        input_array = test_data[input_param["keys"]]
-        test_data[input_param["keys"]] = pil_image_fromarray(input_array)
-        self.assertTrue(isinstance(test_data[input_param["keys"]], PILImageImage))
-        result = ToPILd(**input_param)(test_data)[input_param["keys"]]
-        self.assertTrue(isinstance(result, PILImageImage))
-        np.testing.assert_allclose(np.array(result), test_data[input_param["keys"]])
+        assert_allclose(np.array(result), test_data[input_param["keys"]])
 
 
 if __name__ == "__main__":

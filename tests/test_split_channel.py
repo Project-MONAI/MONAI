@@ -12,22 +12,21 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import SplitChannel
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [{"channel_dim": 1}, torch.randint(0, 2, size=(4, 3, 3, 4)), (4, 1, 3, 4)]
-
-TEST_CASE_2 = [{"channel_dim": 0}, np.random.randint(2, size=(3, 3, 4)), (1, 3, 4)]
-
-TEST_CASE_3 = [{"channel_dim": 2}, np.random.randint(2, size=(3, 2, 4)), (3, 2, 1)]
-
-TEST_CASE_4 = [{"channel_dim": -1}, np.random.randint(2, size=(3, 2, 4)), (3, 2, 1)]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append([{"channel_dim": 1}, p(np.random.randint(2, size=(4, 3, 3, 4))), (4, 1, 3, 4)])
+    TESTS.append([{"channel_dim": 0}, p(np.random.randint(2, size=(3, 3, 4))), (1, 3, 4)])
+    TESTS.append([{"channel_dim": 2}, p(np.random.randint(2, size=(3, 2, 4))), (3, 2, 1)])
+    TESTS.append([{"channel_dim": -1}, p(np.random.randint(2, size=(3, 2, 4))), (3, 2, 1)])
 
 
 class TestSplitChannel(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, test_data, expected_shape):
         result = SplitChannel(**input_param)(test_data)
         for data in result:

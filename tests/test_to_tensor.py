@@ -11,24 +11,36 @@
 
 import unittest
 
-import numpy as np
-import torch
+from parameterized import parameterized
 
 from monai.transforms import ToTensor
+from tests.utils import TEST_NDARRAYS, assert_allclose
+
+im = [[1, 2], [3, 4]]
+
+TESTS = []
+TESTS.append((im, (2, 2)))
+for p in TEST_NDARRAYS:
+    TESTS.append((p(im), (2, 2)))
+
+TESTS_SINGLE = []
+TESTS_SINGLE.append([5])
+for p in TEST_NDARRAYS:
+    TESTS_SINGLE.append([p(5)])
 
 
 class TestToTensor(unittest.TestCase):
-    def test_array_input(self):
-        for test_data in ([[1, 2], [3, 4]], np.array([[1, 2], [3, 4]]), torch.as_tensor([[1, 2], [3, 4]])):
-            result = ToTensor()(test_data)
-            torch.testing.assert_allclose(result, test_data)
-            self.assertTupleEqual(result.shape, (2, 2))
+    @parameterized.expand(TESTS)
+    def test_array_input(self, test_data, expected_shape):
+        result = ToTensor()(test_data)
+        assert_allclose(result, test_data)
+        self.assertTupleEqual(result.shape, expected_shape)
 
-    def test_single_input(self):
-        for test_data in (5, np.asarray(5), torch.tensor(5)):
-            result = ToTensor()(test_data)
-            torch.testing.assert_allclose(result, test_data)
-            self.assertEqual(result.ndim, 0)
+    @parameterized.expand(TESTS_SINGLE)
+    def test_single_input(self, test_data):
+        result = ToTensor()(test_data)
+        assert_allclose(result, test_data)
+        self.assertEqual(result.ndim, 0)
 
 
 if __name__ == "__main__":

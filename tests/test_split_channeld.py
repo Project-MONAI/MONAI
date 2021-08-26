@@ -12,44 +12,56 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import SplitChanneld
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3"], "channel_dim": 1},
-    {"pred": torch.randint(0, 2, size=(4, 3, 3, 4))},
-    (4, 1, 3, 4),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3"], "channel_dim": 1},
+            {"pred": p(np.random.randint(2, size=(4, 3, 3, 4)))},
+            (4, 1, 3, 4),
+        ]
+    )
 
-TEST_CASE_2 = [
-    {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3"], "channel_dim": 0},
-    {"pred": np.random.randint(2, size=(3, 3, 4))},
-    (1, 3, 4),
-]
+    TESTS.append(
+        [
+            {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3"], "channel_dim": 0},
+            {"pred": p(np.random.randint(2, size=(3, 3, 4)))},
+            (1, 3, 4),
+        ]
+    )
 
-TEST_CASE_3 = [
-    {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3", "cls4"], "channel_dim": 2},
-    {"pred": np.random.randint(2, size=(3, 2, 4))},
-    (3, 2, 1),
-]
+    TESTS.append(
+        [
+            {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3", "cls4"], "channel_dim": 2},
+            {"pred": p(np.random.randint(2, size=(3, 2, 4)))},
+            (3, 2, 1),
+        ]
+    )
 
-TEST_CASE_4 = [
-    {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3", "cls4"], "channel_dim": -1},
-    {"pred": np.random.randint(2, size=(3, 2, 4))},
-    (3, 2, 1),
-]
+    TESTS.append(
+        [
+            {"keys": "pred", "output_postfixes": ["cls1", "cls2", "cls3", "cls4"], "channel_dim": -1},
+            {"pred": p(np.random.randint(2, size=(3, 2, 4)))},
+            (3, 2, 1),
+        ]
+    )
 
-TEST_CASE_5 = [
-    {"keys": "pred", "channel_dim": 1},
-    {"pred": np.random.randint(2, size=(3, 2, 4))},
-    (3, 1, 4),
-]
+    TESTS.append(
+        [
+            {"keys": "pred", "channel_dim": 1},
+            {"pred": p(np.random.randint(2, size=(3, 2, 4)))},
+            (3, 1, 4),
+        ]
+    )
 
 
 class TestSplitChanneld(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, test_data, expected_shape):
         result = SplitChanneld(**input_param)(test_data)
         for k, v in result.items():

@@ -12,28 +12,37 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import Transpose
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TEST_CASE_0 = [
-    np.arange(5 * 4).reshape(5, 4),
-    None,
-]
-TEST_CASE_1 = [
-    np.arange(5 * 4 * 3).reshape(5, 4, 3),
-    [2, 0, 1],
-]
-TEST_CASES = [TEST_CASE_0, TEST_CASE_1]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            p(np.arange(5 * 4).reshape(5, 4)),
+            None,
+        ]
+    )
+    TESTS.append(
+        [
+            p(np.arange(5 * 4 * 3).reshape(5, 4, 3)),
+            [2, 0, 1],
+        ]
+    )
 
 
 class TestTranspose(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_transpose(self, im, indices):
         tr = Transpose(indices)
         out1 = tr(im)
+        if isinstance(im, torch.Tensor):
+            im = im.cpu().numpy()
         out2 = np.transpose(im, indices)
-        np.testing.assert_array_equal(out1, out2)
+        assert_allclose(out1, out2)
 
 
 if __name__ == "__main__":
