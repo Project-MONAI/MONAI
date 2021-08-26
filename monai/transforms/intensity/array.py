@@ -1631,6 +1631,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 class RandCoarseDropout(RandomizableTransform):
     """
     Randomly coarse dropout regions in the image, then fill in the rectangular regions with specified value.
+    Or keep the rectangular regions and fill in the other areas with specified value.
     Refer to: https://arxiv.org/abs/1708.04552 and:
     https://albumentations.ai/docs/api_reference/augmentations/transforms/
     #albumentations.augmentations.transforms.CoarseDropout.
@@ -1643,6 +1644,8 @@ class RandCoarseDropout(RandomizableTransform):
             if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
+        dropout_holes: if `True`, dropout the regions of holes and fill value, if `False`, keep the holes and
+            dropout the outside and fill value. default to `True`.
         fill_value: target value to fill the dropout regions, if providing a number, will use it as constant
             value to fill all the regions. if providing a tuple for the `min` and `max`, will randomly select
             value for every pixel / voxel from the range `[min, max)`. if None, will compute the `min` and `max`
@@ -1660,6 +1663,7 @@ class RandCoarseDropout(RandomizableTransform):
         self,
         holes: int,
         spatial_size: Union[Sequence[int], int],
+        dropout_holes: bool = True,
         fill_value: Optional[Union[Tuple[float, float], float]] = None,
         max_holes: Optional[int] = None,
         max_spatial_size: Optional[Union[Sequence[int], int]] = None,
@@ -1670,6 +1674,10 @@ class RandCoarseDropout(RandomizableTransform):
             raise ValueError("number of holes must be greater than 0.")
         self.holes = holes
         self.spatial_size = spatial_size
+        self.dropout_holes = dropout_holes
+        if isinstance(fill_value, (tuple, list)):
+            if len(fill_value) != 2:
+                raise ValueError("fill value should contain 2 numbers if providing the `min` and `max`.")
         self.fill_value = fill_value
         self.max_holes = max_holes
         self.max_spatial_size = max_spatial_size
@@ -1690,16 +1698,23 @@ class RandCoarseDropout(RandomizableTransform):
     def __call__(self, img: np.ndarray):
         self.randomize(img.shape[1:])
         if self._do_transform:
-            for h in self.hole_coords:
-                fill_value = (img.min(), img.max()) if self.fill_value is None else self.fill_value
-                if isinstance(fill_value, (tuple, list)):
-                    if len(fill_value) != 2:
-                        raise ValueError("fill_value should contain 2 numbers if providing the `min` and `max`.")
-                    img[h] = self.R.uniform(fill_value[0], fill_value[1], size=img[h].shape)
-                else:
-                    img[h] = fill_value
+            fill_value = (img.min(), img.max()) if self.fill_value is None else self.fill_value
 
-        return img
+            if self.dropout_holes:
+                for h in self.hole_coords:
+                    if isinstance(fill_value, (tuple, list)):
+                        img[h] = self.R.uniform(fill_value[0], fill_value[1], size=img[h].shape)
+                    else:
+                        img[h] = fill_value
+                return img
+            else:
+                if isinstance(fill_value, (tuple, list)):
+                    ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype)
+                else:
+                    ret = np.full_like(img, fill_value)
+                for h in self.hole_coords:
+                    ret[h] = img[h]
+                return ret
 
 
 class HistogramNormalize(Transform):
