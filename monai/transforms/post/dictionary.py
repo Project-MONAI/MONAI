@@ -39,7 +39,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep, deprecated_arg
 from monai.utils.enums import InverseKeys
 
 __all__ = [
@@ -126,6 +126,7 @@ class AsDiscreted(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsDiscrete`.
     """
 
+    @deprecated_arg("n_classes")
     def __init__(
         self,
         keys: KeysCollection,
@@ -136,6 +137,7 @@ class AsDiscreted(MapTransform):
         logit_thresh: Union[Sequence[float], float] = 0.5,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
+        n_classes: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -157,6 +159,9 @@ class AsDiscreted(MapTransform):
             allow_missing_keys: don't raise exception if key is missing.
 
         """
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes is None:
+            num_classes = n_classes
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))

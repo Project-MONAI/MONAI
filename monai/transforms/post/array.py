@@ -25,7 +25,7 @@ from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
-from monai.utils import ensure_tuple, look_up_option
+from monai.utils import ensure_tuple, look_up_option, deprecated_arg
 
 __all__ = [
     "Activations",
@@ -131,6 +131,7 @@ class AsDiscrete(Transform):
 
     """
 
+    @deprecated_arg("n_classes")
     def __init__(
         self,
         argmax: bool = False,
@@ -139,7 +140,11 @@ class AsDiscrete(Transform):
         threshold_values: bool = False,
         logit_thresh: float = 0.5,
         rounding: Optional[str] = None,
+        n_classes: Optional[int] = None,
     ) -> None:
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes is None:
+            num_classes = n_classes
         self.argmax = argmax
         self.to_onehot = to_onehot
         self.num_classes = num_classes
@@ -147,6 +152,7 @@ class AsDiscrete(Transform):
         self.logit_thresh = logit_thresh
         self.rounding = rounding
 
+    @deprecated_arg("n_classes")
     def __call__(
         self,
         img: torch.Tensor,
@@ -156,6 +162,7 @@ class AsDiscrete(Transform):
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
         rounding: Optional[str] = None,
+        n_classes: Optional[int] = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -175,6 +182,9 @@ class AsDiscrete(Transform):
                 available options: ["torchrounding"].
 
         """
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes is None:
+            num_classes = n_classes
         if argmax or self.argmax:
             img = torch.argmax(img, dim=0, keepdim=True)
 

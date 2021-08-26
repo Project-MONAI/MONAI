@@ -12,7 +12,7 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 from monai.networks.nets import NetAdapter
-from monai.utils import deprecated, optional_import
+from monai.utils import deprecated, optional_import, deprecated_arg
 
 models, _ = optional_import("torchvision.models")
 
@@ -41,6 +41,7 @@ class TorchVisionFCModel(NetAdapter):
         pretrained: whether to use the imagenet pretrained weights. Default to False.
     """
 
+    @deprecated_arg("n_classes")
     def __init__(
         self,
         model_name: str = "resnet18",
@@ -51,7 +52,11 @@ class TorchVisionFCModel(NetAdapter):
         pool: Optional[Tuple[str, Dict[str, Any]]] = ("avg", {"kernel_size": 7, "stride": 1}),
         bias: bool = True,
         pretrained: bool = False,
+        n_classes: Optional[int] = None,
     ):
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes == 1:
+            num_classes = n_classes
         model = getattr(models, model_name)(pretrained=pretrained)
         # check if the model is compatible, should have a FC layer at the end
         if not str(list(model.children())[-1]).startswith("Linear"):
@@ -87,6 +92,7 @@ class TorchVisionFullyConvModel(TorchVisionFCModel):
 
     """
 
+    @deprecated_arg("n_classes")
     def __init__(
         self,
         model_name: str = "resnet18",
@@ -94,7 +100,11 @@ class TorchVisionFullyConvModel(TorchVisionFCModel):
         pool_size: Union[int, Tuple[int, int]] = (7, 7),
         pool_stride: Union[int, Tuple[int, int]] = 1,
         pretrained: bool = False,
+        n_classes: Optional[int] = None,
     ):
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes == 1:
+            num_classes = n_classes
         super().__init__(
             model_name=model_name,
             num_classes=num_classes,
