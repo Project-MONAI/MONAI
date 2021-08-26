@@ -23,9 +23,15 @@ TEST_CASES = [
         np.arange(8).reshape((1, 2, 2, 2)),
     ],
     [
-        {"number_blocks": 10, "blocksize_ratio": 2, "prob": 1.0},
-        {"img": np.arange(64).reshape((1, 4, 4, 4))},
-        np.arange(64).reshape((1, 4, 4, 4)),
+        {"number_blocks": 10, "blocksize_ratio": 1, "prob": 1.0},
+        {"img": np.arange(27).reshape((1, 3, 3, 3))},
+        [
+            [
+                [[9, 1, 2], [3, 4, 5], [6, 7, 8]],
+                [[0, 10, 11], [12, 4, 14], [15, 16, 17]],
+                [[18, 19, 20], [21, 22, 23], [24, 25, 26]],
+            ]
+        ],
     ],
 ]
 

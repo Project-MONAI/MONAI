@@ -1715,13 +1715,13 @@ class LocalPatchShuffling(RandomizableTransform):
         img_copy = copy.deepcopy(img)
         for _each_block in range(number_blocks):
 
-            block_size_x = np.random.randint(1, im_shape[0] // blocksize_ratio)
-            block_size_y = np.random.randint(1, im_shape[1] // blocksize_ratio)
-            block_size_z = np.random.randint(1, im_shape[2] // blocksize_ratio)
+            block_size_x = self.R.randint(1, im_shape[0] // blocksize_ratio)
+            block_size_y = self.R.randint(1, im_shape[1] // blocksize_ratio)
+            block_size_z = self.R.randint(1, im_shape[2] // blocksize_ratio)
 
-            noise_x = np.random.randint(0, im_shape[0] - block_size_x)
-            noise_y = np.random.randint(0, im_shape[1] - block_size_y)
-            noise_z = np.random.randint(0, im_shape[2] - block_size_z)
+            noise_x = self.R.randint(0, im_shape[0] - block_size_x)
+            noise_y = self.R.randint(0, im_shape[1] - block_size_y)
+            noise_z = self.R.randint(0, im_shape[2] - block_size_z)
 
             local_patch = img[
                 noise_x : noise_x + block_size_x,
@@ -1730,7 +1730,7 @@ class LocalPatchShuffling(RandomizableTransform):
             ]
 
             local_patch = local_patch.flatten()
-            np.random.shuffle(local_patch)
+            self.R.shuffle(local_patch)
             local_patch = local_patch.reshape((block_size_x, block_size_y, block_size_z))
 
             img_copy[
