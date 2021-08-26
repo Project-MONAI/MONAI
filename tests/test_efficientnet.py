@@ -18,7 +18,13 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import BlockArgs, EfficientNetBN, drop_connect, get_efficientnet_image_size
+from monai.networks.nets import (
+    BlockArgs,
+    EfficientNetBN,
+    EfficientNetBNFeatures,
+    drop_connect,
+    get_efficientnet_image_size,
+)
 from monai.utils import optional_import
 from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
@@ -75,7 +81,15 @@ def get_block_args():
     ]
 
 
-def make_shape_cases(models, spatial_dims, batches, pretrained, in_channels=3, num_classes=1000):
+def make_shape_cases(
+    models,
+    spatial_dims,
+    batches,
+    pretrained,
+    in_channels=3,
+    num_classes=1000,
+    norm=("batch", {"eps": 1e-3, "momentum": 0.01}),
+):
     ret_tests = []
     for spatial_dim in spatial_dims:  # selected spatial_dims
         for batch in batches:  # check single batch as well as multiple batch input
@@ -88,6 +102,7 @@ def make_shape_cases(models, spatial_dims, batches, pretrained, in_channels=3, n
                         "spatial_dims": spatial_dim,
                         "in_channels": in_channels,
                         "num_classes": num_classes,
+                        "norm": norm,
                     }
                     ret_tests.append(
                         [
@@ -115,10 +130,22 @@ CASES_1D = make_shape_cases(
 
 # 2D and 3D models are expensive so use selected models
 CASES_2D = make_shape_cases(
-    models=SEL_MODELS, spatial_dims=[2], batches=[1, 4], pretrained=[False], in_channels=3, num_classes=1000
+    models=SEL_MODELS,
+    spatial_dims=[2],
+    batches=[1, 4],
+    pretrained=[False],
+    in_channels=3,
+    num_classes=1000,
+    norm="instance",
 )
 CASES_3D = make_shape_cases(
-    models=[SEL_MODELS[0]], spatial_dims=[3], batches=[1], pretrained=[False], in_channels=3, num_classes=1000
+    models=[SEL_MODELS[0]],
+    spatial_dims=[3],
+    batches=[1],
+    pretrained=[False],
+    in_channels=3,
+    num_classes=1000,
+    norm="batch",
 )
 
 # pretrained=True cases
@@ -134,6 +161,8 @@ CASES_KITTY_TRAINED = [
             "spatial_dims": 2,
             "in_channels": 3,
             "num_classes": 1000,
+            "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
+            "adv_prop": False,
         },
         os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
         282,  # ~ tiger cat
@@ -204,12 +233,26 @@ CASES_VARIATIONS.extend(
     )
 )
 
+CASE_EXTRACT_FEATURES = [
+    (
+        {
+            "model_name": "efficientnet-b8",
+            "pretrained": True,
+            "progress": False,
+            "spatial_dims": 2,
+            "in_channels": 2,
+            "adv_prop": True,
+        },
+        [1, 2, 224, 224],
+        ([1, 32, 112, 112], [1, 56, 56, 56], [1, 88, 28, 28], [1, 248, 14, 14], [1, 704, 7, 7]),
+    ),
+]
+
 
 class TestEFFICIENTNET(unittest.TestCase):
     @parameterized.expand(CASES_1D + CASES_2D + CASES_3D + CASES_VARIATIONS)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(input_param)
 
         # initialize model
         net = EfficientNetBN(**input_param).to(device)
@@ -224,7 +267,6 @@ class TestEFFICIENTNET(unittest.TestCase):
     @parameterized.expand(CASES_1D + CASES_2D)
     def test_non_default_shapes(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(input_param)
 
         # initialize model
         net = EfficientNetBN(**input_param).to(device)
@@ -234,7 +276,6 @@ class TestEFFICIENTNET(unittest.TestCase):
         non_default_sizes = [128, 256, 512]
         for candidate_size in non_default_sizes:
             input_shape = input_shape[0:2] + (candidate_size,) * num_dims
-            print(input_shape)
             # run inference with random tensor
             with eval_mode(net):
                 result = net(torch.randn(input_shape).to(device))
@@ -334,6 +375,24 @@ class TestEFFICIENTNET(unittest.TestCase):
         net.set_swish(memory_efficient=False)  # at the moment custom memory efficient swish is not exportable with jit
         test_data = torch.randn(1, 3, 224, 224)
         test_script_save(net, test_data)
+
+
+class TestExtractFeatures(unittest.TestCase):
+    @parameterized.expand(CASE_EXTRACT_FEATURES)
+    def test_shape(self, input_param, input_shape, expected_shapes):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        # initialize model
+        net = EfficientNetBNFeatures(**input_param).to(device)
+
+        # run inference with random tensor
+        with eval_mode(net):
+            features = net(torch.randn(input_shape).to(device))
+
+        # check output shape
+        self.assertEqual(len(features), len(expected_shapes))
+        for feature, expected_shape in zip(features, expected_shapes):
+            self.assertEqual(feature.shape, torch.Size(expected_shape))
 
 
 if __name__ == "__main__":

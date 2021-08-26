@@ -4,7 +4,6 @@ on:
   # full tests for all the important branches
   push:
     branches:
-      - dev
       - main
       - releasing/*
       - feature/*

@@ -19,8 +19,10 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
+from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
+from monai.config.type_definitions import NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
@@ -34,6 +36,8 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
+from monai.utils.enums import TransformBackends
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "SpatialPad",
@@ -54,9 +58,72 @@ __all__ = [
 ]
 
 
+class Pad(Transform):
+    """
+    Perform padding for a given an amount of padding in each dimension.
+    If input is `torch.Tensor` and mode is `constant`, `torch.nn.functional.pad` will be used.
+    Otherwise, `np.pad` will be used (input converted to `np.ndarray` if necessary).
+    Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
+    for additional details.
+    Args:
+        to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        to_pad: List[Tuple[int, int]],
+        mode: Union[NumpyPadMode, str, None] = NumpyPadMode.CONSTANT,
+        **np_kwargs,
+    ) -> None:
+        self.to_pad = to_pad
+        self.mode = mode or NumpyPadMode.CONSTANT
+        self.np_kwargs = np_kwargs
+
+    @staticmethod
+    def _np_pad(img: np.ndarray, all_pad_width, mode, **np_kwargs) -> np.ndarray:
+        img_np, *_ = convert_data_type(img, np.ndarray)
+        return np.pad(img_np, all_pad_width, mode=mode, **np_kwargs)  # type: ignore
+
+    @staticmethod
+    def _pt_pad(img: torch.Tensor, all_pad_width, mode, **np_kwargs) -> torch.Tensor:
+        pt_pad_width = [val for sublist in all_pad_width for val in sublist[::-1]][::-1]
+        return pad_pt(img, pt_pad_width, mode=mode, **np_kwargs)
+
+    def __call__(self, img: NdarrayTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayTensor:
+        """
+        Args:
+            img: data to be transformed, assuming `img` is channel-first and
+                padding doesn't apply to the channel dim.
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        """
+        if not np.asarray(self.to_pad).any():
+            # all zeros, skip padding
+            return img
+        mode = mode or self.mode
+        mode = mode.value if isinstance(mode, NumpyPadMode) else mode
+        if isinstance(img, torch.Tensor) and mode == "constant" and not self.np_kwargs:
+            pad = self._pt_pad
+        else:
+            pad = self._np_pad  # type: ignore
+        return pad(img, self.to_pad, mode, **self.np_kwargs)
+
+
 class SpatialPad(Transform):
     """
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
+
+    If input is `torch.Tensor` and mode is `constant`, `torch.nn.functional.pad` will be used.
+    Otherwise, `np.pad` will be used (input converted to `np.ndarray` if necessary).
+
     Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
     for additional details.
 
@@ -76,6 +143,8 @@ class SpatialPad(Transform):
             more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
+
+    backend = Pad.backend
 
     def __init__(
         self,
@@ -99,7 +168,7 @@ class SpatialPad(Transform):
             return pad_width
         return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
 
-    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
+    def __call__(self, img: NdarrayTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
@@ -115,9 +184,9 @@ class SpatialPad(Transform):
             # all zeros, skip padding
             return img
 
-        mode = look_up_option(self.mode if mode is None else mode, NumpyPadMode).value
-        img = np.pad(img, all_pad_width, mode=mode, **self.np_kwargs)
-        return img
+        mode = look_up_option(mode or self.mode, NumpyPadMode)
+        padder = Pad(all_pad_width, mode, **self.np_kwargs)
+        return padder(img)
 
 
 class BorderPad(Transform):
@@ -145,6 +214,8 @@ class BorderPad(Transform):
 
     """
 
+    backend = Pad.backend
+
     def __init__(
         self,
         spatial_border: Union[Sequence[int], int],
@@ -155,7 +226,7 @@ class BorderPad(Transform):
         self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
-    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None):
+    def __call__(self, img: NdarrayTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
@@ -189,14 +260,18 @@ class BorderPad(Transform):
                 f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
             )
 
-        mode = look_up_option(self.mode if mode is None else mode, NumpyPadMode).value
-        return np.pad(img, [(0, 0)] + data_pad_width, mode=mode, **self.np_kwargs)
+        all_pad_width = [(0, 0)] + data_pad_width
+        mode = look_up_option(mode or self.mode, NumpyPadMode)
+        padder = Pad(all_pad_width, mode, **self.np_kwargs)
+        return padder(img)
 
 
 class DivisiblePad(Transform):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     """
+
+    backend = SpatialPad.backend
 
     def __init__(
         self,
@@ -226,7 +301,7 @@ class DivisiblePad(Transform):
         self.method: Method = Method(method)
         self.np_kwargs = np_kwargs
 
-    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
+    def __call__(self, img: NdarrayTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first
@@ -402,7 +477,7 @@ class RandSpatialCrop(Randomizable, Transform):
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
-            if any([i > j for i, j in zip(self._size, max_size)]):
+            if any(i > j for i, j in zip(self._size, max_size)):
                 raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
             self._size = tuple((self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
@@ -572,6 +647,7 @@ class CropForeground(Transform):
         return_coords: bool = False,
         k_divisible: Union[Sequence[int], int] = 1,
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        **np_kwargs,
     ) -> None:
         """
         Args:
@@ -586,6 +662,8 @@ class CropForeground(Transform):
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 one of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 see also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         """
         self.select_fn = select_fn
@@ -594,6 +672,7 @@ class CropForeground(Transform):
         self.return_coords = return_coords
         self.k_divisible = k_divisible
         self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
+        self.np_kwargs = np_kwargs
 
     def compute_bounding_box(self, img: np.ndarray):
         """
@@ -612,7 +691,13 @@ class CropForeground(Transform):
         box_end_ = box_start_ + spatial_size
         return box_start_, box_end_
 
-    def crop_pad(self, img: np.ndarray, box_start: np.ndarray, box_end: np.ndarray):
+    def crop_pad(
+        self,
+        img: np.ndarray,
+        box_start: np.ndarray,
+        box_end: np.ndarray,
+        mode: Optional[Union[NumpyPadMode, str]] = None,
+    ):
         """
         Crop and pad based on the bounding box.
 
@@ -621,15 +706,15 @@ class CropForeground(Transform):
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-        return BorderPad(spatial_border=pad, mode=self.mode)(cropped)
+        return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.np_kwargs)(cropped)
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
         box_start, box_end = self.compute_bounding_box(img)
-        cropped = self.crop_pad(img, box_start, box_end)
+        cropped = self.crop_pad(img, box_start, box_end, mode)
 
         if self.return_coords:
             return cropped, box_start, box_end

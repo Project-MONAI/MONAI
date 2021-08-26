@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import CropForegroundd
+from monai.utils import NumpyPadMode
 
 TEST_CASE_1 = [
     {
@@ -23,6 +24,8 @@ TEST_CASE_1 = [
         "select_fn": lambda x: x > 0,
         "channel_indices": None,
         "margin": 0,
+        "mode": "constant",
+        "constant_values": 2,
     },
     {
         "img": np.array([[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]),
@@ -57,15 +60,18 @@ TEST_CASE_5 = [
 
 TEST_CASE_6 = [
     {
-        "keys": ["img"],
+        "keys": ["img", "seg"],
         "source_key": "img",
         "select_fn": lambda x: x > 0,
         "channel_indices": 0,
         "margin": 0,
         "k_divisible": [4, 6],
-        "mode": "edge",
+        "mode": ["edge", NumpyPadMode.CONSTANT],
     },
-    {"img": np.array([[[0, 2, 1, 2, 0], [1, 1, 2, 1, 1], [2, 2, 3, 2, 2], [1, 1, 2, 1, 1], [0, 0, 0, 0, 0]]])},
+    {
+        "img": np.array([[[0, 2, 1, 2, 0], [1, 1, 2, 1, 1], [2, 2, 3, 2, 2], [1, 1, 2, 1, 1], [0, 0, 0, 0, 0]]]),
+        "seg": np.array([[[0, 2, 1, 2, 0], [1, 1, 2, 1, 1], [2, 2, 3, 2, 2], [1, 1, 2, 1, 1], [0, 0, 0, 0, 0]]]),
+    },
     np.array([[[0, 2, 1, 2, 0, 0], [1, 1, 2, 1, 1, 1], [2, 2, 3, 2, 2, 2], [1, 1, 2, 1, 1, 1]]]),
 ]
 

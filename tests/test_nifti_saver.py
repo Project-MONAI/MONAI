@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -24,7 +25,7 @@ class TestNiftiSaver(unittest.TestCase):
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            saver = NiftiSaver(output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz")
+            saver = NiftiSaver(output_dir=Path(tempdir), output_postfix="seg", output_ext=".nii.gz")
 
             meta_data = {"filename_or_obj": ["testfile" + str(i) + ".nii" for i in range(8)]}
             saver.save_batch(torch.zeros(8, 1, 2, 2), meta_data)

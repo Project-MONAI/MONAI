@@ -45,7 +45,15 @@ class TestRandZoomd(NumpyImageTestCase2D):
 
     def test_keep_size(self):
         key = "img"
-        random_zoom = RandZoomd(key, prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True)
+        random_zoom = RandZoomd(
+            keys=key,
+            prob=1.0,
+            min_zoom=0.6,
+            max_zoom=0.7,
+            keep_size=True,
+            padding_mode="constant",
+            constant_values=2,
+        )
         zoomed = random_zoom({key: self.imt[0]})
         self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 

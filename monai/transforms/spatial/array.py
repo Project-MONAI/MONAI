@@ -20,6 +20,7 @@ import numpy as np
 import torch
 
 from monai.config import USE_COMPILED, DtypeLike
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
@@ -45,6 +46,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
+from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
 
 nib, _ = optional_import("nibabel")
@@ -317,17 +319,20 @@ class Flip(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-
-        result: np.ndarray = np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
-        return result.astype(img.dtype)
+        if isinstance(img, np.ndarray):
+            return np.ascontiguousarray(np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis)))
+        else:
+            return torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
 
 
 class Resize(Transform):
@@ -337,9 +342,14 @@ class Resize(Transform):
 
     Args:
         spatial_size: expected shape of spatial dimensions after resize operation.
-            if the components of the `spatial_size` are non-positive values, the transform will use the
+            if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
+        size_mode: should be "all" or "longest", if "all", will use `spatial_size` for all the spatial dims,
+            if "longest", rescale the image so that only the longest side is equal to specified `spatial_size`,
+            which must be an int number in this case, keeping the aspect ratio of the initial image, refer to:
+            https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
+            #albumentations.augmentations.geometric.resize.LongestMaxSize.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -351,10 +361,12 @@ class Resize(Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
+        size_mode: str = "all",
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
+        self.size_mode = look_up_option(size_mode, ["all", "longest"])
+        self.spatial_size = spatial_size
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
 
@@ -378,20 +390,27 @@ class Resize(Transform):
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
-        input_ndim = img.ndim - 1  # spatial ndim
-        output_ndim = len(self.spatial_size)
-        if output_ndim > input_ndim:
-            input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
-            img = img.reshape(input_shape)
-        elif output_ndim < input_ndim:
-            raise ValueError(
-                "len(spatial_size) must be greater or equal to img spatial dimensions, "
-                f"got spatial_size={output_ndim} img={input_ndim}."
-            )
-        spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
+        if self.size_mode == "all":
+            input_ndim = img.ndim - 1  # spatial ndim
+            output_ndim = len(ensure_tuple(self.spatial_size))
+            if output_ndim > input_ndim:
+                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+                img = img.reshape(input_shape)
+            elif output_ndim < input_ndim:
+                raise ValueError(
+                    "len(spatial_size) must be greater or equal to img spatial dimensions, "
+                    f"got spatial_size={output_ndim} img={input_ndim}."
+                )
+            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
+        else:  # for the "longest" mode
+            img_size = img.shape[1:]
+            if not isinstance(self.spatial_size, int):
+                raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
+            scale = self.spatial_size / max(img_size)
+            spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
         resized = torch.nn.functional.interpolate(  # type: ignore
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
-            size=spatial_size,
+            size=spatial_size_,
             mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
@@ -532,6 +551,9 @@ class Zoom(Transform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         keep_size: Should keep original size (padding/slicing if needed), default is True.
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
 
     def __init__(
@@ -541,12 +563,14 @@ class Zoom(Transform):
         padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
+        **np_kwargs,
     ) -> None:
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
+        self.np_kwargs = np_kwargs
 
     def __call__(
         self,
@@ -593,7 +617,7 @@ class Zoom(Transform):
                 slice_vec[idx] = slice(half, half + od)
 
         padding_mode = look_up_option(self.padding_mode if padding_mode is None else padding_mode, NumpyPadMode)
-        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value)  # type: ignore
+        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value, **self.np_kwargs)  # type: ignore
         return zoomed[tuple(slice_vec)]
 
 
@@ -781,11 +805,13 @@ class RandFlip(RandomizableTransform):
         spatial_axis: Spatial axes along which to flip over. Default is None.
     """
 
+    backend = Flip.backend
+
     def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -807,15 +833,17 @@ class RandAxisFlip(RandomizableTransform):
 
     """
 
+    backend = Flip.backend
+
     def __init__(self, prob: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
         self._axis: Optional[int] = None
 
-    def randomize(self, data: np.ndarray) -> None:
+    def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
         self._axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -854,6 +882,9 @@ class RandZoom(RandomizableTransform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         keep_size: Should keep original size (pad if needed), default is True.
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
 
     def __init__(
@@ -865,6 +896,7 @@ class RandZoom(RandomizableTransform):
         padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
+        **np_kwargs,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.min_zoom = ensure_tuple(min_zoom)
@@ -875,6 +907,7 @@ class RandZoom(RandomizableTransform):
         self.padding_mode: NumpyPadMode = look_up_option(padding_mode, NumpyPadMode)
         self.align_corners = align_corners
         self.keep_size = keep_size
+        self.np_kwargs = np_kwargs
 
         self._zoom: Sequence[float] = [1.0]
 
@@ -914,7 +947,7 @@ class RandZoom(RandomizableTransform):
         elif len(self._zoom) == 2 and img.ndim > 3:
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
             self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(self._zoom, keep_size=self.keep_size)
+        zoomer = Zoom(self._zoom, keep_size=self.keep_size, **self.np_kwargs)
         return np.asarray(
             zoomer(
                 img,
@@ -931,23 +964,23 @@ class AffineGrid(Transform):
     Affine transforms on the coordinates.
 
     Args:
-        rotate_params: angle range in radians. rotate_params[0] with be used to generate the 1st rotation
-            parameter from `uniform[-rotate_params[0], rotate_params[0])`. Similarly, `rotate_params[1]` and
-            `rotate_params[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-        shear_params: shear_params[0] with be used to generate the 1st shearing parameter from
-            `uniform[-shear_params[0], shear_params[0])`. Similarly, `shear_params[1]` to
-            `shear_params[N]` controls the range of the uniform distribution used to generate the 2nd to
-            N-th parameter.
-        translate_params : translate_params[0] with be used to generate the 1st shift parameter from
-            `uniform[-translate_params[0], translate_params[0])`. Similarly, `translate_params[1]`
-            to `translate_params[N]` controls the range of the uniform distribution used to generate
-            the 2nd to N-th parameter.
-        scale_params: scale_params[0] with be used to generate the 1st scaling factor from
-            `uniform[-scale_params[0], scale_params[0]) + 1.0`. Similarly, `scale_params[1]` to
-            `scale_params[N]` controls the range of the uniform distribution used to generate the 2nd to
-            N-th parameter.
-        as_tensor_output: whether to output tensor instead of numpy array.
-            defaults to True.
+        rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
+            Defaults to no rotation.
+        shear_params: shearing factors for affine matrix, take a 3D affine as example::
+
+            [
+                [1.0, params[0], params[1], 0.0],
+                [params[2], 1.0, params[3], 0.0],
+                [params[4], params[5], 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+
+            a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
+        translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
+            pixel/voxel relative to the center of the input image. Defaults to no translation.
+        scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
+            a tuple of 3 floats for 3D. Defaults to `1.0`.
+        as_tensor_output: whether to output tensor instead of numpy array, defaults to True.
         device: device to store the output grid data.
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
@@ -1026,6 +1059,7 @@ class AffineGrid(Transform):
 class RandAffineGrid(Randomizable, Transform):
     """
     Generate randomised affine grid.
+
     """
 
     def __init__(
@@ -1039,16 +1073,28 @@ class RandAffineGrid(Randomizable, Transform):
     ) -> None:
         """
         Args:
-            rotate_range: angle range in radians. If element `i` is iterable, then
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
                 `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
-                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
-                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
-                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
-                and nothing for the remaining dimensions.
-            shear_range: shear_range with format matching `rotate_range`.
-            translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
-                This allows 0 to correspond to no change (i.e., a scaling of 1).
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
+                take a 3D affine as example::
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select voxels to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             as_tensor_output: whether to output tensor instead of numpy array.
                 defaults to True.
             device: device to store the output grid data.
@@ -1269,6 +1315,8 @@ class Resample(Transform):
 class Affine(Transform):
     """
     Transform ``img`` given the affine parameters.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1290,14 +1338,24 @@ class Affine(Transform):
         Args:
             rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
                 Defaults to no rotation.
-            shear_params: a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
+            shear_params: shearing factors for affine matrix, take a 3D affine as example::
+
+                [
+                    [1.0, params[0], params[1], 0.0],
+                    [params[2], 1.0, params[3], 0.0],
+                    [params[4], params[5], 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+
+                a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
-            scale_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Defaults to no scaling.
+            scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
+                a tuple of 3 floats for 3D. Defaults to `1.0`.
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the `spatial_size` are non-positive values, the transform will use the
+                if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
@@ -1357,6 +1415,8 @@ class Affine(Transform):
 class RandAffine(RandomizableTransform):
     """
     Random affine transform.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1377,20 +1437,32 @@ class RandAffine(RandomizableTransform):
         Args:
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
-            rotate_range: angle range in radians. If element `i` is iterable, then
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
                 `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
-                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
-                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
-                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
-                and nothing for the remaining dimensions.
-            shear_range: shear_range with format matching `rotate_range`.
-            translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
-                This allows 0 to correspond to no change (i.e., a scaling of 1).
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
+                take a 3D affine as example::
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select pixel/voxel to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the `spatial_size` are non-positive values, the transform will use the
+                if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
@@ -1515,7 +1587,9 @@ class RandAffine(RandomizableTransform):
 
 class Rand2DElastic(RandomizableTransform):
     """
-    Random elastic deformation and affine in 2D
+    Random elastic deformation and affine in 2D.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1540,20 +1614,30 @@ class Rand2DElastic(RandomizableTransform):
             prob: probability of returning a randomized elastic transform.
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. If element `i` is iterable, then
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
                 `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
-                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
-                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
-                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
-                and nothing for the remaining dimensions.
-            shear_range: shear_range with format matching `rotate_range`.
-            translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
-                This allows 0 to correspond to no change (i.e., a scaling of 1).
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 2 floats for 2D) for affine matrix, take a 2D affine as example::
+
+                    [
+                        [1.0, params[0], 0.0],
+                        [params[1], 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select pixel to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the `spatial_size` are non-positive values, the transform will use the
+                if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
@@ -1641,7 +1725,9 @@ class Rand2DElastic(RandomizableTransform):
 
 class Rand3DElastic(RandomizableTransform):
     """
-    Random elastic deformation and affine in 3D
+    Random elastic deformation and affine in 3D.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1668,20 +1754,31 @@ class Rand3DElastic(RandomizableTransform):
             prob: probability of returning a randomized elastic transform.
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. If element `i` is iterable, then
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
                 `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
-                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
-                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
-                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
-                and nothing for the remaining dimensions.
-            shear_range: shear_range with format matching `rotate_range`.
-            translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
-                This allows 0 to correspond to no change (i.e., a scaling of 1).
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 6 floats for 3D) for affine matrix, take a 3D affine as example::
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select voxel to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             spatial_size: specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-                if the components of the `spatial_size` are non-positive values, the transform will use the
+                if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, 32, -1)` will be adapted
                 to `(32, 32, 64)` if the third spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
