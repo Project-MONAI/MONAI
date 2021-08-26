@@ -25,8 +25,14 @@ def moveaxis(x: NdarrayOrTensor, src: int, dst: int) -> NdarrayOrTensor:
             return torch.moveaxis(x, src, dst)
         # moveaxis only available in pytorch as of 1.8.0
         else:
-            # get original indices, remove desired index and insert it in new position
+            # get original indices
             indices = list(range(x.ndim))
+            # make src and dst positive
+            if src < 0:
+                src = len(indices) - src
+            if dst < 0:
+                dst = len(indices) - dst
+            # remove desired index and insert it in new position
             indices.pop(src)
             indices.insert(dst, src)
             return x.permute(indices)
