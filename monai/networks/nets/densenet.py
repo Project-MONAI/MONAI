@@ -19,6 +19,7 @@ from torch.hub import load_state_dict_from_url
 
 from monai.networks.layers.factories import Conv, Dropout, Pool
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
+from monai.utils.module import look_up_option
 
 __all__ = [
     "DenseNet",
@@ -249,7 +250,7 @@ class DenseNet(nn.Module):
         return x
 
 
-def _load_state_dict(model, arch, progress):
+def _load_state_dict(model: nn.Module, arch: str, progress: bool):
     """
     This function is used to load pretrained models.
     Adapted from PyTorch Hub 2D version: https://pytorch.org/vision/stable/models.html#id16.
@@ -260,12 +261,12 @@ def _load_state_dict(model, arch, progress):
         "densenet169": "https://download.pytorch.org/models/densenet169-b2777c0a.pth",
         "densenet201": "https://download.pytorch.org/models/densenet201-c1103571.pth",
     }
-    if arch in model_urls:
-        model_url = model_urls[arch]
-    else:
+    model_url = look_up_option(arch, model_urls, None)
+    if model_url is None:
         raise ValueError(
             "only 'densenet121', 'densenet169' and 'densenet201' are supported to load pretrained weights."
         )
+
     pattern = re.compile(
         r"^(.*denselayer\d+)(\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
     )
