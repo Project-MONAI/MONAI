@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import GaussianFilter
-from tests.utils import skip_if_quick
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick
 
 TEST_CASES = [[{"type": "erf", "gt": 2.0}], [{"type": "scalespace", "gt": 3.0}], [{"type": "sampled", "gt": 5.0}]]
 TEST_CASES_GPU = [
@@ -85,6 +85,7 @@ class TestGaussianFilterBackprop(unittest.TestCase):
             )
 
     @parameterized.expand(TEST_CASES + TEST_CASES_GPU + TEST_CASES_3d)
+    @SkipIfBeforePyTorchVersion((1, 7))
     def test_train_quick(self, input_args):
         self.code_to_run(input_args)
 
