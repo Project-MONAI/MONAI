@@ -1634,8 +1634,8 @@ class RandCoarseDropout(RandomizableTransform):
     """
     Randomly coarse dropout regions in the image, then fill in the rectangular regions with specified value.
     Or keep the rectangular regions and fill in the other areas with specified value.
-    Refer to: https://arxiv.org/abs/1708.04552 and:
-    https://albumentations.ai/docs/api_reference/augmentations/transforms/
+    Refer to papers: https://arxiv.org/abs/1708.04552, https://arxiv.org/pdf/1604.07379
+    And other implementation: https://albumentations.ai/docs/api_reference/augmentations/transforms/
     #albumentations.augmentations.transforms.CoarseDropout.
 
     Args:
