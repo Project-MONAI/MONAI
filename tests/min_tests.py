@@ -60,6 +60,7 @@ def run_testsuit():
         "test_handler_mean_dice",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
+        "test_handler_nvtx",
         "test_handler_parameter_scheduler",
         "test_handler_post_processing",
         "test_handler_prob_map_producer",

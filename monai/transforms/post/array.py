@@ -25,7 +25,7 @@ from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
-from monai.utils import ensure_tuple
+from monai.utils import ensure_tuple, look_up_option
 
 __all__ = [
     "Activations",
@@ -112,7 +112,8 @@ class AsDiscrete(Transform):
 
         -  execute `argmax` for input logits values.
         -  threshold input value to 0.0 or 1.0.
-        -  convert input value to One-Hot format
+        -  convert input value to One-Hot format.
+        -  round the value to the closest integer.
 
     Args:
         argmax: whether to execute argmax function on input data before transform.
@@ -125,6 +126,8 @@ class AsDiscrete(Transform):
             Defaults to ``False``.
         logit_thresh: the threshold value for thresholding operation..
             Defaults to ``0.5``.
+        rounding: if not None, round the data according to the specified option,
+            available options: ["torchrounding"].
 
     """
 
@@ -135,12 +138,14 @@ class AsDiscrete(Transform):
         n_classes: Optional[int] = None,
         threshold_values: bool = False,
         logit_thresh: float = 0.5,
+        rounding: Optional[str] = None,
     ) -> None:
         self.argmax = argmax
         self.to_onehot = to_onehot
         self.n_classes = n_classes
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
+        self.rounding = rounding
 
     def __call__(
         self,
@@ -150,6 +155,7 @@ class AsDiscrete(Transform):
         n_classes: Optional[int] = None,
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
+        rounding: Optional[str] = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -165,6 +171,8 @@ class AsDiscrete(Transform):
                 Defaults to ``self.threshold_values``.
             logit_thresh: the threshold value for thresholding operation..
                 Defaults to ``self.logit_thresh``.
+            rounding: if not None, round the data according to the specified option,
+                available options: ["torchrounding"].
 
         """
         if argmax or self.argmax:
@@ -178,6 +186,11 @@ class AsDiscrete(Transform):
 
         if threshold_values or self.threshold_values:
             img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+
+        rounding = self.rounding if rounding is None else rounding
+        if rounding is not None:
+            rounding = look_up_option(rounding, ["torchrounding"])
+            img = torch.round(img)
 
         return img.float()
 

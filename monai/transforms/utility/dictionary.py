@@ -24,6 +24,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
@@ -49,14 +50,15 @@ from monai.transforms.utility.array import (
     SplitChannel,
     SqueezeDim,
     ToCupy,
+    ToDevice,
     ToNumpy,
     ToPIL,
     TorchVision,
     ToTensor,
     Transpose,
 )
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points, tensor_to_numpy
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.transforms.utils import extreme_points_to_image, get_extreme_points
+from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
 __all__ = [
@@ -141,6 +143,9 @@ __all__ = [
     "ToCupyD",
     "ToCupyDict",
     "ToCupyd",
+    "ToDeviced",
+    "ToDeviceD",
+    "ToDeviceDict",
     "ToNumpyD",
     "ToNumpyDict",
     "ToNumpyd",
@@ -389,6 +394,8 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
+    backend = CastToType.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -409,9 +416,7 @@ class CastToTyped(MapTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.converter = CastToType()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, dtype in self.key_iterator(d, self.dtype):
             d[key] = self.converter(d[key], dtype=dtype)
@@ -489,7 +494,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             # FIXME: currently, only convert tensor data to numpy array or scalar number,
             # need to also invert numpy array but it's not easy to determine the previous data type
-            d[key] = tensor_to_numpy(d[key])
+            d[key] = convert_to_numpy(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
@@ -1354,6 +1359,37 @@ class IntensityStatsd(MapTransform):
         return d
 
 
+class ToDeviced(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ToDevice`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        device: Union[torch.device, str],
+        allow_missing_keys: bool = False,
+        **kwargs,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            device: target device to move the Tensor, for example: "cuda:1".
+            allow_missing_keys: don't raise exception if key is missing.
+            kwargs: other args for the PyTorch `Tensor.to()` API, for more details:
+                https://pytorch.org/docs/stable/generated/torch.Tensor.to.html.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = ToDevice(device=device, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -1389,3 +1425,4 @@ RandTorchVisionD = RandTorchVisionDict = RandTorchVisiond
 RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued
 IntensityStatsD = IntensityStatsDict = IntensityStatsd
+ToDeviceD = ToDeviceDict = ToDeviced

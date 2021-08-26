@@ -23,16 +23,25 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
-    convert_to_numpy,
-    convert_to_tensor,
     extreme_points_to_image,
     get_extreme_points,
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.utils import ensure_tuple, issequenceiterable, look_up_option, min_version, optional_import
+from monai.utils import (
+    convert_to_numpy,
+    convert_to_tensor,
+    ensure_tuple,
+    issequenceiterable,
+    look_up_option,
+    min_version,
+    optional_import,
+)
+from monai.utils.enums import TransformBackends
+from monai.utils.type_conversion import convert_data_type
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -67,6 +76,7 @@ __all__ = [
     "TorchVision",
     "MapLabelValue",
     "IntensityStats",
+    "ToDevice",
 ]
 
 
@@ -281,6 +291,8 @@ class CastToType(Transform):
     specified PyTorch data type.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, dtype=np.float32) -> None:
         """
         Args:
@@ -288,9 +300,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(
-        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[DtypeLike, torch.dtype]] = None
-    ) -> Union[np.ndarray, torch.Tensor]:
+    def __call__(self, img: NdarrayOrTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
 
@@ -301,11 +311,10 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        if isinstance(img, np.ndarray):
-            return img.astype(self.dtype if dtype is None else dtype)  # type: ignore
-        if isinstance(img, torch.Tensor):
-            return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
-        raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
+        if not isinstance(img, (torch.Tensor, np.ndarray)):
+            raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
+        img_out, *_ = convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)
+        return img_out
 
 
 class ToTensor(Transform):
@@ -1015,3 +1024,28 @@ class IntensityStats(Transform):
                 raise ValueError("ops must be key string for predefined operations or callable function.")
 
         return img, meta_data
+
+
+class ToDevice(Transform):
+    """
+    Move PyTorch Tensor to the specified device.
+    It can help cache data into GPU and execute following logic on GPU directly.
+
+    """
+
+    def __init__(self, device: Union[torch.device, str], **kwargs) -> None:
+        """
+        Args:
+            device: target device to move the Tensor, for example: "cuda:1".
+            kwargs: other args for the PyTorch `Tensor.to()` API, for more details:
+                https://pytorch.org/docs/stable/generated/torch.Tensor.to.html.
+
+        """
+        self.device = device
+        self.kwargs = kwargs
+
+    def __call__(self, img: torch.Tensor):
+        if not isinstance(img, torch.Tensor):
+            raise ValueError("img must be PyTorch Tensor, consider converting img by `EnsureType` transform first.")
+
+        return img.to(self.device, **self.kwargs)

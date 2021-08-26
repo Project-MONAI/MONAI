@@ -21,9 +21,10 @@ import time
 import traceback
 import unittest
 import warnings
+from functools import partial
 from io import BytesIO
 from subprocess import PIPE, Popen
-from typing import Optional
+from typing import Callable, Optional, Tuple
 from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
@@ -32,6 +33,7 @@ import torch.distributed as dist
 
 from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.module import version_leq
@@ -54,27 +56,17 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
     return copy.deepcopy(data)
 
 
-def allclose(a: NdarrayTensor, b: NdarrayTensor) -> bool:
+def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
     """
-    Check if all values of two data objects are close.
-
-    Note:
-        This method also checks that both data objects are either Pytorch Tensors or numpy arrays.
+    Assert that all values of two data objects are close.
 
     Args:
-        a (NdarrayTensor): Pytorch Tensor or numpy array for comparison
-        b (NdarrayTensor): Pytorch Tensor or numpy array to compare against
-
-    Returns:
-        bool: If both data objects are close.
+        a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
+        b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
     """
-    if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
-        return np.allclose(a, b)
-
-    if isinstance(a, torch.Tensor) and isinstance(b, torch.Tensor):
-        return torch.allclose(a, b)
-
-    return False
+    a = a.cpu() if isinstance(a, torch.Tensor) else a
+    b = b.cpu() if isinstance(b, torch.Tensor) else b
+    np.testing.assert_allclose(a, b, *args, **kwargs)
 
 
 def test_pretrained_networks(network, input_param, device):
@@ -598,6 +590,12 @@ def query_memory(n=2):
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join(f"{int(x)}" for x in ids)
+
+
+TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
+if torch.cuda.is_available():
+    gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
+    TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
 
 
 if __name__ == "__main__":

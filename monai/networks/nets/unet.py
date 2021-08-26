@@ -38,7 +38,8 @@ class UNet(nn.Module):
         num_res_units: int = 0,
         act: Union[Tuple, str] = Act.PRELU,
         norm: Union[Tuple, str] = Norm.INSTANCE,
-        dropout=0.0,
+        dropout: float = 0.0,
+        bias: bool = True,
     ) -> None:
         """
         Enhanced version of UNet which has residual units implemented with the ResidualUnit class.
@@ -60,6 +61,9 @@ class UNet(nn.Module):
             act: activation type and arguments. Defaults to PReLU.
             norm: feature normalization type and arguments. Defaults to instance norm.
             dropout: dropout ratio. Defaults to no dropout.
+            bias: whether to have a bias term in convolution blocks. Defaults to True.
+                According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
+                if a conv layer is directly followed by a batch norm layer, bias should be False.
 
         Note: The acceptable spatial size of input data depends on the parameters of the network,
             to set appropriate spatial size, please check the tutorial for more details:
@@ -97,6 +101,7 @@ class UNet(nn.Module):
         self.act = act
         self.norm = norm
         self.dropout = dropout
+        self.bias = bias
 
         def _create_block(
             inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool
@@ -151,6 +156,7 @@ class UNet(nn.Module):
                 act=self.act,
                 norm=self.norm,
                 dropout=self.dropout,
+                bias=self.bias,
             )
         return Convolution(
             self.dimensions,
@@ -161,6 +167,7 @@ class UNet(nn.Module):
             act=self.act,
             norm=self.norm,
             dropout=self.dropout,
+            bias=self.bias,
         )
 
     def _get_bottom_layer(self, in_channels: int, out_channels: int) -> nn.Module:
@@ -190,6 +197,7 @@ class UNet(nn.Module):
             act=self.act,
             norm=self.norm,
             dropout=self.dropout,
+            bias=self.bias,
             conv_only=is_top and self.num_res_units == 0,
             is_transposed=True,
         )
@@ -205,6 +213,7 @@ class UNet(nn.Module):
                 act=self.act,
                 norm=self.norm,
                 dropout=self.dropout,
+                bias=self.bias,
                 last_conv_only=is_top,
             )
             conv = nn.Sequential(conv, ru)

@@ -117,9 +117,11 @@ class RandMark(Mark, RandomizableTransform):
     """
 
 
+RangePushDict = RangePushD = RangePushd = RangePush
+RandRangePushDict = RandRangePushD = RandRangePushd = RandRangePush
+
+RangePopDict = RangePopD = RangePopd = RangePop
+RandRangePopDict = RandRangePopD = RandRangePopd = RandRangePop
+
 MarkDict = MarkD = Markd = Mark
 RandMarkDict = RandMarkD = RandMarkd = RandMark
-RandRangePopDict = RandRangePopD = RandRangePopd = RandRangePop
-RandRangePushDict = RandRangePushD = RandRangePushd = RandRangePush
-RangePopDict = RangePopD = RangePopd = RangePop
-RangePushDict = RangePushD = RangePushd = RangePush

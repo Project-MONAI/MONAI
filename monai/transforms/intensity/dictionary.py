@@ -21,7 +21,8 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, KeysCollection
+from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.intensity.array import (
     AdjustContrast,
@@ -33,6 +34,7 @@ from monai.transforms.intensity.array import (
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
+    RandGaussianNoise,
     RandKSpaceSpikeNoise,
     RandRicianNoise,
     ScaleIntensity,
@@ -44,7 +46,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import dtype_torch_to_numpy, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 
 __all__ = [
     "RandGaussianNoised",
@@ -144,6 +146,8 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = RandGaussianNoise.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -164,18 +168,18 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         for m in self.mean:
             self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
         if len(self._noise) != len(self.keys):
-            raise AssertionError
+            raise RuntimeError("inconsistent noise items and keys.")
         if not self._do_transform:
             return d
         for key, noise in self.key_iterator(d, self._noise):
-            dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
-            d[key] = d[key] + noise.astype(dtype)
+            noise, *_ = convert_to_dst_type(noise, d[key])
+            d[key] = d[key] + noise
         return d
 
 
@@ -204,6 +208,8 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         allow_missing_keys: Don't raise exception if key is missing.
     """
 
+    backend = RandRicianNoise.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -220,9 +226,11 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, global_prob)
         self.rand_rician_noise = RandRicianNoise(prob, mean, std, channel_wise, relative, sample_std)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
-    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+    def set_random_state(self, seed=None, state=None):
+        super().set_random_state(seed, state)
+        self.rand_rician_noise.set_random_state(seed, state)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         super().randomize(None)
         if not self._do_transform:
@@ -236,6 +244,8 @@ class ShiftIntensityd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
+
+    backend = ShiftIntensity.backend
 
     def __init__(
         self,
@@ -275,7 +285,7 @@ class ShiftIntensityd(MapTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.shifter = ShiftIntensity(offset)
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, factor_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.factor_key, self.meta_keys, self.meta_key_postfix
@@ -291,6 +301,8 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
+
+    backend = ShiftIntensity.backend
 
     def __init__(
         self,
@@ -333,7 +345,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
         else:
             if len(offsets) != 2:
-                raise AssertionError("offsets should be a number or pair of numbers.")
+                raise ValueError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
         self.factor_key = ensure_tuple_rep(factor_key, len(self.keys))
@@ -347,7 +359,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -366,6 +378,8 @@ class StdShiftIntensityd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.StdShiftIntensity`.
     """
+
+    backend = StdShiftIntensity.backend
 
     def __init__(
         self,
@@ -390,7 +404,7 @@ class StdShiftIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.shifter = StdShiftIntensity(factor, nonzero, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.shifter(d[key])
@@ -401,6 +415,8 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandStdShiftIntensity`.
     """
+
+    backend = StdShiftIntensity.backend
 
     def __init__(
         self,
@@ -429,9 +445,9 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
 
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
+        elif len(factors) != 2:
+            raise ValueError("factors should be a number or pair of numbers.")
         else:
-            if len(factors) != 2:
-                raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
         self.nonzero = nonzero
@@ -442,7 +458,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -459,6 +475,8 @@ class ScaleIntensityd(MapTransform):
     Scale the intensity of input image to the given value range (minv, maxv).
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
+
+    backend = ScaleIntensity.backend
 
     def __init__(
         self,
@@ -482,7 +500,7 @@ class ScaleIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensity(minv, maxv, factor)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -493,6 +511,8 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
+
+    backend = ScaleIntensity.backend
 
     def __init__(
         self,
@@ -517,9 +537,9 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
 
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
+        elif len(factors) != 2:
+            raise ValueError("factors should be a number or pair of numbers.")
         else:
-            if len(factors) != 2:
-                raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
 
@@ -527,7 +547,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -600,11 +620,13 @@ class NormalizeIntensityd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = NormalizeIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
-        subtrahend: Optional[np.ndarray] = None,
-        divisor: Optional[np.ndarray] = None,
+        subtrahend: Optional[NdarrayOrTensor] = None,
+        divisor: Optional[NdarrayOrTensor] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
@@ -613,7 +635,7 @@ class NormalizeIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
@@ -739,13 +761,13 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
 
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
-                raise AssertionError(
+                raise ValueError(
                     "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
                 )
             self.gamma = (0.5, gamma)
+        elif len(gamma) != 2:
+            raise ValueError("gamma should be a number or pair of numbers.")
         else:
-            if len(gamma) != 2:
-                raise AssertionError("gamma should be a number or pair of numbers.")
             self.gamma = (min(gamma), max(gamma))
 
         self.gamma_value: Optional[float] = None
@@ -758,7 +780,7 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize()
         if self.gamma_value is None:
-            raise AssertionError
+            raise RuntimeError("gamma_value is not set.")
         if not self._do_transform:
             return d
         adjuster = AdjustContrast(self.gamma_value)
@@ -1067,13 +1089,13 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         if isinstance(num_control_points, int):
             if num_control_points <= 2:
-                raise AssertionError("num_control_points should be greater than or equal to 3")
+                raise ValueError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (num_control_points, num_control_points)
         else:
             if len(num_control_points) != 2:
-                raise AssertionError("num_control points should be a number or a pair of numbers")
+                raise ValueError("num_control points should be a number or a pair of numbers")
             if min(num_control_points) <= 2:
-                raise AssertionError("num_control_points should be greater than or equal to 3")
+                raise ValueError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (min(num_control_points), max(num_control_points))
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -1417,7 +1439,10 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
-        fill_value: target value to fill the dropout regions.
+        fill_value: target value to fill the dropout regions, if providing a number, will use it as constant
+            value to fill all the regions. if providing a tuple for the `min` and `max`, will randomly select
+            value for every pixel / voxel from the range `[min, max)`. if None, will compute the `min` and `max`
+            value of input image then randomly select value to fill, default to None.
         max_holes: if not None, define the maximum number to randomly select the expected number of regions.
         max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
             if some components of the `max_spatial_size` are non-positive values, the transform will use the
@@ -1433,7 +1458,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         holes: int,
         spatial_size: Union[Sequence[int], int],
-        fill_value: Union[float, int] = 0,
+        fill_value: Optional[Union[Tuple[float, float], float]] = None,
         max_holes: Optional[int] = None,
         max_spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
@@ -1469,7 +1494,13 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         if self._do_transform:
             for key in self.key_iterator(d):
                 for h in self.hole_coords:
-                    d[key][h] = self.fill_value
+                    fill_value = (d[key].min(), d[key].max()) if self.fill_value is None else self.fill_value
+                    if isinstance(fill_value, (tuple, list)):
+                        if len(fill_value) != 2:
+                            raise ValueError("fill_value should contain 2 numbers if providing the `min` and `max`.")
+                        d[key][h] = self.R.uniform(fill_value[0], fill_value[1], size=d[key][h].shape)
+                    else:
+                        d[key][h] = fill_value
         return d
 
 

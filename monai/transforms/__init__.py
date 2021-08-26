@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose
+from .compose import Compose, OneOf
 from .croppad.array import (
     BorderPad,
     BoundingRect,
@@ -194,7 +194,7 @@ from .intensity.dictionary import (
 )
 from .inverse import InvertibleTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated
-from .io.array import LoadImage, SaveImage
+from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .nvtx import (
     Mark,
@@ -345,15 +345,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import (
-    Fourier,
-    MapTransform,
-    Randomizable,
-    RandomizableTransform,
-    ThreadUnsafe,
-    Transform,
-    apply_transform,
-)
+from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
@@ -378,6 +370,7 @@ from .utility.array import (
     SplitChannel,
     SqueezeDim,
     ToCupy,
+    ToDevice,
     ToNumpy,
     ToPIL,
     TorchVision,
@@ -469,6 +462,9 @@ from .utility.dictionary import (
     ToCupyd,
     ToCupyD,
     ToCupyDict,
+    ToDeviced,
+    ToDeviceD,
+    ToDeviceDict,
     ToNumpyd,
     ToNumpyD,
     ToNumpyDict,
@@ -486,11 +482,10 @@ from .utility.dictionary import (
     TransposeDict,
 )
 from .utils import (
+    Fourier,
     allow_missing_keys_mode,
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
-    convert_to_numpy,
-    convert_to_tensor,
     copypaste_arrays,
     create_control_grid,
     create_grid,
@@ -505,6 +500,8 @@ from .utils import (
     generate_spatial_bounding_box,
     get_extreme_points,
     get_largest_connected_component_mask,
+    get_number_image_type_conversions,
+    get_transform_backends,
     img_bounds,
     in_bounds,
     is_empty,
@@ -512,12 +509,12 @@ from .utils import (
     map_binary_to_indices,
     map_classes_to_indices,
     map_spatial_axes,
+    print_transform_backends,
     rand_choice,
     rescale_array,
     rescale_array_int_max,
     rescale_instance_array,
     resize_center,
-    tensor_to_numpy,
     weighted_patch_samples,
     zero_margins,
 )

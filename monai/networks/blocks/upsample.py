@@ -60,21 +60,21 @@ class UpSample(nn.Sequential):
                 thus if size is defined, `scale_factor` will not be used.
                 Defaults to None.
             mode: {``"deconv"``, ``"nontrainable"``, ``"pixelshuffle"``}. Defaults to ``"deconv"``.
-            pre_conv: a conv block applied before upsampling. Defaults to None.
+            pre_conv: a conv block applied before upsampling. Defaults to "default".
                 When ``conv_block`` is ``"default"``, one reserved conv layer will be utilized when
                 Only used in the "nontrainable" or "pixelshuffle" mode.
             interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
-                Only used when ``mode`` is ``UpsampleMode.NONTRAINABLE``.
+                Only used in the "nontrainable" mode.
                 If ends with ``"linear"`` will use ``spatial dims`` to determine the correct interpolation.
                 This corresponds to linear, bilinear, trilinear for 1D, 2D, and 3D respectively.
                 The interpolation mode. Defaults to ``"linear"``.
                 See also: https://pytorch.org/docs/stable/nn.html#upsample
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
-                Only used in the nontrainable mode.
+                Only used in the "nontrainable" mode.
             bias: whether to have a bias term in the default preconv and deconv layers. Defaults to True.
             apply_pad_pool: if True the upsampled tensor is padded then average pooling is applied with a kernel the
                 size of `scale_factor` with a stride of 1. See also: :py:class:`monai.networks.blocks.SubpixelUpsample`.
-                Only used in the pixelshuffle mode.
+                Only used in the "pixelshuffle" mode.
         """
         super().__init__()
         scale_factor_ = ensure_tuple_rep(scale_factor, dimensions)
@@ -104,6 +104,10 @@ class UpSample(nn.Sequential):
                 )
             elif pre_conv is not None and pre_conv != "default":
                 self.add_module("preconv", pre_conv)  # type: ignore
+            elif pre_conv is None and (out_channels != in_channels):
+                raise ValueError(
+                    "in the nontrainable mode, if not setting pre_conv, out_channels should equal to in_channels."
+                )
 
             interp_mode = InterpolateMode(interp_mode)
             linear_mode = [InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.TRILINEAR]
