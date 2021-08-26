@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from functools import partial
-from typing import Any, Callable, List, Type, Union, Optional
+from typing import Any, Callable, List, Optional, Type, Union
 
 import torch
 import torch.nn as nn

@@ -39,7 +39,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils import ensure_tuple, ensure_tuple_rep, deprecated_arg
+from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
 __all__ = [

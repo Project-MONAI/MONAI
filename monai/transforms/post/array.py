@@ -25,7 +25,7 @@ from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
-from monai.utils import ensure_tuple, look_up_option, deprecated_arg
+from monai.utils import deprecated_arg, ensure_tuple, look_up_option
 
 __all__ = [
     "Activations",
