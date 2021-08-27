@@ -11,22 +11,17 @@
 
 import unittest
 
-import numpy as np
-
-from monai.transforms import RandScaleIntensity
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from monai.transforms.utils import get_transform_backends, print_transform_backends
 
 
-class TestRandScaleIntensity(NumpyImageTestCase2D):
-    def test_value(self):
-        for p in TEST_NDARRAYS:
-            scaler = RandScaleIntensity(factors=0.5, prob=1.0)
-            scaler.set_random_state(seed=0)
-            result = scaler(p(self.imt))
-            np.random.seed(0)
-            expected = p((self.imt * (1 + np.random.uniform(low=-0.5, high=0.5))).astype(np.float32))
-            assert_allclose(result, expected, rtol=1e-7, atol=0)
+class TestPrintTransformBackends(unittest.TestCase):
+    def test_get_number_of_conversions(self):
+        tr_t_or_np, *_ = get_transform_backends()
+        self.assertGreater(len(tr_t_or_np), 0)
+        print_transform_backends()
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
+    a = TestPrintTransformBackends()
+    a.test_get_number_of_conversions()

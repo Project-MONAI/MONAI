@@ -12,19 +12,25 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandRicianNoise
-from tests.utils import NumpyImageTestCase2D, TorchImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
+
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(("test_zero_mean", p, 0, 0.1))
+    TESTS.append(("test_non_zero_mean", p, 1, 0.5))
 
 
 class TestRandRicianNoise(NumpyImageTestCase2D):
-    @parameterized.expand([("test_zero_mean", 0, 0.1), ("test_non_zero_mean", 1, 0.5)])
-    def test_correct_results(self, _, mean, std):
+    @parameterized.expand(TESTS)
+    def test_correct_results(self, _, in_type, mean, std):
         seed = 0
         rician_fn = RandRicianNoise(prob=1.0, mean=mean, std=std)
         rician_fn.set_random_state(seed)
-        noised = rician_fn(self.imt)
+        noised = rician_fn(in_type(self.imt))
         np.random.seed(seed)
         np.random.random()
         _std = np.random.uniform(0, std)
@@ -32,23 +38,8 @@ class TestRandRicianNoise(NumpyImageTestCase2D):
             (self.imt + np.random.normal(mean, _std, size=self.imt.shape)) ** 2
             + np.random.normal(mean, _std, size=self.imt.shape) ** 2
         )
-        np.testing.assert_allclose(expected, noised, atol=1e-5)
-
-
-class TestRandRicianNoiseTorch(TorchImageTestCase2D):
-    @parameterized.expand([("test_zero_mean", 0, 0.1), ("test_non_zero_mean", 1, 0.5)])
-    def test_correct_results(self, _, mean, std):
-        seed = 0
-        rician_fn = RandRicianNoise(prob=1.0, mean=mean, std=std)
-        rician_fn.set_random_state(seed)
-        noised = rician_fn(self.imt)
-        np.random.seed(seed)
-        np.random.random()
-        _std = np.random.uniform(0, std)
-        expected = np.sqrt(
-            (self.imt + np.random.normal(mean, _std, size=self.imt.shape)) ** 2
-            + np.random.normal(mean, _std, size=self.imt.shape) ** 2
-        )
+        if isinstance(noised, torch.Tensor):
+            noised = noised.cpu()
         np.testing.assert_allclose(expected, noised, atol=1e-5)
 
 

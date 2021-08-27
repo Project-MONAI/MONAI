@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
-from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.intensity.array import (
     AdjustContrast,
     GaussianSharpen,
@@ -33,6 +33,8 @@ from monai.transforms.intensity.array import (
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
+    RandCoarseDropout,
+    RandGaussianNoise,
     RandKSpaceSpikeNoise,
     RandRicianNoise,
     ScaleIntensity,
@@ -42,9 +44,9 @@ from monai.transforms.intensity.array import (
     StdShiftIntensity,
     ThresholdIntensity,
 )
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 
 __all__ = [
     "RandGaussianNoised",
@@ -144,7 +146,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = ["torch", "numpy"]
+    backend = RandGaussianNoise.backend
 
     def __init__(
         self,
@@ -206,6 +208,8 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         allow_missing_keys: Don't raise exception if key is missing.
     """
 
+    backend = RandRicianNoise.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -222,9 +226,11 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, global_prob)
         self.rand_rician_noise = RandRicianNoise(prob, mean, std, channel_wise, relative, sample_std)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
-    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+    def set_random_state(self, seed=None, state=None):
+        super().set_random_state(seed, state)
+        self.rand_rician_noise.set_random_state(seed, state)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         super().randomize(None)
         if not self._do_transform:
@@ -238,6 +244,8 @@ class ShiftIntensityd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
+
+    backend = ShiftIntensity.backend
 
     def __init__(
         self,
@@ -277,7 +285,7 @@ class ShiftIntensityd(MapTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.shifter = ShiftIntensity(offset)
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, factor_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.factor_key, self.meta_keys, self.meta_key_postfix
@@ -293,6 +301,8 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
+
+    backend = ShiftIntensity.backend
 
     def __init__(
         self,
@@ -349,7 +359,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -368,6 +378,8 @@ class StdShiftIntensityd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.StdShiftIntensity`.
     """
+
+    backend = StdShiftIntensity.backend
 
     def __init__(
         self,
@@ -392,7 +404,7 @@ class StdShiftIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.shifter = StdShiftIntensity(factor, nonzero, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.shifter(d[key])
@@ -403,6 +415,8 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandStdShiftIntensity`.
     """
+
+    backend = StdShiftIntensity.backend
 
     def __init__(
         self,
@@ -444,7 +458,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -461,6 +475,8 @@ class ScaleIntensityd(MapTransform):
     Scale the intensity of input image to the given value range (minv, maxv).
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
+
+    backend = ScaleIntensity.backend
 
     def __init__(
         self,
@@ -484,7 +500,7 @@ class ScaleIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensity(minv, maxv, factor)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -495,6 +511,8 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
+
+    backend = ScaleIntensity.backend
 
     def __init__(
         self,
@@ -529,7 +547,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -602,11 +620,13 @@ class NormalizeIntensityd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = NormalizeIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
-        subtrahend: Optional[np.ndarray] = None,
-        divisor: Optional[np.ndarray] = None,
+        subtrahend: Optional[NdarrayOrTensor] = None,
+        divisor: Optional[NdarrayOrTensor] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
@@ -615,7 +635,7 @@ class NormalizeIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
@@ -1403,7 +1423,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         return d_numpy
 
 
-class RandCoarseDropoutd(RandomizableTransform, MapTransform):
+class RandCoarseDropoutd(Randomizable, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandCoarseDropout`.
     Expect all the data specified by `keys` have same spatial shape and will randomly dropout the same regions
@@ -1419,7 +1439,12 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
-        fill_value: target value to fill the dropout regions.
+        dropout_holes: if `True`, dropout the regions of holes and fill value, if `False`, keep the holes and
+            dropout the outside and fill value. default to `True`.
+        fill_value: target value to fill the dropout regions, if providing a number, will use it as constant
+            value to fill all the regions. if providing a tuple for the `min` and `max`, will randomly select
+            value for every pixel / voxel from the range `[min, max)`. if None, will compute the `min` and `max`
+            value of input image then randomly select value to fill, default to None.
         max_holes: if not None, define the maximum number to randomly select the expected number of regions.
         max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
             if some components of the `max_spatial_size` are non-positive values, the transform will use the
@@ -1435,43 +1460,35 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         holes: int,
         spatial_size: Union[Sequence[int], int],
-        fill_value: Union[float, int] = 0,
+        dropout_holes: bool = True,
+        fill_value: Optional[Union[Tuple[float, float], float]] = None,
         max_holes: Optional[int] = None,
         max_spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
-        RandomizableTransform.__init__(self, prob)
-        if holes < 1:
-            raise ValueError("number of holes must be greater than 0.")
-        self.holes = holes
-        self.spatial_size = spatial_size
-        self.fill_value = fill_value
-        self.max_holes = max_holes
-        self.max_spatial_size = max_spatial_size
-        self.hole_coords: List = []
+        self.dropper = RandCoarseDropout(
+            holes=holes,
+            spatial_size=spatial_size,
+            dropout_holes=dropout_holes,
+            fill_value=fill_value,
+            max_holes=max_holes,
+            max_spatial_size=max_spatial_size,
+            prob=prob,
+        )
 
     def randomize(self, img_size: Sequence[int]) -> None:
-        super().randomize(None)
-        size = fall_back_tuple(self.spatial_size, img_size)
-        self.hole_coords = []  # clear previously computed coords
-        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
-        for _ in range(num_holes):
-            if self.max_spatial_size is not None:
-                max_size = fall_back_tuple(self.max_spatial_size, img_size)
-                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
-            valid_size = get_valid_patch_size(img_size, size)
-            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+        self.dropper.randomize(img_size=img_size)
 
     def __call__(self, data):
         d = dict(data)
         # expect all the specified keys have same spatial shape
         self.randomize(d[self.keys[0]].shape[1:])
-        if self._do_transform:
+        if self.dropper._do_transform:
             for key in self.key_iterator(d):
-                for h in self.hole_coords:
-                    d[key][h] = self.fill_value
+                d[key] = self.dropper(img=d[key])
+
         return d
 
 

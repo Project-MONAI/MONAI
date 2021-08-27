@@ -29,6 +29,12 @@ Misc
   :members:
 
 
+NVTX Annotations
+----------------
+.. automodule:: monai.utils.nvtx
+  :members:
+
+
 Profiling
 ---------
 .. automodule:: monai.utils.profiling

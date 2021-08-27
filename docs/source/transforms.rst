@@ -320,6 +320,11 @@ Intensity
      :members:
      :special-members: __call__
 
+`LocalPatchShuffling`
+"""""""""""""""""""""
+.. autoclass:: LocalPatchShuffling
+    :members:
+    :special-members: __call__
 
 IO
 ^^
@@ -355,14 +360,6 @@ NVIDIA Tool Extension (NVTX)
 `RandRangePop`
 """"""""""""""
 .. autoclass:: RandRangePop
-
-`Range`
-"""""""
-.. autoclass:: Range
-
-`RandRange`
-"""""""""""
-.. autoclass:: RandRange
 
 `Mark`
 """"""

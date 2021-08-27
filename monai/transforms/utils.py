@@ -13,16 +13,19 @@ import itertools
 import random
 import warnings
 from contextlib import contextmanager
+from inspect import getmembers, isclass
 from typing import Any, Callable, Hashable, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
+import monai
 import monai.transforms.transform
 from monai.config import DtypeLike, IndexSelection
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, Transform
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -35,6 +38,8 @@ from monai.utils import (
     min_version,
     optional_import,
 )
+from monai.utils.enums import TransformBackends
+from monai.utils.type_conversion import convert_data_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
@@ -77,6 +82,8 @@ __all__ = [
     "zero_margins",
     "equalize_hist",
     "get_number_image_type_conversions",
+    "get_transform_backends",
+    "print_transform_backends",
 ]
 
 
@@ -127,15 +134,17 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
     return not np.any(img[:, :margin, :]) and not np.any(img[:, -margin:, :])
 
 
-def rescale_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32):
+def rescale_array(
+    arr: NdarrayOrTensor, minv: float = 0.0, maxv: float = 1.0, dtype: Union[DtypeLike, torch.dtype] = np.float32
+) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
     if dtype is not None:
-        arr = arr.astype(dtype)
+        arr, *_ = convert_data_type(arr, dtype=dtype)
 
-    mina = np.min(arr)
-    maxa = np.max(arr)
+    mina = arr.min()
+    maxa = arr.max()
 
     if mina == maxa:
         return arr * minv
@@ -1149,3 +1158,87 @@ def get_number_image_type_conversions(transform: Compose, test_data: Any, key: O
         if not isinstance(curr_data, prev_type) or curr_device != prev_device:
             num_conversions += 1
     return num_conversions
+
+
+def get_transform_backends():
+    """Get the backends of all MONAI transforms.
+
+    Returns:
+        Dictionary, where each key is a transform, and its
+        corresponding values are a boolean list, stating
+        whether that transform supports (1) `torch.Tensor`,
+        and (2) `np.ndarray` as input without needing to
+        convert.
+    """
+    backends = {}
+    unique_transforms = []
+    for n, obj in getmembers(monai.transforms):
+        # skip aliases
+        if obj in unique_transforms:
+            continue
+        unique_transforms.append(obj)
+
+        if isclass(obj) and issubclass(obj, Transform):
+            if n in [
+                "Transform",
+                "InvertibleTransform",
+                "Lambda",
+                "LambdaD",
+                "Compose",
+                "RandomizableTransform",
+                "OneOf",
+                "BatchInverseTransform",
+                "InverteD",
+            ]:
+                continue
+
+            backends[n] = [
+                TransformBackends.TORCH in obj.backend,
+                TransformBackends.NUMPY in obj.backend,
+            ]
+    return backends
+
+
+def print_transform_backends():
+    """Prints a list of backends of all MONAI transforms."""
+
+    class Colors:
+        none = ""
+        red = "91"
+        green = "92"
+        yellow = "93"
+
+    def print_color(t, color):
+        print(f"\033[{color}m{t}\033[00m")
+
+    def print_table_column(name, torch, numpy, color=Colors.none):
+        print_color("{:<50} {:<8} {:<8}".format(name, torch, numpy), color)
+
+    backends = get_transform_backends()
+    n_total = len(backends)
+    n_t_or_np, n_t, n_np, n_uncategorized = 0, 0, 0, 0
+    print_table_column("Transform", "Torch?", "Numpy?")
+    for k, v in backends.items():
+        if all(v):
+            color = Colors.green
+            n_t_or_np += 1
+        elif v[0]:
+            color = Colors.green
+            n_t += 1
+        elif v[1]:
+            color = Colors.yellow
+            n_np += 1
+        else:
+            color = Colors.red
+            n_uncategorized += 1
+        print_table_column(k, *v, color)
+
+    print("Total number of transforms:", n_total)
+    print_color(f"Number transforms allowing both torch and numpy: {n_t_or_np}", Colors.green)
+    print_color(f"Number of TorchTransform: {n_t}", Colors.green)
+    print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
+    print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+
+
+if __name__ == "__main__":
+    print_transform_backends()

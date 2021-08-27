@@ -26,9 +26,9 @@ for p in TEST_NDARRAYS:
         TESTS.append((p(np.array(1.0, dtype=np.float32)), im_dtype))
 
 
-class TestDtypeConvert(unittest.TestCase):
+class TestGetEquivalentDtype(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_dtype_convert(self, im, input_dtype):
+    def test_get_equivalent_dtype(self, im, input_dtype):
         out_dtype = get_equivalent_dtype(input_dtype, type(im))
         self.assertEqual(out_dtype, im.dtype)
 
