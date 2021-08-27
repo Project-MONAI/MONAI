@@ -29,9 +29,9 @@ def moveaxis(x: NdarrayOrTensor, src: int, dst: int) -> NdarrayOrTensor:
             indices = list(range(x.ndim))
             # make src and dst positive
             if src < 0:
-                src = len(indices) - src
+                src = len(indices) + src
             if dst < 0:
-                dst = len(indices) - dst
+                dst = len(indices) + dst
             # remove desired index and insert it in new position
             indices.pop(src)
             indices.insert(dst, src)
