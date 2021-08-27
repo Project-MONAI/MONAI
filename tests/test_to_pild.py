@@ -33,7 +33,8 @@ im = [[1.0, 2.0], [3.0, 4.0]]
 TESTS = []
 for p in TEST_NDARRAYS:
     TESTS.append([{"keys": "image"}, {"image": p(im)}])
-TESTS.append([{"keys": "image"}, {"image": pil_image_fromarray(np.array(im))}])
+if has_pil:
+    TESTS.append([{"keys": "image"}, {"image": pil_image_fromarray(np.array(im))}])
 
 
 class TestToPIL(unittest.TestCase):
