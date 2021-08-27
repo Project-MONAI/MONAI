@@ -45,7 +45,7 @@ class TestZoomd(NumpyImageTestCase2D):
 
     def test_keep_size(self):
         key = "img"
-        zoom_fn = Zoomd(key, zoom=0.6, keep_size=True)
+        zoom_fn = Zoomd(key, zoom=0.6, keep_size=True, padding_mode="constant", constant_values=2)
         zoomed = zoom_fn({key: self.imt[0]})
         self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 

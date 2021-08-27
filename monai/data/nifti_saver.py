@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
 from typing import Dict, Optional, Union
 
 import numpy as np
@@ -36,7 +37,7 @@ class NiftiSaver:
 
     def __init__(
         self,
-        output_dir: str = "./",
+        output_dir: Union[Path, str] = "./",
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,

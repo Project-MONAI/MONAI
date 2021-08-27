@@ -11,18 +11,21 @@
 
 import itertools
 import random
-import re
 import warnings
 from contextlib import contextmanager
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from inspect import getmembers, isclass
+from typing import Any, Callable, Hashable, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
+import monai
+import monai.transforms.transform
 from monai.config import DtypeLike, IndexSelection
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
-from monai.transforms.compose import Compose
-from monai.transforms.transform import MapTransform
+from monai.transforms.compose import Compose, OneOf
+from monai.transforms.transform import MapTransform, Transform
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -35,45 +38,52 @@ from monai.utils import (
     min_version,
     optional_import,
 )
+from monai.utils.enums import TransformBackends
+from monai.utils.type_conversion import convert_data_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
+exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
-    "rand_choice",
+    "allow_missing_keys_mode",
+    "compute_divisible_spatial_size",
+    "convert_inverse_interp_mode",
+    "copypaste_arrays",
+    "create_control_grid",
+    "create_grid",
+    "create_rotate",
+    "create_scale",
+    "create_shear",
+    "create_translate",
+    "extreme_points_to_image",
+    "fill_holes",
+    "Fourier",
+    "generate_label_classes_crop_centers",
+    "generate_pos_neg_label_crop_centers",
+    "generate_spatial_bounding_box",
+    "get_extreme_points",
+    "get_largest_connected_component_mask",
     "img_bounds",
     "in_bounds",
     "is_empty",
     "is_positive",
-    "zero_margins",
-    "rescale_array",
-    "rescale_instance_array",
-    "rescale_array_int_max",
-    "copypaste_arrays",
-    "compute_divisible_spatial_size",
-    "resize_center",
     "map_binary_to_indices",
     "map_classes_to_indices",
-    "weighted_patch_samples",
-    "generate_pos_neg_label_crop_centers",
-    "generate_label_classes_crop_centers",
-    "create_grid",
-    "create_control_grid",
-    "create_rotate",
-    "create_shear",
-    "create_scale",
-    "create_translate",
-    "generate_spatial_bounding_box",
-    "get_largest_connected_component_mask",
-    "get_extreme_points",
-    "extreme_points_to_image",
     "map_spatial_axes",
-    "allow_missing_keys_mode",
-    "convert_inverse_interp_mode",
-    "convert_to_tensor",
-    "convert_to_numpy",
-    "tensor_to_numpy",
+    "rand_choice",
+    "rescale_array",
+    "rescale_array_int_max",
+    "rescale_instance_array",
+    "resize_center",
+    "weighted_patch_samples",
+    "zero_margins",
+    "equalize_hist",
+    "get_number_image_type_conversions",
+    "get_transform_backends",
+    "print_transform_backends",
 ]
 
 
@@ -124,15 +134,17 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
     return not np.any(img[:, :margin, :]) and not np.any(img[:, -margin:, :])
 
 
-def rescale_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32):
+def rescale_array(
+    arr: NdarrayOrTensor, minv: float = 0.0, maxv: float = 1.0, dtype: Union[DtypeLike, torch.dtype] = np.float32
+) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
     if dtype is not None:
-        arr = arr.astype(dtype)
+        arr, *_ = convert_data_type(arr, dtype=dtype)
 
-    mina = np.min(arr)
-    maxa = np.max(arr)
+    mina = arr.min()
+    maxa = arr.max()
 
     if mina == maxa:
         return arr * minv
@@ -488,7 +500,7 @@ def generate_label_classes_crop_centers(
     ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
     if len(ratios_) != len(indices):
         raise ValueError("random crop radios must match the number of indices of classes.")
-    if any([i < 0 for i in ratios_]):
+    if any(i < 0 for i in ratios_):
         raise ValueError("ratios should not contain negative number.")
 
     # ensure indices are numpy array
@@ -607,7 +619,15 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
 
     Args:
         spatial_dims: spatial rank
-        coefs: shearing factors, defaults to 0.
+        coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D),
+            take a 3D affine as example::
+
+                [
+                    [1.0, coefs[0], coefs[1], 0.0],
+                    [coefs[2], 1.0, coefs[3], 0.0],
+                    [coefs[4], coefs[5], 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
 
     Raises:
         NotImplementedError: When ``spatial_dims`` is not one of [2, 3].
@@ -635,7 +655,7 @@ def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float
 
     Args:
         spatial_dims: spatial rank
-        scaling_factor: scaling factors, defaults to 1.
+        scaling_factor: scaling factors for every spatial dim, defaults to 1.
     """
     scaling_factor = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
     return np.diag(scaling_factor[:spatial_dims] + (1.0,))
@@ -647,7 +667,7 @@ def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) ->
 
     Args:
         spatial_dims: spatial rank
-        shift: translate factors, defaults to 0.
+        shift: translate pixel/voxel for every spatial dim, defaults to 0.
     """
     shift = ensure_tuple(shift)
     affine = np.eye(spatial_dims + 1)
@@ -722,6 +742,65 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
 
     return torch.as_tensor(largest_cc, device=img.device)
+
+
+def fill_holes(
+    img_arr: np.ndarray, applied_labels: Optional[Iterable[int]] = None, connectivity: Optional[int] = None
+) -> np.ndarray:
+    """
+    Fill the holes in the provided image.
+
+    The label 0 will be treated as background and the enclosed holes will be set to the neighboring class label.
+    What is considered to be an enclosed hole is defined by the connectivity.
+    Holes on the edge are always considered to be open (not enclosed).
+
+    Note:
+
+        The performance of this method heavily depends on the number of labels.
+        It is a bit faster if the list of `applied_labels` is provided.
+        Limiting the number of `applied_labels` results in a big decrease in processing time.
+
+        If the image is one-hot-encoded, then the `applied_labels` need to match the channel index.
+
+    Args:
+        img_arr: numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
+        applied_labels: Labels for which to fill holes. Defaults to None,
+            that is filling holes for all labels.
+        connectivity: Maximum number of orthogonal hops to
+            consider a pixel/voxel as a neighbor. Accepted values are ranging from  1 to input.ndim.
+            Defaults to a full connectivity of ``input.ndim``.
+
+    Returns:
+        numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
+    """
+    channel_axis = 0
+    num_channels = img_arr.shape[channel_axis]
+    is_one_hot = num_channels > 1
+    spatial_dims = img_arr.ndim - 1
+    structure = ndimage.generate_binary_structure(spatial_dims, connectivity or spatial_dims)
+
+    # Get labels if not provided. Exclude background label.
+    applied_labels = set(applied_labels or (range(num_channels) if is_one_hot else np.unique(img_arr)))
+    background_label = 0
+    applied_labels.discard(background_label)
+
+    for label in applied_labels:
+        tmp = np.zeros(img_arr.shape[1:], dtype=bool)
+        ndimage.binary_dilation(
+            tmp,
+            structure=structure,
+            iterations=-1,
+            mask=np.logical_not(img_arr[label]) if is_one_hot else img_arr[0] != label,
+            origin=0,
+            border_value=1,
+            output=tmp,
+        )
+        if is_one_hot:
+            img_arr[label] = np.logical_not(tmp)
+        else:
+            img_arr[0, np.logical_not(tmp)] = label
+
+    return img_arr
 
 
 def get_extreme_points(
@@ -961,88 +1040,205 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
     return new_size
 
 
-def convert_to_tensor(data):
+def equalize_hist(
+    img: np.ndarray,
+    mask: Optional[np.ndarray] = None,
+    num_bins: int = 256,
+    min: int = 0,
+    max: int = 255,
+    dtype: DtypeLike = np.float32,
+) -> np.ndarray:
     """
-    Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
-    recursively check every item and convert it to PyTorch Tensor.
+    Utility to equalize input image based on the histogram.
+    If `skimage` installed, will leverage `skimage.exposure.histogram`, otherwise, use
+    `np.histogram` instead.
 
     Args:
-        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
-            for dictionary, list or tuple, convert every item to a Tensor if applicable.
+        img: input image to equalize.
+        mask: if provided, must be ndarray of bools or 0s and 1s, and same shape as `image`.
+            only points at which `mask==True` are used for the equalization.
+        num_bins: number of the bins to use in histogram, default to `256`. for more details:
+            https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
+        min: the min value to normalize input image, default to `0`.
+        max: the max value to normalize input image, default to `255`.
+        dtype: data type of the output, default to `float32`.
 
     """
-    if isinstance(data, torch.Tensor):
-        return data.contiguous()
-    elif isinstance(data, np.ndarray):
-        # skip array of string classes and object, refer to:
-        # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
-        if re.search(r"[SaUO]", data.dtype.str) is None:
-            # numpy array with 0 dims is also sequence iterable,
-            # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
-            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
-    elif isinstance(data, (float, int, bool)):
-        return torch.as_tensor(data)
-    elif isinstance(data, dict):
-        return {k: convert_to_tensor(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [convert_to_tensor(i) for i in data]
-    elif isinstance(data, tuple):
-        return tuple(convert_to_tensor(i) for i in data)
+    orig_shape = img.shape
+    hist_img = img[np.array(mask, dtype=bool)] if mask is not None else img
+    if has_skimage:
+        hist, bins = exposure.histogram(hist_img.flatten(), num_bins)
+    else:
+        hist, bins = np.histogram(hist_img.flatten(), num_bins)
+        bins = (bins[:-1] + bins[1:]) / 2
 
-    return data
+    cum = hist.cumsum()
+    # normalize the cumulative result
+    cum = rescale_array(arr=cum, minv=min, maxv=max)
+
+    # apply linear interpolation
+    img = np.interp(img.flatten(), bins, cum)
+
+    return img.reshape(orig_shape).astype(dtype)
 
 
-def convert_to_numpy(data):
+class Fourier:
     """
-    Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
-    recursively check every item and convert it to numpy array.
+    Helper class storing Fourier mappings
+    """
+
+    @staticmethod
+    def shift_fourier(x: torch.Tensor, n_dims: int) -> torch.Tensor:
+        """
+        Applies fourier transform and shifts the zero-frequency component to the
+        center of the spectrum. Only the spatial dimensions get transformed.
+
+        Args:
+            x: Image to transform.
+            n_dims: Number of spatial dimensions.
+        Returns
+            k: K-space data.
+        """
+        k: torch.Tensor = torch.fft.fftshift(
+            torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        )
+        return k
+
+    @staticmethod
+    def inv_shift_fourier(k: torch.Tensor, n_dims: int) -> torch.Tensor:
+        """
+        Applies inverse shift and fourier transform. Only the spatial
+        dimensions are transformed.
+
+        Args:
+            k: K-space data.
+            n_dims: Number of spatial dimensions.
+        Returns:
+            x: Tensor in image space.
+        """
+        x: torch.Tensor = torch.fft.ifftn(
+            torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        ).real
+        return x
+
+
+def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Optional[Hashable] = None) -> int:
+    """
+    Get the number of times that the data need to be converted (e.g., numpy to torch).
+    Conversions between different devices are also counted (e.g., CPU to GPU).
 
     Args:
-        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
-            for dictionary, list or tuple, convert every item to a numpy array if applicable.
-
-    """
-    if isinstance(data, torch.Tensor):
-        data = data.detach().cpu().numpy()
-    elif has_cp and isinstance(data, cp_ndarray):
-        data = cp.asnumpy(data)
-    elif isinstance(data, (float, int, bool)):
-        data = np.asarray(data)
-    elif isinstance(data, dict):
-        return {k: convert_to_numpy(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [convert_to_numpy(i) for i in data]
-    elif isinstance(data, tuple):
-        return tuple([convert_to_numpy(i) for i in data])
-
-    if isinstance(data, np.ndarray) and data.ndim > 0:
-        data = np.ascontiguousarray(data)
-
-    return data
-
-
-def tensor_to_numpy(data):
-    """
-    Utility to convert the input PyTorch Tensor data to numpy array, if scalar Tensor, convert to regular number.
-    If passing a dictionary, list or tuple, recursively check every PyTorch Tensor item and convert it to numpy arrays.
-
-    Args:
-        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert the Tensor data to numpy array, others keep the original. for dictionary, list or tuple,
-            convert every Tensor item to numpy array if applicable.
-
+        transform: composed transforms to be tested
+        test_data: data to be used to count the number of conversions
+        key: if using dictionary transforms, this key will be used to check the number of conversions.
     """
 
-    if isinstance(data, torch.Tensor):
-        # invert Tensor to numpy, if scalar data, convert to number
-        return data.item() if data.ndim == 0 else np.ascontiguousarray(data.detach().cpu().numpy())
-    elif isinstance(data, dict):
-        return {k: tensor_to_numpy(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [tensor_to_numpy(i) for i in data]
-    elif isinstance(data, tuple):
-        return tuple(tensor_to_numpy(i) for i in data)
+    def _get_data(obj, key):
+        return obj if key is None else obj[key]
 
-    return data
+    # if the starting point is a string (e.g., input to LoadImage), start
+    # at -1 since we don't want to count the string -> image conversion.
+    num_conversions = 0 if not isinstance(_get_data(test_data, key), str) else -1
+
+    tr = transform.flatten().transforms
+
+    if isinstance(transform, OneOf) or any(isinstance(i, OneOf) for i in tr):
+        raise RuntimeError("Not compatible with `OneOf`, as the applied transform is deterministically chosen.")
+
+    for _transform in tr:
+        prev_data = _get_data(test_data, key)
+        prev_type = type(prev_data)
+        prev_device = prev_data.device if isinstance(prev_data, torch.Tensor) else None
+        test_data = monai.transforms.transform.apply_transform(
+            _transform, test_data, transform.map_items, transform.unpack_items
+        )
+        # every time the type or device changes, increment the counter
+        curr_data = _get_data(test_data, key)
+        curr_device = curr_data.device if isinstance(curr_data, torch.Tensor) else None
+        if not isinstance(curr_data, prev_type) or curr_device != prev_device:
+            num_conversions += 1
+    return num_conversions
+
+
+def get_transform_backends():
+    """Get the backends of all MONAI transforms.
+
+    Returns:
+        Dictionary, where each key is a transform, and its
+        corresponding values are a boolean list, stating
+        whether that transform supports (1) `torch.Tensor`,
+        and (2) `np.ndarray` as input without needing to
+        convert.
+    """
+    backends = {}
+    unique_transforms = []
+    for n, obj in getmembers(monai.transforms):
+        # skip aliases
+        if obj in unique_transforms:
+            continue
+        unique_transforms.append(obj)
+
+        if isclass(obj) and issubclass(obj, Transform):
+            if n in [
+                "Transform",
+                "InvertibleTransform",
+                "Lambda",
+                "LambdaD",
+                "Compose",
+                "RandomizableTransform",
+                "OneOf",
+                "BatchInverseTransform",
+                "InverteD",
+            ]:
+                continue
+
+            backends[n] = [
+                TransformBackends.TORCH in obj.backend,
+                TransformBackends.NUMPY in obj.backend,
+            ]
+    return backends
+
+
+def print_transform_backends():
+    """Prints a list of backends of all MONAI transforms."""
+
+    class Colors:
+        none = ""
+        red = "91"
+        green = "92"
+        yellow = "93"
+
+    def print_color(t, color):
+        print(f"\033[{color}m{t}\033[00m")
+
+    def print_table_column(name, torch, numpy, color=Colors.none):
+        print_color("{:<50} {:<8} {:<8}".format(name, torch, numpy), color)
+
+    backends = get_transform_backends()
+    n_total = len(backends)
+    n_t_or_np, n_t, n_np, n_uncategorized = 0, 0, 0, 0
+    print_table_column("Transform", "Torch?", "Numpy?")
+    for k, v in backends.items():
+        if all(v):
+            color = Colors.green
+            n_t_or_np += 1
+        elif v[0]:
+            color = Colors.green
+            n_t += 1
+        elif v[1]:
+            color = Colors.yellow
+            n_np += 1
+        else:
+            color = Colors.red
+            n_uncategorized += 1
+        print_table_column(k, *v, color)
+
+    print("Total number of transforms:", n_total)
+    print_color(f"Number transforms allowing both torch and numpy: {n_t_or_np}", Colors.green)
+    print_color(f"Number of TorchTransform: {n_t}", Colors.green)
+    print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
+    print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+
+
+if __name__ == "__main__":
+    print_transform_backends()

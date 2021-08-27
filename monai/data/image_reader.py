@@ -45,16 +45,30 @@ __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReade
 
 
 class ImageReader(ABC):
-    """Abstract class to define interface APIs to load image files.
-    users need to call `read` to load image and then use `get_data`
-    to get the image data and properties from meta data.
+    """
+    An abstract class defines APIs to load image files.
+
+    Typical usage of an implementation of this class is:
+
+    .. code-block:: python
+
+        image_reader = MyImageReader()
+        img_obj = image_reader.read(path_to_image)
+        img_data, meta_data = image_reader.get_data(img_obj)
+
+    - The `read` call converts image filenames into image objects,
+    - The `get_data` call fetches the image data, as well as meta data.
+    - A reader should implement `verify_suffix` with the logic of checking the input filename
+      by the filename extensions.
 
     """
 
     @abstractmethod
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
-        Verify whether the specified file or files format is supported by current reader.
+        Verify whether the specified `filename` is supported by the current reader.
+        This method should return True if the reader is able to read the format suggested by the
+        `filename`.
 
         Args:
             filename: file name or a list of file names to read.
@@ -67,7 +81,7 @@ class ImageReader(ABC):
     def read(self, data: Union[Sequence[str], str], **kwargs) -> Union[Sequence[Any], Any]:
         """
         Read image data from specified file or files.
-        Note that it returns the raw data, so different readers return different image data type.
+        Note that it returns a data object or a sequence of data objects.
 
         Args:
             data: file name or a list of file names to read.
@@ -80,7 +94,8 @@ class ImageReader(ABC):
     def get_data(self, img) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and meta data from loaded image and return them.
-        This function must return 2 objects, first is numpy array of image data, second is dict of meta data.
+        This function must return two objects, the first is a numpy array of image data,
+        the second is a dictionary of meta data.
 
         Args:
             img: an image object loaded from an image file or a list of image objects.
@@ -124,21 +139,23 @@ def _stack_images(image_list: List, meta_dict: Dict):
 class ITKReader(ImageReader):
     """
     Load medical images based on ITK library.
-    All the supported image formats can be found:
+    All the supported image formats can be found at:
     https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
     The loaded data array will be in C order, for example, a 3D image NumPy
     array index order will be `CDWH`.
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
-            This is used to set `original_channel_dim` in the meta data, `EnsureChannelFirstD` reads this field.
-            If None, `original_channel_dim` will be either `no_channel` or `-1`.
-            - Nifti file is usually "channel last", so there is no need to specify this argument.
-            - PNG file usually has `GetNumberOfComponentsPerPixel()==3`, so there is no need to specify this argument.
+            This is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            If None, original_channel_dim will be either `no_channel` or `-1`.
+
+                - Nifti file is usually "channel last", so there is no need to specify this argument.
+                - PNG file usually has `GetNumberOfComponentsPerPixel()==3`, so there is no need to specify this argument.
+
         series_name: the name of the DICOM series if there are multiple ones.
             used when loading DICOM series.
         kwargs: additional args for `itk.imread` API. more details about available args:
-            https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
+            https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itk/support/extras.py
 
     """
 
@@ -394,7 +411,10 @@ class NibabelReader(ImageReader):
 
         """
         # swap to little endian as PyTorch doesn't support big endian
-        header = img.header.as_byteswapped("<")
+        try:
+            header = img.header.as_byteswapped("<")
+        except ValueError:
+            header = img.header
         return dict(header)
 
     def _get_affine(self, img):
@@ -417,11 +437,18 @@ class NibabelReader(ImageReader):
 
         """
         # swap to little endian as PyTorch doesn't support big endian
-        header = img.header.as_byteswapped("<")
-        ndim = header["dim"][0]
+        try:
+            header = img.header.as_byteswapped("<")
+        except ValueError:
+            header = img.header
+        dim = header.get("dim", None)
+        if dim is None:
+            dim = header.get("dims")  # mgh format?
+            dim = np.insert(dim, 0, 3)
+        ndim = dim[0]
         spatial_rank = min(ndim, 3)
         # the img data should have no channel dim or the last dim is channel
-        return np.asarray(header["dim"][1 : spatial_rank + 1])
+        return np.asarray(dim[1 : spatial_rank + 1])
 
     def _get_array_data(self, img):
         """

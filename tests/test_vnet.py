@@ -73,3 +73,7 @@ class TestVNet(unittest.TestCase):
         net = VNet(spatial_dims=3, in_channels=1, out_channels=3, dropout_dim=3)
         test_data = torch.randn(1, 1, 32, 32, 32)
         test_script_save(net, test_data)
+
+
+if __name__ == "__main__":
+    unittest.main()
