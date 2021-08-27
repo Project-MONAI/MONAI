@@ -1699,16 +1699,16 @@ class RandCoarseDropout(RandomizableTransform):
 
     def __call__(self, img: np.ndarray):
         self.randomize(img.shape[1:])
+        ret = img
         if self._do_transform:
             fill_value = (img.min(), img.max()) if self.fill_value is None else self.fill_value
 
             if self.dropout_holes:
                 for h in self.hole_coords:
                     if isinstance(fill_value, (tuple, list)):
-                        img[h] = self.R.uniform(fill_value[0], fill_value[1], size=img[h].shape)
+                        ret[h] = self.R.uniform(fill_value[0], fill_value[1], size=img[h].shape)
                     else:
-                        img[h] = fill_value
-                return img
+                        ret[h] = fill_value
             else:
                 if isinstance(fill_value, (tuple, list)):
                     ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype)
@@ -1716,7 +1716,7 @@ class RandCoarseDropout(RandomizableTransform):
                     ret = np.full_like(img, fill_value)
                 for h in self.hole_coords:
                     ret[h] = img[h]
-                return ret
+        return ret
 
 
 class HistogramNormalize(Transform):
