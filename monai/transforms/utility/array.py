@@ -22,7 +22,7 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Uni
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, NdarrayTensor
+from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
@@ -31,9 +31,10 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
 from monai.utils import convert_to_numpy, convert_to_tensor, ensure_tuple, look_up_option, min_version, optional_import
 from monai.utils.enums import TransformBackends
+from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_data_type
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
@@ -445,6 +446,8 @@ class SqueezeDim(Transform):
     Squeeze a unitary dimension.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, dim: Optional[int] = 0) -> None:
         """
         Args:
@@ -459,12 +462,17 @@ class SqueezeDim(Transform):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: numpy arrays with required dimension `dim` removed
         """
-        return img.squeeze(self.dim)  # type: ignore
+        if self.dim is None:
+            return img.squeeze()
+        # for pytorch/numpy unification
+        if img.shape[self.dim] != 1:
+            raise ValueError("Can only squeeze singleton dimension")
+        return img.squeeze(self.dim)
 
 
 class DataStats(Transform):
@@ -474,6 +482,8 @@ class DataStats(Transform):
     It support both `numpy.ndarray` and `torch.tensor` as input data,
     so it can be used in pre-processing and post-processing.
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -523,14 +533,14 @@ class DataStats(Transform):
 
     def __call__(
         self,
-        img: NdarrayTensor,
+        img: NdarrayOrTensor,
         prefix: Optional[str] = None,
         data_type: Optional[bool] = None,
         data_shape: Optional[bool] = None,
         value_range: Optional[bool] = None,
         data_value: Optional[bool] = None,
         additional_info: Optional[Callable] = None,
-    ) -> NdarrayTensor:
+    ) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, optionally take arguments similar to the class constructor.
         """
@@ -570,6 +580,8 @@ class SimulateDelay(Transform):
     to sub-optimal design choices.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, delay_time: float = 0.0) -> None:
         """
         Args:
@@ -579,7 +591,7 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img: NdarrayTensor, delay_time: Optional[float] = None) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor, delay_time: Optional[float] = None) -> NdarrayOrTensor:
         """
         Args:
             img: data remain unchanged throughout this transform.
@@ -612,12 +624,14 @@ class Lambda(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, func: Optional[Callable] = None) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
+    def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
         """
         Apply `self.func` to `img`.
 
@@ -648,14 +662,15 @@ class RandLambda(Lambda, RandomizableTransform):
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
 
     For more details, please check :py:class:`monai.transforms.Lambda`.
-
     """
+
+    backend = Lambda.backend
 
     def __init__(self, func: Optional[Callable] = None, prob: float = 1.0) -> None:
         Lambda.__init__(self=self, func=func)
         RandomizableTransform.__init__(self=self, prob=prob)
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
+    def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
         self.randomize(img)
         return super().__call__(img=img, func=func) if self._do_transform else img
 
@@ -679,6 +694,8 @@ class LabelToMask(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(  # pytype: disable=annotation-type-mismatch
         self,
         select_labels: Union[Sequence[int], int],
@@ -688,8 +705,11 @@ class LabelToMask(Transform):
         self.merge_channels = merge_channels
 
     def __call__(
-        self, img: np.ndarray, select_labels: Optional[Union[Sequence[int], int]] = None, merge_channels: bool = False
-    ):
+        self,
+        img: NdarrayOrTensor,
+        select_labels: Optional[Union[Sequence[int], int]] = None,
+        merge_channels: bool = False,
+    ) -> NdarrayOrTensor:
         """
         Args:
             select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
@@ -706,26 +726,39 @@ class LabelToMask(Transform):
         if img.shape[0] > 1:
             data = img[[*select_labels]]
         else:
-            data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
+            where = np.where if isinstance(img, np.ndarray) else torch.where
+            if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
+                data = where(in1d(img, select_labels), True, False).reshape(img.shape)
+            # pre pytorch 1.8.0, need to use 1/0 instead of True/False
+            else:
+                data = where(in1d(img, select_labels), 1, 0).reshape(img.shape)
 
-        return np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
+        if merge_channels or self.merge_channels:
+            if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
+                return data.any(0)[None]
+            # pre pytorch 1.8.0 compatibility
+            else:
+                return data.to(torch.uint8).any(0)[None].to(bool)  # type: ignore
+
+        return data
 
 
 class FgBgToIndices(Transform):
+    """
+    Compute foreground and background of the input label data, return the indices.
+    If no output_shape specified, output data will be 1 dim indices after flattening.
+    This transform can help pre-compute foreground and background regions for other transforms.
+    A typical usage is to randomly select foreground and background to crop.
+    The main logic is based on :py:class:`monai.transforms.utils.map_binary_to_indices`.
+
+    Args:
+        image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
+            determine the valid image content area and select background only in this area.
+        output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+
+    """
+
     def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
-        """
-        Compute foreground and background of the input label data, return the indices.
-        If no output_shape specified, output data will be 1 dim indices after flattening.
-        This transform can help pre-compute foreground and background regions for other transforms.
-        A typical usage is to randomly select foreground and background to crop.
-        The main logic is based on :py:class:`monai.transforms.utils.map_binary_to_indices`.
-
-        Args:
-            image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
-                determine the valid image content area and select background only in this area.
-            output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
-
-        """
         self.image_threshold = image_threshold
         self.output_shape = output_shape
 

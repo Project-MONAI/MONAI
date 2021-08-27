@@ -16,10 +16,12 @@ from monai.config.type_definitions import NdarrayOrTensor
 
 __all__ = [
     "moveaxis",
+    "in1d",
 ]
 
 
 def moveaxis(x: NdarrayOrTensor, src: int, dst: int) -> NdarrayOrTensor:
+    """`moveaxis` for pytorch and numpy, using `permute` for pytorch ver < 1.8"""
     if isinstance(x, torch.Tensor):
         if hasattr(torch, "moveaxis"):
             return torch.moveaxis(x, src, dst)
@@ -39,3 +41,11 @@ def moveaxis(x: NdarrayOrTensor, src: int, dst: int) -> NdarrayOrTensor:
     elif isinstance(x, np.ndarray):
         return np.moveaxis(x, src, dst)
     raise RuntimeError()
+
+
+def in1d(x, y):
+    """`np.in1d` with equivalent implementation for torch."""
+    if isinstance(x, np.ndarray):
+        return np.in1d(x, y)
+    else:
+        return (x[..., None] == torch.tensor(y, device=x.device)).any(-1).view(-1)

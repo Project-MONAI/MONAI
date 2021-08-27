@@ -36,6 +36,7 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
+from monai.utils.misc import is_module_ver_at_least
 from monai.utils.module import version_leq
 
 nib, _ = optional_import("nibabel")
@@ -142,8 +143,7 @@ class SkipIfBeforePyTorchVersion:
 
     def __init__(self, pytorch_version_tuple):
         self.min_version = pytorch_version_tuple
-        test_ver = ".".join(map(str, self.min_version))
-        self.version_too_old = torch.__version__ != test_ver and version_leq(torch.__version__, test_ver)
+        self.version_too_old = not is_module_ver_at_least(torch, pytorch_version_tuple)
 
     def __call__(self, obj):
         return unittest.skipIf(
