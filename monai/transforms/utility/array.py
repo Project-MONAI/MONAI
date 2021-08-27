@@ -32,15 +32,7 @@ from monai.transforms.utils import (
     map_classes_to_indices,
 )
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
-from monai.utils import (
-    convert_to_numpy,
-    convert_to_tensor,
-    ensure_tuple,
-    issequenceiterable,
-    look_up_option,
-    min_version,
-    optional_import,
-)
+from monai.utils import convert_to_numpy, convert_to_tensor, ensure_tuple, look_up_option, min_version, optional_import
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type
 
