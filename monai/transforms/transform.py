@@ -22,8 +22,16 @@ import torch
 from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
+from monai.utils.enums import TransformBackends
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "Randomizable",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -197,12 +205,18 @@ class Transform(ABC):
            thread-unsafe transforms should inherit :py:class:`monai.transforms.ThreadUnsafe`.
         #. ``data`` content unused by this transform may still be used in the
            subsequent transforms in a composed transform.
-        #. storing too much information in ``data`` may not scale.
+        #. storing too much information in ``data`` may cause some memory issue or IPC sync issue,
+           especially in the multi-processing environment of PyTorch DataLoader.
 
     See Also
 
         :py:class:`monai.transforms.Compose`
     """
+
+    backend: List[TransformBackends] = []
+    """Transforms should add data types to this list if they are capable of performing a transform without
+    modifying the input type. For example, [\"torch.Tensor\", \"np.ndarray\"] means that no copies of the data
+    are required if the input is either \"torch.Tensor\" or \"np.ndarray\"."""
 
     @abstractmethod
     def __call__(self, data: Any):

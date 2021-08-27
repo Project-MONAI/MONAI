@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import datetime
 import functools
 import importlib
@@ -20,16 +21,19 @@ import time
 import traceback
 import unittest
 import warnings
+from functools import partial
 from io import BytesIO
 from subprocess import PIPE, Popen
-from typing import Optional
+from typing import Callable, Optional, Tuple
 from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.module import version_leq
@@ -37,6 +41,32 @@ from monai.utils.module import version_leq
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
+
+
+def clone(data: NdarrayTensor) -> NdarrayTensor:
+    """
+    Clone data independent of type.
+
+    Args:
+        data (NdarrayTensor): This can be a Pytorch Tensor or numpy array.
+
+    Returns:
+        Any: Cloned data object
+    """
+    return copy.deepcopy(data)
+
+
+def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
+    """
+    Assert that all values of two data objects are close.
+
+    Args:
+        a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
+        b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
+    """
+    a = a.cpu() if isinstance(a, torch.Tensor) else a
+    b = b.cpu() if isinstance(b, torch.Tensor) else b
+    np.testing.assert_allclose(a, b, *args, **kwargs)
 
 
 def test_pretrained_networks(network, input_param, device):
@@ -560,6 +590,12 @@ def query_memory(n=2):
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join(f"{int(x)}" for x in ids)
+
+
+TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
+if torch.cuda.is_available():
+    gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
+    TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
 
 
 if __name__ == "__main__":
