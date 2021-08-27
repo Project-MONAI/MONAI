@@ -12,7 +12,6 @@
 A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
-
 import warnings
 from typing import Any, List, Optional, Sequence, Tuple, Union
 

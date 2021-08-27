@@ -85,6 +85,7 @@ from .intensity.array import (
     GibbsNoise,
     HistogramNormalize,
     KSpaceSpikeNoise,
+    LocalPatchShuffling,
     MaskIntensity,
     NormalizeIntensity,
     RandAdjustContrast,

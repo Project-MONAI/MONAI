@@ -47,9 +47,14 @@ TEST_CASE_5 = [
     np.random.randint(0, 2, size=[3, 3, 3, 4]),
 ]
 
+TEST_CASE_6 = [
+    {"holes": 2, "spatial_size": [2, 2, 2], "dropout_holes": False, "fill_value": (3, 6), "prob": 1.0},
+    np.random.randint(0, 2, size=[3, 3, 3, 4]),
+]
+
 
 class TestRandCoarseDropout(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_value(self, input_param, input_data):
         dropout = RandCoarseDropout(**input_param)
         result = dropout(input_data)
@@ -66,15 +71,19 @@ class TestRandCoarseDropout(unittest.TestCase):
 
         for h in dropout.hole_coords:
             data = result[h]
-            fill_value = input_param.get("fill_value", None)
-            if isinstance(fill_value, (int, float)):
-                np.testing.assert_allclose(data, fill_value)
-            elif fill_value is not None:
-                min_value = data.min()
-                max_value = data.max()
-                self.assertGreaterEqual(max_value, min_value)
-                self.assertGreaterEqual(min_value, fill_value[0])
-                self.assertLess(max_value, fill_value[1])
+            # test hole value
+            if input_param.get("dropout_holes", True):
+                fill_value = input_param.get("fill_value", None)
+                if isinstance(fill_value, (int, float)):
+                    np.testing.assert_allclose(data, fill_value)
+                elif fill_value is not None:
+                    min_value = data.min()
+                    max_value = data.max()
+                    self.assertGreaterEqual(max_value, min_value)
+                    self.assertGreaterEqual(min_value, fill_value[0])
+                    self.assertLess(max_value, fill_value[1])
+            else:
+                np.testing.assert_allclose(data, input_data[h])
 
             if max_spatial_size is None:
                 self.assertTupleEqual(data.shape[1:], tuple(spatial_size))

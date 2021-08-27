@@ -23,7 +23,6 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.intensity.array import (
     AdjustContrast,
     GaussianSharpen,
@@ -34,6 +33,7 @@ from monai.transforms.intensity.array import (
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
+    RandCoarseDropout,
     RandGaussianNoise,
     RandKSpaceSpikeNoise,
     RandRicianNoise,
@@ -44,9 +44,9 @@ from monai.transforms.intensity.array import (
     StdShiftIntensity,
     ThresholdIntensity,
 )
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 
 __all__ = [
     "RandGaussianNoised",
@@ -1423,7 +1423,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         return d_numpy
 
 
-class RandCoarseDropoutd(RandomizableTransform, MapTransform):
+class RandCoarseDropoutd(Randomizable, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandCoarseDropout`.
     Expect all the data specified by `keys` have same spatial shape and will randomly dropout the same regions
@@ -1439,6 +1439,8 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
+        dropout_holes: if `True`, dropout the regions of holes and fill value, if `False`, keep the holes and
+            dropout the outside and fill value. default to `True`.
         fill_value: target value to fill the dropout regions, if providing a number, will use it as constant
             value to fill all the regions. if providing a tuple for the `min` and `max`, will randomly select
             value for every pixel / voxel from the range `[min, max)`. if None, will compute the `min` and `max`
@@ -1458,6 +1460,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         holes: int,
         spatial_size: Union[Sequence[int], int],
+        dropout_holes: bool = True,
         fill_value: Optional[Union[Tuple[float, float], float]] = None,
         max_holes: Optional[int] = None,
         max_spatial_size: Optional[Union[Sequence[int], int]] = None,
@@ -1465,42 +1468,27 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
-        RandomizableTransform.__init__(self, prob)
-        if holes < 1:
-            raise ValueError("number of holes must be greater than 0.")
-        self.holes = holes
-        self.spatial_size = spatial_size
-        self.fill_value = fill_value
-        self.max_holes = max_holes
-        self.max_spatial_size = max_spatial_size
-        self.hole_coords: List = []
+        self.dropper = RandCoarseDropout(
+            holes=holes,
+            spatial_size=spatial_size,
+            dropout_holes=dropout_holes,
+            fill_value=fill_value,
+            max_holes=max_holes,
+            max_spatial_size=max_spatial_size,
+            prob=prob,
+        )
 
     def randomize(self, img_size: Sequence[int]) -> None:
-        super().randomize(None)
-        size = fall_back_tuple(self.spatial_size, img_size)
-        self.hole_coords = []  # clear previously computed coords
-        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
-        for _ in range(num_holes):
-            if self.max_spatial_size is not None:
-                max_size = fall_back_tuple(self.max_spatial_size, img_size)
-                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
-            valid_size = get_valid_patch_size(img_size, size)
-            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+        self.dropper.randomize(img_size=img_size)
 
     def __call__(self, data):
         d = dict(data)
         # expect all the specified keys have same spatial shape
         self.randomize(d[self.keys[0]].shape[1:])
-        if self._do_transform:
+        if self.dropper._do_transform:
             for key in self.key_iterator(d):
-                for h in self.hole_coords:
-                    fill_value = (d[key].min(), d[key].max()) if self.fill_value is None else self.fill_value
-                    if isinstance(fill_value, (tuple, list)):
-                        if len(fill_value) != 2:
-                            raise ValueError("fill_value should contain 2 numbers if providing the `min` and `max`.")
-                        d[key][h] = self.R.uniform(fill_value[0], fill_value[1], size=d[key][h].shape)
-                    else:
-                        d[key][h] = fill_value
+                d[key] = self.dropper(img=d[key])
+
         return d
 
 
