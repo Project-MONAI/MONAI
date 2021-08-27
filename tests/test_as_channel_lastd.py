@@ -15,21 +15,22 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import AsChannelLastd
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [{"keys": ["image", "label", "extra"], "channel_dim": 0}, (2, 3, 4, 1)]
-
-TEST_CASE_2 = [{"keys": ["image", "label", "extra"], "channel_dim": 1}, (1, 3, 4, 2)]
-
-TEST_CASE_3 = [{"keys": ["image", "label", "extra"], "channel_dim": 3}, (1, 2, 3, 4)]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": 0}, (2, 3, 4, 1)])
+    TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": 1}, (1, 3, 4, 2)])
+    TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": 3}, (1, 2, 3, 4)])
 
 
 class TestAsChannelLastd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_shape(self, input_param, expected_shape):
+    @parameterized.expand(TESTS)
+    def test_shape(self, in_type, input_param, expected_shape):
         test_data = {
-            "image": np.random.randint(0, 2, size=[1, 2, 3, 4]),
-            "label": np.random.randint(0, 2, size=[1, 2, 3, 4]),
-            "extra": np.random.randint(0, 2, size=[1, 2, 3, 4]),
+            "image": in_type(np.random.randint(0, 2, size=[1, 2, 3, 4])),
+            "label": in_type(np.random.randint(0, 2, size=[1, 2, 3, 4])),
+            "extra": in_type(np.random.randint(0, 2, size=[1, 2, 3, 4])),
         }
         result = AsChannelLastd(**input_param)(test_data)
         self.assertTupleEqual(result["image"].shape, expected_shape)

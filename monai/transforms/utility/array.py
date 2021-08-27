@@ -31,6 +31,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
+from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
@@ -82,17 +83,18 @@ __all__ = [
 
 class Identity(Transform):
     """
-    Convert the input to an np.ndarray, if input data is np.ndarray or subclasses, return unchanged data.
+    Do nothing to the data.
     As the output value is same as input, it can be used as a testing tool to verify the transform chain,
     Compose or transform adaptor, etc.
-
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return np.asanyarray(img)
+        return img
 
 
 class AsChannelFirst(Transform):
@@ -111,16 +113,18 @@ class AsChannelFirst(Transform):
         channel_dim: which dimension of input image is the channel, default is the last dimension.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, channel_dim: int = -1) -> None:
         if not (isinstance(channel_dim, int) and channel_dim >= -1):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return np.moveaxis(img, self.channel_dim, 0)
+        return moveaxis(img, self.channel_dim, 0)
 
 
 class AsChannelLast(Transform):
@@ -138,16 +142,18 @@ class AsChannelLast(Transform):
         channel_dim: which dimension of input image is the channel, default is the first dimension.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, channel_dim: int = 0) -> None:
         if not (isinstance(channel_dim, int) and channel_dim >= -1):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return np.moveaxis(img, self.channel_dim, -1)
+        return moveaxis(img, self.channel_dim, -1)
 
 
 class AddChannel(Transform):
@@ -164,7 +170,9 @@ class AddChannel(Transform):
     transforms.
     """
 
-    def __call__(self, img: NdarrayTensor):
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -179,6 +187,8 @@ class EnsureChannelFirst(Transform):
     Convert the data to `channel_first` based on the `original_channel_dim` information.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, strict_check: bool = True):
         """
         Args:
@@ -186,7 +196,7 @@ class EnsureChannelFirst(Transform):
         """
         self.strict_check = strict_check
 
-    def __call__(self, img: np.ndarray, meta_dict: Optional[Mapping] = None):
+    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -220,16 +230,19 @@ class RepeatChannel(Transform):
         repeats: the number of repetitions for each element.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
             raise AssertionError("repeats count must be greater than 0.")
         self.repeats = repeats
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        return np.repeat(img, self.repeats, 0)
+        repeeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
+        return repeeat_fn(img, self.repeats, 0)  # type: ignore
 
 
 class RemoveRepeatedChannel(Transform):
