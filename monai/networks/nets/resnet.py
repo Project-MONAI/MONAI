@@ -308,7 +308,10 @@ def _resnet(
         # Author of paper zipped the state_dict on googledrive,
         # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
         # Would like to load dict from url but need somewhere to save the state dicts.
-        raise NotImplementedError("Currently not implemented, see comments in source code")
+        raise NotImplementedError(
+            "Currently not implemented. You need to manually download weights provided by the paper's author"
+            " and load then to the model with `state_dict`. See https://github.com/Tencent/MedicalNet"
+        )
     return model
 
 
