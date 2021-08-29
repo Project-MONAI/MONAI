@@ -12,6 +12,7 @@
 
 from typing import Sequence, Union
 
+import torch
 import torch.nn as nn
 
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
@@ -33,7 +34,7 @@ class ViT(nn.Module):
         mlp_dim: int = 3072,
         num_layers: int = 12,
         num_heads: int = 12,
-        pos_embed: str = "perceptron",
+        pos_embed: str = "conv",
         classification: bool = False,
         num_classes: int = 2,
         dropout_rate: float = 0.0,
@@ -56,11 +57,14 @@ class ViT(nn.Module):
 
         Examples::
 
-            # for single channel input with patch size of (96,96,96), conv position embedding and segmentation backbone
+            # for single channel input with image size of (96,96,96), conv position embedding and segmentation backbone
             >>> net = ViT(in_channels=1, img_size=(96,96,96), pos_embed='conv')
 
-            # for 3-channel with patch size of (128,128,128), 24 layers and classification backbone
+            # for 3-channel with image size of (128,128,128), 24 layers and classification backbone
             >>> net = ViT(in_channels=3, img_size=(128,128,128), pos_embed='conv', classification=True)
+
+            # for 3-channel with image size of (224,224), 12 layers and classification backbone
+            >>> net = ViT(in_channels=3, img_size=(224,224), pos_embed='conv', classification=True, spatial_dims=2)
 
         """
 
@@ -88,10 +92,14 @@ class ViT(nn.Module):
         )
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:
-            self.classification_head = nn.Linear(hidden_size, num_classes)
+            self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
+            self.classification_head = nn.Sequential(nn.Linear(hidden_size, num_classes), nn.Tanh())
 
     def forward(self, x):
         x = self.patch_embedding(x)
+        if self.classification:
+            cls_token = self.cls_token.expand(x.shape[0], -1, -1)
+            x = torch.cat((cls_token, x), dim=1)
         hidden_states_out = []
         for blk in self.blocks:
             x = blk(x)

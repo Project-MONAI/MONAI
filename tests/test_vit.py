@@ -28,28 +28,28 @@ for dropout_rate in [0.6]:
                             for num_layers in [4]:
                                 for num_classes in [2]:
                                     for pos_embed in ["conv"]:
-                                        # for classification in [False, True]:  # TODO: test classification
-                                        for nd in (2, 3):
-                                            test_case = [
-                                                {
-                                                    "in_channels": in_channels,
-                                                    "img_size": (img_size,) * nd,
-                                                    "patch_size": (patch_size,) * nd,
-                                                    "hidden_size": hidden_size,
-                                                    "mlp_dim": mlp_dim,
-                                                    "num_layers": num_layers,
-                                                    "num_heads": num_heads,
-                                                    "pos_embed": pos_embed,
-                                                    "classification": False,
-                                                    "num_classes": num_classes,
-                                                    "dropout_rate": dropout_rate,
-                                                },
-                                                (2, in_channels, *([img_size] * nd)),
-                                                (2, (img_size // patch_size) ** nd, hidden_size),
-                                            ]
-                                            if nd == 2:
-                                                test_case[0]["spatial_dims"] = 2  # type: ignore
-                                            TEST_CASE_Vit.append(test_case)
+                                        for classification in [False, True]:
+                                            for nd in (2, 3):
+                                                test_case = [
+                                                    {
+                                                        "in_channels": in_channels,
+                                                        "img_size": (img_size,) * nd,
+                                                        "patch_size": (patch_size,) * nd,
+                                                        "hidden_size": hidden_size,
+                                                        "mlp_dim": mlp_dim,
+                                                        "num_layers": num_layers,
+                                                        "num_heads": num_heads,
+                                                        "pos_embed": pos_embed,
+                                                        "classification": False,
+                                                        "num_classes": num_classes,
+                                                        "dropout_rate": dropout_rate,
+                                                    },
+                                                    (2, in_channels, *([img_size] * nd)),
+                                                    (2, (img_size // patch_size) ** nd, hidden_size),
+                                                ]
+                                                if nd == 2:
+                                                    test_case[0]["spatial_dims"] = 2  # type: ignore
+                                                TEST_CASE_Vit.append(test_case)
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
