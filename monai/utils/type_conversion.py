@@ -83,7 +83,7 @@ def get_dtype(data: Any):
     return type(data)
 
 
-def convert_to_tensor(data):
+def convert_to_tensor(data, wrap_sequence: bool = False):
     """
     Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
     recursively check every item and convert it to PyTorch Tensor.
@@ -92,6 +92,8 @@ def convert_to_tensor(data):
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
             will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
             for dictionary, list or tuple, convert every item to a Tensor if applicable.
+        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`.
+            If `True`, then `[1, 2]` -> `tensor([1, 2])`.
 
     """
     if isinstance(data, torch.Tensor):
@@ -105,17 +107,19 @@ def convert_to_tensor(data):
             return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
     elif isinstance(data, (float, int, bool)):
         return torch.as_tensor(data)
-    elif isinstance(data, dict):
-        return {k: convert_to_tensor(v) for k, v in data.items()}
+    elif isinstance(data, Sequence) and wrap_sequence:
+        return torch.as_tensor(data)
     elif isinstance(data, list):
         return [convert_to_tensor(i) for i in data]
     elif isinstance(data, tuple):
         return tuple(convert_to_tensor(i) for i in data)
+    elif isinstance(data, dict):
+        return {k: convert_to_tensor(v) for k, v in data.items()}
 
     return data
 
 
-def convert_to_numpy(data):
+def convert_to_numpy(data, wrap_sequence: bool = False):
     """
     Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to numpy array.
@@ -124,7 +128,8 @@ def convert_to_numpy(data):
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
             will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
             for dictionary, list or tuple, convert every item to a numpy array if applicable.
-
+        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
+            If `True`, then `[1, 2]` -> `array([1, 2])`.
     """
     if isinstance(data, torch.Tensor):
         data = data.detach().cpu().numpy()
@@ -132,12 +137,14 @@ def convert_to_numpy(data):
         data = cp.asnumpy(data)
     elif isinstance(data, (float, int, bool)):
         data = np.asarray(data)
-    elif isinstance(data, dict):
-        return {k: convert_to_numpy(v) for k, v in data.items()}
+    elif isinstance(data, Sequence) and wrap_sequence:
+        return np.asarray(data)
     elif isinstance(data, list):
         return [convert_to_numpy(i) for i in data]
     elif isinstance(data, tuple):
         return tuple(convert_to_numpy(i) for i in data)
+    elif isinstance(data, dict):
+        return {k: convert_to_numpy(v) for k, v in data.items()}
 
     if isinstance(data, np.ndarray) and data.ndim > 0:
         data = np.ascontiguousarray(data)

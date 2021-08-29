@@ -334,6 +334,8 @@ class RemoveRepeatedChanneld(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.RemoveRepeatedChannel`.
     """
 
+    backend = RemoveRepeatedChannel.backend
+
     def __init__(self, keys: KeysCollection, repeats: int, allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -345,7 +347,7 @@ class RemoveRepeatedChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.repeater = RemoveRepeatedChannel(repeats)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.repeater(d[key])
@@ -356,8 +358,9 @@ class SplitChanneld(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
     All the input specified by `keys` should be split into same count of data.
-
     """
+
+    backend = SplitChannel.backend
 
     def __init__(
         self,
@@ -382,9 +385,7 @@ class SplitChanneld(MapTransform):
         self.output_postfixes = output_postfixes
         self.splitter = SplitChannel(channel_dim=channel_dim)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             rets = self.splitter(d[key])
@@ -439,6 +440,8 @@ class ToTensord(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
 
+    backend = ToTensor.backend
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -449,14 +452,14 @@ class ToTensord(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToTensor()
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.converter(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             # Create inverse transform
@@ -481,6 +484,8 @@ class EnsureTyped(MapTransform, InvertibleTransform):
 
     """
 
+    backend = EnsureType.backend
+
     def __init__(self, keys: KeysCollection, data_type: str = "tensor", allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -492,7 +497,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = EnsureType(data_type=data_type)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
@@ -514,6 +519,8 @@ class ToNumpyd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
     """
+
+    backend = ToNumpy.backend
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
@@ -537,6 +544,8 @@ class ToCupyd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToCupy`.
     """
 
+    backend = ToCupy.backend
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -547,7 +556,7 @@ class ToCupyd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToCupy()
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -558,6 +567,8 @@ class ToPILd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
     """
+
+    backend = ToPIL.backend
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
@@ -581,13 +592,15 @@ class Transposed(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Transpose`.
     """
 
+    backend = Transpose.backend
+
     def __init__(
         self, keys: KeysCollection, indices: Optional[Sequence[int]], allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.transform = Transpose(indices)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key])

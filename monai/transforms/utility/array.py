@@ -32,15 +32,7 @@ from monai.transforms.utils import (
     map_classes_to_indices,
 )
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
-from monai.utils import (
-    convert_to_numpy,
-    convert_to_tensor,
-    ensure_tuple,
-    issequenceiterable,
-    look_up_option,
-    min_version,
-    optional_import,
-)
+from monai.utils import convert_to_numpy, convert_to_tensor, ensure_tuple, look_up_option, min_version, optional_import
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type
 
@@ -255,20 +247,22 @@ class RemoveRepeatedChannel(Transform):
         repeats: the number of repetitions to be deleted for each element.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
             raise AssertionError("repeats count must be greater than 0.")
 
         self.repeats = repeats
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        if np.shape(img)[0] < 2:
+        if img.shape[0] < 2:
             raise AssertionError("Image must have more than one channel")
 
-        return np.array(img[:: self.repeats, :])
+        return img[:: self.repeats, :]
 
 
 class SplitChannel(Transform):
@@ -281,10 +275,12 @@ class SplitChannel(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, channel_dim: int = 0) -> None:
         self.channel_dim = channel_dim
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> List[Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
         n_classes = img.shape[self.channel_dim]
         if n_classes <= 1:
             raise RuntimeError("input image does not contain multiple channels.")
@@ -335,18 +331,13 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img) -> torch.Tensor:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, torch.Tensor):
-            return img.contiguous()
-        if issequenceiterable(img):
-            # numpy array with 0 dims is also sequence iterable
-            if not (isinstance(img, np.ndarray) and img.ndim == 0):
-                # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
-                img = np.ascontiguousarray(img)
-        return torch.as_tensor(img)
+        return convert_to_tensor(img, wrap_sequence=True)  # type: ignore
 
 
 class EnsureType(Transform):
@@ -361,6 +352,8 @@ class EnsureType(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, data_type: str = "tensor") -> None:
         data_type = data_type.lower()
         if data_type not in ("tensor", "numpy"):
@@ -368,7 +361,7 @@ class EnsureType(Transform):
 
         self.data_type = data_type
 
-    def __call__(self, data):
+    def __call__(self, data: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
@@ -377,7 +370,7 @@ class EnsureType(Transform):
                 if applicable.
 
         """
-        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)
+        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)  # type: ignore
 
 
 class ToNumpy(Transform):
@@ -385,17 +378,13 @@ class ToNumpy(Transform):
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img) -> np.ndarray:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()
-        elif has_cp and isinstance(img, cp_ndarray):
-            img = cp.asnumpy(img)
-
-        array: np.ndarray = np.asarray(img)
-        return np.ascontiguousarray(array) if array.ndim > 0 else array
+        return convert_to_numpy(img)  # type: ignore
 
 
 class ToCupy(Transform):
@@ -403,19 +392,23 @@ class ToCupy(Transform):
     Converts the input data to CuPy array, can support list or tuple of numbers, NumPy and PyTorch Tensor.
     """
 
-    def __call__(self, img):
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()
-        return cp.ascontiguousarray(cp.asarray(img))
+        return cp.ascontiguousarray(cp.asarray(img))  # type: ignore
 
 
 class ToPIL(Transform):
     """
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __call__(self, img):
         """
@@ -433,13 +426,17 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, indices: Optional[Sequence[int]]) -> None:
         self.indices = None if indices is None else tuple(indices)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
+        if isinstance(img, torch.Tensor):
+            return img.permute(self.indices or tuple(range(img.ndim)[::-1]))
         return img.transpose(self.indices)  # type: ignore
 
 

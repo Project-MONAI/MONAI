@@ -17,6 +17,7 @@ import torch
 
 from monai.transforms import ToCupy
 from monai.utils import optional_import
+from tests.utils import skip_if_no_cuda
 
 cp, has_cp = optional_import("cupy")
 
@@ -51,6 +52,17 @@ class TestToCupy(unittest.TestCase):
         self.assertTrue(isinstance(result, cp.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data.numpy())
+
+    @skipUnless(has_cp, "CuPy is required.")
+    @skip_if_no_cuda
+    def test_tensor_cuda_input(self):
+        test_data = torch.tensor([[1, 2], [3, 4]]).cuda()
+        test_data = test_data.rot90()
+        self.assertFalse(test_data.is_contiguous())
+        result = ToCupy()(test_data)
+        self.assertTrue(isinstance(result, cp.ndarray))
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
+        cp.testing.assert_allclose(result, test_data.cpu().numpy())
 
     @skipUnless(has_cp, "CuPy is required.")
     def test_list_tuple(self):

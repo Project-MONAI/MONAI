@@ -17,6 +17,7 @@ import torch
 
 from monai.transforms import ToNumpy
 from monai.utils import optional_import
+from tests.utils import assert_allclose, skip_if_no_cuda
 
 cp, has_cp = optional_import("cupy")
 
@@ -30,7 +31,7 @@ class TestToNumpy(unittest.TestCase):
         result = ToNumpy()(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data.get())
+        assert_allclose(result, test_data.get())
 
     def test_numpy_input(self):
         test_data = np.array([[1, 2], [3, 4]])
@@ -39,7 +40,7 @@ class TestToNumpy(unittest.TestCase):
         result = ToNumpy()(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data)
+        assert_allclose(result, test_data)
 
     def test_tensor_input(self):
         test_data = torch.tensor([[1, 2], [3, 4]])
@@ -48,21 +49,31 @@ class TestToNumpy(unittest.TestCase):
         result = ToNumpy()(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data.numpy())
+        assert_allclose(result, test_data)
+
+    @skip_if_no_cuda
+    def test_tensor_cuda_input(self):
+        test_data = torch.tensor([[1, 2], [3, 4]]).cuda()
+        test_data = test_data.rot90()
+        self.assertFalse(test_data.is_contiguous())
+        result = ToNumpy()(test_data)
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
+        assert_allclose(result, test_data)
 
     def test_list_tuple(self):
         test_data = [[1, 2], [3, 4]]
         result = ToNumpy()(test_data)
-        np.testing.assert_allclose(result, np.asarray(test_data))
+        assert_allclose(result, np.asarray(test_data))
         test_data = ((1, 2), (3, 4))
         result = ToNumpy()(test_data)
-        np.testing.assert_allclose(result, np.asarray(test_data))
+        assert_allclose(result, np.asarray(test_data))
 
     def test_single_value(self):
         for test_data in [5, np.array(5), torch.tensor(5)]:
             result = ToNumpy()(test_data)
             self.assertTrue(isinstance(result, np.ndarray))
-            np.testing.assert_allclose(result, np.asarray(test_data))
+            assert_allclose(result, np.asarray(test_data))
             self.assertEqual(result.ndim, 0)
 
 

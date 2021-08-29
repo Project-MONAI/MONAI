@@ -17,6 +17,7 @@ import torch
 
 from monai.transforms import ToNumpyd
 from monai.utils import optional_import
+from tests.utils import assert_allclose, skip_if_no_cuda
 
 cp, has_cp = optional_import("cupy")
 
@@ -30,7 +31,7 @@ class TestToNumpyd(unittest.TestCase):
         result = ToNumpyd(keys="img")({"img": test_data})["img"]
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data.get())
+        assert_allclose(result, test_data.get())
 
     def test_numpy_input(self):
         test_data = np.array([[1, 2], [3, 4]])
@@ -39,7 +40,7 @@ class TestToNumpyd(unittest.TestCase):
         result = ToNumpyd(keys="img")({"img": test_data})["img"]
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data)
+        assert_allclose(result, test_data)
 
     def test_tensor_input(self):
         test_data = torch.tensor([[1, 2], [3, 4]])
@@ -48,7 +49,17 @@ class TestToNumpyd(unittest.TestCase):
         result = ToNumpyd(keys="img")({"img": test_data})["img"]
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data.numpy())
+        assert_allclose(result, test_data)
+
+    @skip_if_no_cuda
+    def test_tensor_cuda_input(self):
+        test_data = torch.tensor([[1, 2], [3, 4]]).cuda()
+        test_data = test_data.rot90()
+        self.assertFalse(test_data.is_contiguous())
+        result = ToNumpyd(keys="img")({"img": test_data})["img"]
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
+        assert_allclose(result, test_data)
 
 
 if __name__ == "__main__":
