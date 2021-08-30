@@ -25,27 +25,28 @@ def moveaxis(x: NdarrayOrTensor, src: int, dst: int) -> NdarrayOrTensor:
     if isinstance(x, torch.Tensor):
         if hasattr(torch, "moveaxis"):
             return torch.moveaxis(x, src, dst)
-        # moveaxis only available in pytorch as of 1.8.0
-        else:
-            # get original indices
-            indices = list(range(x.ndim))
-            # make src and dst positive
-            if src < 0:
-                src = len(indices) + src
-            if dst < 0:
-                dst = len(indices) + dst
-            # remove desired index and insert it in new position
-            indices.pop(src)
-            indices.insert(dst, src)
-            return x.permute(indices)
-    elif isinstance(x, np.ndarray):
+        return _moveaxis_with_permute(x, src, dst)  # type: ignore
+    if isinstance(x, np.ndarray):
         return np.moveaxis(x, src, dst)
     raise RuntimeError()
+
+
+def _moveaxis_with_permute(x, src, dst):
+    # get original indices
+    indices = list(range(x.ndim))
+    # make src and dst positive
+    if src < 0:
+        src = len(indices) + src
+    if dst < 0:
+        dst = len(indices) + dst
+    # remove desired index and insert it in new position
+    indices.pop(src)
+    indices.insert(dst, src)
+    return x.permute(indices)
 
 
 def in1d(x, y):
     """`np.in1d` with equivalent implementation for torch."""
     if isinstance(x, np.ndarray):
         return np.in1d(x, y)
-    else:
-        return (x[..., None] == torch.tensor(y, device=x.device)).any(-1).view(-1)
+    return (x[..., None] == torch.tensor(y, device=x.device)).any(-1).view(-1)

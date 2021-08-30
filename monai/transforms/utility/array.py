@@ -739,8 +739,7 @@ class LabelToMask(Transform):
             if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
                 return data.any(0)[None]
             # pre pytorch 1.8.0 compatibility
-            else:
-                return data.to(torch.uint8).any(0)[None].to(bool)  # type: ignore
+            return data.to(torch.uint8).any(0)[None].to(bool)  # type: ignore
 
         return data
 
