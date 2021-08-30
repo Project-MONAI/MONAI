@@ -39,8 +39,6 @@ __all__ = [
     "get_seed",
     "set_determinism",
     "list_to_dict",
-    "dtype_torch_to_numpy",
-    "dtype_numpy_to_torch",
     "MAX_SEED",
     "copy_to_device",
     "ImageMetaKey",
@@ -125,6 +123,10 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
         ValueError: Sequence must have length 3, got length 2.
 
     """
+    if isinstance(tup, torch.Tensor):
+        tup = tup.detach().cpu().numpy()
+    if isinstance(tup, np.ndarray):
+        tup = tup.tolist()
     if not issequenceiterable(tup):
         return (tup,) * dim
     if len(tup) == dim:
@@ -297,32 +299,6 @@ def list_to_dict(items):
                 except ValueError:
                     d[key] = value
     return d
-
-
-_torch_to_np_dtype = {
-    torch.bool: bool,
-    torch.uint8: np.uint8,
-    torch.int8: np.int8,
-    torch.int16: np.int16,
-    torch.int32: np.int32,
-    torch.int64: np.int64,
-    torch.float16: np.float16,
-    torch.float32: np.float32,
-    torch.float64: np.float64,
-    torch.complex64: np.complex64,
-    torch.complex128: np.complex128,
-}
-_np_to_torch_dtype = {value: key for key, value in _torch_to_np_dtype.items()}
-
-
-def dtype_torch_to_numpy(dtype):
-    """Convert a torch dtype to its numpy equivalent."""
-    return _torch_to_np_dtype[dtype]
-
-
-def dtype_numpy_to_torch(dtype):
-    """Convert a numpy dtype to its torch equivalent."""
-    return _np_to_torch_dtype[dtype]
 
 
 def copy_to_device(

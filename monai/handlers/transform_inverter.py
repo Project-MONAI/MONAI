@@ -87,9 +87,6 @@ class TransformInverter:
                 each matches to the `output_keys` data.
             post_func: post processing for the inverted data, should be a callable function.
                 it also can be a list of callable, each matches to the `output_keys` data.
-            num_workers: number of workers when run data loader for inverse transforms,
-                default to 0 as only run one iteration and multi-processing may be even slower.
-                Set to `None`, to use the `num_workers` of the input transform data loader.
 
         """
         self.inverter = Invertd(
@@ -103,7 +100,6 @@ class TransformInverter:
             to_tensor=to_tensor,
             device=device,
             post_func=post_func,
-            num_workers=num_workers,
         )
         self.output_keys = ensure_tuple(output_keys)
         self.meta_keys = ensure_tuple_rep(None, len(self.output_keys)) if meta_keys is None else ensure_tuple(meta_keys)

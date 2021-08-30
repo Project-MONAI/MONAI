@@ -95,7 +95,6 @@ class TestTransformInverter(unittest.TestCase):
             nearest_interp=True,
             to_tensor=[True, False],
             device="cpu",
-            num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
         ).attach(engine)
 
         # test different nearest interpolation values
@@ -108,7 +107,6 @@ class TestTransformInverter(unittest.TestCase):
             meta_key_postfix="meta_dict",
             nearest_interp=[True, False],
             post_func=[lambda x: x + 10, lambda x: x],
-            num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
         ).attach(engine)
 
         engine.run(loader, max_epochs=1)

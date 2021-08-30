@@ -87,7 +87,6 @@ class CSVSaver:
         """
         save_key = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
-        data_: np.ndarray
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
         self._cache_dict[save_key] = np.asarray(data, dtype=float)

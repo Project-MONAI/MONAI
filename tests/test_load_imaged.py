@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import itk
 import nibabel as nib
@@ -52,7 +53,7 @@ class TestLoadImaged(unittest.TestCase):
 
             loader = LoadImaged(keys="img")
             loader.register(ITKReader())
-            result = loader({"img": filename})
+            result = loader({"img": Path(filename)})
             self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), spatial_size[::-1])
             self.assertTupleEqual(result["img"].shape, spatial_size[::-1])
 
@@ -68,6 +69,12 @@ class TestLoadImaged(unittest.TestCase):
             result = EnsureChannelFirstD("img")(loader({"img": filename}))
             self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), (32, 64, 128))
             self.assertTupleEqual(result["img"].shape, (3, 32, 64, 128))
+
+    def test_no_file(self):
+        with self.assertRaises(RuntimeError):
+            LoadImaged(keys="img")({"img": "unknown"})
+        with self.assertRaises(RuntimeError):
+            LoadImaged(keys="img", reader="nibabelreader")({"img": "unknown"})
 
 
 class TestConsistency(unittest.TestCase):
