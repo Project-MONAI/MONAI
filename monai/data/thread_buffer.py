@@ -37,7 +37,7 @@ class ThreadBuffer:
         self.src = src
         self.buffer_size = buffer_size
         self.timeout = timeout
-        self.buffer = Queue(self.buffer_size)
+        self.buffer: Queue = Queue(self.buffer_size)
         self.gen_thread = None
         self.is_running = False
 
