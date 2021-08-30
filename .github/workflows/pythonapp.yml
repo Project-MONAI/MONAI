@@ -202,6 +202,9 @@ jobs:
 
   packaging:
     runs-on: ubuntu-latest
+    env:
+      QUICKTEST: True
+      shell: bash
     steps:
     - uses: actions/checkout@v2
       with:
@@ -229,7 +232,7 @@ jobs:
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
         python -m pip install torch>=1.5 torchvision
-    - name: Test source archive and wheel file
+    - name: Check packages
       run: |
         pip uninstall monai
         pip list | grep -iv monai
@@ -242,28 +245,32 @@ jobs:
         python setup.py check -m -s
         python setup.py sdist bdist_wheel
         python -m twine check dist/*
-
+    - name: Move packages
+      run: |
         # move packages to a temp dir
         tmp_dir=$(mktemp -d)
         cp dist/monai* "$tmp_dir"
         rm -r build dist monai.egg-info
         cd "$tmp_dir"
         ls -al
-
+    - name: Install wheel file
+      run: |
         # install from wheel
         python -m pip install monai*.whl
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
         python -m pip uninstall -y monai
         rm monai*.whl
-
+    - name: Install source archive
+      run: |
         # install from tar.gz
         name=$(ls *.tar.gz | head -n1)
         echo $name
         python -m pip install $name[all]
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
-
+    - name: Quick test
+      run: |
         # run min tests
         cp $root_dir/requirements*.txt "$tmp_dir"
         cp -r $root_dir/tests "$tmp_dir"
@@ -271,9 +278,6 @@ jobs:
         ls -al
         python -m pip install -r requirements-dev.txt
         python -m unittest -v
-      env:
-        QUICKTEST: True
-        shell: bash
 
   build-docs:
     runs-on: ubuntu-latest
