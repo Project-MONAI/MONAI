@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - releasing/*
+      - testing-2108
   pull_request:
 
 concurrency:
