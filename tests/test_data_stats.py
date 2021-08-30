@@ -117,7 +117,7 @@ TEST_CASE_7 = [
         "additional_info": lambda x: torch.mean(x.float()),
         "logger_handler": None,
     },
-    torch.tensor([[0, 1], [1, 2]]),
+    torch.tensor([[0, 1], [1, 2]]).to("cuda" if torch.cuda.is_available() else "cpu"),
     (
         "test data statistics:\nType: <class 'torch.Tensor'>\nShape: torch.Size([2, 2])\nValue range: (0, 2)\n"
         "Value: tensor([[0, 1],\n        [1, 2]])\nAdditional info: 1.0"

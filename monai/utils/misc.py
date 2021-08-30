@@ -22,7 +22,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.utils.module import get_torch_version_tuple
+from monai.utils.module import get_torch_version_tuple, version_leq
 
 __all__ = [
     "zip_with",
@@ -42,6 +42,7 @@ __all__ = [
     "MAX_SEED",
     "copy_to_device",
     "ImageMetaKey",
+    "is_module_ver_at_least",
 ]
 
 _seed = None
@@ -355,3 +356,16 @@ def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
         return False
     sig = inspect.signature(obj)
     return all(key in sig.parameters for key in ensure_tuple(keywords))
+
+
+def is_module_ver_at_least(module, version):
+    """Determine if a module's version is at least equal to the given value.
+
+    Args:
+        module: imported module's name, e.g., `np` or `torch`.
+        version: required version, given as a tuple, e.g., `(1, 8, 0)`.
+    Returns:
+        `True` if module is the given version or newer.
+    """
+    test_ver = ".".join(map(str, version))
+    return module.__version__ != test_ver and version_leq(test_ver, module.__version__)
