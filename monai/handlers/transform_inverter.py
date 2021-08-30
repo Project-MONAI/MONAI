@@ -36,6 +36,9 @@ class TransformInverter:
     And the inverted meta dict will be stored in `engine.state.batch`
     with key: "{meta_keys}" or "{key}_{meta_key_postfix}".
 
+    .. deprecated:: 0.6.0
+        Use :class:`monai.transforms.Invertd` instead.
+
     """
 
     def __init__(

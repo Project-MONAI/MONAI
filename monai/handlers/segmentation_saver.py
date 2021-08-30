@@ -37,6 +37,9 @@ class SegmentationSaver:
     use index from 0 as the filename prefix.
     The predictions can be PyTorch Tensor with [B, C, H, W, [D]] shape or a list of Tensor without batch dim.
 
+    .. deprecated:: 0.6.0
+        Use :class:`monai.transforms.SaveImage` or `monai.transforms.SaveImaged` instead.
+
     """
 
     def __init__(
