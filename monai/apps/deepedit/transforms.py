@@ -6,10 +6,10 @@ import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms.transform import MapTransform, Randomizable, Transform
+from monai.utils import optional_import
 
 logger = logging.getLogger(__name__)
 
-from monai.utils import optional_import
 
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
 
