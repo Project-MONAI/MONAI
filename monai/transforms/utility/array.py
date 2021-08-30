@@ -731,7 +731,9 @@ class LabelToMask(Transform):
                 data = where(in1d(img, select_labels), True, False).reshape(img.shape)
             # pre pytorch 1.8.0, need to use 1/0 instead of True/False
             else:
-                data = where(in1d(img, select_labels), 1, 0).reshape(img.shape)
+                data = where(
+                    in1d(img, select_labels), torch.tensor(1, device=img.device), torch.tensor(0, device=img.device)
+                ).reshape(img.shape)
 
         if merge_channels or self.merge_channels:
             if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
