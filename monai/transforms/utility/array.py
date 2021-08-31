@@ -1075,6 +1075,12 @@ class ToDevice(Transform):
     Move PyTorch Tensor to the specified device.
     It can help cache data into GPU and execute following logic on GPU directly.
 
+    Note:
+        If moving data to GPU device in the multi-processing workers of DataLoader, may got below CUDA error:
+        "RuntimeError: Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing,
+        you must use the 'spawn' start method."
+        So usually suggest to set `num_workers=0` in the `DataLoader` or `ThreadDataLoader`.
+
     """
 
     def __init__(self, device: Union[torch.device, str], **kwargs) -> None:
