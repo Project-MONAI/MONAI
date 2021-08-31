@@ -235,8 +235,7 @@ def set_determinism(
     if seed is None:
         # cast to 32 bit seed for CUDA
         seed_ = torch.default_generator.seed() % (np.iinfo(np.int32).max + 1)
-        if not torch.cuda._is_in_bad_fork():
-            torch.cuda.manual_seed_all(seed_)
+        torch.manual_seed(seed_)
     else:
         seed = int(seed) % MAX_SEED
         torch.manual_seed(seed)
