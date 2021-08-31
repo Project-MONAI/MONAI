@@ -17,7 +17,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
-from monai.apps.pathology.datasets import MaskedInferenceWSIDataset
+from monai.apps.pathology.data import MaskedInferenceWSIDataset
 from monai.apps.utils import download_url
 from monai.utils import optional_import
 from tests.utils import skip_if_quick

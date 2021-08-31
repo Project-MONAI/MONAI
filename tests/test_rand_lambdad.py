@@ -42,6 +42,15 @@ class TestRandLambdad(unittest.TestCase):
         ret = RandLambdad(keys=["img", "prop"], func=test_func, overwrite=[True, False])(data)
         np.testing.assert_allclose(expected["img"], ret["img"])
         np.testing.assert_allclose(expected["prop"], ret["prop"])
+        ret = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.0)(data)
+        np.testing.assert_allclose(data["img"], ret["img"])
+        np.testing.assert_allclose(data["prop"], ret["prop"])
+
+        trans = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.5)
+        trans.set_random_state(seed=123)
+        ret = trans(data)
+        np.testing.assert_allclose(data["img"], ret["img"])
+        np.testing.assert_allclose(data["prop"], ret["prop"])
 
 
 if __name__ == "__main__":

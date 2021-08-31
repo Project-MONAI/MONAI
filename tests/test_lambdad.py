@@ -11,37 +11,36 @@
 
 import unittest
 
-import numpy as np
-
 from monai.transforms.utility.dictionary import Lambdad
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestLambdad(NumpyImageTestCase2D):
     def test_lambdad_identity(self):
-        img = self.imt
-        data = {"img": img, "prop": 1.0}
+        for p in TEST_NDARRAYS:
+            img = p(self.imt)
+            data = {"img": img, "prop": 1.0}
 
-        def noise_func(x):
-            return x + 1.0
+            def noise_func(x):
+                return x + 1.0
 
-        expected = {"img": noise_func(data["img"]), "prop": 1.0}
-        ret = Lambdad(keys=["img", "prop"], func=noise_func, overwrite=[True, False])(data)
-        self.assertTrue(np.allclose(expected["img"], ret["img"]))
-        self.assertTrue(np.allclose(expected["prop"], ret["prop"]))
+            expected = {"img": noise_func(data["img"]), "prop": 1.0}
+            ret = Lambdad(keys=["img", "prop"], func=noise_func, overwrite=[True, False])(data)
+            assert_allclose(expected["img"], ret["img"])
+            assert_allclose(expected["prop"], ret["prop"])
 
     def test_lambdad_slicing(self):
-        img = self.imt
-        data = {}
-        data["img"] = img
+        for p in TEST_NDARRAYS:
+            img = p(self.imt)
+            data = {"img": img}
 
-        def slice_func(x):
-            return x[:, :, :6, ::-2]
+            def slice_func(x):
+                return x[:, :, :6, ::2]
 
-        lambd = Lambdad(keys=data.keys(), func=slice_func)
-        expected = {}
-        expected["img"] = slice_func(data["img"])
-        self.assertTrue(np.allclose(expected["img"], lambd(data)["img"]))
+            lambd = Lambdad(keys=data.keys(), func=slice_func)
+            expected = {}
+            expected["img"] = slice_func(data["img"])
+            assert_allclose(expected["img"], lambd(data)["img"])
 
 
 if __name__ == "__main__":

@@ -12,34 +12,32 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import SqueezeDim
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [{"dim": None}, np.random.rand(1, 2, 1, 3), (2, 3)]
+TESTS, TESTS_FAIL = [], []
+for p in TEST_NDARRAYS:
+    TESTS.append([{"dim": None}, p(np.random.rand(1, 2, 1, 3)), (2, 3)])
+    TESTS.append([{"dim": 2}, p(np.random.rand(1, 2, 1, 8, 16)), (1, 2, 8, 16)])
+    TESTS.append([{"dim": -1}, p(np.random.rand(1, 1, 16, 8, 1)), (1, 1, 16, 8)])
+    TESTS.append([{}, p(np.random.rand(1, 2, 1, 3)), (2, 1, 3)])
 
-TEST_CASE_2 = [{"dim": 2}, np.random.rand(1, 2, 1, 8, 16), (1, 2, 8, 16)]
-
-TEST_CASE_3 = [{"dim": -1}, np.random.rand(1, 1, 16, 8, 1), (1, 1, 16, 8)]
-
-TEST_CASE_4 = [{}, np.random.rand(1, 2, 1, 3), (2, 1, 3)]
-
-TEST_CASE_4_PT = [{}, torch.rand(1, 2, 1, 3), (2, 1, 3)]
-
-TEST_CASE_5 = [ValueError, {"dim": -2}, np.random.rand(1, 1, 16, 8, 1)]
-
-TEST_CASE_6 = [TypeError, {"dim": 0.5}, np.random.rand(1, 1, 16, 8, 1)]
+    TESTS_FAIL.append([ValueError, {"dim": -2}, p(np.random.rand(1, 1, 16, 8, 1))])
+    TESTS_FAIL.append([TypeError, {"dim": 0.5}, p(np.random.rand(1, 1, 16, 8, 1))])
 
 
 class TestSqueezeDim(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_4_PT])
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, test_data, expected_shape):
+
         result = SqueezeDim(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand(TESTS_FAIL)
     def test_invalid_inputs(self, exception, input_param, test_data):
+
         with self.assertRaises(exception):
             SqueezeDim(**input_param)(test_data)
 

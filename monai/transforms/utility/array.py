@@ -17,22 +17,25 @@ import logging
 import sys
 import time
 import warnings
-from typing import Callable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.transform import Randomizable, Transform
+from monai.config import DtypeLike
+from monai.config.type_definitions import NdarrayOrTensor
+from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
-    convert_to_numpy,
-    convert_to_tensor,
     extreme_points_to_image,
     get_extreme_points,
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
+from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
+from monai.utils import convert_to_numpy, convert_to_tensor, ensure_tuple, look_up_option, min_version, optional_import
+from monai.utils.enums import TransformBackends
+from monai.utils.misc import is_module_ver_at_least
+from monai.utils.type_conversion import convert_data_type
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -58,6 +61,7 @@ __all__ = [
     "DataStats",
     "SimulateDelay",
     "Lambda",
+    "RandLambda",
     "LabelToMask",
     "FgBgToIndices",
     "ClassesToIndices",
@@ -65,22 +69,25 @@ __all__ = [
     "AddExtremePointsChannel",
     "TorchVision",
     "MapLabelValue",
+    "IntensityStats",
+    "ToDevice",
 ]
 
 
 class Identity(Transform):
     """
-    Convert the input to an np.ndarray, if input data is np.ndarray or subclasses, return unchanged data.
+    Do nothing to the data.
     As the output value is same as input, it can be used as a testing tool to verify the transform chain,
     Compose or transform adaptor, etc.
-
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return np.asanyarray(img)
+        return img
 
 
 class AsChannelFirst(Transform):
@@ -99,16 +106,18 @@ class AsChannelFirst(Transform):
         channel_dim: which dimension of input image is the channel, default is the last dimension.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, channel_dim: int = -1) -> None:
         if not (isinstance(channel_dim, int) and channel_dim >= -1):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return np.moveaxis(img, self.channel_dim, 0)
+        return moveaxis(img, self.channel_dim, 0)
 
 
 class AsChannelLast(Transform):
@@ -126,16 +135,18 @@ class AsChannelLast(Transform):
         channel_dim: which dimension of input image is the channel, default is the first dimension.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, channel_dim: int = 0) -> None:
         if not (isinstance(channel_dim, int) and channel_dim >= -1):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return np.moveaxis(img, self.channel_dim, -1)
+        return moveaxis(img, self.channel_dim, -1)
 
 
 class AddChannel(Transform):
@@ -152,7 +163,9 @@ class AddChannel(Transform):
     transforms.
     """
 
-    def __call__(self, img: NdarrayTensor):
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -167,6 +180,8 @@ class EnsureChannelFirst(Transform):
     Convert the data to `channel_first` based on the `original_channel_dim` information.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, strict_check: bool = True):
         """
         Args:
@@ -174,7 +189,7 @@ class EnsureChannelFirst(Transform):
         """
         self.strict_check = strict_check
 
-    def __call__(self, img: np.ndarray, meta_dict: Optional[Mapping] = None):
+    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -208,16 +223,19 @@ class RepeatChannel(Transform):
         repeats: the number of repetitions for each element.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
             raise AssertionError("repeats count must be greater than 0.")
         self.repeats = repeats
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        return np.repeat(img, self.repeats, 0)
+        repeeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
+        return repeeat_fn(img, self.repeats, 0)  # type: ignore
 
 
 class RemoveRepeatedChannel(Transform):
@@ -230,20 +248,22 @@ class RemoveRepeatedChannel(Transform):
         repeats: the number of repetitions to be deleted for each element.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
             raise AssertionError("repeats count must be greater than 0.")
 
         self.repeats = repeats
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        if np.shape(img)[0] < 2:
+        if img.shape[0] < 2:
             raise AssertionError("Image must have more than one channel")
 
-        return np.array(img[:: self.repeats, :])
+        return img[:: self.repeats, :]
 
 
 class SplitChannel(Transform):
@@ -256,10 +276,12 @@ class SplitChannel(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, channel_dim: int = 0) -> None:
         self.channel_dim = channel_dim
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> List[Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
         n_classes = img.shape[self.channel_dim]
         if n_classes <= 1:
             raise RuntimeError("input image does not contain multiple channels.")
@@ -279,6 +301,8 @@ class CastToType(Transform):
     specified PyTorch data type.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, dtype=np.float32) -> None:
         """
         Args:
@@ -286,9 +310,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(
-        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[DtypeLike, torch.dtype]] = None
-    ) -> Union[np.ndarray, torch.Tensor]:
+    def __call__(self, img: NdarrayOrTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
 
@@ -299,11 +321,10 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        if isinstance(img, np.ndarray):
-            return img.astype(self.dtype if dtype is None else dtype)  # type: ignore
-        if isinstance(img, torch.Tensor):
-            return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
-        raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
+        if not isinstance(img, (torch.Tensor, np.ndarray)):
+            raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
+        img_out, *_ = convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)
+        return img_out
 
 
 class ToTensor(Transform):
@@ -311,18 +332,13 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img) -> torch.Tensor:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, torch.Tensor):
-            return img.contiguous()
-        if issequenceiterable(img):
-            # numpy array with 0 dims is also sequence iterable
-            if not (isinstance(img, np.ndarray) and img.ndim == 0):
-                # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
-                img = np.ascontiguousarray(img)
-        return torch.as_tensor(img)
+        return convert_to_tensor(img, wrap_sequence=True)  # type: ignore
 
 
 class EnsureType(Transform):
@@ -337,6 +353,8 @@ class EnsureType(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, data_type: str = "tensor") -> None:
         data_type = data_type.lower()
         if data_type not in ("tensor", "numpy"):
@@ -344,7 +362,7 @@ class EnsureType(Transform):
 
         self.data_type = data_type
 
-    def __call__(self, data):
+    def __call__(self, data: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
@@ -353,7 +371,7 @@ class EnsureType(Transform):
                 if applicable.
 
         """
-        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)
+        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)  # type: ignore
 
 
 class ToNumpy(Transform):
@@ -361,17 +379,13 @@ class ToNumpy(Transform):
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img) -> np.ndarray:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()
-        elif has_cp and isinstance(img, cp_ndarray):
-            img = cp.asnumpy(img)
-
-        array: np.ndarray = np.asarray(img)
-        return np.ascontiguousarray(array) if array.ndim > 0 else array
+        return convert_to_numpy(img)  # type: ignore
 
 
 class ToCupy(Transform):
@@ -379,19 +393,23 @@ class ToCupy(Transform):
     Converts the input data to CuPy array, can support list or tuple of numbers, NumPy and PyTorch Tensor.
     """
 
-    def __call__(self, img):
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()
-        return cp.ascontiguousarray(cp.asarray(img))
+        return cp.ascontiguousarray(cp.asarray(img))  # type: ignore
 
 
 class ToPIL(Transform):
     """
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __call__(self, img):
         """
@@ -409,13 +427,17 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, indices: Optional[Sequence[int]]) -> None:
         self.indices = None if indices is None else tuple(indices)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
+        if isinstance(img, torch.Tensor):
+            return img.permute(self.indices or tuple(range(img.ndim)[::-1]))
         return img.transpose(self.indices)  # type: ignore
 
 
@@ -423,6 +445,8 @@ class SqueezeDim(Transform):
     """
     Squeeze a unitary dimension.
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, dim: Optional[int] = 0) -> None:
         """
@@ -438,12 +462,17 @@ class SqueezeDim(Transform):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: numpy arrays with required dimension `dim` removed
         """
-        return img.squeeze(self.dim)  # type: ignore
+        if self.dim is None:
+            return img.squeeze()
+        # for pytorch/numpy unification
+        if img.shape[self.dim] != 1:
+            raise ValueError("Can only squeeze singleton dimension")
+        return img.squeeze(self.dim)
 
 
 class DataStats(Transform):
@@ -453,6 +482,8 @@ class DataStats(Transform):
     It support both `numpy.ndarray` and `torch.tensor` as input data,
     so it can be used in pre-processing and post-processing.
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -502,14 +533,14 @@ class DataStats(Transform):
 
     def __call__(
         self,
-        img: NdarrayTensor,
+        img: NdarrayOrTensor,
         prefix: Optional[str] = None,
         data_type: Optional[bool] = None,
         data_shape: Optional[bool] = None,
         value_range: Optional[bool] = None,
         data_value: Optional[bool] = None,
         additional_info: Optional[Callable] = None,
-    ) -> NdarrayTensor:
+    ) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, optionally take arguments similar to the class constructor.
         """
@@ -549,6 +580,8 @@ class SimulateDelay(Transform):
     to sub-optimal design choices.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, delay_time: float = 0.0) -> None:
         """
         Args:
@@ -558,7 +591,7 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img: NdarrayTensor, delay_time: Optional[float] = None) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor, delay_time: Optional[float] = None) -> NdarrayOrTensor:
         """
         Args:
             img: data remain unchanged throughout this transform.
@@ -591,12 +624,14 @@ class Lambda(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, func: Optional[Callable] = None) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
+    def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
         """
         Apply `self.func` to `img`.
 
@@ -615,6 +650,29 @@ class Lambda(Transform):
         if self.func is not None:
             return self.func(img)
         raise ValueError("Incompatible values: func=None and self.func=None.")
+
+
+class RandLambda(Lambda, RandomizableTransform):
+    """
+    Randomizable version :py:class:`monai.transforms.Lambda`, the input `func` may contain random logic,
+    or randomly execute the function based on `prob`.
+
+    Args:
+        func: Lambda/function to be applied.
+        prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
+
+    For more details, please check :py:class:`monai.transforms.Lambda`.
+    """
+
+    backend = Lambda.backend
+
+    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0) -> None:
+        Lambda.__init__(self=self, func=func)
+        RandomizableTransform.__init__(self=self, prob=prob)
+
+    def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
+        self.randomize(img)
+        return super().__call__(img=img, func=func) if self._do_transform else img
 
 
 class LabelToMask(Transform):
@@ -636,6 +694,8 @@ class LabelToMask(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(  # pytype: disable=annotation-type-mismatch
         self,
         select_labels: Union[Sequence[int], int],
@@ -645,8 +705,11 @@ class LabelToMask(Transform):
         self.merge_channels = merge_channels
 
     def __call__(
-        self, img: np.ndarray, select_labels: Optional[Union[Sequence[int], int]] = None, merge_channels: bool = False
-    ):
+        self,
+        img: NdarrayOrTensor,
+        select_labels: Optional[Union[Sequence[int], int]] = None,
+        merge_channels: bool = False,
+    ) -> NdarrayOrTensor:
         """
         Args:
             select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
@@ -663,26 +726,40 @@ class LabelToMask(Transform):
         if img.shape[0] > 1:
             data = img[[*select_labels]]
         else:
-            data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
+            where = np.where if isinstance(img, np.ndarray) else torch.where
+            if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
+                data = where(in1d(img, select_labels), True, False).reshape(img.shape)
+            # pre pytorch 1.8.0, need to use 1/0 instead of True/False
+            else:
+                data = where(
+                    in1d(img, select_labels), torch.tensor(1, device=img.device), torch.tensor(0, device=img.device)
+                ).reshape(img.shape)
 
-        return np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
+        if merge_channels or self.merge_channels:
+            if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
+                return data.any(0)[None]
+            # pre pytorch 1.8.0 compatibility
+            return data.to(torch.uint8).any(0)[None].to(bool)  # type: ignore
+
+        return data
 
 
 class FgBgToIndices(Transform):
+    """
+    Compute foreground and background of the input label data, return the indices.
+    If no output_shape specified, output data will be 1 dim indices after flattening.
+    This transform can help pre-compute foreground and background regions for other transforms.
+    A typical usage is to randomly select foreground and background to crop.
+    The main logic is based on :py:class:`monai.transforms.utils.map_binary_to_indices`.
+
+    Args:
+        image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
+            determine the valid image content area and select background only in this area.
+        output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+
+    """
+
     def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
-        """
-        Compute foreground and background of the input label data, return the indices.
-        If no output_shape specified, output data will be 1 dim indices after flattening.
-        This transform can help pre-compute foreground and background regions for other transforms.
-        A typical usage is to randomly select foreground and background to crop.
-        The main logic is based on :py:class:`monai.transforms.utils.map_binary_to_indices`.
-
-        Args:
-            image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
-                determine the valid image content area and select background only in this area.
-            output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
-
-        """
         self.image_threshold = image_threshold
         self.output_shape = output_shape
 
@@ -915,3 +992,110 @@ class MapLabelValue:
             np.place(out_flat, img_flat == o, t)
 
         return out_flat.reshape(img.shape)
+
+
+class IntensityStats(Transform):
+    """
+    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
+    `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
+
+    Args:
+        ops: expected operations to compute statistics for the intensity.
+            if a string, will map to the predefined operations, supported: ["mean", "median", "max", "min", "std"]
+            mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
+            if a callable function, will execute the function on input image.
+        key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
+            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            as the key, where index counts from 0.
+        channel_wise: whether to compute statistics for every channel of input image separately.
+            if True, return a list of values for every operation, default to False.
+
+    """
+
+    def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
+        self.ops = ensure_tuple(ops)
+        self.key_prefix = key_prefix
+        self.channel_wise = channel_wise
+
+    def __call__(
+        self,
+        img: np.ndarray,
+        meta_data: Optional[Dict] = None,
+        mask: Optional[np.ndarray] = None,
+    ) -> Tuple[np.ndarray, Dict]:
+        """
+        Compute statistics for the intensity of input image.
+
+        Args:
+            img: input image to compute intensity stats.
+            meta_data: meta data dictionary to store the statistics data, if None, will create an empty dictionary.
+            mask: if not None, mask the image to extract only the interested area to compute statistics.
+                mask must have the same shape as input `img`.
+
+        """
+        if meta_data is None:
+            meta_data = {}
+
+        img_: np.ndarray = img
+        if mask is not None:
+            if mask.shape != img.shape or mask.dtype != bool:
+                raise TypeError("mask must be bool array with the same shape as input `img`.")
+            img_ = img[mask]
+
+        supported_ops = {
+            "mean": lambda x: np.nanmean(x),
+            "median": lambda x: np.nanmedian(x),
+            "max": lambda x: np.nanmax(x),
+            "min": lambda x: np.nanmin(x),
+            "std": lambda x: np.nanstd(x),
+        }
+
+        def _compute(op: Callable, data: np.ndarray):
+            if self.channel_wise:
+                return [op(c) for c in data]
+            return op(data)
+
+        custom_index = 0
+        for o in self.ops:
+            if isinstance(o, str):
+                o = look_up_option(o, supported_ops.keys())
+                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)
+            elif callable(o):
+                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
+                custom_index += 1
+            else:
+                raise ValueError("ops must be key string for predefined operations or callable function.")
+
+        return img, meta_data
+
+
+class ToDevice(Transform):
+    """
+    Move PyTorch Tensor to the specified device.
+    It can help cache data into GPU and execute following logic on GPU directly.
+
+    Note:
+        If moving data to GPU device in the multi-processing workers of DataLoader, may got below CUDA error:
+        "RuntimeError: Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing,
+        you must use the 'spawn' start method."
+        So usually suggest to set `num_workers=0` in the `DataLoader` or `ThreadDataLoader`.
+
+    """
+
+    def __init__(self, device: Union[torch.device, str], **kwargs) -> None:
+        """
+        Args:
+            device: target device to move the Tensor, for example: "cuda:1".
+            kwargs: other args for the PyTorch `Tensor.to()` API, for more details:
+                https://pytorch.org/docs/stable/generated/torch.Tensor.to.html.
+
+        """
+        self.device = device
+        self.kwargs = kwargs
+
+    def __call__(self, img: torch.Tensor):
+        if not isinstance(img, torch.Tensor):
+            raise ValueError("img must be PyTorch Tensor, consider converting img by `EnsureType` transform first.")
+
+        return img.to(self.device, **self.kwargs)

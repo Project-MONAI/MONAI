@@ -13,7 +13,11 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+import inspect
+import logging
 import sys
+import warnings
+from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
@@ -32,7 +36,14 @@ from monai.utils.module import look_up_option
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
 
-__all__ = ["LoadImage", "SaveImage"]
+__all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
+
+SUPPORTED_READERS = {
+    "itkreader": ITKReader,
+    "numpyreader": NumpyReader,
+    "pilreader": PILReader,
+    "nibabelreader": NibabelReader,
+}
 
 
 def switch_endianness(data, new="<"):
@@ -45,7 +56,7 @@ def switch_endianness(data, new="<"):
     """
     if isinstance(data, np.ndarray):
         # default to system endian
-        sys_native = ((sys.byteorder == "little") and "<") or ">"
+        sys_native = "<" if (sys.byteorder == "little") else ">"
         current_ = sys_native if data.dtype.byteorder not in ("<", ">") else data.dtype.byteorder
         if new not in ("<", ">"):
             raise NotImplementedError(f"Not implemented option new={new}.")
@@ -57,87 +68,104 @@ def switch_endianness(data, new="<"):
         data = [switch_endianness(x, new) for x in data]
     elif isinstance(data, dict):
         data = {k: switch_endianness(v, new) for k, v in data.items()}
-    elif isinstance(data, (bool, str, float, int, type(None))):
-        pass
-    else:
-        raise AssertionError(f"Unknown type: {type(data).__name__}")
+    elif not isinstance(data, (bool, str, float, int, type(None))):
+        raise RuntimeError(f"Unknown type: {type(data).__name__}")
     return data
 
 
 class LoadImage(Transform):
     """
     Load image file or files from provided path based on reader.
-    Automatically choose readers based on the supported suffixes and in below order:
-    - User specified reader at runtime when call this loader.
-    - Registered readers from the latest to the first in list.
-    - Default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
-    (npz, npy -> NumpyReader), (others -> ITKReader).
+    If reader is not specified, this class automatically chooses readers
+    based on the supported suffixes and in the following order:
+
+        - User-specified reader at runtime when calling this loader.
+        - User-specified reader in the constructor of `LoadImage`.
+        - Readers from the last to the first in the registered list.
+        - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
+          (npz, npy -> NumpyReader), (others -> ITKReader).
+
+    See also:
+
+        - tutorial: https://github.com/Project-MONAI/tutorials/blob/master/modules/load_medical_images.ipynb
 
     """
 
-    def __init__(
-        self,
-        reader: Optional[Union[ImageReader, str]] = None,
-        image_only: bool = False,
-        dtype: DtypeLike = np.float32,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, reader=None, image_only: bool = False, dtype: DtypeLike = np.float32, *args, **kwargs) -> None:
         """
         Args:
-            reader: register reader to load image file and meta data, if None, still can register readers
-                at runtime or use the default readers. If a string of reader name provided, will construct
-                a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
-                "PILReader", "ITKReader", "NumpyReader".
+            reader: reader to load image file and meta data
+
+                - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
+                - if `reader` is a string, the corresponding item in `SUPPORTED_READERS` will be used,
+                  and a reader instance will be constructed with the `*args` and `**kwargs` parameters.
+                  the supported reader names are: "nibabelreader", "pilreader", "itkreader", "numpyreader".
+                - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
+
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
         Note:
-            The transform returns image data array if `image_only` is True,
-            or a tuple of two elements containing the data array, and the meta data in a dict format otherwise.
+
+            - The transform returns an image data array if `image_only` is True,
+              or a tuple of two elements containing the data array, and the meta data in a dictionary format otherwise.
+            - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
+              readers. This might introduce overheads when handling the exceptions of trying the incompatible loaders.
+              In this case, it is therefore recommended to set the most appropriate reader as
+              the last item of the `reader` parameter.
 
         """
-        # set predefined readers as default
-        self.readers: List[ImageReader] = [ITKReader(), NumpyReader(), PILReader(), NibabelReader()]
-        if reader is not None:
-            if isinstance(reader, str):
-                supported_readers = {
-                    "nibabelreader": NibabelReader,
-                    "pilreader": PILReader,
-                    "itkreader": ITKReader,
-                    "numpyreader": NumpyReader,
-                }
-                the_reader = look_up_option(reader.lower(), supported_readers)
-                self.register(the_reader(*args, **kwargs))
-            else:
-                self.register(reader)
 
+        self.auto_select = reader is None
         self.image_only = image_only
         self.dtype = dtype
 
-    def register(self, reader: ImageReader) -> List[ImageReader]:
+        self.readers: List[ImageReader] = []
+        for r in SUPPORTED_READERS:  # set predefined readers as default
+            try:
+                self.register(SUPPORTED_READERS[r](*args, **kwargs))
+            except TypeError:  # the reader doesn't have the corresponding args/kwargs
+                logging.getLogger(self.__class__.__name__).debug(
+                    f"{r} is not supported with the given parameters {args} {kwargs}."
+                )
+                self.register(SUPPORTED_READERS[r]())
+        if reader is None:
+            return  # no user-specified reader, no need to register
+
+        for _r in ensure_tuple(reader):
+            if isinstance(_r, str):
+                the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
+                try:
+                    self.register(the_reader(*args, **kwargs))
+                except TypeError:  # the reader doesn't have the corresponding args/kwargs
+                    warnings.warn(f"{r} is not supported with the given parameters {args} {kwargs}.")
+                    self.register(the_reader())
+            elif inspect.isclass(_r):
+                self.register(_r(*args, **kwargs))
+            else:
+                self.register(_r)  # reader instance, ignoring the constructor args/kwargs
+        return
+
+    def register(self, reader: ImageReader):
         """
-        Register image reader to load image file and meta data, latest registered reader has higher priority.
-        Return all the registered image readers.
+        Register image reader to load image file and meta data.
 
         Args:
-            reader: registered reader to load image file and meta data based on suffix,
-                if all registered readers can't match suffix at runtime, use the default readers.
+            reader: reader instance to be registered with this loader.
 
         """
         if not isinstance(reader, ImageReader):
-            raise ValueError(f"reader must be ImageReader object, but got {type(reader)}.")
+            warnings.warn(f"Preferably the reader should inherit ImageReader, but got {type(reader)}.")
         self.readers.append(reader)
-        return self.readers
 
-    def __call__(
-        self,
-        filename: Union[Sequence[str], str],
-        reader: Optional[ImageReader] = None,
-    ):
+    def __call__(self, filename: Union[Sequence[str], str, Path, Sequence[Path]], reader: Optional[ImageReader] = None):
         """
+        Load image file and meta data from the given filename(s).
+        If `reader` is not specified, this class automatically chooses readers based on the
+        reversed order of registered readers `self.readers`.
+
         Args:
             filename: path file or file-like object or a list of files.
                 will save the filename to meta_data with key `filename_or_obj`.
@@ -145,21 +173,34 @@ class LoadImage(Transform):
             reader: runtime reader to load image file and meta data.
 
         """
-        if reader is None or not reader.verify_suffix(filename):
-            for r in reversed(self.readers):
-                if r.verify_suffix(filename):
-                    reader = r
-                    break
+        filename = tuple(str(s) for s in ensure_tuple(filename))  # allow Path objects
+        img = None
+        if reader is not None:
+            img = reader.read(filename)  # runtime specified reader
+        else:
+            for reader in self.readers[::-1]:
+                if self.auto_select:  # rely on the filename extension to choose the reader
+                    if reader.verify_suffix(filename):
+                        img = reader.read(filename)
+                        break
+                else:  # try the user designated readers
+                    try:
+                        img = reader.read(filename)
+                    except Exception as e:
+                        logging.getLogger(self.__class__.__name__).debug(
+                            f"{reader.__class__.__name__}: unable to load {filename}.\n" f"Error: {e}"
+                        )
+                    else:
+                        break
 
-        if reader is None:
+        if img is None or reader is None:
             raise RuntimeError(
-                f"can not find suitable reader for this file: {filename}. \
-                Please install dependency libraries: (nii, nii.gz) -> Nibabel, (png, jpg, bmp) -> PIL, \
-                (npz, npy) -> Numpy, others -> ITK. Refer to the installation instruction: \
-                https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies."
+                f"can not find a suitable reader for file: {filename}.\n"
+                "    Please install the reader libraries, see also the installation instructions:\n"
+                "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
+                f"   The current registered: {self.readers}.\n"
             )
 
-        img = reader.read(filename)
         img_array, meta_data = reader.get_data(img)
         img_array = img_array.astype(self.dtype)
 
@@ -241,7 +282,7 @@ class SaveImage(Transform):
 
     def __init__(
         self,
-        output_dir: str = "./",
+        output_dir: Union[Path, str] = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         resample: bool = True,
@@ -256,7 +297,7 @@ class SaveImage(Transform):
         print_log: bool = True,
     ) -> None:
         self.saver: Union[NiftiSaver, PNGSaver]
-        if output_ext in (".nii.gz", ".nii"):
+        if output_ext in {".nii.gz", ".nii"}:
             self.saver = NiftiSaver(
                 output_dir=output_dir,
                 output_postfix=output_postfix,

@@ -358,6 +358,11 @@ Nets
 .. autoclass:: EfficientNetBN
   :members:
 
+`EfficientNetBNFeatures`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: EfficientNetBNFeatures
+  :members:
+
 `SegResNet`
 ~~~~~~~~~~~
 .. autoclass:: SegResNet
