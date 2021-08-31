@@ -11,30 +11,30 @@
 
 import unittest
 
-import numpy as np
-
 from monai.transforms.utility.array import Lambda
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestLambda(NumpyImageTestCase2D):
     def test_lambda_identity(self):
-        img = self.imt
+        for p in TEST_NDARRAYS:
+            img = p(self.imt)
 
-        def identity_func(x):
-            return x
+            def identity_func(x):
+                return x
 
-        lambd = Lambda(func=identity_func)
-        self.assertTrue(np.allclose(identity_func(img), lambd(img)))
+            lambd = Lambda(func=identity_func)
+            assert_allclose(identity_func(img), lambd(img))
 
     def test_lambda_slicing(self):
-        img = self.imt
+        for p in TEST_NDARRAYS:
+            img = p(self.imt)
 
-        def slice_func(x):
-            return x[:, :, :6, ::-2]
+            def slice_func(x):
+                return x[:, :, :6, ::2]
 
-        lambd = Lambda(func=slice_func)
-        self.assertTrue(np.allclose(slice_func(img), lambd(img)))
+            lambd = Lambda(func=slice_func)
+            assert_allclose(slice_func(img), lambd(img))
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ cp, has_cp = optional_import("cupy")
 
 class TestToCupy(unittest.TestCase):
     @skipUnless(has_cp, "CuPy is required.")
-    def test_cumpy_input(self):
+    def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]])
         test_data = cp.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])

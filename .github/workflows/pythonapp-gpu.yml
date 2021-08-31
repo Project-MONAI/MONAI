@@ -23,7 +23,7 @@ jobs:
           - "PT17+CUDA102"
           - "PT17+CUDA110"
           - "PT18+CUDA102"
-          - "PT19+CUDA113"
+          - "PT19+CUDA114"
           - "PT19+CUDA102"
         include:
           - environment: PT16+CUDA110
@@ -40,10 +40,12 @@ jobs:
           - environment: PT18+CUDA102
             pytorch: "torch==1.8.1 torchvision==0.9.1"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          - environment: PT19+CUDA113
+          - environment: PT19+CUDA114
             # we explicitly set pytorch to -h to avoid pip install error
+            # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
+            # 21.08: 1.10.0a0+3fd9dcf
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.06-py3"
+            base: "nvcr.io/nvidia/pytorch:21.08-py3"
           - environment: PT19+CUDA102
             pytorch: "torch==1.9.0 torchvision==0.10.0"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
@@ -91,9 +93,9 @@ jobs:
         python get-pip.py && \
         rm get-pip.py;
         fi
-    - if: matrix.environment == 'PT19+CUDA113'
-      name: Optional Cupy dependency (cuda113)
-      run: echo "cupy-cuda113" >> requirements-dev.txt
+    - if: matrix.environment == 'PT19+CUDA114'
+      name: Optional Cupy dependency (cuda114)
+      run: echo "cupy-cuda114" >> requirements-dev.txt
     - name: Install dependencies
       run: |
         which python
