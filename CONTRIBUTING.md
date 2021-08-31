@@ -7,6 +7,7 @@
     1. [Automatic code formatting](#automatic-code-formatting)
     1. [Signing your work](#signing-your-work)
     1. [Utility functions](#utility-functions)
+    1. [Backwards compatibility](#backwards-compatibility)
   * [Submitting pull requests](#submitting-pull-requests)
 - [The code reviewing process (for the maintainers)](#the-code-reviewing-process)
   * [Reviewing pull requests](#reviewing-pull-requests)
@@ -228,6 +229,12 @@ for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.tr
 ``class Spacing`` defined in file `monai/transforms/spatial/array.py` is decorated with ``@export("monai.transforms")``.
 
 For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.
+
+#### Backwards compatibility
+MONAI is currently under active development, and with major version zero (following the [Semantic Versioning](https://semver.org/)).
+The backwards compatibility of the API is not always guaranteed at this initial development stage.
+However, utility functions are provided in the `monai.utils.deprecated` modules to help users migrate to the new API.
+The use of these functions is encouraged.
 
 
 ### Submitting pull requests
