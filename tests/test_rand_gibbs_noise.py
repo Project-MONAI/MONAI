@@ -19,6 +19,7 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandGibbsNoise
 from monai.utils.misc import set_determinism
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -27,6 +28,8 @@ for shape in ((128, 64), (64, 48, 80)):
             TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
 
 
+@SkipIfBeforePyTorchVersion((1, 8))
+@SkipIfNoModule("torch.fft")
 class TestRandGibbsNoise(unittest.TestCase):
     def setUp(self):
         set_determinism(0)

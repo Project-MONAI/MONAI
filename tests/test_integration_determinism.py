@@ -75,7 +75,7 @@ class TestDeterminism(DistTestCase):
     def tearDown(self):
         set_determinism(seed=None)
 
-    @TimedCall(seconds=30)
+    @TimedCall(seconds=150)
     def test_training(self):
         set_determinism(seed=0)
         loss, step = run_test(device=self.device)

@@ -68,6 +68,9 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     Note:
         The input data on different ranks must have exactly same `dtype`.
 
+    .. versionchanged:: 0.6.0
+        The API had been moved to `monai.utils`.
+
     """
     if not isinstance(data, torch.Tensor):
         raise ValueError("input data must be PyTorch Tensor.")
@@ -97,6 +100,9 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
 
     Args:
         strings: a list of strings to all gather.
+
+    .. versionchanged:: 0.6.0
+        The API had been moved to `monai.utils`.
 
     """
     world_size = idist.get_world_size()
@@ -259,7 +265,7 @@ def from_engine(keys: KeysCollection, first: bool = False):
     def _wrapper(data):
         if isinstance(data, dict):
             return tuple(data[k] for k in keys)
-        elif isinstance(data, list) and isinstance(data[0], dict):
+        if isinstance(data, list) and isinstance(data[0], dict):
             # if data is a list of dictionaries, extract expected keys and construct lists,
             # if `first=True`, only extract keys from the first item of the list
             ret = [data[0][k] if first else [i[k] for i in data] for k in keys]

@@ -40,10 +40,10 @@ class TransformerBlock(nn.Module):
         super().__init__()
 
         if not (0 <= dropout_rate <= 1):
-            raise AssertionError("dropout_rate should be between 0 and 1.")
+            raise ValueError("dropout_rate should be between 0 and 1.")
 
         if hidden_size % num_heads != 0:
-            raise AssertionError("hidden size should be divisible by num_heads.")
+            raise ValueError("hidden_size should be divisible by num_heads.")
 
         self.mlp = MLPBlock(hidden_size, mlp_dim, dropout_rate)
         self.norm1 = nn.LayerNorm(hidden_size)

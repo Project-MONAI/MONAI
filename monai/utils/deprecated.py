@@ -46,6 +46,10 @@ def deprecated(
     a `DeprecatedError` exception is instead raised if `removed` is given and the current version is at or later
     than that, or if neither `since` nor `removed` is provided.
 
+    The relevant docstring of the deprecating function should also be updated accordingly,
+    using the Sphinx directives such as `.. versionchanged:: version` and `.. deprecated:: version`.
+    https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-versionadded
+
     Args:
         since: version at which the definition was marked deprecated but not removed.
         removed: version at which the definition was removed and no longer usable.
@@ -100,9 +104,8 @@ def deprecated(
 
         if is_func:
             return _wrapper
-        else:
-            obj.__init__ = _wrapper
-            return obj
+        obj.__init__ = _wrapper
+        return obj
 
     return _decorator
 
@@ -122,6 +125,11 @@ def deprecated_arg(
     a `DeprecationWarning` is issued if `since` is given and the current version is at or later than that given.
     a `DeprecatedError` exception is instead raised if `removed` is given and the current version is at or later
     than that, or if neither `since` nor `removed` is provided.
+
+    The relevant docstring of the deprecating function should also be updated accordingly,
+    using the Sphinx directives such as `.. versionchanged:: version` and `.. deprecated:: version`.
+    https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-versionadded
+
 
     Args:
         name: name of position or keyword argument to mark as deprecated.

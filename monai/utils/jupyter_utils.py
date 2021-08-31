@@ -224,8 +224,7 @@ def _get_loss_from_output(output: Union[Dict[str, torch.Tensor], torch.Tensor]):
 
     if isinstance(output, list):
         return _get_loss(output[0])
-    else:
-        return _get_loss(output)
+    return _get_loss(output)
 
 
 class StatusMembers(Enum):
