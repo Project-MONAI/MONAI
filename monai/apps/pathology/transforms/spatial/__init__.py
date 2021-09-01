@@ -9,15 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .stain.array import ExtractHEStains, NormalizeHEStains
-from .stain.dictionary import (
-    ExtractHEStainsd,
-    ExtractHEStainsD,
-    ExtractHEStainsDict,
-    NormalizeHEStainsd,
-    NormalizeHEStainsD,
-    NormalizeHEStainsDict,
-)
-
-from .spatial.array import SplitOnGrid
-from .spatial.dictionary import SplitOnGrid, SplitOnGridD, SplitOnGridDict
+from .array import SplitOnGrid
+from .dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict
