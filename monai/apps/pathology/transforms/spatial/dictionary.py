@@ -9,15 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Hashable, Mapping, Optional, Tuple, Union
+from typing import Dict, Hashable, Mapping, Optional, Tuple, Union
+
+import torch
 
 from monai.config import KeysCollection
 from monai.transforms.transform import MapTransform
 
 from .array import SplitOnGrid
-
-if TYPE_CHECKING:
-    import torch
 
 __all__ = ["SplitOnGridd", "SplitOnGridD", "SplitOnGridDict"]
 

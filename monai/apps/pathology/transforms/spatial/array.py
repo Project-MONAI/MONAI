@@ -9,14 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
-from torch.nn import Module
+import torch
 
 from monai.transforms.transform import Transform
-
-if TYPE_CHECKING:
-    import torch
 
 __all__ = ["SplitOnGrid"]
 
