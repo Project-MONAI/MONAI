@@ -110,3 +110,11 @@ Clara MMARs
     :members:
 .. autoclass:: NormalizeHEStainsd
     :members:
+
+.. automodule:: monai.apps.pathology.transforms.spatial.array
+.. autoclass:: SplitOnGrid
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.spatial.dictionary
+.. autoclass:: SplitOnGridd
+    :members:
