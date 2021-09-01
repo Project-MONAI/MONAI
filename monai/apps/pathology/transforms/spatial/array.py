@@ -29,40 +29,53 @@ class SplitOnGrid(Transform):
         patch_size: a tuple or an integer that defines the output patch sizes.
             If it's an integer, the value will be repeated for each dimension.
             If None (default), the patch size will be infered from the grid shape.
+
+    Note: the shape of the input image is infered based on the first image used.
     """
 
     def __init__(
-        self,
-        grid_shape: Union[int, Tuple[int, int]] = (2, 2),
-        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
+        self, grid_size: Union[int, Tuple[int, int]] = (2, 2), patch_size: Optional[Union[int, Tuple[int, int]]] = None
     ):
-        if isinstance(grid_shape, int):
-            self.grid_shape = (grid_shape, grid_shape)
+        # Grid size
+        if isinstance(grid_size, int):
+            self.grid_size = (grid_size, grid_size)
         else:
-            self.grid_shape = grid_shape
-        self.patch_size = None
+            self.grid_size = grid_size
+        # Patch size
         if isinstance(patch_size, int):
             self.patch_size = (patch_size, patch_size)
+        elif patch_size is None:
+            self.patch_size = (0, 0)
         else:
             self.patch_size = patch_size
+        # Set steps to a default to be overriden
+        self.steps = (0, 0)
+        self.ready = False
+        # Set skip flags to bypass if the input and output should be the same.
+        self.skip = False
+        if self.grid_size == (1, 1) and self.patch_size == (0, 0):
+            self.skip = True
 
-    def __call__(self, region: torch.Tensor) -> torch.Tensor:
-        _, h, w = region.shape
-        if self.patch_size is None:
-            if self.grid_shape == (1, 1):
-                return region
-            else:
-                self.patch_size = (h // self.grid_shape[0], w // self.grid_shape[1])
-
-        h_stride = (h - self.patch_size[0]) // (self.grid_shape[0] - 1)
-        w_stride = (w - self.patch_size[1]) // (self.grid_shape[1] - 1)
-
+    def __call__(self, image: torch.Tensor) -> torch.Tensor:
+        if self.skip:
+            return torch.stack([image])
+        if not self.ready:
+            self.prepare_params(image.shape[1:])
         patches = (
-            region.unfold(1, self.patch_size[0], h_stride)
-            .unfold(2, self.patch_size[1], w_stride)
+            image.unfold(1, self.patch_size[0], self.steps[0])
+            .unfold(2, self.patch_size[1], self.steps[1])
             .flatten(1, 2)
             .transpose(0, 1)
             .contiguous()
         )
-
         return patches
+
+    def prepare_params(self, image_size):
+        if self.patch_size == (0, 0):
+            self.patch_size = tuple(image_size[i] // self.grid_size[i] for i in range(2))
+
+        self.steps = tuple(
+            (image_size[i] - self.patch_size[i]) // (self.grid_size[i] - 1) if self.grid_size[i] > 1 else image_size[i]
+            for i in range(2)
+        )
+        self.ready = True

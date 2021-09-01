@@ -32,17 +32,19 @@ class SplitOnGridd(MapTransform):
         patch_size: a tuple or an integer that defines the output patch sizes.
             If it's an integer, the value will be repeated for each dimension.
             If None (default), the patch size will be infered from the grid shape.
+
+    Note: the shape of the input image is infered based on the first image used.
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        grid_shape: Union[int, Tuple[int, int]] = (2, 2),
+        grid_size: Union[int, Tuple[int, int]] = (2, 2),
         patch_size: Optional[Union[int, Tuple[int, int]]] = None,
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
-        self.splitter = SplitOnGrid(grid_shape=grid_shape, patch_size=patch_size)
+        self.splitter = SplitOnGrid(grid_size=grid_size, patch_size=patch_size)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
