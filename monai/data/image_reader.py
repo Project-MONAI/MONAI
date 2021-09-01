@@ -178,7 +178,9 @@ class ITKReader(ImageReader):
 
     def read(self, data: Union[Sequence[str], str], **kwargs):
         """
-        Read image data from specified file or files.
+        Read image data from specified file or files, it can read a list of `no-channel` images
+        and stack them together as multi-channels data in `get_data()`.
+        If passing directory path instead of file path, will treat it as DICOM images series and read.
         Note that the returned object is ITK image object or list of ITK image objects.
 
         Args:
@@ -218,7 +220,7 @@ class ITKReader(ImageReader):
         Extract data array and meta data from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of meta data.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
-        When loading a list of files, they are concatenated together at a new dimension as the first dimension,
+        When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the meta data of the first image is used to represent the output meta data.
 
         Args:
@@ -350,7 +352,8 @@ class NibabelReader(ImageReader):
 
     def read(self, data: Union[Sequence[str], str], **kwargs):
         """
-        Read image data from specified file or files.
+        Read image data from specified file or files, it can read a list of `no-channel` images
+        and stack them together as multi-channels data in `get_data()`.
         Note that the returned object is Nibabel image object or list of Nibabel image objects.
 
         Args:
@@ -376,7 +379,7 @@ class NibabelReader(ImageReader):
         Extract data array and meta data from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of meta data.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
-        When loading a list of files, they are concatenated together at a new dimension as the first dimension,
+        When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the meta data of the first image is used to present the output meta data.
 
         Args:
@@ -497,7 +500,8 @@ class NumpyReader(ImageReader):
 
     def read(self, data: Union[Sequence[str], str], **kwargs):
         """
-        Read image data from specified file or files.
+        Read image data from specified file or files, it can read a list of `no-channel` data files
+        and stack them together as multi-channels data in `get_data()`.
         Note that the returned object is Numpy array or list of Numpy arrays.
 
         Args:
@@ -529,7 +533,7 @@ class NumpyReader(ImageReader):
         Extract data array and meta data from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of meta data.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
-        When loading a list of files, they are concatenated together at a new dimension as the first dimension,
+        When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the meta data of the first image is used to represent the output meta data.
 
         Args:
@@ -581,7 +585,8 @@ class PILReader(ImageReader):
 
     def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
         """
-        Read image data from specified file or files.
+        Read image data from specified file or files, it can read a list of `no-channel` images
+        and stack them together as multi-channels data in `get_data()`.
         Note that the returned object is PIL image or list of PIL image.
 
         Args:
@@ -609,7 +614,7 @@ class PILReader(ImageReader):
         Extract data array and meta data from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of meta data.
         It computes `spatial_shape` and stores it in meta dict.
-        When loading a list of files, they are concatenated together at a new dimension as the first dimension,
+        When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the meta data of the first image is used to represent the output meta data.
 
         Args:

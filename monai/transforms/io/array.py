@@ -169,7 +169,10 @@ class LoadImage(Transform):
         Args:
             filename: path file or file-like object or a list of files.
                 will save the filename to meta_data with key `filename_or_obj`.
-                if provided a list of files, use the filename of first file.
+                if provided a list of files, use the filename of first file to save,
+                and will stack them together as multi-channels data.
+                if provided directory path instead of file path, will treat it as
+                DICOM images series and read.
             reader: runtime reader to load image file and meta data.
 
         """
