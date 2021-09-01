@@ -46,10 +46,10 @@ class TestTransformerBlock(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             TransformerBlock(hidden_size=128, num_heads=12, mlp_dim=2048, dropout_rate=4.0)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             TransformerBlock(hidden_size=622, num_heads=8, mlp_dim=3072, dropout_rate=0.4)
 
 

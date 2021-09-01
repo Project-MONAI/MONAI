@@ -15,6 +15,7 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from pathlib import Path
 from typing import Optional, Union
 
 import numpy as np
@@ -38,17 +39,31 @@ __all__ = [
 class LoadImaged(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadImage`,
-    must load image and metadata together. If loading a list of files in one key,
-    stack them together and add a new dimension as the first dimension, and use the
-    meta data of the first image to represent the stacked result. Note that the affine
-    transform of all the stacked images should be same. The output metadata field will
-    be created as ``meta_keys`` or ``key_{meta_key_postfix}``.
+    It can load both image data and metadata. When loading a list of files in one key,
+    the arrays will be stacked and a new dimension will be added as the first dimension
+    In this case, the meta data of the first image will be used to represent the stacked result.
+    The affine transform of all the stacked images should be same.
+    The output metadata field will be created as ``meta_keys`` or ``key_{meta_key_postfix}``.
 
-    It can automatically choose readers based on the supported suffixes and in below order:
-    - User specified reader at runtime when call this loader.
-    - Registered readers from the latest to the first in list.
-    - Default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
-    (npz, npy -> NumpyReader), (others -> ITKReader).
+    If reader is not specified, this class automatically chooses readers
+    based on the supported suffixes and in the following order:
+
+        - User-specified reader at runtime when calling this loader.
+        - User-specified reader in the constructor of `LoadImage`.
+        - Readers from the last to the first in the registered list.
+        - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
+          (npz, npy -> NumpyReader), (others -> ITKReader).
+
+    Note:
+
+        - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
+          readers. This might introduce overheads when handling the exceptions of trying the incompatible loaders.
+          In this case, it is therefore recommended to set the most appropriate reader as
+          the last item of the `reader` parameter.
+
+    See also:
+
+        - tutorial: https://github.com/Project-MONAI/tutorials/blob/master/modules/load_medical_images.ipynb
 
     """
 
@@ -209,7 +224,7 @@ class SaveImaged(MapTransform):
         keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
-        output_dir: str = "./",
+        output_dir: Union[Path, str] = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         resample: bool = True,

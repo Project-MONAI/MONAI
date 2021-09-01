@@ -44,9 +44,16 @@ TEST_CASE_4 = [
     (3,),
 ]
 
+TEST_CASE_5 = [
+    {"rounding": "torchrounding"},
+    torch.tensor([[[0.123, 1.345], [2.567, 3.789]]]),
+    torch.tensor([[[0.0, 1.0], [3.0, 4.0]]]),
+    (1, 2, 2),
+]
+
 
 class TestAsDiscrete(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = AsDiscrete(**input_param)(img)
         torch.testing.assert_allclose(result, out)

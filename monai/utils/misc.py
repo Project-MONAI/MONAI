@@ -22,7 +22,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.utils.module import get_torch_version_tuple
+from monai.utils.module import get_torch_version_tuple, version_leq
 
 __all__ = [
     "zip_with",
@@ -39,11 +39,10 @@ __all__ = [
     "get_seed",
     "set_determinism",
     "list_to_dict",
-    "dtype_torch_to_numpy",
-    "dtype_numpy_to_torch",
     "MAX_SEED",
     "copy_to_device",
     "ImageMetaKey",
+    "is_module_ver_at_least",
 ]
 
 _seed = None
@@ -125,6 +124,10 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
         ValueError: Sequence must have length 3, got length 2.
 
     """
+    if isinstance(tup, torch.Tensor):
+        tup = tup.detach().cpu().numpy()
+    if isinstance(tup, np.ndarray):
+        tup = tup.tolist()
     if not issequenceiterable(tup):
         return (tup,) * dim
     if len(tup) == dim:
@@ -232,8 +235,7 @@ def set_determinism(
     if seed is None:
         # cast to 32 bit seed for CUDA
         seed_ = torch.default_generator.seed() % (np.iinfo(np.int32).max + 1)
-        if not torch.cuda._is_in_bad_fork():
-            torch.cuda.manual_seed_all(seed_)
+        torch.manual_seed(seed_)
     else:
         seed = int(seed) % MAX_SEED
         torch.manual_seed(seed)
@@ -299,32 +301,6 @@ def list_to_dict(items):
     return d
 
 
-_torch_to_np_dtype = {
-    torch.bool: bool,
-    torch.uint8: np.uint8,
-    torch.int8: np.int8,
-    torch.int16: np.int16,
-    torch.int32: np.int32,
-    torch.int64: np.int64,
-    torch.float16: np.float16,
-    torch.float32: np.float32,
-    torch.float64: np.float64,
-    torch.complex64: np.complex64,
-    torch.complex128: np.complex128,
-}
-_np_to_torch_dtype = {value: key for key, value in _torch_to_np_dtype.items()}
-
-
-def dtype_torch_to_numpy(dtype):
-    """Convert a torch dtype to its numpy equivalent."""
-    return _torch_to_np_dtype[dtype]
-
-
-def dtype_numpy_to_torch(dtype):
-    """Convert a numpy dtype to its torch equivalent."""
-    return _np_to_torch_dtype[dtype]
-
-
 def copy_to_device(
     obj: Any,
     device: Optional[Union[str, torch.device]],
@@ -379,3 +355,16 @@ def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
         return False
     sig = inspect.signature(obj)
     return all(key in sig.parameters for key in ensure_tuple(keywords))
+
+
+def is_module_ver_at_least(module, version):
+    """Determine if a module's version is at least equal to the given value.
+
+    Args:
+        module: imported module's name, e.g., `np` or `torch`.
+        version: required version, given as a tuple, e.g., `(1, 8, 0)`.
+    Returns:
+        `True` if module is the given version or newer.
+    """
+    test_ver = ".".join(map(str, version))
+    return module.__version__ != test_ver and version_leq(test_ver, module.__version__)

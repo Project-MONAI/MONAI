@@ -7,6 +7,7 @@
     1. [Automatic code formatting](#automatic-code-formatting)
     1. [Signing your work](#signing-your-work)
     1. [Utility functions](#utility-functions)
+    1. [Backwards compatibility](#backwards-compatibility)
   * [Submitting pull requests](#submitting-pull-requests)
 - [The code reviewing process (for the maintainers)](#the-code-reviewing-process)
   * [Reviewing pull requests](#reviewing-pull-requests)
@@ -64,7 +65,7 @@ python -m pip install -U -r requirements-dev.txt
 
 License information: all source code files should start with this paragraph:
 ```
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright <Year> MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -229,6 +230,12 @@ for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.tr
 
 For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.
 
+#### Backwards compatibility
+MONAI is currently under active development, and with major version zero (following the [Semantic Versioning](https://semver.org/)).
+The backwards compatibility of the API is not always guaranteed at this initial development stage.
+However, utility functions are provided in the `monai.utils.deprecated` modules to help users migrate to the new API.
+The use of these functions is encouraged.
+
 
 ### Submitting pull requests
 All code changes to the dev branch must be done via [pull requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/proposing-changes-to-your-work-with-pull-requests).
@@ -257,6 +264,7 @@ All code review comments should be specific, constructive, and actionable.
 1. Make in-line comments to specific code segments, [request for changes](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-reviews) if needed.
 1. Review any further code changes until all comments addressed by the contributors.
 1. Comment to trigger `/black` and/or `/integration-test` for optional auto code formatting and [integration tests](.github/workflows/integration.yml).
+1. [Maintainers] Review the changes and comment `/build` to trigger internal full tests.
 1. Merge the pull request to the dev branch.
 1. Close the corresponding task ticket on [the issue list][monai issue list].
 

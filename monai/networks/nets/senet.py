@@ -20,6 +20,7 @@ from torch.hub import load_state_dict_from_url
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.squeeze_and_excitation import SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, Pool
+from monai.utils.module import look_up_option
 
 __all__ = ["SENet", "SENet154", "SEResNet50", "SEResNet101", "SEResNet152", "SEResNeXt50", "SEResNext101"]
 
@@ -249,7 +250,7 @@ class SENet(nn.Module):
         return x
 
 
-def _load_state_dict(model, arch, progress):
+def _load_state_dict(model: nn.Module, arch: str, progress: bool):
     """
     This function is used to load pretrained models.
     """
@@ -261,9 +262,8 @@ def _load_state_dict(model, arch, progress):
         "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
         "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
     }
-    if arch in model_urls:
-        model_url = model_urls[arch]
-    else:
+    model_url = look_up_option(arch, model_urls, None)
+    if model_url is None:
         raise ValueError(
             "only 'senet154', 'se_resnet50', 'se_resnet101',  'se_resnet152', 'se_resnext50_32x4d', "
             + "and se_resnext101_32x4d are supported to load pretrained weights."
