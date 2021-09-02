@@ -245,13 +245,15 @@ jobs:
         python setup.py check -m -s
         python setup.py sdist bdist_wheel
         python -m twine check dist/*
+    - name: Make Temp dir
+      run: echo "::set-output name=tmp_dir::$(mktemp -d)"
+      id: mktemp
     - name: Move packages
       run: |
         # move packages to a temp dir
-        tmp_dir=$(mktemp -d)
-        cp dist/monai* "$tmp_dir"
+        cp dist/monai* "${{ steps.mktemp.outputs.tmp_dir }}"
         rm -r build dist monai.egg-info
-        cd "$tmp_dir"
+        cd "${{ steps.mktemp.outputs.tmp_dir }}"
         ls -al
     - name: Install wheel file
       run: |
@@ -272,8 +274,8 @@ jobs:
     - name: Quick test
       run: |
         # run min tests
-        cp $root_dir/requirements*.txt "$tmp_dir"
-        cp -r $root_dir/tests "$tmp_dir"
+        cp $root_dir/requirements*.txt "${{ steps.mktemp.outputs.tmp_dir }}"
+        cp -r $root_dir/tests "${{ steps.mktemp.outputs.tmp_dir }}"
         pwd
         ls -al
         python -m pip install -r requirements-dev.txt
