@@ -28,10 +28,10 @@ class SplitOnGridd(MapTransform):
 
     Args:
         grid_shape: a tuple or an integer define the shape of the grid upon which to extract patches.
-            If it's an integer, th evalue will be repeated for each dimension. Default is 2x2
+            If it's an integer, the value will be repeated for each dimension. Default is 2x2
         patch_size: a tuple or an integer that defines the output patch sizes.
             If it's an integer, the value will be repeated for each dimension.
-            If None (default), the patch size will be infered from the grid shape.
+            The default is (0, 0), where the patch size will be infered from the grid shape.
 
     Note: the shape of the input image is infered based on the first image used.
     """
@@ -40,7 +40,7 @@ class SplitOnGridd(MapTransform):
         self,
         keys: KeysCollection,
         grid_size: Union[int, Tuple[int, int]] = (2, 2),
-        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
+        patch_size: Union[int, Tuple[int, int]] = (0, 0),
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)

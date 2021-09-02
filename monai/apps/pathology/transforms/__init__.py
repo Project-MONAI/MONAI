@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .spatial.array import SplitOnGrid
-from .spatial.dictionary import SplitOnGrid, SplitOnGridD, SplitOnGridDict
+from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict
 from .stain.array import ExtractHEStains, NormalizeHEStains
 from .stain.dictionary import (
     ExtractHEStainsd,
