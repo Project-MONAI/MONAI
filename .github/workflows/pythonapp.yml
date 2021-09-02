@@ -237,25 +237,27 @@ jobs:
         pip uninstall monai
         pip list | grep -iv monai
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-        root_dir=$PWD
-        echo "$root_dir"
         set -e
 
         # build tar.gz and wheel
         python setup.py check -m -s
         python setup.py sdist bdist_wheel
         python -m twine check dist/*
-    - name: Make Temp dir
-      run: echo "::set-output name=tmp_dir::$(mktemp -d)"
+    - run: echo "::set-output name=pwd::$PWD"
+      id: root
+    - run: echo "::set-output name=tmp_dir::$(mktemp -d)"
       id: mktemp
     - name: Move packages
       run: |
+        printf ${{ steps.root.outputs.pwd }}
+        printf ${{ steps.mktemp.outputs.tmp_dir }}
         # move packages to a temp dir
         cp dist/monai* "${{ steps.mktemp.outputs.tmp_dir }}"
         rm -r build dist monai.egg-info
         cd "${{ steps.mktemp.outputs.tmp_dir }}"
         ls -al
     - name: Install wheel file
+      working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
       run: |
         # install from wheel
         python -m pip install monai*.whl
@@ -264,6 +266,7 @@ jobs:
         python -m pip uninstall -y monai
         rm monai*.whl
     - name: Install source archive
+      working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
       run: |
         # install from tar.gz
         name=$(ls *.tar.gz | head -n1)
@@ -272,11 +275,11 @@ jobs:
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
     - name: Quick test
+      working-directory: ${{ steps.mktemp.outputs.tmp_dir }}
       run: |
         # run min tests
-        cp $root_dir/requirements*.txt "${{ steps.mktemp.outputs.tmp_dir }}"
-        cp -r $root_dir/tests "${{ steps.mktemp.outputs.tmp_dir }}"
-        pwd
+        cp ${{ steps.root.outputs.pwd }}/requirements*.txt .
+        cp -r ${{ steps.root.outputs.pwd }}/tests .
         ls -al
         python -m pip install -r requirements-dev.txt
         python -m unittest -v
