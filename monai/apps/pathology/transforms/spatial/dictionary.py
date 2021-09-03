@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Hashable, Mapping, Tuple, Union
+from typing import Dict, Hashable, Mapping, Optional, Tuple, Union
 
 import torch
 
@@ -40,7 +40,7 @@ class SplitOnGridd(MapTransform):
         self,
         keys: KeysCollection,
         grid_size: Union[int, Tuple[int, int]] = (2, 2),
-        patch_size: Union[int, Tuple[int, int]] = (0, 0),
+        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)

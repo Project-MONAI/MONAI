@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 
@@ -34,7 +34,9 @@ class SplitOnGrid(Transform):
     """
 
     def __init__(
-        self, grid_size: Union[int, Tuple[int, int]] = (2, 2), patch_size: Union[int, Tuple[int, int]] = (0, 0)
+        self,
+        grid_size: Union[int, Tuple[int, int]] = (2, 2),
+        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
     ):
         # Grid size
         if isinstance(grid_size, int):
@@ -42,34 +44,34 @@ class SplitOnGrid(Transform):
         else:
             self.grid_size = grid_size
         # Patch size
+        self.patch_size = None
         if isinstance(patch_size, int):
             self.patch_size = (patch_size, patch_size)
         else:
             self.patch_size = patch_size
-        # Set steps to a default to be overriden
-        self.steps = (0, 0)
-        self.ready = False
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
-        if self.grid_size == (1, 1) and self.patch_size == (0, 0):
+        if self.grid_size == (1, 1) and self.patch_size is None:
             return torch.stack([image])
-        if not self.ready:
-            self.prepare_params(image.shape[1:])
-            self.ready = True
+        patch_size, steps = self.get_params(image.shape[1:])
         patches = (
-            image.unfold(1, self.patch_size[0], self.steps[0])
-            .unfold(2, self.patch_size[1], self.steps[1])
+            image.unfold(1, patch_size[0], steps[0])
+            .unfold(2, patch_size[1], steps[1])
             .flatten(1, 2)
             .transpose(0, 1)
             .contiguous()
         )
         return patches
 
-    def prepare_params(self, image_size):
-        if self.patch_size == (0, 0):
-            self.patch_size = tuple(image_size[i] // self.grid_size[i] for i in range(2))
+    def get_params(self, image_size):
+        if self.patch_size is None:
+            patch_size = tuple(image_size[i] // self.grid_size[i] for i in range(2))
+        else:
+            patch_size = self.patch_size
 
-        self.steps = tuple(
-            (image_size[i] - self.patch_size[i]) // (self.grid_size[i] - 1) if self.grid_size[i] > 1 else image_size[i]
+        steps = tuple(
+            (image_size[i] - patch_size[i]) // (self.grid_size[i] - 1) if self.grid_size[i] > 1 else image_size[i]
             for i in range(2)
         )
+
+        return patch_size, steps
