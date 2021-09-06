@@ -131,9 +131,9 @@ def compute_roc_auc(
     y_pred_ndim = y_pred.ndimension()
     y_ndim = y.ndimension()
     if y_pred_ndim not in (1, 2):
-        raise ValueError("Predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
+        raise ValueError("Predictions should be of shape (batch_size, num_classes) or (batch_size, ).")
     if y_ndim not in (1, 2):
-        raise ValueError("Targets should be of shape (batch_size, n_classes) or (batch_size, ).")
+        raise ValueError("Targets should be of shape (batch_size, num_classes) or (batch_size, ).")
     if y_pred_ndim == 2 and y_pred.shape[1] == 1:
         y_pred = y_pred.squeeze(dim=-1)
         y_pred_ndim = 1
