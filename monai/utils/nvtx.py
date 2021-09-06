@@ -92,7 +92,7 @@ class Range:
             name = self.name
 
         # Get the class for special functions
-        if method.startswith("_"):
+        if method.startswith("__"):
             owner = type(obj)
         else:
             owner = obj
@@ -109,7 +109,7 @@ class Range:
             return output
 
         # Replace the method with the wrapped version
-        if method.startswith("_"):
+        if method.startswith("__"):
             # If it is a special method, it requires special attention
             class NVTXRangeDecoratedClass(owner):
                 ...
