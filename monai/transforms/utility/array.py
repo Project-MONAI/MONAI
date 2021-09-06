@@ -282,13 +282,13 @@ class SplitChannel(Transform):
         self.channel_dim = channel_dim
 
     def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
-        n_classes = img.shape[self.channel_dim]
-        if n_classes <= 1:
+        num_classes = img.shape[self.channel_dim]
+        if num_classes <= 1:
             raise RuntimeError("input image does not contain multiple channels.")
 
         outputs = []
         slices = [slice(None)] * len(img.shape)
-        for i in range(n_classes):
+        for i in range(num_classes):
             slices[self.channel_dim] = slice(i, i + 1)
             outputs.append(img[tuple(slices)])
 
