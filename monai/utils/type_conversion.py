@@ -171,7 +171,7 @@ def convert_data_type(
     Returns:
         modified data, orig_type, orig_device
     """
-    orig_type = type(data)
+    orig_type = torch.Tensor if isinstance(data, torch.Tensor) else np.ndarray
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
     output_type = output_type or orig_type
@@ -205,4 +205,5 @@ def convert_to_dst_type(src: Any, dst: NdarrayOrTensor) -> Tuple[NdarrayOrTensor
     device = None
     if isinstance(dst, torch.Tensor):
         device = dst.device
-    return convert_data_type(data=src, output_type=type(dst), device=device, dtype=dst.dtype)
+    output_type = torch.Tensor if isinstance(dst, torch.Tensor) else np.ndarray
+    return convert_data_type(data=src, output_type=output_type, device=device, dtype=dst.dtype)

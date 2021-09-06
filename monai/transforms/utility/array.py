@@ -323,7 +323,9 @@ class CastToType(Transform):
         """
         if not isinstance(img, (torch.Tensor, np.ndarray)):
             raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
-        img_out, *_ = convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)
+        output_type = torch.Tensor if isinstance(img, torch.Tensor) else np.ndarray
+        img_out, *_ = convert_data_type(img, output_type=output_type, dtype=dtype or self.dtype)
+
         return img_out
 
 
