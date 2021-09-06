@@ -1,5 +1,5 @@
 # Requirements for minimal tests
 -r requirements.txt
 setuptools>=50.3.0
-coverage
+coverage>=5.5
 parameterized

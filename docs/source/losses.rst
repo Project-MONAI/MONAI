@@ -48,6 +48,11 @@ Segmentation Losses
 .. autoclass:: DiceCELoss
     :members:
 
+`DiceFocalLoss`
+~~~~~~~~~~~~~~~
+.. autoclass:: DiceFocalLoss
+    :members:
+
 `FocalLoss`
 ~~~~~~~~~~~
 .. autoclass:: FocalLoss
@@ -77,9 +82,14 @@ Registration Losses
     :members:
 
 Loss Wrappers
---------------
+-------------
 
 `MultiScaleLoss`
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 .. autoclass:: MultiScaleLoss
+    :members:
+
+`MaskedLoss`
+~~~~~~~~~~~~
+.. autoclass:: MaskedLoss
     :members:

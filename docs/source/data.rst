@@ -21,6 +21,12 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
+`CSVIterableDataset`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CSVIterableDataset
+  :members:
+  :special-members: __next__
+
 `PersistentDataset`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: PersistentDataset
@@ -69,12 +75,29 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`NPZDictItemDataset`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: NPZDictItemDataset
+  :members:
+  :special-members: __getitem__
+
+`CSVDataset`
+~~~~~~~~~~~~
+.. autoclass:: CSVDataset
+  :members:
+  :special-members: __getitem__
+
 Patch-based dataset
 -------------------
 
 `GridPatchDataset`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: GridPatchDataset
+  :members:
+
+`PatchIter`
+~~~~~~~~~~~
+.. autoclass:: PatchIter
   :members:
 
 `PatchDataset`
@@ -84,6 +107,11 @@ Patch-based dataset
 
 Image reader
 ------------
+
+ImageReader
+~~~~~~~~~~~
+.. autoclass:: ImageReader
+  :members:
 
 ITKReader
 ~~~~~~~~~
@@ -105,6 +133,10 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+WSIReader
+~~~~~~~~~
+.. autoclass:: WSIReader
+  :members:
 
 Nifti format handling
 ---------------------
@@ -151,6 +183,13 @@ DistributedSampler
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.DistributedSampler
 
+DistributedWeightedRandomSampler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.DistributedWeightedRandomSampler
+
+DatasetSummary
+~~~~~~~~~~~~~~
+.. autoclass:: monai.data.DatasetSummary
 
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~
@@ -165,3 +204,8 @@ DataLoader
 ThreadBuffer
 ~~~~~~~~~~~~
 .. autoclass:: monai.data.ThreadBuffer
+
+
+TestTimeAugmentation
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.TestTimeAugmentation

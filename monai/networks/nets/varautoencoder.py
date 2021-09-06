@@ -20,6 +20,8 @@ from monai.networks.layers.convutils import calculate_out_shape, same_padding
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.nets import AutoEncoder
 
+__all__ = ["VarAutoEncoder"]
+
 
 class VarAutoEncoder(AutoEncoder):
     """Variational Autoencoder based on the paper - https://arxiv.org/abs/1312.6114"""
@@ -41,6 +43,7 @@ class VarAutoEncoder(AutoEncoder):
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: Optional[Union[Tuple, str, float]] = None,
+        bias: bool = True,
     ) -> None:
 
         self.in_channels, *self.in_shape = in_shape
@@ -63,6 +66,7 @@ class VarAutoEncoder(AutoEncoder):
             act,
             norm,
             dropout,
+            bias,
         )
 
         padding = same_padding(self.kernel_size)

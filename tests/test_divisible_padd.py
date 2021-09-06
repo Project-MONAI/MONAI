@@ -23,7 +23,7 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {"keys": ["img"], "k": 7, "mode": "constant"},
+    {"keys": ["img"], "k": 7, "mode": "constant", "method": "end"},
     {"img": np.zeros((3, 8, 7))},
     np.zeros((3, 14, 7)),
 ]

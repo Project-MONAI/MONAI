@@ -12,36 +12,41 @@
 # have to explicitly bring these in here to resolve circular import issues
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
+from .deprecated import DeprecatedError, deprecated, deprecated_arg
+from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
-    Activation,
     Average,
     BlendMode,
     ChannelMatching,
+    CommonKeys,
+    ForwardMode,
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
+    InverseKeys,
     LossReduction,
     Method,
     MetricReduction,
-    Normalization,
     NumpyPadMode,
     PytorchPadMode,
     SkipMode,
+    TransformBackends,
     UpsampleMode,
     Weight,
 )
+from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (
     MAX_SEED,
     ImageMetaKey,
     copy_to_device,
-    dtype_numpy_to_torch,
-    dtype_torch_to_numpy,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
     first,
     get_seed,
+    has_option,
+    is_module_ver_at_least,
     is_scalar,
     is_scalar_tensor,
     issequenceiterable,
@@ -55,15 +60,28 @@ from .module import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
     OptionalImportError,
+    damerau_levenshtein_distance,
     exact_version,
     export,
     get_full_type_name,
     get_package_version,
     get_torch_version_tuple,
-    has_option,
     load_submodules,
+    look_up_option,
     min_version,
     optional_import,
+    version_leq,
 )
+from .nvtx import Range
 from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu_gpu, torch_profiler_time_end_to_end
 from .state_cacher import StateCacher
+from .type_conversion import (
+    convert_data_type,
+    convert_to_dst_type,
+    convert_to_numpy,
+    convert_to_tensor,
+    dtype_numpy_to_torch,
+    dtype_torch_to_numpy,
+    get_dtype,
+    get_equivalent_dtype,
+)

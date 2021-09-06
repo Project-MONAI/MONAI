@@ -17,6 +17,8 @@ import torch.nn as nn
 from monai.networks.blocks import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 
+__all__ = ["AutoEncoder"]
+
 
 class AutoEncoder(nn.Module):
     def __init__(
@@ -35,6 +37,7 @@ class AutoEncoder(nn.Module):
         act: Optional[Union[Tuple, str]] = Act.PRELU,
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: Optional[Union[Tuple, str, float]] = None,
+        bias: bool = True,
     ) -> None:
 
         super().__init__()
@@ -49,6 +52,7 @@ class AutoEncoder(nn.Module):
         self.act = act
         self.norm = norm
         self.dropout = dropout
+        self.bias = bias
         self.num_inter_units = num_inter_units
         self.inter_channels = inter_channels if inter_channels is not None else []
         self.inter_dilations = list(inter_dilations or [1] * len(self.inter_channels))
@@ -101,6 +105,7 @@ class AutoEncoder(nn.Module):
                         norm=self.norm,
                         dropout=self.dropout,
                         dilation=di,
+                        bias=self.bias,
                     )
                 else:
                     unit = Convolution(
@@ -113,6 +118,7 @@ class AutoEncoder(nn.Module):
                         norm=self.norm,
                         dropout=self.dropout,
                         dilation=di,
+                        bias=self.bias,
                     )
 
                 intermediate.add_module("inter_%i" % i, unit)
@@ -146,6 +152,7 @@ class AutoEncoder(nn.Module):
                 act=self.act,
                 norm=self.norm,
                 dropout=self.dropout,
+                bias=self.bias,
                 last_conv_only=is_last,
             )
         return Convolution(
@@ -157,6 +164,7 @@ class AutoEncoder(nn.Module):
             act=self.act,
             norm=self.norm,
             dropout=self.dropout,
+            bias=self.bias,
             conv_only=is_last,
         )
 
@@ -173,6 +181,7 @@ class AutoEncoder(nn.Module):
             act=self.act,
             norm=self.norm,
             dropout=self.dropout,
+            bias=self.bias,
             conv_only=is_last and self.num_res_units == 0,
             is_transposed=True,
         )
@@ -190,6 +199,7 @@ class AutoEncoder(nn.Module):
                 act=self.act,
                 norm=self.norm,
                 dropout=self.dropout,
+                bias=self.bias,
                 last_conv_only=is_last,
             )
 

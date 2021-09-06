@@ -16,7 +16,7 @@ import unittest
 
 import torch
 import torch.optim as optim
-from ignite.engine import Engine
+from ignite.engine import Engine, Events
 
 from monai.handlers import CheckpointLoader, CheckpointSaver
 
@@ -33,14 +33,29 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         data2["weight"] = torch.tensor([0.2])
         net2.load_state_dict(data2)
         with tempfile.TemporaryDirectory() as tempdir:
-            engine = Engine(lambda e, b: None)
-            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1}, save_final=True).attach(engine)
-            engine.run([0] * 8, max_epochs=5)
-            path = tempdir + "/net_final_iteration=40.pt"
-            engine = Engine(lambda e, b: None)
-            CheckpointLoader(load_path=path, load_dict={"net": net2}).attach(engine)
-            engine.run([0] * 8, max_epochs=1)
+            engine1 = Engine(lambda e, b: None)
+            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1, "eng": engine1}, save_final=True).attach(engine1)
+            engine1.run([0] * 8, max_epochs=5)
+            path = tempdir + "/checkpoint_final_iteration=40.pt"
+            engine2 = Engine(lambda e, b: None)
+            CheckpointLoader(load_path=path, load_dict={"net": net2, "eng": engine2}, strict=True).attach(engine2)
+
+            @engine2.on(Events.STARTED)
+            def check_epoch(engine: Engine):
+                self.assertEqual(engine.state.epoch, 5)
+
+            engine2.run([0] * 8, max_epochs=8)
             torch.testing.assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
+
+            # test bad case with max_epochs smaller than current epoch
+            engine3 = Engine(lambda e, b: None)
+            CheckpointLoader(load_path=path, load_dict={"net": net2, "eng": engine3}, strict=True).attach(engine3)
+
+            try:
+                engine3.run([0] * 8, max_epochs=3)
+            except ValueError:
+                self.assertEqual(engine3.state.epoch, 5)
+                self.assertEqual(engine3.state.max_epochs, 5)
 
     def test_two_save_one_load(self):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -60,7 +75,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine.run([0] * 8, max_epochs=5)
             path = tempdir + "/checkpoint_final_iteration=40.pt"
             engine = Engine(lambda e, b: None)
-            CheckpointLoader(load_path=path, load_dict={"net": net2}).attach(engine)
+            CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=True).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
 
@@ -81,9 +96,91 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine.run([0] * 8, max_epochs=5)
             path = tempdir + "/net_final_iteration=40.pt"
             engine = Engine(lambda e, b: None)
-            CheckpointLoader(load_path=path, load_dict={"net": net2}).attach(engine)
+            CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=True).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["module.weight"].cpu(), torch.tensor([0.1]))
+
+    def test_partial_under_load(self):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        net1 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
+        data1 = net1.state_dict()
+        data1["0.weight"] = torch.tensor([0.1])
+        data1["1.weight"] = torch.tensor([0.2])
+        net1.load_state_dict(data1)
+
+        net2 = torch.nn.Sequential(*[torch.nn.PReLU()])
+        data2 = net2.state_dict()
+        data2["0.weight"] = torch.tensor([0.3])
+        net2.load_state_dict(data2)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(lambda e, b: None)
+            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1}, save_final=True).attach(engine)
+            engine.run([0] * 8, max_epochs=5)
+            path = tempdir + "/net_final_iteration=40.pt"
+            engine = Engine(lambda e, b: None)
+            CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=False).attach(engine)
+            engine.run([0] * 8, max_epochs=1)
+            torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
+
+    def test_partial_over_load(self):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        net1 = torch.nn.Sequential(*[torch.nn.PReLU()])
+        data1 = net1.state_dict()
+        data1["0.weight"] = torch.tensor([0.1])
+        net1.load_state_dict(data1)
+
+        net2 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
+        data2 = net2.state_dict()
+        data2["0.weight"] = torch.tensor([0.2])
+        data2["1.weight"] = torch.tensor([0.3])
+        net2.load_state_dict(data2)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(lambda e, b: None)
+            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1}, save_final=True).attach(engine)
+            engine.run([0] * 8, max_epochs=5)
+            path = tempdir + "/net_final_iteration=40.pt"
+            engine = Engine(lambda e, b: None)
+            CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=False).attach(engine)
+            engine.run([0] * 8, max_epochs=1)
+            torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
+
+    def test_strict_shape(self):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        net1 = torch.nn.Sequential(*[torch.nn.PReLU(num_parameters=5)])
+        data1 = net1.state_dict()
+        data1["0.weight"] = torch.tensor([1, 2, 3, 4, 5])
+        data1["new"] = torch.tensor(0.1)
+        net1.load_state_dict(data1, strict=False)
+        opt1 = optim.SGD(net1.parameters(), lr=0.02)
+
+        net2 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
+        data2 = net2.state_dict()
+        data2["0.weight"] = torch.tensor([0.2])
+        data2["1.weight"] = torch.tensor([0.3])
+        net2.load_state_dict(data2)
+        opt2 = optim.SGD(net2.parameters(), lr=0.02)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(lambda e, b: None)
+            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1, "opt": opt1}, save_final=True).attach(engine)
+            engine.run([0] * 8, max_epochs=5)
+            path = tempdir + "/checkpoint_final_iteration=40.pt"
+            engine = Engine(lambda e, b: None)
+            CheckpointLoader(
+                load_path=path,
+                # expect to print a warning because it loads not only `net` but also `opt` with `strict_shape=False`
+                load_dict={"net": net2, "opt": opt2},
+                strict=False,
+                strict_shape=False,
+            ).attach(engine)
+            engine.run([0] * 8, max_epochs=1)
+            torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.2]))
+            # test whether `opt2` had been skipped when loading with `strict_shape=False`,
+            # it should have 2 items in `params`(0.weight and 1.weight) while the checkpoint has 1 item(0.weight)
+            self.assertEqual(len(opt1.state_dict()["param_groups"][0]["params"]), 1)
+            self.assertEqual(len(opt2.state_dict()["param_groups"][0]["params"]), 2)
 
 
 if __name__ == "__main__":

@@ -11,10 +11,11 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import DenseNet, densenet121, se_resnet50
+from monai.networks.nets import DenseNet, DenseNet121, SEResNet50
 from monai.visualize import GradCAM
 
 # 2D
@@ -64,24 +65,28 @@ class TestGradientClassActivationMap(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_data, expected_shape):
         if input_data["model"] == "densenet2d":
-            model = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
+            model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         if input_data["model"] == "densenet3d":
             model = DenseNet(
                 spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,)
             )
         if input_data["model"] == "senet2d":
-            model = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
+            model = SEResNet50(spatial_dims=2, in_channels=3, num_classes=4)
         if input_data["model"] == "senet3d":
-            model = se_resnet50(spatial_dims=3, in_channels=3, num_classes=4)
+            model = SEResNet50(spatial_dims=3, in_channels=3, num_classes=4)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
         cam = GradCAM(nn_module=model, target_layers=input_data["target_layers"])
         image = torch.rand(input_data["shape"], device=device)
         result = cam(x=image, layer_idx=-1)
+        np.testing.assert_array_equal(cam.nn_module.class_idx.cpu(), model(image).max(1)[-1].cpu())
         fea_shape = cam.feature_map_size(input_data["shape"], device=device)
         self.assertTupleEqual(fea_shape, input_data["feature_shape"])
         self.assertTupleEqual(result.shape, expected_shape)
+        # check result is same whether class_idx=None is used or not
+        result2 = cam(x=image, layer_idx=-1, class_idx=model(image).max(1)[-1].cpu())
+        torch.testing.assert_allclose(result, result2)
 
 
 if __name__ == "__main__":

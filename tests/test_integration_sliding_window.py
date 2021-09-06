@@ -40,14 +40,14 @@ def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
     sw_batch_size = batch_size
 
     def _sliding_window_processor(_engine, batch):
-        img, seg, meta_data = batch
+        img = batch[0]  # first item from ImageDataset is the input image
         with eval_mode(net):
             seg_probs = sliding_window_inference(img.to(device), roi_size, sw_batch_size, net, device=device)
             return predict_segmentation(seg_probs)
 
     infer_engine = Engine(_sliding_window_processor)
 
-    SegmentationSaver(
+    SegmentationSaver(  # 3rd item for image batch meta data
         output_dir=output_dir, output_ext=".nii.gz", output_postfix="seg", batch_transform=lambda x: x[2]
     ).attach(infer_engine)
 
@@ -75,7 +75,7 @@ class TestIntegrationSlidingWindow(DistTestCase):
         if os.path.exists(self.seg_name):
             os.remove(self.seg_name)
 
-    @TimedCall(seconds=10)
+    @TimedCall(seconds=20)
     def test_training(self):
         set_determinism(seed=0)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -84,7 +84,7 @@ class TestIntegrationSlidingWindow(DistTestCase):
             )
             output_image = nib.load(output_file).get_fdata()
             np.testing.assert_allclose(np.sum(output_image), 33621)
-            np.testing.assert_allclose(output_image.shape, (28, 25, 63, 1))
+            np.testing.assert_allclose(output_image.shape, (28, 25, 63))
 
 
 if __name__ == "__main__":

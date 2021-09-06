@@ -1,3 +1,19 @@
+/*
+Copyright 2020 - 2021 MONAI Consortium
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+#include <stdexcept>
+#include <string>
+
 #include "utils/common_utils.h"
 #include "utils/meta_macros.h"
 
@@ -33,6 +49,16 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
   if (torch::cuda::is_available() && data.is_cuda()) {
     CHECK_CONTIGUOUS_CUDA(data);
 
+    if (channelCount > PHL_CUDA_MAX_CHANNELS) {
+      throw std::runtime_error(
+          "PHL filtering not implemented for channel count > " + std::to_string(PHL_CUDA_MAX_CHANNELS));
+    }
+
+    if (featureCount > PHL_CUDA_MAX_FEATURES) {
+      throw std::runtime_error(
+          "PHL filtering not implemented for feature count > " + std::to_string(PHL_CUDA_MAX_FEATURES));
+    }
+
 #define CASE(dc, fc)                                                                                                  \
   AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCuda", ([&] {                                          \
                                for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {                      \
@@ -42,7 +68,7 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
                                  PermutohedralCuda<scalar_t, dc, fc>(offsetData, offsetFeatures, elementCount, true); \
                                }                                                                                      \
                              }));
-    SWITCH_AB(CASE, 16, 19, channelCount, featureCount);
+    SWITCH_AB(CASE, PHL_CUDA_MAX_CHANNELS, PHL_CUDA_MAX_FEATURES, channelCount, featureCount);
 
   } else {
 #endif

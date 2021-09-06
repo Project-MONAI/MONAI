@@ -12,8 +12,27 @@
 import sys
 import unittest
 
-from monai.data import CacheDataset, DataLoader
-from monai.transforms import Compose, DataStatsd, SimulateDelayd
+import numpy as np
+import torch
+from parameterized import parameterized
+
+from monai.data import CacheDataset, DataLoader, Dataset
+from monai.transforms import Compose, DataStatsd, Randomizable, SimulateDelayd
+from monai.utils import set_determinism
+
+TEST_CASE_1 = [
+    [
+        {"image": np.asarray([1, 2, 3])},
+        {"image": np.asarray([4, 5])},
+    ]
+]
+
+TEST_CASE_2 = [
+    [
+        {"label": torch.as_tensor([[3], [2]])},
+        {"label": np.asarray([[1], [2]])},
+    ]
+]
 
 
 class TestDataLoader(unittest.TestCase):
@@ -36,6 +55,43 @@ class TestDataLoader(unittest.TestCase):
             self.assertEqual(d["image"][1], "spleen_31.nii.gz")
             self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
             self.assertEqual(d["label"][1], "spleen_label_31.nii.gz")
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_exception(self, datalist):
+        dataset = Dataset(data=datalist, transform=None)
+        dataloader = DataLoader(dataset=dataset, batch_size=2, num_workers=0)
+        with self.assertRaisesRegex((TypeError, RuntimeError), "Collate error on the key"):
+            for _ in dataloader:
+                pass
+
+
+class _RandomDataset(torch.utils.data.Dataset, Randomizable):
+    def __getitem__(self, index):
+        return self.R.randint(0, 1000, (1,))
+
+    def __len__(self):
+        return 8
+
+
+class TestLoaderRandom(unittest.TestCase):
+    """
+    Testing data loader working with the randomizable interface
+    """
+
+    def setUp(self):
+        set_determinism(0)
+
+    def tearDown(self):
+        set_determinism(None)
+
+    def test_randomize(self):
+        dataset = _RandomDataset()
+        dataloader = DataLoader(dataset, batch_size=2, num_workers=3)
+        output = []
+        for _ in range(2):
+            for batch in dataloader:
+                output.extend(batch.data.numpy().flatten().tolist())
+        self.assertListEqual(output, [594, 170, 524, 778, 370, 906, 292, 589, 762, 763, 156, 886, 42, 405, 221, 166])
 
 
 if __name__ == "__main__":

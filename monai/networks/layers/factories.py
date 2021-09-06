@@ -60,9 +60,11 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Tuple, Type, Union
 
 import torch.nn as nn
+
+from monai.utils import look_up_option
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
@@ -120,8 +122,8 @@ class LayerFactory:
         if not isinstance(factory_name, str):
             raise TypeError(f"factory_name must a str but is {type(factory_name).__name__}.")
 
-        fact = self.factories[factory_name.upper()]
-        return fact(*args)
+        func = look_up_option(factory_name.upper(), self.factories)
+        return func(*args)
 
     def __getitem__(self, args) -> Any:
         """
@@ -203,6 +205,11 @@ def dropout_factory(dim: int) -> Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout
     return types[dim - 1]
 
 
+@Dropout.factory_function("alphadropout")
+def alpha_dropout_factory(_dim):
+    return nn.AlphaDropout
+
+
 @Norm.factory_function("instance")
 def instance_factory(dim: int) -> Type[Union[nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d]]:
     types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
@@ -216,22 +223,22 @@ def batch_factory(dim: int) -> Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.Bat
 
 
 @Norm.factory_function("group")
-def group_factory(_dim: Optional[int] = None) -> Type[nn.GroupNorm]:
+def group_factory(_dim) -> Type[nn.GroupNorm]:
     return nn.GroupNorm
 
 
 @Norm.factory_function("layer")
-def layer_factory(_dim: Optional[int] = None) -> Type[nn.LayerNorm]:
+def layer_factory(_dim) -> Type[nn.LayerNorm]:
     return nn.LayerNorm
 
 
 @Norm.factory_function("localresponse")
-def local_response_factory(_dim: Optional[int] = None) -> Type[nn.LocalResponseNorm]:
+def local_response_factory(_dim) -> Type[nn.LocalResponseNorm]:
     return nn.LocalResponseNorm
 
 
 @Norm.factory_function("syncbatch")
-def sync_batch_factory(_dim: Optional[int] = None) -> Type[nn.SyncBatchNorm]:
+def sync_batch_factory(_dim) -> Type[nn.SyncBatchNorm]:
     return nn.SyncBatchNorm
 
 
@@ -254,6 +261,13 @@ def swish_factory():
     from monai.networks.blocks.activation import Swish
 
     return Swish
+
+
+@Act.factory_function("memswish")
+def memswish_factory():
+    from monai.networks.blocks.activation import MemoryEfficientSwish
+
+    return MemoryEfficientSwish
 
 
 @Act.factory_function("mish")

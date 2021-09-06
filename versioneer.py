@@ -1,4 +1,4 @@
-# Version: 0.18
+# Version: 0.19
 
 """The Versioneer - like a rocketeer, but for versions.
 
@@ -6,16 +6,12 @@ The Versioneer
 ==============
 
 * like a rocketeer, but for versions!
-* https://github.com/warner/python-versioneer
+* https://github.com/python-versioneer/python-versioneer
 * Brian Warner
 * License: Public Domain
-* Compatible With: python2.6, 2.7, 3.2, 3.3, 3.4, 3.5, 3.6, and pypy
-* [![Latest Version]
-(https://pypip.in/version/versioneer/badge.svg?style=flat)
-](https://pypi.python.org/pypi/versioneer/)
-* [![Build Status]
-(https://travis-ci.org/warner/python-versioneer.png?branch=master)
-](https://travis-ci.org/warner/python-versioneer)
+* Compatible with: Python 3.6, 3.7, 3.8, 3.9 and pypy3
+* [![Latest Version][pypi-image]][pypi-url]
+* [![Build Status][travis-image]][travis-url]
 
 This is a tool for managing a recorded version number in distutils-based
 python projects. The goal is to remove the tedious and error-prone "update
@@ -26,9 +22,10 @@ system, and maybe making new tarballs.
 
 ## Quick Install
 
-* `pip install versioneer` to somewhere to your $PATH
-* add a `[versioneer]` section to your setup.cfg (see below)
+* `pip install versioneer` to somewhere in your $PATH
+* add a `[versioneer]` section to your setup.cfg (see [Install](INSTALL.md))
 * run `versioneer install` in your source tree, commit the results
+* Verify version information with `python setup.py version`
 
 ## Version Identifiers
 
@@ -60,7 +57,7 @@ version 1.3). Many VCS systems can report a description that captures this,
 for example `git describe --tags --dirty --always` reports things like
 "0.7-1-g574ab98-dirty" to indicate that the checkout is one revision past the
 0.7 tag, has a unique revision id of "574ab98", and is "dirty" (it has
-uncommitted changes.
+uncommitted changes).
 
 The version identifier is used for multiple purposes:
 
@@ -165,7 +162,7 @@ which may help identify what went wrong).
 
 Some situations are known to cause problems for Versioneer. This details the
 most significant ones. More can be found on Github
-[issues page](https://github.com/warner/python-versioneer/issues).
+[issues page](https://github.com/python-versioneer/python-versioneer/issues).
 
 ### Subprojects
 
@@ -193,9 +190,9 @@ work too.
 Pip-8.1.1 is known to have this problem, but hopefully it will get fixed in
 some later version.
 
-[Bug #38](https://github.com/warner/python-versioneer/issues/38) is tracking
+[Bug #38](https://github.com/python-versioneer/python-versioneer/issues/38) is tracking
 this issue. The discussion in
-[PR #61](https://github.com/warner/python-versioneer/pull/61) describes the
+[PR #61](https://github.com/python-versioneer/python-versioneer/pull/61) describes the
 issue from the Versioneer side in more detail.
 [pip PR#3176](https://github.com/pypa/pip/pull/3176) and
 [pip PR#3615](https://github.com/pypa/pip/pull/3615) contain work to improve
@@ -223,21 +220,9 @@ regenerated while a different version is checked out. Many setup.py commands
 cause egg_info to be rebuilt (including `sdist`, `wheel`, and installing into
 a different virtualenv), so this can be surprising.
 
-[Bug #83](https://github.com/warner/python-versioneer/issues/83) describes
+[Bug #83](https://github.com/python-versioneer/python-versioneer/issues/83) describes
 this one, but upgrading to a newer version of setuptools should probably
 resolve it.
-
-### Unicode version strings
-
-While Versioneer works (and is continually tested) with both Python 2 and
-Python 3, it is not entirely consistent with bytes-vs-unicode distinctions.
-Newer releases probably generate unicode version strings on py2. It's not
-clear that this is wrong, but it may be surprising for applications when then
-write these strings to a network connection or include them in bytes-oriented
-APIs like cryptographic checksums.
-
-[Bug #71](https://github.com/warner/python-versioneer/issues/71) investigates
-this question.
 
 
 ## Updating Versioneer
@@ -264,6 +249,12 @@ installation by editing setup.py . Alternatively, it might go the other
 direction and include code from all supported VCS systems, reducing the
 number of intermediate scripts.
 
+## Similar projects
+
+* [setuptools_scm](https://github.com/pypa/setuptools_scm/) - a non-vendored build-time
+  dependency
+* [minver](https://github.com/jbweston/miniver) - a lightweight reimplementation of
+  versioneer
 
 ## License
 
@@ -273,14 +264,15 @@ Specifically, both are released under the Creative Commons "Public Domain
 Dedication" license (CC0-1.0), as described in
 https://creativecommons.org/publicdomain/zero/1.0/ .
 
+[pypi-image]: https://img.shields.io/pypi/v/versioneer.svg
+[pypi-url]: https://pypi.python.org/pypi/versioneer/
+[travis-image]:
+https://img.shields.io/travis/com/python-versioneer/python-versioneer.svg
+[travis-url]: https://travis-ci.com/github/python-versioneer/python-versioneer
+
 """
 
-from __future__ import print_function
-
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+import configparser
 import errno
 import json
 import os
@@ -340,9 +332,9 @@ def get_config_from_root(root):
     # configparser.NoOptionError (if it lacks "VCS="). See the docstring at
     # the top of versioneer.py for instructions on writing your setup.cfg .
     setup_cfg = os.path.join(root, "setup.cfg")
-    parser = configparser.SafeConfigParser()
+    parser = configparser.ConfigParser()
     with open(setup_cfg, "r") as f:
-        parser.readfp(f)
+        parser.read_file(f)
     VCS = parser.get("versioneer", "VCS")  # mandatory
 
     def get(parser, name):
@@ -373,7 +365,7 @@ HANDLERS = {}
 
 
 def register_vcs_handler(vcs, method):  # decorator
-    """Decorator to mark a method as the handler for a particular VCS."""
+    """Create decorator to mark a method as the handler of a VCS."""
 
     def decorate(f):
         """Store f in HANDLERS[vcs][method]."""
@@ -409,9 +401,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False, env=
         if verbose:
             print("unable to find command, tried %s" % (commands,))
         return None, None
-    stdout = p.communicate()[0].strip()
-    if sys.version_info[0] >= 3:
-        stdout = stdout.decode()
+    stdout = p.communicate()[0].strip().decode()
     if p.returncode != 0:
         if verbose:
             print("unable to run %s (error)" % dispcmd)
@@ -422,7 +412,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False, env=
 
 LONG_VERSION_PY[
     "git"
-] = '''
+] = r'''
 # This file helps to compute a version number in source trees obtained from
 # git-archive tarball (such as those provided by githubs download-from-tag
 # feature). Distribution tarballs (built by setup.py sdist) and build
@@ -430,7 +420,7 @@ LONG_VERSION_PY[
 # that just contains the computed version number.
 
 # This file is released into the public domain. Generated by
-# versioneer-0.18 (https://github.com/warner/python-versioneer)
+# versioneer-0.19 (https://github.com/python-versioneer/python-versioneer)
 
 """Git implementation of _version.py."""
 
@@ -481,7 +471,7 @@ HANDLERS = {}
 
 
 def register_vcs_handler(vcs, method):  # decorator
-    """Decorator to mark a method as the handler for a particular VCS."""
+    """Create decorator to mark a method as the handler of a VCS."""
     def decorate(f):
         """Store f in HANDLERS[vcs][method]."""
         if vcs not in HANDLERS:
@@ -517,9 +507,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False,
         if verbose:
             print("unable to find command, tried %%s" %% (commands,))
         return None, None
-    stdout = p.communicate()[0].strip()
-    if sys.version_info[0] >= 3:
-        stdout = stdout.decode()
+    stdout = p.communicate()[0].strip().decode()
     if p.returncode != 0:
         if verbose:
             print("unable to run %%s (error)" %% dispcmd)
@@ -589,6 +577,10 @@ def git_versions_from_keywords(keywords, tag_prefix, verbose):
         raise NotThisMethod("no keywords at all, weird")
     date = keywords.get("date")
     if date is not None:
+        # Use only the last line.  Previous lines may contain GPG signature
+        # information.
+        date = date.splitlines()[-1]
+
         # git-2.2.0 added "%%cI", which expands to an ISO-8601 -compliant
         # datestamp. However we prefer "%%ci" (which expands to an "ISO-8601
         # -like" string, which we must then edit to make compliant), because
@@ -724,6 +716,9 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     # commit date: see ISO-8601 comment in git_versions_from_keywords()
     date = run_command(GITS, ["show", "-s", "--format=%%ci", "HEAD"],
                        cwd=root)[0].strip()
+    # Use only the last line.  Previous lines may contain GPG signature
+    # information.
+    date = date.splitlines()[-1]
     pieces["date"] = date.strip().replace(" ", "T", 1).replace(" ", "", 1)
 
     return pieces
@@ -762,18 +757,18 @@ def render_pep440(pieces):
 
 
 def render_pep440_pre(pieces):
-    """TAG[.post.devDISTANCE] -- No -dirty.
+    """TAG[.post0.devDISTANCE] -- No -dirty.
 
     Exceptions:
-    1: no tags. 0.post.devDISTANCE
+    1: no tags. 0.post0.devDISTANCE
     """
     if pieces["closest-tag"]:
         rendered = pieces["closest-tag"]
         if pieces["distance"]:
-            rendered += ".post.dev%%d" %% pieces["distance"]
+            rendered += ".post0.dev%%d" %% pieces["distance"]
     else:
         # exception #1
-        rendered = "0.post.dev%%d" %% pieces["distance"]
+        rendered = "0.post0.dev%%d" %% pieces["distance"]
     return rendered
 
 
@@ -981,6 +976,10 @@ def git_versions_from_keywords(keywords, tag_prefix, verbose):
         raise NotThisMethod("no keywords at all, weird")
     date = keywords.get("date")
     if date is not None:
+        # Use only the last line.  Previous lines may contain GPG signature
+        # information.
+        date = date.splitlines()[-1]
+
         # git-2.2.0 added "%cI", which expands to an ISO-8601 -compliant
         # datestamp. However we prefer "%ci" (which expands to an "ISO-8601
         # -like" string, which we must then edit to make compliant), because
@@ -1117,6 +1116,9 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
 
     # commit date: see ISO-8601 comment in git_versions_from_keywords()
     date = run_command(GITS, ["show", "-s", "--format=%ci", "HEAD"], cwd=root)[0].strip()
+    # Use only the last line.  Previous lines may contain GPG signature
+    # information.
+    date = date.splitlines()[-1]
     pieces["date"] = date.strip().replace(" ", "T", 1).replace(" ", "", 1)
 
     return pieces
@@ -1189,7 +1191,7 @@ def versions_from_parentdir(parentdir_prefix, root, verbose):
 
 
 SHORT_VERSION_PY = """
-# This file was generated by 'versioneer.py' (0.18) from
+# This file was generated by 'versioneer.py' (0.19) from
 # revision-control system data, or from the parent directory name of an
 # unpacked source archive. Distribution tarballs contain a pre-generated copy
 # of this file.
@@ -1263,18 +1265,18 @@ def render_pep440(pieces):
 
 
 def render_pep440_pre(pieces):
-    """TAG[.post.devDISTANCE] -- No -dirty.
+    """TAG[.post0.devDISTANCE] -- No -dirty.
 
     Exceptions:
-    1: no tags. 0.post.devDISTANCE
+    1: no tags. 0.post0.devDISTANCE
     """
     if pieces["closest-tag"]:
         rendered = pieces["closest-tag"]
         if pieces["distance"]:
-            rendered += ".post.dev%d" % pieces["distance"]
+            rendered += ".post0.dev%d" % pieces["distance"]
     else:
         # exception #1
-        rendered = "0.post.dev%d" % pieces["distance"]
+        rendered = "0.post0.dev%d" % pieces["distance"]
     return rendered
 
 
@@ -1310,7 +1312,7 @@ def render_pep440_old(pieces):
 
     The ".dev0" means dirty.
 
-    Eexceptions:
+    Exceptions:
     1: no tags. 0.postDISTANCE[.dev0]
     """
     if pieces["closest-tag"]:
@@ -1493,8 +1495,12 @@ def get_version():
     return get_versions()["version"]
 
 
-def get_cmdclass():
-    """Get the custom setuptools/distutils subclasses used by Versioneer."""
+def get_cmdclass(cmdclass=None):
+    """Get the custom setuptools/distutils subclasses used by Versioneer.
+
+    If the package uses a different cmdclass (e.g. one from numpy), it
+    should be provide as an argument.
+    """
     if "versioneer" in sys.modules:
         del sys.modules["versioneer"]
         # this fixes the "python setup.py develop" case (also 'install' and
@@ -1508,9 +1514,9 @@ def get_cmdclass():
         # parent is protected against the child's "import versioneer". By
         # removing ourselves from sys.modules here, before the child build
         # happens, we protect the child from the parent's versioneer too.
-        # Also see https://github.com/warner/python-versioneer/issues/52
+        # Also see https://github.com/python-versioneer/python-versioneer/issues/52
 
-    cmds = {}
+    cmds = {} if cmdclass is None else cmdclass.copy()
 
     # we add "version" to both distutils and setuptools
     from distutils.core import Command
@@ -1553,7 +1559,9 @@ def get_cmdclass():
     #  setup.py egg_info -> ?
 
     # we override different "build_py" commands for both environments
-    if "setuptools" in sys.modules:
+    if "build_py" in cmds:
+        _build_py = cmds["build_py"]
+    elif "setuptools" in sys.modules:
         from setuptools.command.build_py import build_py as _build_py
     else:
         from distutils.command.build_py import build_py as _build_py
@@ -1572,6 +1580,31 @@ def get_cmdclass():
                 write_to_version_file(target_versionfile, versions)
 
     cmds["build_py"] = cmd_build_py
+
+    if "setuptools" in sys.modules:
+        from setuptools.command.build_ext import build_ext as _build_ext
+    else:
+        from distutils.command.build_ext import build_ext as _build_ext
+
+    class cmd_build_ext(_build_ext):
+        def run(self):
+            root = get_root()
+            cfg = get_config_from_root(root)
+            versions = get_versions()
+            _build_ext.run(self)
+            if self.inplace:
+                # build_ext --inplace will only build extensions in
+                # build/lib<..> dir with no _version.py to write to.
+                # As in place builds will already have a _version.py
+                # in the module dir, we do not need to write one.
+                return
+            # now locate _version.py in the new build/ directory and replace
+            # it with an updated value
+            target_versionfile = os.path.join(self.build_lib, cfg.versionfile_source)
+            print("UPDATING %s" % target_versionfile)
+            write_to_version_file(target_versionfile, versions)
+
+    cmds["build_ext"] = cmd_build_ext
 
     if "cx_Freeze" in sys.modules:  # cx_freeze enabled?
         from cx_Freeze.dist import build_exe as _build_exe
@@ -1611,10 +1644,7 @@ def get_cmdclass():
         del cmds["build_py"]
 
     if "py2exe" in sys.modules:  # py2exe enabled?
-        try:
-            from py2exe.distutils_buildexe import py2exe as _py2exe  # py3
-        except ImportError:
-            from py2exe.build_exe import py2exe as _py2exe  # py2
+        from py2exe.distutils_buildexe import py2exe as _py2exe
 
         class cmd_py2exe(_py2exe):
             def run(self):
@@ -1643,7 +1673,9 @@ def get_cmdclass():
         cmds["py2exe"] = cmd_py2exe
 
     # we override different "sdist" commands for both environments
-    if "setuptools" in sys.modules:
+    if "sdist" in cmds:
+        _sdist = cmds["sdist"]
+    elif "setuptools" in sys.modules:
         from setuptools.command.sdist import sdist as _sdist
     else:
         from distutils.command.sdist import sdist as _sdist
@@ -1718,7 +1750,7 @@ del get_versions
 
 
 def do_setup():
-    """Main VCS-independent setup function for installing Versioneer."""
+    """Do main VCS-independent setup function for installing Versioneer."""
     root = get_root()
     try:
         cfg = get_config_from_root(root)

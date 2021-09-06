@@ -30,3 +30,9 @@ Inferers
 .. autoclass:: SlidingWindowInferer
     :members:
     :special-members: __call__
+
+`SaliencyInferer`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: SaliencyInferer
+    :members:
+    :special-members: __call__

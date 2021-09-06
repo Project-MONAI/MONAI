@@ -22,17 +22,17 @@ TEST_CASES = [
     [BendingEnergyLoss, {}, ["pred"]],
     [
         LocalNormalizedCrossCorrelationLoss,
-        {"in_channels": 1, "kernel_size": 7, "kernel_type": "rectangular"},
+        {"kernel_size": 7, "kernel_type": "rectangular"},
         ["pred", "target"],
     ],
     [
         LocalNormalizedCrossCorrelationLoss,
-        {"in_channels": 1, "kernel_size": 5, "kernel_type": "triangular"},
+        {"kernel_size": 5, "kernel_type": "triangular"},
         ["pred", "target"],
     ],
     [
         LocalNormalizedCrossCorrelationLoss,
-        {"in_channels": 1, "kernel_size": 3, "kernel_type": "gaussian"},
+        {"kernel_size": 3, "kernel_type": "gaussian"},
         ["pred", "target"],
     ],
     [GlobalMutualInformationLoss, {"num_bins": 10}, ["pred", "target"]],

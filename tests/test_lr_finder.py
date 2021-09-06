@@ -13,6 +13,7 @@ import os
 import random
 import sys
 import unittest
+from typing import TYPE_CHECKING
 
 import torch
 from torch.utils.data import DataLoader
@@ -23,7 +24,14 @@ from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
 
-PILImage, has_pil = optional_import("PIL.Image")
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
+
+    has_matplotlib = True
+    has_pil = True
+else:
+    plt, has_matplotlib = optional_import("matplotlib.pyplot")
+    _, has_pil = optional_import("PIL.Image")
 
 RAND_SEED = 42
 random.seed(RAND_SEED)
@@ -73,7 +81,14 @@ class TestLRFinder(unittest.TestCase):
         lr_finder = LearningRateFinder(model, optimizer, loss_function, device=device)
         lr_finder.range_test(train_loader, val_loader=train_loader, end_lr=10, num_iter=5)
         print(lr_finder.get_steepest_gradient(0, 0)[0])
-        lr_finder.plot(0, 0)  # to inspect the loss-learning rate graph
+
+        if has_matplotlib:
+            ax = plt.subplot()
+            plt.show(block=False)
+            lr_finder.plot(0, 0, ax=ax)  # to inspect the loss-learning rate graph
+            plt.pause(3)
+            plt.close()
+
         lr_finder.reset()  # to reset the model and optimizer to their initial state
 
 

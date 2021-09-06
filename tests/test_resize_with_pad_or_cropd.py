@@ -23,7 +23,7 @@ TEST_CASES = [
         (3, 15, 8, 8),
     ],
     [
-        {"keys": "img", "spatial_size": [15, 4, 8], "mode": "constant"},
+        {"keys": "img", "spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "constant_values": 1},
         {"img": np.zeros((3, 8, 8, 4))},
         (3, 15, 4, 8),
     ],

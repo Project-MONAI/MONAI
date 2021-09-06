@@ -20,7 +20,7 @@ from tests.utils import skip_if_no_cpp_extension
 
 TEST_CASES = [
     [
-        # Case Descirption
+        # Case Description
         "2 batches, 1 dimensions, 1 channels, 1 features",
         # Sigmas
         [1, 0.2],
@@ -65,7 +65,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 batches, 1 dimensions, 3 channels, 1 features",
         # Sigmas
         [1],
@@ -103,7 +103,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 batches, 2 dimensions, 1 channels, 3 features",
         # Sigmas
         [5, 3, 3],
@@ -143,7 +143,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 batches, 3 dimensions, 1 channels, 1 features",
         # Sigmas
         [5, 3, 3],

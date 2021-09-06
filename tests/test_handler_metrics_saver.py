@@ -28,7 +28,7 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                 metrics=["metric1", "metric2"],
                 metric_details=["metric3", "metric4"],
                 batch_transform=lambda x: x["image_meta_dict"],
-                summary_ops=["mean", "median", "max", "90percent"],
+                summary_ops=["mean", "median", "max", "5percentile", "95percentile", "notnans"],
             )
             # set up engine
             data = [
@@ -46,7 +46,7 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                 engine.state.metrics = {"metric1": 1, "metric2": 2}
                 engine.state.metric_details = {
                     "metric3": torch.tensor([[1, 2], [2, 3]]),
-                    "metric4": torch.tensor([[5, 6], [7, 8]]),
+                    "metric4": torch.tensor([[5, 6], [7, torch.tensor(float("nan"))]]),
                 }
 
             metrics_saver.attach(engine)
@@ -67,17 +67,17 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                         self.assertEqual(row, [f"filepath{i}\t{float(i)}\t{float(i + 1)}\t{i + 0.5}"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric3_summary.csv")))
             # check the metric_summary.csv and content
-            with open(os.path.join(tempdir, "metric3_summary.csv")) as f:
+            with open(os.path.join(tempdir, "metric4_summary.csv")) as f:
                 f_csv = csv.reader(f)
                 for i, row in enumerate(f_csv):
                     if i == 1:
-                        self.assertEqual(row, ["class0\t1.5000\t1.5000\t2.0000\t1.1000"])
+                        self.assertEqual(row, ["class0\t6.0000\t6.0000\t7.0000\t5.1000\t6.9000\t2.0000"])
                     elif i == 2:
-                        self.assertEqual(row, ["class1\t2.5000\t2.5000\t3.0000\t2.1000"])
+                        self.assertEqual(row, ["class1\t6.0000\t6.0000\t6.0000\t6.0000\t6.0000\t1.0000"])
                     elif i == 3:
-                        self.assertEqual(row, ["mean\t2.0000\t2.0000\t2.5000\t1.6000"])
+                        self.assertEqual(row, ["mean\t6.2500\t6.2500\t7.0000\t5.5750\t6.9250\t2.0000"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_raw.csv")))
-            self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_summary.csv")))
+            self.assertTrue(os.path.exists(os.path.join(tempdir, "metric3_summary.csv")))
 
 
 if __name__ == "__main__":

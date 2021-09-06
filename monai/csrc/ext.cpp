@@ -29,14 +29,20 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
   // resample bound mode
   py::enum_<monai::BoundType>(m, "BoundType")
-      .value("replicate", monai::BoundType::Replicate)
-      .value("dct1", monai::BoundType::DCT1)
-      .value("dct2", monai::BoundType::DCT2)
-      .value("dst1", monai::BoundType::DST1)
-      .value("dst2", monai::BoundType::DST2)
-      .value("dft", monai::BoundType::DFT)
-      .value("sliding", monai::BoundType::Sliding)
-      .value("zero", monai::BoundType::Zero)
+      .value("replicate", monai::BoundType::Replicate, "a a a | a b c d | d d d")
+      .value("nearest", monai::BoundType::Replicate, "a a a | a b c d | d d d")
+      .value("dct1", monai::BoundType::DCT1, "d c b | a b c d | c b a")
+      .value("mirror", monai::BoundType::DCT1, "d c b | a b c d | c b a")
+      .value("dct2", monai::BoundType::DCT2, "c b a | a b c d | d c b")
+      .value("reflect", monai::BoundType::DCT2, "c b a | a b c d | d c b")
+      .value("dst1", monai::BoundType::DST1, "-b -a 0 | a b c d | 0 -d -c")
+      .value("antimirror", monai::BoundType::DST1, "-b -a 0 | a b c d | 0 -d -c")
+      .value("dst2", monai::BoundType::DST2, "-c -b -a | a b c d | -d -c -b")
+      .value("antireflect", monai::BoundType::DST2, "-c -b -a | a b c d | -d -c -b")
+      .value("dft", monai::BoundType::DFT, "b c d | a b c d | a b c")
+      .value("wrap", monai::BoundType::DFT, "b c d | a b c d | a b c")
+      //   .value("sliding", monai::BoundType::Sliding)
+      .value("zero", monai::BoundType::Zero, "0 0 0 | a b c d | 0 0 0")
       .export_values();
 
   // resample interpolation mode

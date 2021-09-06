@@ -15,11 +15,11 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import Spacing
-from monai.utils import ensure_tuple
+from monai.utils import ensure_tuple, fall_back_tuple
 
 TEST_CASES = [
     [
-        {"pixdim": (1.0, 1.5, 1.0), "padding_mode": "zeros", "dtype": float},
+        {"pixdim": (1.0, 1.5), "padding_mode": "zeros", "dtype": float},
         np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
         {"affine": np.eye(4)},
         np.array([[[1.0, 1.0], [3.0, 2.0]]]),
@@ -93,7 +93,7 @@ TEST_CASES = [
         ),
     ],
     [
-        {"pixdim": (1.9, 4.0, 5.0), "padding_mode": "zeros", "diagonal": True},
+        {"pixdim": (1.9, 4.0), "padding_mode": "zeros", "diagonal": True},
         np.arange(24).reshape((1, 4, 6)),  # data
         {"affine": np.array([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "mode": "nearest"},
         np.array(
@@ -111,7 +111,7 @@ TEST_CASES = [
         ),
     ],
     [
-        {"pixdim": (5.0, 3.0, 6.0), "padding_mode": "border", "diagonal": True, "dtype": np.float32},
+        {"pixdim": (5.0, 3.0), "padding_mode": "border", "diagonal": True, "dtype": np.float32},
         np.arange(24).reshape((1, 4, 6)),  # data
         {"affine": np.array([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "mode": "bilinear"},
         np.array(
@@ -125,7 +125,7 @@ TEST_CASES = [
         ),
     ],
     [
-        {"pixdim": (5.0, 3.0, 6.0), "padding_mode": "zeros", "diagonal": True, "dtype": np.float32},
+        {"pixdim": (5.0, 3.0), "padding_mode": "zeros", "diagonal": True, "dtype": np.float32},
         np.arange(24).reshape((1, 4, 6)),  # data
         {"affine": np.array([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]), "mode": "bilinear"},
         np.array(
@@ -138,6 +138,12 @@ TEST_CASES = [
             ]
         ),
     ],
+    [
+        {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float},
+        np.ones((1, 2, 1, 2)),  # data
+        {"affine": np.eye(4)},
+        np.array([[[[1.0, 1.0, 1.0]], [[1.0, 1.0, 1.0]]]]),
+    ],
 ]
 
 
@@ -145,17 +151,17 @@ class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_spacing(self, init_param, img, data_param, expected_output):
         res = Spacing(**init_param)(img, **data_param)
+        if not isinstance(res, tuple):
+            np.testing.assert_allclose(res, expected_output, atol=1e-6)
+            return
         np.testing.assert_allclose(res[0], expected_output, atol=1e-6)
         sr = len(res[0].shape) - 1
         if isinstance(init_param["pixdim"], float):
             init_param["pixdim"] = [init_param["pixdim"]] * sr
         init_pixdim = ensure_tuple(init_param["pixdim"])
         init_pixdim = init_param["pixdim"][:sr]
-        np.testing.assert_allclose(init_pixdim[:sr], np.sqrt(np.sum(np.square(res[2]), axis=0))[:sr])
-
-    def test_ill_pixdim(self):
-        with self.assertRaises(ValueError):
-            Spacing(pixdim=(-1, 2.0))(np.zeros((1, 1)))
+        norm = np.sqrt(np.sum(np.square(res[2]), axis=0))[:sr]
+        np.testing.assert_allclose(fall_back_tuple(init_pixdim, norm), norm)
 
 
 if __name__ == "__main__":

@@ -19,14 +19,14 @@ from monai.transforms import MeanEnsembled
 
 TEST_CASE_1 = [
     {"keys": ["pred0", "pred1"], "output_key": "output", "weights": None},
-    {"pred0": torch.ones(2, 2, 2, 2), "pred1": torch.ones(2, 2, 2, 2) + 2},
-    torch.ones(2, 2, 2, 2) + 1,
+    {"pred0": torch.ones(2, 2, 2), "pred1": torch.ones(2, 2, 2) + 2},
+    torch.ones(2, 2, 2) + 1,
 ]
 
 TEST_CASE_2 = [
     {"keys": "output", "weights": None},
-    {"output": torch.stack([torch.ones(2, 2, 2, 2), torch.ones(2, 2, 2, 2) + 2])},
-    torch.ones(2, 2, 2, 2) + 1,
+    {"output": torch.stack([torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2])},
+    torch.ones(2, 2, 2) + 1,
 ]
 
 TEST_CASE_3 = [
@@ -36,9 +36,9 @@ TEST_CASE_3 = [
 ]
 
 TEST_CASE_4 = [
-    {"keys": ["pred0", "pred1"], "output_key": "output", "weights": [[[1, 3]], [[3, 1]]]},
-    {"pred0": torch.ones(2, 2, 2, 2), "pred1": torch.ones(2, 2, 2, 2) + 2},
-    torch.ones(2, 2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(1, 2, 1, 1),
+    {"keys": ["pred0", "pred1"], "output_key": "output", "weights": [[1, 3], [3, 1]]},
+    {"pred0": torch.ones(2, 2, 2), "pred1": torch.ones(2, 2, 2) + 2},
+    torch.ones(2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(2, 1, 1),
 ]
 
 TEST_CASE_5 = [

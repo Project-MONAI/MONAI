@@ -16,7 +16,7 @@ import torch
 
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import MetricReduction, optional_import
+from monai.utils import MetricReduction, look_up_option, optional_import
 
 binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
@@ -49,6 +49,8 @@ def do_metric_reduction(
 ):
     """
     This function is to do the metric reduction for calculated metrics of each example's each class.
+    The function also returns `not_nans`, which counts the number of not nans for the metric.
+
     Args:
         f: a tensor that contains the calculated metric scores per batch and
             per class. The first two dims should be batch and class.
@@ -67,7 +69,7 @@ def do_metric_reduction(
     not_nans = (~nans).float()
 
     t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
-    reduction = MetricReduction(reduction)
+    reduction = look_up_option(reduction, MetricReduction)
     if reduction == MetricReduction.NONE:
         return f, not_nans
 
@@ -185,6 +187,10 @@ def get_surface_distance(
             - ``"euclidean"``, uses Exact Euclidean distance transform.
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
+
+    Note:
+        If seg_pred or seg_gt is all 0, may result in nan/inf distance.
+
     """
 
     if not np.any(seg_gt):
@@ -195,7 +201,7 @@ def get_surface_distance(
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
             dis = distance_transform_edt(~seg_gt)
-        elif distance_metric in ["chessboard", "taxicab"]:
+        elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")

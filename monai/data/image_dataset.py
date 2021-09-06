@@ -26,7 +26,8 @@ class ImageDataset(Dataset, Randomizable):
     for the image and segmentation arrays separately.
     The difference between this dataset and `ArrayDataset` is that this dataset can apply transform chain to images
     and segs and return both the images and metadata, and no need to specify transform to load images from files.
-
+    For more information, please see the image_dataset demo in the MONAI tutorial repo,
+    https://github.com/Project-MONAI/tutorials/blob/master/modules/image_dataset.ipynb
     """
 
     def __init__(
@@ -37,6 +38,7 @@ class ImageDataset(Dataset, Randomizable):
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
         image_only: bool = True,
+        transform_with_metadata: bool = False,
         dtype: DtypeLike = np.float32,
         reader: Optional[Union[ImageReader, str]] = None,
         *args,
@@ -53,6 +55,7 @@ class ImageDataset(Dataset, Randomizable):
             transform: transform to apply to image arrays
             seg_transform: transform to apply to segmentation arrays
             image_only: if True return only the image volume, otherwise, return image volume and the metadata
+            transform_with_metadata: if True, the metadata will be passed to the transforms whenever possible.
             dtype: if not None convert the loaded image to this data type
             reader: register reader to load image file and meta data, if None, will use the default readers.
                 If a string of reader name provided, will construct a reader object with the `*args` and `**kwargs`
@@ -76,7 +79,10 @@ class ImageDataset(Dataset, Randomizable):
         self.labels = labels
         self.transform = transform
         self.seg_transform = seg_transform
+        if image_only and transform_with_metadata:
+            raise ValueError("transform_with_metadata=True requires image_only=False.")
         self.image_only = image_only
+        self.transform_with_metadata = transform_with_metadata
         self.loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
         self.set_random_state(seed=get_seed())
         self._seed = 0  # transform synchronization seed
@@ -89,10 +95,9 @@ class ImageDataset(Dataset, Randomizable):
 
     def __getitem__(self, index: int):
         self.randomize()
-        meta_data = None
-        seg = None
-        label = None
+        meta_data, seg_meta_data, seg, label = None, None, None, None
 
+        # load data and optionally meta
         if self.image_only:
             img = self.loader(self.image_files[index])
             if self.seg_files is not None:
@@ -100,29 +105,42 @@ class ImageDataset(Dataset, Randomizable):
         else:
             img, meta_data = self.loader(self.image_files[index])
             if self.seg_files is not None:
-                seg, _ = self.loader(self.seg_files[index])
+                seg, seg_meta_data = self.loader(self.seg_files[index])
 
-        if self.labels is not None:
-            label = self.labels[index]
-
+        # apply the transforms
         if self.transform is not None:
             if isinstance(self.transform, Randomizable):
                 self.transform.set_random_state(seed=self._seed)
-            img = apply_transform(self.transform, img)
 
-        data = [img]
+            if self.transform_with_metadata:
+                img, meta_data = apply_transform(self.transform, (img, meta_data), map_items=False, unpack_items=True)
+            else:
+                img = apply_transform(self.transform, img, map_items=False)
 
         if self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
                 self.seg_transform.set_random_state(seed=self._seed)
-            seg = apply_transform(self.seg_transform, seg)
 
+            if self.transform_with_metadata:
+                seg, seg_meta_data = apply_transform(
+                    self.seg_transform, (seg, seg_meta_data), map_items=False, unpack_items=True
+                )
+            else:
+                seg = apply_transform(self.seg_transform, seg, map_items=False)
+
+        if self.labels is not None:
+            label = self.labels[index]
+
+        # construct outputs
+        data = [img]
         if seg is not None:
             data.append(seg)
         if label is not None:
             data.append(label)
         if not self.image_only and meta_data is not None:
             data.append(meta_data)
+        if not self.image_only and seg_meta_data is not None:
+            data.append(seg_meta_data)
         if len(data) == 1:
             return data[0]
         # use tuple instead of list as the default collate_fn callback of MONAI DataLoader flattens nested lists

@@ -13,7 +13,7 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import Randomizable
+from monai.transforms.transform import Randomizable
 
 
 class RandTest(Randomizable):

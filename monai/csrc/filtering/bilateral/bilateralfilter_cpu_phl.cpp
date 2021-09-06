@@ -51,11 +51,11 @@ void BilateralFilterPHLCpu(
       }
 
       // Spatial features
-      int offsetRemanider = i;
+      int offsetRemainder = i;
 
       for (int d = 0; d < desc.dimensions; d++) {
-        int coord = offsetRemanider / desc.strides[d];
-        offsetRemanider -= coord * desc.strides[d];
+        int coord = offsetRemainder / desc.strides[d];
+        offsetRemainder -= coord * desc.strides[d];
 
         features[i * featureChannels + desc.channelCount + d] = invSpatialSigma * coord;
       }

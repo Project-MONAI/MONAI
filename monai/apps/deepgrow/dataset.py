@@ -22,7 +22,7 @@ from monai.utils import GridSampleMode
 def create_dataset(
     datalist,
     output_dir: str,
-    dimension,
+    dimension: int,
     pixdim,
     image_key: str = "image",
     label_key: str = "label",
@@ -138,7 +138,7 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
     if len(vol_image.shape) == 4:
         logging.info(
             "4D-Image, pick only first series; Image: {}; Label: {}".format(
-                vol_image.shape, vol_label.shape if vol_label else None
+                vol_image.shape, vol_label.shape if vol_label is not None else None
             )
         )
         vol_image = vol_image[0]
@@ -216,7 +216,7 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
     if len(vol_image.shape) == 4:
         logging.info(
             "4D-Image, pick only first series; Image: {}; Label: {}".format(
-                vol_image.shape, vol_label.shape if vol_label else None
+                vol_image.shape, vol_label.shape if vol_label is not None else None
             )
         )
         vol_image = vol_image[0]

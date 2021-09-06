@@ -17,7 +17,7 @@ from parameterized import parameterized
 import monai
 from monai.transforms import BoundingRect
 
-TEST_CASE_1 = [(2, 3), [[-1, -1], [1, 2]]]
+TEST_CASE_1 = [(2, 3), [[0, 0], [1, 2]]]
 
 TEST_CASE_2 = [(1, 8, 10), [[0, 7, 1, 9]]]
 

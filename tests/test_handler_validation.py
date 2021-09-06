@@ -37,7 +37,7 @@ class TestHandlerValidation(unittest.TestCase):
         # set up testing handler
         val_data_loader = torch.utils.data.DataLoader(Dataset(data))
         evaluator = TestEvaluator(torch.device("cpu:0"), val_data_loader)
-        saver = ValidationHandler(evaluator, interval=2)
+        saver = ValidationHandler(interval=2, validator=evaluator)
         saver.attach(engine)
 
         engine.run(data, max_epochs=5)

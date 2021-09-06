@@ -62,7 +62,9 @@ namespace monai {
 template <typename scalar_t, typename offset_t>
 static inline void cpuAtomicAdd(scalar_t* ptr, offset_t offset, scalar_t value) {
 #if AT_PARALLEL_OPENMP
+#if _OPENMP
 #pragma omp atomic
+#endif
 #endif
   ptr[offset] += value;
 }

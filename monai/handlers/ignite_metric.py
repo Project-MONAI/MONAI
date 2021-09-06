@@ -9,34 +9,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
 
 import torch
 
-from monai.handlers.utils import evenly_divisible_all_gather
-from monai.metrics import do_metric_reduction
-from monai.utils import MetricReduction, exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.metrics import CumulativeIterationMetric
+from monai.utils import min_version, optional_import
 
-idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
-Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
-reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
+idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
+Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
+reinit__is_reduced, _ = optional_import(
+    "ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, min_version, "reinit__is_reduced"
+)
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
-class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_import
+class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_import
     """
-    Class for metrics that should be computed on every iteration and compute final results when epoch completed.
-    Similar to the `EpochMetric` in ignite:
-    https://github.com/pytorch/ignite/blob/v0.4.2/ignite/metrics/epoch_metric.py#L13.
+    Base Metric class based on ignite event handler mechanism.
+    The input `prediction` or `label` data can be a PyTorch Tensor or numpy array with batch dim and channel dim,
+    or a list of PyTorch Tensor or numpy array without batch dim.
 
     Args:
         metric_fn: callable function or class to compute raw metric results after every iteration.
             expect to return a Tensor with shape (batch, channel, ...) or tuple (Tensor, not_nans).
-        output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-        device: device specification in case of distributed computation usage.
+        output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
+            construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
+            lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
+            for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
+            output_transform can be `lambda x: (x["pred"], x["label"])`.
         save_details: whether to save metric computation details per image, for example: mean_dice of every image.
             default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
@@ -44,9 +50,8 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
 
     def __init__(
         self,
-        metric_fn: Callable,
+        metric_fn: CumulativeIterationMetric,
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
         save_details: bool = True,
     ) -> None:
         self._is_reduced: bool = False
@@ -55,11 +60,11 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         self._scores: List = []
         self._engine: Optional[Engine] = None
         self._name: Optional[str] = None
-        super().__init__(output_transform, device=device)
+        super().__init__(output_transform)
 
     @reinit__is_reduced
     def reset(self) -> None:
-        self._scores = []
+        self.metric_fn.reset()
 
     @reinit__is_reduced
     def update(self, output: Sequence[torch.Tensor]) -> None:
@@ -73,11 +78,10 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         """
         if len(output) != 2:
             raise ValueError(f"output must have length 2, got {len(output)}.")
+
         y_pred, y = output
-        score = self.metric_fn(y_pred, y)
-        if isinstance(score, (tuple, list)):
-            score = score[0]
-        self._scores.append(score)
+
+        self.metric_fn(y_pred, y)
 
     def compute(self) -> Any:
         """
@@ -85,33 +89,21 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             NotComputableError: When ``compute`` is called before an ``update`` occurs.
 
         """
-        _scores = torch.cat(self._scores, dim=0)
+        result = self.metric_fn.aggregate()
+        if isinstance(result, (tuple, list)):
+            if len(result) > 1:
+                warnings.warn("metric handler can only record the first value of result list.")
+            result = result[0]
 
-        ws = idist.get_world_size()
-        if ws > 1 and not self._is_reduced:
-            # all gather across all processes
-            _scores = evenly_divisible_all_gather(data=_scores)
         self._is_reduced = True
 
         # save score of every image into engine.state for other components
         if self.save_details:
             if self._engine is None or self._name is None:
                 raise RuntimeError("please call the attach() function to connect expected engine first.")
-            self._engine.state.metric_details[self._name] = _scores
-
-        result: torch.Tensor = torch.zeros(1)
-        if idist.get_rank() == 0:
-            # run compute_fn on zero rank only
-            result = self._reduce(_scores)
-
-        if ws > 1:
-            # broadcast result to all processes
-            result = idist.broadcast(result, src=0)
+            self._engine.state.metric_details[self._name] = self.metric_fn.get_buffer()
 
         return result.item() if isinstance(result, torch.Tensor) else result
-
-    def _reduce(self, scores) -> Any:
-        return do_metric_reduction(scores, MetricReduction.MEAN)[0]
 
     def attach(self, engine: Engine, name: str) -> None:
         """

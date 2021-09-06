@@ -26,6 +26,7 @@ RUN_BUILD = os.getenv("BUILD_MONAI", "0") == "1"
 FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"  # flag ignored if BUILD_MONAI is False
 
 BUILD_CPP = BUILD_CUDA = False
+TORCH_VERSION = 0
 try:
     import torch
 
@@ -35,14 +36,13 @@ try:
     BUILD_CPP = True
     from torch.utils.cpp_extension import CUDA_HOME, CUDAExtension
 
-    BUILD_CUDA = (torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
+    BUILD_CUDA = (CUDA_HOME is not None) if torch.cuda.is_available() else FORCE_CUDA
 
     _pt_version = pkg_resources.parse_version(torch.__version__).release  # type: ignore[attr-defined]
     if _pt_version is None or len(_pt_version) < 3:
         raise AssertionError("unknown torch version")
     TORCH_VERSION = int(_pt_version[0]) * 10000 + int(_pt_version[1]) * 100 + int(_pt_version[2])
 except (ImportError, TypeError, AssertionError, AttributeError) as e:
-    TORCH_VERSION = 0
     warnings.warn(f"extension build skipped: {e}")
 finally:
     if not RUN_BUILD:
@@ -134,11 +134,20 @@ def get_cmds():
     return cmds
 
 
+# Gathering source used for JIT extensions to include in package_data.
+jit_extension_source = []
+
+for ext in ["cpp", "cu", "h", "cuh"]:
+    glob_path = os.path.join("monai", "_extensions", "**", f"*.{ext}")
+    jit_extension_source += glob.glob(glob_path, recursive=True)
+
+jit_extension_source = [os.path.join("..", path) for path in jit_extension_source]
+
 setup(
     version=versioneer.get_version(),
     cmdclass=get_cmds(),
     packages=find_packages(exclude=("docs", "examples", "tests")),
     zip_safe=False,
-    package_data={"monai": ["py.typed"]},
+    package_data={"monai": ["py.typed", *jit_extension_source]},
     ext_modules=get_extensions(),
 )

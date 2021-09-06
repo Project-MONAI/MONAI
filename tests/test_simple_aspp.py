@@ -19,12 +19,12 @@ from monai.networks.blocks import SimpleASPP
 
 TEST_CASES = [
     [  # 32-channel 2D, batch 7
-        {"spatial_dims": 2, "in_channels": 32, "conv_out_channels": 3},
+        {"spatial_dims": 2, "in_channels": 32, "conv_out_channels": 3, "norm_type": ("batch", {"affine": False})},
         (7, 32, 18, 20),
         (7, 12, 18, 20),
     ],
     [  # 4-channel 1D, batch 16
-        {"spatial_dims": 1, "in_channels": 4, "conv_out_channels": 8},
+        {"spatial_dims": 1, "in_channels": 4, "conv_out_channels": 8, "acti_type": ("PRELU", {"num_parameters": 32})},
         (16, 4, 17),
         (16, 32, 17),
     ],

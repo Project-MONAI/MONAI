@@ -96,9 +96,7 @@ class BendingEnergyLoss(_Loss):
             energy = torch.mean(energy)  # the batch and channel average
         elif self.reduction == LossReduction.SUM.value:
             energy = torch.sum(energy)  # sum over the batch and channel dims
-        elif self.reduction == LossReduction.NONE.value:
-            pass  # returns [N, n_classes] losses
-        else:
+        elif self.reduction != LossReduction.NONE.value:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return energy

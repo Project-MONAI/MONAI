@@ -11,7 +11,9 @@
 
 import hashlib
 import os
+import shutil
 import tarfile
+import tempfile
 import warnings
 import zipfile
 from typing import TYPE_CHECKING, Optional
@@ -35,6 +37,53 @@ __all__ = [
     "extractall",
     "download_and_extract",
 ]
+
+
+def _basename(p):
+    """get the last part of the path (removing the trailing slash if it exists)"""
+    sep = os.path.sep + (os.path.altsep or "") + "/ "
+    return os.path.basename(p.rstrip(sep))
+
+
+def _download_with_progress(url, filepath, progress: bool = True):
+    """
+    Retrieve file from `url` to `filepath`, optionally showing a progress bar.
+    """
+    try:
+        if has_tqdm and progress:
+
+            class TqdmUpTo(tqdm):
+                """
+                Provides `update_to(n)` which uses `tqdm.update(delta_n)`.
+                Inspired by the example in https://github.com/tqdm/tqdm.
+                """
+
+                def update_to(self, b: int = 1, bsize: int = 1, tsize: Optional[int] = None):
+                    """
+                    Args:
+                        b: number of blocks transferred so far, default: 1.
+                        bsize: size of each block (in tqdm units), default: 1.
+                        tsize: total size (in tqdm units). if None, remains unchanged.
+                    """
+                    if tsize is not None:
+                        self.total = tsize
+                    self.update(b * bsize - self.n)  # will also set self.n = b * bsize
+
+            with TqdmUpTo(
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                miniters=1,
+                desc=_basename(filepath),
+            ) as t:
+                urlretrieve(url, filepath, reporthook=t.update_to)
+        else:
+            if not has_tqdm and progress:
+                warnings.warn("tqdm is not installed, will not show the downloading progress bar.")
+            urlretrieve(url, filepath)
+    except (URLError, HTTPError, ContentTooShortError, IOError) as e:
+        print(f"Download failed from {url} to {filepath}.")
+        raise e
 
 
 def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5") -> bool:
@@ -64,23 +113,26 @@ def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5")
         print(f"Exception in check_hash: {e}")
         return False
     if val != actual_hash.hexdigest():
-        print("check_hash failed.")
+        print(f"check_hash failed {actual_hash.hexdigest()}.")
         return False
 
-    print(f"Verified '{os.path.basename(filepath)}', {hash_type}: {val}.")
+    print(f"Verified '{_basename(filepath)}', {hash_type}: {val}.")
     return True
 
 
-def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_type: str = "md5") -> None:
+def download_url(
+    url: str, filepath: str = "", hash_val: Optional[str] = None, hash_type: str = "md5", progress: bool = True
+) -> None:
     """
     Download file from specified URL link, support process bar and hash check.
 
     Args:
         url: source URL link to download file.
-        filepath: target filepath to save the downloaded file.
+        filepath: target filepath to save the downloaded file. If undefined, `os.path.basename(url)` will be used.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        progress: whether to display a progress bar.
 
     Raises:
         RuntimeError: When the hash validation of the ``filepath`` existing file fails.
@@ -93,64 +145,34 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
         RuntimeError: When the hash validation of the ``url`` downloaded file fails.
 
     """
+    if not filepath:
+        filepath = os.path.abspath(os.path.join(".", _basename(url)))
+        print(f"Default downloading to '{filepath}'")
     if os.path.exists(filepath):
         if not check_hash(filepath, hash_val, hash_type):
             raise RuntimeError(
                 f"{hash_type} check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
             )
-        print(f"file {filepath} exists, skip downloading.")
+        print(f"File exists: {filepath}, skipped downloading.")
         return
 
-    if url.startswith("https://drive.google.com"):
-        if not has_gdown:
-            raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        gdown.download(url, filepath, quiet=False)
-        if not os.path.exists(filepath):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_name = os.path.join(tmp_dir, f"{_basename(filepath)}")
+        if url.startswith("https://drive.google.com"):
+            if not has_gdown:
+                raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
+            gdown.download(url, tmp_name, quiet=not progress)
+        else:
+            _download_with_progress(url, tmp_name, progress=progress)
+        if not os.path.exists(tmp_name):
             raise RuntimeError(
                 f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
             )
-    else:
-        path = os.path.dirname(filepath)
-        if path:
-            os.makedirs(path, exist_ok=True)
-        try:
-            if has_tqdm:
-
-                class TqdmUpTo(tqdm):
-                    """
-                    Provides `update_to(n)` which uses `tqdm.update(delta_n)`.
-                    Inspired by the example in https://github.com/tqdm/tqdm.
-
-                    """
-
-                    def update_to(self, b: int = 1, bsize: int = 1, tsize: Optional[int] = None):
-                        """
-                        b: number of blocks transferred so far, default: 1.
-                        bsize: size of each block (in tqdm units), default: 1.
-                        tsize: total size (in tqdm units). if None, remains unchanged.
-
-                        """
-                        if tsize is not None:
-                            self.total = tsize
-                        self.update(b * bsize - self.n)  # will also set self.n = b * bsize
-
-                with TqdmUpTo(
-                    unit="B",
-                    unit_scale=True,
-                    unit_divisor=1024,
-                    miniters=1,
-                    desc=filepath.split(os.sep)[-1],
-                ) as t:
-                    urlretrieve(url, filepath, reporthook=t.update_to)
-            else:
-                warnings.warn("tqdm is not installed, will not show the downloading progress bar.")
-                urlretrieve(url, filepath)
-            print(f"\ndownloaded file: {filepath}.")
-        except (URLError, HTTPError, ContentTooShortError, IOError) as e:
-            print(f"download failed from {url} to {filepath}.")
-            raise e
-
+        file_dir = os.path.dirname(filepath)
+        if file_dir:
+            os.makedirs(file_dir, exist_ok=True)
+        shutil.move(tmp_name, filepath)  # copy the downloaded to a user-specified cache.
+        print(f"Downloaded: {filepath}")
     if not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of downloaded file failed: URL={url}, "
@@ -158,7 +180,14 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
         )
 
 
-def extractall(filepath: str, output_dir: str, hash_val: Optional[str] = None, hash_type: str = "md5") -> None:
+def extractall(
+    filepath: str,
+    output_dir: str = ".",
+    hash_val: Optional[str] = None,
+    hash_type: str = "md5",
+    file_type: str = "",
+    has_base: bool = True,
+) -> None:
     """
     Extract file to the output directory.
     Expected file types are: `zip`, `tar.gz` and `tar`.
@@ -169,48 +198,76 @@ def extractall(filepath: str, output_dir: str, hash_val: Optional[str] = None, h
         hash_val: expected hash value to validate the compressed file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        file_type: string of file type for decompressing. Leave it empty to infer the type from the filepath basename.
+        has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
+            folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
+            to folder structure `A/*.png`, this flag should be True; if B.zip is unzipped to `*.png`, this flag should
+            be False.
 
     Raises:
         RuntimeError: When the hash validation of the ``filepath`` compressed file fails.
-        ValueError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
+        NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
-    target_file = os.path.join(output_dir, os.path.basename(filepath).split(".")[0])
-    if os.path.exists(target_file):
-        print(f"extracted file {target_file} exists, skip extracting.")
+    if has_base:
+        # the extracted files will be in this folder
+        cache_dir = os.path.join(output_dir, _basename(filepath).split(".")[0])
+    else:
+        cache_dir = output_dir
+    if os.path.exists(cache_dir) and len(os.listdir(cache_dir)) > 0:
+        print(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
         return
-    if not check_hash(filepath, hash_val, hash_type):
+    if hash_val and not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
         )
-
-    if filepath.endswith("zip"):
+    print(f"Writing into directory: {output_dir}.")
+    _file_type = file_type.lower().strip()
+    if filepath.endswith("zip") or _file_type == "zip":
         zip_file = zipfile.ZipFile(filepath)
         zip_file.extractall(output_dir)
         zip_file.close()
-    elif filepath.endswith("tar") or filepath.endswith("tar.gz"):
+        return
+    if filepath.endswith("tar") or filepath.endswith("tar.gz") or "tar" in _file_type:
         tar_file = tarfile.open(filepath)
         tar_file.extractall(output_dir)
         tar_file.close()
-    else:
-        raise ValueError('Unsupported file extension, available options are: ["zip", "tar.gz", "tar"].')
+        return
+    raise NotImplementedError(
+        f'Unsupported file type, available options are: ["zip", "tar.gz", "tar"]. name={filepath} type={file_type}.'
+    )
 
 
 def download_and_extract(
-    url: str, filepath: str, output_dir: str, hash_val: Optional[str] = None, hash_type: str = "md5"
+    url: str,
+    filepath: str = "",
+    output_dir: str = ".",
+    hash_val: Optional[str] = None,
+    hash_type: str = "md5",
+    file_type: str = "",
+    has_base: bool = True,
+    progress: bool = True,
 ) -> None:
     """
     Download file from URL and extract it to the output directory.
 
     Args:
         url: source URL link to download file.
-        filepath: the file path of compressed file.
+        filepath: the file path of the downloaded compressed file.
+            use this option to keep the directly downloaded compressed file, to avoid further repeated downloads.
         output_dir: target directory to save extracted files.
-            default is None to save in current directory.
+            default is the current directory.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
-
+        file_type: string of file type for decompressing. Leave it empty to infer the type from url's base file name.
+        has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
+            folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
+            to folder structure `A/*.png`, this flag should be True; if B.zip is unzipped to `*.png`, this flag should
+            be False.
+        progress: whether to display progress bar.
     """
-    download_url(url=url, filepath=filepath, hash_val=hash_val, hash_type=hash_type)
-    extractall(filepath=filepath, output_dir=output_dir, hash_val=hash_val, hash_type=hash_type)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        filename = filepath or os.path.join(tmp_dir, f"{_basename(url)}")
+        download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
+        extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)

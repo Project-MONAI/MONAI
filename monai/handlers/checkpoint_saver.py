@@ -13,18 +13,18 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Dict, Optional
 
-from monai.utils import exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.utils import min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "Checkpoint")
-BaseSaveHandler, _ = optional_import("ignite.handlers.checkpoint", "0.4.2", exact_version, "BaseSaveHandler")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.handlers import DiskSaver
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-    DiskSaver, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "DiskSaver")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    DiskSaver, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "DiskSaver")
 
 
 class CheckpointSaver:
@@ -57,9 +57,15 @@ class CheckpointSaver:
         key_metric_filename: set a fixed filename to set the best metric model, if not None,
             `key_metric_n_saved` should be 1 and only keep the best metric model.
         key_metric_save_state: whether to save the tracking list of key metric in the checkpoint file.
-            if `True`, then will save an object in the checkpoint file with key `checkpointer` to be consistent
-            with ignite: https://github.com/pytorch/ignite/blob/master/ignite/handlers/checkpoint.py#L99.
+            if `True`, then will save an object in the checkpoint file with key `checkpointer` to be
+            consistent with the `include_self` arg of `Checkpoint` in ignite:
+            https://pytorch.org/ignite/v0.4.5/generated/ignite.handlers.checkpoint.Checkpoint.html.
             typically, it's used to resume training and compare current metric with previous N values.
+        key_metric_greater_or_equal: if `True`, the latest equally scored model is stored. Otherwise,
+            save the the first equally scored model. default to `False`.
+        key_metric_negative_sign: whether adding a negative sign to the metric score to compare metrics,
+            because for error-like metrics, smaller is better(objects with larger score are retained).
+            default to `False`.
         epoch_level: save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
         save_interval: save checkpoint every N epochs, default is 0 to save no checkpoint.
@@ -90,6 +96,8 @@ class CheckpointSaver:
         key_metric_n_saved: int = 1,
         key_metric_filename: Optional[str] = None,
         key_metric_save_state: bool = False,
+        key_metric_greater_or_equal: bool = False,
+        key_metric_negative_sign: bool = False,
         epoch_level: bool = True,
         save_interval: int = 0,
         n_saved: Optional[int] = None,
@@ -113,7 +121,9 @@ class CheckpointSaver:
             """
 
             def __init__(self, dirname: str, filename: Optional[str] = None):
-                super().__init__(dirname=dirname, require_empty=False)
+                # set `atomic=False` as `atomic=True` only gives read/write permission to the user who saved the file,
+                # without group/others read permission
+                super().__init__(dirname=dirname, require_empty=False, atomic=False)
                 self.filename = filename
 
             def __call__(self, checkpoint: Dict, filename: str, metadata: Optional[Dict] = None) -> None:
@@ -150,7 +160,8 @@ class CheckpointSaver:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
                     )
-                return round(engine.state.metrics[metric_name], 4)
+
+                return (-1 if key_metric_negative_sign else 1) * engine.state.metrics[metric_name]
 
             if key_metric_filename is not None and key_metric_n_saved > 1:
                 raise ValueError("if using fixed filename to save the best metric model, we should only save 1 model.")
@@ -163,6 +174,7 @@ class CheckpointSaver:
                 score_name="key_metric",
                 n_saved=key_metric_n_saved,
                 include_self=key_metric_save_state,
+                greater_or_equal=key_metric_greater_or_equal,
             )
 
         if save_interval > 0:
@@ -266,7 +278,7 @@ class CheckpointSaver:
             raise AssertionError
         if not hasattr(self.logger, "info"):
             raise AssertionError("Error, provided logger has not info attribute.")
-        self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
+        self.logger.info(f"Exception raised, saved the last checkpoint: {self._final_checkpoint.last_checkpoint}")
         raise e
 
     def metrics_completed(self, engine: Engine) -> None:

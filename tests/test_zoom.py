@@ -38,7 +38,7 @@ class TestZoom(NumpyImageTestCase2D):
         np.testing.assert_allclose(zoomed, expected, atol=1.0)
 
     def test_keep_size(self):
-        zoom_fn = Zoom(zoom=[0.6, 0.6], keep_size=True, align_corners=True)
+        zoom_fn = Zoom(zoom=[0.6, 0.6], keep_size=True, align_corners=True, padding_mode="constant", constant_values=2)
         zoomed = zoom_fn(self.imt[0], mode="bilinear")
         np.testing.assert_allclose(zoomed.shape, self.imt.shape[1:])
 

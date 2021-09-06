@@ -36,6 +36,16 @@ TEST_CASES = [
         (16, 4, 64, 48, 96),
     ],  # 4-channel 3D, batch 16
     [
+        {"dimensions": 3, "in_channels": 4, "mode": "nontrainable", "size": 64},
+        (16, 4, 32, 24, 48),
+        (16, 4, 64, 64, 64),
+    ],  # 4-channel 3D, batch 16
+    [
+        {"dimensions": 3, "in_channels": 4, "mode": "nontrainable", "size": (64, 24, 48)},
+        (16, 4, 32, 24, 48),
+        (16, 4, 64, 24, 48),
+    ],  # 4-channel 3D, batch 16
+    [
         {"dimensions": 3, "in_channels": 1, "mode": "deconv", "scale_factor": 3, "align_corners": False},
         (16, 1, 10, 15, 20),
         (16, 1, 30, 45, 60),

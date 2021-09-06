@@ -15,6 +15,7 @@ limitations under the License.
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
+#include "bilateral.h"
 #include "filtering/permutohedral/permutohedral.h"
 #include "utils/meta_macros.h"
 #include "utils/tensor_description.h"
@@ -95,7 +96,7 @@ void BilateralFilterPHLCuda(
   cudaMalloc(&data, desc.batchCount * desc.channelStride * desc.channelCount * sizeof(scalar_t));
   cudaMalloc(&features, desc.batchCount * desc.channelStride * featureChannelCount * sizeof(scalar_t));
 
-  // Prparing constant memory
+  // Preparing constant memory
   cudaMemcpyToSymbol(cBatchStride, &desc.batchStride, sizeof(int));
   cudaMemcpyToSymbol(cChannelStride, &desc.channelStride, sizeof(int));
   cudaMemcpyToSymbol(cSpatialStrides, desc.strides, sizeof(int) * desc.dimensions);
@@ -135,7 +136,7 @@ torch::Tensor BilateralFilterPHLCuda(torch::Tensor inputTensor, float spatialSig
                                    inputTensor, outputTensor, spatialSigma, colorSigma); \
                              }));
 
-  SWITCH_AB(CASE, 16, 3, inputTensor.size(1), inputTensor.dim() - 2);
+  SWITCH_AB(CASE, BF_CUDA_MAX_CHANNELS, BF_CUDA_MAX_SPATIAL_DIMENSION, inputTensor.size(1), inputTensor.dim() - 2);
 
   return outputTensor;
 }

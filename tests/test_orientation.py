@@ -114,6 +114,9 @@ class TestOrientationCase(unittest.TestCase):
     def test_ornt(self, init_param, img, data_param, expected_data, expected_code):
         ornt = Orientation(**init_param)
         res = ornt(img, **data_param)
+        if not isinstance(res, tuple):
+            np.testing.assert_allclose(res, expected_data)
+            return
         np.testing.assert_allclose(res[0], expected_data)
         original_affine = data_param["affine"]
         np.testing.assert_allclose(original_affine, res[1])

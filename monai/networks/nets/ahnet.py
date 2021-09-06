@@ -19,6 +19,8 @@ import torch.nn.functional as F
 from monai.networks.blocks.fcn import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
 
+__all__ = ["AHnet", "Ahnet", "ahnet", "AHNet"]
+
 
 class Bottleneck3x3x1(nn.Module):
 
@@ -316,10 +318,11 @@ class AHNet(nn.Module):
     ``"transpose"`` rather than linear interpolations is faster. Therefore, this implementation sets ``"transpose"``
     as the default upsampling method.
 
-    To meet to requirements of the structure, for ``transpose`` mode, the input size of the first ``dim-1`` dimensions  should
-    be divisible by 2 ** (psp_block_num + 3) and no less than 32. For other modes, the input size of the first
-    ``dim-1`` dimensions should be divisible by 32 and no less than 2 ** (psp_block_num + 3). In addition, at least one
-    dimension should have a no less than 64 size.
+    To meet the requirements of the structure, the input size for each spatial dimension
+    (except the last one) should be: divisible by 2 ** (psp_block_num + 3) and no less than 32 in ``transpose`` mode,
+    and should be divisible by 32 and no less than 2 ** (psp_block_num + 3) in other upsample modes.
+    In addition, the input size for the last spatial dimension should be divisible by 32, and at least one spatial size
+    should be no less than 64.
 
     Args:
         layers: number of residual blocks for 4 layers of the network (layer1...layer4). Defaults to ``(3, 4, 6, 3)``.
@@ -390,10 +393,8 @@ class AHNet(nn.Module):
         self.bn0 = norm_type(64)
         self.relu = relu_type(inplace=True)
         if upsample_mode in ["transpose", "nearest"]:
-            """
-            To maintain the determinism, the value of kernel_size and stride should be the same.
-            (you can check this link for reference: https://github.com/Project-MONAI/MONAI/pull/815 )
-            """
+            # To maintain the determinism, the value of kernel_size and stride should be the same.
+            # (you can check this link for reference: https://github.com/Project-MONAI/MONAI/pull/815 )
             self.maxpool = pool_type(kernel_size=(2, 2, 2)[-spatial_dims:], stride=2)
         else:
             self.maxpool = pool_type(kernel_size=(3, 3, 3)[-spatial_dims:], stride=2, padding=1)
@@ -556,3 +557,6 @@ def copy_conv_param(module2d, module3d):
 def copy_bn_param(module2d, module3d):
     for p2d, p3d in zip(module2d.parameters(), module3d.parameters()):
         p3d.data[:] = p2d.data[:]  # Two parameter gamma and beta
+
+
+AHnet = Ahnet = ahnet = AHNet

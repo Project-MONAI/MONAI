@@ -58,7 +58,7 @@ def resolve_name(name):
     """
     # attempt to resolve an alias
     with alias_lock:
-        obj = GlobalAliases.get(name, None)
+        obj = GlobalAliases.get(name)
 
     if name in GlobalAliases and obj is None:
         raise AssertionError

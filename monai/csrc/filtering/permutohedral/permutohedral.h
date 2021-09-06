@@ -11,9 +11,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#pragma once
+
 #include <torch/extension.h>
 
-#pragma once
+#define PHL_CUDA_MAX_CHANNELS 16
+#define PHL_CUDA_MAX_FEATURES 19
+
 template <typename scalar_t>
 void PermutohedralCPU(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount);
 #ifdef WITH_CUDA

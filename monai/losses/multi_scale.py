@@ -21,8 +21,12 @@ from monai.utils import LossReduction
 def make_gaussian_kernel(sigma: int) -> torch.Tensor:
     if sigma <= 0:
         raise ValueError(f"expecting positive sigma, got sigma={sigma}")
-    kernel = gaussian_1d(sigma=torch.tensor(sigma), truncated=3, approx="sampled", normalize=False)
-    return kernel
+    return gaussian_1d(
+        sigma=torch.tensor(sigma),
+        truncated=3,
+        approx="sampled",
+        normalize=False,
+    )
 
 
 def make_cauchy_kernel(sigma: int) -> torch.Tensor:
@@ -82,8 +86,8 @@ class MultiScaleLoss(_Loss):
                 else:
                     loss_list.append(
                         self.loss(
-                            separable_filtering(y_pred, [self.kernel_fn(s)] * (y_true.ndim - 2)),
-                            separable_filtering(y_true, [self.kernel_fn(s)] * (y_true.ndim - 2)),
+                            separable_filtering(y_pred, [self.kernel_fn(s).to(y_pred)] * (y_true.ndim - 2)),
+                            separable_filtering(y_true, [self.kernel_fn(s).to(y_pred)] * (y_true.ndim - 2)),
                         )
                     )
             loss = torch.stack(loss_list, dim=0)
@@ -92,9 +96,7 @@ class MultiScaleLoss(_Loss):
             loss = torch.mean(loss)  # the batch and channel average
         elif self.reduction == LossReduction.SUM.value:
             loss = torch.sum(loss)  # sum over the batch and channel dims
-        elif self.reduction == LossReduction.NONE.value:
-            pass  # returns [N, n_classes] losses
-        else:
+        elif self.reduction != LossReduction.NONE.value:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return loss
