@@ -171,7 +171,13 @@ def convert_data_type(
     Returns:
         modified data, orig_type, orig_device
     """
-    orig_type = torch.Tensor if isinstance(data, torch.Tensor) else np.ndarray
+    if isinstance(data, torch.Tensor):
+        orig_type = torch.Tensor
+    elif isinstance(data, np.ndarray):
+        orig_type = np.ndarray
+    else:
+        orig_type = type(data)
+
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
     output_type = output_type or orig_type
