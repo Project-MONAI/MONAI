@@ -222,3 +222,7 @@ class TestDeprecated(unittest.TestCase):
             warnings.warn("fake warning", DeprecationWarning)
 
         self.assertEqual(aw.warning.args[0], "fake warning")
+
+
+if __name__ == "__main__":
+    unittest.main()
