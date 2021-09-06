@@ -155,7 +155,7 @@ class TverskyLoss(_Loss):
         if self.reduction == LossReduction.SUM.value:
             return torch.sum(score)  # sum over the batch and channel dims
         if self.reduction == LossReduction.NONE.value:
-            return score  # returns [N, n_classes] losses
+            return score  # returns [N, num_classes] losses
         if self.reduction == LossReduction.MEAN.value:
             return torch.mean(score)
         raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')

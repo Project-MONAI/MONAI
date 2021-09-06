@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from functools import partial
-from typing import Any, Callable, List, Type, Union
+from typing import Any, Callable, List, Optional, Type, Union
 
 import torch
 import torch.nn as nn
@@ -19,6 +19,8 @@ import torch.nn.functional as F
 from monai.networks.layers.factories import Conv, Norm, Pool
 
 __all__ = ["ResNet", "resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
+
+from monai.utils import deprecated_arg
 
 
 def get_inplanes():
@@ -162,9 +164,10 @@ class ResNet(nn.Module):
         no_max_pool: bool argument to determine if to use maxpool layer.
         shortcut_type: which downsample block to use.
         widen_factor: widen output for each layer.
-        n_classes: number of output (classifications)
+        num_classes: number of output (classifications)
     """
 
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         block: Type[Union[ResNetBlock, ResNetBottleneck]],
@@ -177,11 +180,15 @@ class ResNet(nn.Module):
         no_max_pool: bool = False,
         shortcut_type: str = "B",
         widen_factor: float = 1.0,
-        n_classes: int = 400,
+        num_classes: int = 400,
         feed_forward: bool = True,
+        n_classes: Optional[int] = None,
     ) -> None:
 
         super(ResNet, self).__init__()
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes == 400:
+            num_classes = n_classes
 
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -215,7 +222,7 @@ class ResNet(nn.Module):
         self.avgpool = avgp_type(block_avgpool[spatial_dims])
 
         if feed_forward:
-            self.fc = nn.Linear(block_inplanes[3] * block.expansion, n_classes)
+            self.fc = nn.Linear(block_inplanes[3] * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, conv_type):
@@ -303,7 +310,7 @@ def _resnet(
     progress: bool,
     **kwargs: Any,
 ) -> ResNet:
-    model = ResNet(block, layers, block_inplanes, **kwargs)
+    model: ResNet = ResNet(block, layers, block_inplanes, **kwargs)
     if pretrained:
         # Author of paper zipped the state_dict on googledrive,
         # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).

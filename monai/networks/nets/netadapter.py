@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import torch
 
 from monai.networks.layers import Conv, get_pool_layer
+from monai.utils import deprecated_arg
 
 
 class NetAdapter(torch.nn.Module):
@@ -26,7 +27,7 @@ class NetAdapter(torch.nn.Module):
         model: a PyTorch model, support both 2D and 3D models. typically, it can be a pretrained model in Torchvision,
             like: ``resnet18``, ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``, etc.
             more details: https://pytorch.org/vision/stable/models.html.
-        n_classes: number of classes for the last classification layer. Default to 1.
+        num_classes: number of classes for the last classification layer. Default to 1.
         dim: number of spatial dimensions, default to 2.
         in_channels: number of the input channels of last layer. if None, get it from `in_features` of last layer.
         use_conv: whether use convolutional layer to replace the last layer, default to False.
@@ -38,17 +39,22 @@ class NetAdapter(torch.nn.Module):
 
     """
 
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         model: torch.nn.Module,
-        n_classes: int = 1,
+        num_classes: int = 1,
         dim: int = 2,
         in_channels: Optional[int] = None,
         use_conv: bool = False,
         pool: Optional[Tuple[str, Dict[str, Any]]] = ("avg", {"kernel_size": 7, "stride": 1}),
         bias: bool = True,
+        n_classes: Optional[int] = None,
     ):
         super().__init__()
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes == 1:
+            num_classes = n_classes
         layers = list(model.children())
         orig_fc = layers[-1]
         in_channels_: int
@@ -74,7 +80,7 @@ class NetAdapter(torch.nn.Module):
             # add 1x1 conv (it behaves like a FC layer)
             self.fc = Conv[Conv.CONV, dim](
                 in_channels=in_channels_,
-                out_channels=n_classes,
+                out_channels=num_classes,
                 kernel_size=1,
                 bias=bias,
             )
@@ -84,7 +90,7 @@ class NetAdapter(torch.nn.Module):
             # replace the out_features of FC layer
             self.fc = torch.nn.Linear(
                 in_features=in_channels_,
-                out_features=n_classes,
+                out_features=num_classes,
                 bias=bias,
             )
         self.use_conv = use_conv
