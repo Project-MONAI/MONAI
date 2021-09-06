@@ -131,7 +131,7 @@ class AsDiscrete(Transform):
 
     """
 
-    @deprecated_arg("n_classes")
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         argmax: bool = False,
@@ -152,7 +152,7 @@ class AsDiscrete(Transform):
         self.logit_thresh = logit_thresh
         self.rounding = rounding
 
-    @deprecated_arg("n_classes")
+    @deprecated_arg("n_classes", since="0.6")
     def __call__(
         self,
         img: torch.Tensor,

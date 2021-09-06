@@ -41,7 +41,7 @@ class TorchVisionFCModel(NetAdapter):
         pretrained: whether to use the imagenet pretrained weights. Default to False.
     """
 
-    @deprecated_arg("n_classes")
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         model_name: str = "resnet18",
@@ -92,7 +92,7 @@ class TorchVisionFullyConvModel(TorchVisionFCModel):
 
     """
 
-    @deprecated_arg("n_classes")
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         model_name: str = "resnet18",

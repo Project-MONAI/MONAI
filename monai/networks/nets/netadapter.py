@@ -39,7 +39,7 @@ class NetAdapter(torch.nn.Module):
 
     """
 
-    @deprecated_arg("n_classes")
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         model: torch.nn.Module,

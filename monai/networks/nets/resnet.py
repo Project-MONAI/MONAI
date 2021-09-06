@@ -167,7 +167,7 @@ class ResNet(nn.Module):
         num_classes: number of output (classifications)
     """
 
-    @deprecated_arg("n_classes")
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         block: Type[Union[ResNetBlock, ResNetBottleneck]],

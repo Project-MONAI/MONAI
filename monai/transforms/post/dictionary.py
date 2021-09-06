@@ -126,7 +126,7 @@ class AsDiscreted(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsDiscrete`.
     """
 
-    @deprecated_arg("n_classes")
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
