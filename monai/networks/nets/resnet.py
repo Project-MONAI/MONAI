@@ -310,7 +310,7 @@ def _resnet(
     progress: bool,
     **kwargs: Any,
 ) -> ResNet:
-    model = ResNet(block, layers, block_inplanes, **kwargs)
+    model: ResNet = ResNet(block, layers, block_inplanes, **kwargs)
     if pretrained:
         # Author of paper zipped the state_dict on googledrive,
         # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
