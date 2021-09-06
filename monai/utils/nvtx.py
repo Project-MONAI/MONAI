@@ -92,7 +92,7 @@ class Range:
             name = self.name
 
         # Get the class for special functions
-        if method.startswith("_"):
+        if method.startswith("__"):
             owner = type(obj)
         else:
             owner = obj
@@ -109,7 +109,16 @@ class Range:
             return output
 
         # Replace the method with the wrapped version
-        setattr(owner, method, range_wrapper)
+        if method.startswith("__"):
+            # If it is a special method, it requires special attention
+            class NVTXRangeDecoratedClass(owner):
+                ...
+
+            setattr(NVTXRangeDecoratedClass, method, range_wrapper)
+            obj.__class__ = NVTXRangeDecoratedClass
+
+        else:
+            setattr(owner, method, range_wrapper)
 
     def _get_method(self, obj: Any) -> tuple:
         if isinstance(obj, Module):
