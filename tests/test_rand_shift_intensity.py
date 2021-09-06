@@ -21,7 +21,7 @@ class TestRandShiftIntensity(NumpyImageTestCase2D):
     def test_value(self):
         shifter = RandShiftIntensity(offsets=1.0, prob=1.0)
         shifter.set_random_state(seed=0)
-        result = shifter(self.imt)
+        result = shifter(self.imt, factor=1.0)
         np.random.seed(0)
         expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
         np.testing.assert_allclose(result, expected)

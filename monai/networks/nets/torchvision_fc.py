@@ -81,6 +81,10 @@ class TorchVisionFullyConvModel(TorchVisionFCModel):
         pool_size: the kernel size for `AvgPool2d` to replace `AdaptiveAvgPool2d`. Default to (7, 7).
         pool_stride: the stride for `AvgPool2d` to replace `AdaptiveAvgPool2d`. Default to 1.
         pretrained: whether to use the imagenet pretrained weights. Default to False.
+
+    .. deprecated:: 0.6.0
+        Use :class:`monai.networks.nets.TorchVisionFCModel` instead.
+
     """
 
     def __init__(

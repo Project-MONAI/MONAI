@@ -49,10 +49,10 @@ class TestResBlock(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             SABlock(hidden_size=128, num_heads=12, dropout_rate=6.0)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             SABlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
 

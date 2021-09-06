@@ -45,26 +45,14 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
    :maxdepth: 1
    :caption: Feature highlights
 
-   whatsnew_0_6.md
-   whatsnew_0_5.md
+   whatsnew
    highlights.md
 
 .. toctree::
    :maxdepth: 1
-   :caption: APIs
+   :caption: API Reference
 
-   apps
-   transforms
-   losses
-   networks
-   metrics
-   optimizers
-   data
-   engines
-   inferers
-   handlers
-   visualize
-   utils
+   api
 
 .. toctree::
   :maxdepth: 1
@@ -72,12 +60,11 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
 
   installation
 
+.. toctree::
+  :maxdepth: 1
+  :caption: Contributing
 
-Contributing
-------------
-
-For guidance on making a contribution to MONAI, see the `contributing guidelines
-<https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md>`_.
+  contrib
 
 
 Links
