@@ -149,7 +149,7 @@ def deprecated_arg(
         Decorated callable which warns or raises exception when deprecated argument used.
     """
 
-    if version_val.startswith("0+"):
+    if version_val.startswith("0+") or not f"{version_val}".strip()[0].isdigit():
         # version unknown, set version_val to a large value (assuming the latest version)
         version_val = "100"
     if since is not None and removed is not None and not version_leq(since, removed):
