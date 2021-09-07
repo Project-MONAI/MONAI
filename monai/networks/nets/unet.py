@@ -169,6 +169,7 @@ class UNet(nn.Module):
                 dropout=self.dropout,
                 bias=self.bias,
             )
+            return mod
         mod = Convolution(
             self.dimensions,
             in_channels,
