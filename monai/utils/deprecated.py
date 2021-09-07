@@ -60,9 +60,9 @@ def deprecated(
         Decorated definition which warns or raises exception when used
     """
 
-    if version_val == "0+unknown":
-        # version unknown, set version_val to a large value (assuming the latest version)
-        version_val = "100"
+    # if version_val.startswith("0+"):
+    #     # version unknown, set version_val to a large value (assuming the latest version)
+    #     version_val = "100"
     if since is not None and removed is not None and not version_leq(since, removed):
         raise ValueError(f"since must be less or equal to removed, got since={since}, removed={removed}.")
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
@@ -149,7 +149,7 @@ def deprecated_arg(
         Decorated callable which warns or raises exception when deprecated argument used.
     """
 
-    if version_val == "0+unknown":
+    if version_val.startswith("0+"):
         # version unknown, set version_val to a large value (assuming the latest version)
         version_val = "100"
     if since is not None and removed is not None and not version_leq(since, removed):

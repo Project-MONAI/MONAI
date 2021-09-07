@@ -223,6 +223,30 @@ class TestDeprecated(unittest.TestCase):
 
         self.assertEqual(aw.warning.args[0], "fake warning")
 
+    def test_arg_except2_unknown(self):
+        """
+        Test deprecated_arg decorator raises exception with `removed` set in the past.
+        with unknown version
+        """
+
+        @deprecated_arg("b", removed=self.prev_version, version_val="0+untagged.1.g3131155")
+        def afoo4(a, b=None):
+            pass
+
+        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
+
+    def test_replacement_arg(self):
+        """
+        Test deprecated arg being replaced.
+        """
+
+        @deprecated_arg("b", new_name="a", since=self.prev_version, version_val=self.test_version)
+        def afoo4(a, b=None):
+            return a
+
+        self.assertEqual(afoo4(b=2), 2)
+        # self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
+
 
 if __name__ == "__main__":
     unittest.main()
