@@ -155,7 +155,7 @@ class FCN(nn.Module):
 
         if self.upsample_mode == "transpose":
             self.up_conv = UpSample(
-                dimensions=2,
+                spatial_dims=2,
                 in_channels=self.out_channels,
                 scale_factor=2,
                 mode="deconv",
@@ -236,7 +236,7 @@ class MCFCN(FCN):
         )
 
         self.init_proj = Convolution(
-            dimensions=2,
+            spatial_dims=2,
             in_channels=in_channels,
             out_channels=3,
             kernel_size=1,

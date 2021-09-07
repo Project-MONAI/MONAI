@@ -66,7 +66,7 @@ def get_deconv_block(
     out_channels: int,
 ) -> nn.Module:
     return Convolution(
-        dimensions=spatial_dims,
+        spatial_dims=spatial_dims,
         in_channels=in_channels,
         out_channels=out_channels,
         strides=2,

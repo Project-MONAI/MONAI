@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -18,7 +18,7 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.utils import alias, export
+from monai.utils import alias, deprecated_arg, export
 
 __all__ = ["UNet", "Unet", "unet"]
 
@@ -26,9 +26,10 @@ __all__ = ["UNet", "Unet", "unet"]
 @export("monai.networks.nets")
 @alias("Unet")
 class UNet(nn.Module):
+    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
-        dimensions: int,
+        spatial_dims: int,
         in_channels: int,
         out_channels: int,
         channels: Sequence[int],
@@ -40,6 +41,7 @@ class UNet(nn.Module):
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: float = 0.0,
         bias: bool = True,
+        dimensions: Optional[int] = None,
     ) -> None:
         """
         Enhanced version of UNet which has residual units implemented with the ResidualUnit class.
@@ -48,7 +50,7 @@ class UNet(nn.Module):
         Refer to: https://link.springer.com/chapter/10.1007/978-3-030-12029-0_40.
 
         Args:
-            dimensions: number of spatial dimensions.
+            spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
             out_channels: number of output channels.
             channels: sequence of channels. Top block first. The length of `channels` should be no less than 2.
@@ -64,6 +66,9 @@ class UNet(nn.Module):
             bias: whether to have a bias term in convolution blocks. Defaults to True.
                 According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
                 if a conv layer is directly followed by a batch norm layer, bias should be False.
+
+        .. deprecated:: 0.6.0
+            ``dimensions`` is deprecated, use ``spatial_dims`` instead.
 
         Note: The acceptable spatial size of input data depends on the parameters of the network,
             to set appropriate spatial size, please check the tutorial for more details:
@@ -83,14 +88,16 @@ class UNet(nn.Module):
             raise ValueError("the length of `strides` should equal to `len(channels) - 1`.")
         if delta > 0:
             warnings.warn(f"`len(strides) > len(channels) - 1`, the last {delta} values of strides will not be used.")
+        if dimensions is not None:
+            spatial_dims = dimensions
         if isinstance(kernel_size, Sequence):
-            if len(kernel_size) != dimensions:
+            if len(kernel_size) != spatial_dims:
                 raise ValueError("the length of `kernel_size` should equal to `dimensions`.")
         if isinstance(up_kernel_size, Sequence):
-            if len(up_kernel_size) != dimensions:
+            if len(up_kernel_size) != spatial_dims:
                 raise ValueError("the length of `up_kernel_size` should equal to `dimensions`.")
 
-        self.dimensions = dimensions
+        self.dimensions = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.channels = channels
