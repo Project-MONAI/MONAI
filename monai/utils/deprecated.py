@@ -131,6 +131,8 @@ def deprecated_arg(
     using the Sphinx directives such as `.. versionchanged:: version` and `.. deprecated:: version`.
     https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-versionadded
 
+    In the current implementation type annotations are not preserved.
+
 
     Args:
         name: name of position or keyword argument to mark as deprecated.
@@ -141,7 +143,7 @@ def deprecated_arg(
         new_name: name of position or keyword argument to replace the deprecated argument.
 
     Returns:
-        Decorated callable which warns or raises exception when deprecated argument used
+        Decorated callable which warns or raises exception when deprecated argument used.
     """
     if since is not None and removed is not None and not version_leq(since, removed):
         raise ValueError(f"since must be less or equal to removed, got since={since}, removed={removed}.")
