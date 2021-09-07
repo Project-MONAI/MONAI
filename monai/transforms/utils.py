@@ -1089,7 +1089,9 @@ class Fourier:
     """
 
     @staticmethod
-    @deprecated_arg(name="n_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
+    @deprecated_arg(
+        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
     def shift_fourier(x: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
@@ -1113,7 +1115,9 @@ class Fourier:
         return k
 
     @staticmethod
-    @deprecated_arg(name="n_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
+    @deprecated_arg(
+        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
     def inv_shift_fourier(k: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
         """
         Applies inverse shift and fourier transform. Only the spatial

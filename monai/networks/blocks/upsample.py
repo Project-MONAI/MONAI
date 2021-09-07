@@ -34,7 +34,9 @@ class UpSample(nn.Sequential):
     (often used to map the number of features from `in_channels` to `out_channels`).
     """
 
-    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
+    @deprecated_arg(
+        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
     def __init__(
         self,
         spatial_dims: int,
@@ -171,7 +173,9 @@ class SubpixelUpsample(nn.Module):
 
     """
 
-    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
+    @deprecated_arg(
+        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
     def __init__(
         self,
         spatial_dims: int,

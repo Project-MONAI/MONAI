@@ -227,7 +227,9 @@ def icnr_init(conv, upsample_factor, init=nn.init.kaiming_normal_):
     conv.weight.data.copy_(kernel)
 
 
-@deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
+@deprecated_arg(
+    name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+)
 def pixelshuffle(
     x: torch.Tensor, spatial_dims: int, scale_factor: int, dimensions: Optional[int] = None
 ) -> torch.Tensor:

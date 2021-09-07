@@ -116,6 +116,7 @@ def deprecated_arg(
     removed: Optional[str] = None,
     msg_suffix: str = "",
     version_val: str = __version__,
+    new_name: Optional[str] = None,
 ):
     """
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
@@ -137,6 +138,7 @@ def deprecated_arg(
         removed: version at which the argument was removed and no longer usable.
         msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead.
         version_val: (used for testing) version to compare since and removed against, default is MONAI version.
+        new_name: name of position or keyword argument to replace the deprecated argument.
 
     Returns:
         Decorated callable which warns or raises exception when deprecated argument used
@@ -177,6 +179,9 @@ def deprecated_arg(
 
         @wraps(func)
         def _wrapper(*args, **kwargs):
+            if new_name is not None and name in kwargs:
+                # replace the deprecated arg "name" with "new_name"
+                kwargs[new_name] = kwargs[name]
             binding = sig.bind(*args, **kwargs).arguments
 
             positional_found = name in binding
