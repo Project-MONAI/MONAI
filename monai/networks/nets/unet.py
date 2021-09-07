@@ -154,8 +154,10 @@ class UNet(nn.Module):
             strides: convolution stride.
             is_top: True if this is the top block.
         """
+        mod: nn.Module
         if self.num_res_units > 0:
-            return ResidualUnit(
+
+            mod = ResidualUnit(
                 self.dimensions,
                 in_channels,
                 out_channels,
@@ -167,7 +169,7 @@ class UNet(nn.Module):
                 dropout=self.dropout,
                 bias=self.bias,
             )
-        return Convolution(
+        mod = Convolution(
             self.dimensions,
             in_channels,
             out_channels,
@@ -178,6 +180,7 @@ class UNet(nn.Module):
             dropout=self.dropout,
             bias=self.bias,
         )
+        return mod
 
     def _get_bottom_layer(self, in_channels: int, out_channels: int) -> nn.Module:
         """

@@ -150,8 +150,9 @@ class AutoEncoder(nn.Module):
 
     def _get_encode_layer(self, in_channels: int, out_channels: int, strides: int, is_last: bool) -> nn.Module:
 
+        mod: nn.Module
         if self.num_res_units > 0:
-            return ResidualUnit(
+            mod = ResidualUnit(
                 spatial_dims=self.dimensions,
                 in_channels=in_channels,
                 out_channels=out_channels,
@@ -164,7 +165,7 @@ class AutoEncoder(nn.Module):
                 bias=self.bias,
                 last_conv_only=is_last,
             )
-        return Convolution(
+        mod = Convolution(
             spatial_dims=self.dimensions,
             in_channels=in_channels,
             out_channels=out_channels,
@@ -176,6 +177,7 @@ class AutoEncoder(nn.Module):
             bias=self.bias,
             conv_only=is_last,
         )
+        return mod
 
     def _get_decode_layer(self, in_channels: int, out_channels: int, strides: int, is_last: bool) -> nn.Sequential:
 

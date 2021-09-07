@@ -32,7 +32,7 @@ def get_conv_block(
 ) -> nn.Module:
     if padding is None:
         padding = same_padding(kernel_size)
-    conv_block = Convolution(
+    conv_block: nn.Module = Convolution(
         spatial_dims,
         in_channels,
         out_channels,
@@ -65,7 +65,7 @@ def get_conv_layer(
     kernel_size: Union[Sequence[int], int] = 3,
 ) -> nn.Module:
     padding = same_padding(kernel_size)
-    return Convolution(
+    mod: nn.Module = Convolution(
         spatial_dims,
         in_channels,
         out_channels,
@@ -74,6 +74,7 @@ def get_conv_layer(
         conv_only=True,
         padding=padding,
     )
+    return mod
 
 
 class RegistrationResidualConvBlock(nn.Module):
@@ -193,7 +194,7 @@ def get_deconv_block(
     in_channels: int,
     out_channels: int,
 ) -> nn.Module:
-    return Convolution(
+    mod: nn.Module = Convolution(
         spatial_dims=spatial_dims,
         in_channels=in_channels,
         out_channels=out_channels,
@@ -205,6 +206,7 @@ def get_deconv_block(
         padding=1,
         output_padding=1,
     )
+    return mod
 
 
 class RegistrationExtractionBlock(nn.Module):
