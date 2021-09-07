@@ -51,10 +51,7 @@ def compute_isolated_tumor_cells(tumor_mask: np.ndarray, threshold: float) -> Li
     """
     max_label = np.amax(tumor_mask)
     properties = measure.regionprops(tumor_mask, coordinates="rc")
-    itc_list = []
-    for i in range(max_label):  # type: ignore
-        if properties[i].major_axis_length < threshold:
-            itc_list.append(i + 1)
+    itc_list = [i + 1 for i in range(max_label) if properties[i].major_axis_length < threshold]
 
     return itc_list
 
