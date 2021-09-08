@@ -39,6 +39,7 @@ class SimpleASPP(nn.Module):
         dilations: Sequence[int] = (1, 2, 4, 6),
         norm_type: Optional[Union[Tuple, str]] = "BATCH",
         acti_type: Optional[Union[Tuple, str]] = "LEAKYRELU",
+        bias: bool = False,
     ) -> None:
         """
         Args:
@@ -54,6 +55,9 @@ class SimpleASPP(nn.Module):
                 Defaults to batch norm.
             acti_type: final kernel-size-one convolution activation type.
                 Defaults to leaky ReLU.
+            bias: whether to have a bias term in convolution blocks. Defaults to False.
+                According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
+                if a conv layer is directly followed by a batch norm layer, bias should be False.
 
         Raises:
             ValueError: When ``kernel_sizes`` length differs from ``dilations``.
@@ -88,6 +92,7 @@ class SimpleASPP(nn.Module):
             kernel_size=1,
             act=acti_type,
             norm=norm_type,
+            bias=bias,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

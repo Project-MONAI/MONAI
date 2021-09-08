@@ -22,7 +22,7 @@ class TestHandlerROCAUC(unittest.TestCase):
     def test_compute(self):
         auc_metric = ROCAUC()
         act = Activations(softmax=True)
-        to_onehot = AsDiscrete(to_onehot=True, n_classes=2)
+        to_onehot = AsDiscrete(to_onehot=True, num_classes=2)
 
         y_pred = [torch.Tensor([0.1, 0.9]), torch.Tensor([0.3, 1.4])]
         y = [torch.Tensor([0]), torch.Tensor([1])]

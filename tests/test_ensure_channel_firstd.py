@@ -19,6 +19,7 @@ from parameterized import parameterized
 from PIL import Image
 
 from monai.transforms import EnsureChannelFirstd, LoadImaged
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_1 = [{"keys": "img"}, ["test_image.nii.gz"], None]
 
@@ -43,9 +44,11 @@ class TestEnsureChannelFirstd(unittest.TestCase):
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
-            result = LoadImaged(**input_param)({"img": filenames})
-            result = EnsureChannelFirstd(**input_param)(result)
-            self.assertEqual(result["img"].shape[0], len(filenames))
+            for p in TEST_NDARRAYS:
+                result = LoadImaged(**input_param)({"img": filenames})
+                result["img"] = p(result["img"])
+                result = EnsureChannelFirstd(**input_param)(result)
+                self.assertEqual(result["img"].shape[0], len(filenames))
 
     def test_load_png(self):
         spatial_size = (256, 256, 3)

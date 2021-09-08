@@ -114,7 +114,7 @@ def compute_meandice(
             the predicted output. Defaults to True.
 
     Returns:
-        Dice scores per batch and per class, (shape [batch_size, n_classes]).
+        Dice scores per batch and per class, (shape [batch_size, num_classes]).
 
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.

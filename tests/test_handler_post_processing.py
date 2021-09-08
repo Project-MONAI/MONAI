@@ -26,7 +26,7 @@ TEST_CASE_2 = [
         "transform": Compose(
             [
                 CopyItemsd(keys="filename", times=1, names="filename_bak"),
-                AsDiscreted(keys="pred", threshold_values=True, to_onehot=True, n_classes=2),
+                AsDiscreted(keys="pred", threshold_values=True, to_onehot=True, num_classes=2),
             ]
         ),
         "event": "iteration_completed",

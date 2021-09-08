@@ -1,4 +1,4 @@
-# Modules overview
+# Modules Overview
 
 MONAI aims at supporting deep learning in medical image analysis at multiple granularities.
 This figure shows a typical example of the end-to-end workflow:

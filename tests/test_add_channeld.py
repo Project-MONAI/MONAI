@@ -15,16 +15,21 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import AddChanneld
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    {"keys": ["img", "seg"]},
-    {"img": np.array([[0, 1], [1, 2]]), "seg": np.array([[0, 1], [1, 2]])},
-    (1, 2, 2),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            {"keys": ["img", "seg"]},
+            {"img": p(np.array([[0, 1], [1, 2]])), "seg": p(np.array([[0, 1], [1, 2]]))},
+            (1, 2, 2),
+        ]
+    )
 
 
 class TestAddChanneld(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_data, expected_shape):
         result = AddChanneld(**input_param)(input_data)
         self.assertEqual(result["img"].shape, expected_shape)
