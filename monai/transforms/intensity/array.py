@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-import copy
+from abc import abstractmethod
 from collections.abc import Iterable
 from functools import partial
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
@@ -69,9 +69,10 @@ __all__ = [
     "RandGibbsNoise",
     "KSpaceSpikeNoise",
     "RandKSpaceSpikeNoise",
+    "RandCoarseTransform",
     "RandCoarseDropout",
+    "RandCoarseShuffle",
     "HistogramNormalize",
-    "LocalPatchShuffling",
 ]
 
 
@@ -1630,7 +1631,75 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         return tuple((i * 0.95, i * 1.1) for i in shifted_means)
 
 
-class RandCoarseDropout(RandomizableTransform):
+class RandCoarseTransform(RandomizableTransform):
+    """
+    Randomly select coarse regions in the image, then execute transform operations for the regions.
+    It's the base class of all kinds of region transforms.
+    Refer to papers: https://arxiv.org/abs/1708.04552
+
+    Args:
+        holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
+            randomly select the expected number of regions.
+        spatial_size: spatial size of the regions to dropout, if `max_spatial_size` is not None, use this arg
+            as the minimum spatial size to randomly select size for every region.
+            if some components of the `spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        max_holes: if not None, define the maximum number to randomly select the expected number of regions.
+        max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+            if some components of the `max_spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `max_spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        prob: probability of applying the transform.
+
+    """
+
+    def __init__(
+        self,
+        holes: int,
+        spatial_size: Union[Sequence[int], int],
+        max_holes: Optional[int] = None,
+        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        prob: float = 0.1,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        if holes < 1:
+            raise ValueError("number of holes must be greater than 0.")
+        self.holes = holes
+        self.spatial_size = spatial_size
+        self.max_holes = max_holes
+        self.max_spatial_size = max_spatial_size
+        self.hole_coords: List = []
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        super().randomize(None)
+        size = fall_back_tuple(self.spatial_size, img_size)
+        self.hole_coords = []  # clear previously computed coords
+        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
+        for _ in range(num_holes):
+            if self.max_spatial_size is not None:
+                max_size = fall_back_tuple(self.max_spatial_size, img_size)
+                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
+            valid_size = get_valid_patch_size(img_size, size)
+            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+
+    @abstractmethod
+    def _transform_holes(self, img: np.ndarray) -> np.ndarray:
+        """
+        Transform the randomly selected `self.hole_coords` in input images.
+
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def __call__(self, img: np.ndarray):
+        self.randomize(img.shape[1:])
+        if self._do_transform:
+            img = self._transform_holes(img=img)
+
+        return img
+
+
+class RandCoarseDropout(RandCoarseTransform):
     """
     Randomly coarse dropout regions in the image, then fill in the rectangular regions with specified value.
     Or keep the rectangular regions and fill in the other areas with specified value.
@@ -1671,52 +1740,67 @@ class RandCoarseDropout(RandomizableTransform):
         max_spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
     ) -> None:
-        RandomizableTransform.__init__(self, prob)
-        if holes < 1:
-            raise ValueError("number of holes must be greater than 0.")
-        self.holes = holes
-        self.spatial_size = spatial_size
+        super().__init__(
+            holes=holes,
+            spatial_size=spatial_size,
+            max_holes=max_holes,
+            max_spatial_size=max_spatial_size,
+            prob=prob,
+        )
         self.dropout_holes = dropout_holes
         if isinstance(fill_value, (tuple, list)):
             if len(fill_value) != 2:
                 raise ValueError("fill value should contain 2 numbers if providing the `min` and `max`.")
         self.fill_value = fill_value
-        self.max_holes = max_holes
-        self.max_spatial_size = max_spatial_size
-        self.hole_coords: List = []
 
-    def randomize(self, img_size: Sequence[int]) -> None:
-        super().randomize(None)
-        size = fall_back_tuple(self.spatial_size, img_size)
-        self.hole_coords = []  # clear previously computed coords
-        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
-        for _ in range(num_holes):
-            if self.max_spatial_size is not None:
-                max_size = fall_back_tuple(self.max_spatial_size, img_size)
-                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
-            valid_size = get_valid_patch_size(img_size, size)
-            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+    def _transform_holes(self, img: np.ndarray):
+        """
+        Fill the randomly selected `self.hole_coords` in input images.
+        Please note that we usually only use `self.R` in `randomize()` method, here is a special case.
 
-    def __call__(self, img: np.ndarray):
-        self.randomize(img.shape[1:])
-        ret = img
-        if self._do_transform:
-            fill_value = (img.min(), img.max()) if self.fill_value is None else self.fill_value
+        """
+        fill_value = (img.min(), img.max()) if self.fill_value is None else self.fill_value
 
-            if self.dropout_holes:
-                for h in self.hole_coords:
-                    if isinstance(fill_value, (tuple, list)):
-                        ret[h] = self.R.uniform(fill_value[0], fill_value[1], size=img[h].shape)
-                    else:
-                        ret[h] = fill_value
-            else:
+        if self.dropout_holes:
+            for h in self.hole_coords:
                 if isinstance(fill_value, (tuple, list)):
-                    ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype)
+                    img[h] = self.R.uniform(fill_value[0], fill_value[1], size=img[h].shape)
                 else:
-                    ret = np.full_like(img, fill_value)
-                for h in self.hole_coords:
-                    ret[h] = img[h]
+                    img[h] = fill_value
+            ret = img
+        else:
+            if isinstance(fill_value, (tuple, list)):
+                ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype)
+            else:
+                ret = np.full_like(img, fill_value)
+            for h in self.hole_coords:
+                ret[h] = img[h]
         return ret
+
+
+class RandCoarseShuffle(RandCoarseTransform):
+    """
+    Randomly select regions in the image, then shuffle the pixels within every region.
+    It shuffles every channel separately.
+    Refer to paper:
+    Kang, Guoliang, et al. "Patchshuffle regularization." arXiv preprint arXiv:1707.07103 (2017).
+    https://arxiv.org/abs/1707.07103
+
+    """
+
+    def _transform_holes(self, img: np.ndarray):
+        """
+        Shuffle the content of randomly selected `self.hole_coords` in input images.
+        Please note that we usually only use `self.R` in `randomize()` method, here is a special case.
+
+        """
+        for h in self.hole_coords:
+            # shuffle every channel separately
+            for i, c in enumerate(img[h]):
+                patch_channel = c.flatten()
+                self.R.shuffle(patch_channel)
+                img[h][i] = patch_channel.reshape(c.shape)
+        return img
 
 
 class HistogramNormalize(Transform):
@@ -1759,95 +1843,3 @@ class HistogramNormalize(Transform):
             max=self.max,
             dtype=self.dtype,
         )
-
-
-class LocalPatchShuffling(RandomizableTransform):
-    """
-    Takes a 3D image and based on input of the local patch size, shuffles the pixels of the local patch within it.
-    This process is repeated a for N number of times where every time a different random block is selected for local
-    pixel shuffling.
-
-    Kang, Guoliang, et al. "Patchshuffle regularization." arXiv preprint arXiv:1707.07103 (2017).
-    """
-
-    def __init__(
-        self,
-        prob: float = 1.0,
-        number_blocks: int = 1000,
-        blocksize_ratio: int = 10,
-        channel_wise: bool = True,
-        device: Optional[torch.device] = None,
-        image_only: bool = False,
-    ) -> None:
-        """
-        Args:
-            prob: The chance of this transform occuring on the given volume.
-            number_blocks: Total number of time a random 3D block will be selected for local shuffling of pixels/voxels
-                contained in the block.
-            blocksize_ratio: This ratio can be used to estimate the local 3D block sizes that will be selected.
-            channel_wise: If True, treats each channel of the image separately.
-            device: device on which the tensor will be allocated.
-            image_only: if True return only the image volume, otherwise return (image, affine).
-        """
-        RandomizableTransform.__init__(self, prob)
-        self.prob = prob
-        self.number_blocks = number_blocks
-        self.blocksize_ratio = blocksize_ratio
-        self.channel_wise = channel_wise
-
-    def _local_patch_shuffle(self, img: Union[torch.Tensor, np.ndarray], number_blocks: int, blocksize_ratio: int):
-        im_shape = img.shape
-        img_copy = copy.deepcopy(img)
-        for _each_block in range(number_blocks):
-
-            block_size_x = self.R.randint(1, im_shape[0] // blocksize_ratio)
-            block_size_y = self.R.randint(1, im_shape[1] // blocksize_ratio)
-            block_size_z = self.R.randint(1, im_shape[2] // blocksize_ratio)
-
-            noise_x = self.R.randint(0, im_shape[0] - block_size_x)
-            noise_y = self.R.randint(0, im_shape[1] - block_size_y)
-            noise_z = self.R.randint(0, im_shape[2] - block_size_z)
-
-            local_patch = img[
-                noise_x : noise_x + block_size_x,
-                noise_y : noise_y + block_size_y,
-                noise_z : noise_z + block_size_z,
-            ]
-
-            local_patch = local_patch.flatten()
-            self.R.shuffle(local_patch)
-            local_patch = local_patch.reshape((block_size_x, block_size_y, block_size_z))
-
-            img_copy[
-                noise_x : noise_x + block_size_x, noise_y : noise_y + block_size_y, noise_z : noise_z + block_size_z
-            ] = local_patch
-
-        shuffled_image = img_copy
-        return shuffled_image
-
-    def __call__(
-        self,
-        img: Union[np.ndarray, torch.Tensor],
-        # spatial_size: Optional[Union[Sequence[int], int]] = None,
-        # mode: Optional[Union[GridSampleMode, str]] = None,
-        # padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
-        """
-        Args:
-            img: shape must be (num_channels, H, W[, D]),
-
-        """
-
-        super().randomize(None)
-        if not self._do_transform:
-            return img
-
-        if self.channel_wise:
-            # img = self._local_patch_shuffle(img=img)
-            for i, _d in enumerate(img):
-                img[i] = self._local_patch_shuffle(
-                    img=img[i], blocksize_ratio=self.blocksize_ratio, number_blocks=self.number_blocks
-                )
-        else:
-            raise AssertionError("If channel_wise is False, the image needs to be set to channel first")
-        return img
