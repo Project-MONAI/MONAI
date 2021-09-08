@@ -308,9 +308,21 @@ Intensity
      :members:
      :special-members: __call__
 
+`RandCoarseTransform`
+"""""""""""""""""""""
+ .. autoclass:: RandCoarseTransform
+     :members:
+     :special-members: __call__
+
 `RandCoarseDropout`
 """""""""""""""""""
  .. autoclass:: RandCoarseDropout
+     :members:
+     :special-members: __call__
+
+`RandCoarseShuffle`
+"""""""""""""""""""
+ .. autoclass:: RandCoarseShuffle
      :members:
      :special-members: __call__
 
@@ -319,12 +331,6 @@ Intensity
  .. autoclass:: HistogramNormalize
      :members:
      :special-members: __call__
-
-`LocalPatchShuffling`
-"""""""""""""""""""""
-.. autoclass:: LocalPatchShuffling
-    :members:
-    :special-members: __call__
 
 IO
 ^^
