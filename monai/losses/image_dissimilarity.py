@@ -8,14 +8,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
 from monai.networks.layers import gaussian_1d, separable_filtering
-from monai.utils import LossReduction
+from monai.utils import LossReduction, deprecated_arg
 
 
 def make_rectangular_kernel(kernel_size: int) -> torch.Tensor:
@@ -59,18 +59,20 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
+    @deprecated_arg(name="ndim", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
-        ndim: int = 3,
+        spatial_dims: int = 3,
         kernel_size: int = 3,
         kernel_type: str = "rectangular",
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
+        ndim: Optional[int] = None,
     ) -> None:
         """
         Args:
-            ndim: number of spatial ndimensions, {``1``, ``2``, ``3``}. Defaults to 3.
+            spatial_dims: number of spatial ndimensions, {``1``, ``2``, ``3``}. Defaults to 3.
             kernel_size: kernel spatial size, must be odd.
             kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -81,10 +83,15 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
                 - ``"sum"``: the output will be summed.
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
+
+        .. deprecated:: 0.6.0
+            ``ndim`` is deprecated, use ``spatial_dims``.
         """
         super(LocalNormalizedCrossCorrelationLoss, self).__init__(reduction=LossReduction(reduction).value)
 
-        self.ndim = ndim
+        if ndim is not None:
+            spatial_dims = ndim
+        self.ndim = spatial_dims
         if self.ndim not in [1, 2, 3]:
             raise ValueError(f"Unsupported ndim: {self.ndim}-d, only 1-d, 2-d, and 3-d inputs are supported")
 

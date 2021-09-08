@@ -30,6 +30,7 @@ from monai.utils import (
     GridSampleMode,
     InterpolateMode,
     InverseKeys,
+    deprecated_arg,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -1088,36 +1089,54 @@ class Fourier:
     """
 
     @staticmethod
-    def shift_fourier(x: torch.Tensor, n_dims: int) -> torch.Tensor:
+    @deprecated_arg(
+        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
+    def shift_fourier(x: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
 
         Args:
             x: Image to transform.
-            n_dims: Number of spatial dimensions.
+            spatial_dims: Number of spatial dimensions.
+
+        .. deprecated:: 0.6.0
+            ``n_dims`` is deprecated, use ``spatial_dims`` instead.
+
         Returns
             k: K-space data.
         """
+        if n_dims is not None:
+            spatial_dims = n_dims
         k: torch.Tensor = torch.fft.fftshift(
-            torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+            torch.fft.fftn(x, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
         )
         return k
 
     @staticmethod
-    def inv_shift_fourier(k: torch.Tensor, n_dims: int) -> torch.Tensor:
+    @deprecated_arg(
+        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
+    def inv_shift_fourier(k: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
 
         Args:
             k: K-space data.
-            n_dims: Number of spatial dimensions.
+            spatial_dims: Number of spatial dimensions.
+
+        .. deprecated:: 0.6.0
+            ``n_dims`` is deprecated, use ``spatial_dims`` instead.
+
         Returns:
             x: Tensor in image space.
         """
+        if n_dims is not None:
+            spatial_dims = n_dims
         x: torch.Tensor = torch.fft.ifftn(
-            torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+            torch.fft.ifftshift(k, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
         ).real
         return x
 
