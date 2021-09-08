@@ -1318,7 +1318,7 @@ class GibbsNoise(Transform, Fourier):
         # map back
         img = self.inv_shift_fourier(k, n_dims)
 
-        return img if self.as_tensor_output else img.cpu().detach().numpy()
+        return img if self.as_tensor_output else img.cpu().detach().numpy()  # type: ignore
 
     def _apply_mask(self, k: torch.Tensor) -> torch.Tensor:
         """Builds and applies a mask on the spatial dimensions.
@@ -1448,7 +1448,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
         k = torch.exp(log_abs) * torch.exp(1j * phase)
         img = self.inv_shift_fourier(k, n_dims)
 
-        return img if self.as_tensor_output else img.cpu().detach().numpy()
+        return img if self.as_tensor_output else img.cpu().detach().numpy()  # type: ignore
 
     def _check_indices(self, img) -> None:
         """Helper method to check consistency of self.loc and input image.
