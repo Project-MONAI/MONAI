@@ -77,7 +77,7 @@ Clara MMARs
 `Pathology`
 -----------
 
-.. automodule:: monai.apps.pathology.datasets
+.. automodule:: monai.apps.pathology.data
 .. autoclass:: PatchWSIDataset
     :members:
 .. autoclass:: SmartCachePatchWSIDataset
@@ -97,4 +97,24 @@ Clara MMARs
 .. autofunction:: compute_multi_instance_mask
 .. autofunction:: compute_isolated_tumor_cells
 .. autoclass:: PathologyProbNMS
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.stain.array
+.. autoclass:: ExtractHEStains
+    :members:
+.. autoclass:: NormalizeHEStains
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.stain.dictionary
+.. autoclass:: ExtractHEStainsd
+    :members:
+.. autoclass:: NormalizeHEStainsd
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.spatial.array
+.. autoclass:: SplitOnGrid
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.spatial.dictionary
+.. autoclass:: SplitOnGridd
     :members:

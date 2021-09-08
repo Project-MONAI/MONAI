@@ -31,19 +31,19 @@ else:
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_1 = [  # 3D, batch 3, 2 input channel
-    {"pretrained": False, "spatial_dims": 3, "n_input_channels": 2, "n_classes": 3},
+    {"pretrained": False, "spatial_dims": 3, "n_input_channels": 2, "num_classes": 3},
     (3, 2, 32, 64, 48),
     (3, 3),
 ]
 
 TEST_CASE_2 = [  # 2D, batch 2, 1 input channel
-    {"pretrained": False, "spatial_dims": 2, "n_input_channels": 1, "n_classes": 3},
+    {"pretrained": False, "spatial_dims": 2, "n_input_channels": 1, "num_classes": 3},
     (2, 1, 32, 64),
     (2, 3),
 ]
 
 TEST_CASE_3 = [  # 1D, batch 1, 2 input channels
-    {"pretrained": False, "spatial_dims": 1, "n_input_channels": 2, "n_classes": 3},
+    {"pretrained": False, "spatial_dims": 1, "n_input_channels": 2, "num_classes": 3},
     (1, 2, 32),
     (1, 3),
 ]

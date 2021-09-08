@@ -17,18 +17,20 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, NdarrayTensor
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
+    FillHoles,
     KeepLargestConnectedComponent,
+    LabelFilter,
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
@@ -37,38 +39,44 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
 __all__ = [
-    "Activationsd",
-    "AsDiscreted",
-    "KeepLargestConnectedComponentd",
-    "LabelToContourd",
-    "Ensembled",
-    "MeanEnsembled",
-    "VoteEnsembled",
     "ActivationsD",
     "ActivationsDict",
+    "Activationsd",
     "AsDiscreteD",
     "AsDiscreteDict",
+    "AsDiscreted",
+    "Ensembled",
+    "FillHolesD",
+    "FillHolesDict",
+    "FillHolesd",
     "InvertD",
     "InvertDict",
     "Invertd",
     "KeepLargestConnectedComponentD",
     "KeepLargestConnectedComponentDict",
+    "KeepLargestConnectedComponentd",
+    "LabelFilterD",
+    "LabelFilterDict",
+    "LabelFilterd",
     "LabelToContourD",
     "LabelToContourDict",
+    "LabelToContourd",
     "MeanEnsembleD",
     "MeanEnsembleDict",
-    "VoteEnsembleD",
-    "VoteEnsembleDict",
-    "ProbNMSd",
+    "MeanEnsembled",
     "ProbNMSD",
     "ProbNMSDict",
-    "SaveClassificationd",
+    "ProbNMSd",
     "SaveClassificationD",
     "SaveClassificationDict",
+    "SaveClassificationd",
+    "VoteEnsembleD",
+    "VoteEnsembleDict",
+    "VoteEnsembled",
 ]
 
 
@@ -118,15 +126,18 @@ class AsDiscreted(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsDiscrete`.
     """
 
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
         argmax: Union[Sequence[bool], bool] = False,
         to_onehot: Union[Sequence[bool], bool] = False,
-        n_classes: Optional[Union[Sequence[int], int]] = None,
+        num_classes: Optional[Union[Sequence[int], int]] = None,
         threshold_values: Union[Sequence[bool], bool] = False,
         logit_thresh: Union[Sequence[float], float] = 0.5,
+        rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
+        n_classes: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -136,35 +147,43 @@ class AsDiscreted(MapTransform):
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             to_onehot: whether to convert input data into the one-hot format. Defaults to False.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            n_classes: the number of classes to convert to One-Hot format. it also can be a
+            num_classes: the number of classes to convert to One-Hot format. it also can be a
                 sequence of int, each element corresponds to a key in ``keys``.
             threshold_values: whether threshold the float value to int number 0 or 1, default is False.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             logit_thresh: the threshold value for thresholding operation, default is 0.5.
                 it also can be a sequence of float, each element corresponds to a key in ``keys``.
+            rounding: if not None, round the data according to the specified option,
+                available options: ["torchrounding"]. it also can be a sequence of str or None,
+                each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes is None:
+            num_classes = n_classes
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
-        self.n_classes = ensure_tuple_rep(n_classes, len(self.keys))
+        self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
         self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
         self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
+        self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, argmax, to_onehot, n_classes, threshold_values, logit_thresh in self.key_iterator(
-            d, self.argmax, self.to_onehot, self.n_classes, self.threshold_values, self.logit_thresh
+        for key, argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
+            d, self.argmax, self.to_onehot, self.num_classes, self.threshold_values, self.logit_thresh, self.rounding
         ):
             d[key] = self.converter(
                 d[key],
                 argmax,
                 to_onehot,
-                n_classes,
+                num_classes,
                 threshold_values,
                 logit_thresh,
+                rounding,
             )
         return d
 
@@ -202,6 +221,70 @@ class KeepLargestConnectedComponentd(MapTransform):
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class LabelFilterd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.LabelFilter`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        applied_labels: Union[Sequence[int], int],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            applied_labels: Label(s) to filter on.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = LabelFilter(applied_labels)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class FillHolesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.FillHoles`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        applied_labels: Optional[Union[Iterable[int], int]] = None,
+        connectivity: Optional[int] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Initialize the connectivity and limit the labels for which holes are filled.
+
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            applied_labels (Optional[Union[Iterable[int], int]], optional): Labels for which to fill holes. Defaults to None,
+                that is filling holes for all labels.
+            connectivity (int, optional): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+                Accepted values are ranging from  1 to input.ndim. Defaults to a full
+                connectivity of ``input.ndim``.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = FillHoles(applied_labels=applied_labels, connectivity=connectivity)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -429,7 +512,6 @@ class Invertd(MapTransform):
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
         post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
-        num_workers: Optional[int] = 0,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -465,9 +547,6 @@ class Invertd(MapTransform):
                 each matches to the `keys` data.
             post_func: post processing for the inverted data, should be a callable function.
                 it also can be a list of callable, each matches to the `keys` data.
-            num_workers: number of workers when run data loader for inverse transforms,
-                default to 0 as only run one iteration and multi-processing may be even slower.
-                Set to `None`, to use the `num_workers` of the input transform data loader.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -624,10 +703,12 @@ class SaveClassificationd(MapTransform):
 
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
+FillHolesD = FillHolesDict = FillHolesd
+InvertD = InvertDict = Invertd
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
+LabelFilterD = LabelFilterDict = LabelFilterd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 ProbNMSD = ProbNMSDict = ProbNMSd
-VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
-InvertD = InvertDict = Invertd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
+VoteEnsembleD = VoteEnsembleDict = VoteEnsembled

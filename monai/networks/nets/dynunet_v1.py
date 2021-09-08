@@ -43,6 +43,10 @@ class DynUNetV1(DynUNet):
         deep_supr_num: number of feature maps that will output during deep supervision head. Defaults to 1.
         res_block: whether to use residual connection based convolution blocks during the network.
             Defaults to ``False``.
+
+    .. deprecated:: 0.6.0
+        Use :class:`monai.networks.nets.DynUNet` instead.
+
     """
 
     def __init__(

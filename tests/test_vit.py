@@ -26,31 +26,32 @@ for dropout_rate in [0.6]:
                     for num_heads in [12]:
                         for mlp_dim in [3072]:
                             for num_layers in [4]:
-                                for num_classes in [2]:
+                                for num_classes in [8]:
                                     for pos_embed in ["conv"]:
-                                        for classification in ["False"]:
-                                            if classification:
-                                                out = (2, num_classes)
-                                            else:
-                                                out = (2, (img_size // patch_size) ** 3, hidden_size)  # type: ignore
-                                            test_case = [
-                                                {
-                                                    "in_channels": in_channels,
-                                                    "img_size": (img_size, img_size, img_size),
-                                                    "patch_size": (patch_size, patch_size, patch_size),
-                                                    "hidden_size": hidden_size,
-                                                    "mlp_dim": mlp_dim,
-                                                    "num_layers": num_layers,
-                                                    "num_heads": num_heads,
-                                                    "pos_embed": pos_embed,
-                                                    "classification": classification,
-                                                    "num_classes": num_classes,
-                                                    "dropout_rate": dropout_rate,
-                                                },
-                                                (2, in_channels, img_size, *([img_size] * 2)),
-                                                out,
-                                            ]
-                                            TEST_CASE_Vit.append(test_case)
+                                        for classification in [False, True]:
+                                            for nd in (2, 3):
+                                                test_case = [
+                                                    {
+                                                        "in_channels": in_channels,
+                                                        "img_size": (img_size,) * nd,
+                                                        "patch_size": (patch_size,) * nd,
+                                                        "hidden_size": hidden_size,
+                                                        "mlp_dim": mlp_dim,
+                                                        "num_layers": num_layers,
+                                                        "num_heads": num_heads,
+                                                        "pos_embed": pos_embed,
+                                                        "classification": classification,
+                                                        "num_classes": num_classes,
+                                                        "dropout_rate": dropout_rate,
+                                                    },
+                                                    (2, in_channels, *([img_size] * nd)),
+                                                    (2, (img_size // patch_size) ** nd, hidden_size),
+                                                ]
+                                                if nd == 2:
+                                                    test_case[0]["spatial_dims"] = 2  # type: ignore
+                                                if test_case[0]["classification"]:  # type: ignore
+                                                    test_case[2] = (2, test_case[0]["num_classes"])  # type: ignore
+                                                TEST_CASE_Vit.append(test_case)
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
@@ -62,7 +63,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             ViT(
                 in_channels=1,
                 img_size=(128, 128, 128),
@@ -76,7 +77,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 dropout_rate=5.0,
             )
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             ViT(
                 in_channels=1,
                 img_size=(32, 32, 32),
@@ -90,7 +91,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 dropout_rate=0.3,
             )
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             ViT(
                 in_channels=1,
                 img_size=(96, 96, 96),
@@ -104,7 +105,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 dropout_rate=0.3,
             )
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             ViT(
                 in_channels=1,
                 img_size=(97, 97, 97),
@@ -114,11 +115,11 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 num_layers=12,
                 num_heads=8,
                 pos_embed="perceptron",
-                classification=False,
+                classification=True,
                 dropout_rate=0.3,
             )
 
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError):
             ViT(
                 in_channels=4,
                 img_size=(96, 96, 96),

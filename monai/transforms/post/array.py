@@ -14,26 +14,29 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
+from monai.config import NdarrayTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
-from monai.transforms.utils import get_largest_connected_component_mask
-from monai.utils import ensure_tuple
+from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
+from monai.utils import deprecated_arg, ensure_tuple, look_up_option
 
 __all__ = [
     "Activations",
     "AsDiscrete",
+    "FillHoles",
     "KeepLargestConnectedComponent",
+    "LabelFilter",
     "LabelToContour",
     "MeanEnsemble",
-    "VoteEnsemble",
     "ProbNMS",
+    "VoteEnsemble",
 ]
 
 
@@ -109,44 +112,57 @@ class AsDiscrete(Transform):
 
         -  execute `argmax` for input logits values.
         -  threshold input value to 0.0 or 1.0.
-        -  convert input value to One-Hot format
+        -  convert input value to One-Hot format.
+        -  round the value to the closest integer.
 
     Args:
         argmax: whether to execute argmax function on input data before transform.
             Defaults to ``False``.
         to_onehot: whether to convert input data into the one-hot format.
             Defaults to ``False``.
-        n_classes: the number of classes to convert to One-Hot format.
+        num_classes: the number of classes to convert to One-Hot format.
             Defaults to ``None``.
         threshold_values: whether threshold the float value to int number 0 or 1.
             Defaults to ``False``.
         logit_thresh: the threshold value for thresholding operation..
             Defaults to ``0.5``.
+        rounding: if not None, round the data according to the specified option,
+            available options: ["torchrounding"].
 
     """
 
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         argmax: bool = False,
         to_onehot: bool = False,
-        n_classes: Optional[int] = None,
+        num_classes: Optional[int] = None,
         threshold_values: bool = False,
         logit_thresh: float = 0.5,
+        rounding: Optional[str] = None,
+        n_classes: Optional[int] = None,
     ) -> None:
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes is None:
+            num_classes = n_classes
         self.argmax = argmax
         self.to_onehot = to_onehot
-        self.n_classes = n_classes
+        self.num_classes = num_classes
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
+        self.rounding = rounding
 
+    @deprecated_arg("n_classes", since="0.6")
     def __call__(
         self,
         img: torch.Tensor,
         argmax: Optional[bool] = None,
         to_onehot: Optional[bool] = None,
-        n_classes: Optional[int] = None,
+        num_classes: Optional[int] = None,
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
+        rounding: Optional[str] = None,
+        n_classes: Optional[int] = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -156,25 +172,35 @@ class AsDiscrete(Transform):
                 Defaults to ``self.argmax``.
             to_onehot: whether to convert input data into the one-hot format.
                 Defaults to ``self.to_onehot``.
-            n_classes: the number of classes to convert to One-Hot format.
-                Defaults to ``self.n_classes``.
+            num_classes: the number of classes to convert to One-Hot format.
+                Defaults to ``self.num_classes``.
             threshold_values: whether threshold the float value to int number 0 or 1.
                 Defaults to ``self.threshold_values``.
             logit_thresh: the threshold value for thresholding operation..
                 Defaults to ``self.logit_thresh``.
+            rounding: if not None, round the data according to the specified option,
+                available options: ["torchrounding"].
 
         """
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes is None:
+            num_classes = n_classes
         if argmax or self.argmax:
             img = torch.argmax(img, dim=0, keepdim=True)
 
         if to_onehot or self.to_onehot:
-            _nclasses = self.n_classes if n_classes is None else n_classes
+            _nclasses = self.num_classes if num_classes is None else num_classes
             if not isinstance(_nclasses, int):
-                raise AssertionError("One of self.n_classes or n_classes must be an integer")
+                raise AssertionError("One of self.num_classes or num_classes must be an integer")
             img = one_hot(img, num_classes=_nclasses, dim=0)
 
         if threshold_values or self.threshold_values:
             img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+
+        rounding = self.rounding if rounding is None else rounding
+        if rounding is not None:
+            rounding = look_up_option(rounding, ["torchrounding"])
+            img = torch.round(img)
 
         return img.float()
 
@@ -287,6 +313,135 @@ class KeepLargestConnectedComponent(Transform):
             output = img
 
         return output
+
+
+class LabelFilter:
+    """
+    This transform filters out labels and can be used as a processing step to view only certain labels.
+
+    The list of applied labels defines which labels will be kept.
+
+    Note:
+        All labels which do not match the `applied_labels` are set to the background label (0).
+
+    For example:
+
+    Use LabelFilter with applied_labels=[1, 5, 9]::
+
+        [1, 2, 3]         [1, 0, 0]
+        [4, 5, 6]    =>   [0, 5 ,0]
+        [7, 8, 9]         [0, 0, 9]
+    """
+
+    def __init__(self, applied_labels: Union[Iterable[int], int]) -> None:
+        """
+        Initialize the LabelFilter class with the labels to filter on.
+
+        Args:
+            applied_labels: Label(s) to filter on.
+        """
+        self.applied_labels = ensure_tuple(applied_labels)
+
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        """
+        Filter the image on the `applied_labels`.
+
+        Args:
+            img: Pytorch tensor or numpy array of any shape.
+
+        Raises:
+            NotImplementedError: The provided image was not a Pytorch Tensor or numpy array.
+
+        Returns:
+            Pytorch tensor or numpy array of the same shape as the input.
+        """
+        if isinstance(img, np.ndarray):
+            return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
+        if isinstance(img, torch.Tensor):
+            img_arr = img.detach().cpu().numpy()
+            img_arr = self(img_arr)
+            return torch.as_tensor(img_arr, device=img.device)
+        raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+
+
+class FillHoles(Transform):
+    r"""
+    This transform fills holes in the image and can be used to remove artifacts inside segments.
+
+    An enclosed hole is defined as a background pixel/voxel which is only enclosed by a single class.
+    The definition of enclosed can be defined with the connectivity parameter::
+
+        1-connectivity     2-connectivity     diagonal connection close-up
+
+             [ ]           [ ]  [ ]  [ ]             [ ]
+              |               \  |  /                 |  <- hop 2
+        [ ]--[x]--[ ]      [ ]--[x]--[ ]        [x]--[ ]
+              |               /  |  \             hop 1
+             [ ]           [ ]  [ ]  [ ]
+
+    It is possible to define for which labels the hole filling should be applied.
+    The input image is assumed to be a PyTorch Tensor or numpy array with shape [C, spatial_dim1[, spatial_dim2, ...]].
+    If C = 1, then the values correspond to expected labels.
+    If C > 1, then a one-hot-encoding is expected where the index of C matches the label indexing.
+
+    Note:
+
+        The label 0 will be treated as background and the enclosed holes will be set to the neighboring class label.
+
+        The performance of this method heavily depends on the number of labels.
+        It is a bit faster if the list of `applied_labels` is provided.
+        Limiting the number of `applied_labels` results in a big decrease in processing time.
+
+    For example:
+
+        Use FillHoles with default parameters::
+
+            [1, 1, 1, 2, 2, 2, 3, 3]         [1, 1, 1, 2, 2, 2, 3, 3]
+            [1, 0, 1, 2, 0, 0, 3, 0]    =>   [1, 1 ,1, 2, 0, 0, 3, 0]
+            [1, 1, 1, 2, 2, 2, 3, 3]         [1, 1, 1, 2, 2, 2, 3, 3]
+
+        The hole in label 1 is fully enclosed and therefore filled with label 1.
+        The background label near label 2 and 3 is not fully enclosed and therefore not filled.
+    """
+
+    def __init__(
+        self, applied_labels: Optional[Union[Iterable[int], int]] = None, connectivity: Optional[int] = None
+    ) -> None:
+        """
+        Initialize the connectivity and limit the labels for which holes are filled.
+
+        Args:
+            applied_labels: Labels for which to fill holes. Defaults to None, that is filling holes for all labels.
+            connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+                Accepted values are ranging from  1 to input.ndim. Defaults to a full connectivity of ``input.ndim``.
+        """
+        super().__init__()
+        self.applied_labels = ensure_tuple(applied_labels) if applied_labels else None
+        self.connectivity = connectivity
+
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        """
+        Fill the holes in the provided image.
+
+        Note:
+            The value 0 is assumed as background label.
+
+        Args:
+            img: Pytorch Tensor or numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
+
+        Raises:
+            NotImplementedError: The provided image was not a Pytorch Tensor or numpy array.
+
+        Returns:
+            Pytorch Tensor or numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
+        """
+        if isinstance(img, np.ndarray):
+            return fill_holes(img, self.applied_labels, self.connectivity)
+        if isinstance(img, torch.Tensor):
+            img_arr = img.detach().cpu().numpy()
+            img_arr = self(img_arr)
+            return torch.as_tensor(img_arr, device=img.device)
+        raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
 
 class LabelToContour(Transform):
