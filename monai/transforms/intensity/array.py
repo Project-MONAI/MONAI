@@ -1754,6 +1754,11 @@ class RandCoarseDropout(RandCoarseTransform):
         self.fill_value = fill_value
 
     def _transform_holes(self, img: np.ndarray):
+        """
+        Fill the randomly selected `self.hole_coords` in input images.
+        Please note that we usually only use `self.R` in `randomize()` method, here is a special case.
+
+        """
         fill_value = (img.min(), img.max()) if self.fill_value is None else self.fill_value
 
         if self.dropout_holes:
@@ -1784,6 +1789,11 @@ class RandCoarseShuffle(RandCoarseTransform):
     """
 
     def _transform_holes(self, img: np.ndarray):
+        """
+        Shuffle the content of randomly selected `self.hole_coords` in input images.
+        Please note that we usually only use `self.R` in `randomize()` method, here is a special case.
+
+        """
         for h in self.hole_coords:
             # shuffle every channel separately
             for i, c in enumerate(img[h]):
