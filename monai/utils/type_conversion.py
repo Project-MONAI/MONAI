@@ -105,6 +105,8 @@ def convert_to_tensor(data, wrap_sequence: bool = False):
             # numpy array with 0 dims is also sequence iterable,
             # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
             return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
+    elif has_cp and isinstance(data, cp_ndarray):
+        return torch.as_tensor(data)
     elif isinstance(data, (float, int, bool)):
         return torch.as_tensor(data)
     elif isinstance(data, Sequence) and wrap_sequence:
