@@ -19,7 +19,7 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import InterpolateMode, ensure_tuple, ensure_tuple_rep, min_version, optional_import
+from monai.utils import InterpolateMode, deprecated_arg, ensure_tuple, ensure_tuple_rep, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
@@ -476,7 +476,7 @@ class AddGuidanceFromPointsd(Transform):
         background: key that represents user background (-ve) clicks.
         axis: axis that represents slices in 3D volume. (axis to Depth)
         depth_first: if depth (slices) is positioned at first dimension.
-        dimensions: dimensions based on model used for deepgrow (2D vs 3D).
+        spatial_dims: dimensions based on model used for deepgrow (2D vs 3D).
         slice_key: key that represents applicable slice to add guidance.
         meta_keys: explicitly indicate the key of the meta data dictionary of `ref_image`.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
@@ -486,8 +486,13 @@ class AddGuidanceFromPointsd(Transform):
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
+
+    .. deprecated:: 0.6.0
+        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+
     """
 
+    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         ref_image,
@@ -496,10 +501,11 @@ class AddGuidanceFromPointsd(Transform):
         background: str = "background",
         axis: int = 0,
         depth_first: bool = True,
-        dimensions: int = 2,
+        spatial_dims: int = 2,
         slice_key: str = "slice",
         meta_keys: Optional[str] = None,
         meta_key_postfix: str = "meta_dict",
+        dimensions: Optional[int] = None,
     ):
         self.ref_image = ref_image
         self.guidance = guidance
@@ -507,7 +513,7 @@ class AddGuidanceFromPointsd(Transform):
         self.background = background
         self.axis = axis
         self.depth_first = depth_first
-        self.dimensions = dimensions
+        self.dimensions = spatial_dims if dimensions is None else dimensions
         self.slice = slice_key
         self.meta_keys = meta_keys
         self.meta_key_postfix = meta_key_postfix

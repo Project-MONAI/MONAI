@@ -47,7 +47,7 @@ def generate_param_groups(
 
     .. code-block:: python
 
-        net = Unet(dimensions=3, in_channels=1, out_channels=3, channels=[2, 2, 2], strides=[1, 1, 1])
+        net = Unet(spatial_dims=3, in_channels=1, out_channels=3, channels=[2, 2, 2], strides=[1, 1, 1])
         print(net)  # print out network components to select expected items
         print(net.named_parameters())  # print out all the named parameters to filter out expected items
         params = generate_param_groups(
