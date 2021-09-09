@@ -20,6 +20,7 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader
 from monai.data.utils import decollate_batch, pad_list_data_collate
 from monai.transforms import (
+    Compose,
     PadListDataCollate,
     RandRotate,
     RandRotate90,
@@ -29,6 +30,8 @@ from monai.transforms import (
     RandSpatialCropd,
     RandZoom,
     RandZoomd,
+    ToTensor,
+    ToTensord,
 )
 from monai.utils import set_determinism
 
@@ -41,12 +44,12 @@ for pad_collate in [
     TESTS.append((dict, pad_collate, RandSpatialCropd("image", roi_size=[8, 7], random_size=True)))
     TESTS.append((dict, pad_collate, RandRotated("image", prob=1, range_x=np.pi, keep_size=False)))
     TESTS.append((dict, pad_collate, RandZoomd("image", prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
-    TESTS.append((dict, pad_collate, RandRotate90d("image", prob=1, max_k=2)))
+    TESTS.append((dict, pad_collate, Compose([RandRotate90d("image", prob=1, max_k=2), ToTensord("image")])))
 
     TESTS.append((list, pad_collate, RandSpatialCrop(roi_size=[8, 7], random_size=True)))
     TESTS.append((list, pad_collate, RandRotate(prob=1, range_x=np.pi, keep_size=False)))
     TESTS.append((list, pad_collate, RandZoom(prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
-    TESTS.append((list, pad_collate, RandRotate90(prob=1, max_k=2)))
+    TESTS.append((list, pad_collate, Compose([RandRotate90(prob=1, max_k=2), ToTensor()])))
 
 
 class _Dataset(torch.utils.data.Dataset):
