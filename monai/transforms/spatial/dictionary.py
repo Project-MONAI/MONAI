@@ -1537,6 +1537,8 @@ class Zoomd(MapTransform, InvertibleTransform):
 
     """
 
+    backend = Zoom.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1554,7 +1556,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **np_kwargs)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
@@ -1576,7 +1578,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1594,7 +1596,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 align_corners=None if align_corners == "none" else align_corners,
             )
             # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])
+            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1637,6 +1639,8 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     """
 
+    backend = Zoom.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1669,7 +1673,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         super().randomize(None)
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         # match the spatial dim of first item
         self.randomize()
         d = dict(data)
@@ -1704,7 +1708,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1724,7 +1728,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == "none" else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])
+                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
