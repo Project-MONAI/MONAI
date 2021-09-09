@@ -219,6 +219,7 @@ class GlobalMutualInformationLoss(_Loss):
             raise ValueError(
                 f'Unsupported kernel_type: {kernel_type}, available options are ["gaussian", "b-spline].'
             )
+        self.num_bins = num_bins
         self.kernel_type = kernel_type
         if self.kernel_type == "gaussian":
             self.preterm = 1 / (2 * sigma ** 2)
@@ -264,11 +265,11 @@ class GlobalMutualInformationLoss(_Loss):
         # window.
         max, min = torch.max(img), torch.min(img)
         padding = 2
-        bin_size = (max - min) // (self.num_bins - 2 * padding)
-        norm_min = min // bin_size - padding
+        bin_size = (max - min) / (self.num_bins - 2 * padding)
+        norm_min = torch.div(min, bin_size, rounding_mode='floor') - padding
 
         # assign bin/window index to each voxel
-        window_term = img // bin_size - norm_min  # B[NDHW]
+        window_term = torch.div(img, bin_size, rounding_mode='floor') - norm_min  # B[NDHW]
         # make sure the extreme values are in valid (non-padded) bins
         window_term = torch.clamp(window_term, padding, self.num_bins - padding - 1)  # B[NDHW]
         window_term = window_term.reshape(window_term.shape[0], -1, 1)  # (batch, num_sample, 1)
@@ -279,11 +280,11 @@ class GlobalMutualInformationLoss(_Loss):
         # (4 - 6 * abs ** 2 + 3 * abs ** 3) / 6 when 0 <= abs < 1
         # (2 - abs) ** 3 / 6 when 1 <= abs < 2
         weight = torch.zeros_like(sample_bin_matrix, dtype=torch.float)  # (batch, num_sample, num_bins)
-        if order == 1:
-            weight = weight + sample_bin_matrix == 0
+        if order == 0:
+            weight = weight + (sample_bin_matrix < 0.5) + (sample_bin_matrix == 0.5) * 0.5
         elif order == 3:
-            weight = weight + (4 - 6 * sample_bin_matrix ** 2 + 3 * sample_bin_matrix ** 3) * (sample_bin_matrix == 0)
-            weight = weight + (2 - sample_bin_matrix) ** 3 * (sample_bin_matrix == 1)
+            weight = weight + (4 - 6 * sample_bin_matrix ** 2 + 3 * sample_bin_matrix ** 3) * (sample_bin_matrix < 1) / 6
+            weight = weight + (2 - sample_bin_matrix) ** 3 * (sample_bin_matrix >= 1) * (sample_bin_matrix < 2) / 6
         else:
             raise ValueError(f'Do not support b-spline {order}-order parzen windowing')
 
@@ -318,9 +319,9 @@ class GlobalMutualInformationLoss(_Loss):
         if target.shape != pred.shape:
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
         wa, pa, wb, pb = self.parzen_windowing(pred, target)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
-        pab = torch.bmm(wa.permute(0, 2, 1), wb).div(wa.shape[1])  # (batch, num_bins, num_bins)
 
-        papb = torch.bmm(pa.permute(0, 2, 1), pb)  # (batch, num_bins, num_bins)
+        pab = torch.bmm(wa.permute(0, 2, 1), wb.to(wa)).div(wa.shape[1])  # (batch, num_bins, num_bins)
+        papb = torch.bmm(pa.permute(0, 2, 1), pb.to(pa))  # (batch, num_bins, num_bins)
         mi = torch.sum(
             pab * torch.log((pab + self.smooth_nr) / (papb + self.smooth_dr) + self.smooth_dr), dim=(1, 2)
         )  # (batch)
