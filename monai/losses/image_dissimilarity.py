@@ -216,9 +216,7 @@ class GlobalMutualInformationLoss(_Loss):
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
         if kernel_type not in ["gaussian", "b-spline"]:
-            raise ValueError(
-                f'Unsupported kernel_type: {kernel_type}, available options are ["gaussian", "b-spline].'
-            )
+            raise ValueError(f'Unsupported kernel_type: {kernel_type}, available options are ["gaussian", "b-spline].')
         self.num_bins = num_bins
         self.kernel_type = kernel_type
         if self.kernel_type == "gaussian":
@@ -227,9 +225,9 @@ class GlobalMutualInformationLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
-    def parzen_windowing(self, pred: torch.Tensor, target: torch.Tensor) -> Tuple[
-        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor
-    ]:
+    def parzen_windowing(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         if self.kernel_type == "gaussian":
             pred_weight, pred_probability = self.parzen_windowing_gaussian(pred)
             target_weight, target_probability = self.parzen_windowing_gaussian(target)
@@ -266,14 +264,14 @@ class GlobalMutualInformationLoss(_Loss):
         max, min = torch.max(img), torch.min(img)
         padding = 2
         bin_size = (max - min) / (self.num_bins - 2 * padding)
-        norm_min = torch.div(min, bin_size, rounding_mode='floor') - padding
+        norm_min = torch.div(min, bin_size, rounding_mode="floor") - padding
 
         # assign bin/window index to each voxel
-        window_term = torch.div(img, bin_size, rounding_mode='floor') - norm_min  # B[NDHW]
+        window_term = torch.div(img, bin_size, rounding_mode="floor") - norm_min  # B[NDHW]
         # make sure the extreme values are in valid (non-padded) bins
         window_term = torch.clamp(window_term, padding, self.num_bins - padding - 1)  # B[NDHW]
         window_term = window_term.reshape(window_term.shape[0], -1, 1)  # (batch, num_sample, 1)
-        bins = torch.arange(self.num_bins).reshape(1, 1, -1)   # (1, 1, num_bins)
+        bins = torch.arange(self.num_bins).reshape(1, 1, -1)  # (1, 1, num_bins)
         sample_bin_matrix = torch.abs(bins - window_term)  # (batch, num_sample, num_bins)
 
         # b-spleen kernel
@@ -283,10 +281,12 @@ class GlobalMutualInformationLoss(_Loss):
         if order == 0:
             weight = weight + (sample_bin_matrix < 0.5) + (sample_bin_matrix == 0.5) * 0.5
         elif order == 3:
-            weight = weight + (4 - 6 * sample_bin_matrix ** 2 + 3 * sample_bin_matrix ** 3) * (sample_bin_matrix < 1) / 6
+            weight = (
+                weight + (4 - 6 * sample_bin_matrix ** 2 + 3 * sample_bin_matrix ** 3) * (sample_bin_matrix < 1) / 6
+            )
             weight = weight + (2 - sample_bin_matrix) ** 3 * (sample_bin_matrix >= 1) * (sample_bin_matrix < 2) / 6
         else:
-            raise ValueError(f'Do not support b-spline {order}-order parzen windowing')
+            raise ValueError(f"Do not support b-spline {order}-order parzen windowing")
 
         weight = weight / torch.sum(weight, dim=-1, keepdim=True)  # (batch, num_sample, num_bins)
         probability = torch.mean(weight, dim=-2, keepdim=True)  # (batch, 1, num_bins)
