@@ -61,16 +61,17 @@ __all__ = [
 class Pad(Transform):
     """
     Perform padding for a given an amount of padding in each dimension.
-    If input is `torch.Tensor` and mode is `constant`, `torch.nn.functional.pad` will be used.
-    Otherwise, `np.pad` will be used (input converted to `np.ndarray` if necessary).
-    Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
-    for additional details.
+    If input is `torch.Tensor`, `torch.nn.functional.pad` will be used, otherwise, `np.pad` will be used.
+
     Args:
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"`` or ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -79,42 +80,46 @@ class Pad(Transform):
         self,
         to_pad: List[Tuple[int, int]],
         mode: Union[NumpyPadMode, str, None] = NumpyPadMode.CONSTANT,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         self.to_pad = to_pad
         self.mode = mode or NumpyPadMode.CONSTANT
-        self.np_kwargs = np_kwargs
+        self.kwargs = kwargs
 
     @staticmethod
-    def _np_pad(img: np.ndarray, all_pad_width, mode, **np_kwargs) -> np.ndarray:
+    def _np_pad(img: np.ndarray, all_pad_width, mode, **kwargs) -> np.ndarray:
         img_np, *_ = convert_data_type(img, np.ndarray)
-        return np.pad(img_np, all_pad_width, mode=mode, **np_kwargs)  # type: ignore
+        return np.pad(img_np, all_pad_width, mode=mode, **kwargs)  # type: ignore
 
     @staticmethod
-    def _pt_pad(img: torch.Tensor, all_pad_width, mode, **np_kwargs) -> torch.Tensor:
+    def _pt_pad(img: torch.Tensor, all_pad_width, mode, **kwargs) -> torch.Tensor:
         pt_pad_width = [val for sublist in all_pad_width for val in sublist[::-1]][::-1]
-        return pad_pt(img, pt_pad_width, mode=mode, **np_kwargs)
+        # torch.pad expects `[B, C, H, W, [D]]` shape
+        return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
     def __call__(self, img: NdarrayTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
                 padding doesn't apply to the channel dim.
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"`` or ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+
         """
         if not np.asarray(self.to_pad).any():
             # all zeros, skip padding
             return img
         mode = mode or self.mode
         mode = mode.value if isinstance(mode, NumpyPadMode) else mode
-        if isinstance(img, torch.Tensor) and mode == "constant" and not self.np_kwargs:
+        if isinstance(img, torch.Tensor):
             pad = self._pt_pad
         else:
             pad = self._np_pad  # type: ignore
-        return pad(img, self.to_pad, mode, **self.np_kwargs)
+        return pad(img, self.to_pad, mode, **self.kwargs)
 
 
 class SpatialPad(Transform):
