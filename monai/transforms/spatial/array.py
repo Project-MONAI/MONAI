@@ -22,7 +22,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
     create_control_grid,
@@ -47,6 +47,7 @@ from monai.utils import (
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
+from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
@@ -555,6 +556,8 @@ class Zoom(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(
         self,
         zoom: Union[Sequence[float], float],
@@ -573,11 +576,11 @@ class Zoom(Transform):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: NdarrayOrTensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ):
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -593,31 +596,37 @@ class Zoom(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
         """
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
+
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
-        zoomed = torch.nn.functional.interpolate(  # type: ignore
+        zoomed: torch.Tensor = torch.nn.functional.interpolate(  # type: ignore
             recompute_scale_factor=True,
-            input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
+            input=img_t.unsqueeze(0),
             scale_factor=list(_zoom),
             mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
-        zoomed = zoomed.squeeze(0).detach().cpu().numpy()
-        if not self.keep_size or np.allclose(img.shape, zoomed.shape):
-            return zoomed
+        zoomed = zoomed.squeeze(0)
 
-        pad_vec = [[0, 0]] * len(img.shape)
-        slice_vec = [slice(None)] * len(img.shape)
-        for idx, (od, zd) in enumerate(zip(img.shape, zoomed.shape)):
-            diff = od - zd
-            half = abs(diff) // 2
-            if diff > 0:  # need padding
-                pad_vec[idx] = [half, diff - half]
-            elif diff < 0:  # need slicing
-                slice_vec[idx] = slice(half, half + od)
+        if self.keep_size and not np.allclose(img_t.shape, zoomed.shape):
 
-        padding_mode = look_up_option(self.padding_mode if padding_mode is None else padding_mode, NumpyPadMode)
-        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value, **self.np_kwargs)  # type: ignore
-        return zoomed[tuple(slice_vec)]
+            pad_vec = [(0, 0)] * len(img_t.shape)
+            slice_vec = [slice(None)] * len(img_t.shape)
+            for idx, (od, zd) in enumerate(zip(img_t.shape, zoomed.shape)):
+                diff = od - zd
+                half = abs(diff) // 2
+                if diff > 0:  # need padding
+                    pad_vec[idx] = (half, diff - half)
+                elif diff < 0:  # need slicing
+                    slice_vec[idx] = slice(half, half + od)
+
+            padding_mode = look_up_option(padding_mode or self.padding_mode, NumpyPadMode)
+            padder = Pad(pad_vec, padding_mode)
+            zoomed = padder(zoomed)
+            zoomed = zoomed[tuple(slice_vec)]
+
+        return zoomed
 
 
 class Rotate90(Transform):
@@ -627,6 +636,8 @@ class Rotate90(Transform):
     https://numpy.org/doc/stable/reference/generated/numpy.rot90.html.
 
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
         """
@@ -642,14 +653,15 @@ class Rotate90(Transform):
             raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
         self.spatial_axes = spatial_axes_
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-
-        result: np.ndarray = np.rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes))
-        return result.astype(img.dtype)
+        rot90 = torch.rot90 if isinstance(img, torch.Tensor) else np.rot90
+        out: NdarrayOrTensor = rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes))
+        out, *_ = convert_data_type(out, dtype=img.dtype)
+        return out
 
 
 class RandRotate90(RandomizableTransform):
@@ -657,6 +669,8 @@ class RandRotate90(RandomizableTransform):
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
     """
+
+    backend = Rotate90.backend
 
     def __init__(self, prob: float = 0.1, max_k: int = 3, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
         """
@@ -677,7 +691,7 @@ class RandRotate90(RandomizableTransform):
         self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -886,6 +900,8 @@ class RandZoom(RandomizableTransform):
 
     """
 
+    backend = Zoom.backend
+
     def __init__(
         self,
         prob: float = 0.1,
@@ -916,11 +932,11 @@ class RandZoom(RandomizableTransform):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: NdarrayOrTensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> np.ndarray:
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -937,25 +953,25 @@ class RandZoom(RandomizableTransform):
         """
         # match the spatial image dim
         self.randomize()
-        _dtype = np.float32
         if not self._do_transform:
-            return img.astype(_dtype)
+            img_t: torch.Tensor
+            img_t, *_ = convert_data_type(img, dtype=torch.float32)  # type: ignore
+            return img_t
         if len(self._zoom) == 1:
             # to keep the spatial shape ratio, use same random zoom factor for all dims
             self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
         elif len(self._zoom) == 2 and img.ndim > 3:
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
             self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(self._zoom, keep_size=self.keep_size, **self.np_kwargs)
-        return np.asarray(
-            zoomer(
-                img,
-                mode=look_up_option(mode or self.mode, InterpolateMode),
-                padding_mode=look_up_option(padding_mode or self.padding_mode, NumpyPadMode),
-                align_corners=self.align_corners if align_corners is None else align_corners,
-            ),
-            dtype=_dtype,
+        zoomer = Zoom(
+            self._zoom,
+            keep_size=self.keep_size,
+            mode=look_up_option(mode or self.mode, InterpolateMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, NumpyPadMode),
+            align_corners=align_corners or self.align_corners,
+            **self.np_kwargs,
         )
+        return zoomer(img)
 
 
 class AffineGrid(Transform):

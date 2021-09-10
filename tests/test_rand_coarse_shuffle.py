@@ -14,32 +14,39 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import LocalPatchShuffling
+from monai.transforms import RandCoarseShuffle
 
 TEST_CASES = [
     [
-        {"number_blocks": 10, "blocksize_ratio": 1, "prob": 0.0},
+        {"holes": 5, "spatial_size": 1, "max_spatial_size": -1, "prob": 0.0},
         {"img": np.arange(8).reshape((1, 2, 2, 2))},
         np.arange(8).reshape((1, 2, 2, 2)),
     ],
     [
-        {"number_blocks": 10, "blocksize_ratio": 1, "prob": 1.0},
+        {"holes": 10, "spatial_size": 1, "max_spatial_size": -1, "prob": 1.0},
         {"img": np.arange(27).reshape((1, 3, 3, 3))},
-        [
+        np.asarray(
             [
-                [[9, 1, 2], [3, 4, 5], [6, 7, 8]],
-                [[0, 10, 11], [12, 4, 14], [15, 16, 17]],
-                [[18, 19, 20], [21, 22, 23], [24, 25, 26]],
-            ]
-        ],
+                [
+                    [[8, 19, 26], [24, 6, 15], [0, 13, 25]],
+                    [[17, 3, 5], [10, 1, 12], [22, 4, 11]],
+                    [[21, 20, 23], [14, 2, 16], [18, 9, 7]],
+                ],
+            ],
+        ),
+    ],
+    [
+        {"holes": 2, "spatial_size": 1, "max_spatial_size": -1, "prob": 1.0},
+        {"img": np.arange(16).reshape((2, 2, 2, 2))},
+        np.asarray([[[[6, 1], [4, 3]], [[0, 2], [7, 5]]], [[[14, 10], [9, 8]], [[12, 15], [13, 11]]]]),
     ],
 ]
 
 
-class TestLocalPatchShuffle(unittest.TestCase):
+class TestRandCoarseShuffle(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_local_patch_shuffle(self, input_param, input_data, expected_val):
-        g = LocalPatchShuffling(**input_param)
+        g = RandCoarseShuffle(**input_param)
         g.set_random_state(seed=12)
         result = g(**input_data)
         np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)

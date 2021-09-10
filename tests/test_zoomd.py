@@ -16,7 +16,7 @@ from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
 from monai.transforms import Zoomd
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 VALID_CASES = [(1.5, "nearest", False), (0.3, "bilinear", False), (0.8, "bilinear", False)]
 
@@ -33,32 +33,35 @@ class TestZoomd(NumpyImageTestCase2D):
             mode=mode,
             keep_size=keep_size,
         )
-        zoomed = zoom_fn({key: self.imt[0]})
-        _order = 0
-        if mode.endswith("linear"):
-            _order = 1
-        expected = []
-        for channel in self.imt[0]:
-            expected.append(zoom_scipy(channel, zoom=zoom, mode="nearest", order=_order, prefilter=False))
-        expected = np.stack(expected).astype(np.float32)
-        np.testing.assert_allclose(expected, zoomed[key], atol=1.0)
+        for p in TEST_NDARRAYS:
+            zoomed = zoom_fn({key: p(self.imt[0])})
+            _order = 0
+            if mode.endswith("linear"):
+                _order = 1
+            expected = []
+            for channel in self.imt[0]:
+                expected.append(zoom_scipy(channel, zoom=zoom, mode="nearest", order=_order, prefilter=False))
+            expected = np.stack(expected).astype(np.float32)
+            assert_allclose(expected, zoomed[key], atol=1.0)
 
     def test_keep_size(self):
         key = "img"
         zoom_fn = Zoomd(key, zoom=0.6, keep_size=True, padding_mode="constant", constant_values=2)
-        zoomed = zoom_fn({key: self.imt[0]})
-        self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
+        for p in TEST_NDARRAYS:
+            zoomed = zoom_fn({key: p(self.imt[0])})
+            np.testing.assert_array_equal(zoomed[key].shape, self.imt.shape[1:])
 
-        zoom_fn = Zoomd(key, zoom=1.3, keep_size=True)
-        zoomed = zoom_fn({key: self.imt[0]})
-        self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
+            zoom_fn = Zoomd(key, zoom=1.3, keep_size=True)
+            zoomed = zoom_fn({key: self.imt[0]})
+            self.assertTrue(np.array_equal(zoomed[key].shape, self.imt.shape[1:]))
 
     @parameterized.expand(INVALID_CASES)
     def test_invalid_inputs(self, _, zoom, mode, raises):
         key = "img"
-        with self.assertRaises(raises):
-            zoom_fn = Zoomd(key, zoom=zoom, mode=mode)
-            zoom_fn({key: self.imt[0]})
+        for p in TEST_NDARRAYS:
+            with self.assertRaises(raises):
+                zoom_fn = Zoomd(key, zoom=zoom, mode=mode)
+                zoom_fn({key: p(self.imt[0])})
 
 
 if __name__ == "__main__":
