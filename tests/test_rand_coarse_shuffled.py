@@ -14,42 +14,42 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import RandCoarseShuffle
+from monai.transforms import RandCoarseShuffled
 
 TEST_CASES = [
     [
-        {"holes": 5, "spatial_size": 1, "max_spatial_size": -1, "prob": 0.0},
+        {"keys": "img", "holes": 5, "spatial_size": 1, "max_spatial_size": -1, "prob": 0.0},
         {"img": np.arange(8).reshape((1, 2, 2, 2))},
         np.arange(8).reshape((1, 2, 2, 2)),
     ],
     [
-        {"holes": 10, "spatial_size": 1, "max_spatial_size": -1, "prob": 1.0},
+        {"keys": "img", "holes": 10, "spatial_size": 1, "max_spatial_size": -1, "prob": 1.0},
         {"img": np.arange(27).reshape((1, 3, 3, 3))},
         np.asarray(
             [
                 [
-                    [[8, 19, 26], [24, 6, 15], [0, 13, 25]],
-                    [[17, 3, 5], [10, 1, 12], [22, 4, 11]],
-                    [[21, 20, 23], [14, 2, 16], [18, 9, 7]],
-                ],
-            ],
+                    [[13, 17, 5], [6, 16, 25], [12, 15, 22]],
+                    [[24, 7, 3], [9, 2, 23], [0, 4, 26]],
+                    [[19, 11, 14], [1, 20, 8], [18, 10, 21]],
+                ]
+            ]
         ),
     ],
     [
-        {"holes": 2, "spatial_size": 1, "max_spatial_size": -1, "prob": 1.0},
+        {"keys": "img", "holes": 2, "spatial_size": 1, "max_spatial_size": -1, "prob": 1.0},
         {"img": np.arange(16).reshape((2, 2, 2, 2))},
-        np.asarray([[[[6, 1], [4, 3]], [[0, 2], [7, 5]]], [[[14, 10], [9, 8]], [[12, 15], [13, 11]]]]),
+        np.asarray([[[[7, 2], [1, 4]], [[5, 0], [3, 6]]], [[[8, 13], [10, 15]], [[14, 12], [11, 9]]]]),
     ],
 ]
 
 
-class TestRandCoarseShuffle(unittest.TestCase):
+class TestRandCoarseShuffled(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shuffle(self, input_param, input_data, expected_val):
-        g = RandCoarseShuffle(**input_param)
+        g = RandCoarseShuffled(**input_param)
         g.set_random_state(seed=12)
-        result = g(**input_data)
-        np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        result = g(input_data)
+        np.testing.assert_allclose(result["img"], expected_val, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

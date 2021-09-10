@@ -34,6 +34,7 @@ from monai.transforms.intensity.array import (
     NormalizeIntensity,
     RandBiasField,
     RandCoarseDropout,
+    RandCoarseShuffle,
     RandGaussianNoise,
     RandKSpaceSpikeNoise,
     RandRicianNoise,
@@ -75,6 +76,7 @@ __all__ = [
     "RandKSpaceSpikeNoised",
     "RandHistogramShiftd",
     "RandCoarseDropoutd",
+    "RandCoarseShuffled",
     "HistogramNormalized",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
@@ -126,6 +128,8 @@ __all__ = [
     "RandRicianNoiseDict",
     "RandCoarseDropoutD",
     "RandCoarseDropoutDict",
+    "RandCoarseShuffleD",
+    "RandCoarseShuffleDict",
     "HistogramNormalizeD",
     "HistogramNormalizeDict",
 ]
@@ -1478,6 +1482,13 @@ class RandCoarseDropoutd(Randomizable, MapTransform):
             prob=prob,
         )
 
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandCoarseDropoutd":
+        self.dropper.set_random_state(seed, state)
+        super().set_random_state(seed, state)
+        return self
+
     def randomize(self, img_size: Sequence[int]) -> None:
         self.dropper.randomize(img_size=img_size)
 
@@ -1488,6 +1499,72 @@ class RandCoarseDropoutd(Randomizable, MapTransform):
         if self.dropper._do_transform:
             for key in self.key_iterator(d):
                 d[key] = self.dropper(img=d[key])
+
+        return d
+
+
+class RandCoarseShuffled(Randomizable, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandCoarseShuffle`.
+    Expect all the data specified by `keys` have same spatial shape and will randomly dropout the same regions
+    for every key, if want to shuffle different regions for every key, please use this transform separately.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
+            randomly select the expected number of regions.
+        spatial_size: spatial size of the regions to dropout, if `max_spatial_size` is not None, use this arg
+            as the minimum spatial size to randomly select size for every region.
+            if some components of the `spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        max_holes: if not None, define the maximum number to randomly select the expected number of regions.
+        max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+            if some components of the `max_spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `max_spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        prob: probability of applying the transform.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        holes: int,
+        spatial_size: Union[Sequence[int], int],
+        max_holes: Optional[int] = None,
+        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+    ):
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.shuffle = RandCoarseShuffle(
+            holes=holes,
+            spatial_size=spatial_size,
+            max_holes=max_holes,
+            max_spatial_size=max_spatial_size,
+            prob=prob,
+        )
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandCoarseShuffled":
+        self.shuffle.set_random_state(seed, state)
+        super().set_random_state(seed, state)
+        return self
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        self.shuffle.randomize(img_size=img_size)
+
+    def __call__(self, data):
+        d = dict(data)
+        # expect all the specified keys have same spatial shape
+        self.randomize(d[self.keys[0]].shape[1:])
+        if self.shuffle._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = self.shuffle(img=d[key])
 
         return d
 
@@ -1562,3 +1639,4 @@ KSpaceSpikeNoiseD = KSpaceSpikeNoiseDict = KSpaceSpikeNoised
 RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
 RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
 HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
+RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled

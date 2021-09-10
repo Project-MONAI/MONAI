@@ -977,6 +977,12 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`RandCoarseShuffled`
+""""""""""""""""""""
+.. autoclass:: RandCoarseShuffled
+    :members:
+    :special-members: __call__
+
 `HistogramNormalized`
 """""""""""""""""""""
  .. autoclass:: HistogramNormalized
