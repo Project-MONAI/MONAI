@@ -56,6 +56,7 @@ from monai.utils import (
 )
 from monai.utils.enums import InverseKeys
 from monai.utils.module import optional_import
+from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
@@ -635,7 +636,6 @@ class Affined(MapTransform, InvertibleTransform):
             translate_params=translate_params,
             scale_params=scale_params,
             spatial_size=spatial_size,
-            as_tensor_output=as_tensor_output,
             device=device,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -822,10 +822,9 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
             # if not doing transform and and spatial size is unchanged, only need to do numpy/torch conversion
             else:
-                if self.rand_affine.resampler.as_tensor_output and not isinstance(d[key], torch.Tensor):
-                    d[key] = torch.Tensor(d[key])
-                elif not self.rand_affine.resampler.as_tensor_output and isinstance(d[key], torch.Tensor):
-                    d[key] = d[key].detach().cpu().numpy()  # type: ignore[union-attr]
+                d[key], *_ = convert_data_type(
+                    d[key], torch.Tensor, dtype=torch.float32, device=self.rand_affine.resampler.device
+                )
 
         return d
 
