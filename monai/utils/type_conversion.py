@@ -83,7 +83,7 @@ def get_dtype(data: Any):
     return type(data)
 
 
-def convert_to_tensor(data, wrap_sequence: bool = False):
+def convert_to_tensor(data, wrap_sequence: bool = False, device: Optional[torch.device] = None):
     """
     Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
     recursively check every item and convert it to PyTorch Tensor.
@@ -97,26 +97,29 @@ def convert_to_tensor(data, wrap_sequence: bool = False):
 
     """
     if isinstance(data, torch.Tensor):
-        return data.contiguous()
+        if device is None:
+            return data.contiguous()
+        else:
+            return data.contiguous().to(device)
     if isinstance(data, np.ndarray):
         # skip array of string classes and object, refer to:
         # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
         if re.search(r"[SaUO]", data.dtype.str) is None:
             # numpy array with 0 dims is also sequence iterable,
             # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
-            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
+            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data), device=device)
     elif has_cp and isinstance(data, cp_ndarray):
-        return torch.as_tensor(data)
+        return torch.as_tensor(data, device=device)
     elif isinstance(data, (float, int, bool)):
-        return torch.as_tensor(data)
+        return torch.as_tensor(data, device=device)
     elif isinstance(data, Sequence) and wrap_sequence:
-        return torch.as_tensor(data)
+        return torch.as_tensor(data, device=device)
     elif isinstance(data, list):
-        return [convert_to_tensor(i) for i in data]
+        return [convert_to_tensor(i, device=device) for i in data]
     elif isinstance(data, tuple):
-        return tuple(convert_to_tensor(i) for i in data)
+        return tuple(convert_to_tensor(i, device=device) for i in data)
     elif isinstance(data, dict):
-        return {k: convert_to_tensor(v) for k, v in data.items()}
+        return {k: convert_to_tensor(v, device=device) for k, v in data.items()}
 
     return data
 
