@@ -29,7 +29,8 @@ MODES = []
 NP_MODES: List = [
     "constant",
     "edge",
-    "reflect",
+    # `reflect` mode is not supported in some PyTorch versions, skip the test
+    # "reflect",
     "wrap",
 ]
 MODES += NP_MODES
@@ -39,7 +40,8 @@ PT_MODES: list = [
     "constant",
     "replicate",
     "circular",
-    "reflect",
+    # `reflect` mode is not supported in some PyTorch versions, skip the test
+    # "reflect",
 ]
 MODES += PT_MODES
 MODES += [PytorchPadMode(i) for i in PT_MODES]
