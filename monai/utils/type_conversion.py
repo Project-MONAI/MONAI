@@ -214,4 +214,12 @@ def convert_to_dst_type(src: Any, dst: NdarrayOrTensor) -> Tuple[NdarrayOrTensor
     device = None
     if isinstance(dst, torch.Tensor):
         device = dst.device
-    return convert_data_type(data=src, output_type=type(dst), device=device, dtype=dst.dtype)
+
+    output_type: Any
+    if isinstance(dst, torch.Tensor):
+        output_type = torch.Tensor
+    elif isinstance(dst, np.ndarray):
+        output_type = np.ndarray
+    else:
+        output_type = type(dst)
+    return convert_data_type(data=src, output_type=output_type, device=device, dtype=dst.dtype)

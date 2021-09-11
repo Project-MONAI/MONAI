@@ -48,7 +48,7 @@ from monai.utils import (
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 nib, _ = optional_import("nibabel")
 
@@ -560,7 +560,7 @@ class Zoom(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -584,7 +584,7 @@ class Zoom(Transform):
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -632,7 +632,8 @@ class Zoom(Transform):
             zoomed = padder(zoomed)
             zoomed = zoomed[tuple(slice_vec)]
 
-        return zoomed
+        out, *_ = convert_to_dst_type(zoomed, dst=img)
+        return out
 
 
 class Rotate90(Transform):
@@ -945,7 +946,7 @@ class RandZoom(RandomizableTransform):
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
