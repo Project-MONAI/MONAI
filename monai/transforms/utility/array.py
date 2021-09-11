@@ -334,11 +334,15 @@ class ToTensor(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
+    def __init__(self, device: Optional[torch.device] = None) -> None:
+        super().__init__()
+        self.device = device
+
     def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_tensor(img, wrap_sequence=True)  # type: ignore
+        return convert_to_tensor(img, wrap_sequence=True, device=self.device)  # type: ignore
 
 
 class EnsureType(Transform):
@@ -399,8 +403,6 @@ class ToCupy(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()
         return cp.ascontiguousarray(cp.asarray(img))  # type: ignore
 
 
