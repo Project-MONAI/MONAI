@@ -97,10 +97,7 @@ def convert_to_tensor(data, wrap_sequence: bool = False, device: Optional[torch.
 
     """
     if isinstance(data, torch.Tensor):
-        if device is None:
-            return data.contiguous()
-        else:
-            return data.contiguous().to(device)
+        return data.contiguous().to(device)
     if isinstance(data, np.ndarray):
         # skip array of string classes and object, refer to:
         # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
