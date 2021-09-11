@@ -38,6 +38,7 @@ from monai.utils import (
     GridSamplePadMode,
     InterpolateMode,
     NumpyPadMode,
+    PytorchPadMode,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -543,16 +544,19 @@ class Zoom(Transform):
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
-            ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+        padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             The mode to pad data after zooming.
-            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         keep_size: Should keep original size (padding/slicing if needed), default is True.
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
@@ -562,23 +566,23 @@ class Zoom(Transform):
         self,
         zoom: Union[Sequence[float], float],
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-        padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
+        padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
-        self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
+        self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.keep_size = keep_size
-        self.np_kwargs = np_kwargs
+        self.kwargs = kwargs
 
     def __call__(
         self,
         img: NdarrayOrTensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
-        padding_mode: Optional[Union[NumpyPadMode, str]] = None,
+        padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
     ) -> torch.Tensor:
         """
@@ -587,10 +591,13 @@ class Zoom(Transform):
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-            padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
-                ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
-                The mode to pad data after zooming, default to ``self.padding_mode``.
-                See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                The mode to pad data after zooming.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -621,8 +628,7 @@ class Zoom(Transform):
                 elif diff < 0:  # need slicing
                     slice_vec[idx] = slice(half, half + od)
 
-            padding_mode = look_up_option(padding_mode or self.padding_mode, NumpyPadMode)
-            padder = Pad(pad_vec, padding_mode)
+            padder = Pad(pad_vec, padding_mode or self.padding_mode)
             zoomed = padder(zoomed)
             zoomed = zoomed[tuple(slice_vec)]
 
@@ -887,16 +893,19 @@ class RandZoom(RandomizableTransform):
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
-            ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+        padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             The mode to pad data after zooming.
-            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         keep_size: Should keep original size (pad if needed), default is True.
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
@@ -908,10 +917,10 @@ class RandZoom(RandomizableTransform):
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-        padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
+        padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.min_zoom = ensure_tuple(min_zoom)
@@ -919,10 +928,10 @@ class RandZoom(RandomizableTransform):
         if len(self.min_zoom) != len(self.max_zoom):
             raise AssertionError("min_zoom and max_zoom must have same length.")
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
-        self.padding_mode: NumpyPadMode = look_up_option(padding_mode, NumpyPadMode)
+        self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.keep_size = keep_size
-        self.np_kwargs = np_kwargs
+        self.kwargs = kwargs
 
         self._zoom: Sequence[float] = [1.0]
 
@@ -934,7 +943,7 @@ class RandZoom(RandomizableTransform):
         self,
         img: NdarrayOrTensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
-        padding_mode: Optional[Union[NumpyPadMode, str]] = None,
+        padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
     ) -> torch.Tensor:
         """
@@ -943,10 +952,13 @@ class RandZoom(RandomizableTransform):
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-            padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
-                ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
-                The mode to pad data after zooming, default to ``self.padding_mode``.
-                See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                The mode to pad data after zooming.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -967,9 +979,9 @@ class RandZoom(RandomizableTransform):
             self._zoom,
             keep_size=self.keep_size,
             mode=look_up_option(mode or self.mode, InterpolateMode),
-            padding_mode=look_up_option(padding_mode or self.padding_mode, NumpyPadMode),
+            padding_mode=padding_mode or self.padding_mode,
             align_corners=align_corners or self.align_corners,
-            **self.np_kwargs,
+            **self.kwargs,
         )
         return zoomer(img)
 

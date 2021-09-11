@@ -51,6 +51,17 @@ class NumpyPadMode(Enum):
     EMPTY = "empty"
 
 
+class PytorchPadMode(Enum):
+    """
+    See also: https://pytorch.org/docs/stable/nn.functional.html#pad
+    """
+
+    CONSTANT = "constant"
+    REFLECT = "reflect"
+    REPLICATE = "replicate"
+    CIRCULAR = "circular"
+
+
 class GridSampleMode(Enum):
     """
     See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -99,17 +110,6 @@ class BlendMode(Enum):
 
     CONSTANT = "constant"
     GAUSSIAN = "gaussian"
-
-
-class PytorchPadMode(Enum):
-    """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#pad
-    """
-
-    CONSTANT = "constant"
-    REFLECT = "reflect"
-    REPLICATE = "replicate"
-    CIRCULAR = "circular"
 
 
 class GridSamplePadMode(Enum):
