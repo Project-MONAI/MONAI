@@ -18,6 +18,7 @@ from .croppad.array import (
     CenterSpatialCrop,
     CropForeground,
     DivisiblePad,
+    Pad,
     RandCropByLabelClasses,
     RandCropByPosNegLabel,
     RandScaleCrop,
