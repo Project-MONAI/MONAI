@@ -206,7 +206,9 @@ def convert_data_type(
 
 def convert_to_dst_type(src: Any, dst: NdarrayOrTensor) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
     """
-    Convert `src` to the same `torch.Tensor`/`np.ndarray` and data type as `dst`.
+    If `dst` is `torch.Tensor` or its subclass, convert `src` to `torch.Tensor` with the same data type as `dst`,
+    if `dst` is `numpy.ndarray` or its subclass, convert to `numpy.ndarray` with the same data type as `dst`,
+    otherwise, convert to the type of `dst` directly.
 
     See Also:
         :func:`convert_data_type`
@@ -214,4 +216,12 @@ def convert_to_dst_type(src: Any, dst: NdarrayOrTensor) -> Tuple[NdarrayOrTensor
     device = None
     if isinstance(dst, torch.Tensor):
         device = dst.device
-    return convert_data_type(data=src, output_type=type(dst), device=device, dtype=dst.dtype)
+
+    output_type: Any
+    if isinstance(dst, torch.Tensor):
+        output_type = torch.Tensor
+    elif isinstance(dst, np.ndarray):
+        output_type = np.ndarray
+    else:
+        output_type = type(dst)
+    return convert_data_type(data=src, output_type=output_type, device=device, dtype=dst.dtype)
