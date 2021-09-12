@@ -1279,14 +1279,13 @@ def convert_pad_mode(dst: NdarrayTensor, mode: Union[NumpyPadMode, PytorchPadMod
         if mode == "edge":
             mode = "replicate"
         return look_up_option(mode, PytorchPadMode)
-    elif isinstance(dst, np.ndarray):
+    if isinstance(dst, np.ndarray):
         if mode == "circular":
             mode = "wrap"
         if mode == "replicate":
             mode = "edge"
         return look_up_option(mode, NumpyPadMode)
-    else:
-        raise ValueError(f"unsupported data type: {type(dst)}.")
+    raise ValueError(f"unsupported data type: {type(dst)}.")
 
 
 if __name__ == "__main__":
