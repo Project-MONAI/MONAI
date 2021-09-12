@@ -35,6 +35,7 @@ from monai.transforms.utility.array import (
     CastToType,
     ClassesToIndices,
     ConvertToMultiChannelBasedOnBratsClasses,
+    CuCIM,
     DataStats,
     EnsureChannelFirst,
     EnsureType,
@@ -1427,6 +1428,60 @@ class ToDeviced(MapTransform):
         return d
 
 
+class CuCIMd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for non-randomized transforms.
+    For randomized transforms of CuCIM use :py:class:`monai.transforms.RandCuCIMd`.
+
+    Note:
+        CuCIM transforms only work with CuPy arrays, this transform expects input data to be `cupy.ndarray`.
+        Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        name: str,
+        allow_missing_keys: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in CuCIM package.
+            allow_missing_keys: don't raise exception if key is missing.
+            args: parameters for the CuCIM transform.
+            kwargs: parameters for the CuCIM transform.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.trans = CuCIM(name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.trans(d[key])
+        return d
+
+
+class RandCuCIMd(Randomizable, CuCIMd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for randomized transforms.
+    For deterministic non-randomized transforms of CuCIM use :py:class:`monai.transforms.CuCIMd`.
+
+    Note:
+        - CuCIM transforms only work with CuPy arrays, this transform expects input data to be `cupy.ndarray`.
+          Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+        - This class inherits the ``Randomizable`` purely to prevent any dataset caching to skip the transform
+          computation. If the random factor of the underlying cuCIM transform is not derived from `self.R`,
+          the results may not be deterministic.
+          See Also: :py:class:`monai.transforms.Randomizable`.
+
+    """
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -1463,3 +1518,5 @@ RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued
 IntensityStatsD = IntensityStatsDict = IntensityStatsd
 ToDeviceD = ToDeviceDict = ToDeviced
+CuCIMD = CuCIMDict = CuCIMd
+RandCuCIMD = RandCuCIMDict = RandCuCIMd
