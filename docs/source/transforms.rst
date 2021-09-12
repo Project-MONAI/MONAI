@@ -733,6 +733,12 @@ Utility
      :members:
      :special-members: __call__
 
+`CuCIM`
+"""""""
+.. autoclass:: CuCIM
+    :members:
+    :special-members: __call__
+
 
 Dictionary Transforms
 ---------------------
@@ -1374,6 +1380,17 @@ Utility (Dict)
      :members:
      :special-members: __call__
 
+`CuCIMd`
+""""""""
+.. autoclass:: CuCIMd
+    :members:
+    :special-members: __call__
+
+`RandCuCIMd`
+""""""""""""
+.. autoclass:: RandCuCIMd
+    :members:
+    :special-members: __call__
 
 Transform Adaptors
 ------------------
