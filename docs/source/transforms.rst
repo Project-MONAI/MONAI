@@ -59,6 +59,12 @@ Vanilla Transforms
 Crop and Pad
 ^^^^^^^^^^^^
 
+`Pad`
+"""""
+.. autoclass:: Pad
+    :members:
+    :special-members: __call__
+
 `SpatialPad`
 """"""""""""
 .. autoclass:: SpatialPad

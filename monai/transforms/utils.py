@@ -22,7 +22,7 @@ import torch
 import monai
 import monai.transforms.transform
 from monai.config import DtypeLike, IndexSelection
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform
@@ -30,12 +30,15 @@ from monai.utils import (
     GridSampleMode,
     InterpolateMode,
     InverseKeys,
+    NumpyPadMode,
+    PytorchPadMode,
     deprecated_arg,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
     issequenceiterable,
+    look_up_option,
     min_version,
     optional_import,
 )
@@ -85,6 +88,7 @@ __all__ = [
     "get_number_image_type_conversions",
     "get_transform_backends",
     "print_transform_backends",
+    "convert_pad_mode",
 ]
 
 
@@ -1257,6 +1261,31 @@ def print_transform_backends():
     print_color(f"Number of TorchTransform: {n_t}", Colors.green)
     print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
     print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+
+
+def convert_pad_mode(dst: NdarrayTensor, mode: Union[NumpyPadMode, PytorchPadMode, str]):
+    """
+    Utility to convert padding mode between numpy array and PyTorch Tensor.
+
+    Args:
+        dst: target data to convert padding mode for, should be numpy array or PyTorch Tensor.
+        mode: current padding mode.
+
+    """
+    mode = mode.value if isinstance(mode, (NumpyPadMode, PytorchPadMode)) else mode
+    if isinstance(dst, torch.Tensor):
+        if mode == "wrap":
+            mode = "circular"
+        if mode == "edge":
+            mode = "replicate"
+        return look_up_option(mode, PytorchPadMode)
+    if isinstance(dst, np.ndarray):
+        if mode == "circular":
+            mode = "wrap"
+        if mode == "replicate":
+            mode = "edge"
+        return look_up_option(mode, NumpyPadMode)
+    raise ValueError(f"unsupported data type: {type(dst)}.")
 
 
 if __name__ == "__main__":
