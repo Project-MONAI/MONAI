@@ -17,7 +17,7 @@ import logging
 import sys
 import time
 import warnings
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -40,7 +40,12 @@ from monai.utils.type_conversion import convert_data_type
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 cp, has_cp = optional_import("cupy")
-cp_ndarray, _ = optional_import("cupy", name="ndarray")
+
+if TYPE_CHECKING:
+    from cupy import ndarray as cp_ndarray
+else:
+    cp_ndarray, _ = optional_import("cupy", name="ndarray")
+
 
 __all__ = [
     "Identity",
@@ -1101,3 +1106,32 @@ class ToDevice(Transform):
             raise ValueError("img must be PyTorch Tensor, consider converting img by `EnsureType` transform first.")
 
         return img.to(self.device, **self.kwargs)
+
+
+class CuCIM:
+    """
+    Wrap cuCIM transform, defined based on the transform name and args.
+    CuCIM transforms only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
+    Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+
+    """
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in CuCIM package.
+            args: parameters for the CuCIM transform.
+            kwargs: parameters for the CuCIM transform.
+
+        """
+        super().__init__()
+        transform, _ = optional_import("cucim.transforms", name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, data: cp_ndarray):
+        """
+        Args:
+            img: CuPy array for the cuCIM transform.
+
+        """
+        return self.trans(data)
