@@ -23,9 +23,9 @@ from monai.utils import optional_import
 
 transformers = optional_import("transformers")
 load_tf_weights_in_bert = optional_import("transformers", name="load_tf_weights_in_bert")
-cached_path, _ = optional_import("transformers.file_utils", name="cached_path")
-BertEmbeddings, _ = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")
-BertLayer, _ = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")
+cached_path = optional_import("transformers.file_utils", name="cached_path")[0]
+BertEmbeddings = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")[0]
+BertLayer = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")[0]
 
 
 class BertPreTrainedModel(nn.Module):
