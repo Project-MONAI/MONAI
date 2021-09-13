@@ -17,11 +17,15 @@ import tempfile
 from typing import Sequence, Union
 
 import torch
-import transformers
 from torch import nn
-from transformers import load_tf_weights_in_bert
-from transformers.file_utils import cached_path
-from transformers.models.bert.modeling_bert import BertEmbeddings, BertLayer
+
+from monai.utils import optional_import
+
+transformers = optional_import("transformers")
+load_tf_weights_in_bert = optional_import("transformers", name="load_tf_weights_in_bert")
+cached_path, _ = optional_import("transformers.file_utils", name="cached_path")
+BertEmbeddings, _ = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")
+BertLayer, _ = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")
 
 
 class BertPreTrainedModel(nn.Module):
@@ -250,7 +254,6 @@ class MultiModal(BertPreTrainedModel):
                 "add_cross_attention": False,
             },
         )
-
         self.config = bert_config
         self.embeddings = BertEmbeddings(bert_config)
         self.language_encoder = nn.ModuleList([BertLayer(bert_config) for _ in range(num_language_layers)])
