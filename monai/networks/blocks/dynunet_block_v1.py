@@ -32,6 +32,7 @@ class _UnetResBlockV1(UnetResBlock):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         norm_name: str,
+        dropout: float = 0.0,
     ):
         nn.Module.__init__(self)
         self.conv1 = get_conv_layer(
@@ -40,6 +41,7 @@ class _UnetResBlockV1(UnetResBlock):
             out_channels,
             kernel_size=kernel_size,
             stride=stride,
+            dropout=dropout,
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
@@ -48,6 +50,7 @@ class _UnetResBlockV1(UnetResBlock):
             out_channels,
             kernel_size=kernel_size,
             stride=1,
+            dropout=dropout,
             conv_only=True,
         )
         self.conv3 = get_conv_layer(
@@ -56,6 +59,7 @@ class _UnetResBlockV1(UnetResBlock):
             out_channels,
             kernel_size=1,
             stride=stride,
+            dropout=dropout,
             conv_only=True,
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
@@ -81,6 +85,7 @@ class _UnetBasicBlockV1(UnetBasicBlock):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         norm_name: str,
+        dropout: float = 0.0,
     ):
         nn.Module.__init__(self)
         self.conv1 = get_conv_layer(
@@ -89,6 +94,7 @@ class _UnetBasicBlockV1(UnetBasicBlock):
             out_channels,
             kernel_size=kernel_size,
             stride=stride,
+            dropout=dropout,
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
@@ -97,6 +103,7 @@ class _UnetBasicBlockV1(UnetBasicBlock):
             out_channels,
             kernel_size=kernel_size,
             stride=1,
+            dropout=dropout,
             conv_only=True,
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
@@ -118,6 +125,7 @@ class _UnetUpBlockV1(UnetUpBlock):
         stride: Union[Sequence[int], int],
         upsample_kernel_size: Union[Sequence[int], int],
         norm_name: str,
+        dropout: float = 0.0,
     ):
         nn.Module.__init__(self)
         upsample_stride = upsample_kernel_size
@@ -127,6 +135,7 @@ class _UnetUpBlockV1(UnetUpBlock):
             out_channels,
             kernel_size=upsample_kernel_size,
             stride=upsample_stride,
+            dropout=dropout,
             conv_only=True,
             is_transposed=True,
         )
@@ -137,6 +146,7 @@ class _UnetUpBlockV1(UnetUpBlock):
             kernel_size=kernel_size,
             stride=1,
             norm_name=norm_name,
+            dropout=dropout,
         )
 
 
