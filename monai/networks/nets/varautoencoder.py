@@ -28,6 +28,23 @@ class VarAutoEncoder(AutoEncoder):
     """
     Variational Autoencoder based on the paper - https://arxiv.org/abs/1312.6114
 
+    .. code-block:: python
+
+        from monai.networks.nets import VarAutoEncoder
+
+        model = VarAutoEncoder(
+            dimensions=2,
+            in_shape=(32, 32),  # image spatial shape
+            out_channels=1,
+            latent_size=2,
+            channels=(16, 32, 64),
+            strides=(1, 2, 2),
+        )
+
+    see also:
+        - Variational autoencoder network with MedNIST Dataset
+          https://github.com/Project-MONAI/tutorials/blob/master/modules/varautoencoder_mednist.ipynb
+
     .. deprecated:: 0.6.0
         ``dimensions`` is deprecated, use ``spatial_dims`` instead.
     """

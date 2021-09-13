@@ -28,6 +28,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
+from monai.transforms.utils_pytorch_numpy_unification import where
 from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
@@ -379,7 +380,11 @@ class ScaleIntensity(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None
+        self,
+        minv: Optional[float] = 0.0,
+        maxv: Optional[float] = 1.0,
+        factor: Optional[float] = None,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         """
         Args:
@@ -387,10 +392,12 @@ class ScaleIntensity(Transform):
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
                 this parameter, please set `minv` and `maxv` into None.
+            dtype: output data type, defaults to float32.
         """
         self.minv = minv
         self.maxv = maxv
         self.factor = factor
+        self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -401,10 +408,10 @@ class ScaleIntensity(Transform):
 
         """
         if self.minv is not None and self.maxv is not None:
-            return rescale_array(img, self.minv, self.maxv, img.dtype)
+            return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
         if self.factor is not None:
             out = img * (1 + self.factor)
-            out, *_ = convert_data_type(out, dtype=img.dtype)
+            out, *_ = convert_data_type(out, dtype=self.dtype)
             return out
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
@@ -417,12 +424,18 @@ class RandScaleIntensity(RandomizableTransform):
 
     backend = ScaleIntensity.backend
 
-    def __init__(self, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
+    def __init__(
+        self,
+        factors: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
         """
         Args:
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of scale.
+            dtype: output data type, defaults to float32.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -433,6 +446,7 @@ class RandScaleIntensity(RandomizableTransform):
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
+        self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -445,7 +459,7 @@ class RandScaleIntensity(RandomizableTransform):
         self.randomize()
         if not self._do_transform:
             return img
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
         return scaler(img)
 
 
@@ -642,6 +656,8 @@ class ThresholdIntensity(Transform):
         cval: value to fill the remaining parts of the image, default is 0.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, threshold: float, above: bool = True, cval: float = 0.0) -> None:
         if not isinstance(threshold, (int, float)):
             raise ValueError("threshold must be a float or int number.")
@@ -649,13 +665,14 @@ class ThresholdIntensity(Transform):
         self.above = above
         self.cval = cval
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return np.asarray(
-            np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval), dtype=img.dtype
-        )
+        mask = img > self.threshold if self.above else img < self.threshold
+        res = where(mask, img, self.cval)
+        res, *_ = convert_data_type(res, dtype=img.dtype)
+        return res
 
 
 class ScaleIntensityRange(Transform):

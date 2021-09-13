@@ -26,14 +26,14 @@ kernel_size: Sequence[Any]
 expected_shape: Sequence[Any]
 
 TEST_CASE_DYNUNET_2D = []
+out_channels = 2
+in_size = 64
+spatial_dims = 2
 for kernel_size in [(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))]:
     for strides in [(1, 1, 1, 1), (2, 2, 2, 1)]:
+        expected_shape = (1, out_channels, *[in_size // strides[0]] * spatial_dims)
         for in_channels in [2, 3]:
             for res_block in [True, False]:
-                out_channels = 2
-                in_size = 64
-                spatial_dims = 2
-                expected_shape = (1, out_channels, *[in_size // strides[0]] * spatial_dims)
                 test_case = [
                     {
                         "spatial_dims": spatial_dims,
@@ -45,6 +45,7 @@ for kernel_size in [(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))]:
                         "norm_name": "batch",
                         "deep_supervision": False,
                         "res_block": res_block,
+                        "dropout": None,
                     },
                     (1, in_channels, in_size, in_size),
                     expected_shape,
@@ -52,11 +53,11 @@ for kernel_size in [(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))]:
                 TEST_CASE_DYNUNET_2D.append(test_case)
 
 TEST_CASE_DYNUNET_3D = []  # in 3d cases, also test anisotropic kernel/strides
+in_channels = 1
+in_size = 64
 for out_channels in [2, 3]:
+    expected_shape = (1, out_channels, 64, 32, 64)
     for res_block in [True, False]:
-        in_channels = 1
-        in_size = 64
-        expected_shape = (1, out_channels, 64, 32, 64)
         test_case = [
             {
                 "spatial_dims": 3,
@@ -68,6 +69,7 @@ for out_channels in [2, 3]:
                 "norm_name": ("INSTANCE", {"affine": True}),
                 "deep_supervision": False,
                 "res_block": res_block,
+                "dropout": ("alphadropout", {"p": 0.25}),
             },
             (1, in_channels, in_size, in_size, in_size),
             expected_shape,

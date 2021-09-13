@@ -33,6 +33,7 @@ class UnetResBlock(nn.Module):
         kernel_size: convolution kernel size.
         stride: convolution stride.
         norm_name: feature normalization type and arguments.
+        dropout: dropout probability
 
     """
 
@@ -44,6 +45,7 @@ class UnetResBlock(nn.Module):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         norm_name: Union[Tuple, str],
+        dropout: Optional[Union[Tuple, str, float]] = None,
     ):
         super(UnetResBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -52,6 +54,7 @@ class UnetResBlock(nn.Module):
             out_channels,
             kernel_size=kernel_size,
             stride=stride,
+            dropout=dropout,
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
@@ -60,6 +63,7 @@ class UnetResBlock(nn.Module):
             out_channels,
             kernel_size=kernel_size,
             stride=1,
+            dropout=dropout,
             conv_only=True,
         )
         self.conv3 = get_conv_layer(
@@ -68,6 +72,7 @@ class UnetResBlock(nn.Module):
             out_channels,
             kernel_size=1,
             stride=stride,
+            dropout=dropout,
             conv_only=True,
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
@@ -107,6 +112,7 @@ class UnetBasicBlock(nn.Module):
         kernel_size: convolution kernel size.
         stride: convolution stride.
         norm_name: feature normalization type and arguments.
+        dropout: dropout probability
 
     """
 
@@ -118,6 +124,7 @@ class UnetBasicBlock(nn.Module):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         norm_name: Union[Tuple, str],
+        dropout: Optional[Union[Tuple, str, float]] = None,
     ):
         super(UnetBasicBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -126,6 +133,7 @@ class UnetBasicBlock(nn.Module):
             out_channels,
             kernel_size=kernel_size,
             stride=stride,
+            dropout=dropout,
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
@@ -134,6 +142,7 @@ class UnetBasicBlock(nn.Module):
             out_channels,
             kernel_size=kernel_size,
             stride=1,
+            dropout=dropout,
             conv_only=True,
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
@@ -164,6 +173,7 @@ class UnetUpBlock(nn.Module):
         stride: convolution stride.
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
         norm_name: feature normalization type and arguments.
+        dropout: dropout probability
 
     """
 
@@ -176,6 +186,7 @@ class UnetUpBlock(nn.Module):
         stride: Union[Sequence[int], int],
         upsample_kernel_size: Union[Sequence[int], int],
         norm_name: Union[Tuple, str],
+        dropout: Optional[Union[Tuple, str, float]] = None,
     ):
         super(UnetUpBlock, self).__init__()
         upsample_stride = upsample_kernel_size
@@ -185,6 +196,7 @@ class UnetUpBlock(nn.Module):
             out_channels,
             kernel_size=upsample_kernel_size,
             stride=upsample_stride,
+            dropout=dropout,
             conv_only=True,
             is_transposed=True,
         )
@@ -194,6 +206,7 @@ class UnetUpBlock(nn.Module):
             out_channels,
             kernel_size=kernel_size,
             stride=1,
+            dropout=dropout,
             norm_name=norm_name,
         )
 
@@ -206,10 +219,12 @@ class UnetUpBlock(nn.Module):
 
 
 class UnetOutBlock(nn.Module):
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int):
+    def __init__(
+        self, spatial_dims: int, in_channels: int, out_channels: int, dropout: Optional[Union[Tuple, str, float]] = None
+    ):
         super(UnetOutBlock, self).__init__()
         self.conv = get_conv_layer(
-            spatial_dims, in_channels, out_channels, kernel_size=1, stride=1, bias=True, conv_only=True
+            spatial_dims, in_channels, out_channels, kernel_size=1, stride=1, dropout=dropout, bias=True, conv_only=True
         )
 
     def forward(self, inp):
@@ -224,6 +239,7 @@ def get_conv_layer(
     stride: Union[Sequence[int], int] = 1,
     act: Optional[Union[Tuple, str]] = Act.PRELU,
     norm: Union[Tuple, str] = Norm.INSTANCE,
+    dropout: Optional[Union[Tuple, str, float]] = None,
     bias: bool = False,
     conv_only: bool = True,
     is_transposed: bool = False,
@@ -240,6 +256,7 @@ def get_conv_layer(
         kernel_size=kernel_size,
         act=act,
         norm=norm,
+        dropout=dropout,
         bias=bias,
         conv_only=conv_only,
         is_transposed=is_transposed,
