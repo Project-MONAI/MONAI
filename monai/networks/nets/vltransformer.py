@@ -14,7 +14,7 @@ import os
 import shutil
 import tarfile
 import tempfile
-from typing import Tuple, Union
+from typing import Sequence, Union
 
 import torch
 from torch import nn
@@ -280,8 +280,8 @@ class VLTransformers(torch.nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[int, Tuple[int, int]],  # type: ignore
-        patch_size: Union[int, Tuple[int, int]],  # type: ignore
+        img_size: Union[Sequence[int], int],  # type: ignore
+        patch_size: Union[Sequence[int], int],  # type: ignore
         num_classes: int = 2,
         num_language_layers: int = 2,
         num_vision_layers: int = 2,
