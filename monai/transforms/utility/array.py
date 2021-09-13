@@ -354,19 +354,21 @@ class EnsureType(Transform):
 
     Args:
         data_type: target data type to convert, should be "tensor" or "numpy".
+        device: for Tensor data type, specify the target device.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, data_type: str = "tensor") -> None:
+    def __init__(self, data_type: str = "tensor", device: Optional[torch.device] = None) -> None:
         data_type = data_type.lower()
         if data_type not in ("tensor", "numpy"):
             raise ValueError("`data type` must be 'tensor' or 'numpy'.")
 
         self.data_type = data_type
+        self.device = device
 
-    def __call__(self, data: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, data: NdarrayOrTensor):
         """
         Args:
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
@@ -375,7 +377,7 @@ class EnsureType(Transform):
                 if applicable.
 
         """
-        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)  # type: ignore
+        return convert_to_tensor(data, device=self.device) if self.data_type == "tensor" else convert_to_numpy(data)
 
 
 class ToNumpy(Transform):
