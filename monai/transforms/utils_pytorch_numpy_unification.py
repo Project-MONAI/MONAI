@@ -17,6 +17,8 @@ from monai.config.type_definitions import NdarrayOrTensor
 __all__ = [
     "moveaxis",
     "in1d",
+    "clip",
+    "percentile",
 ]
 
 
@@ -50,3 +52,23 @@ def in1d(x, y):
     if isinstance(x, np.ndarray):
         return np.in1d(x, y)
     return (x[..., None] == torch.tensor(y, device=x.device)).any(-1).view(-1)
+
+
+def clip(a: NdarrayOrTensor, a_min, a_max) -> NdarrayOrTensor:
+    """`np.clip` with equivalent implementation for torch."""
+    result: NdarrayOrTensor
+    if isinstance(a, np.ndarray):
+        result = np.clip(a, a_min, a_max)
+    else:
+        result = torch.clip(a, a_min, a_max)
+    return result
+
+
+def percentile(x: NdarrayOrTensor, q):
+    """`np.percentile` with equivalent implementation for torch."""
+    result: NdarrayOrTensor
+    if isinstance(x, np.ndarray):
+        result = np.percentile(x, q)
+    else:
+        result = torch.quantile(x, q / 100.0)
+    return result
