@@ -659,6 +659,8 @@ class ThresholdIntensityd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ThresholdIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -670,7 +672,7 @@ class ThresholdIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.filter(d[key])
