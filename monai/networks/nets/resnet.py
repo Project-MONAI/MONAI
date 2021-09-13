@@ -14,7 +14,6 @@ from typing import Any, Callable, List, Optional, Type, Union
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from monai.networks.layers.factories import Conv, Norm, Pool
 from monai.networks.layers.utils import get_pool_layer
