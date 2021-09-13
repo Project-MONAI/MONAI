@@ -50,6 +50,7 @@ from monai.utils import (
     GridSamplePadMode,
     InterpolateMode,
     NumpyPadMode,
+    PytorchPadMode,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
@@ -115,7 +116,7 @@ __all__ = [
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
 InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
-NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
+PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
 
 
 class Spacingd(MapTransform, InvertibleTransform):
@@ -382,6 +383,8 @@ class Rotate90d(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
+    backend = Rotate90.backend
+
     def __init__(
         self, keys: KeysCollection, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1), allow_missing_keys: bool = False
     ) -> None:
@@ -395,14 +398,14 @@ class Rotate90d(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.rotator(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             _ = self.get_most_recent_transform(d, key)
@@ -411,9 +414,6 @@ class Rotate90d(MapTransform, InvertibleTransform):
             num_times_rotated = self.rotator.k
             num_times_to_rotate = 4 - num_times_rotated
             inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
-            # Might need to convert to numpy
-            if isinstance(d[key], torch.Tensor):
-                d[key] = torch.Tensor(d[key]).cpu().numpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -428,6 +428,8 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
     """
+
+    backend = Rotate90.backend
 
     def __init__(
         self,
@@ -461,7 +463,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
         d = dict(data)
 
@@ -472,7 +474,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -482,9 +484,6 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
                 num_times_rotated = transform[InverseKeys.EXTRA_INFO]["rand_k"]
                 num_times_to_rotate = 4 - num_times_rotated
                 inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
-                # Might need to convert to numpy
-                if isinstance(d[key], torch.Tensor):
-                    d[key] = torch.Tensor(d[key]).cpu().numpy()
                 # Apply inverse
                 d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -1522,39 +1521,44 @@ class Zoomd(MapTransform, InvertibleTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
-            ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+        padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             The mode to pad data after zooming.
-            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
+
+    backend = Zoom.backend
 
     def __init__(
         self,
         keys: KeysCollection,
         zoom: Union[Sequence[float], float],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        padding_mode: NumpyPadModeSequence = NumpyPadMode.EDGE,
+        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **np_kwargs)
+        self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
@@ -1576,7 +1580,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1594,7 +1598,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 align_corners=None if align_corners == "none" else align_corners,
             )
             # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])
+            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1622,20 +1626,25 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
-            ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+        padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             The mode to pad data after zooming.
-            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+        kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
             more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
+
+    backend = Zoom.backend
 
     def __init__(
         self,
@@ -1644,11 +1653,11 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        padding_mode: NumpyPadModeSequence = NumpyPadMode.EDGE,
+        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -1661,7 +1670,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.keep_size = keep_size
-        self.np_kwargs = np_kwargs
+        self.kwargs = kwargs
 
         self._zoom: Sequence[float] = [1.0]
 
@@ -1669,7 +1678,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         super().randomize(None)
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         # match the spatial dim of first item
         self.randomize()
         d = dict(data)
@@ -1681,7 +1690,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         elif len(self._zoom) == 2 and img_dims > 3:
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
             self._zoom = ensure_tuple_rep(self._zoom[0], img_dims - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(self._zoom, keep_size=self.keep_size, **self.np_kwargs)
+        zoomer = Zoom(self._zoom, keep_size=self.keep_size, **self.kwargs)
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
@@ -1704,7 +1713,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1724,7 +1733,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == "none" else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])
+                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 

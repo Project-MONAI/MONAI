@@ -19,16 +19,25 @@ from torch.nn import functional as F
 from monai.networks.layers.convutils import calculate_out_shape, same_padding
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.nets import AutoEncoder
+from monai.utils import deprecated_arg
 
 __all__ = ["VarAutoEncoder"]
 
 
 class VarAutoEncoder(AutoEncoder):
-    """Variational Autoencoder based on the paper - https://arxiv.org/abs/1312.6114"""
+    """
+    Variational Autoencoder based on the paper - https://arxiv.org/abs/1312.6114
 
+    .. deprecated:: 0.6.0
+        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+    """
+
+    @deprecated_arg(
+        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
     def __init__(
         self,
-        dimensions: int,
+        spatial_dims: int,
         in_shape: Sequence[int],
         out_channels: int,
         latent_size: int,
@@ -44,15 +53,18 @@ class VarAutoEncoder(AutoEncoder):
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: Optional[Union[Tuple, str, float]] = None,
         bias: bool = True,
+        dimensions: Optional[int] = None,
     ) -> None:
 
         self.in_channels, *self.in_shape = in_shape
 
         self.latent_size = latent_size
         self.final_size = np.asarray(self.in_shape, dtype=int)
+        if dimensions is not None:
+            spatial_dims = dimensions
 
         super().__init__(
-            dimensions,
+            spatial_dims,
             self.in_channels,
             out_channels,
             channels,
