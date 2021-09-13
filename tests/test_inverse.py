@@ -666,7 +666,7 @@ class TestInverse(unittest.TestCase):
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = UNet(
-            dimensions=2,
+            spatial_dims=2,
             in_channels=1,
             out_channels=1,
             channels=(2, 4),
