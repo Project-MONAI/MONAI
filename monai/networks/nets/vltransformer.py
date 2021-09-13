@@ -14,7 +14,7 @@ import os
 import shutil
 import tarfile
 import tempfile
-from typing import Sequence, Union
+from typing import Tuple, Union
 
 import torch
 from torch import nn
@@ -280,8 +280,8 @@ class VLTransformers(torch.nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[Sequence[int], int],  # type: ignore
-        patch_size: Union[Sequence[int], int],  # type: ignore
+        img_size: Union[int, Tuple[int, int]],
+        patch_size: Union[int, Tuple[int, int]],
         num_classes: int = 2,
         num_language_layers: int = 2,
         num_vision_layers: int = 2,
@@ -323,9 +323,7 @@ class VLTransformers(torch.nn.Module):
         self.embed_dim = 768
         self.patch_size = patch_size
         self.num_patches = (img_size[0] // self.patch_size[0]) * (img_size[1] // self.patch_size[1])
-        self.vision_proj = nn.Conv2d(
-            in_channels, self.embed_dim, kernel_size=self.patch_size, stride=self.patch_size
-        )  # type: ignore
+        self.vision_proj = nn.Conv2d(in_channels, self.embed_dim, kernel_size=self.patch_size, stride=self.patch_size)
         self.norm_vision_pos = nn.LayerNorm(self.embed_dim)
         self.pos_embed_vis = nn.Parameter(torch.zeros(1, self.num_patches, self.embed_dim))
         self.pooler = Pooler(hidden_size=self.embed_dim)
