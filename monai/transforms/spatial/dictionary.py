@@ -794,8 +794,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         # change image size or do random transform
         do_resampling = self._do_transform or (sp_size != ensure_tuple(data[self.keys[0]].shape[1:]))
 
-        # to be consistent with the self._do_transform case (dtype and device)
-        affine = torch.as_tensor(np.eye(len(sp_size) + 1), device=self.rand_affine.rand_affine_grid.device)
+        affine = np.eye(len(sp_size) + 1)
         grid = None
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
@@ -816,7 +815,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             # do the transform
             if do_resampling:
                 d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
-            # if not doing transform and and spatial size is unchanged, only need to do numpy/torch conversion
+
+            # if not doing transform and spatial size is unchanged, only need to do convert to torch
             else:
                 d[key], *_ = convert_data_type(
                     d[key], torch.Tensor, dtype=torch.float32, device=self.rand_affine.resampler.device
