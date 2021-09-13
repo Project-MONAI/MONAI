@@ -312,7 +312,7 @@ class VLTransformers(torch.nn.Module):
         if not (0 <= drop_out <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
 
-        if (img_size[0] % patch_size[0] != 0) or (img_size[1] % patch_size[1] != 0):
+        if (img_size[0] % patch_size[0] != 0) or (img_size[1] % patch_size[1] != 0):  # type: ignore
             raise ValueError("img_size should be divisible by patch_size.")
 
         self.multimodal = MultiModal(
@@ -322,7 +322,7 @@ class VLTransformers(torch.nn.Module):
         ).from_pretrained()
         self.embed_dim = 768
         self.patch_size = patch_size
-        self.num_patches = (img_size[0] // self.patch_size[0]) * (img_size[1] // self.patch_size[1])
+        self.num_patches = (img_size[0] // self.patch_size[0]) * (img_size[1] // self.patch_size[1])  # type: ignore
         self.vision_proj = nn.Conv2d(
             in_channels, self.embed_dim, kernel_size=self.patch_size, stride=self.patch_size  # type: ignore
         )  # type: ignore
