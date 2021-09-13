@@ -59,6 +59,12 @@ Vanilla Transforms
 Crop and Pad
 ^^^^^^^^^^^^
 
+`Pad`
+"""""
+.. autoclass:: Pad
+    :members:
+    :special-members: __call__
+
 `SpatialPad`
 """"""""""""
 .. autoclass:: SpatialPad
@@ -974,6 +980,12 @@ Intensity (Dict)
 `RandCoarseDropoutd`
 """"""""""""""""""""
 .. autoclass:: RandCoarseDropoutd
+    :members:
+    :special-members: __call__
+
+`RandCoarseShuffled`
+""""""""""""""""""""
+.. autoclass:: RandCoarseShuffled
     :members:
     :special-members: __call__
 
