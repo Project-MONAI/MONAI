@@ -22,6 +22,10 @@ __all__ = ["AutoEncoder"]
 
 
 class AutoEncoder(nn.Module):
+    """
+    Base class for the architecture implementing :py:class:`monai.networks.nets.VarAutoEncoder`.
+    """
+
     @deprecated_arg(
         name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
