@@ -116,7 +116,7 @@ class DynUNet(nn.Module):
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
         upsample_kernel_size: Sequence[Union[Sequence[int], int]],
-        dropout: float = 0.0,
+        dropout: Optional[Union[Tuple, str, float]] = None,
         norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
