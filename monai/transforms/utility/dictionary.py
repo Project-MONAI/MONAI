@@ -18,7 +18,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import copy
 import logging
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -62,6 +62,11 @@ from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys, TransformBackends
 
+if TYPE_CHECKING:
+    from cupy import ndarray as cp_ndarray
+else:
+    cp_ndarray, _ = optional_import("cupy", name="ndarray")
+
 __all__ = [
     "AddChannelD",
     "AddChannelDict",
@@ -87,6 +92,9 @@ __all__ = [
     "CopyItemsD",
     "CopyItemsDict",
     "CopyItemsd",
+    "CuCIMd",
+    "CuCIMD",
+    "CuCIMDict",
     "DataStatsD",
     "DataStatsDict",
     "DataStatsd",
@@ -117,6 +125,9 @@ __all__ = [
     "MapLabelValueD",
     "MapLabelValueDict",
     "MapLabelValued",
+    "RandCuCIMd",
+    "RandCuCIMD",
+    "RandCuCIMDict",
     "RandLambdaD",
     "RandLambdaDict",
     "RandLambdad",
@@ -1433,6 +1444,14 @@ class CuCIMd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for non-randomized transforms.
     For randomized transforms of CuCIM use :py:class:`monai.transforms.RandCuCIMd`.
 
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        name: The transform name in CuCIM package.
+        allow_missing_keys: don't raise exception if key is missing.
+        args: parameters for the CuCIM transform.
+        kwargs: parameters for the CuCIM transform.
+
     Note:
         CuCIM transforms only work with CuPy arrays, this transform expects input data to be `cupy.ndarray`.
         Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
@@ -1446,40 +1465,55 @@ class CuCIMd(MapTransform):
         *args,
         **kwargs,
     ) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            name: The transform name in CuCIM package.
-            allow_missing_keys: don't raise exception if key is missing.
-            args: parameters for the CuCIM transform.
-            kwargs: parameters for the CuCIM transform.
-
-        """
-        super().__init__(keys, allow_missing_keys)
+        super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
         self.trans = CuCIM(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Mapping[Hashable, cp_ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
         return d
 
 
-class RandCuCIMd(Randomizable, CuCIMd):
+class RandCuCIMd(CuCIMd, RandomizableTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for randomized transforms.
     For deterministic non-randomized transforms of CuCIM use :py:class:`monai.transforms.CuCIMd`.
 
-    Note:
-        - CuCIM transforms only work with CuPy arrays, this transform expects input data to be `cupy.ndarray`.
-          Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
-        - This class inherits the ``Randomizable`` purely to prevent any dataset caching to skip the transform
-          computation. If the random factor of the underlying cuCIM transform is not derived from `self.R`,
-          the results may not be deterministic.
-          See Also: :py:class:`monai.transforms.Randomizable`.
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        name: The transform name in CuCIM package.
+        prob: the probability to apply the transform (default=1.0)
+        allow_missing_keys: don't raise exception if key is missing.
+        args: parameters for the CuCIM transform.
+        kwargs: parameters for the CuCIM transform.
 
+    Note:
+        - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
+            Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+        - If the cuCIM transform is already randomized, the `prob` argument has nothing to do with
+          the randomness of the underlying cuCIM transform.
+          It defines if the transform (either randomized or non-randomized) being applied randomly with `prob=1.0`,
+          so it can apply non-randomized tranforms randomly but be careful when it is being used along with randomized transforms.
+        - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
+          the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
     """
+
+    def __init__(
+        self,
+        prob: float = 1.0,
+        *args,
+        **kwargs,
+    ) -> None:
+        CuCIMd.__init__(self, *args, **kwargs)
+        RandomizableTransform.__init__(self, prob=prob)
+
+    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Mapping[Hashable, cp_ndarray]:
+        self.randomize(data)
+        if not self._do_transform:
+            return data
+        return super().__call__(data)
 
 
 IdentityD = IdentityDict = Identityd
