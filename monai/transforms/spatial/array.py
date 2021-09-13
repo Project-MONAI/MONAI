@@ -46,6 +46,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
+from monai.utils.deprecated import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
@@ -1016,12 +1017,14 @@ class AffineGrid(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         rotate_params: Optional[Union[Sequence[float], float]] = None,
         shear_params: Optional[Union[Sequence[float], float]] = None,
         translate_params: Optional[Union[Sequence[float], float]] = None,
         scale_params: Optional[Union[Sequence[float], float]] = None,
+        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         affine: Optional[NdarrayOrTensor] = None,
     ) -> None:
@@ -1082,12 +1085,14 @@ class RandAffineGrid(Randomizable, Transform):
 
     """
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         rotate_range: RandRange = None,
         shear_range: RandRange = None,
         translate_range: RandRange = None,
         scale_range: RandRange = None,
+        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1173,8 +1178,9 @@ class RandAffineGrid(Randomizable, Transform):
             scale_params=self.scale_params,
             device=self.device,
         )
-        grid, self.affine = affine_grid(spatial_size, grid)
-        return grid
+        _grid: NdarrayOrTensor
+        _grid, self.affine = affine_grid(spatial_size, grid)
+        return _grid
 
     def get_transformation_matrix(self) -> Optional[NdarrayOrTensor]:
         """Get the most recently applied transformation matrix"""
@@ -1235,10 +1241,12 @@ class Resample(Transform):
 
     backend = [TransformBackends.TORCH]
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1331,6 +1339,7 @@ class Affine(Transform):
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         rotate_params: Optional[Union[Sequence[float], float]] = None,
@@ -1340,6 +1349,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
+        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         image_only: bool = False,
     ) -> None:
@@ -1397,7 +1407,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
+    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor]]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1429,6 +1439,7 @@ class RandAffine(RandomizableTransform):
 
     backend = Affine.backend
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
@@ -1440,6 +1451,7 @@ class RandAffine(RandomizableTransform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
+        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1555,11 +1567,11 @@ class RandAffine(RandomizableTransform):
 
     def __call__(
         self,
-        img: Union[np.ndarray, torch.Tensor],
+        img: NdarrayOrTensor,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),

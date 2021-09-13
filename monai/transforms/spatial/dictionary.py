@@ -55,6 +55,7 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
+from monai.utils.deprecated import deprecated_arg
 from monai.utils.enums import InverseKeys
 from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type
@@ -576,6 +577,7 @@ class Affined(MapTransform, InvertibleTransform):
 
     backend = Affine.backend
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -586,6 +588,7 @@ class Affined(MapTransform, InvertibleTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
+        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -689,6 +692,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
     backend = Affine.backend
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -701,6 +705,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
+        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
