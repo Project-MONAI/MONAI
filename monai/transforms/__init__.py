@@ -369,6 +369,7 @@ from .utility.array import (
     LabelToMask,
     Lambda,
     MapLabelValue,
+    RandCuCIM,
     RandLambda,
     RemoveRepeatedChannel,
     RepeatChannel,
