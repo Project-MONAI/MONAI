@@ -739,6 +739,11 @@ Utility
     :members:
     :special-members: __call__
 
+`RandCuCIM`
+"""""""
+.. autoclass:: RandCuCIM
+    :members:
+    :special-members: __call__
 
 Dictionary Transforms
 ---------------------

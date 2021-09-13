@@ -1468,7 +1468,7 @@ class CuCIMd(MapTransform):
         super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
         self.trans = CuCIM(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Mapping[Hashable, cp_ndarray]:
+    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Dict[Hashable, cp_ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
@@ -1509,10 +1509,10 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
         CuCIMd.__init__(self, *args, **kwargs)
         RandomizableTransform.__init__(self, prob=prob)
 
-    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Mapping[Hashable, cp_ndarray]:
+    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Dict[Hashable, cp_ndarray]:
         self.randomize(data)
         if not self._do_transform:
-            return data
+            return dict(data)
         return super().__call__(data)
 
 
