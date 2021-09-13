@@ -18,7 +18,6 @@ from monai.networks import eval_mode
 from monai.networks.nets.vltransformer import VLTransformers
 
 TEST_CASE_VLTransformers = []
-TEST_CASE_Vit = []
 for drop_out in [0.4]:
     for in_channels in [3]:
         for img_size in [224]:
@@ -38,7 +37,7 @@ for drop_out in [0.4]:
                                         "num_classes": num_classes,
                                         "drop_out": drop_out,
                                     },
-                                    (2, num_classes),
+                                    (2, num_classes),  # type: ignore
                                 ]
                                 TEST_CASE_VLTransformers.append(test_case)
 
