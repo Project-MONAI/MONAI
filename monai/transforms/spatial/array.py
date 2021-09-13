@@ -1610,6 +1610,9 @@ class Rand2DElastic(RandomizableTransform):
 
     """
 
+    backend = Resample.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         spacing: Union[Tuple[float, float], float],
@@ -1664,8 +1667,6 @@ class Rand2DElastic(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
 
         See also:
@@ -1750,6 +1751,9 @@ class Rand3DElastic(RandomizableTransform):
 
     """
 
+    backend = Resample.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         sigma_range: Tuple[float, float],
@@ -1807,8 +1811,6 @@ class Rand3DElastic(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
 
         See also:
@@ -1853,11 +1855,11 @@ class Rand3DElastic(RandomizableTransform):
 
     def __call__(
         self,
-        img: Union[np.ndarray, torch.Tensor],
+        img: NdarrayOrTensor,
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ) -> torch.Tensor:
         """
         Args:
             img: shape must be (num_channels, H, W, D),

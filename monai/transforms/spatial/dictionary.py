@@ -857,6 +857,9 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand2DElastic`.
     """
 
+    backend = Rand2DElastic.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -917,8 +920,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
@@ -937,7 +938,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            as_tensor_output=as_tensor_output,
             device=device,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -954,9 +954,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         super().randomize(None)
         self.rand_2d_elastic.randomize(spatial_size)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
 
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
@@ -986,6 +984,9 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand3DElastic`.
     """
 
+    backend = Rand3DElastic.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -1048,8 +1049,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
@@ -1068,7 +1067,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            as_tensor_output=as_tensor_output,
             device=device,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -1085,9 +1083,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         super().randomize(None)
         self.rand_3d_elastic.randomize(grid_size)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
 
