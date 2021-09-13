@@ -54,11 +54,14 @@ def in1d(x, y):
 
 
 def where(condition: NdarrayOrTensor, x, y) -> NdarrayOrTensor:
+    """
+    Note that `torch.where` may convert y.dtype to x.dtype.
+    """
     result: NdarrayOrTensor
     if isinstance(condition, np.ndarray):
         result = np.where(condition, x, y)
     else:
         x = torch.as_tensor(x, device=condition.device)
-        y = torch.as_tensor(y, device=condition.device)
+        y = torch.as_tensor(y, device=condition.device, dtype=x.dtype)
         result = torch.where(condition, x, y)
     return result
