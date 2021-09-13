@@ -61,7 +61,7 @@ TEST_CASE_3_A = [  # 1D, batch 1, 2 input channels
 ]
 
 TEST_CASES = []
-for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A]:
+for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
 
