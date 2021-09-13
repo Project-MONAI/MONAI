@@ -51,6 +51,7 @@ from monai.transforms.utils import (
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import InverseKeys
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "PadModeSequence",
@@ -848,7 +849,9 @@ class CropForegroundd(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
+        img: np.ndarray
+        img, *_ = convert_data_type(d[self.source_key], np.ndarray)  # type: ignore
+        box_start, box_end = self.cropper.compute_bounding_box(img=img)
         d[self.start_coord_key] = box_start
         d[self.end_coord_key] = box_end
         for key, m in self.key_iterator(d, self.mode):
