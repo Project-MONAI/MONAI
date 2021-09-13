@@ -1069,7 +1069,7 @@ class AffineGrid(Transform):
 
         if self.device is not None:
             grid, *_ = convert_data_type(grid, torch.Tensor, device=self.device)
-        grid, *_ = convert_data_type(grid, dtype=torch.float32)
+        grid, *_ = convert_data_type(grid, dtype=float)
         affine, *_ = convert_to_dst_type(affine, grid)
 
         grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))
@@ -1329,6 +1329,8 @@ class Affine(Transform):
 
     """
 
+    backend = list(set(AffineGrid.backend) & set(Resample.backend))
+
     def __init__(
         self,
         rotate_params: Optional[Union[Sequence[float], float]] = None,
@@ -1425,6 +1427,8 @@ class RandAffine(RandomizableTransform):
 
     """
 
+    backend = Affine.backend
+
     def __init__(
         self,
         prob: float = 0.1,
@@ -1436,7 +1440,6 @@ class RandAffine(RandomizableTransform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1480,8 +1483,6 @@ class RandAffine(RandomizableTransform):
             cache_grid: whether to cache the identity sampling grid.
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
 
         See also:

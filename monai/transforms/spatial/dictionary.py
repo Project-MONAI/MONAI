@@ -574,6 +574,8 @@ class Affined(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Affine`.
     """
 
+    backend = Affine.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -584,7 +586,6 @@ class Affined(MapTransform, InvertibleTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -621,8 +622,6 @@ class Affined(MapTransform, InvertibleTransform):
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
@@ -642,9 +641,7 @@ class Affined(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             orig_size = d[key].shape[1:]
@@ -661,7 +658,7 @@ class Affined(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -677,10 +674,7 @@ class Affined(MapTransform, InvertibleTransform):
             grid, _ = affine_grid(orig_size)  # type: ignore
 
             # Apply inverse transform
-            out = self.affine.resampler(d[key], grid, mode, padding_mode)
-
-            # Convert to numpy
-            d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
+            d[key] = self.affine.resampler(d[key], grid, mode, padding_mode)
 
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -692,6 +686,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
+
+    backend = Affine.backend
 
     def __init__(
         self,
@@ -705,7 +701,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -753,8 +748,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             cache_grid: whether to cache the identity sampling grid.
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
@@ -772,7 +765,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             scale_range=scale_range,
             spatial_size=spatial_size,
             cache_grid=cache_grid,
-            as_tensor_output=as_tensor_output,
             device=device,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -789,9 +781,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         super().randomize(None)
         self.rand_affine.randomize()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
 
@@ -829,14 +819,14 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # if transform was not performed and spatial size is None, nothing to do.
             if not transform[InverseKeys.DO_TRANSFORM] and self.rand_affine.spatial_size is None:
-                out: Union[np.ndarray, torch.Tensor] = d[key]
+                out: NdarrayOrTensor = d[key]
             else:
                 orig_size = transform[InverseKeys.ORIG_SIZE]
                 # Create inverse transform
@@ -849,10 +839,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 grid, _ = affine_grid(orig_size)  # type: ignore
 
                 # Apply inverse transform
-                out = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
-
-            # Convert to numpy
-            d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
+                d[key] = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
 
             # Remove the applied transform
             self.pop_transform(d, key)

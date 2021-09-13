@@ -40,6 +40,7 @@ from monai.utils.misc import is_module_ver_at_least
 from monai.utils.module import version_leq
 
 nib, _ = optional_import("nibabel")
+plt, has_matplotlib = optional_import("matplotlib.pyplot")
 
 quick_test_var = "QUICKTEST"
 
@@ -57,17 +58,37 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
     return copy.deepcopy(data)
 
 
-def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
+def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, visualize=True, *args, **kwargs):
     """
     Assert that all values of two data objects are close.
 
     Args:
         a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
         b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
+        visualize: if the assert fails, display the two images (take central slices to reduce to 2D if necessary)
+        args: extra arguments to pass on to `np.testing.assert_allclose`
+        kwargs: extra arguments to pass on to `np.testing.assert_allclose`
     """
-    a = a.cpu() if isinstance(a, torch.Tensor) else a
-    b = b.cpu() if isinstance(b, torch.Tensor) else b
-    np.testing.assert_allclose(a, b, *args, **kwargs)
+    a = a.cpu().numpy() if isinstance(a, torch.Tensor) else a
+    b = b.cpu().numpy() if isinstance(b, torch.Tensor) else b
+    try:
+        np.testing.assert_allclose(a, b, *args, **kwargs)
+    except AssertionError as e:
+        if visualize and has_matplotlib and a.shape == b.shape and a.ndim > 2 and b.ndim > 2:
+            while a.ndim > 2:
+                _slice = a.shape[-1] // 2
+                a, b = a[..., _slice], b[..., _slice]
+            diff = a - b
+            ims_to_show = [a, b, diff]
+            titles = ["a", "b", "a - b"]
+            fig, axes = plt.subplots(1, 3)
+            for im, title, ax in zip(ims_to_show, titles, axes):
+                im_show = ax.imshow(im)
+                ax.set_title(title, fontsize=25)
+                ax.axis("off")
+                fig.colorbar(im_show, ax=ax)
+            plt.show()
+        raise e
 
 
 def test_pretrained_networks(network, input_param, device):
