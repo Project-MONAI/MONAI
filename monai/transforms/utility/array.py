@@ -361,11 +361,7 @@ class EnsureType(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, data_type: str = "tensor", device: Optional[torch.device] = None) -> None:
-        data_type = data_type.lower()
-        if data_type not in ("tensor", "numpy"):
-            raise ValueError("`data type` must be 'tensor' or 'numpy'.")
-
-        self.data_type = data_type
+        self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.device = device
 
     def __call__(self, data: NdarrayOrTensor):
