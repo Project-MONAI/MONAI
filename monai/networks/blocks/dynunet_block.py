@@ -219,7 +219,9 @@ class UnetUpBlock(nn.Module):
 
 
 class UnetOutBlock(nn.Module):
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, dropout: float = 0.0):
+    def __init__(
+        self, spatial_dims: int, in_channels: int, out_channels: int, dropout: Optional[Union[Tuple, str, float]] = None
+    ):
         super(UnetOutBlock, self).__init__()
         self.conv = get_conv_layer(
             spatial_dims, in_channels, out_channels, kernel_size=1, stride=1, dropout=dropout, bias=True, conv_only=True
