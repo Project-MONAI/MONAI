@@ -19,13 +19,9 @@ from typing import Sequence, Union
 import torch
 import transformers
 from torch import nn
-
-from monai.utils import optional_import
-
-load_tf_weights_in_bert = optional_import("transformers", name="load_tf_weights_in_bert")
-cached_path, _ = optional_import("transformers.file_utils", name="cached_path")
-BertEmbeddings, _ = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")
-BertLayer, _ = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")
+from transformers import load_tf_weights_in_bert
+from transformers.file_utils import cached_path
+from transformers.models.bert.modeling_bert import BertEmbeddings, BertLayer
 
 
 class BertPreTrainedModel(nn.Module):
