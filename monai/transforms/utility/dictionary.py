@@ -486,16 +486,23 @@ class EnsureTyped(MapTransform, InvertibleTransform):
 
     backend = EnsureType.backend
 
-    def __init__(self, keys: KeysCollection, data_type: str = "tensor", allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        data_type: str = "tensor",
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             data_type: target data type to convert, should be "tensor" or "numpy".
+            device: for Tensor data type, specify the target device.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = EnsureType(data_type=data_type)
+        self.converter = EnsureType(data_type=data_type, device=device)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

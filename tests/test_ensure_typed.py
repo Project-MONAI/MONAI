@@ -75,7 +75,7 @@ class TestEnsureTyped(unittest.TestCase):
             "extra": None,
         }
         for dtype in ("tensor", "numpy"):
-            result = EnsureTyped(keys="data", data_type=dtype)({"data": test_data})["data"]
+            result = EnsureTyped(keys="data", data_type=dtype, device="cpu")({"data": test_data})["data"]
             self.assertTrue(isinstance(result, dict))
             self.assertTrue(isinstance(result["img"], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]))
