@@ -25,7 +25,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import no_collation
+from monai.data.utils import no_collation, optional_import
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
