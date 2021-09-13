@@ -187,7 +187,7 @@ class DynUNet(nn.Module):
     def check_kernel_stride(self):
         kernels, strides = self.kernel_size, self.strides
         error_msg = "length of kernel_size and strides should be the same, and no less than 3."
-        if not (len(kernels) == len(strides) and len(kernels) >= 3):
+        if len(kernels) != len(strides) or len(kernels) < 3:
             raise AssertionError(error_msg)
 
         for idx, k_i in enumerate(kernels):
