@@ -269,12 +269,16 @@ class ResNet(nn.Module):
                     norm_type(planes * block.expansion),
                 )
 
-        layers = []
-        layers.append(
+        layers = [
             block(
-                in_planes=self.in_planes, planes=planes, spatial_dims=spatial_dims, stride=stride, downsample=downsample
+                in_planes=self.in_planes,
+                planes=planes,
+                spatial_dims=spatial_dims,
+                stride=stride,
+                downsample=downsample,
             )
-        )
+        ]
+
         self.in_planes = planes * block.expansion
         for _i in range(1, blocks):
             layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims))
