@@ -301,8 +301,10 @@ class VLTransformers(torch.nn.Module):
 
         Examples::
 
-            # for 3-channel with image size of (224,224), patch size of (32,32), 3 classes, 2 language layers, 2 vision layers and 2 mixed modality layers
-            >>> net = VLTransformers(in_channels=3, img_size=(224, 224), num_classes=3, num_language_layers=2, num_vision_layers=2, num_mixed_layers=2)
+            # for 3-channel with image size of (224,224), patch size of (32,32), 3 classes, 2 language layers,
+            2 vision layers and 2 mixed modality layers
+            >>> net = VLTransformers(in_channels=3, img_size=(224, 224), num_classes=3, num_language_layers=2,
+            num_vision_layers=2, num_mixed_layers=2)
 
         """
         super(VLTransformers, self).__init__()
