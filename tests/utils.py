@@ -74,7 +74,7 @@ def test_pretrained_networks(network, input_param, device):
     try:
         net = network(**input_param).to(device)
     except (URLError, HTTPError, ContentTooShortError) as e:
-        raise unittest.SkipTest(e)
+        raise unittest.SkipTest(e) from e
     return net
 
 
