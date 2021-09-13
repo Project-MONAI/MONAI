@@ -379,7 +379,11 @@ class ScaleIntensity(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None
+        self,
+        minv: Optional[float] = 0.0,
+        maxv: Optional[float] = 1.0,
+        factor: Optional[float] = None,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         """
         Args:
@@ -387,10 +391,12 @@ class ScaleIntensity(Transform):
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
                 this parameter, please set `minv` and `maxv` into None.
+            dtype: output data type, defaults to float32.
         """
         self.minv = minv
         self.maxv = maxv
         self.factor = factor
+        self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -401,10 +407,10 @@ class ScaleIntensity(Transform):
 
         """
         if self.minv is not None and self.maxv is not None:
-            return rescale_array(img, self.minv, self.maxv, img.dtype)
+            return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
         if self.factor is not None:
             out = img * (1 + self.factor)
-            out, *_ = convert_data_type(out, dtype=img.dtype)
+            out, *_ = convert_data_type(out, dtype=self.dtype)
             return out
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
@@ -417,12 +423,18 @@ class RandScaleIntensity(RandomizableTransform):
 
     backend = ScaleIntensity.backend
 
-    def __init__(self, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
+    def __init__(
+        self,
+        factors: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
         """
         Args:
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of scale.
+            dtype: output data type, defaults to float32.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -433,6 +445,7 @@ class RandScaleIntensity(RandomizableTransform):
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
+        self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -445,7 +458,7 @@ class RandScaleIntensity(RandomizableTransform):
         self.randomize()
         if not self._do_transform:
             return img
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
         return scaler(img)
 
 
