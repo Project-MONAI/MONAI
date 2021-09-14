@@ -17,7 +17,7 @@ import logging
 import sys
 import time
 import warnings
-from typing import TYPE_CHECKING, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -40,11 +40,6 @@ from monai.utils.type_conversion import convert_data_type
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 cp, has_cp = optional_import("cupy")
-
-if TYPE_CHECKING:
-    from cupy import ndarray as cp_ndarray
-else:
-    cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 
 __all__ = [
@@ -1128,10 +1123,13 @@ class CuCIM(Transform):
         transform, _ = optional_import("cucim.monai", name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, data: cp_ndarray):
+    def __call__(self, data):
         """
         Args:
             img: a CuPy array (`cupy.ndarray`) for the cuCIM transform
+
+        Returns:
+            `cupy.ndarray`
 
         """
         return self.trans(data)
@@ -1164,10 +1162,13 @@ class RandCuCIM(CuCIM, RandomizableTransform):
         CuCIM.__init__(self, name, *args, **kwargs)
         RandomizableTransform.__init__(self, prob=prob)
 
-    def __call__(self, data: cp_ndarray):
+    def __call__(self, data):
         """
         Args:
             img: a CuPy array (`cupy.ndarray`) for the cuCIM transform
+
+        Returns:
+            `cupy.ndarray`
 
         """
         self.randomize(data)

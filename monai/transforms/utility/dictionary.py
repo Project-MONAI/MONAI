@@ -18,14 +18,14 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 import copy
 import logging
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import no_collation, optional_import
+from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
@@ -61,11 +61,6 @@ from monai.transforms.utility.array import (
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys, TransformBackends
-
-if TYPE_CHECKING:
-    from cupy import ndarray as cp_ndarray
-else:
-    cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
     "AddChannelD",
@@ -1468,7 +1463,15 @@ class CuCIMd(MapTransform):
         super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
         self.trans = CuCIM(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Dict[Hashable, cp_ndarray]:
+    def __call__(self, data):
+        """
+        Args:
+            data: Dict[Hashable, `cupy.ndarray`]
+
+        Returns:
+            Dict[Hashable, `cupy.ndarray`]
+
+        """
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
@@ -1509,7 +1512,15 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
         CuCIMd.__init__(self, *args, **kwargs)
         RandomizableTransform.__init__(self, prob=prob)
 
-    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Dict[Hashable, cp_ndarray]:
+    def __call__(self, data):
+        """
+        Args:
+            data: Dict[Hashable, `cupy.ndarray`]
+
+        Returns:
+            Dict[Hashable, `cupy.ndarray`]
+
+        """
         self.randomize(data)
         if not self._do_transform:
             return dict(data)
