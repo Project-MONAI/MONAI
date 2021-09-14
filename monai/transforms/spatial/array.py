@@ -171,6 +171,7 @@ class Spacing(Transform):
             data_array (resampled into `self.pixdim`), original affine, current affine.
 
         """
+        data_array, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
         _dtype = dtype or self.dtype or data_array.dtype
         sr = data_array.ndim - 1
         if sr <= 0:
@@ -275,6 +276,7 @@ class Orientation(Transform):
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
 
         """
+        data_array, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
         sr = data_array.ndim - 1
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
@@ -392,6 +394,7 @@ class Resize(Transform):
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if self.size_mode == "all":
             input_ndim = img.ndim - 1  # spatial ndim
             output_ndim = len(ensure_tuple(self.spatial_size))
@@ -1097,6 +1100,8 @@ class RandAffineGrid(Randomizable, Transform):
     Generate randomised affine grid.
 
     """
+
+    backend = AffineGrid.backend
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
@@ -1930,6 +1935,7 @@ class AddCoordinateChannels(Transform):
         Args:
             img: data to be transformed, assuming `img` is channel first.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if max(self.spatial_channels) > img.ndim - 1:
             raise ValueError(
                 f"input has {img.ndim-1} spatial dimensions, cannot add AddCoordinateChannels channel for "
