@@ -19,6 +19,7 @@ __all__ = [
     "in1d",
     "clip",
     "percentile",
+    "where",
 ]
 
 
@@ -95,4 +96,18 @@ def percentile(x: NdarrayOrTensor, q):
             r = [x.view(-1).kthvalue(_k).values.item() for _k in k]
             result = torch.tensor(r, device=x.device)
 
+    return result
+
+
+def where(condition: NdarrayOrTensor, x, y) -> NdarrayOrTensor:
+    """
+    Note that `torch.where` may convert y.dtype to x.dtype.
+    """
+    result: NdarrayOrTensor
+    if isinstance(condition, np.ndarray):
+        result = np.where(condition, x, y)
+    else:
+        x = torch.as_tensor(x, device=condition.device)
+        y = torch.as_tensor(y, device=condition.device, dtype=x.dtype)
+        result = torch.where(condition, x, y)
     return result

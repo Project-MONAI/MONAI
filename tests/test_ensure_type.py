@@ -36,7 +36,7 @@ class TestEnsureType(unittest.TestCase):
             test_datas.append(test_datas[-1].cuda())
         for test_data in test_datas:
             for dtype in ("tensor", "numpy"):
-                result = EnsureType(data_type=dtype)(test_data)
+                result = EnsureType(data_type=dtype, device="cpu")(test_data)
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
                 if isinstance(test_data, bool):
                     self.assertFalse(result)
