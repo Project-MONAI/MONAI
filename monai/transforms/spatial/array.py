@@ -442,6 +442,8 @@ class Rotate(Transform, ThreadUnsafe):
             the output data type is always ``np.float32``.
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(
         self,
         angle: Union[Sequence[float], float],
@@ -449,7 +451,7 @@ class Rotate(Transform, ThreadUnsafe):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: DtypeLike = np.float64,
+        dtype: Union[DtypeLike, torch.dtype] = np.float64,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
@@ -461,12 +463,12 @@ class Rotate(Transform, ThreadUnsafe):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: NdarrayOrTensor,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: DtypeLike = None,
-    ) -> np.ndarray:
+        dtype: Union[DtypeLike, torch.dtype] = None,
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
@@ -489,7 +491,11 @@ class Rotate(Transform, ThreadUnsafe):
 
         """
         _dtype = dtype or self.dtype or img.dtype
-        im_shape = np.asarray(img.shape[1:])  # spatial dimensions
+
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype)  # type: ignore
+
+        im_shape = np.asarray(img_t.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
         if input_ndim not in (2, 3):
             raise ValueError(f"Unsupported img dimension: {input_ndim}, available options are [2, 3].")
@@ -507,6 +513,9 @@ class Rotate(Transform, ThreadUnsafe):
         shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
         transform = shift @ transform @ shift_1
 
+        transform_t: torch.Tensor
+        transform_t, *_ = convert_to_dst_type(transform, img_t)  # type: ignore
+
         xform = AffineTransform(
             normalized=False,
             mode=look_up_option(mode or self.mode, GridSampleMode),
@@ -514,13 +523,13 @@ class Rotate(Transform, ThreadUnsafe):
             align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
-        output = xform(
-            torch.as_tensor(np.ascontiguousarray(img).astype(_dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
+        output: torch.Tensor = xform(
+            img_t.unsqueeze(0),
+            transform_t,
             spatial_size=output_shape,
         )
         self._rotation_matrix = transform
-        return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+        return output.squeeze(0).detach().float()
 
     def get_rotation_matrix(self) -> Optional[np.ndarray]:
         """
@@ -739,6 +748,8 @@ class RandRotate(RandomizableTransform):
             the output data type is always ``np.float32``.
     """
 
+    backend = Rotate.backend
+
     def __init__(
         self,
         range_x: Union[Tuple[float, float], float] = 0.0,
@@ -749,7 +760,7 @@ class RandRotate(RandomizableTransform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: DtypeLike = np.float64,
+        dtype: Union[DtypeLike, torch.dtype] = np.float64,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)
@@ -780,12 +791,12 @@ class RandRotate(RandomizableTransform):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: NdarrayOrTensor,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: DtypeLike = None,
-    ) -> np.ndarray:
+        dtype: Union[DtypeLike, torch.dtype] = None,
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -803,7 +814,9 @@ class RandRotate(RandomizableTransform):
         """
         self.randomize()
         if not self._do_transform:
-            return img
+            img_t: torch.Tensor
+            img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+            return img_t
         rotator = Rotate(
             angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
             keep_size=self.keep_size,
@@ -812,7 +825,7 @@ class RandRotate(RandomizableTransform):
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,
         )
-        return np.array(rotator(img))
+        return rotator(img)
 
 
 class RandFlip(RandomizableTransform):

@@ -58,7 +58,7 @@ from monai.utils import (
 from monai.utils.deprecated import deprecated_arg
 from monai.utils.enums import InverseKeys
 from monai.utils.module import optional_import
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 nib, _ = optional_import("nibabel")
 
@@ -1274,6 +1274,8 @@ class Rotated(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = Rotate.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1282,7 +1284,7 @@ class Rotated(MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1293,7 +1295,7 @@ class Rotated(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
@@ -1320,7 +1322,7 @@ class Rotated(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
@@ -1338,12 +1340,17 @@ class Rotated(MapTransform, InvertibleTransform):
                 align_corners=False if align_corners == "none" else align_corners,
                 reverse_indexing=True,
             )
+            img_t: torch.Tensor
+            img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)  # type: ignore
+            transform_t: torch.Tensor
+            transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
+
             output = xform(
-                torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
-                torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
+                img_t.unsqueeze(0),
+                transform_t,
                 spatial_size=transform[InverseKeys.ORIG_SIZE],
             )
-            d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+            d[key] = output.squeeze(0).detach().float()
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1385,6 +1392,8 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = Rotate.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1396,7 +1405,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1427,7 +1436,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         self.randomize()
         d = dict(data)
         angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
@@ -1449,6 +1458,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
                 rot_mat = rotator.get_rotation_matrix()
             else:
+                d[key], *_ = convert_data_type(d[key], torch.Tensor)
                 rot_mat = np.eye(d[key].ndim)
             self.push_transform(
                 d,
@@ -1463,7 +1473,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
@@ -1483,12 +1493,17 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=False if align_corners == "none" else align_corners,
                     reverse_indexing=True,
                 )
+                img_t: torch.Tensor
+                img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)  # type: ignore
+                transform_t: torch.Tensor
+                transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
+                output: torch.Tensor
                 output = xform(
-                    torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
-                    torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
+                    img_t.unsqueeze(0),
+                    transform_t,
                     spatial_size=transform[InverseKeys.ORIG_SIZE],
                 )
-                d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+                d[key] = output.squeeze(0).detach().float()
             # Remove the applied transform
             self.pop_transform(d, key)
 
