@@ -777,6 +777,9 @@ class FgBgToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+        if image is not None:
+            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
         if output_shape is None:
             output_shape = self.output_shape
         fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
@@ -826,6 +829,10 @@ class ClassesToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+        if image is not None:
+            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
+
         if output_shape is None:
             output_shape = self.output_shape
         indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
@@ -846,6 +853,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         # if img has channel dim, squeeze it
         if img.ndim == 4 and img.shape[0] == 1:
             img = np.squeeze(img, axis=0)
@@ -912,6 +920,9 @@ class AddExtremePointsChannel(Randomizable, Transform):
         if label.shape[0] != 1:
             raise ValueError("Only supports single channel labels!")
 
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+
         # Generate extreme points
         self.randomize(label[0, :])
 
@@ -948,6 +959,7 @@ class TorchVision:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
+        img, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         return self.trans(img)
 
 
@@ -978,7 +990,7 @@ class MapLabelValue:
         self.dtype = dtype
 
     def __call__(self, img: np.ndarray):
-        img = np.asarray(img)
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         img_flat = img.flatten()
         try:
             out_flat = np.copy(img_flat).astype(self.dtype)
@@ -1034,6 +1046,7 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if meta_data is None:
             meta_data = {}
 
