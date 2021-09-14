@@ -10,36 +10,38 @@
 # limitations under the License.
 
 import unittest
+from typing import List, Tuple
 
 import numpy as np
 import scipy.ndimage
+import torch
 from parameterized import parameterized
 
 from monai.transforms import Rotated
-from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D
 
-TEST_CASES_2D = [
-    (-np.pi / 6, False, "bilinear", "border", False),
-    (-np.pi / 4, True, "bilinear", "border", False),
-    (np.pi / 4.5, True, "nearest", "reflection", False),
-    (-np.pi, False, "nearest", "zeros", False),
-    (np.pi / 2, False, "bilinear", "zeros", True),
-]
+TEST_CASES_2D: List[Tuple] = []
+for p in TEST_NDARRAYS:
+    TEST_CASES_2D.append((p, -np.pi / 6, False, "bilinear", "border", False))
+    TEST_CASES_2D.append((p, -np.pi / 4, True, "bilinear", "border", False))
+    TEST_CASES_2D.append((p, np.pi / 4.5, True, "nearest", "reflection", False))
+    TEST_CASES_2D.append((p, -np.pi, False, "nearest", "zeros", False))
+    TEST_CASES_2D.append((p, np.pi / 2, False, "bilinear", "zeros", True))
 
-TEST_CASES_3D = [
-    (-np.pi / 6, False, "bilinear", "border", False),
-    (-np.pi / 4, True, "bilinear", "border", False),
-    (np.pi / 4.5, True, "nearest", "reflection", False),
-    (-np.pi, False, "nearest", "zeros", False),
-    (np.pi / 2, False, "bilinear", "zeros", True),
-]
+TEST_CASES_3D: List[Tuple] = []
+for p in TEST_NDARRAYS:
+    TEST_CASES_3D.append((p, -np.pi / 6, False, "bilinear", "border", False))
+    TEST_CASES_3D.append((p, -np.pi / 4, True, "bilinear", "border", False))
+    TEST_CASES_3D.append((p, np.pi / 4.5, True, "nearest", "reflection", False))
+    TEST_CASES_3D.append((p, -np.pi, False, "nearest", "zeros", False))
+    TEST_CASES_3D.append((p, np.pi / 2, False, "bilinear", "zeros", True))
 
 
 class TestRotated2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
-    def test_correct_results(self, angle, keep_size, mode, padding_mode, align_corners):
+    def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         rotate_fn = Rotated(("img", "seg"), angle, keep_size, (mode, "nearest"), padding_mode, align_corners)
-        rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
+        rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
         _order = 0 if mode == "nearest" else 1
@@ -52,6 +54,8 @@ class TestRotated2D(NumpyImageTestCase2D):
         expected = scipy.ndimage.rotate(
             self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
+        for k, v in rotated.items():
+            rotated[k] = v.cpu() if isinstance(v, torch.Tensor) else v
         good = np.sum(np.isclose(expected, rotated["img"][0], atol=1e-3))
         self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 pixels")
 
@@ -64,9 +68,9 @@ class TestRotated2D(NumpyImageTestCase2D):
 
 class TestRotated3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
-    def test_correct_results(self, angle, keep_size, mode, padding_mode, align_corners):
+    def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         rotate_fn = Rotated(("img", "seg"), [0, angle, 0], keep_size, (mode, "nearest"), padding_mode, align_corners)
-        rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
+        rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
         _order = 0 if mode == "nearest" else 1
@@ -79,6 +83,8 @@ class TestRotated3D(NumpyImageTestCase3D):
         expected = scipy.ndimage.rotate(
             self.imt[0, 0], np.rad2deg(angle), (0, 2), not keep_size, order=_order, mode=_mode, prefilter=False
         )
+        for k, v in rotated.items():
+            rotated[k] = v.cpu() if isinstance(v, torch.Tensor) else v
         good = np.sum(np.isclose(expected.astype(np.float32), rotated["img"][0], atol=1e-3))
         self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 voxels.")
 
@@ -91,9 +97,9 @@ class TestRotated3D(NumpyImageTestCase3D):
 
 class TestRotated3DXY(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
-    def test_correct_results(self, angle, keep_size, mode, padding_mode, align_corners):
+    def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         rotate_fn = Rotated(("img", "seg"), [0, 0, angle], keep_size, (mode, "nearest"), padding_mode, align_corners)
-        rotated = rotate_fn({"img": self.imt[0], "seg": self.segn[0]})
+        rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
         _order = 0 if mode == "nearest" else 1
@@ -106,6 +112,8 @@ class TestRotated3DXY(NumpyImageTestCase3D):
         expected = scipy.ndimage.rotate(
             self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
+        for k, v in rotated.items():
+            rotated[k] = v.cpu() if isinstance(v, torch.Tensor) else v
         good = np.sum(np.isclose(expected, rotated["img"][0], atol=1e-3))
         self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 voxels")
 
