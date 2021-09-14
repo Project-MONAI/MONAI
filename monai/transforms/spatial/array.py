@@ -1085,7 +1085,7 @@ class AffineGrid(Transform):
         else:
             affine = self.affine
 
-        if self.device is not None:
+        if self.device not in (None, torch.device("cpu"), "cpu"):
             grid, *_ = convert_data_type(grid, torch.Tensor, device=self.device)
         grid, *_ = convert_data_type(grid, dtype=float)
         affine, *_ = convert_to_dst_type(affine, grid)
