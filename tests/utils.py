@@ -64,9 +64,11 @@ def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
     Args:
         a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
         b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
+        args: extra arguments to pass on to `np.testing.assert_allclose`
+        kwargs: extra arguments to pass on to `np.testing.assert_allclose`
     """
-    a = a.cpu() if isinstance(a, torch.Tensor) else a
-    b = b.cpu() if isinstance(b, torch.Tensor) else b
+    a = a.cpu().numpy() if isinstance(a, torch.Tensor) else a
+    b = b.cpu().numpy() if isinstance(b, torch.Tensor) else b
     np.testing.assert_allclose(a, b, *args, **kwargs)
 
 
