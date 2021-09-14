@@ -393,15 +393,22 @@ class ToNumpy(Transform):
 class ToCupy(Transform):
     """
     Converts the input data to CuPy array, can support list or tuple of numbers, NumPy and PyTorch Tensor.
+
+    Args:
+        dtype: data type specifier. It is inferred from the input by default.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __init__(self, dtype=None) -> None:
+        super().__init__()
+        self.dtype = dtype
+
+    def __call__(self, img: NdarrayOrTensor):
         """
-        Apply the transform to `img` and make it contiguous.
+        Create a CuPy array from `img` and make it contiguous
         """
-        return cp.ascontiguousarray(cp.asarray(img))  # type: ignore
+        return cp.ascontiguousarray(cp.asarray(img, dtype=self.dtype))  # type: ignore
 
 
 class ToPIL(Transform):
