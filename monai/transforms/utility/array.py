@@ -1131,7 +1131,7 @@ class CuCIM(Transform):
 
     def __init__(self, name: str, *args, **kwargs) -> None:
         super().__init__()
-        transform, _ = optional_import("cucim.monai", name=name)
+        transform, _ = optional_import("cucim.core.operations.expose.transform", name=name)
         self.trans = transform(*args, **kwargs)
 
     def __call__(self, data):
