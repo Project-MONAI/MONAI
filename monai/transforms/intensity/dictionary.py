@@ -664,6 +664,8 @@ class ThresholdIntensityd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ThresholdIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -675,7 +677,7 @@ class ThresholdIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.filter(d[key])
@@ -697,6 +699,8 @@ class ScaleIntensityRanged(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ScaleIntensityRange.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -710,7 +714,7 @@ class ScaleIntensityRanged(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -814,6 +818,8 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ScaleIntensityRangePercentiles.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -828,7 +834,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])

@@ -28,6 +28,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
+from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
 from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
@@ -655,6 +656,8 @@ class ThresholdIntensity(Transform):
         cval: value to fill the remaining parts of the image, default is 0.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, threshold: float, above: bool = True, cval: float = 0.0) -> None:
         if not isinstance(threshold, (int, float)):
             raise ValueError("threshold must be a float or int number.")
@@ -662,13 +665,14 @@ class ThresholdIntensity(Transform):
         self.above = above
         self.cval = cval
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return np.asarray(
-            np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval), dtype=img.dtype
-        )
+        mask = img > self.threshold if self.above else img < self.threshold
+        res = where(mask, img, self.cval)
+        res, *_ = convert_data_type(res, dtype=img.dtype)
+        return res
 
 
 class ScaleIntensityRange(Transform):
@@ -684,6 +688,8 @@ class ScaleIntensityRange(Transform):
         clip: whether to perform clip after scaling.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False) -> None:
         self.a_min = a_min
         self.a_max = a_max
@@ -691,7 +697,7 @@ class ScaleIntensityRange(Transform):
         self.b_max = b_max
         self.clip = clip
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -702,7 +708,7 @@ class ScaleIntensityRange(Transform):
         img = (img - self.a_min) / (self.a_max - self.a_min)
         img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
-            img = np.asarray(np.clip(img, self.b_min, self.b_max))
+            img = clip(img, self.b_min, self.b_max)
         return img
 
 
@@ -831,6 +837,8 @@ class ScaleIntensityRangePercentiles(Transform):
         relative: whether to scale to the corresponding percentiles of [b_min, b_max].
     """
 
+    backend = ScaleIntensityRange.backend
+
     def __init__(
         self, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False, relative: bool = False
     ) -> None:
@@ -845,12 +853,12 @@ class ScaleIntensityRangePercentiles(Transform):
         self.clip = clip
         self.relative = relative
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        a_min = np.percentile(img, self.lower)
-        a_max = np.percentile(img, self.upper)
+        a_min: float = percentile(img, self.lower)  # type: ignore
+        a_max: float = percentile(img, self.upper)  # type: ignore
         b_min = self.b_min
         b_max = self.b_max
 
@@ -862,7 +870,7 @@ class ScaleIntensityRangePercentiles(Transform):
         img = scalar(img)
 
         if self.clip:
-            img = np.asarray(np.clip(img, self.b_min, self.b_max))
+            img = clip(img, self.b_min, self.b_max)
 
         return img
 

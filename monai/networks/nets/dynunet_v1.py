@@ -38,6 +38,7 @@ class DynUNetV1(DynUNet):
         kernel_size: convolution kernel size.
         strides: convolution strides for each blocks.
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
+        dropout: dropout ratio. Defaults to no dropout.
         norm_name: [``"batch"``, ``"instance"``, ``"group"``]. Defaults to "instance".
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
         deep_supr_num: number of feature maps that will output during deep supervision head. Defaults to 1.
@@ -57,6 +58,7 @@ class DynUNetV1(DynUNet):
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
         upsample_kernel_size: Sequence[Union[Sequence[int], int]],
+        dropout: float = 0.0,
         norm_name: str = "instance",
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
@@ -70,6 +72,7 @@ class DynUNetV1(DynUNet):
         self.strides = strides
         self.upsample_kernel_size = upsample_kernel_size
         self.norm_name = norm_name
+        self.dropout = dropout
         self.conv_block = _UnetResBlockV1 if res_block else _UnetBasicBlockV1  # type: ignore
         self.filters = [min(2 ** (5 + i), 320 if spatial_dims == 3 else 512) for i in range(len(strides))]
         self.input_block = self.get_input_block()

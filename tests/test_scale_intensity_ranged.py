@@ -11,20 +11,19 @@
 
 import unittest
 
-import numpy as np
-
 from monai.transforms import ScaleIntensityRanged
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class IntensityScaleIntensityRanged(NumpyImageTestCase2D):
     def test_image_scale_intensity_ranged(self):
         key = "img"
         scaler = ScaleIntensityRanged(keys=key, a_min=20, a_max=108, b_min=50, b_max=80)
-        scaled = scaler({key: self.imt})
-        expected = (self.imt - 20) / 88
-        expected = expected * 30 + 50
-        self.assertTrue(np.allclose(scaled[key], expected))
+        for p in TEST_NDARRAYS:
+            scaled = scaler({key: p(self.imt)})
+            expected = (self.imt - 20) / 88
+            expected = expected * 30 + 50
+            assert_allclose(scaled[key], expected)
 
 
 if __name__ == "__main__":
