@@ -34,6 +34,13 @@ class TestPytorchNumpyUnification(unittest.TestCase):
                 atol = 0.5 if not hasattr(torch, "quantile") else 1e-4
                 assert_allclose(results[0], results[-1], atol=atol)
 
+    def test_fails(self):
+        for p in TEST_NDARRAYS:
+            for q in (-1, 101):
+                arr = p(np.arange(100 * 101).reshape(1, 100, 101).astype(np.float32))
+                with self.assertRaises(ValueError):
+                    percentile(arr, q)
+
 
 if __name__ == "__main__":
     unittest.main()

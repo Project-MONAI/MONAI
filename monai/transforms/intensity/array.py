@@ -857,8 +857,8 @@ class ScaleIntensityRangePercentiles(Transform):
         """
         Apply the transform to `img`.
         """
-        a_min: float = percentile(img, self.lower)
-        a_max: float = percentile(img, self.upper)
+        a_min: float = percentile(img, self.lower)  # type: ignore
+        a_max: float = percentile(img, self.upper)  # type: ignore
         b_min = self.b_min
         b_max = self.b_max
 
