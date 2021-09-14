@@ -61,7 +61,6 @@ TESTS_3D = [
             prob=0.5,
             rotate_range=np.pi,
             device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            as_tensor_output=False,
         ),
     ]
 ]
@@ -85,7 +84,6 @@ TESTS_2D = [
             prob=0.5,
             rotate_range=np.pi,
             device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            as_tensor_output=False,
         ),
     ]
 ]

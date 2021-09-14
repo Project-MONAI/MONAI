@@ -531,6 +531,7 @@ class RandBiasField(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize(data=img)
         if not self._do_transform:
             return img
@@ -731,6 +732,7 @@ class AdjustContrast(Transform):
         """
         Apply the transform to `img`.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         epsilon = 1e-7
         img_min = img.min()
         img_range = img.max() - img_min
@@ -773,6 +775,7 @@ class RandAdjustContrast(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize()
         if self.gamma_value is None:
             raise ValueError("gamma_value is not set.")
@@ -910,9 +913,12 @@ class MaskIntensity(Transform):
             - ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
 
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         mask_data = self.mask_data if mask_data is None else mask_data
         if mask_data is None:
             raise ValueError("must provide the mask_data when initializing the transform or at runtime.")
+
+        mask_data, *_ = convert_data_type(mask_data, np.ndarray)  # type: ignore
 
         mask_data = np.asarray(self.select_fn(mask_data))
         if mask_data.shape[0] != 1 and mask_data.shape[0] != img.shape[0]:
@@ -936,7 +942,7 @@ class SavitzkyGolaySmooth(Transform):
             or ``'circular'``. Default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, window_length: int, order: int, axis: int = 1, mode: str = "zeros"):
 
@@ -1000,6 +1006,7 @@ class DetectEnvelope(Transform):
             np.ndarray containing envelope of data in img along the specified axis.
 
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         # add one to transform axis because a batch axis will be added at dimension 0
         hilbert_transform = HilbertTransform(self.axis + 1, self.n)
         # convert to Tensor and add Batch axis expected by HilbertTransform
@@ -1026,6 +1033,7 @@ class GaussianSmooth(Transform):
         self.approx = approx
 
     def __call__(self, img: np.ndarray):
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma, approx=self.approx)
         input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
         return gaussian_filter(input_data).squeeze(0).detach().numpy()
@@ -1070,6 +1078,7 @@ class RandGaussianSmooth(RandomizableTransform):
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
 
     def __call__(self, img: np.ndarray):
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize()
         if not self._do_transform:
             return img
@@ -1117,6 +1126,7 @@ class GaussianSharpen(Transform):
         self.approx = approx
 
     def __call__(self, img: np.ndarray):
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         gaussian_filter1 = GaussianFilter(img.ndim - 1, self.sigma1, approx=self.approx)
         gaussian_filter2 = GaussianFilter(img.ndim - 1, self.sigma2, approx=self.approx)
         input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
@@ -1183,6 +1193,7 @@ class RandGaussianSharpen(RandomizableTransform):
         self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
 
     def __call__(self, img: np.ndarray):
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize()
         if not self._do_transform:
             return img
@@ -1227,6 +1238,7 @@ class RandHistogramShift(RandomizableTransform):
             )
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize()
         if not self._do_transform:
             return img
@@ -1713,6 +1725,7 @@ class RandCoarseTransform(RandomizableTransform):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def __call__(self, img: np.ndarray):
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize(img.shape[1:])
         if self._do_transform:
             img = self._transform_holes(img=img)
@@ -1871,6 +1884,7 @@ class HistogramNormalize(Transform):
         self.dtype = dtype
 
     def __call__(self, img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         return equalize_hist(
             img=img,
             mask=mask if mask is not None else self.mask,
