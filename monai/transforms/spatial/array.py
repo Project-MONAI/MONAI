@@ -645,7 +645,8 @@ class Zoom(Transform):
             zoomed = padder(zoomed)
             zoomed = zoomed[tuple(slice_vec)]
 
-        return zoomed
+        out, *_ = convert_to_dst_type(zoomed, dst=img)
+        return out
 
 
 class Rotate90(Transform):
