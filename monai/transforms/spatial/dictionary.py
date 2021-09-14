@@ -1357,7 +1357,7 @@ class Rotated(MapTransform, InvertibleTransform):
             img_t: torch.Tensor
             img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)  # type: ignore
             transform_t: torch.Tensor
-            transform_t = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
+            transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
 
             output = xform(
                 img_t.unsqueeze(0),
