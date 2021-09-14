@@ -794,7 +794,9 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         # change image size or do random transform
         do_resampling = self._do_transform or (sp_size != ensure_tuple(data[self.keys[0]].shape[1:]))
 
-        affine = np.eye(len(sp_size) + 1)
+        affine = torch.as_tensor(
+            np.eye(len(sp_size) + 1), dtype=torch.float64, device=self.rand_affine.resampler.device
+        )
         grid = None
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
