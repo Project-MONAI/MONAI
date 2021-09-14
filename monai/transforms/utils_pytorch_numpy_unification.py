@@ -65,10 +65,34 @@ def clip(a: NdarrayOrTensor, a_min, a_max) -> NdarrayOrTensor:
 
 
 def percentile(x: NdarrayOrTensor, q):
-    """`np.percentile` with equivalent implementation for torch."""
+    """`np.percentile` with equivalent implementation for torch.
+
+    Pytorch uses `quantile`, but this functionality is only available from v1.7.
+    For earlier methods, we calculate it ourselves. This doesn't do interpolation,
+    so is the equivalent of ``numpy.percentile(..., interpolation="nearest")``.
+
+    Args:
+        x: input data
+        q: percentile to compute (must be between 0 and 100 inclusive)
+
+    Returns:
+        Resulting value (scalar)
+    """
+    if any(q < 0) or any(q > 100):
+        raise ValueError
+
     result: NdarrayOrTensor
     if isinstance(x, np.ndarray):
         result = np.percentile(x, q)
     else:
-        result = torch.quantile(x, q / 100.0)
+        if hasattr(torch, "quantile"):
+            result = torch.quantile(x, q / 100.0)
+        else:
+            # Note that ``kthvalue()`` works one-based, i.e., the first sorted value
+            # corresponds to k=1, not k=0. Thus, we need the `1 +`.
+            q = torch.tensor(q, device=x.device)
+            k = (1 + (0.01 * q * (x.numel() - 1)).round().int()).tolist()
+            r = [x.view(-1).kthvalue(_k).values.item() for _k in k]
+            result = torch.tensor(r, device=x.device)
+
     return result
