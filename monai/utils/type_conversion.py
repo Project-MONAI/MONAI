@@ -170,14 +170,7 @@ def convert_to_cupy(data, dtype, wrap_sequence: bool = True):
     """
 
     # direct calls
-    if isinstance(data, cp_ndarray):
-        if dtype is not None:
-            data = data.astype(dtype)
-    elif isinstance(data, np.ndarray):
-        data = cp.asarray(data, dtype)
-    elif isinstance(data, torch.Tensor):
-        data = cp.asarray(data, dtype)
-    elif isinstance(data, (float, int, bool)):
+    if isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool)):
         data = cp.asarray(data, dtype)
     # recursive calls
     elif isinstance(data, Sequence) and wrap_sequence:
@@ -248,7 +241,7 @@ def convert_data_type(
     elif has_cp and output_type is cp.ndarray:
         if orig_type is not cp.ndarray:
             data = convert_to_cupy(data, dtype)
-        elif data is not None and dtype != data.dtype:
+        elif data is not None:
             data = data.astype(dtype)
     else:
         raise ValueError(f"Unsupported output type: {output_type}")
