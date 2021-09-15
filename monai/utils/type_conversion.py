@@ -239,10 +239,9 @@ def convert_data_type(
         if data is not None and dtype != data.dtype:
             data = data.astype(dtype)
     elif has_cp and output_type is cp.ndarray:
-        if orig_type is not cp.ndarray:
+        if data is not None:
             data = convert_to_cupy(data, dtype)
-        elif data is not None:
-            data = data.astype(dtype)
+
     else:
         raise ValueError(f"Unsupported output type: {output_type}")
     return data, orig_type, orig_device
