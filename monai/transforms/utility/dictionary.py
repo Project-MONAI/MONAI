@@ -17,6 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
+import re
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
@@ -637,8 +638,41 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sep: str = ".",
+        use_re: Union[Sequence[bool], bool] = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to delete, can be "A{sep}B{sep}C"
+                to delete key `C` in nested dictionary, `C` can be regular expression.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            sep: the separator tag to define nested dictionary keys, default to ".".
+            use_re: whether the specified key is a regular expression, it also can be
+                a list of bool values, map the to keys.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.sep = sep
+        self.use_re = ensure_tuple_rep(use_re, len(self.keys))
+
     def __call__(self, data):
-        return {key: val for key, val in data.items() if key not in self.key_iterator(data)}
+        def _delete_item(keys, d, use_re: bool = False):
+            key = keys[0]
+            if len(keys) > 1:
+                d[key] = _delete_item(keys[1:], d[key], use_re)
+                return d
+            else:
+                return {k: v for k, v in d.items() if (use_re and not re.search(key, k)) or (not use_re and k != key)}
+
+        d = dict(data)
+        for key, use_re in zip(self.keys, self.use_re):
+            d = _delete_item(key.split(self.sep), d, use_re)
+
+        return d
 
 
 class SelectItemsd(MapTransform):
