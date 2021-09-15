@@ -31,7 +31,7 @@ class TestToNumpy(unittest.TestCase):
         result = ToNumpy()(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        assert_allclose(result, test_data.get())
+        assert_allclose(result, test_data.get(), type_test=False)
 
     def test_numpy_input(self):
         test_data = np.array([[1, 2], [3, 4]])
@@ -41,7 +41,7 @@ class TestToNumpy(unittest.TestCase):
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.dtype == np.float32)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        assert_allclose(result, test_data)
+        assert_allclose(result, test_data, type_test=False)
 
     def test_tensor_input(self):
         test_data = torch.tensor([[1, 2], [3, 4]])
@@ -50,7 +50,7 @@ class TestToNumpy(unittest.TestCase):
         result = ToNumpy()(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        assert_allclose(result, test_data)
+        assert_allclose(result, test_data, type_test=False)
 
     @skip_if_no_cuda
     def test_tensor_cuda_input(self):
@@ -60,21 +60,21 @@ class TestToNumpy(unittest.TestCase):
         result = ToNumpy()(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        assert_allclose(result, test_data)
+        assert_allclose(result, test_data, type_test=False)
 
     def test_list_tuple(self):
         test_data = [[1, 2], [3, 4]]
         result = ToNumpy()(test_data)
-        assert_allclose(result, np.asarray(test_data))
+        assert_allclose(result, np.asarray(test_data), type_test=False)
         test_data = ((1, 2), (3, 4))
         result = ToNumpy()(test_data)
-        assert_allclose(result, np.asarray(test_data))
+        assert_allclose(result, np.asarray(test_data), type_test=False)
 
     def test_single_value(self):
         for test_data in [5, np.array(5), torch.tensor(5)]:
             result = ToNumpy()(test_data)
             self.assertTrue(isinstance(result, np.ndarray))
-            assert_allclose(result, np.asarray(test_data))
+            assert_allclose(result, np.asarray(test_data), type_test=False)
             self.assertEqual(result.ndim, 0)
 
 

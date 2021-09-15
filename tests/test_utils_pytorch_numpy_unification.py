@@ -32,7 +32,7 @@ class TestPytorchNumpyUnification(unittest.TestCase):
                 # pre torch 1.7, no `quantile`. Our own method doesn't interpolate,
                 # so we can only be accurate to 0.5
                 atol = 0.5 if not hasattr(torch, "quantile") else 1e-4
-                assert_allclose(results[0], results[-1], atol=atol)
+                assert_allclose(results[0], results[-1], type_test=False, atol=atol)
 
     def test_fails(self):
         for p in TEST_NDARRAYS:

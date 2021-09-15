@@ -820,10 +820,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             if do_resampling:
                 d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
 
-            # if not doing transform and spatial size is unchanged, only need to do convert to torch
-            else:
-                d[key], *_ = convert_data_type(d[key], torch.Tensor, dtype=torch.float32, device=device)
-
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1442,10 +1438,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.randomize()
         d = dict(data)
         angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
-        rotator = Rotate(
-            angle=angle,
-            keep_size=self.keep_size,
-        )
+        rotator = Rotate(angle=angle, keep_size=self.keep_size)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
@@ -1460,7 +1453,6 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
                 rot_mat = rotator.get_rotation_matrix()
             else:
-                d[key], *_ = convert_data_type(d[key], torch.Tensor)
                 rot_mat = np.eye(d[key].ndim)
             self.push_transform(
                 d,
