@@ -16,6 +16,7 @@ __all__ = [
     "get_equivalent_dtype",
     "convert_data_type",
     "get_dtype",
+    "convert_to_cupy",
     "convert_to_numpy",
     "convert_to_tensor",
     "convert_to_dst_type",
@@ -154,6 +155,42 @@ def convert_to_numpy(data, wrap_sequence: bool = False):
     return data
 
 
+def convert_to_cupy(data, dtype, wrap_sequence: bool = True):
+    """
+    Utility to convert the input data to a cupy array. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to cupy array.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, cupy array, list, dictionary, int, float, bool, str, etc.
+            Tensor, numpy array, cupy array, float, int, bool are converted to cupy arrays
+
+            for dictionary, list or tuple, convert every item to a numpy array if applicable.
+        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
+            If `True`, then `[1, 2]` -> `array([1, 2])`.
+    """
+
+    # direct calls
+    if isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool)):
+        data = cp.asarray(data, dtype)
+    # recursive calls
+    elif isinstance(data, Sequence) and wrap_sequence:
+        return cp.asarray(data, dtype)
+    elif isinstance(data, list):
+        return [convert_to_cupy(i, dtype) for i in data]
+    elif isinstance(data, tuple):
+        return tuple(convert_to_cupy(i, dtype) for i in data)
+    elif isinstance(data, dict):
+        return {k: convert_to_cupy(v, dtype) for k, v in data.items()}
+    # make it contiguous
+    if isinstance(data, cp.ndarray):
+        if data.ndim > 0:
+            data = cp.ascontiguousarray(data)
+    else:
+        raise ValueError(f"The input data type [{type(data)}] cannot be converted into cupy arrays!")
+
+    return data
+
+
 def convert_data_type(
     data: Any,
     output_type: Optional[type] = None,
@@ -178,6 +215,8 @@ def convert_data_type(
         orig_type = torch.Tensor
     elif isinstance(data, np.ndarray):
         orig_type = np.ndarray
+    elif has_cp and isinstance(data, cp.ndarray):
+        orig_type = cp.ndarray
     else:
         orig_type = type(data)
 
@@ -199,6 +238,10 @@ def convert_data_type(
             data = convert_to_numpy(data)
         if data is not None and dtype != data.dtype:
             data = data.astype(dtype)
+    elif has_cp and output_type is cp.ndarray:
+        if data is not None:
+            data = convert_to_cupy(data, dtype)
+
     else:
         raise ValueError(f"Unsupported output type: {output_type}")
     return data, orig_type, orig_device
