@@ -34,6 +34,7 @@ from monai.transforms.utils import (
 from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
 from monai.utils import (
     convert_data_type,
+    convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
