@@ -1138,7 +1138,7 @@ class CuCIM(Transform):
     def __call__(self, data):
         """
         Args:
-            img: a CuPy array (`cupy.ndarray`) for the cuCIM transform
+            data: a CuPy array (`cupy.ndarray`) for the cuCIM transform
 
         Returns:
             `cupy.ndarray`
@@ -1177,7 +1177,7 @@ class RandCuCIM(CuCIM, RandomizableTransform):
     def __call__(self, data):
         """
         Args:
-            img: a CuPy array (`cupy.ndarray`) for the cuCIM transform
+            data: a CuPy array (`cupy.ndarray`) for the cuCIM transform
 
         Returns:
             `cupy.ndarray`
