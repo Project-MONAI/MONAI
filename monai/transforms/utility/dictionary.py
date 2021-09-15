@@ -643,7 +643,6 @@ class DeleteItemsd(MapTransform):
         keys: KeysCollection,
         sep: str = ".",
         use_re: Union[Sequence[bool], bool] = False,
-        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -653,9 +652,8 @@ class DeleteItemsd(MapTransform):
             sep: the separator tag to define nested dictionary keys, default to ".".
             use_re: whether the specified key is a regular expression, it also can be
                 a list of bool values, map the to keys.
-            allow_missing_keys: don't raise exception if key is missing.
         """
-        super().__init__(keys, allow_missing_keys)
+        super().__init__(keys)
         self.sep = sep
         self.use_re = ensure_tuple_rep(use_re, len(self.keys))
 
