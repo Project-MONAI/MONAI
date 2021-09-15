@@ -471,7 +471,7 @@ class Rotate(Transform, ThreadUnsafe):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: Union[DtypeLike, torch.dtype] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
@@ -526,13 +526,11 @@ class Rotate(Transform, ThreadUnsafe):
             align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
-        output: torch.Tensor = xform(
-            img_t.unsqueeze(0),
-            transform_t,
-            spatial_size=output_shape,
-        )
+        output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).squeeze(0)
         self._rotation_matrix = transform
-        return output.squeeze(0).detach().float()
+        out: NdarrayOrTensor
+        out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
+        return out
 
     def get_rotation_matrix(self) -> Optional[np.ndarray]:
         """
@@ -799,7 +797,7 @@ class RandRotate(RandomizableTransform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: Union[DtypeLike, torch.dtype] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).

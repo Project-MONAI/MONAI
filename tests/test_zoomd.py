@@ -27,22 +27,18 @@ class TestZoomd(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, zoom, mode, keep_size):
         key = "img"
-        zoom_fn = Zoomd(
-            key,
-            zoom=zoom,
-            mode=mode,
-            keep_size=keep_size,
-        )
+        zoom_fn = Zoomd(key, zoom=zoom, mode=mode, keep_size=keep_size)
         for p in TEST_NDARRAYS:
             zoomed = zoom_fn({key: p(self.imt[0])})
             _order = 0
             if mode.endswith("linear"):
                 _order = 1
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(zoom_scipy(channel, zoom=zoom, mode="nearest", order=_order, prefilter=False))
+            expected = [
+                zoom_scipy(channel, zoom=zoom, mode="nearest", order=_order, prefilter=False) for channel in self.imt[0]
+            ]
+
             expected = np.stack(expected).astype(np.float32)
-            assert_allclose(expected, zoomed[key], atol=1.0)
+            assert_allclose(zoomed[key], p(expected), atol=1.0)
 
     def test_keep_size(self):
         key = "img"

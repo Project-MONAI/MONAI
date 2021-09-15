@@ -91,7 +91,7 @@ class TestNormalizeIntensity(NumpyImageTestCase2D):
             self.assertEqual(im.device, normalized.device)
         self.assertTrue(normalized.dtype in (np.float32, torch.float32))
         expected = (self.imt - np.mean(self.imt)) / np.std(self.imt)
-        assert_allclose(expected, normalized, rtol=1e-3)
+        assert_allclose(expected, normalized, type_test=False, rtol=1e-3)
 
     @parameterized.expand(TESTS)
     def test_nonzero(self, in_type, input_param, input_data, expected_data):
@@ -101,7 +101,7 @@ class TestNormalizeIntensity(NumpyImageTestCase2D):
         self.assertEqual(type(im), type(normalized))
         if isinstance(normalized, torch.Tensor):
             self.assertEqual(im.device, normalized.device)
-        assert_allclose(expected_data, normalized)
+        assert_allclose(expected_data, normalized, type_test=False)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_channel_wise(self, im_type):
@@ -112,7 +112,7 @@ class TestNormalizeIntensity(NumpyImageTestCase2D):
         self.assertEqual(type(input_data), type(normalized))
         if isinstance(normalized, torch.Tensor):
             self.assertEqual(input_data.device, normalized.device)
-        assert_allclose(expected, normalized)
+        assert_allclose(expected, normalized, type_test=False)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_value_errors(self, im_type):

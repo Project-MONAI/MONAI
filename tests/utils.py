@@ -60,7 +60,7 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
 def assert_allclose(
     actual: NdarrayOrTensor,
     desired: NdarrayOrTensor,
-    type_test: bool = False,
+    type_test: bool = True,
     device_test: bool = False,
     *args,
     **kwargs,
@@ -80,12 +80,12 @@ def assert_allclose(
     """
     if type_test:
         # check both actual and desired are of the same type
-        np.testing.assert_equal(isinstance(actual, np.ndarray), isinstance(desired, np.ndarray))
-        np.testing.assert_equal(isinstance(actual, torch.Tensor), isinstance(desired, torch.Tensor))
+        np.testing.assert_equal(isinstance(actual, np.ndarray), isinstance(desired, np.ndarray), "numpy type")
+        np.testing.assert_equal(isinstance(actual, torch.Tensor), isinstance(desired, torch.Tensor), "torch type")
 
     if isinstance(desired, torch.Tensor):
         if device_test:
-            np.testing.assert_equal(str(actual.device), str(desired.device))  # type: ignore
+            np.testing.assert_equal(str(actual.device), str(desired.device), "torch device check")  # type: ignore
         actual = actual.cpu().numpy() if isinstance(actual, torch.Tensor) else actual
         desired = desired.cpu().numpy()
     np.testing.assert_allclose(actual, desired, *args, **kwargs)
