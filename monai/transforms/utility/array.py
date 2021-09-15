@@ -334,11 +334,15 @@ class ToTensor(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
+    def __init__(self, device: Optional[torch.device] = None) -> None:
+        super().__init__()
+        self.device = device
+
     def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_tensor(img, wrap_sequence=True)  # type: ignore
+        return convert_to_tensor(img, wrap_sequence=True, device=self.device)  # type: ignore
 
 
 class EnsureType(Transform):
@@ -350,19 +354,17 @@ class EnsureType(Transform):
 
     Args:
         data_type: target data type to convert, should be "tensor" or "numpy".
+        device: for Tensor data type, specify the target device.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, data_type: str = "tensor") -> None:
-        data_type = data_type.lower()
-        if data_type not in ("tensor", "numpy"):
-            raise ValueError("`data type` must be 'tensor' or 'numpy'.")
+    def __init__(self, data_type: str = "tensor", device: Optional[torch.device] = None) -> None:
+        self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
+        self.device = device
 
-        self.data_type = data_type
-
-    def __call__(self, data: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, data: NdarrayOrTensor):
         """
         Args:
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
@@ -371,7 +373,7 @@ class EnsureType(Transform):
                 if applicable.
 
         """
-        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)  # type: ignore
+        return convert_to_tensor(data, device=self.device) if self.data_type == "tensor" else convert_to_numpy(data)
 
 
 class ToNumpy(Transform):
@@ -399,8 +401,6 @@ class ToCupy(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()
         return cp.ascontiguousarray(cp.asarray(img))  # type: ignore
 
 
@@ -777,6 +777,9 @@ class FgBgToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+        if image is not None:
+            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
         if output_shape is None:
             output_shape = self.output_shape
         fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
@@ -826,6 +829,10 @@ class ClassesToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+        if image is not None:
+            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
+
         if output_shape is None:
             output_shape = self.output_shape
         indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
@@ -846,6 +853,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         # if img has channel dim, squeeze it
         if img.ndim == 4 and img.shape[0] == 1:
             img = np.squeeze(img, axis=0)
@@ -912,6 +920,9 @@ class AddExtremePointsChannel(Randomizable, Transform):
         if label.shape[0] != 1:
             raise ValueError("Only supports single channel labels!")
 
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+
         # Generate extreme points
         self.randomize(label[0, :])
 
@@ -948,6 +959,7 @@ class TorchVision:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
+        img, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         return self.trans(img)
 
 
@@ -978,7 +990,7 @@ class MapLabelValue:
         self.dtype = dtype
 
     def __call__(self, img: np.ndarray):
-        img = np.asarray(img)
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         img_flat = img.flatten()
         try:
             out_flat = np.copy(img_flat).astype(self.dtype)
@@ -1034,6 +1046,7 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if meta_data is None:
             meta_data = {}
 

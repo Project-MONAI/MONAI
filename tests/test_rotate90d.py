@@ -14,49 +14,53 @@ import unittest
 import numpy as np
 
 from monai.transforms import Rotate90d
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRotate90d(NumpyImageTestCase2D):
     def test_rotate90_default(self):
         key = "test"
         rotate = Rotate90d(keys=key)
-        rotated = rotate({key: self.imt[0]})
-        expected = []
-        for channel in self.imt[0]:
-            expected.append(np.rot90(channel, 1, (0, 1)))
-        expected = np.stack(expected)
-        self.assertTrue(np.allclose(rotated[key], expected))
+        for p in TEST_NDARRAYS:
+            rotated = rotate({key: p(self.imt[0])})
+            expected = []
+            for channel in self.imt[0]:
+                expected.append(np.rot90(channel, 1, (0, 1)))
+            expected = np.stack(expected)
+            assert_allclose(rotated[key], expected)
 
     def test_k(self):
         key = None
         rotate = Rotate90d(keys=key, k=2)
-        rotated = rotate({key: self.imt[0]})
-        expected = []
-        for channel in self.imt[0]:
-            expected.append(np.rot90(channel, 2, (0, 1)))
-        expected = np.stack(expected)
-        self.assertTrue(np.allclose(rotated[key], expected))
+        for p in TEST_NDARRAYS:
+            rotated = rotate({key: p(self.imt[0])})
+            expected = []
+            for channel in self.imt[0]:
+                expected.append(np.rot90(channel, 2, (0, 1)))
+            expected = np.stack(expected)
+            assert_allclose(rotated[key], expected)
 
     def test_spatial_axes(self):
         key = "test"
         rotate = Rotate90d(keys=key, spatial_axes=(0, 1))
-        rotated = rotate({key: self.imt[0]})
-        expected = []
-        for channel in self.imt[0]:
-            expected.append(np.rot90(channel, 1, (0, 1)))
-        expected = np.stack(expected)
-        self.assertTrue(np.allclose(rotated[key], expected))
+        for p in TEST_NDARRAYS:
+            rotated = rotate({key: p(self.imt[0])})
+            expected = []
+            for channel in self.imt[0]:
+                expected.append(np.rot90(channel, 1, (0, 1)))
+            expected = np.stack(expected)
+            assert_allclose(rotated[key], expected)
 
     def test_prob_k_spatial_axes(self):
         key = "test"
         rotate = Rotate90d(keys=key, k=2, spatial_axes=(0, 1))
-        rotated = rotate({key: self.imt[0]})
-        expected = []
-        for channel in self.imt[0]:
-            expected.append(np.rot90(channel, 2, (0, 1)))
-        expected = np.stack(expected)
-        self.assertTrue(np.allclose(rotated[key], expected))
+        for p in TEST_NDARRAYS:
+            rotated = rotate({key: p(self.imt[0])})
+            expected = []
+            for channel in self.imt[0]:
+                expected.append(np.rot90(channel, 2, (0, 1)))
+            expected = np.stack(expected)
+            assert_allclose(rotated[key], expected)
 
     def test_no_key(self):
         key = "unknown"

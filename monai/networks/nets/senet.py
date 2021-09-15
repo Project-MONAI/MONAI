@@ -192,7 +192,7 @@ class SENet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = Convolution(
-                dimensions=self.spatial_dims,
+                spatial_dims=self.spatial_dims,
                 in_channels=self.inplanes,
                 out_channels=planes * block.expansion,
                 strides=stride,
