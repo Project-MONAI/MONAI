@@ -1131,8 +1131,9 @@ class CuCIM(Transform):
 
     def __init__(self, name: str, *args, **kwargs) -> None:
         super().__init__()
-        transform, _ = optional_import("cucim.core.operations.expose.transform", name=name)
-        self.trans = transform(*args, **kwargs)
+        self.transform, _ = optional_import("cucim.core.operations.expose.transform", name=name)
+        self.args = args
+        self.kwargs = kwargs
 
     def __call__(self, data):
         """
@@ -1143,7 +1144,7 @@ class CuCIM(Transform):
             `cupy.ndarray`
 
         """
-        return self.trans(data)
+        return self.transform(data, *self.args, **self.kwargs)
 
 
 class RandCuCIM(CuCIM, RandomizableTransform):
