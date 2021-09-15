@@ -71,8 +71,8 @@ def assert_allclose(actual: NdarrayOrTensor, desired: NdarrayOrTensor, device_te
     if isinstance(desired, torch.Tensor):
         np.testing.assert_equal(isinstance(actual, torch.Tensor), True)
         if device_test:
-            np.testing.assert_equal(str(actual.device), str(desired.device))
-        actual = actual.cpu().numpy()
+            np.testing.assert_equal(str(actual.device), str(desired.device))  # type: ignore
+        actual = actual.cpu().numpy()  # type: ignore
         desired = desired.cpu().numpy()
     np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
