@@ -37,8 +37,9 @@ class TestToNumpy(unittest.TestCase):
         test_data = np.array([[1, 2], [3, 4]])
         test_data = np.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
-        result = ToNumpy()(test_data)
+        result = ToNumpy(dtype="float32")(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.dtype == np.float32)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         assert_allclose(result, test_data, type_test=False)
 

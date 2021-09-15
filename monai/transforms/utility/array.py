@@ -33,17 +33,18 @@ from monai.transforms.utils import (
 )
 from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
 from monai.utils import (
+    convert_data_type,
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
+    get_equivalent_dtype,
     look_up_option,
     min_version,
     optional_import,
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_data_type
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -342,15 +343,16 @@ class ToTensor(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, device: Optional[torch.device] = None) -> None:
+    def __init__(self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None) -> None:
         super().__init__()
+        self.dtype = dtype
         self.device = device
 
     def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_tensor(img, wrap_sequence=True, device=self.device)  # type: ignore
+        return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=True)  # type: ignore
 
 
 class EnsureType(Transform):
@@ -362,14 +364,21 @@ class EnsureType(Transform):
 
     Args:
         data_type: target data type to convert, should be "tensor" or "numpy".
+        dtype: target data content type to convert, for example: np.float32, torch.float, etc.
         device: for Tensor data type, specify the target device.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, data_type: str = "tensor", device: Optional[torch.device] = None) -> None:
+    def __init__(
+        self,
+        data_type: str = "tensor",
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        device: Optional[torch.device] = None,
+    ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
+        self.dtype = dtype
         self.device = device
 
     def __call__(self, data: NdarrayOrTensor):
@@ -381,7 +390,12 @@ class EnsureType(Transform):
                 if applicable.
 
         """
-        return convert_to_tensor(data, device=self.device) if self.data_type == "tensor" else convert_to_numpy(data)
+        if self.data_type == "tensor":
+            dtype_ = get_equivalent_dtype(self.dtype, torch.Tensor)
+            return convert_to_tensor(data, dtype=dtype_, device=self.device)
+        else:
+            dtype_ = get_equivalent_dtype(self.dtype, np.ndarray)
+            return convert_to_numpy(data, dtype=dtype_)
 
 
 class ToNumpy(Transform):
@@ -391,11 +405,15 @@ class ToNumpy(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
+    def __init__(self, dtype: Optional[DtypeLike] = None) -> None:
+        super().__init__()
+        self.dtype = dtype
+
     def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_numpy(img)  # type: ignore
+        return convert_to_numpy(img, dtype=self.dtype)  # type: ignore
 
 
 class ToCupy(Transform):
