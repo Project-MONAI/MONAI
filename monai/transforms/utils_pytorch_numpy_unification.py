@@ -15,6 +15,7 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.utils.misc import is_module_ver_at_least
 
 __all__ = [
     "moveaxis",
@@ -22,6 +23,9 @@ __all__ = [
     "clip",
     "percentile",
     "where",
+    "nonzero",
+    "floor_divide",
+    "unravel_index",
 ]
 
 
@@ -119,3 +123,57 @@ def where(condition: NdarrayOrTensor, x, y) -> NdarrayOrTensor:
         y = torch.as_tensor(y, device=condition.device, dtype=x.dtype)
         result = torch.where(condition, x, y)
     return result
+
+
+def nonzero(x: NdarrayOrTensor):
+    """`np.nonzero` with equivalent implementation for torch.
+
+    Args:
+        idx: array/tensor
+
+    Returns:
+        Index unravelled for given shape
+    """
+    if isinstance(x, np.ndarray):
+        return np.nonzero(x)[0]
+    return torch.nonzero(x).flatten()
+
+
+def floor_divide(a: NdarrayOrTensor, b) -> NdarrayOrTensor:
+    """`np.floor_divide` with equivalent implementation for torch.
+
+    As of pt1.8, use `torch.div(..., rounding_mode="floor")`, and
+    before that, use `torch.floor_divide`.
+
+    Args:
+        a: first array/tensor
+        b: scalar to divide by
+
+    Returns:
+        Element-wise floor division between two arrays/tensors.
+    """
+    if isinstance(a, torch.Tensor):
+        if is_module_ver_at_least(torch, (1, 8, 0)):
+            return torch.div(a, b, rounding_mode="floor")
+        return torch.floor_divide(a, b)
+    else:
+        return np.floor_divide(a, b)
+
+
+def unravel_index(idx, shape):
+    """`np.unravel_index` with equivalent implementation for torch.
+
+    Args:
+        idx: index to unravel
+        b: shape of array/tensor
+
+    Returns:
+        Index unravelled for given shape
+    """
+    if isinstance(idx, torch.Tensor):
+        coord = []
+        for dim in reversed(shape):
+            coord.insert(0, idx % dim)
+            idx = floor_divide(idx, dim)
+        return torch.stack(coord)
+    return np.unravel_index(np.asarray(idx, dtype=int), shape)

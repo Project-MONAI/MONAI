@@ -26,6 +26,7 @@ from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform
+from monai.transforms.utils_pytorch_numpy_unification import nonzero, unravel_index
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -261,10 +262,10 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
 
 
 def map_binary_to_indices(
-    label: np.ndarray,
-    image: Optional[np.ndarray] = None,
+    label: NdarrayOrTensor,
+    image: Optional[NdarrayOrTensor] = None,
     image_threshold: float = 0.0,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Compute the foreground and background of input label data, return the indices after fattening.
     For example:
@@ -277,28 +278,31 @@ def map_binary_to_indices(
             to define background. so the output items will not map to all the voxels in the label.
         image_threshold: if enabled `image`, use ``image > image_threshold`` to
             determine the valid image content area and select background only in this area.
-
     """
+
     # Prepare fg/bg indices
     if label.shape[0] > 1:
         label = label[1:]  # for One-Hot format data, remove the background channel
-    label_flat = np.any(label, axis=0).ravel()  # in case label has multiple dimensions
-    fg_indices = np.nonzero(label_flat)[0]
+    label_flat = label.any(0).ravel()  # in case label has multiple dimensions
+    fg_indices = nonzero(label_flat)
     if image is not None:
-        img_flat = np.any(image > image_threshold, axis=0).ravel()
-        bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
+        img_flat = (image > image_threshold).any(0).ravel()
+        img_flat, *_ = convert_data_type(
+            img_flat, type(label), device=label.device if isinstance(label, torch.Tensor) else None
+        )
+        bg_indices = nonzero(img_flat & ~label_flat)
     else:
-        bg_indices = np.nonzero(~label_flat)[0]
+        bg_indices = nonzero(~label_flat)
 
     return fg_indices, bg_indices
 
 
 def map_classes_to_indices(
-    label: np.ndarray,
+    label: NdarrayOrTensor,
     num_classes: Optional[int] = None,
-    image: Optional[np.ndarray] = None,
+    image: Optional[NdarrayOrTensor] = None,
     image_threshold: float = 0.0,
-) -> List[np.ndarray]:
+) -> List[NdarrayOrTensor]:
     """
     Filter out indices of every class of the input label data, return the indices after fattening.
     It can handle both One-Hot format label and Argmax format label, must provide `num_classes` for
@@ -318,11 +322,11 @@ def map_classes_to_indices(
             determine the valid image content area and select class indices only in this area.
 
     """
-    img_flat: Optional[np.ndarray] = None
+    img_flat: Optional[NdarrayOrTensor] = None
     if image is not None:
-        img_flat = np.any(image > image_threshold, axis=0).ravel()
+        img_flat = (image > image_threshold).any(0).ravel()
 
-    indices: List[np.ndarray] = []
+    indices: List[NdarrayOrTensor] = []
     # assuming the first dimension is channel
     channels = len(label)
 
@@ -333,9 +337,9 @@ def map_classes_to_indices(
         num_classes_ = num_classes
 
     for c in range(num_classes_):
-        label_flat = np.any(label[c : c + 1] if channels > 1 else label == c, axis=0).ravel()
-        label_flat = np.logical_and(img_flat, label_flat) if img_flat is not None else label_flat
-        indices.append(np.nonzero(label_flat)[0])
+        label_flat = (label[c : c + 1] if channels > 1 else label == c).any(0).ravel()
+        label_flat = img_flat & label_flat if img_flat is not None else label_flat
+        indices.append(nonzero(label_flat))
 
     return indices
 
@@ -385,8 +389,8 @@ def weighted_patch_samples(
 
 
 def correct_crop_centers(
-    centers: List[np.ndarray], spatial_size: Union[Sequence[int], int], label_spatial_shape: Sequence[int]
-) -> List[np.ndarray]:
+    centers: List[NdarrayOrTensor], spatial_size: Union[Sequence[int], int], label_spatial_shape: Sequence[int]
+) -> List[NdarrayOrTensor]:
     """
     Utility to correct the crop center if the crop size is bigger than the image size.
 
@@ -427,10 +431,10 @@ def generate_pos_neg_label_crop_centers(
     num_samples: int,
     pos_ratio: float,
     label_spatial_shape: Sequence[int],
-    fg_indices: np.ndarray,
-    bg_indices: np.ndarray,
+    fg_indices: NdarrayOrTensor,
+    bg_indices: NdarrayOrTensor,
     rand_state: Optional[np.random.RandomState] = None,
-) -> List[List[np.ndarray]]:
+) -> List[List[NdarrayOrTensor]]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -453,11 +457,12 @@ def generate_pos_neg_label_crop_centers(
         rand_state = np.random.random.__self__  # type: ignore
 
     centers = []
-    fg_indices, bg_indices = np.asarray(fg_indices), np.asarray(bg_indices)
-    if fg_indices.size == 0 and bg_indices.size == 0:
+    fg_indices = np.asarray(fg_indices) if isinstance(fg_indices, Sequence) else fg_indices
+    bg_indices = np.asarray(bg_indices) if isinstance(bg_indices, Sequence) else bg_indices
+    if len(fg_indices) == 0 and len(bg_indices) == 0:
         raise ValueError("No sampling location available.")
 
-    if fg_indices.size == 0 or bg_indices.size == 0:
+    if len(fg_indices) == 0 or len(bg_indices) == 0:
         warnings.warn(
             f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
             "unable to generate class balanced samples."
@@ -467,7 +472,8 @@ def generate_pos_neg_label_crop_centers(
     for _ in range(num_samples):
         indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
         random_int = rand_state.randint(len(indices_to_use))
-        center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
+        idx = indices_to_use[random_int]
+        center = unravel_index(idx, label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
         centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
@@ -479,10 +485,10 @@ def generate_label_classes_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
     label_spatial_shape: Sequence[int],
-    indices: List[np.ndarray],
+    indices: Sequence[NdarrayOrTensor],
     ratios: Optional[List[Union[float, int]]] = None,
     rand_state: Optional[np.random.RandomState] = None,
-) -> List[List[np.ndarray]]:
+) -> List[List[NdarrayOrTensor]]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -508,8 +514,6 @@ def generate_label_classes_crop_centers(
     if any(i < 0 for i in ratios_):
         raise ValueError("ratios should not contain negative number.")
 
-    # ensure indices are numpy array
-    indices = [np.asarray(i) for i in indices]
     for i, array in enumerate(indices):
         if len(array) == 0:
             warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
@@ -521,7 +525,7 @@ def generate_label_classes_crop_centers(
         # randomly select the indices of a class based on the ratios
         indices_to_use = indices[i]
         random_int = rand_state.randint(len(indices_to_use))
-        center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
+        center = unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
         centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
