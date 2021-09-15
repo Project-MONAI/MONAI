@@ -174,7 +174,7 @@ def convert_to_cupy(data, dtype, wrap_sequence: bool = True):
         data = cp.asarray(data, dtype)
     # recursive calls
     elif isinstance(data, Sequence) and wrap_sequence:
-        return cp.asarray(data)
+        return cp.asarray(data, dtype)
     elif isinstance(data, list):
         return [convert_to_cupy(i, dtype) for i in data]
     elif isinstance(data, tuple):
