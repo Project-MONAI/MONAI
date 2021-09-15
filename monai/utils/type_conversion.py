@@ -116,7 +116,8 @@ def convert_to_tensor(
             # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
             return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data), dtype=dtype, device=device)
     elif (
-        has_cp and isinstance(data, cp_ndarray)
+        has_cp
+        and isinstance(data, cp_ndarray)
         or isinstance(data, (float, int, bool))
         or (isinstance(data, Sequence) and wrap_sequence)
     ):
@@ -147,8 +148,8 @@ def convert_to_numpy(data, dtype: Optional[DtypeLike] = None, wrap_sequence: boo
     if isinstance(data, torch.Tensor):
         data = data.detach().to(dtype=get_equivalent_dtype(dtype, torch.Tensor), device="cpu").numpy()
     elif has_cp and isinstance(data, cp_ndarray):
-        data = cp.asnumpy(data)
-    elif isinstance(data, (float, int, bool)) or (isinstance(data, Sequence) and wrap_sequence):
+        data = cp.asnumpy(data).astype(dtype)
+    elif isinstance(data, (np.ndarray, float, int, bool)) or (isinstance(data, Sequence) and wrap_sequence):
         data = np.asarray(data, dtype=dtype)
     elif isinstance(data, list):
         return [convert_to_numpy(i, dtype=dtype) for i in data]
@@ -179,9 +180,8 @@ def convert_to_cupy(data, dtype, wrap_sequence: bool = True):
     """
 
     # direct calls
-    if (
-        isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool))
-        or (isinstance(data, Sequence) and wrap_sequence)
+    if isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool)) or (
+        isinstance(data, Sequence) and wrap_sequence
     ):
         data = cp.asarray(data, dtype)
     elif isinstance(data, list):

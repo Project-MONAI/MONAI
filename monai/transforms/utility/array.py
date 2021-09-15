@@ -410,7 +410,7 @@ class ToNumpy(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_numpy(img, self.dtype)  # type: ignore
+        return convert_to_numpy(img, dtype=self.dtype)  # type: ignore
 
 
 class ToCupy(Transform):
