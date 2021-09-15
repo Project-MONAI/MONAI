@@ -33,7 +33,6 @@ class BertPreTrainedModel(nn.Module):
     Based on:
     LXMERT
     https://github.com/airsplay/lxmert
-
     BERT (pytorch-transformer)
     https://github.com/huggingface/transformers
     """
@@ -51,7 +50,18 @@ class BertPreTrainedModel(nn.Module):
             module.bias.data.zero_()
 
     @classmethod
-    def from_pretrained(cls, state_dict=None, cache_dir=None, from_tf=False, *inputs, **kwargs):
+    def from_pretrained(
+        cls,
+        num_language_layers,
+        num_vision_layers,
+        num_mixed_layers,
+        bert_config,
+        state_dict=None,
+        cache_dir=None,
+        from_tf=False,
+        *inputs,
+        **kwargs,
+    ):
         archive_file = "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased.tar.gz"
         resolved_archive_file = cached_path(archive_file, cache_dir=cache_dir)
         tempdir = None
@@ -62,7 +72,7 @@ class BertPreTrainedModel(nn.Module):
             with tarfile.open(resolved_archive_file, "r:gz") as archive:
                 archive.extractall(tempdir)
             serialization_dir = tempdir
-        model = cls(*inputs, **kwargs)
+        model = cls(num_language_layers, num_vision_layers, num_mixed_layers, bert_config, *inputs, **kwargs)
         if state_dict is None and not from_tf:
             weights_path = os.path.join(serialization_dir, "pytorch_model.bin")
             state_dict = torch.load(weights_path, map_location="cpu" if not torch.cuda.is_available() else None)
@@ -215,50 +225,24 @@ class MultiModal(BertPreTrainedModel):
 
     def __init__(
         self,
-        num_language_layers: int = 2,
-        num_vision_layers: int = 2,
-        num_mixed_layers: int = 2,
+        num_language_layers: int,
+        num_vision_layers: int,
+        num_mixed_layers: int,
+        bert_config: dict,  # type: ignore
     ) -> None:
         """
         Args:
             num_language_layers: number of language transformer layers.
             num_vision_layers: number of vision transformer layers.
-            num_mixed_layers: number of mixed transformer layers.
+            bert_config: configuration for bert language transformer encoder.
+
         """
         super().__init__()
-        bert_config = type(
-            "obj",
-            (object,),
-            {
-                "attention_probs_dropout_prob": 0.1,
-                "classifier_dropout": None,
-                "gradient_checkpointing": False,
-                "hidden_act": "gelu",
-                "hidden_dropout_prob": 0.1,
-                "hidden_size": 768,
-                "initializer_range": 0.02,
-                "intermediate_size": 3072,
-                "layer_norm_eps": 1e-12,
-                "max_position_embeddings": 512,
-                "model_type": "bert",
-                "num_attention_heads": 12,
-                "num_hidden_layers": 12,
-                "pad_token_id": 0,
-                "position_embedding_type": "absolute",
-                "transformers_version": "4.10.2",
-                "type_vocab_size": 2,
-                "use_cache": True,
-                "vocab_size": 30522,
-                "chunk_size_feed_forward": 0,
-                "is_decoder": False,
-                "add_cross_attention": False,
-            },
-        )
-        self.config = bert_config
-        self.embeddings = BertEmbeddings(bert_config)
-        self.language_encoder = nn.ModuleList([BertLayer(bert_config) for _ in range(num_language_layers)])
-        self.vision_encoder = nn.ModuleList([BertLayer(bert_config) for _ in range(num_vision_layers)])
-        self.mixed_encoder = nn.ModuleList([BertMixedLayer(bert_config) for _ in range(num_mixed_layers)])
+        self.config = type("obj", (object,), bert_config)
+        self.embeddings = BertEmbeddings(self.config)
+        self.language_encoder = nn.ModuleList([BertLayer(self.config) for _ in range(num_language_layers)])
+        self.vision_encoder = nn.ModuleList([BertLayer(self.config) for _ in range(num_vision_layers)])
+        self.mixed_encoder = nn.ModuleList([BertMixedLayer(self.config) for _ in range(num_mixed_layers)])
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, vision_feats=None, attention_mask=None):
@@ -282,11 +266,35 @@ class VLTransformers(torch.nn.Module):
         in_channels: int,
         img_size: Union[Sequence[int], int],  # type: ignore
         patch_size: Union[Sequence[int], int],  # type: ignore
-        num_classes: int = 2,
-        num_language_layers: int = 2,
-        num_vision_layers: int = 2,
-        num_mixed_layers: int = 2,
-        drop_out: float = 0.1,
+        num_classes: int,
+        num_language_layers: int,
+        num_vision_layers: int,
+        num_mixed_layers: int,
+        drop_out: float = 0.0,
+        bert_config: dict = {
+            "attention_probs_dropout_prob": 0.1,
+            "classifier_dropout": None,
+            "gradient_checkpointing": False,
+            "hidden_act": "gelu",
+            "hidden_dropout_prob": 0.1,
+            "hidden_size": 768,
+            "initializer_range": 0.02,
+            "intermediate_size": 3072,
+            "layer_norm_eps": 1e-12,
+            "max_position_embeddings": 512,
+            "model_type": "bert",
+            "num_attention_heads": 12,
+            "num_hidden_layers": 12,
+            "pad_token_id": 0,
+            "position_embedding_type": "absolute",
+            "transformers_version": "4.10.2",
+            "type_vocab_size": 2,
+            "use_cache": True,
+            "vocab_size": 30522,
+            "chunk_size_feed_forward": 0,
+            "is_decoder": False,
+            "add_cross_attention": False,
+        },
     ) -> None:
         """
         Args:
@@ -298,14 +306,12 @@ class VLTransformers(torch.nn.Module):
             num_vision_layers: number of vision transformer layers.
             num_mixed_layers: number of mixed transformer layers.
             drop_out: faction of the input units to drop.
-
+            bert_config: configuration for bert language transformer encoder.
         Examples::
-
             # for 3-channel with image size of (224,224), patch size of (32,32), 3 classes, 2 language layers,
-            2 vision layers and 2 mixed modality layers
+            2 vision layers, 2 mixed modality layers and dropout of 0.2 in the classification head
             >>> net = VLTransformers(in_channels=3, img_size=(224, 224), num_classes=3, num_language_layers=2,
-            num_vision_layers=2, num_mixed_layers=2)
-
+            num_vision_layers=2, num_mixed_layers=2, drop_out=0.2)
         """
         super(VLTransformers, self).__init__()
 
@@ -315,17 +321,19 @@ class VLTransformers(torch.nn.Module):
         if (img_size[0] % patch_size[0] != 0) or (img_size[1] % patch_size[1] != 0):  # type: ignore
             raise ValueError("img_size should be divisible by patch_size.")
 
-        self.multimodal = MultiModal(
+        self.multimodal = MultiModal.from_pretrained(
             num_language_layers=num_language_layers,
             num_vision_layers=num_vision_layers,
             num_mixed_layers=num_mixed_layers,
-        ).from_pretrained()
+            bert_config=bert_config,
+        )
+
         self.embed_dim = 768
         self.patch_size = patch_size
         self.num_patches = (img_size[0] // self.patch_size[0]) * (img_size[1] // self.patch_size[1])  # type: ignore
         self.vision_proj = nn.Conv2d(
-            in_channels, self.embed_dim, kernel_size=self.patch_size, stride=self.patch_size  # type: ignore
-        )  # type: ignore
+            in_channels=in_channels, out_channels=self.embed_dim, kernel_size=self.patch_size, stride=self.patch_size
+        )
         self.norm_vision_pos = nn.LayerNorm(self.embed_dim)
         self.pos_embed_vis = nn.Parameter(torch.zeros(1, self.num_patches, self.embed_dim))
         self.pooler = Pooler(hidden_size=self.embed_dim)

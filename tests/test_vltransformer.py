@@ -59,6 +59,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 num_language_layers=2,
                 num_mixed_layers=4,
                 num_vision_layers=2,
+                num_classes=2,
                 drop_out=5.0,
             )
 
@@ -70,6 +71,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 num_language_layers=6,
                 num_mixed_layers=6,
                 num_vision_layers=8,
+                num_classes=8,
                 drop_out=0.4,
             )
 
