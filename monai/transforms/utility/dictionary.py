@@ -1525,7 +1525,7 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         name: The transform name in CuCIM package.
-        prob: the probability to apply the transform (default=1.0)
+        apply_prob: the probability to apply the transform (default=1.0)
         allow_missing_keys: don't raise exception if key is missing.
         args: parameters for the CuCIM transform.
         kwargs: parameters for the CuCIM transform.
@@ -1533,22 +1533,22 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
     Note:
         - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
             Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
-        - If the cuCIM transform is already randomized, the `prob` argument has nothing to do with
-          the randomness of the underlying cuCIM transform.
-          It defines if the transform (either randomized or non-randomized) being applied randomly with `prob=1.0`,
-          so it can apply non-randomized tranforms randomly but be careful when it is being used along with randomized transforms.
+        - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
+          the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
+           or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+           with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
         - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
     """
 
     def __init__(
         self,
-        prob: float = 1.0,
+        apply_prob: float = 1.0,
         *args,
         **kwargs,
     ) -> None:
         CuCIMd.__init__(self, *args, **kwargs)
-        RandomizableTransform.__init__(self, prob=prob)
+        RandomizableTransform.__init__(self, prob=apply_prob)
 
     def __call__(self, data):
         """
