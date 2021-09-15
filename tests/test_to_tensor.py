@@ -11,8 +11,8 @@
 
 import unittest
 
+import torch
 from parameterized import parameterized
-from torch import Tensor
 
 from monai.transforms import ToTensor
 from tests.utils import TEST_NDARRAYS, assert_allclose, optional_import
@@ -35,16 +35,16 @@ for p in TEST_NDARRAYS:
 class TestToTensor(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_array_input(self, test_data, expected_shape):
-        result = ToTensor()(test_data)
-        self.assertTrue(isinstance(result, Tensor))
-        assert_allclose(result, test_data)
+        result = ToTensor(dtype=torch.float32, device="cpu")(test_data)
+        self.assertTrue(isinstance(result, torch.Tensor))
+        assert_allclose(result, test_data, type_test=False)
         self.assertTupleEqual(result.shape, expected_shape)
 
     @parameterized.expand(TESTS_SINGLE)
     def test_single_input(self, test_data):
         result = ToTensor()(test_data)
-        self.assertTrue(isinstance(result, Tensor))
-        assert_allclose(result, test_data)
+        self.assertTrue(isinstance(result, torch.Tensor))
+        assert_allclose(result, test_data, type_test=False)
         self.assertEqual(result.ndim, 0)
 
     @unittest.skipUnless(has_cp, "CuPy is required.")
@@ -52,8 +52,8 @@ class TestToTensor(unittest.TestCase):
         test_data = [[1, 2], [3, 4]]
         cupy_array = cp.ascontiguousarray(cp.asarray(test_data))
         result = ToTensor()(cupy_array)
-        self.assertTrue(isinstance(result, Tensor))
-        assert_allclose(result, test_data)
+        self.assertTrue(isinstance(result, torch.Tensor))
+        assert_allclose(result, test_data, type_test=False)
 
 
 if __name__ == "__main__":

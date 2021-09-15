@@ -16,6 +16,7 @@ __all__ = [
     "get_equivalent_dtype",
     "convert_data_type",
     "get_dtype",
+    "convert_to_cupy",
     "convert_to_numpy",
     "convert_to_tensor",
     "convert_to_dst_type",
@@ -60,6 +61,8 @@ def get_equivalent_dtype(dtype, data_type):
         im = torch.tensor(1)
         dtype = get_equivalent_dtype(np.float32, type(im))
     """
+    if dtype is None:
+        return None
     if data_type is torch.Tensor:
         if type(dtype) is torch.dtype:
             return dtype
@@ -83,7 +86,12 @@ def get_dtype(data: Any):
     return type(data)
 
 
-def convert_to_tensor(data, wrap_sequence: bool = False, device: Optional[torch.device] = None):
+def convert_to_tensor(
+    data,
+    dtype: Optional[torch.dtype] = None,
+    device: Optional[torch.device] = None,
+    wrap_sequence: bool = False,
+):
     """
     Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
     recursively check every item and convert it to PyTorch Tensor.
@@ -92,36 +100,41 @@ def convert_to_tensor(data, wrap_sequence: bool = False, device: Optional[torch.
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
             will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
             for dictionary, list or tuple, convert every item to a Tensor if applicable.
-        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`.
-            If `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        dtype: target data type to when converting to Tensor.
+        device: target device to put the converted Tensor data.
+        wrap_sequence: if `False`, then lists will recursively call this function.
+            E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`. If `True`, then `[1, 2]` -> `tensor([1, 2])`.
 
     """
     if isinstance(data, torch.Tensor):
-        return data.contiguous().to(device)
+        return data.to(dtype=dtype, device=device, memory_format=torch.contiguous_format)  # type: ignore
     if isinstance(data, np.ndarray):
         # skip array of string classes and object, refer to:
         # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
         if re.search(r"[SaUO]", data.dtype.str) is None:
             # numpy array with 0 dims is also sequence iterable,
             # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
-            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data), device=device)
-    elif has_cp and isinstance(data, cp_ndarray):
-        return torch.as_tensor(data, device=device)
-    elif isinstance(data, (float, int, bool)):
-        return torch.as_tensor(data, device=device)
-    elif isinstance(data, Sequence) and wrap_sequence:
-        return torch.as_tensor(data, device=device)
+            if data.ndim > 0:
+                data = np.ascontiguousarray(data)
+            return torch.as_tensor(data, dtype=dtype, device=device)  # type: ignore
+    elif (
+        has_cp
+        and isinstance(data, cp_ndarray)
+        or isinstance(data, (float, int, bool))
+        or (isinstance(data, Sequence) and wrap_sequence)
+    ):
+        return torch.as_tensor(data, dtype=dtype, device=device)  # type: ignore
     elif isinstance(data, list):
-        return [convert_to_tensor(i, device=device) for i in data]
+        return [convert_to_tensor(i, dtype=dtype, device=device) for i in data]
     elif isinstance(data, tuple):
-        return tuple(convert_to_tensor(i, device=device) for i in data)
+        return tuple(convert_to_tensor(i, dtype=dtype, device=device) for i in data)
     elif isinstance(data, dict):
-        return {k: convert_to_tensor(v, device=device) for k, v in data.items()}
+        return {k: convert_to_tensor(v, dtype=dtype, device=device) for k, v in data.items()}
 
     return data
 
 
-def convert_to_numpy(data, wrap_sequence: bool = False):
+def convert_to_numpy(data, dtype: Optional[DtypeLike] = None, wrap_sequence: bool = False):
     """
     Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to numpy array.
@@ -130,26 +143,61 @@ def convert_to_numpy(data, wrap_sequence: bool = False):
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
             will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
             for dictionary, list or tuple, convert every item to a numpy array if applicable.
+        dtype: target data type when converting to numpy array.
         wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
             If `True`, then `[1, 2]` -> `array([1, 2])`.
     """
     if isinstance(data, torch.Tensor):
-        data = data.detach().cpu().numpy()
+        data = data.detach().to(dtype=get_equivalent_dtype(dtype, torch.Tensor), device="cpu").numpy()
     elif has_cp and isinstance(data, cp_ndarray):
-        data = cp.asnumpy(data)
-    elif isinstance(data, (float, int, bool)):
-        data = np.asarray(data)
-    elif isinstance(data, Sequence) and wrap_sequence:
-        return np.asarray(data)
+        data = cp.asnumpy(data).astype(dtype)
+    elif isinstance(data, (np.ndarray, float, int, bool)) or (isinstance(data, Sequence) and wrap_sequence):
+        data = np.asarray(data, dtype=dtype)
     elif isinstance(data, list):
-        return [convert_to_numpy(i) for i in data]
+        return [convert_to_numpy(i, dtype=dtype) for i in data]
     elif isinstance(data, tuple):
-        return tuple(convert_to_numpy(i) for i in data)
+        return tuple(convert_to_numpy(i, dtype=dtype) for i in data)
     elif isinstance(data, dict):
-        return {k: convert_to_numpy(v) for k, v in data.items()}
+        return {k: convert_to_numpy(v, dtype=dtype) for k, v in data.items()}
 
     if isinstance(data, np.ndarray) and data.ndim > 0:
         data = np.ascontiguousarray(data)
+
+    return data
+
+
+def convert_to_cupy(data, dtype, wrap_sequence: bool = True):
+    """
+    Utility to convert the input data to a cupy array. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to cupy array.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, cupy array, list, dictionary, int, float, bool, str, etc.
+            Tensor, numpy array, cupy array, float, int, bool are converted to cupy arrays
+
+            for dictionary, list or tuple, convert every item to a numpy array if applicable.
+        dtype: target data type when converting to Cupy array.
+        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
+            If `True`, then `[1, 2]` -> `array([1, 2])`.
+    """
+
+    # direct calls
+    if isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool)) or (
+        isinstance(data, Sequence) and wrap_sequence
+    ):
+        data = cp.asarray(data, dtype)
+    elif isinstance(data, list):
+        return [convert_to_cupy(i, dtype) for i in data]
+    elif isinstance(data, tuple):
+        return tuple(convert_to_cupy(i, dtype) for i in data)
+    elif isinstance(data, dict):
+        return {k: convert_to_cupy(v, dtype) for k, v in data.items()}
+    # make it contiguous
+    if isinstance(data, cp.ndarray):
+        if data.ndim > 0:
+            data = cp.ascontiguousarray(data)
+    else:
+        raise ValueError(f"The input data type [{type(data)}] cannot be converted into cupy arrays!")
 
     return data
 
@@ -178,6 +226,8 @@ def convert_data_type(
         orig_type = torch.Tensor
     elif isinstance(data, np.ndarray):
         orig_type = np.ndarray
+    elif has_cp and isinstance(data, cp.ndarray):
+        orig_type = cp.ndarray
     else:
         orig_type = type(data)
 
@@ -185,30 +235,27 @@ def convert_data_type(
 
     output_type = output_type or orig_type
 
-    dtype = get_equivalent_dtype(dtype or get_dtype(data), output_type)
+    dtype_ = get_equivalent_dtype(dtype or get_dtype(data), output_type)
 
     if output_type is torch.Tensor:
-        if orig_type is not torch.Tensor:
-            data = convert_to_tensor(data)
-        if dtype != data.dtype:
-            data = data.to(dtype)
-        if device is not None:
-            data = data.to(device)
+        data = convert_to_tensor(data, dtype=dtype_, device=device)
     elif output_type is np.ndarray:
-        if orig_type is not np.ndarray:
-            data = convert_to_numpy(data)
-        if data is not None and dtype != data.dtype:
-            data = data.astype(dtype)
+        data = convert_to_numpy(data, dtype=dtype_)
+    elif has_cp and output_type is cp.ndarray:
+        data = convert_to_cupy(data, dtype=dtype_)
     else:
         raise ValueError(f"Unsupported output type: {output_type}")
     return data, orig_type, orig_device
 
 
-def convert_to_dst_type(src: Any, dst: NdarrayOrTensor) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
+def convert_to_dst_type(
+    src: Any, dst: NdarrayOrTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None
+) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
     """
-    If `dst` is `torch.Tensor` or its subclass, convert `src` to `torch.Tensor` with the same data type as `dst`,
-    if `dst` is `numpy.ndarray` or its subclass, convert to `numpy.ndarray` with the same data type as `dst`,
+    If `dst` is an instance of `torch.Tensor` or its subclass, convert `src` to `torch.Tensor` with the same data type as `dst`,
+    if `dst` is an instance of `numpy.ndarray` or its subclass, convert to `numpy.ndarray` with the same data type as `dst`,
     otherwise, convert to the type of `dst` directly.
+    `dtype` is an optional argument if the target `dtype` is different from the original `dst`'s data type.
 
     See Also:
         :func:`convert_data_type`
@@ -217,6 +264,9 @@ def convert_to_dst_type(src: Any, dst: NdarrayOrTensor) -> Tuple[NdarrayOrTensor
     if isinstance(dst, torch.Tensor):
         device = dst.device
 
+    if dtype is None:
+        dtype = dst.dtype
+
     output_type: Any
     if isinstance(dst, torch.Tensor):
         output_type = torch.Tensor
@@ -224,4 +274,4 @@ def convert_to_dst_type(src: Any, dst: NdarrayOrTensor) -> Tuple[NdarrayOrTensor
         output_type = np.ndarray
     else:
         output_type = type(dst)
-    return convert_data_type(data=src, output_type=output_type, device=device, dtype=dst.dtype)
+    return convert_data_type(data=src, output_type=output_type, device=device, dtype=dtype)
