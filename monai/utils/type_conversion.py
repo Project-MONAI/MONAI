@@ -61,6 +61,8 @@ def get_equivalent_dtype(dtype, data_type):
         im = torch.tensor(1)
         dtype = get_equivalent_dtype(np.float32, type(im))
     """
+    if dtype is None:
+        return None
     if data_type is torch.Tensor:
         if type(dtype) is torch.dtype:
             return dtype
