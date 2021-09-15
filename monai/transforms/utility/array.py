@@ -32,7 +32,15 @@ from monai.transforms.utils import (
     map_classes_to_indices,
 )
 from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
-from monai.utils import convert_to_numpy, convert_to_tensor, ensure_tuple, look_up_option, min_version, optional_import
+from monai.utils import (
+    convert_to_cupy,
+    convert_to_numpy,
+    convert_to_tensor,
+    ensure_tuple,
+    look_up_option,
+    min_version,
+    optional_import,
+)
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_data_type
@@ -404,11 +412,11 @@ class ToCupy(Transform):
         super().__init__()
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayOrTensor):
+    def __call__(self, data: NdarrayOrTensor):
         """
-        Create a CuPy array from `img` and make it contiguous
+        Create a CuPy array from `data` and make it contiguous
         """
-        return cp.ascontiguousarray(cp.asarray(img, dtype=self.dtype))  # type: ignore
+        return convert_to_cupy(data, self.dtype)
 
 
 class ToPIL(Transform):
