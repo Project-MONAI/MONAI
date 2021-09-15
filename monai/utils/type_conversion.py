@@ -107,21 +107,23 @@ def convert_to_tensor(
 
     """
     if isinstance(data, torch.Tensor):
-        return data.to(dtype=dtype, device=device, memory_format=torch.contiguous_format)
+        return data.to(dtype=dtype, device=device, memory_format=torch.contiguous_format)  # type: ignore
     if isinstance(data, np.ndarray):
         # skip array of string classes and object, refer to:
         # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
         if re.search(r"[SaUO]", data.dtype.str) is None:
             # numpy array with 0 dims is also sequence iterable,
             # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
-            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data), dtype=dtype, device=device)
+            if data.ndim > 0:
+                data = np.ascontiguousarray(data)
+            return torch.as_tensor(data, dtype=dtype, device=device)  # type: ignore
     elif (
         has_cp
         and isinstance(data, cp_ndarray)
         or isinstance(data, (float, int, bool))
         or (isinstance(data, Sequence) and wrap_sequence)
     ):
-        return torch.as_tensor(data, dtype=dtype, device=device)
+        return torch.as_tensor(data, dtype=dtype, device=device)  # type: ignore
     elif isinstance(data, list):
         return [convert_to_tensor(i, dtype=dtype, device=device) for i in data]
     elif isinstance(data, tuple):
@@ -233,14 +235,14 @@ def convert_data_type(
 
     output_type = output_type or orig_type
 
-    dtype = get_equivalent_dtype(dtype or get_dtype(data), output_type)
+    dtype_ = get_equivalent_dtype(dtype or get_dtype(data), output_type)
 
     if output_type is torch.Tensor:
-        data = convert_to_tensor(data, dtype=dtype, device=device)
+        data = convert_to_tensor(data, dtype=dtype_, device=device)
     elif output_type is np.ndarray:
-        data = convert_to_numpy(data, dtype=dtype)
+        data = convert_to_numpy(data, dtype=dtype_)
     elif has_cp and output_type is cp.ndarray:
-        data = convert_to_cupy(data, dtype)
+        data = convert_to_cupy(data, dtype=dtype_)
     else:
         raise ValueError(f"Unsupported output type: {output_type}")
     return data, orig_type, orig_device

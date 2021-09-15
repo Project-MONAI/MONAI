@@ -33,17 +33,18 @@ from monai.transforms.utils import (
 )
 from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
 from monai.utils import (
+    convert_data_type,
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
+    get_equivalent_dtype,
     look_up_option,
     min_version,
     optional_import,
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_data_type
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -390,9 +391,11 @@ class EnsureType(Transform):
 
         """
         if self.data_type == "tensor":
-            return convert_to_tensor(data, dtype=self.dtype, device=self.device)
+            dtype_ = get_equivalent_dtype(self.dtype, torch.Tensor)
+            return convert_to_tensor(data, dtype=dtype_, device=self.device)
         else:
-            return convert_to_numpy(data, dtype=self.dtype)
+            dtype_ = get_equivalent_dtype(self.dtype, np.ndarray)
+            return convert_to_numpy(data, dtype=dtype_)
 
 
 class ToNumpy(Transform):
