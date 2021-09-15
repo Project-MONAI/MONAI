@@ -283,7 +283,7 @@ def list_data_collate(batch: Sequence):
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
                 + "documentation)."
             )
-        raise RuntimeError(re_str)
+        raise RuntimeError(re_str) from re
     except TypeError as re:
         re_str = str(re)
         if "numpy" in re_str and "Tensor" in re_str:
@@ -294,7 +294,7 @@ def list_data_collate(batch: Sequence):
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
                 + "(check its documentation)."
             )
-        raise TypeError(re_str)
+        raise TypeError(re_str) from re
 
 
 def decollate_batch(batch, detach: bool = True):

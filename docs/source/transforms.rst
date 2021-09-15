@@ -59,6 +59,12 @@ Vanilla Transforms
 Crop and Pad
 ^^^^^^^^^^^^
 
+`Pad`
+"""""
+.. autoclass:: Pad
+    :members:
+    :special-members: __call__
+
 `SpatialPad`
 """"""""""""
 .. autoclass:: SpatialPad
@@ -308,9 +314,21 @@ Intensity
      :members:
      :special-members: __call__
 
+`RandCoarseTransform`
+"""""""""""""""""""""
+ .. autoclass:: RandCoarseTransform
+     :members:
+     :special-members: __call__
+
 `RandCoarseDropout`
 """""""""""""""""""
  .. autoclass:: RandCoarseDropout
+     :members:
+     :special-members: __call__
+
+`RandCoarseShuffle`
+"""""""""""""""""""
+ .. autoclass:: RandCoarseShuffle
      :members:
      :special-members: __call__
 
@@ -319,12 +337,6 @@ Intensity
  .. autoclass:: HistogramNormalize
      :members:
      :special-members: __call__
-
-`LocalPatchShuffling`
-"""""""""""""""""""""
-.. autoclass:: LocalPatchShuffling
-    :members:
-    :special-members: __call__
 
 IO
 ^^
@@ -968,6 +980,12 @@ Intensity (Dict)
 `RandCoarseDropoutd`
 """"""""""""""""""""
 .. autoclass:: RandCoarseDropoutd
+    :members:
+    :special-members: __call__
+
+`RandCoarseShuffled`
+""""""""""""""""""""
+.. autoclass:: RandCoarseShuffled
     :members:
     :special-members: __call__
 
