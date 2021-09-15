@@ -57,19 +57,24 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
     return copy.deepcopy(data)
 
 
-def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
+def assert_allclose(actual: NdarrayOrTensor, desired: NdarrayOrTensor, device_test: bool = False, *args, **kwargs):
     """
-    Assert that all values of two data objects are close.
+    Assert that types and all values of two data objects are close.
 
     Args:
-        a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
-        b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
-        args: extra arguments to pass on to `np.testing.assert_allclose`
-        kwargs: extra arguments to pass on to `np.testing.assert_allclose`
+        actual: Pytorch Tensor or numpy array for comparison.
+        desired: Pytorch Tensor or numpy array to compare against.
+        device_test: whether to test the device property.
+        args: extra arguments to pass on to `np.testing.assert_allclose`.
+        kwargs: extra arguments to pass on to `np.testing.assert_allclose`.
     """
-    a = a.cpu().numpy() if isinstance(a, torch.Tensor) else a
-    b = b.cpu().numpy() if isinstance(b, torch.Tensor) else b
-    np.testing.assert_allclose(a, b, *args, **kwargs)
+    if isinstance(desired, torch.Tensor):
+        np.testing.assert_equal(isinstance(actual, torch.Tensor), True)
+        if device_test:
+            np.testing.assert_equal(str(actual.device), str(desired.device))
+        actual = actual.cpu().numpy()
+        desired = desired.cpu().numpy()
+    np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
 def test_pretrained_networks(network, input_param, device):
