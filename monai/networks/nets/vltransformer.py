@@ -316,7 +316,11 @@ class VLTransformers(torch.nn.Module):
         super(VLTransformers, self).__init__()
 
         if not (0 <= drop_out <= 1):
+<<<<<<< HEAD
             raise ValueError("dropout_rate should be in the range of 0 and 1.")
+=======
+            raise ValueError("dropout_rate should be between 0 and 1.")
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd
 
         if (img_size[0] % patch_size[0] != 0) or (img_size[1] % patch_size[1] != 0):  # type: ignore
             raise ValueError("img_size should be divisible by patch_size.")

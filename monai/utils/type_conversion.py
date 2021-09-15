@@ -86,12 +86,16 @@ def get_dtype(data: Any):
     return type(data)
 
 
+<<<<<<< HEAD
 def convert_to_tensor(
     data,
     dtype: Optional[torch.dtype] = None,
     device: Optional[torch.device] = None,
     wrap_sequence: bool = False,
 ):
+=======
+def convert_to_tensor(data, wrap_sequence: bool = False, device: Optional[torch.device] = None):
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd
     """
     Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
     recursively check every item and convert it to PyTorch Tensor.
@@ -107,13 +111,18 @@ def convert_to_tensor(
 
     """
     if isinstance(data, torch.Tensor):
+<<<<<<< HEAD
         return data.to(dtype=dtype, device=device, memory_format=torch.contiguous_format)  # type: ignore
+=======
+        return data.contiguous().to(device)
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd
     if isinstance(data, np.ndarray):
         # skip array of string classes and object, refer to:
         # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
         if re.search(r"[SaUO]", data.dtype.str) is None:
             # numpy array with 0 dims is also sequence iterable,
             # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
+<<<<<<< HEAD
             if data.ndim > 0:
                 data = np.ascontiguousarray(data)
             return torch.as_tensor(data, dtype=dtype, device=device)  # type: ignore
@@ -130,6 +139,21 @@ def convert_to_tensor(
         return tuple(convert_to_tensor(i, dtype=dtype, device=device) for i in data)
     elif isinstance(data, dict):
         return {k: convert_to_tensor(v, dtype=dtype, device=device) for k, v in data.items()}
+=======
+            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data), device=device)
+    elif has_cp and isinstance(data, cp_ndarray):
+        return torch.as_tensor(data, device=device)
+    elif isinstance(data, (float, int, bool)):
+        return torch.as_tensor(data, device=device)
+    elif isinstance(data, Sequence) and wrap_sequence:
+        return torch.as_tensor(data, device=device)
+    elif isinstance(data, list):
+        return [convert_to_tensor(i, device=device) for i in data]
+    elif isinstance(data, tuple):
+        return tuple(convert_to_tensor(i, device=device) for i in data)
+    elif isinstance(data, dict):
+        return {k: convert_to_tensor(v, device=device) for k, v in data.items()}
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd
 
     return data
 
@@ -252,10 +276,16 @@ def convert_to_dst_type(
     src: Any, dst: NdarrayOrTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None
 ) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
     """
+<<<<<<< HEAD
     If `dst` is an instance of `torch.Tensor` or its subclass, convert `src` to `torch.Tensor` with the same data type as `dst`,
     if `dst` is an instance of `numpy.ndarray` or its subclass, convert to `numpy.ndarray` with the same data type as `dst`,
     otherwise, convert to the type of `dst` directly.
     `dtype` is an optional argument if the target `dtype` is different from the original `dst`'s data type.
+=======
+    If `dst` is `torch.Tensor` or its subclass, convert `src` to `torch.Tensor` with the same data type as `dst`,
+    if `dst` is `numpy.ndarray` or its subclass, convert to `numpy.ndarray` with the same data type as `dst`,
+    otherwise, convert to the type of `dst` directly.
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd
 
     See Also:
         :func:`convert_data_type`
@@ -264,9 +294,12 @@ def convert_to_dst_type(
     if isinstance(dst, torch.Tensor):
         device = dst.device
 
+<<<<<<< HEAD
     if dtype is None:
         dtype = dst.dtype
 
+=======
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd
     output_type: Any
     if isinstance(dst, torch.Tensor):
         output_type = torch.Tensor
@@ -274,4 +307,8 @@ def convert_to_dst_type(
         output_type = np.ndarray
     else:
         output_type = type(dst)
+<<<<<<< HEAD
     return convert_data_type(data=src, output_type=output_type, device=device, dtype=dtype)
+=======
+    return convert_data_type(data=src, output_type=output_type, device=device, dtype=dst.dtype)
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd

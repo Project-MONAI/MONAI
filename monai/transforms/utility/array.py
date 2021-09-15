@@ -342,16 +342,25 @@ class ToTensor(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
+<<<<<<< HEAD
     def __init__(self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None) -> None:
         super().__init__()
         self.dtype = dtype
+=======
+    def __init__(self, device: Optional[torch.device] = None) -> None:
+        super().__init__()
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd
         self.device = device
 
     def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
+<<<<<<< HEAD
         return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=True)  # type: ignore
+=======
+        return convert_to_tensor(img, wrap_sequence=True, device=self.device)  # type: ignore
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd
 
 
 class EnsureType(Transform):
@@ -433,7 +442,11 @@ class ToCupy(Transform):
         """
         Create a CuPy array from `data` and make it contiguous
         """
+<<<<<<< HEAD
         return convert_to_cupy(data, self.dtype)
+=======
+        return cp.ascontiguousarray(cp.asarray(img))  # type: ignore
+>>>>>>> 7be790dac0381cc7a3ed393d351f2a860570cbdd
 
 
 class ToPIL(Transform):
