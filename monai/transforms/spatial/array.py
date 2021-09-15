@@ -1345,7 +1345,7 @@ class Resample(Transform):
                 align_corners=True,
             )[0]
         out_val: NdarrayOrTensor
-        out_val, *_ = convert_to_dst_type(out, dst=img)
+        out_val, *_ = convert_to_dst_type(out, dst=img, dtype=out.dtype)
         return out_val
 
 
