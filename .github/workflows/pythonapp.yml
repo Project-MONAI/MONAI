@@ -152,6 +152,7 @@ jobs:
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
         ./runtests.sh --min
+      shell: bash
       env:
         QUICKTEST: True
 
