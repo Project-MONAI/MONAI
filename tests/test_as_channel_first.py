@@ -32,10 +32,9 @@ class TestAsChannelFirst(unittest.TestCase):
         result = AsChannelFirst(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
         if isinstance(test_data, torch.Tensor):
-            expected = torch.moveaxis(test_data, input_param["channel_dim"], 0)
-        else:
-            expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
-        assert_allclose(result, expected)
+            test_data = test_data.cpu().numpy()
+        expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
+        assert_allclose(result, expected, type_test=False)
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ for p in TEST_NDARRAYS:
             [
                 {"keys": ["img"], "nonzero": True},
                 {"img": p(np.array([0.0, 3.0, 0.0, 4.0]))},
-                np.array([0.0, -1.0, 0.0, 1.0]),
+                p(np.array([0.0, -1.0, 0.0, 1.0])),
             ]
         )
         TESTS.append(
@@ -37,14 +37,14 @@ for p in TEST_NDARRAYS:
                     "nonzero": True,
                 },
                 {"img": p(np.array([0.0, 3.0, 0.0, 4.0]))},
-                np.array([0.0, -1.0, 0.0, 1.0]),
+                p(np.array([0.0, -1.0, 0.0, 1.0])),
             ]
         )
         TESTS.append(
             [
                 {"keys": ["img"], "nonzero": True},
                 {"img": p(np.array([0.0, 0.0, 0.0, 0.0]))},
-                np.array([0.0, 0.0, 0.0, 0.0]),
+                p(np.array([0.0, 0.0, 0.0, 0.0])),
             ]
         )
 
@@ -60,7 +60,7 @@ class TestNormalizeIntensityd(NumpyImageTestCase2D):
         self.assertEqual(type(im), type(normalized))
         if isinstance(normalized, torch.Tensor):
             self.assertEqual(im.device, normalized.device)
-        assert_allclose(normalized, expected, type_test=False, rtol=1e-3)
+        assert_allclose(normalized, im_type(expected), rtol=1e-3)
 
     @parameterized.expand(TESTS)
     def test_nonzero(self, input_param, input_data, expected_data):
@@ -70,7 +70,7 @@ class TestNormalizeIntensityd(NumpyImageTestCase2D):
         self.assertEqual(type(input_data[key]), type(normalized))
         if isinstance(normalized, torch.Tensor):
             self.assertEqual(input_data[key].device, normalized.device)
-        assert_allclose(normalized, expected_data, type_test=False)
+        assert_allclose(normalized, expected_data)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_channel_wise(self, im_type):
@@ -82,7 +82,7 @@ class TestNormalizeIntensityd(NumpyImageTestCase2D):
         if isinstance(normalized, torch.Tensor):
             self.assertEqual(input_data[key].device, normalized.device)
         expected = np.array([[0.0, -1.0, 0.0, 1.0], [0.0, -1.0, 0.0, 1.0]])
-        assert_allclose(normalized, expected, type_test=False)
+        assert_allclose(normalized, im_type(expected))
 
 
 if __name__ == "__main__":
