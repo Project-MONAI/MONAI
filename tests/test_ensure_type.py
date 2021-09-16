@@ -25,9 +25,11 @@ class TestEnsureType(unittest.TestCase):
             test_datas.append(test_datas[-1].cuda())
         for test_data in test_datas:
             for dtype in ("tensor", "NUMPY"):
-                result = EnsureType(data_type=dtype)(test_data)
+                result = EnsureType(dtype, dtype=np.float32 if dtype == "NUMPY" else None, device="cpu")(test_data)
+                if dtype == "NUMPY":
+                    self.assertTrue(result.dtype == np.float32)
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
-                assert_allclose(result, test_data)
+                assert_allclose(result, test_data, type_test=False)
                 self.assertTupleEqual(result.shape, (2, 2))
 
     def test_single_input(self):
@@ -41,7 +43,7 @@ class TestEnsureType(unittest.TestCase):
                 if isinstance(test_data, bool):
                     self.assertFalse(result)
                 else:
-                    assert_allclose(result, test_data)
+                    assert_allclose(result, test_data, type_test=False)
                 self.assertEqual(result.ndim, 0)
 
     def test_string(self):

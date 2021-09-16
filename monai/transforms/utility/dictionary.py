@@ -450,15 +450,23 @@ class ToTensord(MapTransform, InvertibleTransform):
 
     backend = ToTensor.backend
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: Optional[torch.dtype] = None,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype: target data content type to convert, for example: torch.float, etc.
+            device: specify the target device to put the Tensor data.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToTensor()
+        self.converter = ToTensor(dtype=dtype, device=device)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -498,6 +506,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         data_type: str = "tensor",
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -506,11 +515,12 @@ class EnsureTyped(MapTransform, InvertibleTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             data_type: target data type to convert, should be "tensor" or "numpy".
+            dtype: target data content type to convert, for example: np.float32, torch.float, etc.
             device: for Tensor data type, specify the target device.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = EnsureType(data_type=data_type, device=device)
+        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -537,15 +547,21 @@ class ToNumpyd(MapTransform):
 
     backend = ToNumpy.backend
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: Optional[DtypeLike] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype: target data type when converting to numpy array.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToNumpy()
+        self.converter = ToNumpy(dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
@@ -561,13 +577,13 @@ class ToCupyd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        allow_missing_keys: don't raise exception if key is missing.
         dtype: data type specifier. It is inferred from the input by default.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = ToCupy.backend
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False, dtype=None) -> None:
+    def __init__(self, keys: KeysCollection, dtype=None, allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
         self.converter = ToCupy(dtype=dtype)
 

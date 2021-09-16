@@ -37,7 +37,7 @@ class TestZoom(NumpyImageTestCase2D):
             for channel in self.imt[0]:
                 expected.append(zoom_scipy(channel, zoom=zoom, mode="nearest", order=_order, prefilter=False))
             expected = np.stack(expected).astype(np.float32)
-            assert_allclose(zoomed, expected, atol=1.0)
+            assert_allclose(zoomed, p(expected), atol=1.0)
 
     def test_keep_size(self):
         for p in TEST_NDARRAYS:

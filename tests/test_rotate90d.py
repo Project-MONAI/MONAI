@@ -23,44 +23,36 @@ class TestRotate90d(NumpyImageTestCase2D):
         rotate = Rotate90d(keys=key)
         for p in TEST_NDARRAYS:
             rotated = rotate({key: p(self.imt[0])})
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(np.rot90(channel, 1, (0, 1)))
+            expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], expected)
+            assert_allclose(rotated[key], p(expected))
 
     def test_k(self):
         key = None
         rotate = Rotate90d(keys=key, k=2)
         for p in TEST_NDARRAYS:
             rotated = rotate({key: p(self.imt[0])})
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(np.rot90(channel, 2, (0, 1)))
+            expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], expected)
+            assert_allclose(rotated[key], p(expected))
 
     def test_spatial_axes(self):
         key = "test"
         rotate = Rotate90d(keys=key, spatial_axes=(0, 1))
         for p in TEST_NDARRAYS:
             rotated = rotate({key: p(self.imt[0])})
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(np.rot90(channel, 1, (0, 1)))
+            expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], expected)
+            assert_allclose(rotated[key], p(expected))
 
     def test_prob_k_spatial_axes(self):
         key = "test"
         rotate = Rotate90d(keys=key, k=2, spatial_axes=(0, 1))
         for p in TEST_NDARRAYS:
             rotated = rotate({key: p(self.imt[0])})
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(np.rot90(channel, 2, (0, 1)))
+            expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], expected)
+            assert_allclose(rotated[key], p(expected))
 
     def test_no_key(self):
         key = "unknown"

@@ -38,11 +38,13 @@ class TestRandZoomd(NumpyImageTestCase2D):
             random_zoom.set_random_state(1234)
 
             zoomed = random_zoom({key: p(self.imt[0])})
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(zoom_scipy(channel, zoom=random_zoom._zoom, mode="nearest", order=0, prefilter=False))
+            expected = [
+                zoom_scipy(channel, zoom=random_zoom._zoom, mode="nearest", order=0, prefilter=False)
+                for channel in self.imt[0]
+            ]
+
             expected = np.stack(expected).astype(np.float32)
-            assert_allclose(expected, zoomed[key], atol=1.0)
+            assert_allclose(zoomed[key], p(expected), atol=1.0)
 
     def test_keep_size(self):
         key = "img"
