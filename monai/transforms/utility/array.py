@@ -1194,11 +1194,11 @@ class RandCuCIM(CuCIM, RandomizableTransform):
 
     Note:
         - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
-            Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+          Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
         - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
           the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
-           or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
-           with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
+          or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+          with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
         - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
     """
