@@ -389,8 +389,10 @@ def weighted_patch_samples(
 
 
 def correct_crop_centers(
-    centers: List[NdarrayOrTensor], spatial_size: Union[Sequence[int], int], label_spatial_shape: Sequence[int]
-) -> List[NdarrayOrTensor]:
+    centers: List[Union[int, torch.Tensor]],
+    spatial_size: Union[Sequence[int], int],
+    label_spatial_shape: Sequence[int],
+) -> List[int]:
     """
     Utility to correct the crop center if the crop size is bigger than the image size.
 
@@ -423,7 +425,9 @@ def correct_crop_centers(
             center_i = valid_end[i] - 1
         centers[i] = center_i
 
-    return centers
+    corrected_centers: List[int] = [c.item() if isinstance(c, torch.Tensor) else c for c in centers]  # type: ignore
+
+    return corrected_centers
 
 
 def generate_pos_neg_label_crop_centers(
@@ -434,7 +438,7 @@ def generate_pos_neg_label_crop_centers(
     fg_indices: NdarrayOrTensor,
     bg_indices: NdarrayOrTensor,
     rand_state: Optional[np.random.RandomState] = None,
-) -> List[List[NdarrayOrTensor]]:
+) -> List[List[int]]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -488,7 +492,7 @@ def generate_label_classes_crop_centers(
     indices: Sequence[NdarrayOrTensor],
     ratios: Optional[List[Union[float, int]]] = None,
     rand_state: Optional[np.random.RandomState] = None,
-) -> List[List[NdarrayOrTensor]]:
+) -> List[List[int]]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]

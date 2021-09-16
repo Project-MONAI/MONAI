@@ -53,9 +53,7 @@ class TestGeneratePosNegLabelCropCenters(unittest.TestCase):
             # check for consistency between numpy, torch and torch.cuda
             results.append(result)
             if len(results) > 1:
-                for r0, r1 in zip(results[0], results[-1]):
-                    for i, j in zip(r0, r1):
-                        assert_allclose(i, j)
+                assert_allclose(results[0], results[-1])
 
 
 if __name__ == "__main__":
