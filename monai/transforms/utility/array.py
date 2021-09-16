@@ -49,7 +49,7 @@ from monai.utils.misc import is_module_ver_at_least
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 cp, has_cp = optional_import("cupy")
-cp_ndarray, _ = optional_import("cupy", name="ndarray")
+
 
 __all__ = [
     "Identity",
@@ -1148,3 +1148,78 @@ class ToDevice(Transform):
             raise ValueError("img must be PyTorch Tensor, consider converting img by `EnsureType` transform first.")
 
         return img.to(self.device, **self.kwargs)
+
+
+class CuCIM(Transform):
+    """
+    Wrap a non-randomized cuCIM transform, defined based on the transform name and args.
+    For randomized transforms (or randomly applying a transform) use :py:class:`monai.transforms.RandCuCIM`.
+
+    Args:
+        name: the transform name in CuCIM package
+        args: parameters for the CuCIM transform
+        kwargs: parameters for the CuCIM transform
+
+    Note:
+        CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
+        Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+    """
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        super().__init__()
+        self.transform, _ = optional_import("cucim.core.operations.expose.transform", name=name)
+        self.args = args
+        self.kwargs = kwargs
+
+    def __call__(self, data):
+        """
+        Args:
+            data: a CuPy array (`cupy.ndarray`) for the cuCIM transform
+
+        Returns:
+            `cupy.ndarray`
+
+        """
+        return self.transform(data, *self.args, **self.kwargs)
+
+
+class RandCuCIM(CuCIM, RandomizableTransform):
+    """
+    Wrap a randomized cuCIM transform, defined based on the transform name and args,
+    or randomly apply a non-randomized transform.
+    For deterministic non-randomized transforms use :py:class:`monai.transforms.CuCIM`.
+
+    Args:
+        name: the transform name in CuCIM package.
+        apply_prob: the probability to apply the transform (default=1.0)
+        args: parameters for the CuCIM transform.
+        kwargs: parameters for the CuCIM transform.
+
+    Note:
+        - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
+          Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+        - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
+          the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
+          or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+          with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
+        - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
+          the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
+    """
+
+    def __init__(self, name: str, apply_prob: float = 1.0, *args, **kwargs) -> None:
+        CuCIM.__init__(self, name, *args, **kwargs)
+        RandomizableTransform.__init__(self, prob=apply_prob)
+
+    def __call__(self, data):
+        """
+        Args:
+            data: a CuPy array (`cupy.ndarray`) for the cuCIM transform
+
+        Returns:
+            `cupy.ndarray`
+
+        """
+        self.randomize(data)
+        if not self._do_transform:
+            return data
+        return super().__call__(data)
