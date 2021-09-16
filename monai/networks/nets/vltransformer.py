@@ -27,6 +27,16 @@ cached_path = optional_import("transformers.file_utils", name="cached_path")[0]
 BertEmbeddings = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")[0]
 BertLayer = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")[0]
 
+__all__ = [
+    "BertPreTrainedModel",
+    "BertAttention",
+    "BertOutput",
+    "BertMixedLayer",
+    "Pooler",
+    "MultiModal",
+    "VLTransformers",
+]
+
 
 class BertPreTrainedModel(nn.Module):
     """Module to load BERT pre-trained weights.
@@ -258,7 +268,7 @@ class MultiModal(BertPreTrainedModel):
 
 class VLTransformers(torch.nn.Module):
     """
-    Vision Language Multimodal Transformers"
+    Vision Language Multimodal Transformers
     """
 
     def __init__(
@@ -304,11 +314,21 @@ class VLTransformers(torch.nn.Module):
             num_mixed_layers: number of mixed transformer layers.
             drop_out: faction of the input units to drop.
             bert_config: configuration for bert language transformer encoder.
-        Examples::
+
+        Examples:
+
+        .. code-block:: python
+
             # for 3-channel with image size of (224,224), patch size of (32,32), 3 classes, 2 language layers,
-            2 vision layers, 2 mixed modality layers and dropout of 0.2 in the classification head
-            >>> net = VLTransformers(in_channels=3, img_size=(224, 224), num_classes=3, num_language_layers=2,
-            num_vision_layers=2, num_mixed_layers=2, drop_out=0.2)
+            # 2 vision layers, 2 mixed modality layers and dropout of 0.2 in the classification head
+            net = VLTransformers(in_channels=3,
+                                 img_size=(224, 224),
+                                 num_classes=3,
+                                 num_language_layers=2,
+                                 num_vision_layers=2,
+                                 num_mixed_layers=2,
+                                 drop_out=0.2)
+
         """
         super(VLTransformers, self).__init__()
         bert_config = {
