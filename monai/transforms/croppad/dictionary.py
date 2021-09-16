@@ -1100,13 +1100,15 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         bg_indices: Optional[np.ndarray] = None,
         image: Optional[np.ndarray] = None,
     ) -> None:
+        fg_indices_: np.ndarray
+        bg_indices_: np.ndarray
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         if fg_indices is None or bg_indices is None:
-            fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
+            fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)  # type: ignore
         else:
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
-        self.centers = generate_pos_neg_label_crop_centers(
+        self.centers = generate_pos_neg_label_crop_centers(  # type: ignore
             self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
         )
 
@@ -1283,10 +1285,10 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         indices_: List[np.ndarray]
         if indices is None:
-            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)  # type: ignore
         else:
             indices_ = indices
-        self.centers = generate_label_classes_crop_centers(
+        self.centers = generate_label_classes_crop_centers(  # type: ignore
             self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
         )
 
