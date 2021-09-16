@@ -36,4 +36,3 @@ openslide-python==1.1.2
 pandas
 requests
 einops
-transformers

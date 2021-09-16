@@ -61,7 +61,6 @@ TESTS_3D = [
             prob=0.5,
             rotate_range=np.pi,
             device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            as_tensor_output=False,
         ),
     ]
 ]
@@ -85,7 +84,6 @@ TESTS_2D = [
             prob=0.5,
             rotate_range=np.pi,
             device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            as_tensor_output=False,
         ),
     ]
 ]
@@ -117,10 +115,7 @@ class TestInverseCollation(unittest.TestCase):
 
     @parameterized.expand(TESTS_2D + TESTS_3D)
     def test_collation(self, _, transform, collate_fn, ndim):
-        if ndim == 3:
-            data = self.data_3d
-        else:
-            data = self.data_2d
+        data = self.data_3d if ndim == 3 else self.data_2d
         if collate_fn:
             modified_transform = transform
         else:

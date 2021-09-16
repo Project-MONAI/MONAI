@@ -488,6 +488,7 @@ class ScaleIntensityd(MapTransform):
         minv: Optional[float] = 0.0,
         maxv: Optional[float] = 1.0,
         factor: Optional[float] = None,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -498,11 +499,12 @@ class ScaleIntensityd(MapTransform):
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
                 this parameter, please set `minv` and `maxv` into None.
+            dtype: output data type, defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.scaler = ScaleIntensity(minv, maxv, factor)
+        self.scaler = ScaleIntensity(minv, maxv, factor, dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -523,6 +525,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         factors: Union[Tuple[float, float], float],
         prob: float = 0.1,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -533,6 +536,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
+            dtype: output data type, defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -546,6 +550,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
+        self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -556,7 +561,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         self.randomize()
         if not self._do_transform:
             return d
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
         for key in self.key_iterator(d):
             d[key] = scaler(d[key])
         return d
@@ -659,6 +664,8 @@ class ThresholdIntensityd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ThresholdIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -670,7 +677,7 @@ class ThresholdIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.filter(d[key])
@@ -692,6 +699,8 @@ class ScaleIntensityRanged(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ScaleIntensityRange.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -705,7 +714,7 @@ class ScaleIntensityRanged(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -809,6 +818,8 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ScaleIntensityRangePercentiles.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -823,7 +834,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])

@@ -421,6 +421,7 @@ class SpatialCrop(Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)
         sd = min(len(self.slices), len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + self.slices[:sd]
         return img[tuple(slices)]
@@ -449,6 +450,7 @@ class CenterSpatialCrop(Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
         center = [i // 2 for i in img.shape[1:]]
         cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
@@ -469,6 +471,7 @@ class CenterScaleCrop(Transform):
         self.roi_scale = roi_scale
 
     def __call__(self, img: np.ndarray):
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         img_size = img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -530,6 +533,7 @@ class RandSpatialCrop(Randomizable, Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize(img.shape[1:])
         if self._size is None:
             raise AssertionError
@@ -576,6 +580,7 @@ class RandScaleCrop(RandSpatialCrop):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         img_size = img.shape[1:]
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -645,6 +650,7 @@ class RandSpatialCropSamples(Randomizable, Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         return [self.cropper(img) for _ in range(self.num_samples)]
 
 
@@ -754,6 +760,8 @@ class CropForeground(Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+
         box_start, box_end = self.compute_bounding_box(img)
         cropped = self.crop_pad(img, box_start, box_end, mode)
 
@@ -799,12 +807,16 @@ class RandWeightedCrop(Randomizable, Transform):
         Returns:
             A list of image patches
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if weight_map is None:
             weight_map = self.weight_map
         if weight_map is None:
             raise ValueError("weight map must be provided for weighted patch sampling.")
         if img.shape[1:] != weight_map.shape[1:]:
             raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
+
+        weight_map, *_ = convert_data_type(weight_map, np.ndarray)  # type: ignore
+
         self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results = []
@@ -940,6 +952,9 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         if image is None:
             image = self.image
 
+        image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+
         self.randomize(label, fg_indices, bg_indices, image)
         results: List[np.ndarray] = []
         if self.centers is not None:
@@ -1073,6 +1088,9 @@ class RandCropByLabelClasses(Randomizable, Transform):
         if image is None:
             image = self.image
 
+        image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+
         self.randomize(label, indices, image)
         results: List[np.ndarray] = []
         if self.centers is not None:
@@ -1125,6 +1143,7 @@ class ResizeWithPadOrCrop(Transform):
                 If None, defaults to the ``mode`` in construction.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         return self.padder(self.cropper(img), mode=mode)
 
 
@@ -1159,6 +1178,7 @@ class BoundingRect(Transform):
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         bbox = []
 
         for channel in range(img.shape[0]):

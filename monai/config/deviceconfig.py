@@ -73,7 +73,6 @@ def get_optional_config_values():
     output["psutil"] = psutil_version
     output["pandas"] = get_package_version("pandas")
     output["einops"] = get_package_version("einops")
-    output["transformers"] = get_package_version("transformers")
 
     return output
 

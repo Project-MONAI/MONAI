@@ -42,7 +42,7 @@ class TestTranspose(unittest.TestCase):
         if isinstance(im, torch.Tensor):
             im = im.cpu().numpy()
         out2 = np.transpose(im, indices)
-        assert_allclose(out1, out2)
+        assert_allclose(out1, out2, type_test=False)
 
 
 if __name__ == "__main__":
