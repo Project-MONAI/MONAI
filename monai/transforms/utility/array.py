@@ -810,12 +810,14 @@ class FgBgToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
+        fg_indices: np.ndarray
+        bg_indices: np.ndarray
         label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
         if image is not None:
             image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
         if output_shape is None:
             output_shape = self.output_shape
-        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
+        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)  # type: ignore
         if output_shape is not None:
             fg_indices = np.stack([np.unravel_index(i, output_shape) for i in fg_indices])
             bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
@@ -868,7 +870,8 @@ class ClassesToIndices(Transform):
 
         if output_shape is None:
             output_shape = self.output_shape
-        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        indices: List[np.ndarray]
+        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)  # type: ignore
         if output_shape is not None:
             indices = [np.stack([np.unravel_index(i, output_shape) for i in array]) for array in indices]
 

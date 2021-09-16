@@ -910,16 +910,18 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         image: Optional[np.ndarray] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        fg_indices_: np.ndarray
+        bg_indices_: np.ndarray
         if fg_indices is None or bg_indices is None:
             if self.fg_indices is not None and self.bg_indices is not None:
                 fg_indices_ = self.fg_indices
                 bg_indices_ = self.bg_indices
             else:
-                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
+                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)  # type: ignore
         else:
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
-        self.centers = generate_pos_neg_label_crop_centers(
+        self.centers = generate_pos_neg_label_crop_centers(  # type: ignore
             self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
         )
 
@@ -1052,15 +1054,15 @@ class RandCropByLabelClasses(Randomizable, Transform):
         image: Optional[np.ndarray] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-        indices_: List[np.ndarray]
+        indices_: Sequence[np.ndarray]
         if indices is None:
             if self.indices is not None:
                 indices_ = self.indices
             else:
-                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)  # type: ignore
         else:
             indices_ = indices
-        self.centers = generate_label_classes_crop_centers(
+        self.centers = generate_label_classes_crop_centers(  # type: ignore
             self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
         )
 

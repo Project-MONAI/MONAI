@@ -524,4 +524,15 @@ from .utils import (
     weighted_patch_samples,
     zero_margins,
 )
-from .utils_pytorch_numpy_unification import clip, in1d, moveaxis, percentile, where
+from .utils_pytorch_numpy_unification import (
+    any_np_pt,
+    clip,
+    floor_divide,
+    in1d,
+    moveaxis,
+    nonzero,
+    percentile,
+    ravel,
+    unravel_index,
+    where,
+)
