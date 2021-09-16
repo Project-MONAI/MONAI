@@ -23,10 +23,8 @@ class TestRandAxisFlip(NumpyImageTestCase3D):
             flip = RandAxisFlipd(keys="img", prob=1.0)
             result = flip({"img": p(self.imt[0])})["img"]
 
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(np.flip(channel, flip._axis))
-            assert_allclose(np.stack(expected), result)
+            expected = [np.flip(channel, flip._axis) for channel in self.imt[0]]
+            assert_allclose(result, p(np.stack(expected)))
 
 
 if __name__ == "__main__":

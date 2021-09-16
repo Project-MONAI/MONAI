@@ -22,7 +22,7 @@ import torch
 import monai
 import monai.transforms.transform
 from monai.config import DtypeLike, IndexSelection
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform
@@ -30,11 +30,15 @@ from monai.utils import (
     GridSampleMode,
     InterpolateMode,
     InverseKeys,
+    NumpyPadMode,
+    PytorchPadMode,
+    deprecated_arg,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
     issequenceiterable,
+    look_up_option,
     min_version,
     optional_import,
 )
@@ -84,6 +88,7 @@ __all__ = [
     "get_number_image_type_conversions",
     "get_transform_backends",
     "print_transform_backends",
+    "convert_pad_mode",
 ]
 
 
@@ -1088,36 +1093,54 @@ class Fourier:
     """
 
     @staticmethod
-    def shift_fourier(x: torch.Tensor, n_dims: int) -> torch.Tensor:
+    @deprecated_arg(
+        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
+    def shift_fourier(x: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
 
         Args:
             x: Image to transform.
-            n_dims: Number of spatial dimensions.
+            spatial_dims: Number of spatial dimensions.
+
+        .. deprecated:: 0.6.0
+            ``n_dims`` is deprecated, use ``spatial_dims`` instead.
+
         Returns
             k: K-space data.
         """
+        if n_dims is not None:
+            spatial_dims = n_dims
         k: torch.Tensor = torch.fft.fftshift(
-            torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+            torch.fft.fftn(x, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
         )
         return k
 
     @staticmethod
-    def inv_shift_fourier(k: torch.Tensor, n_dims: int) -> torch.Tensor:
+    @deprecated_arg(
+        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
+    def inv_shift_fourier(k: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
 
         Args:
             k: K-space data.
-            n_dims: Number of spatial dimensions.
+            spatial_dims: Number of spatial dimensions.
+
+        .. deprecated:: 0.6.0
+            ``n_dims`` is deprecated, use ``spatial_dims`` instead.
+
         Returns:
             x: Tensor in image space.
         """
+        if n_dims is not None:
+            spatial_dims = n_dims
         x: torch.Tensor = torch.fft.ifftn(
-            torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+            torch.fft.ifftshift(k, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
         ).real
         return x
 
@@ -1238,6 +1261,31 @@ def print_transform_backends():
     print_color(f"Number of TorchTransform: {n_t}", Colors.green)
     print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
     print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+
+
+def convert_pad_mode(dst: NdarrayTensor, mode: Union[NumpyPadMode, PytorchPadMode, str]):
+    """
+    Utility to convert padding mode between numpy array and PyTorch Tensor.
+
+    Args:
+        dst: target data to convert padding mode for, should be numpy array or PyTorch Tensor.
+        mode: current padding mode.
+
+    """
+    mode = mode.value if isinstance(mode, (NumpyPadMode, PytorchPadMode)) else mode
+    if isinstance(dst, torch.Tensor):
+        if mode == "wrap":
+            mode = "circular"
+        if mode == "edge":
+            mode = "replicate"
+        return look_up_option(mode, PytorchPadMode)
+    if isinstance(dst, np.ndarray):
+        if mode == "circular":
+            mode = "wrap"
+        if mode == "replicate":
+            mode = "edge"
+        return look_up_option(mode, NumpyPadMode)
+    raise ValueError(f"unsupported data type: {type(dst)}.")
 
 
 if __name__ == "__main__":
