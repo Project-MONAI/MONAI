@@ -22,7 +22,7 @@ import torch
 import monai
 import monai.transforms.transform
 from monai.config import DtypeLike, IndexSelection
-from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform
@@ -1271,7 +1271,7 @@ def print_transform_backends():
     print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
 
 
-def convert_pad_mode(dst: NdarrayTensor, mode: Union[NumpyPadMode, PytorchPadMode, str]):
+def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadMode, str]):
     """
     Utility to convert padding mode between numpy array and PyTorch Tensor.
 
