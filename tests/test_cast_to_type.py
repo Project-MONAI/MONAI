@@ -44,8 +44,8 @@ class TestCastToType(unittest.TestCase):
         result = CastToType()(input_data, out_dtype)
         self.assertEqual(result.dtype, get_equivalent_dtype(expected_type, type(result)))
 
-    @unittest.skipUnless(has_cp, "Requires CuPy")
     @parameterized.expand(TESTS_CUPY)
+    @unittest.skipUnless(has_cp, "Requires CuPy")
     def test_type_cupy(self, out_dtype, input_data, expected_type):
         input_data = cp.asarray(input_data)
 
