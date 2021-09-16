@@ -526,7 +526,7 @@ class Rotate(Transform, ThreadUnsafe):
             align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
-        output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).squeeze(0)
+        output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
         self._rotation_matrix = transform
         out: NdarrayOrTensor
         out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
