@@ -618,7 +618,7 @@ class Zoom(Transform):
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
 
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
-        zoomed: torch.Tensor = torch.nn.functional.interpolate(  # type: ignore
+        zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(  # type: ignore
             recompute_scale_factor=True,
             input=img_t.unsqueeze(0),
             scale_factor=list(_zoom),
