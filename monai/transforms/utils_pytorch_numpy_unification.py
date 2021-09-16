@@ -193,7 +193,7 @@ def ravel(x: NdarrayOrTensor):
     if isinstance(x, torch.Tensor):
         if hasattr(torch, "ravel"):
             return x.ravel()
-        x.flatten()
+        return x.flatten().contiguous()
     return np.ravel(x)
 
 
