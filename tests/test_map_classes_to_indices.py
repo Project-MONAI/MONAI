@@ -153,7 +153,7 @@ class TestMapClassesToIndices(unittest.TestCase):
     def test_value(self, input_data, expected_indices):
         indices = map_classes_to_indices(**input_data)
         for i, e in zip(indices, expected_indices):
-            assert_allclose(i, e)
+            assert_allclose(i, e, type_test=False)
 
 
 if __name__ == "__main__":
