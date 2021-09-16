@@ -270,31 +270,28 @@ class VLTransformers(torch.nn.Module):
         num_language_layers: int,
         num_vision_layers: int,
         num_mixed_layers: int,
+        hidden_size: int = 768,
         drop_out: float = 0.0,
-        bert_config: dict = {
-            "attention_probs_dropout_prob": 0.1,
-            "classifier_dropout": None,
-            "gradient_checkpointing": False,
-            "hidden_act": "gelu",
-            "hidden_dropout_prob": 0.1,
-            "hidden_size": 768,
-            "initializer_range": 0.02,
-            "intermediate_size": 3072,
-            "layer_norm_eps": 1e-12,
-            "max_position_embeddings": 512,
-            "model_type": "bert",
-            "num_attention_heads": 12,
-            "num_hidden_layers": 12,
-            "pad_token_id": 0,
-            "position_embedding_type": "absolute",
-            "transformers_version": "4.10.2",
-            "type_vocab_size": 2,
-            "use_cache": True,
-            "vocab_size": 30522,
-            "chunk_size_feed_forward": 0,
-            "is_decoder": False,
-            "add_cross_attention": False,
-        },
+        attention_probs_dropout_prob: float = 0.1,
+        gradient_checkpointing: bool = False,
+        hidden_act: str = "gelu",
+        hidden_dropout_prob: float = 0.1,
+        initializer_range: float = 0.02,
+        intermediate_size: int = 3072,
+        layer_norm_eps: float = 1e-12,
+        max_position_embeddings: int = 512,
+        model_type: str = "bert",
+        num_attention_heads: int = 12,
+        num_hidden_layers: int = 12,
+        pad_token_id: int = 0,
+        position_embedding_type: str = "absolute",
+        transformers_version: str = "4.10.2",
+        type_vocab_size: int = 2,
+        use_cache: bool = True,
+        vocab_size: int = 30522,
+        chunk_size_feed_forward: int = 0,
+        is_decoder: bool = False,
+        add_cross_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -314,9 +311,32 @@ class VLTransformers(torch.nn.Module):
             num_vision_layers=2, num_mixed_layers=2, drop_out=0.2)
         """
         super(VLTransformers, self).__init__()
-
+        bert_config = {
+            "attention_probs_dropout_prob": attention_probs_dropout_prob,
+            "classifier_dropout": None,
+            "gradient_checkpointing": gradient_checkpointing,
+            "hidden_act": hidden_act,
+            "hidden_dropout_prob": hidden_dropout_prob,
+            "hidden_size": hidden_size,
+            "initializer_range": initializer_range,
+            "intermediate_size": intermediate_size,
+            "layer_norm_eps": layer_norm_eps,
+            "max_position_embeddings": max_position_embeddings,
+            "model_type": model_type,
+            "num_attention_heads": num_attention_heads,
+            "num_hidden_layers": num_hidden_layers,
+            "pad_token_id": pad_token_id,
+            "position_embedding_type": position_embedding_type,
+            "transformers_version": transformers_version,
+            "type_vocab_size": type_vocab_size,
+            "use_cache": use_cache,
+            "vocab_size": vocab_size,
+            "chunk_size_feed_forward": chunk_size_feed_forward,
+            "is_decoder": is_decoder,
+            "add_cross_attention": add_cross_attention,
+        }
         if not (0 <= drop_out <= 1):
-            raise ValueError("dropout_rate should be in the range of 0 and 1.")
+            raise ValueError("dropout_rate should be between 0 and 1.")
 
         if (img_size[0] % patch_size[0] != 0) or (img_size[1] % patch_size[1] != 0):  # type: ignore
             raise ValueError("img_size should be divisible by patch_size.")
@@ -328,17 +348,16 @@ class VLTransformers(torch.nn.Module):
             bert_config=bert_config,
         )
 
-        self.embed_dim = 768
         self.patch_size = patch_size
         self.num_patches = (img_size[0] // self.patch_size[0]) * (img_size[1] // self.patch_size[1])  # type: ignore
         self.vision_proj = nn.Conv2d(
-            in_channels=in_channels, out_channels=self.embed_dim, kernel_size=self.patch_size, stride=self.patch_size
+            in_channels=in_channels, out_channels=hidden_size, kernel_size=self.patch_size, stride=self.patch_size
         )
-        self.norm_vision_pos = nn.LayerNorm(self.embed_dim)
-        self.pos_embed_vis = nn.Parameter(torch.zeros(1, self.num_patches, self.embed_dim))
-        self.pooler = Pooler(hidden_size=self.embed_dim)
+        self.norm_vision_pos = nn.LayerNorm(hidden_size)
+        self.pos_embed_vis = nn.Parameter(torch.zeros(1, self.num_patches, hidden_size))
+        self.pooler = Pooler(hidden_size=hidden_size)
         self.drop = torch.nn.Dropout(drop_out)
-        self.cls_head = torch.nn.Linear(self.embed_dim, num_classes)
+        self.cls_head = torch.nn.Linear(hidden_size, num_classes)
 
     def forward(self, input_ids, token_type_ids=None, vision_feats=None):
         attention_mask = torch.ones_like(input_ids).unsqueeze(1).unsqueeze(2)
