@@ -49,8 +49,11 @@ class AutoEncoder(nn.Module):
         dimensions: Optional[int] = None,
     ) -> None:
         """
+        Initialize the AutoEncoder.
+
         .. deprecated:: 0.6.0
             ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+
         """
 
         super().__init__()

@@ -84,4 +84,13 @@ from .unet import UNet, Unet, unet
 from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
 from .vit import ViT
+from .vltransformer import (
+    BertAttention,
+    BertMixedLayer,
+    BertOutput,
+    BertPreTrainedModel,
+    MultiModal,
+    Pooler,
+    VLTransformers,
+)
 from .vnet import VNet
