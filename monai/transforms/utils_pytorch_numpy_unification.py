@@ -28,6 +28,7 @@ __all__ = [
     "unravel_index",
     "ravel",
     "any_np_pt",
+    "maximum",
 ]
 
 
@@ -216,3 +217,23 @@ def any_np_pt(x: NdarrayOrTensor, axis: int):
             # older versions of pytorch require the input to be cast to boolean
             return torch.any(x.bool(), axis)
     return np.any(x, axis)
+
+
+def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
+    """`np.maximum` with equivalent implementation for torch.
+
+    `torch.maximum` only available from pt>1.6, else use `torch.stack` and `torch.max`.
+
+    Args:
+        a: first array/tensor
+        b: second array/tensor
+
+    Returns:
+        Element-wise maximum between two arrays/tensors.
+    """
+    if isinstance(a, torch.Tensor) and isinstance(b, torch.Tensor):
+        # is torch and has torch.maximum (pt>1.6)
+        if hasattr(torch, "maximum"):
+            return torch.maximum(a, b)
+        return torch.stack((a, b)).max(dim=0)[0]
+    return np.maximum(a, b)

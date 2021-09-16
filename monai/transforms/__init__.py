@@ -537,6 +537,7 @@ from .utils_pytorch_numpy_unification import (
     clip,
     floor_divide,
     in1d,
+    maximum,
     moveaxis,
     nonzero,
     percentile,
