@@ -14,7 +14,7 @@ import os
 import shutil
 import tarfile
 import tempfile
-from typing import Sequence, Union
+from typing import Sequence, Tuple, Union
 
 import torch
 from torch import nn
@@ -265,7 +265,7 @@ class VLTransformers(torch.nn.Module):
         self,
         in_channels: int,
         img_size: Union[Sequence[int], int],  # type: ignore
-        patch_size: Union[Sequence[int], int],  # type: ignore
+        patch_size: Union[int, Tuple[int, int]],  # type: ignore
         num_classes: int,
         num_language_layers: int,
         num_vision_layers: int,
@@ -351,7 +351,10 @@ class VLTransformers(torch.nn.Module):
         self.patch_size = patch_size
         self.num_patches = (img_size[0] // self.patch_size[0]) * (img_size[1] // self.patch_size[1])  # type: ignore
         self.vision_proj = nn.Conv2d(
-            in_channels=in_channels, out_channels=hidden_size, kernel_size=self.patch_size, stride=self.patch_size
+            in_channels=in_channels,
+            out_channels=hidden_size,
+            kernel_size=self.patch_size,  # type: ignore
+            stride=self.patch_size,  # type: ignore
         )
         self.norm_vision_pos = nn.LayerNorm(hidden_size)
         self.pos_embed_vis = nn.Parameter(torch.zeros(1, self.num_patches, hidden_size))
