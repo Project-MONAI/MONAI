@@ -47,6 +47,7 @@ class VarAutoEncoder(AutoEncoder):
 
     .. deprecated:: 0.6.0
         ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+
     """
 
     @deprecated_arg(

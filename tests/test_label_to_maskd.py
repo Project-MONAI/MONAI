@@ -65,7 +65,7 @@ class TestLabelToMaskd(unittest.TestCase):
         self.assertEqual(type(r), type(i))
         if isinstance(r, torch.Tensor):
             self.assertEqual(r.device, i.device)
-        assert_allclose(r, expected_data)
+        assert_allclose(r, expected_data, type_test=False)
 
 
 if __name__ == "__main__":

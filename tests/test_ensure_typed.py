@@ -34,7 +34,7 @@ class TestEnsureTyped(unittest.TestCase):
                 if dtype == "NUMPY":
                     self.assertTrue(result.dtype == np.float32)
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
-                assert_allclose(result, test_data)
+                assert_allclose(result, test_data, type_test=False)
                 self.assertTupleEqual(result.shape, (2, 2))
 
     def test_single_input(self):
@@ -48,7 +48,7 @@ class TestEnsureTyped(unittest.TestCase):
                 if isinstance(test_data, bool):
                     self.assertFalse(result)
                 else:
-                    assert_allclose(result, test_data)
+                    assert_allclose(result, test_data, type_test=False)
                 self.assertEqual(result.ndim, 0)
 
     def test_string(self):

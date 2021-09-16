@@ -22,7 +22,7 @@ class IntensityScaleIntensityRange(NumpyImageTestCase2D):
             scaled = scaler(p(self.imt))
             expected = (self.imt - 20) / 88
             expected = expected * 30 + 50
-            assert_allclose(scaled, expected)
+            assert_allclose(scaled, p(expected))
 
 
 if __name__ == "__main__":

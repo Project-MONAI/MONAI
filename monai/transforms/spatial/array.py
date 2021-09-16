@@ -471,7 +471,7 @@ class Rotate(Transform, ThreadUnsafe):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: Union[DtypeLike, torch.dtype] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
@@ -526,13 +526,11 @@ class Rotate(Transform, ThreadUnsafe):
             align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
-        output: torch.Tensor = xform(
-            img_t.unsqueeze(0),
-            transform_t,
-            spatial_size=output_shape,
-        )
+        output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
         self._rotation_matrix = transform
-        return output.squeeze(0).detach().float()
+        out: NdarrayOrTensor
+        out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
+        return out
 
     def get_rotation_matrix(self) -> Optional[np.ndarray]:
         """
@@ -799,7 +797,7 @@ class RandRotate(RandomizableTransform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: Union[DtypeLike, torch.dtype] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -1290,7 +1288,7 @@ class Resample(Transform):
         grid: Optional[NdarrayOrTensor] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]).
@@ -1344,8 +1342,9 @@ class Resample(Transform):
                 padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
                 align_corners=True,
             )[0]
-
-        return out
+        out_val: NdarrayOrTensor
+        out_val, *_ = convert_to_dst_type(out, dst=img, dtype=out.dtype)
+        return out_val
 
 
 class Affine(Transform):
@@ -1425,7 +1424,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, NdarrayOrTensor]]:
+    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor]]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1589,7 +1588,7 @@ class RandAffine(RandomizableTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1615,7 +1614,7 @@ class RandAffine(RandomizableTransform):
         grid = self.get_identity_grid(sp_size)
         if self._do_transform:
             grid = self.rand_affine_grid(grid=grid)
-        out: torch.Tensor = self.resampler(
+        out: NdarrayOrTensor = self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
         return out
@@ -1727,7 +1726,7 @@ class Rand2DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: shape must be (num_channels, H, W),
@@ -1756,7 +1755,7 @@ class Rand2DElastic(RandomizableTransform):
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
             grid = create_grid(spatial_size=sp_size)
-        out: torch.Tensor = self.resampler(
+        out: NdarrayOrTensor = self.resampler(
             img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
         return out
@@ -1877,7 +1876,7 @@ class Rand3DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: shape must be (num_channels, H, W, D),
@@ -1902,7 +1901,7 @@ class Rand3DElastic(RandomizableTransform):
             offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
-        out: torch.Tensor = self.resampler(
+        out: NdarrayOrTensor = self.resampler(
             img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
         return out
