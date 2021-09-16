@@ -36,6 +36,7 @@ from monai.transforms.utility.array import (
     CastToType,
     ClassesToIndices,
     ConvertToMultiChannelBasedOnBratsClasses,
+    CuCIM,
     DataStats,
     EnsureChannelFirst,
     EnsureType,
@@ -87,6 +88,9 @@ __all__ = [
     "CopyItemsD",
     "CopyItemsDict",
     "CopyItemsd",
+    "CuCIMd",
+    "CuCIMD",
+    "CuCIMDict",
     "DataStatsD",
     "DataStatsDict",
     "DataStatsd",
@@ -117,6 +121,9 @@ __all__ = [
     "MapLabelValueD",
     "MapLabelValueDict",
     "MapLabelValued",
+    "RandCuCIMd",
+    "RandCuCIMD",
+    "RandCuCIMDict",
     "RandLambdaD",
     "RandLambdaDict",
     "RandLambdad",
@@ -1481,6 +1488,99 @@ class ToDeviced(MapTransform):
         return d
 
 
+class CuCIMd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for non-randomized transforms.
+    For randomized transforms of CuCIM use :py:class:`monai.transforms.RandCuCIMd`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        name: The transform name in CuCIM package.
+        allow_missing_keys: don't raise exception if key is missing.
+        args: parameters for the CuCIM transform.
+        kwargs: parameters for the CuCIM transform.
+
+    Note:
+        CuCIM transforms only work with CuPy arrays, this transform expects input data to be `cupy.ndarray`.
+        Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        name: str,
+        allow_missing_keys: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
+        self.trans = CuCIM(name, *args, **kwargs)
+
+    def __call__(self, data):
+        """
+        Args:
+            data: Dict[Hashable, `cupy.ndarray`]
+
+        Returns:
+            Dict[Hashable, `cupy.ndarray`]
+
+        """
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.trans(d[key])
+        return d
+
+
+class RandCuCIMd(CuCIMd, RandomizableTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for randomized transforms.
+    For deterministic non-randomized transforms of CuCIM use :py:class:`monai.transforms.CuCIMd`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        name: The transform name in CuCIM package.
+        apply_prob: the probability to apply the transform (default=1.0)
+        allow_missing_keys: don't raise exception if key is missing.
+        args: parameters for the CuCIM transform.
+        kwargs: parameters for the CuCIM transform.
+
+    Note:
+        - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
+          Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+        - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
+          the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
+          or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+          with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
+        - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
+          the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
+    """
+
+    def __init__(
+        self,
+        apply_prob: float = 1.0,
+        *args,
+        **kwargs,
+    ) -> None:
+        CuCIMd.__init__(self, *args, **kwargs)
+        RandomizableTransform.__init__(self, prob=apply_prob)
+
+    def __call__(self, data):
+        """
+        Args:
+            data: Dict[Hashable, `cupy.ndarray`]
+
+        Returns:
+            Dict[Hashable, `cupy.ndarray`]
+
+        """
+        self.randomize(data)
+        if not self._do_transform:
+            return dict(data)
+        return super().__call__(data)
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -1517,3 +1617,5 @@ RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued
 IntensityStatsD = IntensityStatsDict = IntensityStatsd
 ToDeviceD = ToDeviceDict = ToDeviced
+CuCIMD = CuCIMDict = CuCIMd
+RandCuCIMD = RandCuCIMDict = RandCuCIMd
