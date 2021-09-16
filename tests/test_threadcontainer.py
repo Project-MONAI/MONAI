@@ -79,7 +79,7 @@ class TestThreadContainer(unittest.TestCase):
         # a third non-image key is added to test that this is correctly ignored when plotting
         data = {CommonKeys.IMAGE: img, CommonKeys.LABEL: img, "Not Image Data": ["This isn't an image"]}
 
-        loader = DataLoader([data] * 10)
+        loader = DataLoader([data] * 10, batch_size=2)
 
         trainer = SupervisedTrainer(
             device=torch.device("cpu"),
@@ -99,12 +99,13 @@ class TestThreadContainer(unittest.TestCase):
 
         fig = con.plot_status(logger)
 
-        with tempfile.TemporaryDirectory() as tempdir:
-            tempimg = f"{tempdir}/threadcontainer_plot_test.png"
-            fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/threadcontainer_plot_test.png", tempimg, 1e-2)
+        #with tempfile.TemporaryDirectory() as tempdir:
+        tempdir='.'
+        tempimg = f"{tempdir}/threadcontainer_plot_test.png"
+        fig.savefig(tempimg)
+        comp = compare_images(f"{testing_dir}/threadcontainer_plot_test.png", tempimg, 1e-2)
 
-            self.assertIsNone(comp, comp)  # None indicates test passed
+        self.assertIsNone(comp, comp)  # None indicates test passed
 
 
 if __name__ == "__main__":
