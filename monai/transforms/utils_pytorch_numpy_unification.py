@@ -26,6 +26,8 @@ __all__ = [
     "nonzero",
     "floor_divide",
     "unravel_index",
+    "ravel",
+    "any_np_pt",
 ]
 
 
@@ -177,3 +179,40 @@ def unravel_index(idx, shape):
             idx = floor_divide(idx, dim)
         return torch.stack(coord)
     return np.unravel_index(np.asarray(idx, dtype=int), shape)
+
+
+def ravel(x: NdarrayOrTensor):
+    """`np.ravel` with equivalent implementation for torch.
+
+    Args:
+        x: array/tensor to ravel
+
+    Returns:
+        Return a contiguous flattened array/tensor.
+    """
+    if isinstance(x, torch.Tensor):
+        if hasattr(torch, "ravel"):
+            return x.ravel()
+        x.flatten()
+    return np.ravel(x)
+
+
+def any_np_pt(x: NdarrayOrTensor, axis: int):
+    """`np.any` with equivalent implementation for torch.
+
+    For pytorch, convert to boolean for compatibility with older versions.
+
+    Args:
+        x: input array/tensor
+        axis: axis to perform `any` over
+
+    Returns:
+        Return a contiguous flattened array/tensor.
+    """
+    if isinstance(x, torch.Tensor):
+        try:
+            return torch.any(x, axis)
+        except RuntimeError:
+            # older versions of pytorch require the input to be cast to boolean
+            return torch.any(x.bool(), axis)
+    return np.any(x, axis)

@@ -525,12 +525,14 @@ from .utils import (
     zero_margins,
 )
 from .utils_pytorch_numpy_unification import (
+    any_np_pt,
     clip,
     floor_divide,
     in1d,
     moveaxis,
     nonzero,
     percentile,
+    ravel,
     unravel_index,
     where,
 )

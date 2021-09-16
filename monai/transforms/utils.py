@@ -26,7 +26,7 @@ from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform
-from monai.transforms.utils_pytorch_numpy_unification import nonzero, unravel_index
+from monai.transforms.utils_pytorch_numpy_unification import any_np_pt, nonzero, ravel, unravel_index
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -283,10 +283,10 @@ def map_binary_to_indices(
     # Prepare fg/bg indices
     if label.shape[0] > 1:
         label = label[1:]  # for One-Hot format data, remove the background channel
-    label_flat = label.any(0).ravel()  # in case label has multiple dimensions
+    label_flat = ravel(any_np_pt(label, 0))  # in case label has multiple dimensions
     fg_indices = nonzero(label_flat)
     if image is not None:
-        img_flat = (image > image_threshold).any(0).ravel()
+        img_flat = ravel(any_np_pt(image > image_threshold, 0))
         img_flat, *_ = convert_data_type(
             img_flat, type(label), device=label.device if isinstance(label, torch.Tensor) else None
         )
@@ -324,7 +324,7 @@ def map_classes_to_indices(
     """
     img_flat: Optional[NdarrayOrTensor] = None
     if image is not None:
-        img_flat = (image > image_threshold).any(0).ravel()
+        img_flat = ravel((image > image_threshold).any(0))
 
     indices: List[NdarrayOrTensor] = []
     # assuming the first dimension is channel
@@ -337,7 +337,7 @@ def map_classes_to_indices(
         num_classes_ = num_classes
 
     for c in range(num_classes_):
-        label_flat = (label[c : c + 1] if channels > 1 else label == c).any(0).ravel()
+        label_flat = ravel(any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0))
         label_flat = img_flat & label_flat if img_flat is not None else label_flat
         indices.append(nonzero(label_flat))
 
