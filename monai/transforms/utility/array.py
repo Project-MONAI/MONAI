@@ -330,10 +330,6 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        if not isinstance(img, (torch.Tensor, np.ndarray)) and not (has_cp and isinstance(img, cp.ndarray)):
-            raise TypeError(
-                f"img must be one of (numpy.ndarray, torch.Tensor, cupy.ndarray) but is {type(img).__name__}."
-            )
         img_out, *_ = convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)
         return img_out
 
