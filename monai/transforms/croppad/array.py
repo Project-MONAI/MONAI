@@ -22,7 +22,7 @@ import torch
 from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
-from monai.config.type_definitions import NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
@@ -36,6 +36,7 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
+from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
 from monai.utils import (
     Method,
     NumpyPadMode,
@@ -98,8 +99,7 @@ class Pad(Transform):
 
     @staticmethod
     def _np_pad(img: np.ndarray, all_pad_width, mode, **kwargs) -> np.ndarray:
-        img_np, *_ = convert_data_type(img, np.ndarray)
-        return np.pad(img_np, all_pad_width, mode=mode, **kwargs)  # type: ignore
+        return np.pad(img, all_pad_width, mode=mode, **kwargs)  # type: ignore
 
     @staticmethod
     def _pt_pad(img: torch.Tensor, all_pad_width, mode, **kwargs) -> torch.Tensor:
@@ -109,9 +109,9 @@ class Pad(Transform):
 
     def __call__(
         self,
-        img: NdarrayTensor,
+        img: NdarrayOrTensor,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-    ) -> NdarrayTensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
@@ -132,7 +132,7 @@ class Pad(Transform):
             pad = self._pt_pad
         else:
             pad = self._np_pad  # type: ignore
-        return pad(img, self.to_pad, mode, **self.kwargs)
+        return pad(img, self.to_pad, mode, **self.kwargs)  # type: ignore
 
 
 class SpatialPad(Transform):
@@ -190,9 +190,9 @@ class SpatialPad(Transform):
 
     def __call__(
         self,
-        img: NdarrayTensor,
+        img: NdarrayOrTensor,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-    ) -> NdarrayTensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
@@ -255,9 +255,9 @@ class BorderPad(Transform):
 
     def __call__(
         self,
-        img: NdarrayTensor,
+        img: NdarrayOrTensor,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-    ) -> NdarrayTensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
@@ -337,9 +337,9 @@ class DivisiblePad(Transform):
 
     def __call__(
         self,
-        img: NdarrayTensor,
+        img: NdarrayOrTensor,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-    ) -> NdarrayTensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first
@@ -377,12 +377,14 @@ class SpatialCrop(Transform):
         - the start and end coordinates of the ROI
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
-        roi_center: Union[Sequence[int], np.ndarray, None] = None,
-        roi_size: Union[Sequence[int], np.ndarray, None] = None,
-        roi_start: Union[Sequence[int], np.ndarray, None] = None,
-        roi_end: Union[Sequence[int], np.ndarray, None] = None,
+        roi_center: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_size: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_slices: Optional[Sequence[slice]] = None,
     ) -> None:
         """
@@ -395,33 +397,38 @@ class SpatialCrop(Transform):
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
         """
+        roi_start_torch: torch.Tensor
+
         if roi_slices:
             if not all(s.step is None or s.step == 1 for s in roi_slices):
                 raise ValueError("Only slice steps of 1/None are currently supported")
             self.slices = list(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                roi_center = np.asarray(roi_center, dtype=np.int16)
-                roi_size = np.asarray(roi_size, dtype=np.int16)
-                roi_start_np = np.maximum(roi_center - np.floor_divide(roi_size, 2), 0)
-                roi_end_np = np.maximum(roi_start_np + roi_size, roi_start_np)
+                roi_center = torch.as_tensor(roi_center, dtype=torch.int16)
+                roi_size = torch.as_tensor(roi_size, dtype=torch.int16, device=roi_center.device)
+                roi_start_torch = maximum(  # type: ignore
+                    roi_center - floor_divide(roi_size, 2),
+                    torch.zeros_like(roi_center),
+                )
+                roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start_np = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
-                roi_end_np = np.maximum(np.asarray(roi_end, dtype=np.int16), roi_start_np)
-            # Allow for 1D by converting back to np.array (since np.maximum will convert to int)
-            roi_start_np = roi_start_np if isinstance(roi_start_np, np.ndarray) else np.array([roi_start_np])
-            roi_end_np = roi_end_np if isinstance(roi_end_np, np.ndarray) else np.array([roi_end_np])
-            # convert to slices
-            self.slices = [slice(s, e) for s, e in zip(roi_start_np, roi_end_np)]
+                roi_start_torch = torch.as_tensor(roi_start, dtype=torch.int16)
+                roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))  # type: ignore
+                roi_end_torch = maximum(torch.as_tensor(roi_end, dtype=torch.int16), roi_start_torch)
+            # convert to slices (accounting for 1d)
+            if roi_start_torch.numel() == 1:
+                self.slices = [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
+            else:
+                self.slices = [slice(int(s.item()), int(e.item())) for s, e in zip(roi_start_torch, roi_end_torch)]
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        img, *_ = convert_data_type(img, np.ndarray)
         sd = min(len(self.slices), len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + self.slices[:sd]
         return img[tuple(slices)]
@@ -822,7 +829,8 @@ class RandWeightedCrop(Randomizable, Transform):
         results = []
         for center in self.centers:
             cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-            results.append(cropper(img))
+            cropped: np.ndarray = cropper(img)  # type: ignore
+            results.append(cropped)
         return results
 
 
@@ -962,7 +970,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                results.append(cropper(img))
+                cropped: np.ndarray = cropper(img)  # type: ignore
+                results.append(cropped)
 
         return results
 
@@ -1098,7 +1107,8 @@ class RandCropByLabelClasses(Randomizable, Transform):
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                results.append(cropper(img))
+                cropped: np.ndarray = cropper(img)  # type: ignore
+                results.append(cropped)
 
         return results
 
@@ -1146,7 +1156,7 @@ class ResizeWithPadOrCrop(Transform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
         img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-        return self.padder(self.cropper(img), mode=mode)
+        return self.padder(self.cropper(img), mode=mode)  # type: ignore
 
 
 class BoundingRect(Transform):

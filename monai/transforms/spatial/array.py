@@ -618,7 +618,7 @@ class Zoom(Transform):
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
 
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
-        zoomed: torch.Tensor = torch.nn.functional.interpolate(  # type: ignore
+        zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(  # type: ignore
             recompute_scale_factor=True,
             input=img_t.unsqueeze(0),
             scale_factor=list(_zoom),
@@ -1065,7 +1065,7 @@ class AffineGrid(Transform):
         """
         if grid is None:
             if spatial_size is not None:
-                grid = create_grid(spatial_size)
+                grid = create_grid(spatial_size, dtype=float)
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
@@ -1084,9 +1084,7 @@ class AffineGrid(Transform):
         else:
             affine = self.affine
 
-        if self.device not in (None, torch.device("cpu"), "cpu"):
-            grid, *_ = convert_data_type(grid, torch.Tensor, device=self.device)
-        grid, *_ = convert_data_type(grid, dtype=float)
+        grid, *_ = convert_data_type(grid, torch.Tensor, device=self.device, dtype=float)
         affine, *_ = convert_to_dst_type(affine, grid)
 
         grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))
