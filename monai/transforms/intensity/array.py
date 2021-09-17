@@ -955,7 +955,7 @@ class SavitzkyGolaySmooth(Transform):
         self.mode = mode
         self.img_t: torch.Tensor = torch.tensor(0.0)
 
-    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
@@ -969,7 +969,9 @@ class SavitzkyGolaySmooth(Transform):
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        out: torch.Tensor = savgol_filter(self.img_t.unsqueeze(0)).squeeze(0)
+        out = savgol_filter(self.img_t.unsqueeze(0)).squeeze(0)
+        out, *_ = convert_to_dst_type(out, dst=img)
+
         return out
 
 
