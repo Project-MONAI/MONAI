@@ -1069,18 +1069,19 @@ class AffineGrid(Transform):
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
+        _b = TransformBackends.TORCH if isinstance(grid, torch.Tensor) else TransformBackends.NUMPY
         affine: NdarrayOrTensor
         if self.affine is None:
             spatial_dims = len(grid.shape) - 1
-            affine = np.eye(spatial_dims + 1)
+            affine = torch.eye(spatial_dims + 1) if _b == TransformBackends.TORCH else np.eye(spatial_dims + 1)
             if self.rotate_params:
-                affine = affine @ create_rotate(spatial_dims, self.rotate_params)
+                affine = affine @ create_rotate(spatial_dims, self.rotate_params, backend=_b)
             if self.shear_params:
-                affine = affine @ create_shear(spatial_dims, self.shear_params)
+                affine = affine @ create_shear(spatial_dims, self.shear_params, backend=_b)
             if self.translate_params:
-                affine = affine @ create_translate(spatial_dims, self.translate_params)
+                affine = affine @ create_translate(spatial_dims, self.translate_params, backend=_b)
             if self.scale_params:
-                affine = affine @ create_scale(spatial_dims, self.scale_params)
+                affine = affine @ create_scale(spatial_dims, self.scale_params, backend=_b)
         else:
             affine = self.affine
 
