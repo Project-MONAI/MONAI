@@ -884,17 +884,19 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        label: Optional[np.ndarray] = None,
+        label: Optional[NdarrayOrTensor] = None,
         pos: float = 1.0,
         neg: float = 1.0,
         num_samples: int = 1,
-        image: Optional[np.ndarray] = None,
+        image: Optional[NdarrayOrTensor] = None,
         image_threshold: float = 0.0,
-        fg_indices: Optional[np.ndarray] = None,
-        bg_indices: Optional[np.ndarray] = None,
+        fg_indices: Optional[NdarrayOrTensor] = None,
+        bg_indices: Optional[NdarrayOrTensor] = None,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
         self.label = label
@@ -906,41 +908,39 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
-        self.centers: Optional[List[List[np.ndarray]]] = None
+        self.centers: Optional[List[List[int]]] = None
         self.fg_indices = fg_indices
         self.bg_indices = bg_indices
 
     def randomize(
         self,
-        label: np.ndarray,
-        fg_indices: Optional[np.ndarray] = None,
-        bg_indices: Optional[np.ndarray] = None,
-        image: Optional[np.ndarray] = None,
+        label: NdarrayOrTensor,
+        fg_indices: Optional[NdarrayOrTensor] = None,
+        bg_indices: Optional[NdarrayOrTensor] = None,
+        image: Optional[NdarrayOrTensor] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-        fg_indices_: np.ndarray
-        bg_indices_: np.ndarray
         if fg_indices is None or bg_indices is None:
             if self.fg_indices is not None and self.bg_indices is not None:
                 fg_indices_ = self.fg_indices
                 bg_indices_ = self.bg_indices
             else:
-                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)  # type: ignore
+                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
         else:
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
-        self.centers = generate_pos_neg_label_crop_centers(  # type: ignore
+        self.centers = generate_pos_neg_label_crop_centers(
             self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
         )
 
     def __call__(
         self,
-        img: np.ndarray,
-        label: Optional[np.ndarray] = None,
-        image: Optional[np.ndarray] = None,
-        fg_indices: Optional[np.ndarray] = None,
-        bg_indices: Optional[np.ndarray] = None,
-    ) -> List[np.ndarray]:
+        img: NdarrayOrTensor,
+        label: Optional[NdarrayOrTensor] = None,
+        image: Optional[NdarrayOrTensor] = None,
+        fg_indices: Optional[NdarrayOrTensor] = None,
+        bg_indices: Optional[NdarrayOrTensor] = None,
+    ) -> List[NdarrayOrTensor]:
         """
         Args:
             img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.
@@ -962,16 +962,12 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         if image is None:
             image = self.image
 
-        image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
-        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
-
         self.randomize(label, fg_indices, bg_indices, image)
-        results: List[np.ndarray] = []
+        results: List[NdarrayOrTensor] = []
         if self.centers is not None:
             for center in self.centers:
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                cropped: np.ndarray = cropper(img)  # type: ignore
-                results.append(cropped)
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                results.append(cropper(img))
 
         return results
 
@@ -1035,16 +1031,18 @@ class RandCropByLabelClasses(Randomizable, Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
         ratios: Optional[List[Union[float, int]]] = None,
-        label: Optional[np.ndarray] = None,
+        label: Optional[NdarrayOrTensor] = None,
         num_classes: Optional[int] = None,
         num_samples: int = 1,
-        image: Optional[np.ndarray] = None,
+        image: Optional[NdarrayOrTensor] = None,
         image_threshold: float = 0.0,
-        indices: Optional[List[np.ndarray]] = None,
+        indices: Optional[List[NdarrayOrTensor]] = None,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
         self.ratios = ratios
@@ -1053,35 +1051,35 @@ class RandCropByLabelClasses(Randomizable, Transform):
         self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
-        self.centers: Optional[List[List[np.ndarray]]] = None
+        self.centers: Optional[List[List[int]]] = None
         self.indices = indices
 
     def randomize(
         self,
-        label: np.ndarray,
-        indices: Optional[List[np.ndarray]] = None,
-        image: Optional[np.ndarray] = None,
+        label: NdarrayOrTensor,
+        indices: Optional[List[NdarrayOrTensor]] = None,
+        image: Optional[NdarrayOrTensor] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-        indices_: Sequence[np.ndarray]
+        indices_: Sequence[NdarrayOrTensor]
         if indices is None:
             if self.indices is not None:
                 indices_ = self.indices
             else:
-                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)  # type: ignore
+                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         else:
             indices_ = indices
-        self.centers = generate_label_classes_crop_centers(  # type: ignore
+        self.centers = generate_label_classes_crop_centers(
             self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
         )
 
     def __call__(
         self,
-        img: np.ndarray,
-        label: Optional[np.ndarray] = None,
-        image: Optional[np.ndarray] = None,
-        indices: Optional[List[np.ndarray]] = None,
-    ) -> List[np.ndarray]:
+        img: NdarrayOrTensor,
+        label: Optional[NdarrayOrTensor] = None,
+        image: Optional[NdarrayOrTensor] = None,
+        indices: Optional[List[NdarrayOrTensor]] = None,
+    ) -> List[NdarrayOrTensor]:
         """
         Args:
             img: input data to crop samples from based on the ratios of every class, assumes `img` is a
@@ -1099,16 +1097,12 @@ class RandCropByLabelClasses(Randomizable, Transform):
         if image is None:
             image = self.image
 
-        image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
-        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
-
         self.randomize(label, indices, image)
-        results: List[np.ndarray] = []
+        results: List[NdarrayOrTensor] = []
         if self.centers is not None:
             for center in self.centers:
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                cropped: np.ndarray = cropper(img)  # type: ignore
-                results.append(cropped)
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                results.append(cropper(img))
 
         return results
 
