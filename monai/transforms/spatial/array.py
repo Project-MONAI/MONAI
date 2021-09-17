@@ -462,7 +462,7 @@ class Rotate(Transform, ThreadUnsafe):
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
-        self._rotation_matrix: Optional[np.ndarray] = None
+        self._rotation_matrix: Optional[NdarrayOrTensor] = None
 
     def __call__(
         self,
@@ -511,7 +511,7 @@ class Rotate(Transform, ThreadUnsafe):
             corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape(
                 (len(im_shape), -1)
             )
-            corners = transform[:-1, :-1] @ corners
+            corners = transform[:-1, :-1] @ corners  # type: ignore
             output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
         shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
         transform = shift @ transform @ shift_1
@@ -532,7 +532,7 @@ class Rotate(Transform, ThreadUnsafe):
         out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
         return out
 
-    def get_rotation_matrix(self) -> Optional[np.ndarray]:
+    def get_rotation_matrix(self) -> Optional[NdarrayOrTensor]:
         """
         Get the most recently applied rotation matrix
         This is not thread-safe.

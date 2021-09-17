@@ -602,8 +602,8 @@ def create_rotate(
         return _create_rotate(
             spatial_dims=spatial_dims,
             radians=radians,
-            sin_func=lambda th: torch.sin(torch.as_tensor(th)),
-            cos_func=lambda th: torch.cos(torch.as_tensor(th)),
+            sin_func=lambda th: torch.sin(torch.as_tensor(th, dtype=torch.float32)),
+            cos_func=lambda th: torch.cos(torch.as_tensor(th, dtype=torch.float32)),
             array_func=torch.as_tensor,
         )
     raise ValueError("backend {} is not supported".format(backend))
@@ -676,7 +676,6 @@ def create_shear(
 
     """
     if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
-        array_func = np.array
         return _create_shear(spatial_dims=spatial_dims, coefs=coefs, array_func=np.array)
     if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
         return _create_shear(spatial_dims=spatial_dims, coefs=coefs, array_func=torch.as_tensor)
@@ -759,7 +758,7 @@ def _create_translate(
     affine = eye_func(spatial_dims + 1)
     for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
-    return array_func(affine)
+    return array_func(affine)  # type: ignore
 
 
 def generate_spatial_bounding_box(
