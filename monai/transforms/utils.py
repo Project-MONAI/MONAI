@@ -576,7 +576,9 @@ def create_control_grid(
     return create_grid(grid_shape, spacing, homogeneous, dtype)
 
 
-def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]) -> np.ndarray:
+def create_rotate(
+    spatial_dims: int, radians: Union[Sequence[float], float], backend=TransformBackends.NUMPY
+) -> NdarrayOrTensor:
     """
     create a 2D or 3D rotation matrix
 
@@ -585,48 +587,73 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]) -> 
         radians: rotation radians
             when spatial_dims == 3, the `radians` sequence corresponds to
             rotation in the 1st, 2nd, and 3rd dim respectively.
+        backend: APIs to use, ``numpy`` or ``torch``.
 
     Raises:
         ValueError: When ``radians`` is empty.
         ValueError: When ``spatial_dims`` is not one of [2, 3].
 
     """
+    if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
+        sin_func = np.sin
+        cos_func = np.cos
+        array_func = np.array
+    elif look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+        sin_func = lambda th: torch.sin(torch.as_tensor(th))  # type: ignore
+        cos_func = lambda th: torch.cos(torch.as_tensor(th))  # type: ignore
+        array_func = torch.tensor  # type: ignore
+    else:
+        raise ValueError("backend {} is not supported".format(backend))
+    return _create_rotate(
+        spatial_dims=spatial_dims, radians=radians, sin_func=sin_func, cos_func=cos_func, array_func=array_func
+    )
+
+
+def _create_rotate(
+    spatial_dims: int,
+    radians: Union[Sequence[float], float],
+    sin_func: Callable = np.sin,
+    cos_func: Callable = np.cos,
+    array_func: Callable = np.array,
+) -> NdarrayOrTensor:
     radians = ensure_tuple(radians)
     if spatial_dims == 2:
         if len(radians) >= 1:
-            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
-            return np.array([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])
+            sin_, cos_ = sin_func(radians[0]), cos_func(radians[0])
+            return array_func([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])  # type: ignore
         raise ValueError("radians must be non empty.")
 
     if spatial_dims == 3:
         affine = None
         if len(radians) >= 1:
-            sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
-            affine = np.array(
+            sin_, cos_ = sin_func(radians[0]), cos_func(radians[0])
+            affine = array_func(
                 [[1.0, 0.0, 0.0, 0.0], [0.0, cos_, -sin_, 0.0], [0.0, sin_, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
         if len(radians) >= 2:
-            sin_, cos_ = np.sin(radians[1]), np.cos(radians[1])
+            sin_, cos_ = sin_func(radians[1]), cos_func(radians[1])
             if affine is None:
                 raise ValueError("Affine should be a matrix.")
-            affine = affine @ np.array(
+            affine = affine @ array_func(
                 [[cos_, 0.0, sin_, 0.0], [0.0, 1.0, 0.0, 0.0], [-sin_, 0.0, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
         if len(radians) >= 3:
-            sin_, cos_ = np.sin(radians[2]), np.cos(radians[2])
+            sin_, cos_ = sin_func(radians[2]), cos_func(radians[2])
             if affine is None:
                 raise ValueError("Affine should be a matrix.")
-            affine = affine @ np.array(
+            affine = affine @ array_func(
                 [[cos_, -sin_, 0.0, 0.0], [sin_, cos_, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
         if affine is None:
             raise ValueError("radians must be non empty.")
-        return affine
+        return affine  # type: ignore
 
     raise ValueError(f"Unsupported spatial_dims: {spatial_dims}, available options are [2, 3].")
 
 
-def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.ndarray:
+def create_shear(
+    spatial_dims: int, coefs: Union[Sequence[float], float], backend=TransformBackends.NUMPY
+) -> NdarrayOrTensor:
     """
     create a shearing matrix
 
@@ -642,16 +669,28 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
                     [0.0, 0.0, 0.0, 1.0],
                 ]
 
+        backend: APIs to use, ``numpy`` or ``torch``.
+
     Raises:
         NotImplementedError: When ``spatial_dims`` is not one of [2, 3].
 
     """
+    if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
+        array_func = np.array
+    elif look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+        array_func = torch.tensor  # type: ignore
+    else:
+        raise ValueError("backend {} is not supported".format(backend))
+    return _create_shear(spatial_dims=spatial_dims, coefs=coefs, array_func=array_func)
+
+
+def _create_shear(spatial_dims: int, coefs: Union[Sequence[float], float], array_func=np.array) -> NdarrayOrTensor:
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
-        return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
+        return array_func([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])  # type: ignore
     if spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
-        return np.array(
+        return array_func(  # type: ignore
             [
                 [1.0, coefs[0], coefs[1], 0.0],
                 [coefs[2], 1.0, coefs[3], 0.0],
@@ -662,31 +701,63 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
     raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
 
 
-def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float]):
+def create_scale(
+    spatial_dims: int, scaling_factor: Union[Sequence[float], float], backend=TransformBackends.NUMPY
+) -> NdarrayOrTensor:
     """
     create a scaling matrix
 
     Args:
         spatial_dims: spatial rank
         scaling_factor: scaling factors for every spatial dim, defaults to 1.
+        backend: APIs to use, ``numpy`` or ``torch``.
     """
+    if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
+        array_func = np.diag
+    elif look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+        array_func = lambda x: torch.diag(torch.as_tensor(x))  # type: ignore
+    else:
+        raise ValueError("backend {} is not supported".format(backend))
+    return _create_scale(spatial_dims=spatial_dims, scaling_factor=scaling_factor, array_func=array_func)
+
+
+def _create_scale(
+    spatial_dims: int, scaling_factor: Union[Sequence[float], float], array_func=np.diag
+) -> NdarrayOrTensor:
     scaling_factor = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
-    return np.diag(scaling_factor[:spatial_dims] + (1.0,))
+    return array_func(scaling_factor[:spatial_dims] + (1.0,))  # type: ignore
 
 
-def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) -> np.ndarray:
+def create_translate(
+    spatial_dims: int, shift: Union[Sequence[float], float], backend=TransformBackends.NUMPY
+) -> NdarrayOrTensor:
     """
     create a translation matrix
 
     Args:
         spatial_dims: spatial rank
         shift: translate pixel/voxel for every spatial dim, defaults to 0.
+        backend: APIs to use, ``numpy`` or ``torch``.
     """
+    if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
+        eye_func = np.eye
+        array_func = np.asarray
+    elif look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+        eye_func = lambda x: torch.eye(torch.as_tensor(x))  # type: ignore
+        array_func = torch.as_tensor
+    else:
+        raise ValueError("backend {} is not supported".format(backend))
+    return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=eye_func, array_func=array_func)
+
+
+def _create_translate(
+    spatial_dims: int, shift: Union[Sequence[float], float], eye_func=np.eye, array_func=np.asarray
+) -> NdarrayOrTensor:
     shift = ensure_tuple(shift)
-    affine = np.eye(spatial_dims + 1)
+    affine = eye_func(spatial_dims + 1)
     for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
-    return np.asarray(affine)
+    return array_func(affine)
 
 
 def generate_spatial_bounding_box(

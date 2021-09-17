@@ -21,6 +21,7 @@ from monai.transforms import (
     create_shear,
     create_translate,
 )
+from tests.utils import assert_allclose
 
 
 class TestCreateGrid(unittest.TestCase):
@@ -147,8 +148,9 @@ class TestCreateGrid(unittest.TestCase):
 
 
 def test_assert(func, params, expected):
-    m = func(*params)
-    np.testing.assert_allclose(m, expected, atol=1e-7)
+    for b in ("torch", "numpy"):
+        m = func(*params, backend=b)
+        assert_allclose(m, expected, type_test=False, atol=1e-7)
 
 
 class TestCreateAffine(unittest.TestCase):
