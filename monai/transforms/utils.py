@@ -1104,7 +1104,7 @@ class Fourier:
     @deprecated_arg(
         name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
-    def shift_fourier(x: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
+    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
@@ -1121,16 +1121,19 @@ class Fourier:
         """
         if n_dims is not None:
             spatial_dims = n_dims
-        k: torch.Tensor = torch.fft.fftshift(
-            torch.fft.fftn(x, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
-        )
+        dims = tuple(range(-spatial_dims, 0))
+        k: NdarrayOrTensor
+        if isinstance(x, torch.Tensor):
+            k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
+        else:
+            k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
         return k
 
     @staticmethod
     @deprecated_arg(
         name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
-    def inv_shift_fourier(k: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
+    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
@@ -1147,10 +1150,13 @@ class Fourier:
         """
         if n_dims is not None:
             spatial_dims = n_dims
-        x: torch.Tensor = torch.fft.ifftn(
-            torch.fft.ifftshift(k, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
-        ).real
-        return x
+        dims = tuple(range(-spatial_dims, 0))
+        out: NdarrayOrTensor
+        if isinstance(k, torch.Tensor):
+            out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward")
+        else:
+            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims)
+        return out.real  # type: ignore
 
 
 def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Optional[Hashable] = None) -> int:
