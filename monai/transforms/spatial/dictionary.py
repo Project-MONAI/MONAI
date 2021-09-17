@@ -795,9 +795,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         # change image size or do random transform
         do_resampling = self._do_transform or (sp_size != ensure_tuple(data[self.keys[0]].shape[1:]))
-        affine: NdarrayOrTensor = np.eye(len(sp_size) + 1, dtype=np.float64)
+        affine: torch.Tensor = torch.eye(len(sp_size) + 1, dtype=torch.float64, device=device)
         # converting affine to tensor because the resampler currently only support torch backend
-        affine, *_ = convert_data_type(affine, torch.Tensor, device=device)
         grid = None
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
