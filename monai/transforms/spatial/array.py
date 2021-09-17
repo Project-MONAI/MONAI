@@ -1065,7 +1065,7 @@ class AffineGrid(Transform):
         """
         if grid is None:
             if spatial_size is not None:
-                grid = create_grid(spatial_size)
+                grid = create_grid(spatial_size, dtype=float)
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
@@ -1084,9 +1084,7 @@ class AffineGrid(Transform):
         else:
             affine = self.affine
 
-        if self.device not in (None, torch.device("cpu"), "cpu"):
-            grid, *_ = convert_data_type(grid, torch.Tensor, device=self.device)
-        grid, *_ = convert_data_type(grid, dtype=float)
+        grid, *_ = convert_data_type(grid, torch.Tensor, device=self.device, dtype=float)
         affine, *_ = convert_to_dst_type(affine, grid)
 
         grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))

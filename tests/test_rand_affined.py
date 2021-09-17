@@ -211,6 +211,11 @@ class TestRandAffined(unittest.TestCase):
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
             assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
 
+        g.set_random_state(4)
+        res = g(input_data)
+        # affine should be tensor because the resampler only supports pytorch backend
+        self.assertTrue(isinstance(res["img_transforms"][0]["extra_info"]["affine"], torch.Tensor))
+
     def test_ill_cache(self):
         with self.assertWarns(UserWarning):
             # spatial size is None
