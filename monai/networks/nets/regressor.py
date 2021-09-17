@@ -107,7 +107,7 @@ class Regressor(nn.Module):
             layer = ResidualUnit(
                 subunits=self.num_res_units,
                 last_conv_only=is_last,
-                dimensions=self.dimensions,
+                spatial_dims=self.dimensions,
                 in_channels=in_channels,
                 out_channels=out_channels,
                 strides=strides,
@@ -120,7 +120,7 @@ class Regressor(nn.Module):
         else:
             layer = Convolution(
                 conv_only=is_last,
-                dimensions=self.dimensions,
+                spatial_dims=self.dimensions,
                 in_channels=in_channels,
                 out_channels=out_channels,
                 strides=strides,

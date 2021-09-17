@@ -10,11 +10,13 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
-import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import generate_label_classes_crop_centers
+from monai.utils.misc import set_determinism
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     {
@@ -23,7 +25,6 @@ TEST_CASE_1 = [
         "ratios": [1, 2],
         "label_spatial_shape": [3, 3, 3],
         "indices": [[3, 12, 21], [1, 9, 18]],
-        "rand_state": np.random.RandomState(),
     },
     list,
     2,
@@ -37,7 +38,6 @@ TEST_CASE_2 = [
         "ratios": None,
         "label_spatial_shape": [3, 3, 3],
         "indices": [[3, 12, 21], [1, 9, 18]],
-        "rand_state": np.random.RandomState(),
     },
     list,
     1,
@@ -48,10 +48,20 @@ TEST_CASE_2 = [
 class TestGenerateLabelClassesCropCenters(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_type_shape(self, input_data, expected_type, expected_count, expected_shape):
-        result = generate_label_classes_crop_centers(**input_data)
-        self.assertIsInstance(result, expected_type)
-        self.assertEqual(len(result), expected_count)
-        self.assertEqual(len(result[0]), expected_shape)
+        results = []
+        for p in TEST_NDARRAYS + (None,):
+            input_data = deepcopy(input_data)
+            if p is not None:
+                input_data["indices"] = p(input_data["indices"])
+            set_determinism(0)
+            result = generate_label_classes_crop_centers(**input_data)
+            self.assertIsInstance(result, expected_type)
+            self.assertEqual(len(result), expected_count)
+            self.assertEqual(len(result[0]), expected_shape)
+            # check for consistency between numpy, torch and torch.cuda
+            results.append(result)
+            if len(results) > 1:
+                assert_allclose(results[0], results[-1])
 
 
 if __name__ == "__main__":

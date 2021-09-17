@@ -500,6 +500,11 @@ Nets
 .. autoclass:: Critic
   :members:
 
+`VLTransformers`
+~~~~~~~~~~~~~~~~
+.. autoclass:: VLTransformers
+  :members:
+
 `NetAdapter`
 ~~~~~~~~~~~~
 .. autoclass:: NetAdapter

@@ -26,14 +26,14 @@ class TestScaleIntensity(NumpyImageTestCase2D):
             maxa = self.imt.max()
             norm = (self.imt - mina) / (maxa - mina)
             expected = p((norm * (2.0 - 1.0)) + 1.0)
-            assert_allclose(result, expected, rtol=1e-7, atol=0)
+            assert_allclose(result, expected, type_test=False, rtol=1e-7, atol=0)
 
     def test_factor_scale(self):
         for p in TEST_NDARRAYS:
             scaler = ScaleIntensity(minv=None, maxv=None, factor=0.1)
             result = scaler(p(self.imt))
             expected = p((self.imt * (1 + 0.1)).astype(np.float32))
-            assert_allclose(result, expected, rtol=1e-7, atol=0)
+            assert_allclose(result, p(expected), rtol=1e-7, atol=0)
 
 
 if __name__ == "__main__":

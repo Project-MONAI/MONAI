@@ -19,23 +19,23 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 class TestScaleIntensityd(NumpyImageTestCase2D):
     def test_range_scale(self):
+        key = "img"
         for p in TEST_NDARRAYS:
-            key = "img"
             scaler = ScaleIntensityd(keys=[key], minv=1.0, maxv=2.0)
             result = scaler({key: p(self.imt)})
             mina = np.min(self.imt)
             maxa = np.max(self.imt)
             norm = (self.imt - mina) / (maxa - mina)
             expected = (norm * (2.0 - 1.0)) + 1.0
-            assert_allclose(result[key], expected)
+            assert_allclose(result[key], p(expected))
 
     def test_factor_scale(self):
+        key = "img"
         for p in TEST_NDARRAYS:
-            key = "img"
             scaler = ScaleIntensityd(keys=[key], minv=None, maxv=None, factor=0.1)
             result = scaler({key: p(self.imt)})
             expected = (self.imt * (1 + 0.1)).astype(np.float32)
-            assert_allclose(result[key], expected)
+            assert_allclose(result[key], p(expected))
 
 
 if __name__ == "__main__":

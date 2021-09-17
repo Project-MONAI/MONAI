@@ -48,8 +48,7 @@ class Swish(nn.Module):
 
 
     Shape:
-        - Input: :math:`(N, *)` where `*` means, any number of additional
-          dimensions
+        - Input: :math:`(N, *)` where `*` means, any number of additional dimensions
         - Output: :math:`(N, *)`, same shape as the input
 
 
@@ -143,8 +142,7 @@ class Mish(nn.Module):
     this class will utilize `torch.nn.functional.mish` to do the calculation if meets the version.
 
     Shape:
-        - Input: :math:`(N, *)` where `*` means, any number of additional
-          dimensions
+        - Input: :math:`(N, *)` where `*` means, any number of additional dimensions
         - Output: :math:`(N, *)`, same shape as the input
 
 

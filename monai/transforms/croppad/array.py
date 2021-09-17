@@ -22,11 +22,12 @@ import torch
 from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
-from monai.config.type_definitions import NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
+    convert_pad_mode,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -35,7 +36,16 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
-from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
+from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
+from monai.utils import (
+    Method,
+    NumpyPadMode,
+    PytorchPadMode,
+    ensure_tuple,
+    ensure_tuple_rep,
+    fall_back_tuple,
+    look_up_option,
+)
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type
 
@@ -61,16 +71,18 @@ __all__ = [
 class Pad(Transform):
     """
     Perform padding for a given an amount of padding in each dimension.
-    If input is `torch.Tensor` and mode is `constant`, `torch.nn.functional.pad` will be used.
-    Otherwise, `np.pad` will be used (input converted to `np.ndarray` if necessary).
-    Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
-    for additional details.
+    If input is `torch.Tensor`, `torch.nn.functional.pad` will be used, otherwise, `np.pad` will be used.
+
     Args:
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -78,43 +90,49 @@ class Pad(Transform):
     def __init__(
         self,
         to_pad: List[Tuple[int, int]],
-        mode: Union[NumpyPadMode, str, None] = NumpyPadMode.CONSTANT,
-        **np_kwargs,
+        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        **kwargs,
     ) -> None:
         self.to_pad = to_pad
-        self.mode = mode or NumpyPadMode.CONSTANT
-        self.np_kwargs = np_kwargs
+        self.mode = mode
+        self.kwargs = kwargs
 
     @staticmethod
-    def _np_pad(img: np.ndarray, all_pad_width, mode, **np_kwargs) -> np.ndarray:
-        img_np, *_ = convert_data_type(img, np.ndarray)
-        return np.pad(img_np, all_pad_width, mode=mode, **np_kwargs)  # type: ignore
+    def _np_pad(img: np.ndarray, all_pad_width, mode, **kwargs) -> np.ndarray:
+        return np.pad(img, all_pad_width, mode=mode, **kwargs)  # type: ignore
 
     @staticmethod
-    def _pt_pad(img: torch.Tensor, all_pad_width, mode, **np_kwargs) -> torch.Tensor:
-        pt_pad_width = [val for sublist in all_pad_width for val in sublist[::-1]][::-1]
-        return pad_pt(img, pt_pad_width, mode=mode, **np_kwargs)
+    def _pt_pad(img: torch.Tensor, all_pad_width, mode, **kwargs) -> torch.Tensor:
+        pt_pad_width = [val for sublist in all_pad_width[1:] for val in sublist[::-1]][::-1]
+        # torch.pad expects `[B, C, H, W, [D]]` shape
+        return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
-    def __call__(self, img: NdarrayTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayTensor:
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
                 padding doesn't apply to the channel dim.
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"`` or ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to `self.mode`.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+
         """
         if not np.asarray(self.to_pad).any():
             # all zeros, skip padding
             return img
-        mode = mode or self.mode
-        mode = mode.value if isinstance(mode, NumpyPadMode) else mode
-        if isinstance(img, torch.Tensor) and mode == "constant" and not self.np_kwargs:
+        mode = convert_pad_mode(dst=img, mode=mode or self.mode).value
+        if isinstance(img, torch.Tensor):
             pad = self._pt_pad
         else:
             pad = self._np_pad  # type: ignore
-        return pad(img, self.to_pad, mode, **self.np_kwargs)
+        return pad(img, self.to_pad, mode, **self.kwargs)  # type: ignore
 
 
 class SpatialPad(Transform):
@@ -135,12 +153,14 @@ class SpatialPad(Transform):
             `spatial_size=[32, 25, -1]`, the spatial size of output data will be [32, 30, 30].
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
@@ -150,13 +170,13 @@ class SpatialPad(Transform):
         self,
         spatial_size: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
-        **np_kwargs,
+        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        **kwargs,
     ) -> None:
         self.spatial_size = spatial_size
         self.method: Method = look_up_option(method, Method)
-        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
-        self.np_kwargs = np_kwargs
+        self.mode = mode
+        self.kwargs = kwargs
 
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
         spatial_size = fall_back_tuple(self.spatial_size, data_shape)
@@ -168,15 +188,22 @@ class SpatialPad(Transform):
             return pad_width
         return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
 
-    def __call__(self, img: NdarrayTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayTensor:
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
                 padding doesn't apply to the channel dim.
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to `self.mode`.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+
         """
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
@@ -184,8 +211,7 @@ class SpatialPad(Transform):
             # all zeros, skip padding
             return img
 
-        mode = look_up_option(mode or self.mode, NumpyPadMode)
-        padder = Pad(all_pad_width, mode, **self.np_kwargs)
+        padder = Pad(all_pad_width, mode or self.mode, **self.kwargs)
         return padder(img)
 
 
@@ -204,13 +230,14 @@ class BorderPad(Transform):
               for example, image shape(CHW) is [1, 4, 4], spatial_border is [1, 2, 3, 4], pad top of H dim with 1,
               pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
               the result shape is [1, 7, 11].
-
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
@@ -219,22 +246,28 @@ class BorderPad(Transform):
     def __init__(
         self,
         spatial_border: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
-        **np_kwargs,
+        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        **kwargs,
     ) -> None:
         self.spatial_border = spatial_border
-        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
-        self.np_kwargs = np_kwargs
+        self.mode = mode
+        self.kwargs = kwargs
 
-    def __call__(self, img: NdarrayTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayTensor:
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
                 padding doesn't apply to the channel dim.
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to `self.mode`.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
 
         Raises:
             ValueError: When ``self.spatial_border`` does not contain ints.
@@ -261,8 +294,7 @@ class BorderPad(Transform):
             )
 
         all_pad_width = [(0, 0)] + data_pad_width
-        mode = look_up_option(mode or self.mode, NumpyPadMode)
-        padder = Pad(all_pad_width, mode, **self.np_kwargs)
+        padder = Pad(all_pad_width, mode or self.mode, **self.kwargs)
         return padder(img)
 
 
@@ -276,47 +308,56 @@ class DivisiblePad(Transform):
     def __init__(
         self,
         k: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         method: Union[Method, str] = Method.SYMMETRIC,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         """
         Args:
             k: the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         See also :py:class:`monai.transforms.SpatialPad`
         """
         self.k = k
         self.mode: NumpyPadMode = NumpyPadMode(mode)
         self.method: Method = Method(method)
-        self.np_kwargs = np_kwargs
+        self.kwargs = kwargs
 
-    def __call__(self, img: NdarrayTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayTensor:
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first
                 and padding doesn't apply to the channel dim.
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function. Defaults to ``self.mode``.
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to `self.mode`.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+
         """
         new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
         spatial_pad = SpatialPad(
             spatial_size=new_size,
             method=self.method,
             mode=mode or self.mode,
-            **self.np_kwargs,
+            **self.kwargs,
         )
 
         return spatial_pad(img)
@@ -336,12 +377,14 @@ class SpatialCrop(Transform):
         - the start and end coordinates of the ROI
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
-        roi_center: Union[Sequence[int], np.ndarray, None] = None,
-        roi_size: Union[Sequence[int], np.ndarray, None] = None,
-        roi_start: Union[Sequence[int], np.ndarray, None] = None,
-        roi_end: Union[Sequence[int], np.ndarray, None] = None,
+        roi_center: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_size: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_slices: Optional[Sequence[slice]] = None,
     ) -> None:
         """
@@ -354,28 +397,34 @@ class SpatialCrop(Transform):
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
         """
+        roi_start_torch: torch.Tensor
+
         if roi_slices:
             if not all(s.step is None or s.step == 1 for s in roi_slices):
                 raise ValueError("Only slice steps of 1/None are currently supported")
             self.slices = list(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                roi_center = np.asarray(roi_center, dtype=np.int16)
-                roi_size = np.asarray(roi_size, dtype=np.int16)
-                roi_start_np = np.maximum(roi_center - np.floor_divide(roi_size, 2), 0)
-                roi_end_np = np.maximum(roi_start_np + roi_size, roi_start_np)
+                roi_center = torch.as_tensor(roi_center, dtype=torch.int16)
+                roi_size = torch.as_tensor(roi_size, dtype=torch.int16, device=roi_center.device)
+                roi_start_torch = maximum(  # type: ignore
+                    roi_center - floor_divide(roi_size, 2),
+                    torch.zeros_like(roi_center),
+                )
+                roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start_np = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
-                roi_end_np = np.maximum(np.asarray(roi_end, dtype=np.int16), roi_start_np)
-            # Allow for 1D by converting back to np.array (since np.maximum will convert to int)
-            roi_start_np = roi_start_np if isinstance(roi_start_np, np.ndarray) else np.array([roi_start_np])
-            roi_end_np = roi_end_np if isinstance(roi_end_np, np.ndarray) else np.array([roi_end_np])
-            # convert to slices
-            self.slices = [slice(s, e) for s, e in zip(roi_start_np, roi_end_np)]
+                roi_start_torch = torch.as_tensor(roi_start, dtype=torch.int16)
+                roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))  # type: ignore
+                roi_end_torch = maximum(torch.as_tensor(roi_end, dtype=torch.int16), roi_start_torch)
+            # convert to slices (accounting for 1d)
+            if roi_start_torch.numel() == 1:
+                self.slices = [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
+            else:
+                self.slices = [slice(int(s.item()), int(e.item())) for s, e in zip(roi_start_torch, roi_end_torch)]
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -408,6 +457,7 @@ class CenterSpatialCrop(Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
         center = [i // 2 for i in img.shape[1:]]
         cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
@@ -428,6 +478,7 @@ class CenterScaleCrop(Transform):
         self.roi_scale = roi_scale
 
     def __call__(self, img: np.ndarray):
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         img_size = img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -489,6 +540,7 @@ class RandSpatialCrop(Randomizable, Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize(img.shape[1:])
         if self._size is None:
             raise AssertionError
@@ -535,6 +587,7 @@ class RandScaleCrop(RandSpatialCrop):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         img_size = img.shape[1:]
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -604,6 +657,7 @@ class RandSpatialCropSamples(Randomizable, Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         return [self.cropper(img) for _ in range(self.num_samples)]
 
 
@@ -713,6 +767,8 @@ class CropForeground(Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+
         box_start, box_end = self.compute_bounding_box(img)
         cropped = self.crop_pad(img, box_start, box_end, mode)
 
@@ -758,18 +814,23 @@ class RandWeightedCrop(Randomizable, Transform):
         Returns:
             A list of image patches
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if weight_map is None:
             weight_map = self.weight_map
         if weight_map is None:
             raise ValueError("weight map must be provided for weighted patch sampling.")
         if img.shape[1:] != weight_map.shape[1:]:
             raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
+
+        weight_map, *_ = convert_data_type(weight_map, np.ndarray)  # type: ignore
+
         self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results = []
         for center in self.centers:
             cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-            results.append(cropper(img))
+            cropped: np.ndarray = cropper(img)  # type: ignore
+            results.append(cropped)
         return results
 
 
@@ -857,16 +918,18 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         image: Optional[np.ndarray] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        fg_indices_: np.ndarray
+        bg_indices_: np.ndarray
         if fg_indices is None or bg_indices is None:
             if self.fg_indices is not None and self.bg_indices is not None:
                 fg_indices_ = self.fg_indices
                 bg_indices_ = self.bg_indices
             else:
-                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
+                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)  # type: ignore
         else:
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
-        self.centers = generate_pos_neg_label_crop_centers(
+        self.centers = generate_pos_neg_label_crop_centers(  # type: ignore
             self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
         )
 
@@ -899,12 +962,16 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         if image is None:
             image = self.image
 
+        image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+
         self.randomize(label, fg_indices, bg_indices, image)
         results: List[np.ndarray] = []
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                results.append(cropper(img))
+                cropped: np.ndarray = cropper(img)  # type: ignore
+                results.append(cropped)
 
         return results
 
@@ -996,15 +1063,15 @@ class RandCropByLabelClasses(Randomizable, Transform):
         image: Optional[np.ndarray] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-        indices_: List[np.ndarray]
+        indices_: Sequence[np.ndarray]
         if indices is None:
             if self.indices is not None:
                 indices_ = self.indices
             else:
-                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)  # type: ignore
         else:
             indices_ = indices
-        self.centers = generate_label_classes_crop_centers(
+        self.centers = generate_label_classes_crop_centers(  # type: ignore
             self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
         )
 
@@ -1032,12 +1099,16 @@ class RandCropByLabelClasses(Randomizable, Transform):
         if image is None:
             image = self.image
 
+        image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+
         self.randomize(label, indices, image)
         results: List[np.ndarray] = []
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                results.append(cropper(img))
+                cropped: np.ndarray = cropper(img)  # type: ignore
+                results.append(cropped)
 
         return results
 
@@ -1084,7 +1155,8 @@ class ResizeWithPadOrCrop(Transform):
                 If None, defaults to the ``mode`` in construction.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
-        return self.padder(self.cropper(img), mode=mode)
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        return self.padder(self.cropper(img), mode=mode)  # type: ignore
 
 
 class BoundingRect(Transform):
@@ -1118,6 +1190,7 @@ class BoundingRect(Transform):
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         bbox = []
 
         for channel in range(img.shape[0]):
