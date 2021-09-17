@@ -411,7 +411,7 @@ class GaussianFilter(nn.Module):
         Args:
             x: in shape [Batch, chns, H, W, D].
         """
-        _kernel = [gaussian_1d(s, truncated=self.truncated, approx=self.approx) for s in self.sigma]
+        _kernel = [gaussian_1d(s, truncated=self.truncated, approx=self.approx).to(x.device) for s in self.sigma]
         return separable_filtering(x=x, kernels=_kernel)
 
 
