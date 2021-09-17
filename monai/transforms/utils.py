@@ -595,18 +595,18 @@ def create_rotate(
 
     """
     if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
-        sin_func = np.sin
-        cos_func = np.cos
-        array_func = np.array
-    elif look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
-        sin_func = lambda th: torch.sin(torch.as_tensor(th))  # type: ignore
-        cos_func = lambda th: torch.cos(torch.as_tensor(th))  # type: ignore
-        array_func = torch.tensor  # type: ignore
-    else:
-        raise ValueError("backend {} is not supported".format(backend))
-    return _create_rotate(
-        spatial_dims=spatial_dims, radians=radians, sin_func=sin_func, cos_func=cos_func, array_func=array_func
-    )
+        return _create_rotate(
+            spatial_dims=spatial_dims, radians=radians, sin_func=np.sin, cos_func=np.cos, array_func=np.array
+        )
+    if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+        return _create_rotate(
+            spatial_dims=spatial_dims,
+            radians=radians,
+            sin_func=lambda th: torch.sin(torch.as_tensor(th)),
+            cos_func=lambda th: torch.cos(torch.as_tensor(th)),
+            array_func=torch.as_tensor,
+        )
+    raise ValueError("backend {} is not supported".format(backend))
 
 
 def _create_rotate(
@@ -677,11 +677,10 @@ def create_shear(
     """
     if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
         array_func = np.array
-    elif look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
-        array_func = torch.tensor  # type: ignore
-    else:
-        raise ValueError("backend {} is not supported".format(backend))
-    return _create_shear(spatial_dims=spatial_dims, coefs=coefs, array_func=array_func)
+        return _create_shear(spatial_dims=spatial_dims, coefs=coefs, array_func=np.array)
+    if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+        return _create_shear(spatial_dims=spatial_dims, coefs=coefs, array_func=torch.as_tensor)
+    raise ValueError("backend {} is not supported".format(backend))
 
 
 def _create_shear(spatial_dims: int, coefs: Union[Sequence[float], float], array_func=np.array) -> NdarrayOrTensor:
@@ -713,12 +712,14 @@ def create_scale(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
-        array_func = np.diag
-    elif look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
-        array_func = lambda x: torch.diag(torch.as_tensor(x))  # type: ignore
-    else:
-        raise ValueError("backend {} is not supported".format(backend))
-    return _create_scale(spatial_dims=spatial_dims, scaling_factor=scaling_factor, array_func=array_func)
+        return _create_scale(spatial_dims=spatial_dims, scaling_factor=scaling_factor, array_func=np.diag)
+    if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+        return _create_scale(
+            spatial_dims=spatial_dims,
+            scaling_factor=scaling_factor,
+            array_func=lambda x: torch.diag(torch.as_tensor(x)),
+        )
+    raise ValueError("backend {} is not supported".format(backend))
 
 
 def _create_scale(
@@ -740,14 +741,15 @@ def create_translate(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
-        eye_func = np.eye
-        array_func = np.asarray
-    elif look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
-        eye_func = lambda x: torch.eye(torch.as_tensor(x))  # type: ignore
-        array_func = torch.as_tensor
-    else:
-        raise ValueError("backend {} is not supported".format(backend))
-    return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=eye_func, array_func=array_func)
+        return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
+    if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+        return _create_translate(
+            spatial_dims=spatial_dims,
+            shift=shift,
+            eye_func=lambda x: torch.eye(torch.as_tensor(x)),  # type: ignore
+            array_func=torch.as_tensor,
+        )
+    raise ValueError("backend {} is not supported".format(backend))
 
 
 def _create_translate(
