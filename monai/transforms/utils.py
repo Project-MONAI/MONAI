@@ -598,11 +598,12 @@ def create_rotate(
         ValueError: When ``spatial_dims`` is not one of [2, 3].
 
     """
-    if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
+    _backend = look_up_option(backend, TransformBackends)
+    if _backend == TransformBackends.NUMPY:
         return _create_rotate(
             spatial_dims=spatial_dims, radians=radians, sin_func=np.sin, cos_func=np.cos, eye_func=np.eye
         )
-    if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+    if _backend == TransformBackends.TORCH:
         return _create_rotate(
             spatial_dims=spatial_dims,
             radians=radians,
@@ -688,9 +689,10 @@ def create_shear(
         NotImplementedError: When ``spatial_dims`` is not one of [2, 3].
 
     """
-    if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
+    _backend = look_up_option(backend, TransformBackends)
+    if _backend == TransformBackends.NUMPY:
         return _create_shear(spatial_dims=spatial_dims, coefs=coefs, eye_func=np.eye)
-    if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+    if _backend == TransformBackends.TORCH:
         return _create_shear(
             spatial_dims=spatial_dims, coefs=coefs, eye_func=lambda rank: torch.eye(rank, device=device)
         )
@@ -728,9 +730,10 @@ def create_scale(
         device: device to compute and store the output.
         backend: APIs to use, ``numpy`` or ``torch``.
     """
-    if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
+    _backend = look_up_option(backend, TransformBackends)
+    if _backend == TransformBackends.NUMPY:
         return _create_scale(spatial_dims=spatial_dims, scaling_factor=scaling_factor, array_func=np.diag)
-    if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+    if _backend == TransformBackends.TORCH:
         return _create_scale(
             spatial_dims=spatial_dims,
             scaling_factor=scaling_factor,
@@ -761,9 +764,10 @@ def create_translate(
         device: device to compute and store the output.
         backend: APIs to use, ``numpy`` or ``torch``.
     """
-    if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
+    _backend = look_up_option(backend, TransformBackends)
+    if _backend == TransformBackends.NUMPY:
         return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
-    if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
+    if _backend == TransformBackends.TORCH:
         return _create_translate(
             spatial_dims=spatial_dims,
             shift=shift,
