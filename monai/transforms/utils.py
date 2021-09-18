@@ -577,7 +577,10 @@ def create_control_grid(
 
 
 def create_rotate(
-    spatial_dims: int, radians: Union[Sequence[float], float], backend=TransformBackends.NUMPY
+    spatial_dims: int,
+    radians: Union[Sequence[float], float],
+    device: Optional[torch.device] = None,
+    backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
     create a 2D or 3D rotation matrix
@@ -587,6 +590,7 @@ def create_rotate(
         radians: rotation radians
             when spatial_dims == 3, the `radians` sequence corresponds to
             rotation in the 1st, 2nd, and 3rd dim respectively.
+        device: device to compute and store the output.
         backend: APIs to use, ``numpy`` or ``torch``.
 
     Raises:
@@ -596,15 +600,15 @@ def create_rotate(
     """
     if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
         return _create_rotate(
-            spatial_dims=spatial_dims, radians=radians, sin_func=np.sin, cos_func=np.cos, array_func=np.array
+            spatial_dims=spatial_dims, radians=radians, sin_func=np.sin, cos_func=np.cos, eye_func=np.eye
         )
     if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
         return _create_rotate(
             spatial_dims=spatial_dims,
             radians=radians,
-            sin_func=lambda th: torch.sin(torch.as_tensor(th, dtype=torch.float32)),
-            cos_func=lambda th: torch.cos(torch.as_tensor(th, dtype=torch.float32)),
-            array_func=torch.as_tensor,
+            sin_func=lambda th: torch.sin(torch.as_tensor(th, dtype=torch.float32, device=device)),
+            cos_func=lambda th: torch.cos(torch.as_tensor(th, dtype=torch.float32, device=device)),
+            eye_func=lambda rank: torch.eye(rank, device=device),
         )
     raise ValueError("backend {} is not supported".format(backend))
 
@@ -614,36 +618,41 @@ def _create_rotate(
     radians: Union[Sequence[float], float],
     sin_func: Callable = np.sin,
     cos_func: Callable = np.cos,
-    array_func: Callable = np.array,
+    eye_func: Callable = np.eye,
 ) -> NdarrayOrTensor:
     radians = ensure_tuple(radians)
     if spatial_dims == 2:
         if len(radians) >= 1:
             sin_, cos_ = sin_func(radians[0]), cos_func(radians[0])
-            return array_func([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])  # type: ignore
+            out = eye_func(3)
+            out[0, 0], out[0, 1] = cos_, -sin_
+            out[1, 0], out[1, 1] = sin_, cos_
+            return out  # type: ignore
         raise ValueError("radians must be non empty.")
 
     if spatial_dims == 3:
         affine = None
         if len(radians) >= 1:
             sin_, cos_ = sin_func(radians[0]), cos_func(radians[0])
-            affine = array_func(
-                [[1.0, 0.0, 0.0, 0.0], [0.0, cos_, -sin_, 0.0], [0.0, sin_, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
-            )
+            affine = eye_func(4)
+            affine[1, 1], affine[1, 2] = cos_, -sin_
+            affine[2, 1], affine[2, 2] = sin_, cos_
         if len(radians) >= 2:
             sin_, cos_ = sin_func(radians[1]), cos_func(radians[1])
             if affine is None:
                 raise ValueError("Affine should be a matrix.")
-            affine = affine @ array_func(
-                [[cos_, 0.0, sin_, 0.0], [0.0, 1.0, 0.0, 0.0], [-sin_, 0.0, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
-            )
+            _affine = eye_func(4)
+            _affine[0, 0], _affine[0, 2] = cos_, sin_
+            _affine[2, 0], _affine[2, 2] = -sin_, cos_
+            affine = affine @ _affine
         if len(radians) >= 3:
             sin_, cos_ = sin_func(radians[2]), cos_func(radians[2])
             if affine is None:
                 raise ValueError("Affine should be a matrix.")
-            affine = affine @ array_func(
-                [[cos_, -sin_, 0.0, 0.0], [sin_, cos_, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
-            )
+            _affine = eye_func(4)
+            _affine[0, 0], _affine[0, 1] = cos_, -sin_
+            _affine[1, 0], _affine[1, 1] = sin_, cos_
+            affine = affine @ _affine
         if affine is None:
             raise ValueError("radians must be non empty.")
         return affine  # type: ignore
@@ -652,7 +661,10 @@ def _create_rotate(
 
 
 def create_shear(
-    spatial_dims: int, coefs: Union[Sequence[float], float], backend=TransformBackends.NUMPY
+    spatial_dims: int,
+    coefs: Union[Sequence[float], float],
+    device: Optional[torch.device] = None,
+    backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
     create a shearing matrix
@@ -669,6 +681,7 @@ def create_shear(
                     [0.0, 0.0, 0.0, 1.0],
                 ]
 
+        device: device to compute and store the output.
         backend: APIs to use, ``numpy`` or ``torch``.
 
     Raises:
@@ -676,31 +689,35 @@ def create_shear(
 
     """
     if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
-        return _create_shear(spatial_dims=spatial_dims, coefs=coefs, array_func=np.array)
+        return _create_shear(spatial_dims=spatial_dims, coefs=coefs, eye_func=np.eye)
     if look_up_option(backend, TransformBackends) == TransformBackends.TORCH:
-        return _create_shear(spatial_dims=spatial_dims, coefs=coefs, array_func=torch.as_tensor)
+        return _create_shear(
+            spatial_dims=spatial_dims, coefs=coefs, eye_func=lambda rank: torch.eye(rank, device=device)
+        )
     raise ValueError("backend {} is not supported".format(backend))
 
 
-def _create_shear(spatial_dims: int, coefs: Union[Sequence[float], float], array_func=np.array) -> NdarrayOrTensor:
+def _create_shear(spatial_dims: int, coefs: Union[Sequence[float], float], eye_func=np.eye) -> NdarrayOrTensor:
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
-        return array_func([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])  # type: ignore
+        out = eye_func(3)
+        out[0, 1], out[1, 0] = coefs[0], coefs[1]
+        return out  # type: ignore
     if spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
-        return array_func(  # type: ignore
-            [
-                [1.0, coefs[0], coefs[1], 0.0],
-                [coefs[2], 1.0, coefs[3], 0.0],
-                [coefs[4], coefs[5], 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ]
-        )
+        out = eye_func(4)
+        out[0, 1], out[0, 2] = coefs[0], coefs[1]
+        out[1, 0], out[1, 2] = coefs[2], coefs[3]
+        out[2, 0], out[2, 1] = coefs[4], coefs[5]
+        return out  # type: ignore
     raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
 
 
 def create_scale(
-    spatial_dims: int, scaling_factor: Union[Sequence[float], float], backend=TransformBackends.NUMPY
+    spatial_dims: int,
+    scaling_factor: Union[Sequence[float], float],
+    device: Optional[torch.device] = None,
+    backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
     create a scaling matrix
@@ -708,6 +725,7 @@ def create_scale(
     Args:
         spatial_dims: spatial rank
         scaling_factor: scaling factors for every spatial dim, defaults to 1.
+        device: device to compute and store the output.
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
@@ -716,7 +734,7 @@ def create_scale(
         return _create_scale(
             spatial_dims=spatial_dims,
             scaling_factor=scaling_factor,
-            array_func=lambda x: torch.diag(torch.as_tensor(x)),
+            array_func=lambda x: torch.diag(torch.as_tensor(x, device=device)),
         )
     raise ValueError("backend {} is not supported".format(backend))
 
@@ -729,7 +747,10 @@ def _create_scale(
 
 
 def create_translate(
-    spatial_dims: int, shift: Union[Sequence[float], float], backend=TransformBackends.NUMPY
+    spatial_dims: int,
+    shift: Union[Sequence[float], float],
+    device: Optional[torch.device] = None,
+    backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
     create a translation matrix
@@ -737,6 +758,7 @@ def create_translate(
     Args:
         spatial_dims: spatial rank
         shift: translate pixel/voxel for every spatial dim, defaults to 0.
+        device: device to compute and store the output.
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     if look_up_option(backend, TransformBackends) == TransformBackends.NUMPY:
@@ -745,8 +767,8 @@ def create_translate(
         return _create_translate(
             spatial_dims=spatial_dims,
             shift=shift,
-            eye_func=lambda x: torch.eye(torch.as_tensor(x)),  # type: ignore
-            array_func=torch.as_tensor,
+            eye_func=lambda x: torch.eye(torch.as_tensor(x), device=device),  # type: ignore
+            array_func=lambda x: torch.as_tensor(x, device=device),  # type: ignore
         )
     raise ValueError("backend {} is not supported".format(backend))
 

@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 
 from monai.transforms import (
     create_control_grid,
@@ -148,8 +149,11 @@ class TestCreateGrid(unittest.TestCase):
 
 
 def test_assert(func, params, expected):
-    for b in ("torch", "numpy"):
-        m = func(*params, backend=b)
+    for b in ("torch", "numpy") + ("torch_gpu",) if torch.cuda.is_available() else ():
+        if b == "torch_gpu":
+            m = func(*params, device="cuda:0", backend="torch")
+        else:
+            m = func(*params, backend=b)
         assert_allclose(m, expected, type_test=False, atol=1e-7)
 
 
