@@ -268,8 +268,8 @@ class MultiModal(BertPreTrainedModel):
 
 class Transchex(torch.nn.Module):
     """
-    TransChex based on: "Hatamizadeh et al.,TransCheX: Self-Supervised Vision-Language Transformers for Chest
-    X-ray Analysis"
+    TransChex based on: "Hatamizadeh et al.,TransCheX: Self-Supervised Pretraining of Vision-Language
+    Transformers for Chest X-ray Analysis"
     """
 
     def __init__(
