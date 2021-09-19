@@ -827,20 +827,19 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # if transform was not performed and spatial size is None, nothing to do.
             if not transform[InverseKeys.DO_TRANSFORM] and self.rand_affine.spatial_size is None:
-                out: NdarrayOrTensor = d[key]
-            else:
-                orig_size = transform[InverseKeys.ORIG_SIZE]
-                # Create inverse transform
-                fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
-                mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
-                inv_affine = np.linalg.inv(fwd_affine)
+                continue
+            orig_size = transform[InverseKeys.ORIG_SIZE]
+            # Create inverse transform
+            fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
+            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
+            inv_affine = np.linalg.inv(fwd_affine)
 
-                affine_grid = AffineGrid(affine=inv_affine)
-                grid, _ = affine_grid(orig_size)  # type: ignore
+            affine_grid = AffineGrid(affine=inv_affine)
+            grid, _ = affine_grid(orig_size)  # type: ignore
 
-                # Apply inverse transform
-                d[key] = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
+            # Apply inverse transform
+            d[key] = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
 
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -1089,9 +1088,8 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         if self._do_transform:
             device = self.rand_3d_elastic.device
-            grid = torch.tensor(grid).to(device)
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
-            offset = torch.tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
+            offset = torch.as_tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 

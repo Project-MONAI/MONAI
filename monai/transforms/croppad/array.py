@@ -128,10 +128,7 @@ class Pad(Transform):
             # all zeros, skip padding
             return img
         mode = convert_pad_mode(dst=img, mode=mode or self.mode).value
-        if isinstance(img, torch.Tensor):
-            pad = self._pt_pad
-        else:
-            pad = self._np_pad  # type: ignore
+        pad = self._pt_pad if isinstance(img, torch.Tensor) else self._np_pad
         return pad(img, self.to_pad, mode, **self.kwargs)  # type: ignore
 
 
@@ -449,15 +446,16 @@ class CenterSpatialCrop(Transform):
             the spatial size of output data will be [32, 40, 40].
     """
 
+    backend = SpatialCrop.backend
+
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
         self.roi_size = roi_size
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
         center = [i // 2 for i in img.shape[1:]]
         cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
@@ -474,11 +472,12 @@ class CenterScaleCrop(Transform):
 
     """
 
+    backend = CenterSpatialCrop.backend
+
     def __init__(self, roi_scale: Union[Sequence[float], float]):
         self.roi_scale = roi_scale
 
-    def __call__(self, img: np.ndarray):
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         img_size = img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -510,6 +509,8 @@ class RandSpatialCrop(Randomizable, Transform):
             if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
     """
 
+    backend = CenterSpatialCrop.backend
+
     def __init__(
         self,
         roi_size: Union[Sequence[int], int],
@@ -535,15 +536,14 @@ class RandSpatialCrop(Randomizable, Transform):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize(img.shape[1:])
         if self._size is None:
-            raise AssertionError
+            raise RuntimeError("self._size not specified.")
         if self.random_center:
             return img[self._slices]
         cropper = CenterSpatialCrop(self._size)
@@ -582,12 +582,11 @@ class RandScaleCrop(RandSpatialCrop):
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         img_size = img.shape[1:]
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -629,6 +628,8 @@ class RandSpatialCropSamples(Randomizable, Transform):
 
     """
 
+    backend = RandScaleCrop.backend
+
     def __init__(
         self,
         roi_size: Union[Sequence[int], int],
@@ -652,12 +653,11 @@ class RandSpatialCropSamples(Randomizable, Transform):
     def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
-    def __call__(self, img: np.ndarray) -> List[np.ndarray]:
+    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         return [self.cropper(img) for _ in range(self.num_samples)]
 
 

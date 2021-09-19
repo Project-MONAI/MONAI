@@ -416,13 +416,15 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = CenterSpatialCrop.backend
+
     def __init__(
         self, keys: KeysCollection, roi_size: Union[Sequence[int], int], allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.cropper = CenterSpatialCrop(roi_size)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             orig_size = d[key].shape[1:]
@@ -466,13 +468,15 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = CenterSpatialCrop.backend
+
     def __init__(
         self, keys: KeysCollection, roi_scale: Union[Sequence[float], float], allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys=allow_missing_keys)
         self.roi_scale = roi_scale
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         # use the spatial size of first image to scale, expect all images have the same spatial size
         img_size = data[self.keys[0]].shape[1:]
@@ -537,6 +541,8 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = CenterSpatialCrop.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -565,11 +571,11 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         if self._size is None:
-            raise AssertionError
+            raise RuntimeError("self._size not specified.")
         for key in self.key_iterator(d):
             if self.random_center:
                 self.push_transform(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})  # type: ignore
@@ -638,6 +644,8 @@ class RandScaleCropd(RandSpatialCropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = RandSpatialCropd.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -659,7 +667,7 @@ class RandScaleCropd(RandSpatialCropd):
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         img_size = data[self.keys[0]].shape[1:]
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -723,6 +731,8 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
 
     """
 
+    backend = RandSpatialCropd.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -755,7 +765,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
     def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         ret = []
         for i in range(self.num_samples):
             d = dict(data)
@@ -765,14 +775,14 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
             cropped = self.cropper(d)
             # self.cropper will have added RandSpatialCropd to the list. Change to RandSpatialCropSamplesd
             for key in self.key_iterator(cropped):
-                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.CLASS_NAME] = self.__class__.__name__
-                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.ID] = id(self)
+                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.CLASS_NAME] = self.__class__.__name__  # type: ignore
+                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.ID] = id(self)  # type: ignore
             # add `patch_index` to the meta data
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in cropped:
                     cropped[meta_key] = {}  # type: ignore
-                cropped[meta_key][Key.PATCH_INDEX] = i
+                cropped[meta_key][Key.PATCH_INDEX] = i  # type: ignore
             ret.append(cropped)
         return ret
 

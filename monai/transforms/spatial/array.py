@@ -1255,9 +1255,10 @@ class RandDeformGrid(Randomizable, Transform):
         self.spacing = fall_back_tuple(self.spacing, (1.0,) * len(spatial_size))
         control_grid = create_control_grid(spatial_size, self.spacing, device=self.device, backend="torch")
         self.randomize(control_grid.shape[1:])
-        control_grid[: len(spatial_size)] += self.rand_mag * self.random_offset
-        if self.as_tensor_output:
-            control_grid = torch.as_tensor(np.ascontiguousarray(control_grid), device=self.device)
+        _offset, *_ = convert_to_dst_type(self.rand_mag * self.random_offset, control_grid)
+        control_grid[: len(spatial_size)] += _offset
+        if not self.as_tensor_output:
+            control_grid, *_ = convert_data_type(control_grid, output_type=np.ndarray, dtype=np.float32)
         return control_grid
 
 
@@ -1761,7 +1762,7 @@ class Rand2DElastic(RandomizableTransform):
             grid = self.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
                 recompute_scale_factor=True,
-                input=torch.as_tensor(grid).unsqueeze(0),
+                input=grid.unsqueeze(0),
                 scale_factor=list(ensure_tuple(self.deform_grid.spacing)),
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,

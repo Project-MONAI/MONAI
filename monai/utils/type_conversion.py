@@ -221,6 +221,15 @@ def convert_data_type(
             If left blank, it remains unchanged.
     Returns:
         modified data, orig_type, orig_device
+
+    Note:
+        When both `output_type` and `dtype` are specified with different backend
+        (e.g., `torch.Tensor` and `np.float32`), the `output_type` will be used as the primary type,
+        for example::
+
+            >>> convert_data_type(1, torch.Tensor, dtype=np.float32)
+            (1.0, <class 'torch.Tensor'>, None)
+
     """
     orig_type: Any
     if isinstance(data, torch.Tensor):
