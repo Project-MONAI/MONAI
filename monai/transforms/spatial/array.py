@@ -1069,7 +1069,7 @@ class AffineGrid(Transform):
         """
         if grid is None:
             if spatial_size is not None:
-                grid = create_grid(spatial_size, dtype=torch.float32, device=self.device, backend="torch")
+                grid = create_grid(spatial_size, device=self.device, backend="torch")
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 

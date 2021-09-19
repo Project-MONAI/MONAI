@@ -541,7 +541,7 @@ def create_grid(
     spatial_size: Sequence[int],
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
-    dtype=None,
+    dtype=float,
     device: Optional[torch.device] = None,
     backend=TransformBackends.NUMPY,
 ):
@@ -559,12 +559,8 @@ def create_grid(
     """
     _backend = look_up_option(backend, TransformBackends)
     if _backend == TransformBackends.NUMPY:
-        if dtype is None:
-            dtype = np.float32
         return _create_grid_numpy(spatial_size, spacing, homogeneous, dtype)
     if _backend == TransformBackends.TORCH:
-        if dtype is None:
-            dtype = torch.float32
         return _create_grid_torch(spatial_size, spacing, homogeneous, dtype, device)
     raise ValueError("backend {} is not supported".format(backend))
 
