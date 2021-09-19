@@ -604,19 +604,28 @@ def _create_grid_torch(
 
 
 def create_control_grid(
-    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: DtypeLike = float
+    spatial_shape: Sequence[int],
+    spacing: Sequence[float],
+    homogeneous: bool = True,
+    dtype: DtypeLike = float,
+    device: Optional[torch.device] = None,
+    backend=TransformBackends.NUMPY,
 ):
     """
     control grid with two additional point in each direction
     """
+    torch_backend = look_up_option(backend, TransformBackends) == TransformBackends.TORCH
+    ceil_func: Callable = torch.ceil if torch_backend else np.ceil  # type: ignore
     grid_shape = []
     for d, s in zip(spatial_shape, spacing):
-        d = int(d)
+        d = torch.as_tensor(d, device=device) if torch_backend else int(d)  # type: ignore
         if d % 2 == 0:
-            grid_shape.append(np.ceil((d - 1.0) / (2.0 * s) + 0.5) * 2.0 + 2.0)
+            grid_shape.append(ceil_func((d - 1.0) / (2.0 * s) + 0.5) * 2.0 + 2.0)
         else:
-            grid_shape.append(np.ceil((d - 1.0) / (2.0 * s)) * 2.0 + 3.0)
-    return create_grid(grid_shape, spacing, homogeneous, dtype)
+            grid_shape.append(ceil_func((d - 1.0) / (2.0 * s)) * 2.0 + 3.0)
+    return create_grid(
+        spatial_size=grid_shape, spacing=spacing, homogeneous=homogeneous, dtype=dtype, device=device, backend=backend
+    )
 
 
 def create_rotate(
