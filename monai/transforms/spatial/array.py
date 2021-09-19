@@ -1055,6 +1055,10 @@ class AffineGrid(Transform):
         grid: Optional[NdarrayOrTensor] = None,
     ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
+        The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
+        Therefore, either `spatial_size` or `grid` must be provided.
+        When initialising from `spatial_size`, the backend "torch" will be used.
+
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
@@ -1065,7 +1069,7 @@ class AffineGrid(Transform):
         """
         if grid is None:
             if spatial_size is not None:
-                grid = create_grid(spatial_size, dtype=float)
+                grid = create_grid(spatial_size, dtype=torch.float32, device=self.device, backend="torch")
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 

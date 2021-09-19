@@ -193,12 +193,11 @@ def convert_to_cupy(data, dtype, wrap_sequence: bool = True):
     elif isinstance(data, dict):
         return {k: convert_to_cupy(v, dtype) for k, v in data.items()}
     # make it contiguous
-    if isinstance(data, cp.ndarray):
-        if data.ndim > 0:
-            data = cp.ascontiguousarray(data)
-    else:
+    if not isinstance(data, cp.ndarray):
         raise ValueError(f"The input data type [{type(data)}] cannot be converted into cupy arrays!")
 
+    if data.ndim > 0:
+        data = cp.ascontiguousarray(data)
     return data
 
 
