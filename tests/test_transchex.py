@@ -15,9 +15,9 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets.vltransformer import VLTransformers
+from monai.networks.nets.transchex import Transchex
 
-TEST_CASE_VLTransformers = []
+TEST_CASE_TRANSCHEX = []
 for drop_out in [0.4]:
     for in_channels in [3]:
         for img_size in [224]:
@@ -39,20 +39,20 @@ for drop_out in [0.4]:
                                     },
                                     (2, num_classes),  # type: ignore
                                 ]
-                                TEST_CASE_VLTransformers.append(test_case)
+                                TEST_CASE_TRANSCHEX.append(test_case)
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
-    @parameterized.expand(TEST_CASE_VLTransformers)
+    @parameterized.expand(TEST_CASE_TRANSCHEX)
     def test_shape(self, input_param, expected_shape):
-        net = VLTransformers(**input_param)
+        net = Transchex(**input_param)
         with eval_mode(net):
             result = net(torch.randint(2, (2, 512)), torch.randint(2, (2, 512)), torch.randn((2, 3, 224, 224)))
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
-            VLTransformers(
+            Transchex(
                 in_channels=3,
                 img_size=(128, 128),
                 patch_size=(16, 16),
@@ -64,7 +64,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             )
 
         with self.assertRaises(ValueError):
-            VLTransformers(
+            Transchex(
                 in_channels=1,
                 img_size=(97, 97),
                 patch_size=(16, 16),
