@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import CenterSpatialCropd
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_SHAPES = []
 for p in TEST_NDARRAYS:
@@ -59,7 +59,7 @@ class TestCenterSpatialCropd(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_param, input_data, expected_value):
         result = CenterSpatialCropd(**input_param)(input_data)
-        np.testing.assert_allclose(result["img"], expected_value)
+        assert_allclose(result["img"], expected_value, type_test=False)
 
 
 if __name__ == "__main__":
