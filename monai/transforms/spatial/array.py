@@ -1563,7 +1563,7 @@ class RandAffine(RandomizableTransform):
                     f"'spatial_size={self.spatial_size}', please specify 'spatial_size'."
                 )
             return None
-        return torch.tensor(create_grid(spatial_size=_sp_size)).to(self.rand_affine_grid.device)
+        return create_grid(spatial_size=_sp_size, device=self.rand_affine_grid.device, backend="torch")
 
     def get_identity_grid(self, spatial_size: Sequence[int]):
         """
@@ -1577,7 +1577,11 @@ class RandAffine(RandomizableTransform):
             spatial_size, [2] * ndim
         ):
             raise RuntimeError(f"spatial_size should not be dynamic, got {spatial_size}.")
-        return create_grid(spatial_size=spatial_size) if self._cached_grid is None else self._cached_grid
+        return (
+            create_grid(spatial_size=spatial_size, device=self.rand_affine_grid.device, backend="torch")
+            if self._cached_grid is None
+            else self._cached_grid
+        )
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None

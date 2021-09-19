@@ -69,7 +69,7 @@ def get_equivalent_dtype(dtype, data_type):
             return dtype
         return dtype_numpy_to_torch(dtype)
     if type(dtype) is not torch.dtype:
-        # assuming the dtype is ok if it is not a torch dtype
+        # assuming the dtype is ok if it is not a torch dtype and target `data_type` is not torch.Tensor
         return dtype
     return dtype_torch_to_numpy(dtype)
 
