@@ -1074,7 +1074,7 @@ class AffineGrid(Transform):
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
         _b = TransformBackends.TORCH if isinstance(grid, torch.Tensor) else TransformBackends.NUMPY
-        _device = self.device or (grid.device if isinstance(grid, torch.Tensor) else None)
+        _device = grid.device if isinstance(grid, torch.Tensor) else self.device
         affine: NdarrayOrTensor
         if self.affine is None:
             spatial_dims = len(grid.shape) - 1
@@ -1310,8 +1310,9 @@ class Resample(Transform):
         """
         if grid is None:
             raise ValueError("Unknown grid.")
+        _device = img.device if isinstance(img, torch.Tensor) else self.device
         img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, device=self.device, dtype=torch.float32)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=torch.float32)  # type: ignore
         grid, *_ = convert_to_dst_type(grid, img_t)
 
         if USE_COMPILED:
@@ -1715,6 +1716,7 @@ class Rand2DElastic(RandomizableTransform):
         )
         self.resampler = Resample(device=device)
 
+        self.device = device
         self.spatial_size = spatial_size
         self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
@@ -1766,7 +1768,8 @@ class Rand2DElastic(RandomizableTransform):
             )
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
-            grid = create_grid(spatial_size=sp_size)
+            _device = img.device if isinstance(img, torch.Tensor) else self.device
+            grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         out: NdarrayOrTensor = self.resampler(
             img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
@@ -1904,11 +1907,11 @@ class Rand3DElastic(RandomizableTransform):
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(grid_size=sp_size)
-        grid = create_grid(spatial_size=sp_size)
+        _device = img.device if isinstance(img, torch.Tensor) else self.device
+        grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         if self._do_transform:
             if self.rand_offset is None:
-                raise AssertionError
-            grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
+                raise RuntimeError("rand_offset is not initialized.")
             gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
             offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude

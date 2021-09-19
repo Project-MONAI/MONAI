@@ -968,7 +968,8 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             )
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
-            grid = create_grid(spatial_size=sp_size)
+            _device = self.rand_2d_elastic.deform_grid.device
+            grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
@@ -1084,7 +1085,8 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
 
         self.randomize(grid_size=sp_size)
-        grid = create_grid(spatial_size=sp_size)
+        _device = self.rand_3d_elastic.device
+        grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         if self._do_transform:
             device = self.rand_3d_elastic.device
             grid = torch.tensor(grid).to(device)
