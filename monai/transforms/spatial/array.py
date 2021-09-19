@@ -362,6 +362,8 @@ class Resize(Transform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
@@ -376,10 +378,10 @@ class Resize(Transform):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: NdarrayOrTensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> np.ndarray:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -394,33 +396,33 @@ class Resize(Transform):
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
         if self.size_mode == "all":
-            input_ndim = img.ndim - 1  # spatial ndim
+            input_ndim = img_.ndim - 1  # spatial ndim
             output_ndim = len(ensure_tuple(self.spatial_size))
             if output_ndim > input_ndim:
-                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
-                img = img.reshape(input_shape)
+                input_shape = ensure_tuple_size(img_.shape, output_ndim + 1, 1)
+                img_ = img_.reshape(input_shape)
             elif output_ndim < input_ndim:
                 raise ValueError(
                     "len(spatial_size) must be greater or equal to img spatial dimensions, "
                     f"got spatial_size={output_ndim} img={input_ndim}."
                 )
-            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
+            spatial_size_ = fall_back_tuple(self.spatial_size, img_.shape[1:])
         else:  # for the "longest" mode
-            img_size = img.shape[1:]
+            img_size = img_.shape[1:]
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
         resized = torch.nn.functional.interpolate(  # type: ignore
-            input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
+            input=img_.unsqueeze(0),  # type: ignore
             size=spatial_size_,
             mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
-        resized = resized.squeeze(0).detach().cpu().numpy()
-        return np.asarray(resized)
+        out, *_ = convert_to_dst_type(resized.squeeze(0), img)
+        return out
 
 
 class Rotate(Transform, ThreadUnsafe):
@@ -1094,7 +1096,7 @@ class AffineGrid(Transform):
         else:
             affine = self.affine
 
-        grid, *_ = convert_data_type(grid, torch.Tensor, device=self.device, dtype=float)
+        grid, *_ = convert_data_type(grid, torch.Tensor, device=_device, dtype=float)
         affine, *_ = convert_to_dst_type(affine, grid)
 
         grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))
@@ -1215,6 +1217,8 @@ class RandDeformGrid(Randomizable, Transform):
     """
     Generate random deformation grid.
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,
@@ -1913,8 +1917,8 @@ class Rand3DElastic(RandomizableTransform):
         if self._do_transform:
             if self.rand_offset is None:
                 raise RuntimeError("rand_offset is not initialized.")
-            gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
-            offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)
+            gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=_device)
+            offset = torch.as_tensor(self.rand_offset, device=_device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         out: NdarrayOrTensor = self.resampler(
