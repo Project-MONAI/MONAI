@@ -541,7 +541,9 @@ def create_grid(
     spatial_size: Sequence[int],
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
-    dtype: DtypeLike = float,
+    dtype=None,
+    device: Optional[torch.device] = None,
+    backend=TransformBackends.NUMPY,
 ):
     """
     compute a `spatial_size` mesh.
@@ -551,6 +553,30 @@ def create_grid(
         spacing: same len as ``spatial_size``, defaults to 1.0 (dense grid).
         homogeneous: whether to make homogeneous coordinates.
         dtype: output grid data type.
+        device: device to compute and store the output (when the backend is "torch").
+        backend: APIs to use, ``numpy`` or ``torch``.
+
+    """
+    _backend = look_up_option(backend, TransformBackends)
+    if _backend == TransformBackends.NUMPY:
+        if dtype is None:
+            dtype = np.float32
+        return _create_grid_numpy(spatial_size, spacing, homogeneous, dtype)
+    if _backend == TransformBackends.TORCH:
+        if dtype is None:
+            dtype = torch.float32
+        return _create_grid_torch(spatial_size, spacing, homogeneous, dtype, device)
+    raise ValueError("backend {} is not supported".format(backend))
+
+
+def _create_grid_numpy(
+    spatial_size: Sequence[int],
+    spacing: Optional[Sequence[float]] = None,
+    homogeneous: bool = True,
+    dtype: DtypeLike = float,
+):
+    """
+    compute a `spatial_size` mesh with the numpy API.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
     ranges = [np.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d)) for d, s in zip(spatial_size, spacing)]
@@ -558,6 +584,27 @@ def create_grid(
     if not homogeneous:
         return coords
     return np.concatenate([coords, np.ones_like(coords[:1])])
+
+
+def _create_grid_torch(
+    spatial_size: Sequence[int],
+    spacing: Optional[Sequence[float]] = None,
+    homogeneous: bool = True,
+    dtype=torch.float32,
+    device: Optional[torch.device] = None,
+):
+    """
+    compute a `spatial_size` mesh with the torch API.
+    """
+    spacing = spacing or tuple(1.0 for _ in spatial_size)
+    ranges = [
+        torch.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d), device=device, dtype=dtype)
+        for d, s in zip(spatial_size, spacing)
+    ]
+    coords = torch.meshgrid(*ranges)
+    if not homogeneous:
+        return torch.stack(coords)
+    return torch.stack([*coords, torch.ones_like(coords[0])])
 
 
 def create_control_grid(
@@ -590,7 +637,7 @@ def create_rotate(
         radians: rotation radians
             when spatial_dims == 3, the `radians` sequence corresponds to
             rotation in the 1st, 2nd, and 3rd dim respectively.
-        device: device to compute and store the output.
+        device: device to compute and store the output (when the backend is "torch").
         backend: APIs to use, ``numpy`` or ``torch``.
 
     Raises:
@@ -682,7 +729,7 @@ def create_shear(
                     [0.0, 0.0, 0.0, 1.0],
                 ]
 
-        device: device to compute and store the output.
+        device: device to compute and store the output (when the backend is "torch").
         backend: APIs to use, ``numpy`` or ``torch``.
 
     Raises:
@@ -727,7 +774,7 @@ def create_scale(
     Args:
         spatial_dims: spatial rank
         scaling_factor: scaling factors for every spatial dim, defaults to 1.
-        device: device to compute and store the output.
+        device: device to compute and store the output (when the backend is "torch").
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
@@ -761,7 +808,7 @@ def create_translate(
     Args:
         spatial_dims: spatial rank
         shift: translate pixel/voxel for every spatial dim, defaults to 0.
-        device: device to compute and store the output.
+        device: device to compute and store the output (when the backend is "torch").
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
