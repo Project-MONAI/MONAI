@@ -52,7 +52,7 @@ class TestCreateGrid(unittest.TestCase):
 
         test_assert(
             create_grid,
-            (2, 2, 2),
+            ((2, 2, 2),),
             np.array(
                 [
                     [[[-0.5, -0.5], [-0.5, -0.5]], [[0.5, 0.5], [0.5, 0.5]]],
@@ -146,7 +146,8 @@ class TestCreateGrid(unittest.TestCase):
 
 
 def test_assert(func, params, expected):
-    for b in ("torch", "numpy") + ("torch_gpu",) if torch.cuda.is_available() else ():
+    gpu_test = ("torch_gpu",) if torch.cuda.is_available() else ()
+    for b in ("torch", "numpy") + gpu_test:
         if b == "torch_gpu":
             m = func(*params, device="cuda:0", backend="torch")
         else:
