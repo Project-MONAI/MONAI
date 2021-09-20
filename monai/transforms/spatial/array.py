@@ -1029,6 +1029,9 @@ class AffineGrid(Transform):
             supplied matrix. Should be square with each side = num of image spatial
             dimensions + 1.
 
+    .. deprecated:: 0.6.0
+        ``as_tensor_output`` is deprecated.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -1152,6 +1155,10 @@ class RandAffineGrid(Randomizable, Transform):
             - :py:meth:`monai.transforms.utils.create_shear`
             - :py:meth:`monai.transforms.utils.create_translate`
             - :py:meth:`monai.transforms.utils.create_scale`
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         self.rotate_range = ensure_tuple(rotate_range)
         self.shear_range = ensure_tuple(shear_range)
@@ -1290,6 +1297,10 @@ class Resample(Transform):
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             device: device on which the tensor will be allocated.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
@@ -1418,6 +1429,10 @@ class Affine(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             device: device on which the tensor will be allocated.
             image_only: if True return only the image volume, otherwise return (image, affine).
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         self.affine_grid = AffineGrid(
             rotate_params=rotate_params,
@@ -1531,6 +1546,10 @@ class RandAffine(RandomizableTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         RandomizableTransform.__init__(self, prob)
 
@@ -1707,6 +1726,10 @@ class Rand2DElastic(RandomizableTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         RandomizableTransform.__init__(self, prob)
         self.deform_grid = RandDeformGrid(
@@ -1853,6 +1876,10 @@ class Rand3DElastic(RandomizableTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         RandomizableTransform.__init__(self, prob)
         self.rand_affine_grid = RandAffineGrid(
