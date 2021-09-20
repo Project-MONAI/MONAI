@@ -6,6 +6,7 @@ import torch
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.utils import optional_import
+from monai.utils.module import look_up_option
 
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
@@ -41,33 +42,34 @@ _np_to_torch_dtype = {value: key for key, value in _torch_to_np_dtype.items()}
 
 def dtype_torch_to_numpy(dtype):
     """Convert a torch dtype to its numpy equivalent."""
-    if dtype not in _torch_to_np_dtype:
-        raise ValueError(f"Unsupported torch to numpy dtype '{dtype}'.")
-    return _torch_to_np_dtype[dtype]
+    return look_up_option(dtype, _torch_to_np_dtype)
 
 
 def dtype_numpy_to_torch(dtype):
     """Convert a numpy dtype to its torch equivalent."""
     # np dtypes can be given as np.float32 and np.dtype(np.float32) so unify them
     dtype = np.dtype(dtype) if type(dtype) is type else dtype
-    if dtype not in _np_to_torch_dtype:
-        raise ValueError(f"Unsupported numpy to torch dtype '{dtype}'.")
-    return _np_to_torch_dtype[dtype]
+    return look_up_option(dtype, _np_to_torch_dtype)
 
 
 def get_equivalent_dtype(dtype, data_type):
     """Convert to the `dtype` that corresponds to `data_type`.
-    Example:
+
+    Example::
+
         im = torch.tensor(1)
         dtype = get_equivalent_dtype(np.float32, type(im))
+
     """
     if dtype is None:
         return None
     if data_type is torch.Tensor:
         if type(dtype) is torch.dtype:
+            # already a torch dtype and target `data_type` is torch.Tensor
             return dtype
         return dtype_numpy_to_torch(dtype)
     if type(dtype) is not torch.dtype:
+        # assuming the dtype is ok if it is not a torch dtype and target `data_type` is not torch.Tensor
         return dtype
     return dtype_torch_to_numpy(dtype)
 
@@ -193,12 +195,11 @@ def convert_to_cupy(data, dtype, wrap_sequence: bool = True):
     elif isinstance(data, dict):
         return {k: convert_to_cupy(v, dtype) for k, v in data.items()}
     # make it contiguous
-    if isinstance(data, cp.ndarray):
-        if data.ndim > 0:
-            data = cp.ascontiguousarray(data)
-    else:
+    if not isinstance(data, cp.ndarray):
         raise ValueError(f"The input data type [{type(data)}] cannot be converted into cupy arrays!")
 
+    if data.ndim > 0:
+        data = cp.ascontiguousarray(data)
     return data
 
 
@@ -220,6 +221,15 @@ def convert_data_type(
             If left blank, it remains unchanged.
     Returns:
         modified data, orig_type, orig_device
+
+    Note:
+        When both `output_type` and `dtype` are specified with different backend
+        (e.g., `torch.Tensor` and `np.float32`), the `output_type` will be used as the primary type,
+        for example::
+
+            >>> convert_data_type(1, torch.Tensor, dtype=np.float32)
+            (1.0, <class 'torch.Tensor'>, None)
+
     """
     orig_type: Any
     if isinstance(data, torch.Tensor):
