@@ -633,6 +633,10 @@ class Affined(MapTransform, InvertibleTransform):
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.affine = Affine(
@@ -761,6 +765,10 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -922,6 +930,10 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -1052,6 +1064,10 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)

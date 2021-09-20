@@ -129,6 +129,9 @@ class AsDiscrete(Transform):
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
 
+    .. deprecated:: 0.6.0
+        ``n_classes`` is deprecated, use ``num_classes`` instead.
+
     """
 
     @deprecated_arg("n_classes", since="0.6")
@@ -180,6 +183,9 @@ class AsDiscrete(Transform):
                 Defaults to ``self.logit_thresh``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
+
+        .. deprecated:: 0.6.0
+            ``n_classes`` is deprecated, use ``num_classes`` instead.
 
         """
         # in case the new num_classes is default but you still call deprecated n_classes
