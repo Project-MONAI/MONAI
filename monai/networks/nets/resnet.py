@@ -168,6 +168,10 @@ class ResNet(nn.Module):
             - 'B': kernel_size 1 conv + norm.
         widen_factor: widen output for each layer.
         num_classes: number of output (classifications)
+
+    .. deprecated:: 0.6.0
+        ``n_classes`` is deprecated, use ``num_classes`` instead.
+
     """
 
     @deprecated_arg("n_classes", since="0.6")

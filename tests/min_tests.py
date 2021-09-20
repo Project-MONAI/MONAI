@@ -75,7 +75,6 @@ def run_testsuit():
         "test_handler_surface_distance",
         "test_handler_tb_image",
         "test_handler_tb_stats",
-        "test_handler_transform_inverter",
         "test_handler_validation",
         "test_hausdorff_distance",
         "test_header_correct",
