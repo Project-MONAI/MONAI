@@ -521,6 +521,8 @@ class Resized(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = Resize.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -535,7 +537,7 @@ class Resized(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
             self.push_transform(
@@ -549,7 +551,7 @@ class Resized(MapTransform, InvertibleTransform):
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -826,9 +828,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # if transform was not performed and spatial size is None, nothing to do.
-            if not transform[InverseKeys.DO_TRANSFORM] and self.rand_affine.spatial_size is None:
-                out: NdarrayOrTensor = d[key]
-            else:
+            if transform[InverseKeys.DO_TRANSFORM] or self.rand_affine.spatial_size is not None:
                 orig_size = transform[InverseKeys.ORIG_SIZE]
                 # Create inverse transform
                 fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
@@ -968,7 +968,8 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             )
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
-            grid = create_grid(spatial_size=sp_size)
+            _device = self.rand_2d_elastic.deform_grid.device
+            grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
@@ -1084,12 +1085,12 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
 
         self.randomize(grid_size=sp_size)
-        grid = create_grid(spatial_size=sp_size)
+        _device = self.rand_3d_elastic.device
+        grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         if self._do_transform:
             device = self.rand_3d_elastic.device
-            grid = torch.tensor(grid).to(device)
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
-            offset = torch.tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
+            offset = torch.as_tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
