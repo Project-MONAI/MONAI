@@ -34,7 +34,7 @@ __all__ = [
     "BertMixedLayer",
     "Pooler",
     "MultiModal",
-    "VLTransformers",
+    "Transchex",
 ]
 
 
@@ -266,9 +266,10 @@ class MultiModal(BertPreTrainedModel):
         return hidden_state_mixed
 
 
-class VLTransformers(torch.nn.Module):
+class Transchex(torch.nn.Module):
     """
-    Vision Language Multimodal Transformers
+    TransChex based on: "Hatamizadeh et al.,TransCheX: Self-Supervised Pretraining of Vision-Language
+    Transformers for Chest X-ray Analysis"
     """
 
     def __init__(
@@ -321,7 +322,7 @@ class VLTransformers(torch.nn.Module):
 
             # for 3-channel with image size of (224,224), patch size of (32,32), 3 classes, 2 language layers,
             # 2 vision layers, 2 mixed modality layers and dropout of 0.2 in the classification head
-            net = VLTransformers(in_channels=3,
+            net = Transchex(in_channels=3,
                                  img_size=(224, 224),
                                  num_classes=3,
                                  num_language_layers=2,
@@ -330,7 +331,7 @@ class VLTransformers(torch.nn.Module):
                                  drop_out=0.2)
 
         """
-        super(VLTransformers, self).__init__()
+        super(Transchex, self).__init__()
         bert_config = {
             "attention_probs_dropout_prob": attention_probs_dropout_prob,
             "classifier_dropout": None,
