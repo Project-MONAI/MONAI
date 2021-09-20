@@ -1128,6 +1128,8 @@ class ResizeWithPadOrCrop(Transform):
 
     """
 
+    backend = list(set(SpatialPad.backend) & set(CenterSpatialCrop.backend))
+
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
@@ -1138,7 +1140,7 @@ class ResizeWithPadOrCrop(Transform):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **np_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
-    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayOrTensor:
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
@@ -1149,7 +1151,6 @@ class ResizeWithPadOrCrop(Transform):
                 If None, defaults to the ``mode`` in construction.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         return self.padder(self.cropper(img), mode=mode)  # type: ignore
 
 

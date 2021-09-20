@@ -1387,6 +1387,8 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
 
     """
 
+    backend = ResizeWithPadOrCrop.backend
+
     def __init__(
         self,
         keys: KeysCollection,
