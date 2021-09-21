@@ -149,7 +149,7 @@ def write_metrics_reports(
                         return c_op(d)
 
                     threshold = int(op.split("percentile")[0])
-                    return supported_ops["90percentile"]((d, threshold))
+                    return supported_ops["90percentile"]((d, threshold))  # type: ignore
 
                 with open(os.path.join(save_dir, f"{k}_summary.csv"), "w") as f:
                     f.write(f"class{deli}{deli.join(ops)}\n")

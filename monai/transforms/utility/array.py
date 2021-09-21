@@ -1106,7 +1106,7 @@ class IntensityStats(Transform):
         for o in self.ops:
             if isinstance(o, str):
                 o = look_up_option(o, supported_ops.keys())
-                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)
+                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)  # type: ignore
             elif callable(o):
                 meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
                 custom_index += 1
