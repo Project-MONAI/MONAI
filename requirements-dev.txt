@@ -31,7 +31,7 @@ Sphinx==3.5.3
 recommonmark==0.6.0
 sphinx-autodoc-typehints==1.11.1
 sphinx-rtd-theme==0.5.2
-cucim~=0.19.0; platform_system == "Linux"
+cucim~=21.8.2; platform_system == "Linux"
 openslide-python==1.1.2
 pandas
 requests
