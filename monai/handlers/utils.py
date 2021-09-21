@@ -130,12 +130,12 @@ def write_metrics_reports(
             if summary_ops is not None:
                 supported_ops = OrderedDict(
                     {
-                        "mean": lambda x: np.nanmean(x),
-                        "median": lambda x: np.nanmedian(x),
-                        "max": lambda x: np.nanmax(x),
-                        "min": lambda x: np.nanmin(x),
+                        "mean": np.nanmean,
+                        "median": np.nanmedian,
+                        "max": np.nanmax,
+                        "min": np.nanmin,
                         "90percentile": lambda x: np.nanpercentile(x[0], x[1]),
-                        "std": lambda x: np.nanstd(x),
+                        "std": np.nanstd,
                         "notnans": lambda x: (~np.isnan(x)).sum(),
                     }
                 )

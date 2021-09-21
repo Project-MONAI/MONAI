@@ -1090,11 +1090,11 @@ class IntensityStats(Transform):
             img_ = img[mask]
 
         supported_ops = {
-            "mean": lambda x: np.nanmean(x),
-            "median": lambda x: np.nanmedian(x),
-            "max": lambda x: np.nanmax(x),
-            "min": lambda x: np.nanmin(x),
-            "std": lambda x: np.nanstd(x),
+            "mean": np.nanmean,
+            "median": np.nanmedian,
+            "max": np.nanmax,
+            "min": np.nanmin,
+            "std": np.nanstd,
         }
 
         def _compute(op: Callable, data: np.ndarray):
