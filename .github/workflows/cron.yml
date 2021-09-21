@@ -215,7 +215,7 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
-        BUILD_MONAI=0 python setup.py develop  # install monai
+        BUILD_MONAI=1 python setup.py develop  # install monai
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
@@ -234,5 +234,6 @@ jobs:
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
         cd /opt/tutorials
+        python -c 'import monai; monai.config.print_debug_info()'
         $(pwd)/runner.sh
         if pgrep python; then pkill python; fi
