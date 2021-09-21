@@ -1093,7 +1093,7 @@ def convert_tables_to_dicts(
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
     """
-    df = reduce(lambda l, r: pd.merge(l, r, **kwargs), ensure_tuple(dfs))
+    df = reduce(pd.merge, ensure_tuple(dfs))
     # parse row indices
     rows: List[Union[int, str]] = []
     if row_indices is None:
