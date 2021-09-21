@@ -236,4 +236,5 @@ jobs:
         cd /opt/tutorials
         python -c 'import monai; monai.config.print_debug_info()'
         $(pwd)/runner.sh
+        python -c 'import monai; monai.config.print_debug_info()'
         if pgrep python; then pkill python; fi
