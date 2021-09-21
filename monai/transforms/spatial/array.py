@@ -335,8 +335,7 @@ class Flip(Transform):
         """
         if isinstance(img, np.ndarray):
             return np.ascontiguousarray(np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis)))
-        else:
-            return torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
+        return torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
 
 
 class Resize(Transform):

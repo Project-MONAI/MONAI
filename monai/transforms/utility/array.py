@@ -391,9 +391,8 @@ class EnsureType(Transform):
         if self.data_type == "tensor":
             dtype_ = get_equivalent_dtype(self.dtype, torch.Tensor)
             return convert_to_tensor(data, dtype=dtype_, device=self.device)
-        else:
-            dtype_ = get_equivalent_dtype(self.dtype, np.ndarray)
-            return convert_to_numpy(data, dtype=dtype_)
+        dtype_ = get_equivalent_dtype(self.dtype, np.ndarray)
+        return convert_to_numpy(data, dtype=dtype_)
 
 
 class ToNumpy(Transform):
