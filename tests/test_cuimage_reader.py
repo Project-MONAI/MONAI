@@ -112,7 +112,7 @@ class TestCuCIMReader(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
     @skipUnless(has_pil, "Requires PIL")
-    @skipUnless(cucim.__version__=='0.19.0', 'Skipped for cicum>0.19.0')
+    @skipUnless(cucim.__version__ == "0.19.0", "Skipped for cicum>0.19.0")
     def test_read_rgba(self, img_expected):
         image = {}
         reader = WSIReader("cuCIM")
