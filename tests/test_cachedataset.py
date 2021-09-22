@@ -19,7 +19,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, PersistentDataset, SmartCacheDataset
-from monai.transforms import Compose, Lambda, LoadImaged, ThreadUnsafe, Transform
+from monai.transforms import Compose, Lambda, LoadImaged, RandLambda, ThreadUnsafe, Transform
 from monai.utils import get_torch_version_tuple
 
 TEST_CASE_1 = [Compose([LoadImaged(keys=["image", "label", "extra"])]), (128, 128, 128)]
@@ -84,7 +84,10 @@ class TestCacheDataset(unittest.TestCase):
     def test_set_data(self):
         data_list1 = list(range(10))
 
-        transform = Lambda(func=lambda x: np.array([x * 10]))
+        transform = Compose([
+            Lambda(func=lambda x: np.array([x * 10])),
+            RandLambda(func=lambda x: x + 1),
+        ])
 
         dataset = CacheDataset(
             data=data_list1,
@@ -98,17 +101,17 @@ class TestCacheDataset(unittest.TestCase):
         num_workers = 2 if sys.platform == "linux" else 0
         dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=1)
         for i, d in enumerate(dataloader):
-            np.testing.assert_allclose([[data_list1[i] * 10]], d)
+            np.testing.assert_allclose([[data_list1[i] * 10 + 1]], d)
         # simulate another epoch, the cache content should not be modified
         for i, d in enumerate(dataloader):
-            np.testing.assert_allclose([[data_list1[i] * 10]], d)
+            np.testing.assert_allclose([[data_list1[i] * 10 + 1]], d)
 
         # update the datalist and fill the cache content
         data_list2 = list(range(-10, 0))
         dataset.set_data(data=data_list2)
         # rerun with updated cache content
         for i, d in enumerate(dataloader):
-            np.testing.assert_allclose([[data_list2[i] * 10]], d)
+            np.testing.assert_allclose([[data_list2[i] * 10 + 1]], d)
 
 
 class _StatefulTransform(Transform, ThreadUnsafe):
