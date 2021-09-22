@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - releasing/*
+      - test191
   pull_request:
 
 concurrency:

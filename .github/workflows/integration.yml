@@ -3,6 +3,9 @@ name: integration
 on:
   repository_dispatch:
     type: [integration-test-command]
+  push:
+    branches:
+      - test191
 
 jobs:
   integration-py3:
