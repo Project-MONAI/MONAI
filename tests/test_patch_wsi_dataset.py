@@ -21,7 +21,8 @@ from monai.apps.pathology.data import PatchWSIDataset
 from monai.apps.utils import download_url
 from monai.utils import optional_import
 
-_, has_cim = optional_import("cucim")
+_cucim, has_cim = optional_import("cucim")
+has_cim = has_cim and hasattr(_cucim, "CuImage")
 _, has_osl = optional_import("openslide")
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"

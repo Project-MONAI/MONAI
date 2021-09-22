@@ -21,7 +21,8 @@ from monai.apps.pathology.data import SmartCachePatchWSIDataset
 from monai.apps.utils import download_url
 from monai.utils import optional_import
 
-_, has_cim = optional_import("cucim")
+_cucim, has_cim = optional_import("cucim")
+has_cim = has_cim and hasattr(_cucim, "CuImage")
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + os.path.basename(FILE_URL))
