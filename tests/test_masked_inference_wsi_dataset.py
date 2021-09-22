@@ -22,7 +22,7 @@ from monai.apps.utils import download_url
 from monai.utils import optional_import
 from tests.utils import skip_if_quick
 
-_, has_cim = optional_import("cucim")
+_, has_cim = optional_import("cucim", name="CuImage")
 _, has_osl = optional_import("openslide")
 
 FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
