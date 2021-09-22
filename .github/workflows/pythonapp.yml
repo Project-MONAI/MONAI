@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - test191
   pull_request:
 
 concurrency:
