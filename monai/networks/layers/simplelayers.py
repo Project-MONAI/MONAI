@@ -394,13 +394,13 @@ class GaussianFilter(nn.Module):
                 otherwise this module will fix the kernels using `sigma` as the std.
         """
         super().__init__()
-        self.sigma = [
-            torch.nn.Parameter(
-                torch.as_tensor(s, dtype=torch.float, device=s.device if isinstance(s, torch.Tensor) else None),
-                requires_grad=requires_grad,
+        self.sigma = []
+        for s in ensure_tuple_rep(sigma, int(spatial_dims)):
+            device = sigma.device if isinstance(sigma, torch.Tensor) else None
+            self.sigma.append(
+                torch.nn.Parameter(torch.as_tensor(s, dtype=torch.float, device=device), requires_grad=requires_grad)
             )
-            for s in ensure_tuple_rep(sigma, int(spatial_dims))
-        ]
+
         self.truncated = truncated
         self.approx = approx
         for idx, param in enumerate(self.sigma):
@@ -411,7 +411,7 @@ class GaussianFilter(nn.Module):
         Args:
             x: in shape [Batch, chns, H, W, D].
         """
-        _kernel = [gaussian_1d(s, truncated=self.truncated, approx=self.approx).to(x.device) for s in self.sigma]
+        _kernel = [gaussian_1d(s, truncated=self.truncated, approx=self.approx) for s in self.sigma]
         return separable_filtering(x=x, kernels=_kernel)
 
 

@@ -1036,7 +1036,7 @@ class GaussianSmooth(Transform):
         self.sigma = sigma
         self.approx = approx
 
-    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         img_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
         sigma: Union[Sequence[torch.Tensor], torch.Tensor]
@@ -1045,7 +1045,8 @@ class GaussianSmooth(Transform):
         else:
             sigma = torch.as_tensor(self.sigma, device=img_t.device)
         gaussian_filter = GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx)
-        out: torch.Tensor = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
+        out_t: torch.Tensor = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
+        out, *_ = convert_data_type(out_t, type(img), device=img.device if isinstance(img, torch.Tensor) else None)
         return out
 
 
@@ -1087,12 +1088,11 @@ class RandGaussianSmooth(RandomizableTransform):
         self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
 
-    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         self.randomize()
         if not self._do_transform:
-            img_t: torch.Tensor
-            img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
-            return img_t
+            img, *_ = convert_data_type(img, dtype=torch.float)
+            return img
         sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=img.ndim - 1)
         return GaussianSmooth(sigma=sigma, approx=self.approx)(img)
 
@@ -1138,7 +1138,7 @@ class GaussianSharpen(Transform):
         self.alpha = alpha
         self.approx = approx
 
-    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         img_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
 
@@ -1148,7 +1148,8 @@ class GaussianSharpen(Transform):
         ]
         blurred_f = gf1(img_t.unsqueeze(0))
         filter_blurred_f = gf2(blurred_f)
-        out: torch.Tensor = (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0)
+        out_t: torch.Tensor = (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0)
+        out, *_ = convert_data_type(out_t, type(img), device=img.device if isinstance(img, torch.Tensor) else None)
         return out
 
 
@@ -1211,13 +1212,12 @@ class RandGaussianSharpen(RandomizableTransform):
         self.z2 = self.R.uniform(low=sigma2_z[0], high=sigma2_z[1])
         self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
 
-    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         self.randomize()
         # if not doing, just need to convert to tensor
         if not self._do_transform:
-            img_t: torch.Tensor
-            img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
-            return img_t
+            img, *_ = convert_data_type(img, dtype=torch.float32)
+            return img
         sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
         sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
         return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(img)
