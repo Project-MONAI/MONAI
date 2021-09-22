@@ -21,7 +21,7 @@ from monai.apps.utils import download_url
 from monai.data.image_reader import WSIReader
 from monai.utils import optional_import
 
-cucim, has_cim = optional_import("cucim")
+cucim, has_cucim = optional_import("cucim")
 PILImage, has_pil = optional_import("PIL.Image")
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
@@ -83,7 +83,7 @@ TEST_CASE_RGB_1 = [
 
 
 class TestCuCIMReader(unittest.TestCase):
-    @skipUnless(has_cim, "Requires CuCIM")
+    @skipUnless(has_cucim, "Requires CuCIM")
     def setUp(self):
         download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
