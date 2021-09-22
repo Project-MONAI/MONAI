@@ -16,7 +16,7 @@ import skimage.transform
 from parameterized import parameterized
 
 from monai.transforms import Resized
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 10, 15)]
 
@@ -48,16 +48,22 @@ class TestResized(NumpyImageTestCase2D):
             _order = 1
         if spatial_size == (32, -1):
             spatial_size = (32, 64)
-        expected = []
-        for channel in self.imt[0]:
-            expected.append(
-                skimage.transform.resize(
-                    channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=False
-                )
+        expected = [
+            skimage.transform.resize(
+                channel,
+                spatial_size,
+                order=_order,
+                clip=False,
+                preserve_range=False,
+                anti_aliasing=False,
             )
+            for channel in self.imt[0]
+        ]
+
         expected = np.stack(expected).astype(np.float32)
-        out = resize({"img": self.imt[0]})["img"]
-        np.testing.assert_allclose(out, expected, atol=0.9)
+        for p in TEST_NDARRAYS:
+            out = resize({"img": p(self.imt[0])})["img"]
+            assert_allclose(out, expected, type_test=False, atol=0.9)
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_longest_shape(self, input_param, expected_shape):
