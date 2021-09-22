@@ -663,7 +663,6 @@ class RandScaleCropd(RandSpatialCropd):
             random_size=random_size,
             allow_missing_keys=allow_missing_keys,
         )
-        MapTransform.__init__(self, keys, allow_missing_keys)
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
