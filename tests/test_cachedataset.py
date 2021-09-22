@@ -84,10 +84,12 @@ class TestCacheDataset(unittest.TestCase):
     def test_set_data(self):
         data_list1 = list(range(10))
 
-        transform = Compose([
-            Lambda(func=lambda x: np.array([x * 10])),
-            RandLambda(func=lambda x: x + 1),
-        ])
+        transform = Compose(
+            [
+                Lambda(func=lambda x: np.array([x * 10])),
+                RandLambda(func=lambda x: x + 1),
+            ]
+        )
 
         dataset = CacheDataset(
             data=data_list1,
