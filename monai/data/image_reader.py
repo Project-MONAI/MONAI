@@ -673,8 +673,11 @@ class WSIReader(ImageReader):
             if has_osl:
                 self.wsi_reader = openslide.OpenSlide
         elif self.reader_lib == "cucim":
-            if has_cim:
+            if has_cim and hasattr(cucim, "CuImage"):
                 self.wsi_reader = cucim.CuImage
+            else:
+                warnings.warn("Please check the cucim installation. Defaulting to use openslide.")
+                self.wsi_reader = openslide.OpenSlide
         else:
             raise ValueError('`reader_lib` should be either "cuCIM" or "OpenSlide"')
 
