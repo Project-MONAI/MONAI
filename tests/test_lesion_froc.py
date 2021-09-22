@@ -19,7 +19,8 @@ from parameterized import parameterized
 from monai.apps.pathology.metrics import LesionFROC
 from monai.utils import optional_import
 
-_, has_cucim = optional_import("cucim")
+_cucim, has_cucim = optional_import("cucim")
+has_cucim = has_cucim and hasattr(_cucim, "CuImage")
 _, has_skimage = optional_import("skimage.measure")
 _, has_sp = optional_import("scipy.ndimage")
 PILImage, has_pil = optional_import("PIL.Image")

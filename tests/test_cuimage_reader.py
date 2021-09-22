@@ -22,6 +22,7 @@ from monai.data.image_reader import WSIReader
 from monai.utils import optional_import
 
 cucim, has_cucim = optional_import("cucim")
+has_cucim = has_cucim and hasattr(cucim, "CuImage")
 PILImage, has_pil = optional_import("PIL.Image")
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
