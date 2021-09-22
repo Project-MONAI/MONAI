@@ -391,9 +391,8 @@ class EnsureType(Transform):
         if self.data_type == "tensor":
             dtype_ = get_equivalent_dtype(self.dtype, torch.Tensor)
             return convert_to_tensor(data, dtype=dtype_, device=self.device)
-        else:
-            dtype_ = get_equivalent_dtype(self.dtype, np.ndarray)
-            return convert_to_numpy(data, dtype=dtype_)
+        dtype_ = get_equivalent_dtype(self.dtype, np.ndarray)
+        return convert_to_numpy(data, dtype=dtype_)
 
 
 class ToNumpy(Transform):
@@ -1091,11 +1090,11 @@ class IntensityStats(Transform):
             img_ = img[mask]
 
         supported_ops = {
-            "mean": lambda x: np.nanmean(x),
-            "median": lambda x: np.nanmedian(x),
-            "max": lambda x: np.nanmax(x),
-            "min": lambda x: np.nanmin(x),
-            "std": lambda x: np.nanstd(x),
+            "mean": np.nanmean,
+            "median": np.nanmedian,
+            "max": np.nanmax,
+            "min": np.nanmin,
+            "std": np.nanstd,
         }
 
         def _compute(op: Callable, data: np.ndarray):
@@ -1107,7 +1106,7 @@ class IntensityStats(Transform):
         for o in self.ops:
             if isinstance(o, str):
                 o = look_up_option(o, supported_ops.keys())
-                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)
+                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)  # type: ignore
             elif callable(o):
                 meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
                 custom_index += 1

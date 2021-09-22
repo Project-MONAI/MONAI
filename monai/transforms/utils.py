@@ -20,12 +20,11 @@ import numpy as np
 import torch
 
 import monai
-import monai.transforms.transform
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
-from monai.transforms.transform import MapTransform, Transform
+from monai.transforms.transform import MapTransform, Transform, apply_transform
 from monai.transforms.utils_pytorch_numpy_unification import any_np_pt, nonzero, ravel, unravel_index
 from monai.utils import (
     GridSampleMode,
@@ -1330,9 +1329,7 @@ def get_number_image_type_conversions(transform: Compose, test_data: Any, key: O
         prev_data = _get_data(test_data, key)
         prev_type = type(prev_data)
         prev_device = prev_data.device if isinstance(prev_data, torch.Tensor) else None
-        test_data = monai.transforms.transform.apply_transform(
-            _transform, test_data, transform.map_items, transform.unpack_items
-        )
+        test_data = apply_transform(_transform, test_data, transform.map_items, transform.unpack_items)
         # every time the type or device changes, increment the counter
         curr_data = _get_data(test_data, key)
         curr_device = curr_data.device if isinstance(curr_data, torch.Tensor) else None

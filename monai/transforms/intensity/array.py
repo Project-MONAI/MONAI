@@ -1476,7 +1476,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
             raise RuntimeError("Image needs a channel direction.")
         if isinstance(self.loc[0], int) and len(img.shape) == 4 and len(self.loc) == 2:
             raise RuntimeError("Input images of dimension 4 need location tuple to be length 3 or 4")
-        if isinstance(self.loc[0], Sequence) and len(img.shape) == 4 and min(map(lambda x: len(x), self.loc)) == 2:
+        if isinstance(self.loc[0], Sequence) and len(img.shape) == 4 and min(map(len, self.loc)) == 2:
             raise RuntimeError("Input images of dimension 4 need location tuple to be length 3 or 4")
 
         n_dims = len(img.shape[1:])

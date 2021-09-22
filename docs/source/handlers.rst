@@ -150,11 +150,6 @@ GarbageCollector handler
 .. autoclass:: GarbageCollector
     :members:
 
-Transform inverter
-------------------
-.. autoclass:: TransformInverter
-    :members:
-
 Post processing
 ---------------
 .. autoclass:: PostProcessing
