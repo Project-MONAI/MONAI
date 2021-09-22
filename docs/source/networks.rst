@@ -500,9 +500,9 @@ Nets
 .. autoclass:: Critic
   :members:
 
-`VLTransformers`
+`Transchex`
 ~~~~~~~~~~~~~~~~
-.. autoclass:: VLTransformers
+.. autoclass:: Transchex
   :members:
 
 `NetAdapter`

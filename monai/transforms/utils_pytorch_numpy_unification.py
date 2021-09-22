@@ -159,8 +159,7 @@ def floor_divide(a: NdarrayOrTensor, b) -> NdarrayOrTensor:
         if is_module_ver_at_least(torch, (1, 8, 0)):
             return torch.div(a, b, rounding_mode="floor")
         return torch.floor_divide(a, b)
-    else:
-        return np.floor_divide(a, b)
+    return np.floor_divide(a, b)
 
 
 def unravel_index(idx, shape):
