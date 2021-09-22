@@ -15,7 +15,6 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-import copy
 import logging
 import re
 from copy import deepcopy
@@ -886,7 +885,7 @@ class CopyItemsd(MapTransform):
                 if isinstance(val, torch.Tensor):
                     d[new_key] = val.detach().clone()
                 else:
-                    d[new_key] = copy.deepcopy(val)
+                    d[new_key] = deepcopy(val)
         return d
 
 

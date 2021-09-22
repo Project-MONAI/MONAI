@@ -205,7 +205,7 @@ class AsDiscrete(Transform):
 
         rounding = self.rounding if rounding is None else rounding
         if rounding is not None:
-            rounding = look_up_option(rounding, ["torchrounding"])
+            look_up_option(rounding, ["torchrounding"])
             img = torch.round(img)
 
         return img.float()
