@@ -25,7 +25,7 @@ from tests.utils import skip_if_quick
 _, has_cim = optional_import("cucim")
 _, has_osl = optional_import("openslide")
 
-FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
+FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
 base_name, extension = os.path.splitext(os.path.basename(FILE_URL))
 FILE_NAME = "temp_" + base_name
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", FILE_NAME + extension)
