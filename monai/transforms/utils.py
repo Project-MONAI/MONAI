@@ -43,7 +43,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
@@ -1273,7 +1273,11 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
-            k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
+            if hasattr(torch.fft, "fftshift"):
+                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
+            else:
+                k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
+                k, *_ = convert_to_dst_type(k, x)
         else:
             k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
         return k
@@ -1302,10 +1306,14 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         out: NdarrayOrTensor
         if isinstance(k, torch.Tensor):
-            out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward")
+            if hasattr(torch.fft, "ifftshift"):
+                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
+            else:
+                out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
+                out, *_ = convert_to_dst_type(out, k)
         else:
-            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims)
-        return out.real  # type: ignore
+            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
+        return out
 
 
 def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Optional[Hashable] = None) -> int:
