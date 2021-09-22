@@ -92,10 +92,14 @@ class TestCacheDataset(unittest.TestCase):
             cache_rate=1.0,
             num_workers=4,
             progress=True,
+            copy_cache=False if sys.platform == "linux" else True,
         )
 
         num_workers = 2 if sys.platform == "linux" else 0
         dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=1)
+        for i, d in enumerate(dataloader):
+            np.testing.assert_allclose([[data_list1[i] * 10]], d)
+        # simulate another epoch, the cache content should not be modified
         for i, d in enumerate(dataloader):
             np.testing.assert_allclose([[data_list1[i] * 10]], d)
 
