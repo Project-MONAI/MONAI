@@ -16,7 +16,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from abc import abstractmethod
 from collections.abc import Iterable
 from functools import partial
-from monai.utils.misc import is_module_ver_at_least
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
@@ -41,6 +40,7 @@ from monai.utils import (
     fall_back_tuple,
 )
 from monai.utils.enums import TransformBackends
+from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_to_tensor, get_equivalent_dtype
 
 __all__ = [
