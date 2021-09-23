@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 
 from monai.transforms import (
     create_control_grid,
@@ -21,6 +22,7 @@ from monai.transforms import (
     create_shear,
     create_translate,
 )
+from tests.utils import assert_allclose
 
 
 class TestCreateGrid(unittest.TestCase):
@@ -32,50 +34,47 @@ class TestCreateGrid(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, ""):
             create_grid((1, 1), spacing=2.0)
 
-        g = create_grid((1, 1))
-        expected = np.array([[[0.0]], [[0.0]], [[1.0]]])
-        np.testing.assert_allclose(g, expected)
+        test_assert(create_grid, ((1, 1),), np.array([[[0.0]], [[0.0]], [[1.0]]]))
 
-        g = create_grid((1, 1), homogeneous=False)
-        expected = np.array([[[0.0]], [[0.0]]])
-        np.testing.assert_allclose(g, expected)
+        test_assert(create_grid, ((1, 1), None, False), np.array([[[0.0]], [[0.0]]]))
 
-        g = create_grid((1, 1), spacing=(1.2, 1.3))
-        expected = np.array([[[0.0]], [[0.0]], [[1.0]]])
-        np.testing.assert_allclose(g, expected)
+        test_assert(create_grid, ((1, 1), (1.2, 1.3)), np.array([[[0.0]], [[0.0]], [[1.0]]]))
 
-        g = create_grid((1, 1, 1), spacing=(1.2, 1.3, 1.0))
-        expected = np.array([[[[0.0]]], [[[0.0]]], [[[0.0]]], [[[1.0]]]])
-        np.testing.assert_allclose(g, expected)
+        test_assert(create_grid, ((1, 1, 1), (1.2, 1.3, 1.0)), np.array([[[[0.0]]], [[[0.0]]], [[[0.0]]], [[[1.0]]]]))
 
-        g = create_grid((1, 1, 1), spacing=(1.2, 1.3, 1.0), homogeneous=False)
-        expected = np.array([[[[0.0]]], [[[0.0]]], [[[0.0]]]])
-        np.testing.assert_allclose(g, expected)
+        test_assert(create_grid, ((1, 1, 1), (1.2, 1.3, 1.0), False), np.array([[[[0.0]]], [[[0.0]]], [[[0.0]]]]))
 
         g = create_grid((1, 1, 1), spacing=(1.2, 1.3, 1.0), dtype=np.int32)
         np.testing.assert_equal(g.dtype, np.int32)
 
-        g = create_grid((2, 2, 2))
-        expected = np.array(
-            [
-                [[[-0.5, -0.5], [-0.5, -0.5]], [[0.5, 0.5], [0.5, 0.5]]],
-                [[[-0.5, -0.5], [0.5, 0.5]], [[-0.5, -0.5], [0.5, 0.5]]],
-                [[[-0.5, 0.5], [-0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]]],
-                [[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]],
-            ]
-        )
-        np.testing.assert_allclose(g, expected)
+        g = create_grid((1, 1, 1), spacing=(1.2, 1.3, 1.0), dtype=torch.float64, backend="torch")
+        np.testing.assert_equal(g.dtype, torch.float64)
 
-        g = create_grid((2, 2, 2), spacing=(1.2, 1.3, 1.0))
-        expected = np.array(
-            [
-                [[[-0.6, -0.6], [-0.6, -0.6]], [[0.6, 0.6], [0.6, 0.6]]],
-                [[[-0.65, -0.65], [0.65, 0.65]], [[-0.65, -0.65], [0.65, 0.65]]],
-                [[[-0.5, 0.5], [-0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]]],
-                [[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]],
-            ]
+        test_assert(
+            create_grid,
+            ((2, 2, 2),),
+            np.array(
+                [
+                    [[[-0.5, -0.5], [-0.5, -0.5]], [[0.5, 0.5], [0.5, 0.5]]],
+                    [[[-0.5, -0.5], [0.5, 0.5]], [[-0.5, -0.5], [0.5, 0.5]]],
+                    [[[-0.5, 0.5], [-0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]]],
+                    [[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]],
+                ]
+            ),
         )
-        np.testing.assert_allclose(g, expected)
+
+        test_assert(
+            create_grid,
+            ((2, 2, 2), (1.2, 1.3, 1.0)),
+            np.array(
+                [
+                    [[[-0.6, -0.6], [-0.6, -0.6]], [[0.6, 0.6], [0.6, 0.6]]],
+                    [[[-0.65, -0.65], [0.65, 0.65]], [[-0.65, -0.65], [0.65, 0.65]]],
+                    [[[-0.5, 0.5], [-0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]]],
+                    [[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]],
+                ]
+            ),
+        )
 
     def test_create_control_grid(self):
         with self.assertRaisesRegex(TypeError, ""):
@@ -83,72 +82,87 @@ class TestCreateGrid(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, ""):
             create_control_grid((1, 1), 2.0)
 
-        g = create_control_grid((1.0, 1.0), (1.0, 1.0))
-        expected = np.array(
-            [
-                [[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
-                [[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]],
-                [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
-            ]
-        )
-        np.testing.assert_allclose(g, expected)
-
-        g = create_control_grid((1.0, 1.0), (2.0, 2.0))
-        expected = np.array(
-            [
-                [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
-                [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
-                [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
-            ]
-        )
-        np.testing.assert_allclose(g, expected)
-
-        g = create_control_grid((2.0, 2.0), (1.0, 1.0))
-        expected = np.array(
-            [
-                [[-1.5, -1.5, -1.5, -1.5], [-0.5, -0.5, -0.5, -0.5], [0.5, 0.5, 0.5, 0.5], [1.5, 1.5, 1.5, 1.5]],
-                [[-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5]],
-                [[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]],
-            ]
-        )
-        np.testing.assert_allclose(g, expected)
-
-        g = create_control_grid((2.0, 2.0), (2.0, 2.0))
-        expected = np.array(
-            [
-                [[-3.0, -3.0, -3.0, -3.0], [-1.0, -1.0, -1.0, -1.0], [1.0, 1.0, 1.0, 1.0], [3.0, 3.0, 3.0, 3.0]],
-                [[-3.0, -1.0, 1.0, 3.0], [-3.0, -1.0, 1.0, 3.0], [-3.0, -1.0, 1.0, 3.0], [-3.0, -1.0, 1.0, 3.0]],
-                [[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]],
-            ]
-        )
-        np.testing.assert_allclose(g, expected)
-
-        g = create_control_grid((1.0, 1.0, 1.0), (2.0, 2.0, 2.0), homogeneous=False)
-        expected = np.array(
-            [
+        test_assert(
+            create_control_grid,
+            ((1.0, 1.0), (1.0, 1.0)),
+            np.array(
                 [
-                    [[-2.0, -2.0, -2.0], [-2.0, -2.0, -2.0], [-2.0, -2.0, -2.0]],
-                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-                    [[2.0, 2.0, 2.0], [2.0, 2.0, 2.0], [2.0, 2.0, 2.0]],
-                ],
+                    [[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
+                    [[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]],
+                    [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+                ]
+            ),
+        )
+
+        test_assert(
+            create_control_grid,
+            ((1.0, 1.0), (2.0, 2.0)),
+            np.array(
                 [
                     [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
-                    [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
-                    [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
-                ],
-                [
                     [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
-                    [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
-                    [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
-                ],
-            ]
+                    [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+                ]
+            ),
         )
-        np.testing.assert_allclose(g, expected)
+
+        test_assert(
+            create_control_grid,
+            ((2.0, 2.0), (1.0, 1.0)),
+            np.array(
+                [
+                    [[-1.5, -1.5, -1.5, -1.5], [-0.5, -0.5, -0.5, -0.5], [0.5, 0.5, 0.5, 0.5], [1.5, 1.5, 1.5, 1.5]],
+                    [[-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5], [-1.5, -0.5, 0.5, 1.5]],
+                    [[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]],
+                ]
+            ),
+        )
+
+        test_assert(
+            create_control_grid,
+            ((2.0, 2.0), (2.0, 2.0)),
+            np.array(
+                [
+                    [[-3.0, -3.0, -3.0, -3.0], [-1.0, -1.0, -1.0, -1.0], [1.0, 1.0, 1.0, 1.0], [3.0, 3.0, 3.0, 3.0]],
+                    [[-3.0, -1.0, 1.0, 3.0], [-3.0, -1.0, 1.0, 3.0], [-3.0, -1.0, 1.0, 3.0], [-3.0, -1.0, 1.0, 3.0]],
+                    [[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]],
+                ]
+            ),
+        )
+
+        test_assert(
+            create_control_grid,
+            ((1.0, 1.0, 1.0), (2.0, 2.0, 2.0), False),
+            np.array(
+                [
+                    [
+                        [[-2.0, -2.0, -2.0], [-2.0, -2.0, -2.0], [-2.0, -2.0, -2.0]],
+                        [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                        [[2.0, 2.0, 2.0], [2.0, 2.0, 2.0], [2.0, 2.0, 2.0]],
+                    ],
+                    [
+                        [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
+                        [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
+                        [[-2.0, -2.0, -2.0], [0.0, 0.0, 0.0], [2.0, 2.0, 2.0]],
+                    ],
+                    [
+                        [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
+                        [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
+                        [[-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0], [-2.0, 0.0, 2.0]],
+                    ],
+                ]
+            ),
+        )
 
 
 def test_assert(func, params, expected):
-    m = func(*params)
-    np.testing.assert_allclose(m, expected, atol=1e-7)
+    gpu_test = ("torch_gpu",) if torch.cuda.is_available() else ()
+    for b in ("torch", "numpy") + gpu_test:
+        if b == "torch_gpu":
+            m = func(*params, device="cuda:0", backend="torch")
+        else:
+            m = func(*params, backend=b)
+        assert_allclose(m, expected, type_test=False, atol=1e-7)
 
 
 class TestCreateAffine(unittest.TestCase):

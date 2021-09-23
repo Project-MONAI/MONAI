@@ -186,16 +186,16 @@ class SEBlock(nn.Module):
         if not conv_param_1:
             conv_param_1 = {"kernel_size": 1, "norm": Norm.BATCH, "act": ("relu", {"inplace": True})}
         self.conv1 = Convolution(
-            dimensions=spatial_dims, in_channels=in_channels, out_channels=n_chns_1, **conv_param_1
+            spatial_dims=spatial_dims, in_channels=in_channels, out_channels=n_chns_1, **conv_param_1
         )
 
         if not conv_param_2:
             conv_param_2 = {"kernel_size": 3, "norm": Norm.BATCH, "act": ("relu", {"inplace": True})}
-        self.conv2 = Convolution(dimensions=spatial_dims, in_channels=n_chns_1, out_channels=n_chns_2, **conv_param_2)
+        self.conv2 = Convolution(spatial_dims=spatial_dims, in_channels=n_chns_1, out_channels=n_chns_2, **conv_param_2)
 
         if not conv_param_3:
             conv_param_3 = {"kernel_size": 1, "norm": Norm.BATCH, "act": None}
-        self.conv3 = Convolution(dimensions=spatial_dims, in_channels=n_chns_2, out_channels=n_chns_3, **conv_param_3)
+        self.conv3 = Convolution(spatial_dims=spatial_dims, in_channels=n_chns_2, out_channels=n_chns_3, **conv_param_3)
 
         self.se_layer = ChannelSELayer(
             spatial_dims=spatial_dims, in_channels=n_chns_3, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2

@@ -39,7 +39,7 @@ def get_upsample_layer(
     spatial_dims: int, in_channels: int, upsample_mode: Union[UpsampleMode, str] = "nontrainable", scale_factor: int = 2
 ):
     return UpSample(
-        dimensions=spatial_dims,
+        spatial_dims=spatial_dims,
         in_channels=in_channels,
         out_channels=in_channels,
         scale_factor=scale_factor,

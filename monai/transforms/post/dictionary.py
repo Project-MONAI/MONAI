@@ -158,6 +158,9 @@ class AsDiscreted(MapTransform):
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
 
+        .. deprecated:: 0.6.0
+            ``n_classes`` is deprecated, use ``num_classes`` instead.
+
         """
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes is None:
