@@ -16,6 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from abc import abstractmethod
 from collections.abc import Iterable
 from functools import partial
+from monai.utils.misc import is_module_ver_at_least
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
@@ -1476,7 +1477,12 @@ class KSpaceSpikeNoise(Transform, Fourier):
         else:
             self._set_spike(log_abs, self.loc, k_intensity)
         # map back
-        k = lib.exp(log_abs) * lib.exp(1j * phase)  # type: ignore
+        # complex exponential not implemented for older pytorch
+        if isinstance(phase, torch.Tensor) and not is_module_ver_at_least(torch, (1, 6, 0)):
+            phase = phase.cpu()
+            k = torch.exp(log_abs) * torch.exp(1j * phase.cpu()).to(log_abs.device)
+        else:
+            k = lib.exp(log_abs) * lib.exp(1j * phase)  # type: ignore
         img = self.inv_shift_fourier(k, n_dims)
 
         return img
