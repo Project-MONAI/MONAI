@@ -18,6 +18,7 @@ import torch.nn as nn
 from monai.networks.blocks import ADN
 from monai.networks.layers.convutils import same_padding, stride_minus_kernel_padding
 from monai.networks.layers.factories import Conv
+from monai.utils.deprecated import deprecated_arg
 
 
 class Convolution(nn.Sequential):
@@ -59,7 +60,7 @@ class Convolution(nn.Sequential):
         )
 
     Args:
-        dimensions: number of spatial dimensions.
+        spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
         out_channels: number of output channels.
         strides: convolution stride. Defaults to 1.
@@ -69,13 +70,13 @@ class Convolution(nn.Sequential):
         act: activation type and arguments. Defaults to PReLU.
         norm: feature normalization type and arguments. Defaults to instance norm.
         dropout: dropout ratio. Defaults to no dropout.
-        dropout_dim: determine the dimensions of dropout. Defaults to 1.
+        dropout_dim: determine the spatial dimensions of dropout. Defaults to 1.
 
             - When dropout_dim = 1, randomly zeroes some of the elements for each channel.
             - When dropout_dim = 2, Randomly zeroes out entire channels (a channel is a 2D feature map).
             - When dropout_dim = 3, Randomly zeroes out entire channels (a channel is a 3D feature map).
 
-            The value of dropout_dim should be no no larger than the value of `dimensions`.
+            The value of dropout_dim should be no no larger than the value of `spatial_dims`.
         dilation: dilation rate. Defaults to 1.
         groups: controls the connections between inputs and outputs. Defaults to 1.
         bias: whether to have a bias term. Defaults to True.
@@ -86,6 +87,9 @@ class Convolution(nn.Sequential):
         output_padding: controls the additional size added to one side of the output shape.
             Defaults to None.
 
+    .. deprecated:: 0.6.0
+        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+
     See also:
 
         :py:class:`monai.networks.layers.Conv`
@@ -93,9 +97,12 @@ class Convolution(nn.Sequential):
 
     """
 
+    @deprecated_arg(
+        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
     def __init__(
         self,
-        dimensions: int,
+        spatial_dims: int,
         in_channels: int,
         out_channels: int,
         strides: Union[Sequence[int], int] = 1,
@@ -112,15 +119,16 @@ class Convolution(nn.Sequential):
         is_transposed: bool = False,
         padding: Optional[Union[Sequence[int], int]] = None,
         output_padding: Optional[Union[Sequence[int], int]] = None,
+        dimensions: Optional[int] = None,
     ) -> None:
         super().__init__()
-        self.dimensions = dimensions
+        self.dimensions = spatial_dims if dimensions is None else dimensions
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.is_transposed = is_transposed
         if padding is None:
             padding = same_padding(kernel_size, dilation)
-        conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
+        conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, self.dimensions]
 
         conv: nn.Module
         if is_transposed:
@@ -159,7 +167,7 @@ class Convolution(nn.Sequential):
                     in_channels=out_channels,
                     act=act,
                     norm=norm,
-                    norm_dim=dimensions,
+                    norm_dim=self.dimensions,
                     dropout=dropout,
                     dropout_dim=dropout_dim,
                 ),
@@ -177,7 +185,7 @@ class ResidualUnit(nn.Module):
         from monai.networks.blocks import ResidualUnit
 
         convs = ResidualUnit(
-            dimensions=3,
+            spatial_dims=3,
             in_channels=1,
             out_channels=1,
             adn_ordering="AN",
@@ -209,7 +217,7 @@ class ResidualUnit(nn.Module):
         )
 
     Args:
-        dimensions: number of spatial dimensions.
+        spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
         out_channels: number of output channels.
         strides: convolution stride. Defaults to 1.
@@ -234,15 +242,19 @@ class ResidualUnit(nn.Module):
         padding: controls the amount of implicit zero-paddings on both sides for padding number of points
             for each dimension. Defaults to None.
 
+    .. deprecated:: 0.6.0
+        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+
     See also:
 
         :py:class:`monai.networks.blocks.Convolution`
 
     """
 
+    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
-        dimensions: int,
+        spatial_dims: int,
         in_channels: int,
         out_channels: int,
         strides: Union[Sequence[int], int] = 1,
@@ -257,9 +269,10 @@ class ResidualUnit(nn.Module):
         bias: bool = True,
         last_conv_only: bool = False,
         padding: Optional[Union[Sequence[int], int]] = None,
+        dimensions: Optional[int] = None,
     ) -> None:
         super().__init__()
-        self.dimensions = dimensions
+        self.dimensions = spatial_dims if dimensions is None else dimensions
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.conv = nn.Sequential()
@@ -273,7 +286,7 @@ class ResidualUnit(nn.Module):
         for su in range(subunits):
             conv_only = last_conv_only and su == (subunits - 1)
             unit = Convolution(
-                dimensions,
+                self.dimensions,
                 schannels,
                 out_channels,
                 strides=sstrides,
@@ -304,7 +317,7 @@ class ResidualUnit(nn.Module):
                 rkernel_size = 1
                 rpadding = 0
 
-            conv_type = Conv[Conv.CONV, dimensions]
+            conv_type = Conv[Conv.CONV, self.dimensions]
             self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

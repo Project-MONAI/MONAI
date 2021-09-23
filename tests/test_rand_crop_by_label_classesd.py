@@ -15,52 +15,59 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import ClassesToIndicesd, RandCropByLabelClassesd
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_0 = [
-    # One-Hot label
-    {
-        "keys": "img",
-        "label_key": "label",
-        "num_classes": None,
-        "spatial_size": [2, 2, -1],
-        "ratios": [1, 1, 1],
-        "num_samples": 2,
-        "image_key": "image",
-        "image_threshold": 0,
-    },
-    {
-        "img": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    },
-    list,
-    (3, 2, 2, 3),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            # One-Hot label
+            {
+                "keys": "img",
+                "label_key": "label",
+                "num_classes": None,
+                "spatial_size": [2, 2, -1],
+                "ratios": [1, 1, 1],
+                "num_samples": 2,
+                "image_key": "image",
+                "image_threshold": 0,
+            },
+            {
+                "img": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+                "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+                "label": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+            },
+            list,
+            (3, 2, 2, 3),
+        ]
+    )
 
-TEST_CASE_1 = [
-    # Argmax label
-    {
-        "keys": "img",
-        "label_key": "label",
-        "num_classes": 2,
-        "spatial_size": [2, 2, 2],
-        "ratios": [1, 1],
-        "num_samples": 2,
-        "image_key": "image",
-        "image_threshold": 0,
-    },
-    {
-        "img": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "label": np.random.randint(0, 2, size=[1, 3, 3, 3]),
-    },
-    list,
-    (3, 2, 2, 2),
-]
+    TESTS.append(
+        [
+            # Argmax label
+            {
+                "keys": "img",
+                "label_key": "label",
+                "num_classes": 2,
+                "spatial_size": [2, 2, 2],
+                "ratios": [1, 1],
+                "num_samples": 2,
+                "image_key": "image",
+                "image_threshold": 0,
+            },
+            {
+                "img": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+                "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+                "label": p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
+            },
+            list,
+            (3, 2, 2, 2),
+        ]
+    )
 
 
 class TestRandCropByLabelClassesd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
+    @parameterized.expand(TESTS)
     def test_type_shape(self, input_param, input_data, expected_type, expected_shape):
         result = RandCropByLabelClassesd(**input_param)(input_data)
         self.assertIsInstance(result, expected_type)

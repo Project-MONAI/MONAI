@@ -18,6 +18,8 @@ import torch.nn as nn
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 
+__all__ = ["ViT"]
+
 
 class ViT(nn.Module):
     """

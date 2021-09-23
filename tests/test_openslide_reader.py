@@ -24,7 +24,7 @@ from monai.utils import optional_import
 _, has_osl = optional_import("openslide")
 
 
-FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
+FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + os.path.basename(FILE_URL))
 
 HEIGHT = 32914
