@@ -60,5 +60,3 @@ users have the flexibility to alter the architecture by varying the number of
 vision, language and mixed-modality layers and customizing the classification
 head. In addition, the model can be initialized from pre-trained BERT language
 models for fine-tuning.
-
-This release also addes support for Vision Transformer (ViT) model for both 2D and 3D applications of both classification and segmentation (encoder), and addes 2D support to the existing 3D UNETR network.
