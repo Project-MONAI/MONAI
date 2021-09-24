@@ -24,7 +24,7 @@ __all__ = ["DynUNetV1", "DynUnetV1", "DynunetV1"]
 
 @deprecated(
     since="0.6.0",
-    removed="0.7.0",
+    removed="0.8.0",
     msg_suffix="This module is for backward compatibility purpose only. Please use `DynUNet` instead.",
 )
 class DynUNetV1(DynUNet):
