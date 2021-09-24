@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Deprecated input argument `dimensions` and `ndims`, in favor of `spatial_dims`
 * Updated the Sphinx-based documentation theme for better readability
 * `NdarrayTensor` type is replaced by `NdarrayOrTensor` for simpler annotations
-* Attention-based network blocks now support both 2D and 3D inputs
+* Self-attention-based network blocks now support both 2D and 3D inputs
 
 ### Removed
 * The deprecated `TransformInverter`, in favor of `monai.transforms.InvertD`
