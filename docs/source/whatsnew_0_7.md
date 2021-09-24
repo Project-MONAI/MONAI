@@ -21,8 +21,8 @@ a performance enhancement study.
 
 With the performance profiling and enhancements, several typical use cases were studied to
 improve the training efficiency.  The following figure shows that fast
-training using MONAI can be 20 times faster than a regular baseline ([learn
-more](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb)).
+training using MONAI can be `200` times faster than a regular baseline ([learn
+more](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb)), and it's `20` times faster than the MONAI v0.6 fast training solution.
 ![fast_training](../images/fast_training.png)
 
 ## Major usability improvements in `monai.transforms` for NumPy/PyTorch inputs and backends
