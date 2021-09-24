@@ -30,14 +30,14 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         super().__init__(*args, **kwargs)
         self.timed_tests = {}
 
-    def startTest(self, test):  # noqa: N802
+    def startTest(self, test):
         """Start timer, print test name, do normal test."""
         self.start_time = time.time()
         name = self.getDescription(test)
         self.stream.write(f"Starting test: {name}...\n")
         super().startTest(test)
 
-    def stopTest(self, test):  # noqa: N802
+    def stopTest(self, test):
         """On test end, get time, print, store and do normal behaviour."""
         elapsed = time.time() - self.start_time
         name = self.getDescription(test)
