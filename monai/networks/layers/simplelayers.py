@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import math
+from monai.utils.misc import issequenceiterable
 from typing import List, Sequence, Union
 
+from copy import deepcopy
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -393,13 +395,18 @@ class GaussianFilter(nn.Module):
                 (for example `parameters()` iterator could be used to get the parameters);
                 otherwise this module will fix the kernels using `sigma` as the std.
         """
+        if issequenceiterable(sigma):
+            if len(sigma) != int(spatial_dims):
+                raise ValueError
+        else:
+            sigma = [deepcopy(sigma) for _ in range(spatial_dims)]
         super().__init__()
         self.sigma = [
             torch.nn.Parameter(
                 torch.as_tensor(s, dtype=torch.float, device=s.device if isinstance(s, torch.Tensor) else None),
                 requires_grad=requires_grad,
             )
-            for s in ensure_tuple_rep(sigma, int(spatial_dims))
+            for s in sigma
         ]
         self.truncated = truncated
         self.approx = approx
