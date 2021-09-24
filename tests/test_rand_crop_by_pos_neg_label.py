@@ -10,68 +10,93 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandCropByPosNegLabel
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_0 = [
-    {
-        "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "spatial_size": [2, 2, -1],
-        "pos": 1,
-        "neg": 1,
-        "num_samples": 2,
-        "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "image_threshold": 0,
-    },
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    list,
-    (3, 2, 2, 3),
-]
-
-TEST_CASE_1 = [
-    {
-        "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "spatial_size": [2, 2, 2],
-        "pos": 1,
-        "neg": 1,
-        "num_samples": 2,
-        "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "image_threshold": 0,
-    },
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    list,
-    (3, 2, 2, 2),
-]
-
-TEST_CASE_2 = [
-    {
-        "label": None,
-        "spatial_size": [2, 2, 2],
-        "pos": 1,
-        "neg": 1,
-        "num_samples": 2,
-        "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "image_threshold": 0,
-    },
-    {
-        "img": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-        "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    },
-    list,
-    (3, 2, 2, 2),
-]
+TESTS = []
+TESTS.append(
+    [
+        {
+            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "spatial_size": [2, 2, -1],
+            "pos": 1,
+            "neg": 1,
+            "num_samples": 2,
+            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "image_threshold": 0,
+        },
+        {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+        (3, 2, 2, 3),
+    ]
+)
+TESTS.append(
+    [
+        {
+            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "spatial_size": [2, 2, 2],
+            "pos": 1,
+            "neg": 1,
+            "num_samples": 2,
+            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "image_threshold": 0,
+        },
+        {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+        (3, 2, 2, 2),
+    ]
+)
+TESTS.append(
+    [
+        {
+            "label": None,
+            "spatial_size": [2, 2, 2],
+            "pos": 1,
+            "neg": 1,
+            "num_samples": 2,
+            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "image_threshold": 0,
+        },
+        {
+            "img": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+        },
+        (3, 2, 2, 2),
+    ]
+)
 
 
 class TestRandCropByPosNegLabel(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
-    def test_type_shape(self, input_param, input_data, expected_type, expected_shape):
-        result = RandCropByPosNegLabel(**input_param)(**input_data)
-        self.assertIsInstance(result, expected_type)
-        self.assertTupleEqual(result[0].shape, expected_shape)
+    @staticmethod
+    def convert_data_type(im_type, d, keys=("img", "image", "label")):
+        out = deepcopy(d)
+        for k, v in out.items():
+            if k in keys and isinstance(v, np.ndarray):
+                out[k] = im_type(v)
+        return out
+
+    @parameterized.expand(TESTS)
+    def test_type_shape(self, input_param, input_data, expected_shape):
+        results = []
+        for p in TEST_NDARRAYS:
+            input_param_mod = self.convert_data_type(p, input_param)
+            input_data_mod = self.convert_data_type(p, input_data)
+            cropper = RandCropByPosNegLabel(**input_param_mod)
+            cropper.set_random_state(0)
+            result = cropper(**input_data_mod)
+
+            self.assertIsInstance(result, list)
+            self.assertTupleEqual(result[0].shape, expected_shape)
+
+            # check for same results across numpy, torch.Tensor and torch.cuda.Tensor
+            result = np.asarray([i if isinstance(i, np.ndarray) else i.cpu().numpy() for i in result])
+            results.append(np.asarray(result))
+            if len(results) > 1:
+                np.testing.assert_allclose(results[0], results[-1])
 
 
 if __name__ == "__main__":
