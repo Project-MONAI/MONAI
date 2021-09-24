@@ -22,12 +22,13 @@ repos:
         args: ['--maxkb=1024']
       - id: detect-private-key
 
-  #- repo: https://github.com/asottile/pyupgrade
-  #  rev: v2.23.2
-  #  hooks:
-  #    - id: pyupgrade
-  #      args: [--py36-plus]
-  #      name: Upgrade code
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v2.27.0
+    hooks:
+      - id: pyupgrade
+        args: [--py36-plus]
+        name: Upgrade code
+        exclude: versioneer.py
 
   #- repo: https://github.com/asottile/yesqa
   #  rev: v1.2.3

@@ -44,7 +44,7 @@ else:
 
 
 def get_model_names():
-    return ["efficientnet-b{}".format(d) for d in range(8)]
+    return [f"efficientnet-b{d}" for d in range(8)]
 
 
 def get_expected_model_shape(model_name):

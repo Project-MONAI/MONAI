@@ -87,7 +87,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         .. deprecated:: 0.6.0
             ``ndim`` is deprecated, use ``spatial_dims``.
         """
-        super(LocalNormalizedCrossCorrelationLoss, self).__init__(reduction=LossReduction(reduction).value)
+        super().__init__(reduction=LossReduction(reduction).value)
 
         if ndim is not None:
             spatial_dims = ndim
@@ -196,7 +196,7 @@ class GlobalMutualInformationLoss(_Loss):
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
-        super(GlobalMutualInformationLoss, self).__init__(reduction=LossReduction(reduction).value)
+        super().__init__(reduction=LossReduction(reduction).value)
         if num_bins <= 0:
             raise ValueError("num_bins must > 0, got {num_bins}")
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)

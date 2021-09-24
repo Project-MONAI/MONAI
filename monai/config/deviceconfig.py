@@ -122,7 +122,7 @@ def get_system_info() -> OrderedDict:
     elif output["System"] == "Darwin":
         _dict_append(output, "Mac version", lambda: platform.mac_ver()[0])
     else:
-        with open("/etc/os-release", "r") as rel_f:
+        with open("/etc/os-release") as rel_f:
             linux_ver = re.search(r'PRETTY_NAME="(.*)"', rel_f.read())
         if linux_ver:
             _dict_append(output, "Linux version", lambda: linux_ver.group(1))

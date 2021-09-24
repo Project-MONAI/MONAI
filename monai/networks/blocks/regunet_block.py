@@ -100,7 +100,7 @@ class RegistrationResidualConvBlock(nn.Module):
             num_layers: number of layers inside the block
             kernel_size: kernel_size
         """
-        super(RegistrationResidualConvBlock, self).__init__()
+        super().__init__()
         self.num_layers = num_layers
         self.layers = nn.ModuleList(
             [
@@ -158,7 +158,7 @@ class RegistrationDownSampleBlock(nn.Module):
             channels: channels
             pooling: use MaxPool if True, strided conv if False
         """
-        super(RegistrationDownSampleBlock, self).__init__()
+        super().__init__()
         if pooling:
             self.layer = Pool[Pool.MAX, spatial_dims](kernel_size=2)
         else:
@@ -235,7 +235,7 @@ class RegistrationExtractionBlock(nn.Module):
             kernel_initializer: kernel initializer
             activation: kernel activation function
         """
-        super(RegistrationExtractionBlock, self).__init__()
+        super().__init__()
         self.extract_levels = extract_levels
         self.max_level = max(extract_levels)
         self.layers = nn.ModuleList(

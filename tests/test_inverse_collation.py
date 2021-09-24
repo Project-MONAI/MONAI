@@ -99,12 +99,12 @@ class TestInverseCollation(unittest.TestCase):
         set_determinism(seed=0)
 
         b_size = 11
-        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_3d(101, 100, 107)]
+        im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107))
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.data_3d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
         b_size = 8
-        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10)]
+        im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10))
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.data_2d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
