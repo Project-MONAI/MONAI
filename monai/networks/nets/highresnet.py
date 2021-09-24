@@ -84,7 +84,7 @@ class HighResBlock(nn.Module):
             )
             layers.append(
                 Convolution(
-                    dimensions=spatial_dims,
+                    spatial_dims=spatial_dims,
                     in_channels=_in_chns,
                     out_channels=_out_chns,
                     kernel_size=kernel_size,
@@ -154,7 +154,7 @@ class HighResNet(nn.Module):
         _in_chns, _out_chns = in_channels, params["n_features"]
         blocks.append(
             Convolution(
-                dimensions=spatial_dims,
+                spatial_dims=spatial_dims,
                 in_channels=_in_chns,
                 out_channels=_out_chns,
                 kernel_size=params["kernel_size"],
@@ -190,7 +190,7 @@ class HighResNet(nn.Module):
         _in_chns, _out_chns = _out_chns, params["n_features"]
         blocks.append(
             Convolution(
-                dimensions=spatial_dims,
+                spatial_dims=spatial_dims,
                 in_channels=_in_chns,
                 out_channels=_out_chns,
                 kernel_size=params["kernel_size"],
@@ -206,7 +206,7 @@ class HighResNet(nn.Module):
         _in_chns = _out_chns
         blocks.append(
             Convolution(
-                dimensions=spatial_dims,
+                spatial_dims=spatial_dims,
                 in_channels=_in_chns,
                 out_channels=out_channels,
                 kernel_size=params["kernel_size"],
