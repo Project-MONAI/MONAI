@@ -89,6 +89,15 @@ class FocalLoss(_Loss):
                 number of classes.
             ValueError: When ``self.weight`` is/contains a value that is less than 0.
 
+        Example:
+            >>> import torch
+            >>> from monai.losses.focal_loss import FocalLoss
+            >>> input = torch.rand(7, 5, 3, 2)
+            >>> target = torch.rand(7, 5, 3, 2)
+            >>> self = FocalLoss(reduction='none')
+            >>> loss = self(input, target)
+            >>> assert loss.shape == input.shape
+
         """
         n_pred_ch = input.shape[1]
 
