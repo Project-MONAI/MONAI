@@ -29,7 +29,7 @@ more](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_t
 
  MONAI starts to roll out major usability enhancements for the
  `monai.transforms` module. Many transforms are now supporting both NumPy and
- PyTorch, as input types and computational backends.
+ PyTorch, as input types and computational backends. To get the supported backends of every transform, please execute: `python monai/transforms/utils.py`.
 
 One benefit of these enhancements is that the users can now better leverage the
 GPUs for preprocessing. By transferring the input data onto GPU using
