@@ -44,6 +44,29 @@ class TestFocalLoss(unittest.TestCase):
                 max_error = abs(a - b)
         self.assertAlmostEqual(max_error, 0.0, places=3)
 
+    def test_consistency_with_cross_entropy_2d_no_reduction(self):
+        """For gamma=0 the focal loss reduces to the cross entropy loss"""
+        focal_loss = FocalLoss(to_onehot_y=False, gamma=0.0, reduction="none", weight=1.0)
+        ce = nn.BCEWithLogitsLoss(reduction="none")
+        max_error = 0
+        class_num = 10
+        batch_size = 128
+        for _ in range(100):
+            # Create a random tensor of shape (batch_size, class_num, 8, 4)
+            x = torch.rand(batch_size, class_num, 8, 4, requires_grad=True)
+            # Create a random batch of classes
+            l = torch.randint(low=0, high=2, size=(batch_size, class_num, 8, 4)).float()
+            if torch.cuda.is_available():
+                x = x.cuda()
+                l = l.cuda()
+            output0 = focal_loss(x, l)
+            output1 = ce(x, l)
+            a = float(output0.cpu().detach())
+            b = float(output1.cpu().detach())
+            if abs(a - b) > max_error:
+                max_error = abs(a - b)
+        self.assertAlmostEqual(max_error, 0.0, places=3)
+
     def test_consistency_with_cross_entropy_2d_onehot_label(self):
         """For gamma=0 the focal loss reduces to the cross entropy loss"""
         focal_loss = FocalLoss(to_onehot_y=True, gamma=0.0, reduction="mean")
