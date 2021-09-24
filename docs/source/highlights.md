@@ -58,7 +58,7 @@ transformations. These currently include, for example:
 
 
 ### 3. Transforms support both NumPy array and PyTorch Tensor (CPU or GPU accelerated)
-From MONAI v0.7 we introduced PyTorch `Tensor` based computation in transforms, many transforms already support both `numpy array` and `Tensor` data.
+From MONAI v0.7 we introduced PyTorch `Tensor` based computation in transforms, many transforms already support both `numpy array` and `Tensor` data. To get the supported backends of every transform, please execute: `python monai/transforms/utils.py`.
 
 To accelerate the transforms, a common approach is to leverage GPU parallel-computation. Users can first convert input data into GPU Tensor by `ToTensor` or `EnsureType` transform, then the following transforms can execute on GPU based on PyTorch `Tensor` APIs.
 GPU transform tutorial is available at [Spleen fast training tutorial](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb).
