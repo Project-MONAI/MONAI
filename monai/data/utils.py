@@ -1029,7 +1029,7 @@ def json_hashing(item) -> bytes:
     """
     # TODO: Find way to hash transforms content as part of the cache
     cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
-    return f"{cache_key}".encode("utf-8")
+    return f"{cache_key}".encode()
 
 
 def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
@@ -1044,7 +1044,7 @@ def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
 
     """
     cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
-    return f"{cache_key}".encode("utf-8")
+    return f"{cache_key}".encode()
 
 
 def sorted_dict(item, key=None, reverse=False):

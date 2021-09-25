@@ -70,7 +70,7 @@ class HighResBlock(nn.Module):
             ValueError: When ``channel_matching=pad`` and ``in_channels > out_channels``. Incompatible values.
 
         """
-        super(HighResBlock, self).__init__()
+        super().__init__()
         self.chn_pad = ChannelPad(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, mode=channel_matching
         )
@@ -146,7 +146,7 @@ class HighResNet(nn.Module):
         channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ) -> None:
 
-        super(HighResNet, self).__init__()
+        super().__init__()
         blocks = nn.ModuleList()
 
         # initial conv layer

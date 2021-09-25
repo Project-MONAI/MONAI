@@ -46,7 +46,7 @@ class UnetrUpBlock(nn.Module):
 
         """
 
-        super(UnetrUpBlock, self).__init__()
+        super().__init__()
         upsample_stride = upsample_kernel_size
         self.transp_conv = get_conv_layer(
             spatial_dims,
