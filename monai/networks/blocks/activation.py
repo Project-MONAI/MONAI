@@ -122,7 +122,7 @@ class MemoryEfficientSwish(nn.Module):
     """
 
     def __init__(self, inplace: bool = False):
-        super(MemoryEfficientSwish, self).__init__()
+        super().__init__()
         # inplace only works when using torch.nn.functional.silu
         self.inplace = inplace
 
@@ -156,7 +156,7 @@ class Mish(nn.Module):
     """
 
     def __init__(self, inplace: bool = False):
-        super(Mish, self).__init__()
+        super().__init__()
         # inplace only works when using torch.nn.functional.mish
         self.inplace = inplace
 

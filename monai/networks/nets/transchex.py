@@ -48,7 +48,7 @@ class BertPreTrainedModel(nn.Module):
     """
 
     def __init__(self, *inputs, **kwargs) -> None:
-        super(BertPreTrainedModel, self).__init__()
+        super().__init__()
 
     def init_bert_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
@@ -176,7 +176,7 @@ class BertOutput(nn.Module):
     """
 
     def __init__(self, config) -> None:
-        super(BertOutput, self).__init__()
+        super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.LayerNorm = torch.nn.LayerNorm(config.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -217,7 +217,7 @@ class Pooler(nn.Module):
         self,
         hidden_size,
     ) -> None:
-        super(Pooler, self).__init__()
+        super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.activation = nn.Tanh()
 
@@ -331,7 +331,7 @@ class Transchex(torch.nn.Module):
                                  drop_out=0.2)
 
         """
-        super(Transchex, self).__init__()
+        super().__init__()
         bert_config = {
             "attention_probs_dropout_prob": attention_probs_dropout_prob,
             "classifier_dropout": None,

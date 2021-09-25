@@ -9,7 +9,7 @@ from monai.handlers.parameter_scheduler import ParamSchedulerHandler
 
 class ToyNet(Module):
     def __init__(self, value):
-        super(ToyNet, self).__init__()
+        super().__init__()
         self.value = value
 
     def forward(self, input):

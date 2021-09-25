@@ -455,7 +455,7 @@ class LLTM(nn.Module):
     """
 
     def __init__(self, input_features: int, state_size: int):
-        super(LLTM, self).__init__()
+        super().__init__()
         self.input_features = input_features
         self.state_size = state_size
         self.weights = nn.Parameter(torch.empty(3 * state_size, input_features + state_size))

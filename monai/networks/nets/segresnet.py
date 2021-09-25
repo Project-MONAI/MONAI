@@ -226,7 +226,7 @@ class SegResNetVAE(SegResNet):
         blocks_up: tuple = (1, 1, 1),
         upsample_mode: Union[UpsampleMode, str] = UpsampleMode.NONTRAINABLE,
     ):
-        super(SegResNetVAE, self).__init__(
+        super().__init__(
             spatial_dims=spatial_dims,
             init_filters=init_filters,
             in_channels=in_channels,

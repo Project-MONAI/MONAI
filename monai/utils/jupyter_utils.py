@@ -128,7 +128,7 @@ def plot_metric_images(
         else:
             im.imshow(np.squeeze(imagemap[n]), cmap="gray")
 
-        im.set_title("%s\n%.3g -> %.3g" % (n, imagemap[n].min(), imagemap[n].max()))
+        im.set_title(f"{n}\n{imagemap[n].min():.3g} -> {imagemap[n].max():.3g}")
         im.axis("off")
         axes.append(im)
 
