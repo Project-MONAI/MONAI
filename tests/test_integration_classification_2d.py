@@ -197,7 +197,7 @@ class IntegrationClassification2D(DistTestCase):
 
         assert os.path.exists(data_dir)
 
-        class_names = sorted((x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x))))
+        class_names = sorted(x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x)))
         image_files = [
             [os.path.join(data_dir, class_name, x) for x in sorted(os.listdir(os.path.join(data_dir, class_name)))]
             for class_name in class_names

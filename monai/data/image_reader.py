@@ -25,21 +25,17 @@ from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
 from .utils import is_supported_format
 
 if TYPE_CHECKING:
-    import cucim
     import itk  # type: ignore
     import nibabel as nib
-    import openslide
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_itk = has_nib = has_pil = has_cim = has_osl = True
+    has_itk = has_nib = has_pil = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
-    cucim, has_cim = optional_import("cucim")
-    openslide, has_osl = optional_import("openslide")
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
 
@@ -670,11 +666,9 @@ class WSIReader(ImageReader):
         super().__init__()
         self.reader_lib = reader_lib.lower()
         if self.reader_lib == "openslide":
-            if has_osl:
-                self.wsi_reader = openslide.OpenSlide
+            self.wsi_reader, *_ = optional_import("openslide", name="OpenSlide")
         elif self.reader_lib == "cucim":
-            if has_cim:
-                self.wsi_reader = cucim.CuImage
+            self.wsi_reader, *_ = optional_import("cucim", name="CuImage")
         else:
             raise ValueError('`reader_lib` should be either "cuCIM" or "OpenSlide"')
 
@@ -697,11 +691,6 @@ class WSIReader(ImageReader):
             data: file name or a list of file names to read.
 
         """
-        if (self.reader_lib == "openslide") and (not has_osl):
-            raise ImportError("No module named 'openslide'")
-        if (self.reader_lib == "cucim") and (not has_cim):
-            raise ImportError("No module named 'cucim'")
-
         img_: List = []
 
         filenames: Sequence[str] = ensure_tuple(data)

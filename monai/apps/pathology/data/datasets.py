@@ -64,7 +64,7 @@ class PatchWSIDataset(Dataset):
         self.patch_size = ensure_tuple_rep(patch_size, 2)
 
         self.image_path_list = list({x["image"] for x in self.data})
-        self.image_reader_name = image_reader_name
+        self.image_reader_name = image_reader_name.lower()
         self.image_reader = WSIReader(image_reader_name)
         self.wsi_object_dict = None
         if self.image_reader_name != "openslide":
@@ -190,7 +190,7 @@ class MaskedInferenceWSIDataset(Dataset):
         self.patch_size = ensure_tuple_rep(patch_size, 2)
 
         # set up whole slide image reader
-        self.image_reader_name = image_reader_name
+        self.image_reader_name = image_reader_name.lower()
         self.image_reader = WSIReader(image_reader_name)
 
         # process data and create a list of dictionaries containing all required data and metadata

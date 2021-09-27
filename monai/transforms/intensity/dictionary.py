@@ -34,6 +34,7 @@ from monai.transforms.intensity.array import (
     NormalizeIntensity,
     RandBiasField,
     RandCoarseDropout,
+    RandCoarseShuffle,
     RandGaussianNoise,
     RandKSpaceSpikeNoise,
     RandRicianNoise,
@@ -47,6 +48,7 @@ from monai.transforms.intensity.array import (
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "RandGaussianNoised",
@@ -75,6 +77,7 @@ __all__ = [
     "RandKSpaceSpikeNoised",
     "RandHistogramShiftd",
     "RandCoarseDropoutd",
+    "RandCoarseShuffled",
     "HistogramNormalized",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
@@ -126,6 +129,8 @@ __all__ = [
     "RandRicianNoiseDict",
     "RandCoarseDropoutD",
     "RandCoarseDropoutDict",
+    "RandCoarseShuffleD",
+    "RandCoarseShuffleDict",
     "HistogramNormalizeD",
     "HistogramNormalizeDict",
 ]
@@ -484,6 +489,7 @@ class ScaleIntensityd(MapTransform):
         minv: Optional[float] = 0.0,
         maxv: Optional[float] = 1.0,
         factor: Optional[float] = None,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -494,11 +500,12 @@ class ScaleIntensityd(MapTransform):
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
                 this parameter, please set `minv` and `maxv` into None.
+            dtype: output data type, defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.scaler = ScaleIntensity(minv, maxv, factor)
+        self.scaler = ScaleIntensity(minv, maxv, factor, dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -519,6 +526,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         factors: Union[Tuple[float, float], float],
         prob: float = 0.1,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -529,6 +537,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
+            dtype: output data type, defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -542,6 +551,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
+        self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -552,7 +562,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         self.randomize()
         if not self._do_transform:
             return d
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
         for key in self.key_iterator(d):
             d[key] = scaler(d[key])
         return d
@@ -655,6 +665,8 @@ class ThresholdIntensityd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ThresholdIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -666,7 +678,7 @@ class ThresholdIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.filter(d[key])
@@ -688,6 +700,8 @@ class ScaleIntensityRanged(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ScaleIntensityRange.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -701,7 +715,7 @@ class ScaleIntensityRanged(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -805,6 +819,8 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ScaleIntensityRangePercentiles.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -819,7 +835,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -882,6 +898,8 @@ class GaussianSmoothd(MapTransform):
 
     """
 
+    backend = GaussianSmooth.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -892,7 +910,7 @@ class GaussianSmoothd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = GaussianSmooth(sigma, approx=approx)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -915,6 +933,8 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
+    backend = GaussianSmooth.backend
 
     def __init__(
         self,
@@ -939,14 +959,15 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
         self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
-        if not self._do_transform:
-            return d
         for key in self.key_iterator(d):
-            sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=d[key].ndim - 1)
-            d[key] = GaussianSmooth(sigma=sigma, approx=self.approx)(d[key])
+            if self._do_transform:
+                sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=d[key].ndim - 1)
+                d[key] = GaussianSmooth(sigma=sigma, approx=self.approx)(d[key])
+            else:
+                d[key], *_ = convert_data_type(d[key], torch.Tensor, dtype=torch.float)
         return d
 
 
@@ -970,6 +991,8 @@ class GaussianSharpend(MapTransform):
 
     """
 
+    backend = GaussianSharpen.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -982,7 +1005,7 @@ class GaussianSharpend(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = GaussianSharpen(sigma1, sigma2, alpha, approx=approx)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1012,6 +1035,8 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
+    backend = GaussianSharpen.backend
 
     def __init__(
         self,
@@ -1051,15 +1076,17 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
         self.z2 = self.R.uniform(low=sigma2_z[0], high=sigma2_z[1])
         self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
 
-    def __call__(self, data):
+    def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
-        if not self._do_transform:
-            return d
         for key in self.key_iterator(d):
-            sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=d[key].ndim - 1)
-            sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=d[key].ndim - 1)
-            d[key] = GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(d[key])
+            if self._do_transform:
+                sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=d[key].ndim - 1)
+                sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=d[key].ndim - 1)
+                d[key] = GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(d[key])
+            else:
+                # if not doing the transform, convert to torch
+                d[key], *_ = convert_data_type(d[key], torch.Tensor, dtype=torch.float32)
         return d
 
 
@@ -1478,6 +1505,13 @@ class RandCoarseDropoutd(Randomizable, MapTransform):
             prob=prob,
         )
 
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandCoarseDropoutd":
+        self.dropper.set_random_state(seed, state)
+        super().set_random_state(seed, state)
+        return self
+
     def randomize(self, img_size: Sequence[int]) -> None:
         self.dropper.randomize(img_size=img_size)
 
@@ -1488,6 +1522,72 @@ class RandCoarseDropoutd(Randomizable, MapTransform):
         if self.dropper._do_transform:
             for key in self.key_iterator(d):
                 d[key] = self.dropper(img=d[key])
+
+        return d
+
+
+class RandCoarseShuffled(Randomizable, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandCoarseShuffle`.
+    Expect all the data specified by `keys` have same spatial shape and will randomly dropout the same regions
+    for every key, if want to shuffle different regions for every key, please use this transform separately.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
+            randomly select the expected number of regions.
+        spatial_size: spatial size of the regions to dropout, if `max_spatial_size` is not None, use this arg
+            as the minimum spatial size to randomly select size for every region.
+            if some components of the `spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        max_holes: if not None, define the maximum number to randomly select the expected number of regions.
+        max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+            if some components of the `max_spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `max_spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        prob: probability of applying the transform.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        holes: int,
+        spatial_size: Union[Sequence[int], int],
+        max_holes: Optional[int] = None,
+        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+    ):
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.shuffle = RandCoarseShuffle(
+            holes=holes,
+            spatial_size=spatial_size,
+            max_holes=max_holes,
+            max_spatial_size=max_spatial_size,
+            prob=prob,
+        )
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandCoarseShuffled":
+        self.shuffle.set_random_state(seed, state)
+        super().set_random_state(seed, state)
+        return self
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        self.shuffle.randomize(img_size=img_size)
+
+    def __call__(self, data):
+        d = dict(data)
+        # expect all the specified keys have same spatial shape
+        self.randomize(d[self.keys[0]].shape[1:])
+        if self.shuffle._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = self.shuffle(img=d[key])
 
         return d
 
@@ -1562,3 +1662,4 @@ KSpaceSpikeNoiseD = KSpaceSpikeNoiseDict = KSpaceSpikeNoised
 RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
 RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
 HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
+RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
