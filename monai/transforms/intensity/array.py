@@ -39,6 +39,7 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
 )
+from monai.utils.deprecated import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_to_tensor, get_equivalent_dtype
@@ -1294,7 +1295,8 @@ class GibbsNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, alpha: float = 0.5) -> None:
+    @deprecated_arg(name="as_tensor_output", since="0.6")
+    def __init__(self, alpha: float = 0.5, as_tensor_output: bool = True) -> None:
 
         if alpha > 1 or alpha < 0:
             raise ValueError("alpha must take values in the interval [0,1].")
@@ -1369,7 +1371,8 @@ class RandGibbsNoise(RandomizableTransform):
 
     backend = GibbsNoise.backend
 
-    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0)) -> None:
+    @deprecated_arg(name="as_tensor_output", since="0.6")
+    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
 
         if len(alpha) != 2:
             raise ValueError("alpha length must be 2.")
@@ -1440,10 +1443,12 @@ class KSpaceSpikeNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         loc: Union[Tuple, Sequence[Tuple]],
         k_intensity: Optional[Union[Sequence[float], float]] = None,
+        as_tensor_output: bool = True,
     ):
 
         self.loc = ensure_tuple(loc)
@@ -1580,11 +1585,13 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 
     backend = KSpaceSpikeNoise.backend
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
         intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
         channel_wise=True,
+        as_tensor_output: bool = True,
     ):
 
         self.intensity_range = intensity_range

@@ -48,6 +48,7 @@ from monai.transforms.intensity.array import (
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
+from monai.utils.deprecated import deprecated_arg
 from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
@@ -1176,12 +1177,14 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
 
     backend = GibbsNoise.backend
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
         prob: float = 0.1,
         alpha: Sequence[float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
+        as_tensor_output: bool = True,
     ) -> None:
 
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1231,7 +1234,10 @@ class GibbsNoised(MapTransform):
 
     backend = GibbsNoise.backend
 
-    def __init__(self, keys: KeysCollection, alpha: float = 0.5, allow_missing_keys: bool = False) -> None:
+    @deprecated_arg(name="as_tensor_output", since="0.6")
+    def __init__(
+        self, keys: KeysCollection, alpha: float = 0.5, allow_missing_keys: bool = False, as_tensor_output: bool = True
+    ) -> None:
 
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.transform = GibbsNoise(alpha)
@@ -1287,12 +1293,14 @@ class KSpaceSpikeNoised(MapTransform):
 
     backend = KSpaceSpikeNoise.backend
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
         loc: Union[Tuple, Sequence[Tuple]],
         k_intensity: Optional[Union[Sequence[float], float]] = None,
         allow_missing_keys: bool = False,
+        as_tensor_output: bool = True,
     ) -> None:
 
         super().__init__(keys, allow_missing_keys)
@@ -1356,6 +1364,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
 
     backend = KSpaceSpikeNoise.backend
 
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -1366,6 +1375,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         common_sampling: bool = False,
         common_seed: int = 42,
         allow_missing_keys: bool = False,
+        as_tensor_output: bool = True,
     ):
 
         MapTransform.__init__(self, keys, allow_missing_keys)
