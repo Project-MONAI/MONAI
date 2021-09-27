@@ -138,7 +138,7 @@ class TestMMMARDownload(unittest.TestCase):
 
     def test_unique(self):
         # model ids are unique
-        keys = sorted([m["id"] for m in MODEL_DESC])
+        keys = sorted(m["id"] for m in MODEL_DESC)
         self.assertTrue(keys == sorted(set(keys)))
 
     @SkipIfAtLeastPyTorchVersion((1, 6))

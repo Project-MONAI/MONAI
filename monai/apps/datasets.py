@@ -111,7 +111,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             ValueError: When ``section`` is not one of ["training", "validation", "test"].
 
         """
-        class_names = sorted((x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x))))
+        class_names = sorted(x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x)))
         self.num_class = len(class_names)
         image_files = [
             [

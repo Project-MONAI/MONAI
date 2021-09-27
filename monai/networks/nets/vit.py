@@ -70,7 +70,7 @@ class ViT(nn.Module):
 
         """
 
-        super(ViT, self).__init__()
+        super().__init__()
 
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")

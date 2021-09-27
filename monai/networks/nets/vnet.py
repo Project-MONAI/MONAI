@@ -30,7 +30,7 @@ def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
 
 class LUConv(nn.Module):
     def __init__(self, spatial_dims: int, nchan: int, act: Union[Tuple[str, Dict], str], bias: bool = False):
-        super(LUConv, self).__init__()
+        super().__init__()
 
         self.act_function = get_acti_layer(act, nchan)
         self.conv_block = Convolution(
@@ -65,7 +65,7 @@ class InputTransition(nn.Module):
         act: Union[Tuple[str, Dict], str],
         bias: bool = False,
     ):
-        super(InputTransition, self).__init__()
+        super().__init__()
 
         if 16 % in_channels != 0:
             raise ValueError(f"16 should be divisible by in_channels, got in_channels={in_channels}.")
@@ -102,7 +102,7 @@ class DownTransition(nn.Module):
         dropout_dim: int = 3,
         bias: bool = False,
     ):
-        super(DownTransition, self).__init__()
+        super().__init__()
 
         conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -138,7 +138,7 @@ class UpTransition(nn.Module):
         dropout_prob: Optional[float] = None,
         dropout_dim: int = 3,
     ):
-        super(UpTransition, self).__init__()
+        super().__init__()
 
         conv_trans_type: Type[Union[nn.ConvTranspose2d, nn.ConvTranspose3d]] = Conv[Conv.CONVTRANS, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -174,7 +174,7 @@ class OutputTransition(nn.Module):
         act: Union[Tuple[str, Dict], str],
         bias: bool = False,
     ):
-        super(OutputTransition, self).__init__()
+        super().__init__()
 
         conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
 
