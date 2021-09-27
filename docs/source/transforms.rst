@@ -461,6 +461,8 @@ Spatial
 
 `RandFlip`
 """"""""""
+.. image:: ../images/transforms/RandFlip.png
+    :alt: example of RandFlip
 .. autoclass:: RandFlip
     :members:
     :special-members: __call__

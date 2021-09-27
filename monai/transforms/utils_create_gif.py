@@ -10,19 +10,22 @@
 # limitations under the License.
 
 from monai.apps.datasets import DecathlonDataset
-import re
-import inspect
-from monai.transforms.transform import MapTransform
 import os
 import pathlib
-from monai.transforms import RandFlip, RandFlipd
+from monai.transforms import (
+    RandFlip,
+    LoadImaged,
+    Compose,
+    Lambdad,
+    MapTransform,
+    EnsureChannelFirstd,
+    AddChanneld,
+)
 import matplotlib.pyplot as plt
-from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from copy import deepcopy
-import brainweb
-import tempfile
+from monai.utils.enums import CommonKeys
 
-KEYS = ["i", "s"]
+KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
 
 def get_data(ndim, is_map):
 
@@ -30,27 +33,31 @@ def get_data(ndim, is_map):
     if cache_dir is None:
         raise RuntimeError("Requires `MONAI_DATA_DIRECTORY` to be set")
 
-    train_ds = DecathlonDataset(
+    brats_dataset = DecathlonDataset(
         root_dir=cache_dir,
         task="Task01_BrainTumour",
         transform=None,
-        section="test",
+        section="training",
         download=True,
         num_workers=4,
+        cache_num=0,
     )
 
-    img = train_ds[0]
+    transforms = Compose([
+        LoadImaged(KEYS),
+        EnsureChannelFirstd(CommonKeys.IMAGE),
+        Lambdad(CommonKeys.IMAGE, lambda x: x[0][None]),
+        AddChanneld(CommonKeys.LABEL)
+    ])
+    data_full = transforms(brats_dataset[1])
 
-    subject = "04"
-    url = "http://brainweb.bic.mni.mcgill.ca/cgi/brainweb1" + \
-        "?do_download_alias=subject" + subject + "_crisp&format_value=raw_short" + \
-        "&zip_value=gnuzip&download_for_real=%5BStart+download%21%5D"
+    data = {}
+    for k in KEYS:
+        data[k] = data_full[k]
+        if ndim == 2:
+            data[k] = data[k][..., data[k].shape[-1]//2]
 
-    cache_dir = os.path.join(cache_dir, "brainweb")
-    path = brainweb.get_file("subject_" + subject + ".nii.gz", url, cache_dir=cache_dir)
-    im, seg = create_test_image_2d(100, 100) if ndim == 2 else create_test_image_3d(100, 100, 100)
-    im, seg = im[None], seg[None]  # add channel
-    return {KEYS[0]: im, KEYS[1]: seg} if is_map else im
+    return data if is_map else data[CommonKeys.IMAGE]
 
 def update_docstring(code_path, relative_out_file, transform_name):
     with open(code_path) as f:
