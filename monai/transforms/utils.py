@@ -561,7 +561,7 @@ def create_grid(
         return _create_grid_numpy(spatial_size, spacing, homogeneous, dtype)
     if _backend == TransformBackends.TORCH:
         return _create_grid_torch(spatial_size, spacing, homogeneous, dtype, device)
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_grid_numpy(
@@ -662,7 +662,7 @@ def create_rotate(
             cos_func=lambda th: torch.cos(torch.as_tensor(th, dtype=torch.float32, device=device)),
             eye_func=lambda rank: torch.eye(rank, device=device),
         )
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_rotate(
@@ -747,7 +747,7 @@ def create_shear(
         return _create_shear(
             spatial_dims=spatial_dims, coefs=coefs, eye_func=lambda rank: torch.eye(rank, device=device)
         )
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_shear(spatial_dims: int, coefs: Union[Sequence[float], float], eye_func=np.eye) -> NdarrayOrTensor:
@@ -790,7 +790,7 @@ def create_scale(
             scaling_factor=scaling_factor,
             array_func=lambda x: torch.diag(torch.as_tensor(x, device=device)),
         )
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_scale(
@@ -825,7 +825,7 @@ def create_translate(
             eye_func=lambda x: torch.eye(torch.as_tensor(x), device=device),  # type: ignore
             array_func=lambda x: torch.as_tensor(x, device=device),  # type: ignore
         )
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_translate(
@@ -1404,7 +1404,7 @@ def print_transform_backends():
         print(f"\033[{color}m{t}\033[00m")
 
     def print_table_column(name, torch, numpy, color=Colors.none):
-        print_color("{:<50} {:<8} {:<8}".format(name, torch, numpy), color)
+        print_color(f"{name:<50} {torch:<8} {numpy:<8}", color)
 
     backends = get_transform_backends()
     n_total = len(backends)

@@ -67,7 +67,7 @@ class RegUNet(nn.Module):
             concat_skip: when up-sampling, concatenate skipped tensor if true, otherwise use addition
             encode_kernel_sizes: kernel size for down-sampling
         """
-        super(RegUNet, self).__init__()
+        super().__init__()
         if not extract_levels:
             extract_levels = (depth,)
         if max(extract_levels) != depth:
@@ -262,7 +262,7 @@ class AffineHead(nn.Module):
         decode_size: List[int],
         in_channels: int,
     ):
-        super(AffineHead, self).__init__()
+        super().__init__()
         self.spatial_dims = spatial_dims
         if spatial_dims == 2:
             in_features = in_channels * decode_size[0] * decode_size[1]
@@ -371,7 +371,7 @@ class AdditiveUpSampleBlock(nn.Module):
         in_channels: int,
         out_channels: int,
     ):
-        super(AdditiveUpSampleBlock, self).__init__()
+        super().__init__()
         self.deconv = get_deconv_block(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

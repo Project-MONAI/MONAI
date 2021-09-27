@@ -47,7 +47,7 @@ class UnetResBlock(nn.Module):
         norm_name: Union[Tuple, str],
         dropout: Optional[Union[Tuple, str, float]] = None,
     ):
-        super(UnetResBlock, self).__init__()
+        super().__init__()
         self.conv1 = get_conv_layer(
             spatial_dims,
             in_channels,
@@ -126,7 +126,7 @@ class UnetBasicBlock(nn.Module):
         norm_name: Union[Tuple, str],
         dropout: Optional[Union[Tuple, str, float]] = None,
     ):
-        super(UnetBasicBlock, self).__init__()
+        super().__init__()
         self.conv1 = get_conv_layer(
             spatial_dims,
             in_channels,
@@ -188,7 +188,7 @@ class UnetUpBlock(nn.Module):
         norm_name: Union[Tuple, str],
         dropout: Optional[Union[Tuple, str, float]] = None,
     ):
-        super(UnetUpBlock, self).__init__()
+        super().__init__()
         upsample_stride = upsample_kernel_size
         self.transp_conv = get_conv_layer(
             spatial_dims,
@@ -222,7 +222,7 @@ class UnetOutBlock(nn.Module):
     def __init__(
         self, spatial_dims: int, in_channels: int, out_channels: int, dropout: Optional[Union[Tuple, str, float]] = None
     ):
-        super(UnetOutBlock, self).__init__()
+        super().__init__()
         self.conv = get_conv_layer(
             spatial_dims, in_channels, out_channels, kernel_size=1, stride=1, dropout=dropout, bias=True, conv_only=True
         )

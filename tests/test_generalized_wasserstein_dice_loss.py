@@ -159,7 +159,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
         # define a model with one layer
         class OnelayerNet(nn.Module):
             def __init__(self):
-                super(OnelayerNet, self).__init__()
+                super().__init__()
                 self.layer = nn.Linear(num_voxels, num_voxels * num_classes)
 
             def forward(self, x):

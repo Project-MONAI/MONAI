@@ -48,6 +48,7 @@ from monai.transforms.intensity.array import (
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "RandGaussianNoised",
@@ -897,6 +898,8 @@ class GaussianSmoothd(MapTransform):
 
     """
 
+    backend = GaussianSmooth.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -907,7 +910,7 @@ class GaussianSmoothd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = GaussianSmooth(sigma, approx=approx)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -930,6 +933,8 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
+    backend = GaussianSmooth.backend
 
     def __init__(
         self,
@@ -954,14 +959,15 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
         self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
-        if not self._do_transform:
-            return d
         for key in self.key_iterator(d):
-            sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=d[key].ndim - 1)
-            d[key] = GaussianSmooth(sigma=sigma, approx=self.approx)(d[key])
+            if self._do_transform:
+                sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=d[key].ndim - 1)
+                d[key] = GaussianSmooth(sigma=sigma, approx=self.approx)(d[key])
+            else:
+                d[key], *_ = convert_data_type(d[key], torch.Tensor, dtype=torch.float)
         return d
 
 
@@ -985,6 +991,8 @@ class GaussianSharpend(MapTransform):
 
     """
 
+    backend = GaussianSharpen.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -997,7 +1005,7 @@ class GaussianSharpend(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = GaussianSharpen(sigma1, sigma2, alpha, approx=approx)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1027,6 +1035,8 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
+    backend = GaussianSharpen.backend
 
     def __init__(
         self,
@@ -1066,15 +1076,17 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
         self.z2 = self.R.uniform(low=sigma2_z[0], high=sigma2_z[1])
         self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
 
-    def __call__(self, data):
+    def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
-        if not self._do_transform:
-            return d
         for key in self.key_iterator(d):
-            sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=d[key].ndim - 1)
-            sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=d[key].ndim - 1)
-            d[key] = GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(d[key])
+            if self._do_transform:
+                sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=d[key].ndim - 1)
+                sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=d[key].ndim - 1)
+                d[key] = GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(d[key])
+            else:
+                # if not doing the transform, convert to torch
+                d[key], *_ = convert_data_type(d[key], torch.Tensor, dtype=torch.float32)
         return d
 
 

@@ -192,7 +192,7 @@ class TestDataStatsd(unittest.TestCase):
                 h.close()
                 _logger.removeHandler(h)
             del handler
-            with open(filename, "r") as f:
+            with open(filename) as f:
                 content = f.read()
             self.assertEqual(content, expected_print)
 

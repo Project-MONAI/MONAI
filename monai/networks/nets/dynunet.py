@@ -122,7 +122,7 @@ class DynUNet(nn.Module):
         deep_supr_num: int = 1,
         res_block: bool = False,
     ):
-        super(DynUNet, self).__init__()
+        super().__init__()
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -193,11 +193,11 @@ class DynUNet(nn.Module):
         for idx, k_i in enumerate(kernels):
             kernel, stride = k_i, strides[idx]
             if not isinstance(kernel, int):
-                error_msg = "length of kernel_size in block {} should be the same as spatial_dims.".format(idx)
+                error_msg = f"length of kernel_size in block {idx} should be the same as spatial_dims."
                 if len(kernel) != self.spatial_dims:
                     raise AssertionError(error_msg)
             if not isinstance(stride, int):
-                error_msg = "length of stride in block {} should be the same as spatial_dims.".format(idx)
+                error_msg = f"length of stride in block {idx} should be the same as spatial_dims."
                 if len(stride) != self.spatial_dims:
                     raise AssertionError(error_msg)
 
