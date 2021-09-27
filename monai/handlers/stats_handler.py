@@ -172,8 +172,9 @@ class StatsHandler:
             and hasattr(engine.state, "best_metric")
             and hasattr(engine.state, "best_metric_epoch")
         ):
-            out_str = f"Key metric: {engine.state.key_metric_name} "
-            out_str += f"best value: {engine.state.best_metric} at epoch: {engine.state.best_metric_epoch}"
+            out_str = f"Key metric: {engine.state.key_metric_name} "  # type: ignore
+            out_str += f"best value: {engine.state.best_metric} "  # type: ignore
+            out_str += f"at epoch: {engine.state.best_metric_epoch}"  # type: ignore
         self.logger.info(out_str)
 
     def _default_iteration_print(self, engine: Engine) -> None:
@@ -220,7 +221,9 @@ class StatsHandler:
             return  # no value to print
 
         num_iterations = engine.state.epoch_length
-        current_iteration = (engine.state.iteration - 1) % num_iterations + 1
+        current_iteration = engine.state.iteration - 1
+        if num_iterations is not None:
+            current_iteration %= num_iterations + 1
         current_epoch = engine.state.epoch
         num_epochs = engine.state.max_epochs
 
