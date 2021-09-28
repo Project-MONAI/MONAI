@@ -11,6 +11,7 @@
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -161,7 +162,8 @@ class TestDataStats(unittest.TestCase):
                 _logger.removeHandler(h)
             with open(filename) as f:
                 content = f.read()
-            self.assertEqual(content, expected_print)
+            if sys.platform != "win32":
+                self.assertEqual(content, expected_print)
 
 
 if __name__ == "__main__":
