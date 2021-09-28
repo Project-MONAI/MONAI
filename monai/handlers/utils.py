@@ -50,7 +50,7 @@ def stopping_fn_from_loss():
     """
 
     def stopping_fn(engine: Engine):
-        return -engine.state.output
+        return -engine.state.output  # type:ignore
 
     return stopping_fn
 

@@ -16,10 +16,13 @@ Matplotlib produce common plots for metrics and images.
 
 from enum import Enum
 from threading import RLock, Thread
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+
+from monai.config import IgniteInfo
+from monai.utils.module import min_version, optional_import
 
 try:
     import matplotlib.pyplot as plt
@@ -28,14 +31,11 @@ try:
 except ImportError:
     has_matplotlib = False
 
-try:
+if TYPE_CHECKING:
     from ignite.engine import Engine, Events
-
-    has_ignite = True
-except ImportError:
-    Engine = object
-    Events = object
-    has_ignite = False
+else:
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
 LOSS_NAME = "loss"
 
@@ -190,7 +190,7 @@ def plot_engine_status(
     graphmap = {LOSS_NAME: logger.loss}
     graphmap.update(logger.metrics)
 
-    imagemap = {}
+    imagemap: Dict = {}
     if image_fn is not None and engine.state is not None and engine.state.batch is not None:
         for src in (engine.state.batch, engine.state.output):
             label = "Batch" if src is engine.state.batch else "Output"
