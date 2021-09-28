@@ -175,9 +175,9 @@ def unravel_index(idx, shape):
     if isinstance(idx, torch.Tensor):
         coord = []
         for dim in reversed(shape):
-            coord.insert(0, idx % dim)
+            coord.append(idx % dim)
             idx = floor_divide(idx, dim)
-        return torch.stack(coord)
+        return torch.stack(coord[::-1])
     return np.unravel_index(np.asarray(idx, dtype=int), shape)
 
 

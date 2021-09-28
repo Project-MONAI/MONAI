@@ -35,7 +35,6 @@ from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis, unr
 from monai.utils import (
     convert_data_type,
     convert_to_cupy,
-    convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
@@ -810,8 +809,6 @@ class FgBgToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
-        if image is not None:
-            image, *_ = convert_to_dst_type(image, label, dtype=image.dtype)
         if output_shape is None:
             output_shape = self.output_shape
         fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
