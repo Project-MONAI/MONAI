@@ -31,7 +31,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis, unravel_indices
 from monai.utils import (
     convert_data_type,
     convert_to_cupy,
@@ -790,7 +790,7 @@ class FgBgToIndices(Transform):
 
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
         self.image_threshold = image_threshold
@@ -814,12 +814,10 @@ class FgBgToIndices(Transform):
             image, *_ = convert_to_dst_type(image, label, dtype=image.dtype)
         if output_shape is None:
             output_shape = self.output_shape
-        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)  # type: ignore
+        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
         if output_shape is not None:
-            fg_indices = np.stack([np.unravel_index(i, output_shape) for i in fg_indices])
-            bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
-        fg_indices, *_ = convert_to_dst_type(fg_indices, label, dtype=fg_indices.dtype)
-        bg_indices, *_ = convert_to_dst_type(bg_indices, label, dtype=bg_indices.dtype)
+            fg_indices = unravel_indices(fg_indices, output_shape)
+            bg_indices = unravel_indices(bg_indices, output_shape)
         return fg_indices, bg_indices
 
 

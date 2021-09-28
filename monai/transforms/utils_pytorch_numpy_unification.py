@@ -26,6 +26,7 @@ __all__ = [
     "nonzero",
     "floor_divide",
     "unravel_index",
+    "unravel_indices",
     "ravel",
     "any_np_pt",
     "maximum",
@@ -91,9 +92,8 @@ def percentile(x: NdarrayOrTensor, q) -> Union[NdarrayOrTensor, float, int]:
     if np.isscalar(q):
         if not 0 <= q <= 100:
             raise ValueError
-    else:
-        if any(q < 0) or any(q > 100):
-            raise ValueError
+    elif any(q < 0) or any(q > 100):
+        raise ValueError
     result: Union[NdarrayOrTensor, float, int]
     if isinstance(x, np.ndarray):
         result = np.percentile(x, q)
@@ -167,7 +167,7 @@ def unravel_index(idx, shape):
 
     Args:
         idx: index to unravel
-        b: shape of array/tensor
+        shape: shape of array/tensor
 
     Returns:
         Index unravelled for given shape
@@ -179,6 +179,20 @@ def unravel_index(idx, shape):
             idx = floor_divide(idx, dim)
         return torch.stack(coord)
     return np.unravel_index(np.asarray(idx, dtype=int), shape)
+
+
+def unravel_indices(idx, shape):
+    """Computing unravel cooridnates from indices.
+
+    Args:
+        idx: a sequence of indices to unravel
+        shape: shape of array/tensor
+
+    Returns:
+        Stacked indices unravelled for given shape
+    """
+    lib_stack = torch.stack if isinstance(idx[0], torch.Tensor) else np.stack
+    return lib_stack([unravel_index(i, shape) for i in idx])
 
 
 def ravel(x: NdarrayOrTensor):
