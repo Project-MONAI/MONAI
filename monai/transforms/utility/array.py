@@ -577,7 +577,7 @@ class DataStats(Transform):
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_type if data_type is None else data_type:
-            lines.append(f"Type: {type(img)}")
+            lines.append(f"Type: {type(img)} {img.dtype if hasattr(img, 'dtype') else None}")
         if self.data_shape if data_shape is None else data_shape:
             lines.append(f"Shape: {img.shape}")
         if self.value_range if value_range is None else value_range:

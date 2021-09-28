@@ -126,7 +126,7 @@ TEST_CASE_7 = [
 
 TEST_CASE_8 = [
     np.array([[0, 1], [1, 2]]),
-    "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)\n"
+    "test data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)\n"
     "Value: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
