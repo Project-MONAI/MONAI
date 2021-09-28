@@ -47,7 +47,11 @@ KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
 
 
 def get_data():
+    """Get the example data to be used.
 
+    Use MarsAtlas as it only contains 1 image for quick download and
+    that image is parcellated.
+    """
     cache_dir = os.environ.get("MONAI_DATA_DIRECTORY") or tempfile.mkdtemp()
     fname = "MarsAtlas-MNI-Colin27.zip"
     url = "https://www.dropbox.com/s/ndz8qtqblkciole/" + fname + "?dl=1"
@@ -76,6 +80,10 @@ def get_data():
 
 
 def update_docstring(code_path, relative_out_file, transform_name):
+    """
+    Find the documentation for a given transform and if it's missing,
+    add a pointer to the transform's example image.
+    """
     with open(code_path) as f:
         contents = f.readlines()
     doc_start = None
@@ -92,17 +100,21 @@ def update_docstring(code_path, relative_out_file, transform_name):
     if ".. image" in contents[image_line]:
         return
 
+    # add the line for the image and the alt text
     contents_orig = deepcopy(contents)
     contents.insert(image_line, ".. image:: " + relative_out_file + "\n")
     contents.insert(image_line + 1, "    :alt: example of " + transform_name + "\n")
 
+    # check that we've only added two lines
     assert len(contents) == len(contents_orig) + 2
 
+    # write the updated doc to overwrite the original
     with open(code_path, "w") as f:
         f.writelines(contents)
 
 
 def pre_process_data(data, ndim, is_map):
+    """If transform requires 2D data, then convert to 2D"""
     if ndim == 2:
         for k in KEYS:
             data[k] = data[k][..., data[k].shape[-1] // 2]
@@ -110,14 +122,8 @@ def pre_process_data(data, ndim, is_map):
     return data if is_map else data[CommonKeys.IMAGE]
 
 
-def remove_channel(image, label, is_map):
-    image = image[0]
-    if is_map:
-        label = label[0]
-    return image, label
-
-
 def get_2d_slice(image, view):
+    """Get the central slice of a 3D volume"""
     shape = image.shape
     slices = [slice(0, s) for s in shape]
     _slice = shape[view] // 2
@@ -127,14 +133,22 @@ def get_2d_slice(image, view):
 
 
 def get_stacked_2d_ims(im):
+    """Get the 3 orthogonal views and stack them into 1 image.
+    Requires that all images be same size, but this is taken care
+    of by the `SpatialPadd` earlier.
+    """
     return np.hstack([get_2d_slice(im, view) for view in range(3)])
 
 
 def get_stacked_before_after(before, after):
+    """Stack before and after images into 1 image.
+    Requires that before and after images be the same size.
+    """
     return np.vstack([get_stacked_2d_ims(d[0]) for d in (before, after)])
 
 
 def save_image(images, labels, filename):
+    """Save image to file, ensuring there's no whitespace around the edge."""
     sizes = images.shape
     fig = plt.figure()
     fig.set_size_inches(1.0 * sizes[1] / sizes[0], 1, forward=False)
@@ -149,6 +163,8 @@ def save_image(images, labels, filename):
 
 
 def create_transform_im(transform, data, ndim, seed=0):
+    """Create an image with the before and after of the transform.
+    Also update the transform's documentation to point to this image."""
 
     if not has_matplotlib:
         raise RuntimeError
