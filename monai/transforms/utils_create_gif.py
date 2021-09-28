@@ -9,48 +9,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.apps.datasets import DecathlonDataset
 import os
 import pathlib
 from monai.transforms import (
     RandFlip,
     LoadImaged,
     Compose,
-    Lambdad,
     MapTransform,
-    EnsureChannelFirstd,
     AddChanneld,
+    ScaleIntensityd,
+    RandFlipd,
+    Randomizable,
+    SpatialPadd,
+    Rotate90d,
 )
+import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from monai.utils.enums import CommonKeys
+from monai.apps import download_and_extract
+from glob import glob
+import tempfile
 
 KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
 
 def get_data():
 
-    cache_dir = os.environ.get("MONAI_DATA_DIRECTORY")
-    if cache_dir is None:
-        raise RuntimeError("Requires `MONAI_DATA_DIRECTORY` to be set")
+    cache_dir = os.environ.get("MONAI_DATA_DIRECTORY") or tempfile.mkdtemp()
+    fname = "MarsAtlas-MNI-Colin27.zip"
+    url = "https://www.dropbox.com/s/ndz8qtqblkciole/" + fname + "?dl=1"  # dl=1 is important
+    out_path = os.path.join(cache_dir, "MarsAtlas-MNI-Colin27")
+    zip_path = os.path.join(cache_dir, fname)
 
-    brats_dataset = DecathlonDataset(
-        root_dir=cache_dir,
-        task="Task01_BrainTumour",
-        transform=None,
-        section="training",
-        download=True,
-        num_workers=4,
-        cache_num=0,
-    )
+    download_and_extract(url, zip_path, out_path)
+
+    image, label = sorted(glob(os.path.join(out_path, "*.nii")))
+
+    data = {CommonKeys.IMAGE: image, CommonKeys.LABEL: label}
 
     transforms = Compose([
         LoadImaged(KEYS),
-        EnsureChannelFirstd(CommonKeys.IMAGE),
-        Lambdad(CommonKeys.IMAGE, lambda x: x[0][None]),
-        AddChanneld(CommonKeys.LABEL)
+        AddChanneld(KEYS),
+        ScaleIntensityd(CommonKeys.IMAGE),
+        Rotate90d(KEYS, spatial_axes=[0, 2]),
     ])
-    data = transforms(brats_dataset[1])
-
+    data = transforms(data)
+    im = data[CommonKeys.IMAGE]
+    max_size = max(im.shape)
+    data = SpatialPadd(KEYS, (max_size, max_size, max_size))(data)
     return {k: data[k] for k in KEYS}
 
 def update_docstring(code_path, relative_out_file, transform_name):
@@ -86,8 +92,44 @@ def pre_process_data(data, ndim, is_map):
 
     return data if is_map else data[CommonKeys.IMAGE]
 
+def remove_channel(image, label, is_map):
+    image = image[0]
+    if is_map:
+        label = label[0]
+    return image, label
 
-def create_transform_gif(transform, data, ndim):
+
+def get_2d_slice(image, view):
+    shape = image.shape
+    slices = [slice(0, s) for s in shape]
+    _slice = shape[view] // 2
+    slices[view] = slice(_slice, _slice+1)
+    slices = tuple(slices)
+    return np.squeeze(image[slices], view)
+
+def get_stacked_2d_ims(im):
+    return np.hstack([get_2d_slice(im, view) for view in range(3)])
+
+def get_stacked_before_after(before, after):
+    return np.vstack([get_stacked_2d_ims(d[0]) for d in (before, after)])
+
+def save_image(images, labels, filename):
+    sizes = images.shape
+    fig = plt.figure()
+    fig.set_size_inches(1. * sizes[1] / sizes[0], 1, forward = False)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    ax.imshow(images, cmap="gray")
+    if labels is not None:
+        ax.imshow(labels, cmap='hsv', alpha=0.9)
+    fig.savefig(filename, dpi=images.shape[0])
+    plt.close(fig)
+
+def create_transform_gif(transform, data, ndim, seed=0):
+
+    if isinstance(transform, Randomizable):
+        transform.set_random_state(seed)
 
     # set output folder and create if necessary
     docs_dir = pathlib.Path(__file__).parent.parent.parent
@@ -107,32 +149,25 @@ def create_transform_gif(transform, data, ndim):
 
     data_tr = transform(data_in)
 
-    fig, axs = plt.subplots(1, 2)
-    for data, ax in zip((data_in, data_tr), axs):
+    if ndim != 3:
+        raise NotImplementedError
 
-        # remove channel component and if 3d, take mid-slice of last dim
-        if is_map:
-            for k in KEYS:
-                data[k] = data[k][0]
-                if ndim == 3:
-                    data[k] = data[k][..., data[k].shape[-1]//2]
-        else:
-            data = data[0]
-            if ndim == 3:
-                data = data[..., data.shape[-1]//2]
-        if is_map:
-            im_show = ax.imshow(data[KEYS[0]])
-        else:
-            im_show = ax.imshow(data)
-        ax.axis("off")
-        fig.colorbar(im_show, ax=ax)
-    plt.savefig(out_file)
-    plt.close(fig)
+    image_before = data_in[CommonKeys.IMAGE] if is_map else data_in
+    image_after = data_tr[CommonKeys.IMAGE] if is_map else data_tr
+    stacked_images = get_stacked_before_after(image_before, image_after)
+    stacked_labels = None
+    if is_map:
+        label_before = data_in[CommonKeys.LABEL]
+        label_after = data_tr[CommonKeys.LABEL]
+        stacked_labels = get_stacked_before_after(label_before, label_after)
+        stacked_labels[stacked_labels==0] = np.nan
+
+    save_image(stacked_images, stacked_labels, out_file)
 
     rst_path = os.path.join(docs_dir, "transforms.rst")
     update_docstring(rst_path, relative_out_file, transform_name)
 
 if __name__ == "__main__":
     data = get_data()
-    create_transform_gif(RandFlip(prob=1, spatial_axis=1), data, 3)
-    # create_transform_gif(RandFlipd(KEYS, prob=1, spatial_axis=1), 3)
+    create_transform_gif(RandFlip(prob=1, spatial_axis=2), data, 3)
+    create_transform_gif(RandFlipd(KEYS, prob=1, spatial_axis=2), data, 3)

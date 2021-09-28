@@ -1117,6 +1117,8 @@ Spatial (Dict)
 
 `RandFlipd`
 """""""""""
+.. image:: ../images/transforms/RandFlipd.png
+    :alt: example of RandFlipd
 .. autoclass:: RandFlipd
     :members:
     :special-members: __call__
