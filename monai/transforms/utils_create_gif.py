@@ -27,7 +27,7 @@ from monai.utils.enums import CommonKeys
 
 KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
 
-def get_data(ndim, is_map):
+def get_data():
 
     cache_dir = os.environ.get("MONAI_DATA_DIRECTORY")
     if cache_dir is None:
@@ -49,15 +49,9 @@ def get_data(ndim, is_map):
         Lambdad(CommonKeys.IMAGE, lambda x: x[0][None]),
         AddChanneld(CommonKeys.LABEL)
     ])
-    data_full = transforms(brats_dataset[1])
+    data = transforms(brats_dataset[1])
 
-    data = {}
-    for k in KEYS:
-        data[k] = data_full[k]
-        if ndim == 2:
-            data[k] = data[k][..., data[k].shape[-1]//2]
-
-    return data if is_map else data[CommonKeys.IMAGE]
+    return {k: data[k] for k in KEYS}
 
 def update_docstring(code_path, relative_out_file, transform_name):
     with open(code_path) as f:
@@ -85,8 +79,16 @@ def update_docstring(code_path, relative_out_file, transform_name):
     with open(code_path, "w") as f:
         f.writelines(contents)
 
+def pre_process_data(data, ndim, is_map):
+    if ndim == 2:
+        for k in KEYS:
+            data[k] = data[k][..., data[k].shape[-1]//2]
 
-def create_transform_gif(transform, ndim):
+    return data if is_map else data[CommonKeys.IMAGE]
+
+
+def create_transform_gif(transform, data, ndim):
+
     # set output folder and create if necessary
     docs_dir = pathlib.Path(__file__).parent.parent.parent
     docs_dir = os.path.join(docs_dir, "docs", "source")
@@ -101,7 +103,7 @@ def create_transform_gif(transform, ndim):
     relative_out_file = os.path.join(relative_im_dir, out_fname)
 
     is_map = isinstance(transform, MapTransform)
-    data_in = get_data(ndim, is_map)
+    data_in = pre_process_data(data, ndim, is_map)
 
     data_tr = transform(data_in)
 
@@ -131,5 +133,6 @@ def create_transform_gif(transform, ndim):
     update_docstring(rst_path, relative_out_file, transform_name)
 
 if __name__ == "__main__":
-    create_transform_gif(RandFlip(prob=1, spatial_axis=1), 3)
+    data = get_data()
+    create_transform_gif(RandFlip(prob=1, spatial_axis=1), data, 3)
     # create_transform_gif(RandFlipd(KEYS, prob=1, spatial_axis=1), 3)
