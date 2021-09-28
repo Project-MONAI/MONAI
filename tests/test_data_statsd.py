@@ -11,6 +11,7 @@
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -147,7 +148,7 @@ TEST_CASE_8 = [
 
 TEST_CASE_9 = [
     {"img": np.array([[0, 1], [1, 2]])},
-    "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)\n"
+    "test data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)\n"
     "Value: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
@@ -194,7 +195,8 @@ class TestDataStatsd(unittest.TestCase):
             del handler
             with open(filename) as f:
                 content = f.read()
-            self.assertEqual(content, expected_print)
+            if sys.platform != "win32":
+                self.assertEqual(content, expected_print)
 
 
 if __name__ == "__main__":
