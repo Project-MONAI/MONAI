@@ -43,7 +43,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
@@ -286,9 +286,7 @@ def map_binary_to_indices(
     fg_indices = nonzero(label_flat)
     if image is not None:
         img_flat = ravel(any_np_pt(image > image_threshold, 0))
-        img_flat, *_ = convert_data_type(
-            img_flat, type(label), device=label.device if isinstance(label, torch.Tensor) else None
-        )
+        img_flat, *_ = convert_to_dst_type(img_flat, label, dtype=img_flat.dtype)
         bg_indices = nonzero(img_flat & ~label_flat)
     else:
         bg_indices = nonzero(~label_flat)

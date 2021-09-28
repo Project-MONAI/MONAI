@@ -270,10 +270,7 @@ def convert_to_dst_type(
     See Also:
         :func:`convert_data_type`
     """
-    device = None
-    if isinstance(dst, torch.Tensor):
-        device = dst.device
-
+    device = dst.device if isinstance(dst, torch.Tensor) else None
     if dtype is None:
         dtype = dst.dtype
 
