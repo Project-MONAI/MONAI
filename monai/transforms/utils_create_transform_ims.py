@@ -14,8 +14,8 @@ import pathlib
 import tempfile
 from copy import deepcopy
 from glob import glob
+from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from monai.apps import download_and_extract
@@ -32,6 +32,16 @@ from monai.transforms import (
     SpatialPadd,
 )
 from monai.utils.enums import CommonKeys
+from monai.utils.module import optional_import
+
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
+
+    has_matplotlib = True
+
+else:
+    plt, has_matplotlib = optional_import("matplotlib.pyplot")
+
 
 KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
 
@@ -139,6 +149,9 @@ def save_image(images, labels, filename):
 
 
 def create_transform_im(transform, data, ndim, seed=0):
+
+    if not has_matplotlib:
+        raise RuntimeError
 
     if isinstance(transform, Randomizable):
         transform.set_random_state(seed)
