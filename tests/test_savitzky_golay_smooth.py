@@ -25,14 +25,14 @@ TEST_CASE_SINGLE_VALUE = [
     np.expand_dims(np.array([1.0]), 0),  # Input data: Single value
     np.expand_dims(np.array([1 / 3]), 0),  # Expected output: With a window length of 3 and polyorder 1
     # output should be equal to mean of 0, 1 and 0 = 1/3 (because input will be zero-padded and a linear fit performed)
-    1e-15,  # absolute tolerance
+    1e-5,  # absolute tolerance
 ]
 
 TEST_CASE_2D_AXIS_2 = [
     {"window_length": 3, "order": 1, "axis": 2},  # along axis 2 (second spatial dim)
     np.expand_dims(np.ones((2, 3)), 0),
     np.expand_dims(np.array([[2 / 3, 1.0, 2 / 3], [2 / 3, 1.0, 2 / 3]]), 0),
-    1e-15,  # absolute tolerance
+    1e-5,  # absolute tolerance
 ]
 
 # Replicated-padding trivial tests
@@ -42,7 +42,7 @@ TEST_CASE_SINGLE_VALUE_REP = [
     np.expand_dims(np.array([1.0]), 0),  # Input data: Single value
     np.expand_dims(np.array([1.0]), 0),  # Expected output: With a window length of 3 and polyorder 1
     # output will be equal to mean of [1, 1, 1] = 1 (input will be nearest-neighbour-padded and a linear fit performed)
-    1e-15,  # absolute tolerance
+    1e-5,  # absolute tolerance
 ]
 
 # Sine smoothing
@@ -63,7 +63,7 @@ class TestSavitzkyGolaySmooth(unittest.TestCase):
     def test_value(self, arguments, image, expected_data, atol):
         for p in TEST_NDARRAYS:
             result = SavitzkyGolaySmooth(**arguments)(p(image.astype(np.float32)))
-            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-7, atol=atol)
+            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-4, atol=atol)
 
 
 class TestSavitzkyGolaySmoothREP(unittest.TestCase):
@@ -71,7 +71,7 @@ class TestSavitzkyGolaySmoothREP(unittest.TestCase):
     def test_value(self, arguments, image, expected_data, atol):
         for p in TEST_NDARRAYS:
             result = SavitzkyGolaySmooth(**arguments)(p(image.astype(np.float32)))
-            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-7, atol=atol)
+            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-4, atol=atol)
 
 
 if __name__ == "__main__":
