@@ -32,15 +32,24 @@ from monai.transforms.utils import (
     map_classes_to_indices,
 )
 from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
-from monai.utils import convert_to_numpy, convert_to_tensor, ensure_tuple, look_up_option, min_version, optional_import
+from monai.utils import (
+    convert_data_type,
+    convert_to_cupy,
+    convert_to_numpy,
+    convert_to_tensor,
+    ensure_tuple,
+    get_equivalent_dtype,
+    look_up_option,
+    min_version,
+    optional_import,
+)
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_data_type
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 cp, has_cp = optional_import("cupy")
-cp_ndarray, _ = optional_import("cupy", name="ndarray")
+
 
 __all__ = [
     "Identity",
@@ -321,8 +330,6 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        if not isinstance(img, (torch.Tensor, np.ndarray)):
-            raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
         img_out, *_ = convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)
         return img_out
 
@@ -334,11 +341,16 @@ class ToTensor(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
+    def __init__(self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None) -> None:
+        super().__init__()
+        self.dtype = dtype
+        self.device = device
+
     def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_tensor(img, wrap_sequence=True)  # type: ignore
+        return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=True)  # type: ignore
 
 
 class EnsureType(Transform):
@@ -350,19 +362,24 @@ class EnsureType(Transform):
 
     Args:
         data_type: target data type to convert, should be "tensor" or "numpy".
+        dtype: target data content type to convert, for example: np.float32, torch.float, etc.
+        device: for Tensor data type, specify the target device.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, data_type: str = "tensor") -> None:
-        data_type = data_type.lower()
-        if data_type not in ("tensor", "numpy"):
-            raise ValueError("`data type` must be 'tensor' or 'numpy'.")
+    def __init__(
+        self,
+        data_type: str = "tensor",
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
+        self.dtype = dtype
+        self.device = device
 
-        self.data_type = data_type
-
-    def __call__(self, data: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, data: NdarrayOrTensor):
         """
         Args:
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
@@ -371,7 +388,11 @@ class EnsureType(Transform):
                 if applicable.
 
         """
-        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)  # type: ignore
+        if self.data_type == "tensor":
+            dtype_ = get_equivalent_dtype(self.dtype, torch.Tensor)
+            return convert_to_tensor(data, dtype=dtype_, device=self.device)
+        dtype_ = get_equivalent_dtype(self.dtype, np.ndarray)
+        return convert_to_numpy(data, dtype=dtype_)
 
 
 class ToNumpy(Transform):
@@ -381,27 +402,36 @@ class ToNumpy(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
+    def __init__(self, dtype: Optional[DtypeLike] = None) -> None:
+        super().__init__()
+        self.dtype = dtype
+
     def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_numpy(img)  # type: ignore
+        return convert_to_numpy(img, dtype=self.dtype)  # type: ignore
 
 
 class ToCupy(Transform):
     """
     Converts the input data to CuPy array, can support list or tuple of numbers, NumPy and PyTorch Tensor.
+
+    Args:
+        dtype: data type specifier. It is inferred from the input by default.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __init__(self, dtype=None) -> None:
+        super().__init__()
+        self.dtype = dtype
+
+    def __call__(self, data: NdarrayOrTensor):
         """
-        Apply the transform to `img` and make it contiguous.
+        Create a CuPy array from `data` and make it contiguous
         """
-        if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()
-        return cp.ascontiguousarray(cp.asarray(img))  # type: ignore
+        return convert_to_cupy(data, self.dtype)
 
 
 class ToPIL(Transform):
@@ -547,7 +577,7 @@ class DataStats(Transform):
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_type if data_type is None else data_type:
-            lines.append(f"Type: {type(img)}")
+            lines.append(f"Type: {type(img)} {img.dtype if hasattr(img, 'dtype') else None}")
         if self.data_shape if data_shape is None else data_shape:
             lines.append(f"Shape: {img.shape}")
         if self.value_range if value_range is None else value_range:
@@ -777,9 +807,14 @@ class FgBgToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
+        fg_indices: np.ndarray
+        bg_indices: np.ndarray
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+        if image is not None:
+            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
         if output_shape is None:
             output_shape = self.output_shape
-        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
+        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)  # type: ignore
         if output_shape is not None:
             fg_indices = np.stack([np.unravel_index(i, output_shape) for i in fg_indices])
             bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
@@ -826,9 +861,14 @@ class ClassesToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+        if image is not None:
+            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
+
         if output_shape is None:
             output_shape = self.output_shape
-        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        indices: List[np.ndarray]
+        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)  # type: ignore
         if output_shape is not None:
             indices = [np.stack([np.unravel_index(i, output_shape) for i in array]) for array in indices]
 
@@ -846,6 +886,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         # if img has channel dim, squeeze it
         if img.ndim == 4 and img.shape[0] == 1:
             img = np.squeeze(img, axis=0)
@@ -912,6 +953,9 @@ class AddExtremePointsChannel(Randomizable, Transform):
         if label.shape[0] != 1:
             raise ValueError("Only supports single channel labels!")
 
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+
         # Generate extreme points
         self.randomize(label[0, :])
 
@@ -948,6 +992,7 @@ class TorchVision:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
+        img, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         return self.trans(img)
 
 
@@ -978,7 +1023,7 @@ class MapLabelValue:
         self.dtype = dtype
 
     def __call__(self, img: np.ndarray):
-        img = np.asarray(img)
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         img_flat = img.flatten()
         try:
             out_flat = np.copy(img_flat).astype(self.dtype)
@@ -1034,6 +1079,7 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
+        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if meta_data is None:
             meta_data = {}
 
@@ -1044,11 +1090,11 @@ class IntensityStats(Transform):
             img_ = img[mask]
 
         supported_ops = {
-            "mean": lambda x: np.nanmean(x),
-            "median": lambda x: np.nanmedian(x),
-            "max": lambda x: np.nanmax(x),
-            "min": lambda x: np.nanmin(x),
-            "std": lambda x: np.nanstd(x),
+            "mean": np.nanmean,
+            "median": np.nanmedian,
+            "max": np.nanmax,
+            "min": np.nanmin,
+            "std": np.nanstd,
         }
 
         def _compute(op: Callable, data: np.ndarray):
@@ -1060,7 +1106,7 @@ class IntensityStats(Transform):
         for o in self.ops:
             if isinstance(o, str):
                 o = look_up_option(o, supported_ops.keys())
-                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)
+                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)  # type: ignore
             elif callable(o):
                 meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
                 custom_index += 1
@@ -1099,3 +1145,78 @@ class ToDevice(Transform):
             raise ValueError("img must be PyTorch Tensor, consider converting img by `EnsureType` transform first.")
 
         return img.to(self.device, **self.kwargs)
+
+
+class CuCIM(Transform):
+    """
+    Wrap a non-randomized cuCIM transform, defined based on the transform name and args.
+    For randomized transforms (or randomly applying a transform) use :py:class:`monai.transforms.RandCuCIM`.
+
+    Args:
+        name: the transform name in CuCIM package
+        args: parameters for the CuCIM transform
+        kwargs: parameters for the CuCIM transform
+
+    Note:
+        CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
+        Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+    """
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        super().__init__()
+        self.transform, _ = optional_import("cucim.core.operations.expose.transform", name=name)
+        self.args = args
+        self.kwargs = kwargs
+
+    def __call__(self, data):
+        """
+        Args:
+            data: a CuPy array (`cupy.ndarray`) for the cuCIM transform
+
+        Returns:
+            `cupy.ndarray`
+
+        """
+        return self.transform(data, *self.args, **self.kwargs)
+
+
+class RandCuCIM(CuCIM, RandomizableTransform):
+    """
+    Wrap a randomized cuCIM transform, defined based on the transform name and args,
+    or randomly apply a non-randomized transform.
+    For deterministic non-randomized transforms use :py:class:`monai.transforms.CuCIM`.
+
+    Args:
+        name: the transform name in CuCIM package.
+        apply_prob: the probability to apply the transform (default=1.0)
+        args: parameters for the CuCIM transform.
+        kwargs: parameters for the CuCIM transform.
+
+    Note:
+        - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
+          Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+        - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
+          the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
+          or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+          with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
+        - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
+          the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
+    """
+
+    def __init__(self, name: str, apply_prob: float = 1.0, *args, **kwargs) -> None:
+        CuCIM.__init__(self, name, *args, **kwargs)
+        RandomizableTransform.__init__(self, prob=apply_prob)
+
+    def __call__(self, data):
+        """
+        Args:
+            data: a CuPy array (`cupy.ndarray`) for the cuCIM transform
+
+        Returns:
+            `cupy.ndarray`
+
+        """
+        self.randomize(data)
+        if not self._do_transform:
+            return data
+        return super().__call__(data)

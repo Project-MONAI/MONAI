@@ -69,7 +69,7 @@ class TestRegLossIntegration(unittest.TestCase):
         # define a one layer model
         class OnelayerNet(nn.Module):
             def __init__(self):
-                super(OnelayerNet, self).__init__()
+                super().__init__()
                 self.layer = nn.Sequential(
                     nn.Conv3d(in_channels=1, out_channels=1, kernel_size=3, padding=1),
                     nn.ReLU(),
