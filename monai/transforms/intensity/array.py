@@ -1629,7 +1629,8 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         # build/appy transform only if there are spike locations
         if self.sampled_locs:
             transform = KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity)
-            return transform(img)
+            out: NdarrayOrTensor = transform(img)
+            return out
 
         return img
 
