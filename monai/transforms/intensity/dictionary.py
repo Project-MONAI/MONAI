@@ -736,11 +736,13 @@ class AdjustContrastd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = AdjustContrast.backend
+
     def __init__(self, keys: KeysCollection, gamma: float, allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
         self.adjuster = AdjustContrast(gamma)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.adjuster(d[key])
@@ -762,6 +764,8 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
         allow_missing_keys: don't raise exception if key is missing.
     """
+
+    backend = AdjustContrast.backend
 
     def __init__(
         self,
@@ -790,7 +794,7 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         super().randomize(None)
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if self.gamma_value is None:

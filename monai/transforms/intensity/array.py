@@ -723,20 +723,21 @@ class AdjustContrast(Transform):
         gamma: gamma value to adjust the contrast as function.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, gamma: float) -> None:
         if not isinstance(gamma, (int, float)):
             raise ValueError("gamma must be a float or int number.")
         self.gamma = gamma
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         epsilon = 1e-7
         img_min = img.min()
         img_range = img.max() - img_min
-        return np.power(((img - img_min) / float(img_range + epsilon)), self.gamma) * img_range + img_min
+        return ((img - img_min) / float(img_range + epsilon)) ** self.gamma * img_range + img_min
 
 
 class RandAdjustContrast(RandomizableTransform):
@@ -750,6 +751,8 @@ class RandAdjustContrast(RandomizableTransform):
         gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
+
+    backend = AdjustContrast.backend
 
     def __init__(self, prob: float = 0.1, gamma: Union[Sequence[float], float] = (0.5, 4.5)) -> None:
         RandomizableTransform.__init__(self, prob)
@@ -771,11 +774,10 @@ class RandAdjustContrast(RandomizableTransform):
         super().randomize(None)
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize()
         if self.gamma_value is None:
             raise ValueError("gamma_value is not set.")
