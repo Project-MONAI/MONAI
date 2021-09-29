@@ -43,7 +43,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
@@ -1253,7 +1253,7 @@ class Fourier:
     @deprecated_arg(
         name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
-    def shift_fourier(x: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
+    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
@@ -1270,16 +1270,23 @@ class Fourier:
         """
         if n_dims is not None:
             spatial_dims = n_dims
-        k: torch.Tensor = torch.fft.fftshift(
-            torch.fft.fftn(x, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
-        )
+        dims = tuple(range(-spatial_dims, 0))
+        k: NdarrayOrTensor
+        if isinstance(x, torch.Tensor):
+            if hasattr(torch.fft, "fftshift"):
+                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
+            else:
+                k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
+                k, *_ = convert_to_dst_type(k, x)
+        else:
+            k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
         return k
 
     @staticmethod
     @deprecated_arg(
         name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
-    def inv_shift_fourier(k: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
+    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
@@ -1296,10 +1303,17 @@ class Fourier:
         """
         if n_dims is not None:
             spatial_dims = n_dims
-        x: torch.Tensor = torch.fft.ifftn(
-            torch.fft.ifftshift(k, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
-        ).real
-        return x
+        dims = tuple(range(-spatial_dims, 0))
+        out: NdarrayOrTensor
+        if isinstance(k, torch.Tensor):
+            if hasattr(torch.fft, "ifftshift"):
+                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
+            else:
+                out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
+                out, *_ = convert_to_dst_type(out, k)
+        else:
+            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
+        return out
 
 
 def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Optional[Hashable] = None) -> int:
