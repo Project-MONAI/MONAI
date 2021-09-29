@@ -38,6 +38,7 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.module import version_leq
+from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
@@ -187,11 +188,15 @@ class SkipIfAtLeastPyTorchVersion:
         )(obj)
 
 
-def make_nifti_image(array, affine=None):
+def make_nifti_image(array: NdarrayOrTensor, affine=None):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
     """
+    if isinstance(array, torch.Tensor):
+        array, *_ = convert_data_type(array, np.ndarray)
+    if isinstance(affine, torch.Tensor):
+        affine, *_ = convert_data_type(affine, np.ndarray)
     if affine is None:
         affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)

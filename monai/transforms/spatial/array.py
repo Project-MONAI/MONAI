@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 import warnings
+from copy import deepcopy
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -85,6 +86,8 @@ class Spacing(Transform):
     Resample input image into the specified `pixdim`.
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(
         self,
         pixdim: Union[Sequence[float], float],
@@ -136,14 +139,14 @@ class Spacing(Transform):
 
     def __call__(
         self,
-        data_array: np.ndarray,
-        affine: Optional[np.ndarray] = None,
+        data_array: NdarrayOrTensor,
+        affine: Optional[NdarrayOrTensor] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
         output_spatial_shape: Optional[np.ndarray] = None,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]:
         """
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
@@ -171,9 +174,8 @@ class Spacing(Transform):
             data_array (resampled into `self.pixdim`), original affine, current affine.
 
         """
-        data_array, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
         _dtype = dtype or self.dtype or data_array.dtype
-        sr = data_array.ndim - 1
+        sr = int(data_array.ndim - 1)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
@@ -181,7 +183,8 @@ class Spacing(Transform):
             affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_ = to_affine_nd(sr, affine)
+            affine, *_ = convert_data_type(affine, np.ndarray)
+            affine_ = to_affine_nd(sr, affine)  # type: ignore
 
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
@@ -197,26 +200,28 @@ class Spacing(Transform):
 
         # no resampling if it's identity transform
         if np.allclose(transform, np.diag(np.ones(len(transform))), atol=1e-3):
-            output_data = data_array.copy().astype(np.float32)
-            new_affine = to_affine_nd(affine, new_affine)
-            return output_data, affine, new_affine
+            output_data, *_ = convert_data_type(deepcopy(data_array), dtype=_dtype)
+            new_affine = to_affine_nd(affine, new_affine)  # type: ignore
 
-        # resample
-        affine_xform = AffineTransform(
-            normalized=False,
-            mode=look_up_option(mode or self.mode, GridSampleMode),
-            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
-            align_corners=self.align_corners if align_corners is None else align_corners,
-            reverse_indexing=True,
-        )
-        output_data = affine_xform(
-            # AffineTransform requires a batch dim
-            torch.as_tensor(np.ascontiguousarray(data_array).astype(_dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
-            spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
-        )
-        output_data = np.asarray(output_data.squeeze(0).detach().cpu().numpy(), dtype=np.float32)  # type: ignore
-        new_affine = to_affine_nd(affine, new_affine)
+        else:
+            # resample
+            affine_xform = AffineTransform(
+                normalized=False,
+                mode=look_up_option(mode or self.mode, GridSampleMode),
+                padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
+                align_corners=self.align_corners if align_corners is None else align_corners,
+                reverse_indexing=True,
+            )
+            data_array_t: torch.Tensor
+            data_array_t, *_ = convert_data_type(data_array, torch.Tensor, dtype=_dtype)  # type: ignore
+            output_data = affine_xform(
+                # AffineTransform requires a batch dim
+                data_array_t.unsqueeze(0),
+                convert_data_type(transform, torch.Tensor, data_array_t.device, dtype=_dtype)[0],
+                spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
+            ).squeeze(0)
+            output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=_dtype)
+            new_affine = to_affine_nd(affine, new_affine)  # type: ignore
 
         return output_data, affine, new_affine
 
