@@ -23,57 +23,58 @@ from tests.utils import TEST_NDARRAYS, assert_allclose, make_nifti_image
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TEST_IMAGE = p(np.arange(24).reshape((2, 4, 3)))
-    TEST_AFFINE = p(
-        np.array(
-            [[-5.3, 0.0, 0.0, 102.01], [0.0, 0.52, 2.17, -7.50], [-0.0, 1.98, -0.26, -23.12], [0.0, 0.0, 0.0, 1.0]]
-        )
-    )
-    TESTS.append(
-        [
-            TEST_IMAGE,
-            TEST_AFFINE,
-            dict(reader="NibabelReader", image_only=False, as_closest_canonical=True),
-            np.arange(24).reshape((2, 4, 3)),
-        ]
-    )
-    TESTS.append(
-        [
-            TEST_IMAGE,
-            TEST_AFFINE,
-            dict(reader="NibabelReader", image_only=True, as_closest_canonical=True),
+    for q in TEST_NDARRAYS:
+        TEST_IMAGE = p(np.arange(24).reshape((2, 4, 3)))
+        TEST_AFFINE = q(
             np.array(
-                [
-                    [[12.0, 15.0, 18.0, 21.0], [13.0, 16.0, 19.0, 22.0], [14.0, 17.0, 20.0, 23.0]],
-                    [[0.0, 3.0, 6.0, 9.0], [1.0, 4.0, 7.0, 10.0], [2.0, 5.0, 8.0, 11.0]],
-                ]
-            ),
-        ]
-    )
-    TESTS.append(
-        [
-            TEST_IMAGE,
-            TEST_AFFINE,
-            dict(reader="NibabelReader", image_only=True, as_closest_canonical=False),
-            np.arange(24).reshape((2, 4, 3)),
-        ]
-    )
-    TESTS.append(
-        [
-            TEST_IMAGE,
-            TEST_AFFINE,
-            dict(reader="NibabelReader", image_only=False, as_closest_canonical=False),
-            np.arange(24).reshape((2, 4, 3)),
-        ]
-    )
-    TESTS.append(
-        [
-            TEST_IMAGE,
-            None,
-            dict(reader="NibabelReader", image_only=False, as_closest_canonical=False),
-            np.arange(24).reshape((2, 4, 3)),
-        ]
-    )
+                [[-5.3, 0.0, 0.0, 102.01], [0.0, 0.52, 2.17, -7.50], [-0.0, 1.98, -0.26, -23.12], [0.0, 0.0, 0.0, 1.0]]
+            )
+        )
+        TESTS.append(
+            [
+                TEST_IMAGE,
+                TEST_AFFINE,
+                dict(reader="NibabelReader", image_only=False, as_closest_canonical=True),
+                np.arange(24).reshape((2, 4, 3)),
+            ]
+        )
+        TESTS.append(
+            [
+                TEST_IMAGE,
+                TEST_AFFINE,
+                dict(reader="NibabelReader", image_only=True, as_closest_canonical=True),
+                np.array(
+                    [
+                        [[12.0, 15.0, 18.0, 21.0], [13.0, 16.0, 19.0, 22.0], [14.0, 17.0, 20.0, 23.0]],
+                        [[0.0, 3.0, 6.0, 9.0], [1.0, 4.0, 7.0, 10.0], [2.0, 5.0, 8.0, 11.0]],
+                    ]
+                ),
+            ]
+        )
+        TESTS.append(
+            [
+                TEST_IMAGE,
+                TEST_AFFINE,
+                dict(reader="NibabelReader", image_only=True, as_closest_canonical=False),
+                np.arange(24).reshape((2, 4, 3)),
+            ]
+        )
+        TESTS.append(
+            [
+                TEST_IMAGE,
+                TEST_AFFINE,
+                dict(reader="NibabelReader", image_only=False, as_closest_canonical=False),
+                np.arange(24).reshape((2, 4, 3)),
+            ]
+        )
+        TESTS.append(
+            [
+                TEST_IMAGE,
+                None,
+                dict(reader="NibabelReader", image_only=False, as_closest_canonical=False),
+                np.arange(24).reshape((2, 4, 3)),
+            ]
+        )
 
 
 class TestNiftiLoadRead(unittest.TestCase):
