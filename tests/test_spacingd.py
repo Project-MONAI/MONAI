@@ -10,82 +10,95 @@
 # limitations under the License.
 
 import unittest
+from typing import List, Tuple
 
 import numpy as np
+import torch
+from parameterized import parameterized
 
 from monai.transforms import Spacingd
+from tests.utils import TEST_NDARRAYS
+
+TESTS: List[Tuple] = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        (
+            "spacing 3d",
+            {"image": p(np.ones((2, 10, 15, 20))), "image_meta_dict": {"affine": p(np.eye(4))}},
+            dict(keys="image", pixdim=(1, 2, 1.4)),
+            ("image", "image_meta_dict", "image_transforms"),
+            (2, 10, 8, 15),
+            np.diag([1, 2, 1.4, 1.0]),
+        )
+    )
+    TESTS.append(
+        (
+            "spacing 2d",
+            {"image": np.ones((2, 10, 20)), "image_meta_dict": {"affine": np.eye(3)}},
+            dict(keys="image", pixdim=(1, 2)),
+            ("image", "image_meta_dict", "image_transforms"),
+            (2, 10, 10),
+            np.diag((1, 2, 1)),
+        )
+    )
+    TESTS.append(
+        (
+            "spacing 2d no metadata",
+            {"image": np.ones((2, 10, 20))},
+            dict(keys="image", pixdim=(1, 2)),
+            ("image", "image_meta_dict", "image_transforms"),
+            (2, 10, 10),
+            np.diag((1, 2, 1)),
+        )
+    )
+    TESTS.append(
+        (
+            "interp all",
+            {
+                "image": np.arange(20).reshape((2, 1, 10)),
+                "seg": np.ones((2, 1, 10)),
+                "image_meta_dict": {"affine": np.eye(4)},
+                "seg_meta_dict": {"affine": np.eye(4)},
+            },
+            dict(
+                keys=("image", "seg"),
+                mode="nearest",
+                pixdim=(
+                    1,
+                    0.2,
+                ),
+            ),
+            ("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"),
+            (2, 1, 46),
+            np.diag((1, 0.2, 1, 1)),
+        )
+    )
+    TESTS.append(
+        (
+            "interp sep",
+            {
+                "image": np.ones((2, 1, 10)),
+                "seg": np.ones((2, 1, 10)),
+                "image_meta_dict": {"affine": np.eye(4)},
+                "seg_meta_dict": {"affine": np.eye(4)},
+            },
+            dict(keys=("image", "seg"), mode=("bilinear", "nearest"), pixdim=(1, 0.2)),
+            ("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"),
+            (2, 1, 46),
+            np.diag((1, 0.2, 1, 1)),
+        )
+    )
 
 
 class TestSpacingDCase(unittest.TestCase):
-    def test_spacingd_3d(self):
-        data = {"image": np.ones((2, 10, 15, 20)), "image_meta_dict": {"affine": np.eye(4)}}
-        spacing = Spacingd(keys="image", pixdim=(1, 2, 1.4))
-        res = spacing(data)
-        self.assertEqual(("image", "image_meta_dict", "image_transforms"), tuple(sorted(res)))
-        np.testing.assert_allclose(res["image"].shape, (2, 10, 8, 15))
-        np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag([1, 2, 1.4, 1.0]))
-
-    def test_spacingd_2d(self):
-        data = {"image": np.ones((2, 10, 20)), "image_meta_dict": {"affine": np.eye(3)}}
-        spacing = Spacingd(keys="image", pixdim=(1, 2))
-        res = spacing(data)
-        self.assertEqual(("image", "image_meta_dict", "image_transforms"), tuple(sorted(res)))
-        np.testing.assert_allclose(res["image"].shape, (2, 10, 10))
-        np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 2, 1)))
-
-    def test_spacingd_2d_no_metadata(self):
-        data = {"image": np.ones((2, 10, 20))}
-        spacing = Spacingd(keys="image", pixdim=(1, 2))
-        res = spacing(data)
-        self.assertEqual(("image", "image_meta_dict", "image_transforms"), tuple(sorted(res)))
-        np.testing.assert_allclose(res["image"].shape, (2, 10, 10))
-        np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 2, 1)))
-
-    def test_interp_all(self):
-        data = {
-            "image": np.arange(20).reshape((2, 1, 10)),
-            "seg": np.ones((2, 1, 10)),
-            "image_meta_dict": {"affine": np.eye(4)},
-            "seg_meta_dict": {"affine": np.eye(4)},
-        }
-        spacing = Spacingd(
-            keys=("image", "seg"),
-            mode="nearest",
-            pixdim=(
-                1,
-                0.2,
-            ),
-        )
-        res = spacing(data)
-        self.assertEqual(
-            ("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"),
-            tuple(sorted(res)),
-        )
-        np.testing.assert_allclose(res["image"].shape, (2, 1, 46))
-        np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 0.2, 1, 1)))
-
-    def test_interp_sep(self):
-        data = {
-            "image": np.ones((2, 1, 10)),
-            "seg": np.ones((2, 1, 10)),
-            "image_meta_dict": {"affine": np.eye(4)},
-            "seg_meta_dict": {"affine": np.eye(4)},
-        }
-        spacing = Spacingd(
-            keys=("image", "seg"),
-            mode=("bilinear", "nearest"),
-            pixdim=(
-                1,
-                0.2,
-            ),
-        )
-        res = spacing(data)
-        self.assertEqual(
-            ("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"),
-            tuple(sorted(res)),
-        )
-        np.testing.assert_allclose(res["image"].shape, (2, 1, 46))
-        np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 0.2, 1, 1)))
+    @parameterized.expand(TESTS)
+    def test_spacingd(self, _, data, kw_args, expected_keys, expected_shape, expected_affine):
+        res = Spacingd(**kw_args)(data)
+        if isinstance(data["image"], torch.Tensor):
+            self.assertEqual(data["image"].device, res["image"].device)
+        self.assertEqual(expected_keys, tuple(sorted(res)))
+        np.testing.assert_allclose(res["image"].shape, expected_shape)
+        np.testing.assert_allclose(res["image_meta_dict"]["affine"], expected_affine)
 
 
 if __name__ == "__main__":
