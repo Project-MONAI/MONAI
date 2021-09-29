@@ -79,7 +79,7 @@ def get_data():
     return {k: data[k] for k in KEYS}
 
 
-def update_docstring(code_path, relative_out_file, transform_name):
+def update_docstring(code_path, transform_name):
     """
     Find the documentation for a given transform and if it's missing,
     add a pointer to the transform's example image.
@@ -102,7 +102,10 @@ def update_docstring(code_path, relative_out_file, transform_name):
 
     # add the line for the image and the alt text
     contents_orig = deepcopy(contents)
-    contents.insert(image_line, ".. image:: " + relative_out_file + "\n")
+    contents.insert(
+        image_line,
+        ".. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/" + transform_name + ".png\n",
+    )
     contents.insert(image_line + 1, "    :alt: example of " + transform_name + "\n")
 
     # check that we've only added two lines
@@ -162,7 +165,7 @@ def save_image(images, labels, filename):
     plt.close(fig)
 
 
-def create_transform_im(transform, data, ndim, seed=0):
+def create_transform_im(transform, data, ndim, update_doc=True, out_dir=None, seed=0):
     """Create an image with the before and after of the transform.
     Also update the transform's documentation to point to this image."""
 
@@ -172,18 +175,18 @@ def create_transform_im(transform, data, ndim, seed=0):
     if isinstance(transform, Randomizable):
         transform.set_random_state(seed)
 
-    # set output folder and create if necessary
-    docs_dir = pathlib.Path(__file__).parent.parent.parent
-    docs_dir = os.path.join(docs_dir, "docs", "source")
-    relative_im_dir = os.path.join("..", "images", "transforms")
-    im_dir = os.path.join(docs_dir, relative_im_dir)
-    os.makedirs(im_dir, exist_ok=True)
+    out_dir = os.environ.get("MONAI_DOC_IMAGES")
+    if out_dir is None:
+        raise RuntimeError(
+            "Please git clone https://github.com/Project-MONAI/DocImages"
+            + " and then set the environmental variable `MONAI_DOC_IMAGES`"
+        )
+    out_dir = os.path.join(out_dir, "transforms")
 
     # Path is transform name
     transform_name = transform.__class__.__name__
     out_fname = transform_name + ".png"
-    out_file = os.path.join(im_dir, out_fname)
-    relative_out_file = os.path.join(relative_im_dir, out_fname)
+    out_file = os.path.join(out_dir, out_fname)
 
     is_map = isinstance(transform, MapTransform)
     data_in = pre_process_data(data, ndim, is_map)
@@ -205,8 +208,10 @@ def create_transform_im(transform, data, ndim, seed=0):
 
     save_image(stacked_images, stacked_labels, out_file)
 
-    rst_path = os.path.join(docs_dir, "transforms.rst")
-    update_docstring(rst_path, relative_out_file, transform_name)
+    if update_doc:
+        base_dir = pathlib.Path(__file__).parent.parent.parent
+        rst_path = os.path.join(base_dir, "docs", "source", "transforms.rst")
+        update_docstring(rst_path, transform_name)
 
 
 if __name__ == "__main__":
