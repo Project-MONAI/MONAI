@@ -23,7 +23,18 @@ __all__ = ["AutoEncoder"]
 
 class AutoEncoder(nn.Module):
     """
-    Base class for the architecture implementing :py:class:`monai.networks.nets.VarAutoEncoder`.
+    Simple definition of an autoencoder and base class for the architecture implementing 
+    :py:class:`monai.networks.nets.VarAutoEncoder`. The network is composed of an encode sequence of blocks, followed
+    by an intermediary sequence of blocks, and finally a decode sequence of blocks. The encode and decode blocks are
+    default :py:class:`monai.networks.blocks.Convolution` instances with the encode blocks having the given stride
+    and the decode blocks having transpose convolutions with the same stride. If `num_res_units` is given residual
+    blocks are used instead. 
+    
+    By default the intermediary sequence is empty but if `inter_channels` is given to specify the output channels of 
+    blocks then this will be become a sequence of Convolution blocks or of residual blocks if `num_inter_units` is 
+    given. The optional parameter `inter_dilations` can be used to specify the dilation values of the convolutions in 
+    these blocks, this allows a network to use dilated kernels in this  middle section. Since the intermediary section 
+    isn't meant to change the size of the output the strides for all these kernels is 1.
     """
 
     @deprecated_arg(
