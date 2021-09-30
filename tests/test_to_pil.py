@@ -43,7 +43,7 @@ class TestToPIL(unittest.TestCase):
     def test_value(self, test_data):
         result = ToPIL()(test_data)
         self.assertTrue(isinstance(result, PILImageImage))
-        assert_allclose(np.array(result), test_data)
+        assert_allclose(np.array(result), test_data, type_test=False)
 
 
 if __name__ == "__main__":

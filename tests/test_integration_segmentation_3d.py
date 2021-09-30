@@ -100,7 +100,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
 
     # create UNet, DiceLoss and Adam optimizer
     model = monai.networks.nets.UNet(
-        dimensions=3,
+        spatial_dims=3,
         in_channels=1,
         out_channels=1,
         channels=(16, 32, 64, 128, 256),
@@ -199,7 +199,7 @@ def run_inference_test(root_dir, device="cuda:0"):
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     model = UNet(
-        dimensions=3,
+        spatial_dims=3,
         in_channels=1,
         out_channels=1,
         channels=(16, 32, 64, 128, 256),

@@ -29,7 +29,7 @@ def get_conv_block(
     norm: Optional[Union[Tuple, str]] = "BATCH",
 ) -> nn.Module:
     padding = same_padding(kernel_size)
-    return Convolution(
+    mod: nn.Module = Convolution(
         spatial_dims,
         in_channels,
         out_channels,
@@ -40,6 +40,7 @@ def get_conv_block(
         conv_only=False,
         padding=padding,
     )
+    return mod
 
 
 def get_conv_layer(
@@ -49,7 +50,7 @@ def get_conv_layer(
     kernel_size: Union[Sequence[int], int] = 3,
 ) -> nn.Module:
     padding = same_padding(kernel_size)
-    return Convolution(
+    mod: nn.Module = Convolution(
         spatial_dims,
         in_channels,
         out_channels,
@@ -58,6 +59,7 @@ def get_conv_layer(
         conv_only=True,
         padding=padding,
     )
+    return mod
 
 
 def get_deconv_block(
@@ -65,8 +67,8 @@ def get_deconv_block(
     in_channels: int,
     out_channels: int,
 ) -> nn.Module:
-    return Convolution(
-        dimensions=spatial_dims,
+    mod: nn.Module = Convolution(
+        spatial_dims=spatial_dims,
         in_channels=in_channels,
         out_channels=out_channels,
         strides=2,
@@ -77,6 +79,7 @@ def get_deconv_block(
         padding=1,
         output_padding=1,
     )
+    return mod
 
 
 class ResidualBlock(nn.Module):
@@ -87,7 +90,7 @@ class ResidualBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
     ) -> None:
-        super(ResidualBlock, self).__init__()
+        super().__init__()
         if in_channels != out_channels:
             raise ValueError(
                 f"expecting in_channels == out_channels, " f"got in_channels={in_channels}, out_channels={out_channels}"
@@ -116,7 +119,7 @@ class LocalNetResidualBlock(nn.Module):
         in_channels: int,
         out_channels: int,
     ) -> None:
-        super(LocalNetResidualBlock, self).__init__()
+        super().__init__()
         if in_channels != out_channels:
             raise ValueError(
                 f"expecting in_channels == out_channels, " f"got in_channels={in_channels}, out_channels={out_channels}"
@@ -162,7 +165,7 @@ class LocalNetDownSampleBlock(nn.Module):
         Raises:
             NotImplementedError: when ``kernel_size`` is even
         """
-        super(LocalNetDownSampleBlock, self).__init__()
+        super().__init__()
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size
         )
@@ -222,7 +225,7 @@ class LocalNetUpSampleBlock(nn.Module):
         Raises:
             ValueError: when ``in_channels != 2 * out_channels``
         """
-        super(LocalNetUpSampleBlock, self).__init__()
+        super().__init__()
         self.deconv_block = get_deconv_block(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -306,7 +309,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         act: activation type and arguments. Defaults to ReLU.
         kernel_initializer: kernel initializer. Defaults to None.
         """
-        super(LocalNetFeatureExtractorBlock, self).__init__()
+        super().__init__()
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
