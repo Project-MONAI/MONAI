@@ -1366,7 +1366,7 @@ class RandGibbsNoise(RandomizableTransform):
 
     Args:
         prob (float): probability of applying the transform.
-        alpha (float, Sequence(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+        alpha (Sequence(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
             If a length-2 list is given as [a,b] then the value of alpha will be
             sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
