@@ -397,7 +397,7 @@ def correct_crop_centers(
     Utility to correct the crop center if the crop size is bigger than the image size.
 
     Args:
-        ceters: pre-computed crop centers, will correct based on the valid region.
+        centers: pre-computed crop centers of every dim, will correct based on the valid region.
         spatial_size: spatial size of the ROIs to be sampled.
         label_spatial_shape: spatial shape of the original label data to compare with ROI.
 

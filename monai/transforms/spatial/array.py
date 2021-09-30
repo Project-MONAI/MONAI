@@ -220,7 +220,7 @@ class Spacing(Transform):
                 convert_data_type(transform, torch.Tensor, data_array_t.device, dtype=_dtype)[0],
                 spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
             ).squeeze(0)
-            output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=_dtype)
+            output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=torch.float32)
             new_affine = to_affine_nd(affine, new_affine)  # type: ignore
 
         return output_data, affine, new_affine
