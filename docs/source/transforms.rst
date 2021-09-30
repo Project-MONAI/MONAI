@@ -1422,3 +1422,6 @@ Utilities
 ---------
 .. automodule:: monai.transforms.utils
     :members:
+
+.. automodule:: monai.transforms.utils_pytorch_numpy_unification
+    :members:

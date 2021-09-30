@@ -1119,6 +1119,8 @@ class FgBgToIndicesd(MapTransform):
 
     """
 
+    backend = FgBgToIndices.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1135,7 +1137,7 @@ class FgBgToIndicesd(MapTransform):
         self.image_key = image_key
         self.converter = FgBgToIndices(image_threshold, output_shape)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.key_iterator(d):
