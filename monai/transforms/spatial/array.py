@@ -13,7 +13,6 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 import warnings
-from copy import deepcopy
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -200,9 +199,8 @@ class Spacing(Transform):
 
         # no resampling if it's identity transform
         if np.allclose(transform, np.diag(np.ones(len(transform))), atol=1e-3):
-            output_data, *_ = convert_data_type(deepcopy(data_array), dtype=_dtype)
+            output_data, *_ = convert_data_type(data_array, dtype=torch.float32)
             new_affine = to_affine_nd(affine, new_affine)  # type: ignore
-
         else:
             # resample
             affine_xform = AffineTransform(
@@ -220,7 +218,7 @@ class Spacing(Transform):
                 convert_data_type(transform, torch.Tensor, data_array_t.device, dtype=_dtype)[0],
                 spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
             ).squeeze(0)
-            output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=_dtype)
+            output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=torch.float32)
             new_affine = to_affine_nd(affine, new_affine)  # type: ignore
 
         return output_data, affine, new_affine
