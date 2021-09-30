@@ -292,8 +292,8 @@ def map_binary_to_indices(
         bg_indices = nonzero(~label_flat)
 
     # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
-    fg_indices, *_ = convert_data_type(fg_indices, device=torch.device("cpu"), dtype=torch.int16)
-    bg_indices, *_ = convert_data_type(bg_indices, device=torch.device("cpu"), dtype=torch.int16)
+    fg_indices, *_ = convert_data_type(fg_indices, device=torch.device("cpu"))
+    bg_indices, *_ = convert_data_type(bg_indices, device=torch.device("cpu"))
     return fg_indices, bg_indices
 
 
