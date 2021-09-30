@@ -739,7 +739,8 @@ class AdjustContrast(Transform):
         epsilon = 1e-7
         img_min = img.min()
         img_range = img.max() - img_min
-        return ((img - img_min) / float(img_range + epsilon)) ** self.gamma * img_range + img_min
+        ret: NdarrayOrTensor = ((img - img_min) / float(img_range + epsilon)) ** self.gamma * img_range + img_min
+        return ret
 
 
 class RandAdjustContrast(RandomizableTransform):
