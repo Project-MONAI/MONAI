@@ -31,7 +31,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis, unravel_indices
 from monai.utils import (
     convert_data_type,
     convert_to_cupy,
@@ -789,16 +789,18 @@ class FgBgToIndices(Transform):
 
     """
 
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
+
     def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
         self.image_threshold = image_threshold
         self.output_shape = output_shape
 
     def __call__(
         self,
-        label: np.ndarray,
-        image: Optional[np.ndarray] = None,
+        label: NdarrayOrTensor,
+        image: Optional[NdarrayOrTensor] = None,
         output_shape: Optional[Sequence[int]] = None,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
         Args:
             label: input data to compute foreground and background indices.
@@ -807,18 +809,12 @@ class FgBgToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
-        fg_indices: np.ndarray
-        bg_indices: np.ndarray
-        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
-        if image is not None:
-            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
         if output_shape is None:
             output_shape = self.output_shape
-        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)  # type: ignore
+        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
         if output_shape is not None:
-            fg_indices = np.stack([np.unravel_index(i, output_shape) for i in fg_indices])
-            bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
-
+            fg_indices = unravel_indices(fg_indices, output_shape)
+            bg_indices = unravel_indices(bg_indices, output_shape)
         return fg_indices, bg_indices
 
 
