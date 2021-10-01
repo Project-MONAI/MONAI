@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union, List
 
 import numpy as np
 import torch
@@ -153,7 +153,7 @@ class SegResNet(nn.Module):
             get_conv_layer(self.spatial_dims, self.init_filters, out_channels, kernel_size=1, bias=True),
         )
 
-    def encode(self, x):
+    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
         x = self.convInit(x)
         if self.dropout_prob is not None:
             x = self.dropout(x)
@@ -166,7 +166,7 @@ class SegResNet(nn.Module):
 
         return x, down_x
 
-    def decode(self, x, down_x):
+    def decode(self, x: torch.Tensor, down_x: List[torch.Tensor]) -> torch.Tensor:
         for i, (up, upl) in enumerate(zip(self.up_samples, self.up_layers)):
             x = up(x) + down_x[i + 1]
             x = upl(x)
@@ -176,7 +176,7 @@ class SegResNet(nn.Module):
 
         return x
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x, down_x = self.encode(x)
         down_x.reverse()
 
