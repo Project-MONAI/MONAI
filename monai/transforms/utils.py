@@ -291,6 +291,9 @@ def map_binary_to_indices(
     else:
         bg_indices = nonzero(~label_flat)
 
+    # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
+    fg_indices, *_ = convert_data_type(fg_indices, device=torch.device("cpu"))
+    bg_indices, *_ = convert_data_type(bg_indices, device=torch.device("cpu"))
     return fg_indices, bg_indices
 
 
@@ -389,12 +392,12 @@ def correct_crop_centers(
     centers: List[Union[int, torch.Tensor]],
     spatial_size: Union[Sequence[int], int],
     label_spatial_shape: Sequence[int],
-) -> List[int]:
+):
     """
     Utility to correct the crop center if the crop size is bigger than the image size.
 
     Args:
-        ceters: pre-computed crop centers, will correct based on the valid region.
+        centers: pre-computed crop centers of every dim, will correct based on the valid region.
         spatial_size: spatial size of the ROIs to be sampled.
         label_spatial_shape: spatial shape of the original label data to compare with ROI.
 
@@ -422,9 +425,7 @@ def correct_crop_centers(
             center_i = valid_end[i] - 1
         centers[i] = center_i
 
-    corrected_centers: List[int] = [c.item() if isinstance(c, torch.Tensor) else c for c in centers]  # type: ignore
-
-    return corrected_centers
+    return centers
 
 
 def generate_pos_neg_label_crop_centers(
@@ -476,8 +477,7 @@ def generate_pos_neg_label_crop_centers(
         idx = indices_to_use[random_int]
         center = unravel_index(idx, label_spatial_shape)
         # shift center to range of valid centers
-        center_ori = list(center)
-        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
+        centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape))
 
     return centers
 
