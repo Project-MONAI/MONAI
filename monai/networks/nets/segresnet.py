@@ -153,7 +153,7 @@ class SegResNet(nn.Module):
             get_conv_layer(self.spatial_dims, self.init_filters, out_channels, kernel_size=1, bias=True),
         )
 
-    def forward(self, x):
+    def encode(self, x):
         x = self.convInit(x)
         if self.dropout_prob is not None:
             x = self.dropout(x)
@@ -164,14 +164,23 @@ class SegResNet(nn.Module):
             x = down(x)
             down_x.append(x)
 
-        down_x.reverse()
+        return x, down_x
 
+    def decode(self, x, down_x):
         for i, (up, upl) in enumerate(zip(self.up_samples, self.up_layers)):
             x = up(x) + down_x[i + 1]
             x = upl(x)
 
         if self.use_conv_final:
             x = self.conv_final(x)
+
+        return x
+
+    def forward(self, x):
+        x, down_x = self.encode(x)
+        down_x.reverse()
+
+        x = self.decode(x, down_x)
         return x
 
 
