@@ -286,8 +286,8 @@ def save_image(images, labels, filename, transform_name, transform_args, im_size
     plt.style.use("dark_background")
     fig, axes = plt.subplots(len(images), len(images[0]))
     for row in range(len(images)):
-        vmin = min([i.min() for i in images[row]])
-        vmax = max([i.max() for i in images[row]])
+        vmin = min(i.min() for i in images[row])
+        vmax = max(i.max() for i in images[row])
         for col in range(len(images[0])):
             ax = axes[row][col]
             imshow = ax.imshow(images[row][col], cmap="gray", vmin=vmin, vmax=vmax)
