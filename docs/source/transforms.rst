@@ -67,12 +67,16 @@ Crop and Pad
 
 `SpatialPad`
 """"""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPad.png
+    :alt: example of SpatialPad
 .. autoclass:: SpatialPad
     :members:
     :special-members: __call__
 
 `BorderPad`
 """""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/BorderPad.png
+    :alt: example of BorderPad
 .. autoclass:: BorderPad
     :members:
     :special-members: __call__
@@ -87,24 +91,32 @@ Crop and Pad
 
 `SpatialCrop`
 """""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialCrop.png
+    :alt: example of SpatialCrop
 .. autoclass:: SpatialCrop
     :members:
     :special-members: __call__
 
 `CenterSpatialCrop`
 """""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CenterSpatialCrop.png
+    :alt: example of CenterSpatialCrop
 .. autoclass:: CenterSpatialCrop
     :members:
     :special-members: __call__
 
 `RandSpatialCrop`
 """""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSpatialCrop.png
+    :alt: example of RandSpatialCrop
 .. autoclass:: RandSpatialCrop
     :members:
     :special-members: __call__
 
 `RandSpatialCropSamples`
 """"""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSpatialCropSamples.png
+    :alt: example of RandSpatialCropSamples
 .. autoclass:: RandSpatialCropSamples
     :members:
     :special-members: __call__
@@ -119,24 +131,32 @@ Crop and Pad
 
 `RandWeightedCrop`
 """"""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandWeightedCrop.png
+    :alt: example of RandWeightedCrop
 .. autoclass:: RandWeightedCrop
     :members:
     :special-members: __call__
 
 `RandCropByPosNegLabel`
 """""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCropByPosNegLabel.png
+    :alt: example of RandCropByPosNegLabel
 .. autoclass:: RandCropByPosNegLabel
     :members:
     :special-members: __call__
 
 `RandCropByLabelClasses`
 """"""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCropByLabelClasses.png
+    :alt: example of RandCropByLabelClasses
 .. autoclass:: RandCropByLabelClasses
     :members:
     :special-members: __call__
 
 `ResizeWithPadOrCrop`
 """""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ResizeWithPadOrCrop.png
+    :alt: example of ResizeWithPadOrCrop
 .. autoclass:: ResizeWithPadOrCrop
     :members:
     :special-members: __call__
@@ -149,12 +169,16 @@ Crop and Pad
 
 `RandScaleCrop`
 """""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleCrop.png
+    :alt: example of RandScaleCrop
 .. autoclass:: RandScaleCrop
     :members:
     :special-members: __call__
 
 `CenterScaleCrop`
 """""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CenterScaleCrop.png
+    :alt: example of CenterScaleCrop
 .. autoclass:: CenterScaleCrop
     :members:
     :special-members: __call__
@@ -284,8 +308,6 @@ Intensity
 
 `SavitzkyGolaySmooth`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SavitzkyGolaySmooth.png
-    :alt: example of SavitzkyGolaySmooth
 .. autoclass:: SavitzkyGolaySmooth
     :members:
     :special-members: __call__
@@ -332,8 +354,6 @@ Intensity
 
 `DetectEnvelope`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DetectEnvelope.png
-    :alt: example of DetectEnvelope
 .. autoclass:: DetectEnvelope
     :members:
     :special-members: __call__
@@ -455,6 +475,8 @@ Post-processing
 
 `AsDiscrete`
 """"""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/AsDiscrete.png
+    :alt: example of AsDiscrete
 .. autoclass:: AsDiscrete
     :members:
     :special-members: __call__
@@ -467,6 +489,8 @@ Post-processing
 
 `LabelFilter`
 """""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelFilter.png
+    :alt: example of LabelFilter
 .. autoclass:: LabelFilter
     :members:
     :special-members: __call__
@@ -479,6 +503,8 @@ Post-processing
 
 `LabelToContour`
 """"""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelToContour.png
+    :alt: example of LabelToContour
 .. autoclass:: LabelToContour
     :members:
     :special-members: __call__
@@ -505,6 +531,8 @@ Spatial
 
 `Spacing`
 """""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Spacing.png
+    :alt: example of Spacing
 .. autoclass:: Spacing
     :members:
     :special-members: __call__
@@ -535,6 +563,8 @@ Spatial
 
 `RandAxisFlip`
 """"""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandAxisFlip.png
+    :alt: example of RandAxisFlip
 .. autoclass:: RandAxisFlip
     :members:
     :special-members: __call__
@@ -629,6 +659,8 @@ Spatial
 
 `Resize`
 """"""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Resize.png
+    :alt: example of Resize
 .. autoclass:: Resize
     :members:
     :special-members: __call__
@@ -842,12 +874,16 @@ Crop and Pad (Dict)
 
 `SpatialPadd`
 """""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPadd.png
+    :alt: example of SpatialPadd
 .. autoclass:: SpatialPadd
     :members:
     :special-members: __call__
 
 `BorderPadd`
 """"""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/BorderPadd.png
+    :alt: example of BorderPadd
 .. autoclass:: BorderPadd
     :members:
     :special-members: __call__
@@ -862,24 +898,32 @@ Crop and Pad (Dict)
 
 `SpatialCropd`
 """"""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialCropd.png
+    :alt: example of SpatialCropd
 .. autoclass:: SpatialCropd
     :members:
     :special-members: __call__
 
 `CenterSpatialCropd`
 """"""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CenterSpatialCropd.png
+    :alt: example of CenterSpatialCropd
 .. autoclass:: CenterSpatialCropd
     :members:
     :special-members: __call__
 
 `RandSpatialCropd`
 """"""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSpatialCropd.png
+    :alt: example of RandSpatialCropd
 .. autoclass:: RandSpatialCropd
     :members:
     :special-members: __call__
 
 `RandSpatialCropSamplesd`
 """""""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSpatialCropSamplesd.png
+    :alt: example of RandSpatialCropSamplesd
 .. autoclass:: RandSpatialCropSamplesd
     :members:
     :special-members: __call__
@@ -894,24 +938,32 @@ Crop and Pad (Dict)
 
 `RandWeightedCropd`
 """""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandWeightedCropd.png
+    :alt: example of RandWeightedCropd
 .. autoclass:: RandWeightedCropd
     :members:
     :special-members: __call__
 
 `RandCropByPosNegLabeld`
 """"""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCropByPosNegLabeld.png
+    :alt: example of RandCropByPosNegLabeld
 .. autoclass:: RandCropByPosNegLabeld
     :members:
     :special-members: __call__
 
 `RandCropByLabelClassesd`
 """""""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCropByLabelClassesd.png
+    :alt: example of RandCropByLabelClassesd
 .. autoclass:: RandCropByLabelClassesd
     :members:
     :special-members: __call__
 
 `ResizeWithPadOrCropd`
 """"""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ResizeWithPadOrCropd.png
+    :alt: example of ResizeWithPadOrCropd
 .. autoclass:: ResizeWithPadOrCropd
     :members:
     :special-members: __call__
@@ -924,12 +976,16 @@ Crop and Pad (Dict)
 
 `RandScaleCropd`
 """"""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleCropd.png
+    :alt: example of RandScaleCropd
 .. autoclass:: RandScaleCropd
     :members:
     :special-members: __call__
 
 `CenterScaleCropd`
 """"""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CenterScaleCropd.png
+    :alt: example of CenterScaleCropd
 .. autoclass:: CenterScaleCropd
     :members:
     :special-members: __call__
@@ -1180,6 +1236,8 @@ Post-processing (Dict)
 
 `AsDiscreted`
 """""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/AsDiscreted.png
+    :alt: example of AsDiscreted
 .. autoclass:: AsDiscreted
     :members:
     :special-members: __call__
@@ -1192,6 +1250,8 @@ Post-processing (Dict)
 
 `LabelFilterd`
 """"""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelFilterd.png
+    :alt: example of LabelFilterd
 .. autoclass:: LabelFilterd
     :members:
     :special-members: __call__
@@ -1204,6 +1264,8 @@ Post-processing (Dict)
 
 `LabelToContourd`
 """""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelToContourd.png
+    :alt: example of LabelToContourd
 .. autoclass:: LabelToContourd
     :members:
     :special-members: __call__
@@ -1243,6 +1305,8 @@ Spatial (Dict)
 
 `Spacingd`
 """"""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Spacingd.png
+    :alt: example of Spacingd
 .. autoclass:: Spacingd
     :members:
     :special-members: __call__
@@ -1273,6 +1337,8 @@ Spatial (Dict)
 
 `RandAxisFlipd`
 """""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandAxisFlipd.png
+    :alt: example of RandAxisFlipd
 .. autoclass:: RandAxisFlipd
     :members:
     :special-members: __call__
@@ -1327,6 +1393,8 @@ Spatial (Dict)
 
 `Resized`
 """""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Resized.png
+    :alt: example of Resized
 .. autoclass:: Resized
     :members:
     :special-members: __call__

@@ -95,6 +95,7 @@ class Spacing(Transform):
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
+        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -127,6 +128,7 @@ class Spacing(Transform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            image_only: return just the image or the image, the old affine and new affine. Default is `False`.
 
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
@@ -135,6 +137,7 @@ class Spacing(Transform):
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
+        self.image_only = image_only
 
     def __call__(
         self,
@@ -145,7 +148,7 @@ class Spacing(Transform):
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
         output_spatial_shape: Optional[np.ndarray] = None,
-    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]:
+    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
         """
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
@@ -221,6 +224,8 @@ class Spacing(Transform):
             output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=torch.float32)
             new_affine = to_affine_nd(affine, new_affine)  # type: ignore
 
+        if self.image_only:
+            return output_data
         return output_data, affine, new_affine
 
 

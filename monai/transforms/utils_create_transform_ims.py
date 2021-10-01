@@ -25,6 +25,7 @@ from monai.transforms import (
     AddChanneld,
     Affine,
     Affined,
+    AsDiscrete,
     Compose,
     Flip,
     Flipd,
@@ -45,18 +46,110 @@ from monai.transforms import (
     Rotate90,
     Rotate90d,
     Rotated,
+    ScaleIntensity,
     ScaleIntensityd,
     SpatialPadd,
     Zoom,
     Zoomd,
-    ScaleIntensity,
 )
-from monai.transforms.croppad.array import CropForeground, DivisiblePad, SpatialPad
-from monai.transforms.croppad.dictionary import CropForegroundd, DivisiblePadd
-from monai.transforms.intensity.array import AdjustContrast, DetectEnvelope, GaussianSharpen, GaussianSmooth, GibbsNoise, HistogramNormalize, KSpaceSpikeNoise, MaskIntensity, NormalizeIntensity, RandAdjustContrast, RandBiasField, RandCoarseDropout, RandCoarseShuffle, RandCoarseTransform, RandGaussianNoise, RandGaussianSharpen, RandGaussianSmooth, RandGibbsNoise, RandHistogramShift, RandKSpaceSpikeNoise, RandScaleIntensity, RandShiftIntensity, RandStdShiftIntensity, SavitzkyGolaySmooth, ScaleIntensityRange, ScaleIntensityRangePercentiles, ShiftIntensity, StdShiftIntensity, ThresholdIntensity
-from monai.transforms.intensity.dictionary import AdjustContrastd, GaussianSharpend, GaussianSmoothd, GibbsNoised, HistogramNormalized, KSpaceSpikeNoised, MaskIntensityd, NormalizeIntensityd, RandAdjustContrastd, RandBiasFieldd, RandCoarseDropoutd, RandCoarseShuffled, RandGaussianNoised, RandGaussianSharpend, RandGaussianSmoothd, RandGibbsNoised, RandHistogramShiftd, RandKSpaceSpikeNoised, RandScaleIntensityd, RandShiftIntensityd, RandStdShiftIntensityd, ScaleIntensityRangePercentilesd, ScaleIntensityRanged, ShiftIntensityd, StdShiftIntensityd, ThresholdIntensityd
-from monai.transforms.spatial.array import Rand2DElastic, RandAffine, RandRotate90
-from monai.transforms.spatial.dictionary import Rand2DElasticd, RandAffined, RandRotate90d
+from monai.transforms.croppad.array import (
+    BorderPad,
+    CenterScaleCrop,
+    CenterSpatialCrop,
+    CropForeground,
+    DivisiblePad,
+    RandCropByLabelClasses,
+    RandCropByPosNegLabel,
+    RandScaleCrop,
+    RandSpatialCrop,
+    RandSpatialCropSamples,
+    RandWeightedCrop,
+    ResizeWithPadOrCrop,
+    SpatialCrop,
+    SpatialPad,
+)
+from monai.transforms.croppad.dictionary import (
+    BorderPadd,
+    CenterScaleCropd,
+    CenterSpatialCropd,
+    CropForegroundd,
+    DivisiblePadd,
+    RandCropByLabelClassesd,
+    RandCropByPosNegLabeld,
+    RandScaleCropd,
+    RandSpatialCropd,
+    RandSpatialCropSamplesd,
+    RandWeightedCropd,
+    ResizeWithPadOrCropd,
+    SpatialCropd,
+)
+from monai.transforms.intensity.array import (
+    AdjustContrast,
+    GaussianSharpen,
+    GaussianSmooth,
+    GibbsNoise,
+    HistogramNormalize,
+    KSpaceSpikeNoise,
+    MaskIntensity,
+    NormalizeIntensity,
+    RandAdjustContrast,
+    RandBiasField,
+    RandCoarseDropout,
+    RandCoarseShuffle,
+    RandGaussianNoise,
+    RandGaussianSharpen,
+    RandGaussianSmooth,
+    RandGibbsNoise,
+    RandHistogramShift,
+    RandKSpaceSpikeNoise,
+    RandScaleIntensity,
+    RandShiftIntensity,
+    RandStdShiftIntensity,
+    ScaleIntensityRange,
+    ScaleIntensityRangePercentiles,
+    ShiftIntensity,
+    StdShiftIntensity,
+    ThresholdIntensity,
+)
+from monai.transforms.intensity.dictionary import (
+    AdjustContrastd,
+    GaussianSharpend,
+    GaussianSmoothd,
+    GibbsNoised,
+    HistogramNormalized,
+    KSpaceSpikeNoised,
+    MaskIntensityd,
+    NormalizeIntensityd,
+    RandAdjustContrastd,
+    RandBiasFieldd,
+    RandCoarseDropoutd,
+    RandCoarseShuffled,
+    RandGaussianNoised,
+    RandGaussianSharpend,
+    RandGaussianSmoothd,
+    RandGibbsNoised,
+    RandHistogramShiftd,
+    RandKSpaceSpikeNoised,
+    RandScaleIntensityd,
+    RandShiftIntensityd,
+    RandStdShiftIntensityd,
+    ScaleIntensityRanged,
+    ScaleIntensityRangePercentilesd,
+    ShiftIntensityd,
+    StdShiftIntensityd,
+    ThresholdIntensityd,
+)
+from monai.transforms.post.array import LabelFilter, LabelToContour
+from monai.transforms.post.dictionary import AsDiscreted, LabelFilterd, LabelToContourd
+from monai.transforms.spatial.array import Rand2DElastic, RandAffine, RandAxisFlip, RandRotate90, Resize, Spacing
+from monai.transforms.spatial.dictionary import (
+    Rand2DElasticd,
+    RandAffined,
+    RandAxisFlipd,
+    RandRotate90d,
+    Resized,
+    Spacingd,
+)
 from monai.utils.enums import CommonKeys
 from monai.utils.module import optional_import
 
@@ -138,13 +231,18 @@ def update_docstring(code_path, transform_name):
         f.writelines(contents)
 
 
-def pre_process_data(data, ndim, is_map):
+def pre_process_data(data, ndim, is_map, is_post):
     """If transform requires 2D data, then convert to 2D"""
     if ndim == 2:
         for k in keys:
             data[k] = data[k][..., data[k].shape[-1] // 2]
+    if is_post:
+        for k in keys:
+            data[k] = torch.as_tensor(data[k])
 
-    return data if is_map else data[CommonKeys.IMAGE]
+    if is_map:
+        return data
+    return data[CommonKeys.LABEL] if is_post else data[CommonKeys.IMAGE]
 
 
 def get_2d_slice(image, view, is_label):
@@ -184,9 +282,8 @@ def get_stacked_before_after(before, after, is_label=False):
 
 def save_image(images, labels, filename, transform_name, transform_args, im_sizes, colorbar=False):
     """Save image to file, ensuring there's no whitespace around the edge."""
-    show_im_sizes = any(i!=j for i, j in zip(*im_sizes))
-    plt.rcParams.update({'font.family':'monospace'})
-    plt.style.use('dark_background')
+    plt.rcParams.update({"font.family": "monospace"})
+    plt.style.use("dark_background")
     fig, axes = plt.subplots(len(images), len(images[0]))
     for row in range(len(images)):
         vmin = min([i.min() for i in images[row]])
@@ -198,7 +295,7 @@ def save_image(images, labels, filename, transform_name, transform_args, im_size
                 plt.colorbar(imshow, ax=ax)
             if col == 0:
                 y_label = "After" if row else "Before"
-                y_label += ("\n" + str(im_sizes[row])) if show_im_sizes else ""
+                y_label += ("\n" + im_sizes[row]) if im_sizes[0] != im_sizes[1] else ""
                 ax.set_ylabel(y_label)
             ax.set_xticks([])
             ax.set_yticks([])
@@ -229,7 +326,33 @@ def save_image(images, labels, filename, transform_name, transform_args, im_size
     plt.close(fig)
 
 
-def create_transform_im(transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, out_dir=None, seed=0):
+def get_image(data, is_map, key):
+    """Get image. If is dictionary, extract key. If is list, stack. If both dictionary and list, do both.
+    Also return the image size as string to be used im the imshow. If it's a list, return `N x (H,W,D)`.
+    """
+    # if list, extract.
+    if not isinstance(data, list):
+        data = data[key] if is_map else data
+        im_size = str(data.shape[1:])
+
+    # output is sometimes a list (e.g., RandSpatialCropSamples)
+    if isinstance(data, list):
+        data = [d[key] if is_map else d for d in data]
+        im_size = str(len(data)) + " x " + str(data[0].shape[1:])
+        # if we can stack in square or cube (e.g., there are 4 or 8 examples), then do that
+        log2 = np.log2(len(data))
+        if log2 % 1 == 0:
+            for i in range(int(log2)):
+                data = [np.concatenate(data[j : j + 2], axis=i + 1) for j in range(0, len(data), 2)]
+            data = data[0]
+        else:
+            data = np.hstack(data)
+    return data, im_size
+
+
+def create_transform_im(
+    transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, out_dir=None, seed=0, is_post=False
+):
     """Create an image with the before and after of the transform.
     Also update the transform's documentation to point to this image."""
 
@@ -239,6 +362,8 @@ def create_transform_im(transform, transform_args, data, ndim=3, colorbar=False,
         raise RuntimeError
 
     if isinstance(transform, Randomizable):
+        # increment the seed for map transforms so they're different to the array versions.
+        seed = seed + 1 if isinstance(transform, MapTransform) else seed
         transform.set_random_state(seed)
 
     out_dir = os.environ.get("MONAI_DOC_IMAGES")
@@ -255,18 +380,19 @@ def create_transform_im(transform, transform_args, data, ndim=3, colorbar=False,
     out_file = os.path.join(out_dir, out_fname)
 
     is_map = isinstance(transform, MapTransform)
-    data_in = pre_process_data(deepcopy(data), ndim, is_map)
+    data_in = pre_process_data(deepcopy(data), ndim, is_map, is_post)
 
     data_tr = transform(deepcopy(data_in))
 
-    image_before = data_in[CommonKeys.IMAGE] if is_map else data_in
-    image_after = data_tr[CommonKeys.IMAGE] if is_map else data_tr
-    im_sizes = (image_before.shape[1:], image_after.shape[1:])
+    image_before, im_before_shape = get_image(data_in, is_map, CommonKeys.IMAGE)
+    image_after, im_after_shape = get_image(data_tr, is_map, CommonKeys.IMAGE)
+
+    im_sizes = (im_before_shape, im_after_shape)
     stacked_images = get_stacked_before_after(image_before, image_after)
     stacked_labels = None
     if is_map:
-        label_before = data_in[CommonKeys.LABEL]
-        label_after = data_tr[CommonKeys.LABEL]
+        label_before, _ = get_image(data_in, is_map, CommonKeys.LABEL)
+        label_after, _ = get_image(data_tr, is_map, CommonKeys.LABEL)
         stacked_labels = get_stacked_before_after(label_before, label_after, is_label=True)
 
     save_image(stacked_images, stacked_labels, out_file, transform_name, transform_args, im_sizes, colorbar)
@@ -297,7 +423,9 @@ if __name__ == "__main__":
     )
     create_transform_im(RandAffine, dict(prob=1, shear_range=(0.5, 0.5), padding_mode="zeros"), data)
     create_transform_im(
-        RandAffined, dict(keys=keys, prob=1, shear_range=(0.5, 0.5), mode=["bilinear", "nearest"], padding_mode="zeros"), data
+        RandAffined,
+        dict(keys=keys, prob=1, shear_range=(0.5, 0.5), mode=["bilinear", "nearest"], padding_mode="zeros"),
+        data,
     )
     create_transform_im(
         Rand3DElastic, dict(sigma_range=(5, 7), magnitude_range=(50, 150), prob=1, padding_mode="zeros"), data
@@ -306,7 +434,17 @@ if __name__ == "__main__":
         Rand2DElastic, dict(prob=1, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="zeros"), data, 2
     )
     create_transform_im(
-        Rand2DElasticd, dict(keys=keys, prob=1, spacing=(20, 20), magnitude_range=(1, 2), padding_mode="zeros", mode=["bilinear", "nearest"]), data, 2
+        Rand2DElasticd,
+        dict(
+            keys=keys,
+            prob=1,
+            spacing=(20, 20),
+            magnitude_range=(1, 2),
+            padding_mode="zeros",
+            mode=["bilinear", "nearest"],
+        ),
+        data,
+        2,
     )
     create_transform_im(
         Rand3DElasticd,
@@ -328,19 +466,16 @@ if __name__ == "__main__":
     create_transform_im(Rotated, dict(keys=keys, angle=0.1, mode=["bilinear", "nearest"]), data)
     create_transform_im(RandRotate, dict(prob=1, range_x=[0.4, 0.4]), data)
     create_transform_im(RandRotated, dict(keys=keys, prob=1, range_x=[0.4, 0.4], mode=["bilinear", "nearest"]), data)
-    create_transform_im(Zoom, dict(zoom=0.8), data)
+    create_transform_im(Zoom, dict(zoom=0.6), data)
     create_transform_im(Zoomd, dict(keys=keys, zoom=1.3, mode=["area", "nearest"]), data)
-    create_transform_im(RandZoom, dict(prob=1, min_zoom=0.8, max_zoom=1), data)
-    create_transform_im(
-        RandZoomd, dict(keys=keys, prob=1, min_zoom=1.3, max_zoom=1.5, mode=["area", "nearest"]), data
-    )
-    create_transform_im(
-        RandZoomd, dict(keys=keys, prob=1, min_zoom=1.3, max_zoom=1.5, mode=["area", "nearest"]), data
-    )
+    create_transform_im(RandZoom, dict(prob=1, min_zoom=0.6, max_zoom=0.8), data)
+    create_transform_im(RandZoomd, dict(keys=keys, prob=1, min_zoom=1.3, max_zoom=1.5, mode=["area", "nearest"]), data)
     create_transform_im(ScaleIntensity, dict(minv=0, maxv=10), data, colorbar=True)
     create_transform_im(ScaleIntensityd, dict(keys=CommonKeys.IMAGE, minv=0, maxv=10), data, colorbar=True)
     create_transform_im(RandScaleIntensity, dict(prob=1.0, factors=(5, 10)), data, colorbar=True)
-    create_transform_im(RandScaleIntensityd, dict(keys=CommonKeys.IMAGE, prob=1.0, factors=(5, 10)), data, colorbar=True)
+    create_transform_im(
+        RandScaleIntensityd, dict(keys=CommonKeys.IMAGE, prob=1.0, factors=(5, 10)), data, colorbar=True
+    )
     create_transform_im(DivisiblePad, dict(k=64), data)
     create_transform_im(DivisiblePadd, dict(keys=keys, k=64), data)
     create_transform_im(CropForeground, dict(), data)
@@ -350,7 +485,17 @@ if __name__ == "__main__":
     create_transform_im(KSpaceSpikeNoise, dict(loc=(100, 100, 100), k_intensity=13), data)
     create_transform_im(KSpaceSpikeNoised, dict(keys=CommonKeys.IMAGE, loc=(100, 100, 100), k_intensity=13), data)
     create_transform_im(RandKSpaceSpikeNoise, dict(prob=1, intensity_range=(10, 13)), data)
-    create_transform_im(RandKSpaceSpikeNoised, dict(keys=CommonKeys.IMAGE, global_prob=1, prob=1, common_sampling=True, intensity_ranges={CommonKeys.IMAGE: (13, 15)}), data)
+    create_transform_im(
+        RandKSpaceSpikeNoised,
+        dict(
+            keys=CommonKeys.IMAGE,
+            global_prob=1,
+            prob=1,
+            common_sampling=True,
+            intensity_ranges={CommonKeys.IMAGE: (13, 15)},
+        ),
+        data,
+    )
     create_transform_im(GibbsNoise, dict(alpha=0.8), data)
     create_transform_im(GibbsNoised, dict(keys=CommonKeys.IMAGE, alpha=0.8), data)
     create_transform_im(RandGibbsNoise, dict(prob=1.0, alpha=(0.6, 0.8)), data)
@@ -358,40 +503,135 @@ if __name__ == "__main__":
     create_transform_im(ShiftIntensity, dict(offset=1), data, colorbar=True)
     create_transform_im(ShiftIntensityd, dict(keys=CommonKeys.IMAGE, offset=1), data, colorbar=True)
     create_transform_im(RandShiftIntensity, dict(prob=1.0, offsets=(10, 20)), data, colorbar=True)
-    create_transform_im(RandShiftIntensityd, dict(keys=CommonKeys.IMAGE, prob=1.0, offsets=(10, 20)), data, colorbar=True)
+    create_transform_im(
+        RandShiftIntensityd, dict(keys=CommonKeys.IMAGE, prob=1.0, offsets=(10, 20)), data, colorbar=True
+    )
     create_transform_im(StdShiftIntensity, dict(factor=10), data, colorbar=True)
     create_transform_im(StdShiftIntensityd, dict(keys=CommonKeys.IMAGE, factor=10), data, colorbar=True)
-    create_transform_im(RandStdShiftIntensity, dict(prob=1.0, factors=(5,10)), data, colorbar=True)
-    create_transform_im(RandStdShiftIntensityd, dict(keys = CommonKeys.IMAGE, prob=1.0, factors=(5,10)), data, colorbar=True)
+    create_transform_im(RandStdShiftIntensity, dict(prob=1.0, factors=(5, 10)), data, colorbar=True)
+    create_transform_im(
+        RandStdShiftIntensityd, dict(keys=CommonKeys.IMAGE, prob=1.0, factors=(5, 10)), data, colorbar=True
+    )
     create_transform_im(RandBiasField, dict(prob=1, coeff_range=(0.2, 0.3)), data)
     create_transform_im(RandBiasFieldd, dict(keys=CommonKeys.IMAGE, prob=1, coeff_range=(0.2, 0.3)), data)
     create_transform_im(NormalizeIntensity, dict(subtrahend=0, divisor=10), data, colorbar=True)
     create_transform_im(NormalizeIntensityd, dict(keys=CommonKeys.IMAGE, subtrahend=0, divisor=10), data, colorbar=True)
     create_transform_im(ThresholdIntensity, dict(threshold=0.4, above=False, cval=0.9), data, colorbar=True)
-    create_transform_im(ThresholdIntensityd, dict(keys=CommonKeys.IMAGE, threshold=0.4, above=False, cval=0.9), data, colorbar=True)
+    create_transform_im(
+        ThresholdIntensityd, dict(keys=CommonKeys.IMAGE, threshold=0.4, above=False, cval=0.9), data, colorbar=True
+    )
     create_transform_im(ScaleIntensityRange, dict(a_min=0, a_max=1, b_min=1, b_max=10), data, colorbar=True)
-    create_transform_im(ScaleIntensityRanged, dict(keys=CommonKeys.IMAGE, a_min=0, a_max=1, b_min=1, b_max=10), data, colorbar=True)
+    create_transform_im(
+        ScaleIntensityRanged, dict(keys=CommonKeys.IMAGE, a_min=0, a_max=1, b_min=1, b_max=10), data, colorbar=True
+    )
     create_transform_im(ScaleIntensityRangePercentiles, dict(lower=5, upper=95, b_min=1, b_max=10), data, colorbar=True)
-    create_transform_im(ScaleIntensityRangePercentilesd, dict(keys=CommonKeys.IMAGE, lower=5, upper=95, b_min=1, b_max=10), data, colorbar=True)
+    create_transform_im(
+        ScaleIntensityRangePercentilesd,
+        dict(keys=CommonKeys.IMAGE, lower=5, upper=95, b_min=1, b_max=10),
+        data,
+        colorbar=True,
+    )
     create_transform_im(AdjustContrast, dict(gamma=2), data, colorbar=True)
     create_transform_im(AdjustContrastd, dict(keys=CommonKeys.IMAGE, gamma=2), data, colorbar=True)
     create_transform_im(RandAdjustContrast, dict(prob=1, gamma=(1.5, 2)), data, colorbar=True)
     create_transform_im(RandAdjustContrastd, dict(keys=CommonKeys.IMAGE, prob=1, gamma=(1.5, 2)), data, colorbar=True)
-    create_transform_im(MaskIntensity, dict(mask_data=data[CommonKeys.IMAGE], select_fn=lambda x: x>0.3), data)
-    create_transform_im(MaskIntensityd, dict(keys=CommonKeys.IMAGE, mask_key=CommonKeys.IMAGE, select_fn=lambda x: x>0.3), data)
+    create_transform_im(MaskIntensity, dict(mask_data=data[CommonKeys.IMAGE], select_fn=lambda x: x > 0.3), data)
+    create_transform_im(
+        MaskIntensityd, dict(keys=CommonKeys.IMAGE, mask_key=CommonKeys.IMAGE, select_fn=lambda x: x > 0.3), data
+    )
     create_transform_im(GaussianSmooth, dict(sigma=2), data)
-    create_transform_im(GaussianSmoothd, dict(keys=CommonKeys.IMAGE ,sigma=2), data)
+    create_transform_im(GaussianSmoothd, dict(keys=CommonKeys.IMAGE, sigma=2), data)
     create_transform_im(RandGaussianSmooth, dict(prob=1.0, sigma_x=(1, 2)), data)
-    create_transform_im(RandGaussianSmoothd, dict(keys=CommonKeys.IMAGE ,prob=1.0, sigma_x=(1, 2)), data)
-    create_transform_im(GaussianSharpen, dict(), GaussianSmoothd(CommonKeys.IMAGE ,2)(data))
-    create_transform_im(GaussianSharpend, dict(keys=CommonKeys.IMAGE), GaussianSmoothd(CommonKeys.IMAGE,2)(data))
-    create_transform_im(RandGaussianSharpen, dict(prob=1), GaussianSmoothd(CommonKeys.IMAGE ,2)(data))
-    create_transform_im(RandGaussianSharpend, dict(keys=CommonKeys.IMAGE, prob=1), GaussianSmoothd(CommonKeys.IMAGE ,2)(data))
-    create_transform_im(RandHistogramShift, dict(prob=1, num_control_points=3), data)
-    create_transform_im(RandHistogramShiftd, dict(keys=CommonKeys.IMAGE, prob=1, num_control_points=3), data)
+    create_transform_im(RandGaussianSmoothd, dict(keys=CommonKeys.IMAGE, prob=1.0, sigma_x=(1, 2)), data)
+    create_transform_im(GaussianSharpen, dict(), GaussianSmoothd(CommonKeys.IMAGE, 2)(data))
+    create_transform_im(GaussianSharpend, dict(keys=CommonKeys.IMAGE), GaussianSmoothd(CommonKeys.IMAGE, 2)(data))
+    create_transform_im(RandGaussianSharpen, dict(prob=1), GaussianSmoothd(CommonKeys.IMAGE, 2)(data))
+    create_transform_im(
+        RandGaussianSharpend, dict(keys=CommonKeys.IMAGE, prob=1), GaussianSmoothd(CommonKeys.IMAGE, 2)(data)
+    )
+    create_transform_im(RandHistogramShift, dict(prob=1, num_control_points=3), data, colorbar=True)
+    create_transform_im(
+        RandHistogramShiftd, dict(keys=CommonKeys.IMAGE, prob=1, num_control_points=3), data, colorbar=True
+    )
     create_transform_im(RandCoarseDropout, dict(prob=1, holes=200, spatial_size=20, fill_value=0), data)
-    create_transform_im(RandCoarseDropoutd, dict(keys=CommonKeys.IMAGE, prob=1, holes=200, spatial_size=20, fill_value=0), data)
+    create_transform_im(
+        RandCoarseDropoutd, dict(keys=CommonKeys.IMAGE, prob=1, holes=200, spatial_size=20, fill_value=0), data
+    )
     create_transform_im(RandCoarseShuffle, dict(prob=1, holes=200, spatial_size=20), data)
-    create_transform_im(RandCoarseShuffled, dict(keys = CommonKeys.IMAGE, prob=1, holes=200, spatial_size=20), data)
+    create_transform_im(RandCoarseShuffled, dict(keys=CommonKeys.IMAGE, prob=1, holes=200, spatial_size=20), data)
     create_transform_im(HistogramNormalize, dict(num_bins=10), data)
     create_transform_im(HistogramNormalized, dict(keys=CommonKeys.IMAGE, num_bins=10), data)
+    create_transform_im(SpatialPad, dict(spatial_size=(300, 300, 300)), data)
+    create_transform_im(SpatialPadd, dict(keys=keys, spatial_size=(300, 300, 300)), data)
+    create_transform_im(BorderPad, dict(spatial_border=10), data)
+    create_transform_im(BorderPadd, dict(keys=keys, spatial_border=10), data)
+    create_transform_im(SpatialCrop, dict(roi_center=(75, 75, 75), roi_size=(100, 100, 100)), data)
+    create_transform_im(SpatialCropd, dict(keys=keys, roi_center=(75, 75, 75), roi_size=(100, 100, 100)), data)
+    create_transform_im(CenterSpatialCrop, dict(roi_size=(100, 100, 100)), data)
+    create_transform_im(CenterSpatialCropd, dict(keys=keys, roi_size=(100, 100, 100)), data)
+    create_transform_im(RandSpatialCrop, dict(roi_size=(100, 100, 100), random_size=False), data)
+    create_transform_im(RandSpatialCropd, dict(keys=keys, roi_size=(100, 100, 100), random_size=False), data)
+    create_transform_im(RandSpatialCropSamples, dict(num_samples=8, roi_size=(100, 100, 100), random_size=False), data)
+    create_transform_im(
+        RandSpatialCropSamplesd, dict(keys=keys, num_samples=8, roi_size=(100, 100, 100), random_size=False), data
+    )
+    create_transform_im(
+        RandWeightedCrop, dict(spatial_size=(100, 100, 100), num_samples=8, weight_map=data[CommonKeys.IMAGE] > 0), data
+    )
+    create_transform_im(
+        RandWeightedCropd, dict(keys=keys, spatial_size=(100, 100, 100), num_samples=8, w_key=CommonKeys.IMAGE), data
+    )
+    create_transform_im(
+        RandCropByPosNegLabel,
+        dict(spatial_size=(100, 100, 100), label=data[CommonKeys.LABEL], neg=0, num_samples=8),
+        data,
+    )
+    create_transform_im(
+        RandCropByPosNegLabeld,
+        dict(keys=keys, spatial_size=(100, 100, 100), label_key=CommonKeys.LABEL, neg=0, num_samples=8),
+        data,
+    )
+    create_transform_im(
+        RandCropByLabelClasses,
+        dict(spatial_size=(100, 100, 100), label=data[CommonKeys.LABEL], num_classes=2, ratios=[0, 1], num_samples=8),
+        data,
+    )
+    create_transform_im(
+        RandCropByLabelClassesd,
+        dict(
+            keys=keys,
+            spatial_size=(100, 100, 100),
+            label_key=CommonKeys.LABEL,
+            num_classes=2,
+            ratios=[0, 1],
+            num_samples=8,
+        ),
+        data,
+    )
+    create_transform_im(ResizeWithPadOrCrop, dict(spatial_size=(100, 100, 100)), data)
+    create_transform_im(ResizeWithPadOrCropd, dict(keys=keys, spatial_size=(100, 100, 100)), data)
+    create_transform_im(RandScaleCrop, dict(roi_scale=0.4), data)
+    create_transform_im(RandScaleCropd, dict(keys=keys, roi_scale=0.4), data)
+    create_transform_im(CenterScaleCrop, dict(roi_scale=0.4), data)
+    create_transform_im(CenterScaleCropd, dict(keys=keys, roi_scale=0.4), data)
+    create_transform_im(
+        AsDiscrete, dict(num_classes=2, threshold_values=True, logit_thresh=10), data, is_post=True, colorbar=True
+    )
+    create_transform_im(
+        AsDiscreted,
+        dict(keys=CommonKeys.LABEL, num_classes=2, threshold_values=True, logit_thresh=10),
+        data,
+        is_post=True,
+    )
+    create_transform_im(LabelFilter, dict(applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True)
+    create_transform_im(
+        LabelFilterd, dict(keys=CommonKeys.LABEL, applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True
+    )
+    create_transform_im(LabelToContour, dict(), data, is_post=True)
+    create_transform_im(LabelToContourd, dict(keys=CommonKeys.LABEL), data, is_post=True)
+    create_transform_im(Spacing, dict(pixdim=(5, 5, 5), image_only=True), data)
+    create_transform_im(Spacingd, dict(keys=keys, pixdim=(5, 5, 5), mode=["bilinear", "nearest"]), data)
+    create_transform_im(RandAxisFlip, dict(prob=1), data)
+    create_transform_im(RandAxisFlipd, dict(keys=keys, prob=1), data)
+    create_transform_im(Resize, dict(spatial_size=(100, 100, 100)), data)
+    create_transform_im(Resized, dict(keys=keys, spatial_size=(100, 100, 100), mode=["area", "nearest"]), data)
