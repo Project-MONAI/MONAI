@@ -419,7 +419,7 @@ class SpatialCrop(Transform):
             if roi_start_torch.numel() == 1:
                 self.slices = [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
             else:
-                self.slices = [slice(int(s.item()), int(e.item())) for s, e in zip(roi_start_torch, roi_end_torch)]
+                self.slices = [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -966,7 +966,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         results: List[NdarrayOrTensor] = []
         if self.centers is not None:
             for center in self.centers:
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
                 results.append(cropper(img))
 
         return results
