@@ -12,9 +12,11 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import ResizeWithPadOrCropd
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASES = [
     [
@@ -48,9 +50,15 @@ TEST_CASES = [
 class TestResizeWithPadOrCropd(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_pad_shape(self, input_param, input_data, expected_val):
-        paddcroper = ResizeWithPadOrCropd(**input_param)
-        result = paddcroper(input_data)
-        np.testing.assert_allclose(result["img"].shape, expected_val)
+        for p in TEST_NDARRAYS:
+            if isinstance(p(0), torch.Tensor) and (
+                "constant_values" in input_param or input_param["mode"] == "reflect"
+            ):
+                continue
+            paddcroper = ResizeWithPadOrCropd(**input_param)
+            input_data["img"] = p(input_data["img"])
+            result = paddcroper(input_data)
+            np.testing.assert_allclose(result["img"].shape, expected_val)
 
 
 if __name__ == "__main__":

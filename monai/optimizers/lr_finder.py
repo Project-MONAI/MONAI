@@ -120,7 +120,7 @@ class ValDataLoaderIter(DataLoaderIter):
 
     def __next__(self):
         self.run_counter += 1
-        return super(ValDataLoaderIter, self).__next__()
+        return super().__next__()
 
 
 def default_image_extractor(x: Any) -> torch.Tensor:

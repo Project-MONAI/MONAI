@@ -87,7 +87,7 @@ class SENet(nn.Module):
         num_classes: int = 1000,
     ) -> None:
 
-        super(SENet, self).__init__()
+        super().__init__()
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
@@ -192,7 +192,7 @@ class SENet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = Convolution(
-                dimensions=self.spatial_dims,
+                spatial_dims=self.spatial_dims,
                 in_channels=self.inplanes,
                 out_channels=planes * block.expansion,
                 strides=stride,
@@ -317,7 +317,7 @@ class SENet154(SENet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(SENet154, self).__init__(
+        super().__init__(
             block=SEBottleneck,
             layers=layers,
             groups=groups,
@@ -345,7 +345,7 @@ class SEResNet50(SENet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(SEResNet50, self).__init__(
+        super().__init__(
             block=SEResNetBottleneck,
             layers=layers,
             groups=groups,
@@ -378,7 +378,7 @@ class SEResNet101(SENet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(SEResNet101, self).__init__(
+        super().__init__(
             block=SEResNetBottleneck,
             layers=layers,
             groups=groups,
@@ -410,7 +410,7 @@ class SEResNet152(SENet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(SEResNet152, self).__init__(
+        super().__init__(
             block=SEResNetBottleneck,
             layers=layers,
             groups=groups,
@@ -443,7 +443,7 @@ class SEResNext50(SENet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(SEResNext50, self).__init__(
+        super().__init__(
             block=SEResNeXtBottleneck,
             layers=layers,
             groups=groups,
@@ -477,7 +477,7 @@ class SEResNext101(SENet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(SEResNext101, self).__init__(
+        super().__init__(
             block=SEResNeXtBottleneck,
             layers=layers,
             groups=groups,

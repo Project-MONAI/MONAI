@@ -38,6 +38,7 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.module import version_leq
+from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
@@ -57,24 +58,45 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
     return copy.deepcopy(data)
 
 
-def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
+def assert_allclose(
+    actual: NdarrayOrTensor,
+    desired: NdarrayOrTensor,
+    type_test: bool = True,
+    device_test: bool = False,
+    *args,
+    **kwargs,
+):
     """
-    Assert that all values of two data objects are close.
+    Assert that types and all values of two data objects are close.
 
     Args:
-        a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
-        b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
+        actual: Pytorch Tensor or numpy array for comparison.
+        desired: Pytorch Tensor or numpy array to compare against.
+        type_test: whether to test that `actual` and `desired` are both numpy arrays or torch tensors.
+        device_test: whether to test the device property.
+        args: extra arguments to pass on to `np.testing.assert_allclose`.
+        kwargs: extra arguments to pass on to `np.testing.assert_allclose`.
+
+
     """
-    a = a.cpu() if isinstance(a, torch.Tensor) else a
-    b = b.cpu() if isinstance(b, torch.Tensor) else b
-    np.testing.assert_allclose(a, b, *args, **kwargs)
+    if type_test:
+        # check both actual and desired are of the same type
+        np.testing.assert_equal(isinstance(actual, np.ndarray), isinstance(desired, np.ndarray), "numpy type")
+        np.testing.assert_equal(isinstance(actual, torch.Tensor), isinstance(desired, torch.Tensor), "torch type")
+
+    if isinstance(desired, torch.Tensor) or isinstance(actual, torch.Tensor):
+        if device_test:
+            np.testing.assert_equal(str(actual.device), str(desired.device), "torch device check")  # type: ignore
+        actual = actual.cpu().numpy() if isinstance(actual, torch.Tensor) else actual
+        desired = desired.cpu().numpy() if isinstance(desired, torch.Tensor) else desired
+    np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
 def test_pretrained_networks(network, input_param, device):
     try:
         net = network(**input_param).to(device)
     except (URLError, HTTPError, ContentTooShortError) as e:
-        raise unittest.SkipTest(e)
+        raise unittest.SkipTest(e) from e
     return net
 
 
@@ -166,11 +188,15 @@ class SkipIfAtLeastPyTorchVersion:
         )(obj)
 
 
-def make_nifti_image(array, affine=None):
+def make_nifti_image(array: NdarrayOrTensor, affine=None):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
     """
+    if isinstance(array, torch.Tensor):
+        array, *_ = convert_data_type(array, np.ndarray)
+    if isinstance(affine, torch.Tensor):
+        affine, *_ = convert_data_type(affine, np.ndarray)
     if affine is None:
         affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)
