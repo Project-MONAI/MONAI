@@ -11,12 +11,13 @@ Model training is often a time-consuming step during deep learning development,
 especially for medical imaging applications. Even with powerful hardware (e.g.
 CPU/GPU with large RAM), the workflows often require careful profiling and
 tuning to achieve high performance. MONAI has been focusing on performance
-enhancements, and in this version, [a fast model training
-guide](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md)
-is provided to help build highly performant workflows, with a comprehensive
-overview of the profiling tools and practical strategies.  The following figure
-shows the use of [Nvidia Nsight™ Systems](https://developer.nvidia.com/nsight-systems) for system-wide performance analysis during
-a performance enhancement study.
+enhancements, and in this version, a fast model training guide is provided
+to help build highly performant workflows, with a comprehensive overview of
+the profiling tools and practical strategies:
+https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md.
+
+The following figure shows the use of [Nvidia Nsight™ Systems](https://developer.nvidia.com/nsight-systems) for system-wide
+performance analysis during a performance enhancement study.
 ![nsight_vis](../images/nsight_comparison.png)
 
 With the performance profiling and enhancements, several typical use cases were studied to

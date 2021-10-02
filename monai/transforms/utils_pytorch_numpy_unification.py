@@ -178,7 +178,7 @@ def unravel_index(idx, shape):
             coord.append(idx % dim)
             idx = floor_divide(idx, dim)
         return torch.stack(coord[::-1])
-    return np.unravel_index(np.asarray(idx, dtype=int), shape)
+    return np.asarray(np.unravel_index(idx, shape))
 
 
 def unravel_indices(idx, shape):

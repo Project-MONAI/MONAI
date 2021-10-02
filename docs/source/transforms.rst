@@ -461,6 +461,8 @@ Spatial
 
 `RandFlip`
 """"""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandFlip.png
+    :alt: example of RandFlip
 .. autoclass:: RandFlip
     :members:
     :special-members: __call__
@@ -1115,6 +1117,8 @@ Spatial (Dict)
 
 `RandFlipd`
 """""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandFlipd.png
+    :alt: example of RandFlipd
 .. autoclass:: RandFlipd
     :members:
     :special-members: __call__
