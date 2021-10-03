@@ -144,6 +144,17 @@ jobs:
         run: |
           # get tag info for versioning
           mv _version.py monai/
+          # version checks
+          target="\"version\": \"$RELEASE_VERSION\""
+          echo $target
+          local=`grep "\"version\"" monai/_version.py
+          echo $local
+          if [ "$local" = "$target" ]; then
+            echo "matched version string"
+          else
+            echo "unmatched version string, please check the main branch"
+            exit 1
+          fi
           # remove flake package as it is not needed on hub.docker.com
           sed -i '/flake/d' requirements-dev.txt
           docker build -t projectmonai/monai:"$RELEASE_VERSION" -f Dockerfile .

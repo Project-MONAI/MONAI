@@ -85,7 +85,7 @@ class TestGridPull(unittest.TestCase):
             grads = grads[0]
         else:
             grads = torch.cat(grads, dim=0)
-        self.assertTrue("{}".format(result.device).startswith(expected["device"]))
+        self.assertTrue(f"{result.device}".startswith(expected["device"]))
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected["val"].cpu().numpy(), rtol=1e-4, atol=1e-4)
         np.testing.assert_allclose(grads.detach().cpu().numpy(), expected["grad"].cpu().numpy(), rtol=1e-4, atol=1e-4)
 

@@ -129,6 +129,9 @@ class AsDiscrete(Transform):
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
 
+    .. deprecated:: 0.6.0
+        ``n_classes`` is deprecated, use ``num_classes`` instead.
+
     """
 
     @deprecated_arg("n_classes", since="0.6")
@@ -181,6 +184,9 @@ class AsDiscrete(Transform):
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
 
+        .. deprecated:: 0.6.0
+            ``n_classes`` is deprecated, use ``num_classes`` instead.
+
         """
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes is None:
@@ -199,7 +205,7 @@ class AsDiscrete(Transform):
 
         rounding = self.rounding if rounding is None else rounding
         if rounding is not None:
-            rounding = look_up_option(rounding, ["torchrounding"])
+            look_up_option(rounding, ["torchrounding"])
             img = torch.round(img)
 
         return img.float()

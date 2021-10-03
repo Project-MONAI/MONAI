@@ -59,6 +59,12 @@ Vanilla Transforms
 Crop and Pad
 ^^^^^^^^^^^^
 
+`Pad`
+"""""
+.. autoclass:: Pad
+    :members:
+    :special-members: __call__
+
 `SpatialPad`
 """"""""""""
 .. autoclass:: SpatialPad
@@ -308,9 +314,21 @@ Intensity
      :members:
      :special-members: __call__
 
+`RandCoarseTransform`
+"""""""""""""""""""""
+ .. autoclass:: RandCoarseTransform
+     :members:
+     :special-members: __call__
+
 `RandCoarseDropout`
 """""""""""""""""""
  .. autoclass:: RandCoarseDropout
+     :members:
+     :special-members: __call__
+
+`RandCoarseShuffle`
+"""""""""""""""""""
+ .. autoclass:: RandCoarseShuffle
      :members:
      :special-members: __call__
 
@@ -319,12 +337,6 @@ Intensity
  .. autoclass:: HistogramNormalize
      :members:
      :special-members: __call__
-
-`LocalPatchShuffling`
-"""""""""""""""""""""
-.. autoclass:: LocalPatchShuffling
-    :members:
-    :special-members: __call__
 
 IO
 ^^
@@ -449,6 +461,8 @@ Spatial
 
 `RandFlip`
 """"""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandFlip.png
+    :alt: example of RandFlip
 .. autoclass:: RandFlip
     :members:
     :special-members: __call__
@@ -721,6 +735,18 @@ Utility
      :members:
      :special-members: __call__
 
+`CuCIM`
+"""""""
+.. autoclass:: CuCIM
+    :members:
+    :special-members: __call__
+
+`RandCuCIM`
+"""""""""""
+.. autoclass:: RandCuCIM
+    :members:
+    :special-members: __call__
+
 
 Dictionary Transforms
 ---------------------
@@ -971,6 +997,12 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`RandCoarseShuffled`
+""""""""""""""""""""
+.. autoclass:: RandCoarseShuffled
+    :members:
+    :special-members: __call__
+
 `HistogramNormalized`
 """""""""""""""""""""
  .. autoclass:: HistogramNormalized
@@ -1085,6 +1117,8 @@ Spatial (Dict)
 
 `RandFlipd`
 """""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandFlipd.png
+    :alt: example of RandFlipd
 .. autoclass:: RandFlipd
     :members:
     :special-members: __call__
@@ -1356,6 +1390,17 @@ Utility (Dict)
      :members:
      :special-members: __call__
 
+`CuCIMd`
+""""""""
+.. autoclass:: CuCIMd
+    :members:
+    :special-members: __call__
+
+`RandCuCIMd`
+""""""""""""
+.. autoclass:: RandCuCIMd
+    :members:
+    :special-members: __call__
 
 Transform Adaptors
 ------------------
@@ -1376,4 +1421,7 @@ Transform Adaptors
 Utilities
 ---------
 .. automodule:: monai.transforms.utils
+    :members:
+
+.. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:

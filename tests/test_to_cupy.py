@@ -22,49 +22,81 @@ from tests.utils import skip_if_no_cuda
 cp, has_cp = optional_import("cupy")
 
 
+@skipUnless(has_cp, "CuPy is required.")
 class TestToCupy(unittest.TestCase):
-    @skipUnless(has_cp, "CuPy is required.")
     def test_cupy_input(self):
-        test_data = cp.array([[1, 2], [3, 4]])
+        test_data = cp.array([[1, 2], [3, 4]], dtype=cp.float32)
         test_data = cp.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
         result = ToCupy()(test_data)
+        self.assertTrue(result.dtype == cp.float32)
         self.assertTrue(isinstance(result, cp.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data)
 
-    @skipUnless(has_cp, "CuPy is required.")
+    def test_cupy_input_dtype(self):
+        test_data = cp.array([[1, 2], [3, 4]], dtype=cp.float32)
+        test_data = cp.rot90(test_data)
+        self.assertFalse(test_data.flags["C_CONTIGUOUS"])
+        result = ToCupy(cp.uint8)(test_data)
+        self.assertTrue(result.dtype == cp.uint8)
+        self.assertTrue(isinstance(result, cp.ndarray))
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
+        cp.testing.assert_allclose(result, test_data)
+
     def test_numpy_input(self):
-        test_data = np.array([[1, 2], [3, 4]])
+        test_data = np.array([[1, 2], [3, 4]], dtype=np.float32)
         test_data = np.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
         result = ToCupy()(test_data)
+        self.assertTrue(result.dtype == cp.float32)
         self.assertTrue(isinstance(result, cp.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data)
 
-    @skipUnless(has_cp, "CuPy is required.")
+    def test_numpy_input_dtype(self):
+        test_data = np.array([[1, 2], [3, 4]], dtype=np.float32)
+        test_data = np.rot90(test_data)
+        self.assertFalse(test_data.flags["C_CONTIGUOUS"])
+        result = ToCupy(np.uint8)(test_data)
+        self.assertTrue(result.dtype == cp.uint8)
+        self.assertTrue(isinstance(result, cp.ndarray))
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
+        cp.testing.assert_allclose(result, test_data)
+
     def test_tensor_input(self):
-        test_data = torch.tensor([[1, 2], [3, 4]])
+        test_data = torch.tensor([[1, 2], [3, 4]], dtype=torch.float32)
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
         result = ToCupy()(test_data)
+        self.assertTrue(result.dtype == cp.float32)
         self.assertTrue(isinstance(result, cp.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        cp.testing.assert_allclose(result, test_data.numpy())
+        cp.testing.assert_allclose(result, test_data)
 
-    @skipUnless(has_cp, "CuPy is required.")
     @skip_if_no_cuda
     def test_tensor_cuda_input(self):
-        test_data = torch.tensor([[1, 2], [3, 4]]).cuda()
+        test_data = torch.tensor([[1, 2], [3, 4]], dtype=torch.float32).cuda()
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
         result = ToCupy()(test_data)
+        self.assertTrue(result.dtype == cp.float32)
         self.assertTrue(isinstance(result, cp.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        cp.testing.assert_allclose(result, test_data.cpu().numpy())
+        cp.testing.assert_allclose(result, test_data)
 
-    @skipUnless(has_cp, "CuPy is required.")
+    @skip_if_no_cuda
+    def test_tensor_cuda_input_dtype(self):
+        test_data = torch.tensor([[1, 2], [3, 4]], dtype=torch.uint8).cuda()
+        test_data = test_data.rot90()
+        self.assertFalse(test_data.is_contiguous())
+
+        result = ToCupy(dtype="float32")(test_data)
+        self.assertTrue(result.dtype == cp.float32)
+        self.assertTrue(isinstance(result, cp.ndarray))
+        self.assertTrue(result.flags["C_CONTIGUOUS"])
+        cp.testing.assert_allclose(result, test_data)
+
     def test_list_tuple(self):
         test_data = [[1, 2], [3, 4]]
         result = ToCupy()(test_data)
