@@ -81,7 +81,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
             if not has_tqdm and progress:
                 warnings.warn("tqdm is not installed, will not show the downloading progress bar.")
             urlretrieve(url, filepath)
-    except (URLError, HTTPError, ContentTooShortError, IOError) as e:
+    except (URLError, HTTPError, ContentTooShortError, OSError) as e:
         print(f"Download failed from {url} to {filepath}.")
         raise e
 

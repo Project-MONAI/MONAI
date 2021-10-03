@@ -566,8 +566,8 @@ class TestInverse(unittest.TestCase):
                 "other": np.array(im_1d, copy=True),
             }
 
-        im_2d_fname, seg_2d_fname = [make_nifti_image(i) for i in create_test_image_2d(101, 100)]
-        im_3d_fname, seg_3d_fname = [make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107)]
+        im_2d_fname, seg_2d_fname = (make_nifti_image(i) for i in create_test_image_2d(101, 100))
+        im_3d_fname, seg_3d_fname = (make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107))
 
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.all_data["2D"] = load_ims({"image": im_2d_fname, "label": seg_2d_fname})
@@ -666,7 +666,7 @@ class TestInverse(unittest.TestCase):
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = UNet(
-            dimensions=2,
+            spatial_dims=2,
             in_channels=1,
             out_channels=1,
             channels=(2, 4),

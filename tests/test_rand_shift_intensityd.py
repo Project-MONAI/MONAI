@@ -19,14 +19,14 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 class TestRandShiftIntensityd(NumpyImageTestCase2D):
     def test_value(self):
+        key = "img"
         for p in TEST_NDARRAYS:
-            key = "img"
             shifter = RandShiftIntensityd(keys=[key], offsets=1.0, prob=1.0)
             shifter.set_random_state(seed=0)
             result = shifter({key: p(self.imt)})
             np.random.seed(0)
             expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
-            assert_allclose(result[key], expected)
+            assert_allclose(result[key], p(expected))
 
     def test_factor(self):
         key = "img"

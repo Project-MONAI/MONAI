@@ -34,7 +34,7 @@ def timeout(time, message):
     except KeyboardInterrupt as e:
         if timer is not None and timer.is_alive():
             raise e  # interrupt from user?
-        raise TimeoutError(message)
+        raise TimeoutError(message) from e
     finally:
         if timer is not None:
             try:

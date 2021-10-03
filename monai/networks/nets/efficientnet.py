@@ -534,7 +534,7 @@ class EfficientNetBN(EfficientNet):
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
 
         # create model and initialize random weights
-        super(EfficientNetBN, self).__init__(
+        super().__init__(
             blocks_args_str=blocks_args_str,
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -594,7 +594,7 @@ class EfficientNetBNFeatures(EfficientNet):
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
 
         # create model and initialize random weights
-        super(EfficientNetBNFeatures, self).__init__(
+        super().__init__(
             blocks_args_str=blocks_args_str,
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -677,7 +677,7 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
         output: output tensor after applying drop connection.
     """
     if p < 0.0 or p > 1.0:
-        raise ValueError("p must be in range of [0, 1], found {}".format(p))
+        raise ValueError(f"p must be in range of [0, 1], found {p}")
 
     # eval mode: drop_connect is switched off - so return input without modifying
     if not training:
@@ -708,7 +708,7 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool, adv_prop: bool
         arch = arch.split("efficientnet-")[-1] + "-ap"
     model_url = look_up_option(arch, url_map, None)
     if model_url is None:
-        print("pretrained weights of {} is not provided".format(arch))
+        print(f"pretrained weights of {arch} is not provided")
     else:
         # load state dict from url
         model_url = url_map[arch]
@@ -852,7 +852,7 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
     if isinstance(stride, tuple):
         all_strides_equal = all(stride[0] == s for s in stride)
         if not all_strides_equal:
-            raise ValueError("unequal strides are not possible, got {}".format(stride))
+            raise ValueError(f"unequal strides are not possible, got {stride}")
 
         stride = stride[0]
 
