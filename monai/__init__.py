@@ -33,7 +33,7 @@ if not (sys.version_info.major == PY_REQUIRED_MAJOR and sys.version_info.minor >
         ),
     )
 
-from .utils.module import load_submodules  # noqa: E402
+from .utils.module import load_submodules
 
 # handlers_* have some external decorators the users may not have installed
 # *.so files and folder "_C" may not exist when the cpp extensions are not compiled
