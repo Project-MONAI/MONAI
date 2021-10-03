@@ -386,6 +386,7 @@ class ScaleIntensity(Transform):
         minv: Optional[float] = 0.0,
         maxv: Optional[float] = 1.0,
         factor: Optional[float] = None,
+        channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
     ) -> None:
         """
@@ -394,11 +395,14 @@ class ScaleIntensity(Transform):
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
                 this parameter, please set `minv` and `maxv` into None.
+            channel_wise: if True, scale on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
             dtype: output data type, defaults to float32.
         """
         self.minv = minv
         self.maxv = maxv
         self.factor = factor
+        self.channel_wise = channel_wise
         self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -410,11 +414,15 @@ class ScaleIntensity(Transform):
 
         """
         if self.minv is not None and self.maxv is not None:
-            return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
+            if self.channel_wise:
+                out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
+                return torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
+            else:
+                return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
         if self.factor is not None:
-            out = img * (1 + self.factor)
-            out, *_ = convert_data_type(out, dtype=self.dtype)
-            return out
+            ret = img * (1 + self.factor)
+            ret, *_ = convert_data_type(ret, dtype=self.dtype)
+            return ret
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
