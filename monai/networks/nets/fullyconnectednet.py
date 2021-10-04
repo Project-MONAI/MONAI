@@ -30,8 +30,8 @@ def _get_adn_layer(
 
 class FullyConnectedNet(nn.Sequential):
     """
-    Simple full-connected layer neural network composed of a sequence of linear layers with PReLU activation and 
-    dropout.  The network accepts input with `in_channels` channels, has output with `out_channels` channels, and 
+    Simple full-connected layer neural network composed of a sequence of linear layers with PReLU activation and
+    dropout.  The network accepts input with `in_channels` channels, has output with `out_channels` channels, and
     hidden layer output channels given in `hidden_channels`. If `bias` is True then linear units have a bias term.
 
     Args:
@@ -68,9 +68,9 @@ class FullyConnectedNet(nn.Sequential):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.hidden_channels = list(hidden_channels)
-        self.act=act
-        self.dropout=dropout
-        self.adn_ordering=adn_ordering
+        self.act = act
+        self.dropout = dropout
+        self.adn_ordering = adn_ordering
 
         self.add_module("flatten", nn.Flatten())
 
@@ -82,15 +82,17 @@ class FullyConnectedNet(nn.Sequential):
         self.add_module("output", nn.Linear(prev_channels, out_channels, bias))
 
     def _get_layer(self, in_channels: int, out_channels: int, bias: bool) -> nn.Sequential:
-        seq = nn.Sequential(nn.Linear(in_channels, out_channels, bias),_get_adn_layer(self.act, self.dropout, self.adn_ordering))
+        seq = nn.Sequential(
+            nn.Linear(in_channels, out_channels, bias), _get_adn_layer(self.act, self.dropout, self.adn_ordering)
+        )
         return seq
 
 
 class VarFullyConnectedNet(nn.Module):
     """
-    Variational fully-connected network. This is composed of an encode layer, reparameterization layer, and then a 
+    Variational fully-connected network. This is composed of an encode layer, reparameterization layer, and then a
     decode layer.
-    
+
     Args:
         in_channels: number of input channels.
         out_channels: number of output channels.
@@ -100,7 +102,7 @@ class VarFullyConnectedNet(nn.Module):
         dropout: dropout ratio. Defaults to no dropout.
         act: activation type and arguments. Defaults to PReLU.
         bias: whether to have a bias term in linear units. Defaults to True.
-        adn_ordering: order of operations in :py:class:`monai.networks.blocks.ADN`.  
+        adn_ordering: order of operations in :py:class:`monai.networks.blocks.ADN`.
 
     Examples::
 

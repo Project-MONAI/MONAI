@@ -31,25 +31,25 @@ class UNet(nn.Module):
     The residual part uses a convolution to change the input dimensions to match the output dimensions
     if this is necessary but will use nn.Identity if not.
     Refer to: https://link.springer.com/chapter/10.1007/978-3-030-12029-0_40.
-    
+
     Each layer of the network has a encode and decode path with a skip connection between them. Data in the encode path
-    is downsampled using strided convolutions (if `strides` is given values greater than 1) and in the decode path 
+    is downsampled using strided convolutions (if `strides` is given values greater than 1) and in the decode path
     upsampled using strided transpose convolutions. These down or up sampling operations occur at the beginning of each
-    block rather than afterwards as is typical in UNet implementations. 
-    
+    block rather than afterwards as is typical in UNet implementations.
+
     To further explain this consider the first example network given below. This network has 3 layers with strides
     of 2 for each of the middle layers (the last layer is the bottom connection which does not down/up sample). Input
     data to this network is immediately reduced in the spatial dimensions by a factor of 2 by the first convolution of
     the residual unit defining the first layer of the encode part. The last layer of the decode part will upsample its
     input (data from the previous layer concatenated with data from the skip connection) in the first convolution. this
-    ensures the final output of the network has the same shape as the input. 
-    
-    Padding values for the convolutions are chosen to ensure output sizes are even divisors/multiples of the input 
+    ensures the final output of the network has the same shape as the input.
+
+    Padding values for the convolutions are chosen to ensure output sizes are even divisors/multiples of the input
     sizes if the `strides` value for a layer is a factor of the input sizes. A typical case is to use `strides` values
     of 2 and inputs that are multiples of powers of 2. An input can thus be downsampled evenly however many times its
     dimensions can be divided by 2, so for the example network inputs would have to have dimensions that are mutliples
     of 4. In the second example network given below the input to the bottom layer will have shape (1, 64, 15, 15) for
-    an input of shape (1, 1, 240, 240) demonstrating the input being reduced in size spatially by 2**4. 
+    an input of shape (1, 1, 240, 240) demonstrating the input being reduced in size spatially by 2**4.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -68,9 +68,9 @@ class UNet(nn.Module):
         bias: whether to have a bias term in convolution blocks. Defaults to True.
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
-            
+
     Examples::
-    
+
         from monai.networks.nets import UNet
 
         # 3 layer network with down/upsampling by a factor of 2 at each layer with 2-convolution residual units
@@ -82,7 +82,7 @@ class UNet(nn.Module):
             strides=(2, 2),
             num_res_units=2
         )
-        
+
         # 5 layer network with simple convolution/normalization/dropout/activation blocks defining the layers
         net=UNet(
             spatial_dims=2,
@@ -104,7 +104,7 @@ class UNet(nn.Module):
         Usually, applying `resize`, `pad` or `crop` transforms can help adjust the spatial size of input data.
 
     """
-    
+
     @deprecated_arg(
         name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )

@@ -29,11 +29,11 @@ class Regressor(nn.Module):
     This defines a network for relating large-sized input tensors to small output tensors, ie. regressing large
     values to a prediction. An output of a single dimension can be used as value regression or multi-label
     classification prediction, an output of a single value can be used as a discriminator or critic prediction.
-    
+
     The network is constructed as a sequence of layers, either :py:class:`monai.networks.blocks.Convolution` or
-    :py:class:`monai.networks.blocks.ResidualUnit`, with a final fully-connected layer resizing the output from the 
+    :py:class:`monai.networks.blocks.ResidualUnit`, with a final fully-connected layer resizing the output from the
     blocks to the final size. Each block is defined with a stride value typically used to downsample the input using
-    strided convolutions. In this way each block progressively condenses information from the input into a deep 
+    strided convolutions. In this way each block progressively condenses information from the input into a deep
     representation the final fully-connected layer relates to a final result.
 
     Args:
@@ -47,12 +47,12 @@ class Regressor(nn.Module):
         norm: name or type defining normalization layers
         dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
         bias: boolean stating if convolution layers should have a bias component
-        
+
     Examples::
-    
+
         # infers a 2-value result (eg. a 2D cartesian coordinate) from a 64x64 image
         net = Regressor((1, 64, 64), (2,), (2, 4, 8), (2, 2, 2))
-        
+
     """
 
     def __init__(

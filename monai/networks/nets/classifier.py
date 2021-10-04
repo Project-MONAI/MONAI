@@ -25,7 +25,7 @@ class Classifier(Regressor):
     Defines a classification network from Regressor by specifying the output shape as a single dimensional tensor
     with size equal to the number of classes to predict. The final activation function can also be specified, eg.
     softmax or sigmoid.
-    
+
     Args:
         in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
         classes: integer stating the dimension of the final output tensor
@@ -67,7 +67,7 @@ class Discriminator(Classifier):
     """
     Defines a discriminator network from Classifier with a single output value and sigmoid activation by default. This
     is meant for use with GANs or other applications requiring a generic discriminator network.
-    
+
     Args:
         in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
         channels: tuple of integers stating the output channels of each convolutional layer
@@ -102,7 +102,7 @@ class Critic(Classifier):
     Defines a critic network from Classifier with a single output value and no final activation. The final layer is
     `nn.Flatten` instead of `nn.Linear`, the final result is computed as the mean over the first dimension. This is
     meant to be used with Wasserstein GANs.
-    
+
     Args:
         in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
         channels: tuple of integers stating the output channels of each convolutional layer

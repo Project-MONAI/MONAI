@@ -23,19 +23,19 @@ __all__ = ["AutoEncoder"]
 
 class AutoEncoder(nn.Module):
     """
-    Simple definition of an autoencoder and base class for the architecture implementing 
+    Simple definition of an autoencoder and base class for the architecture implementing
     :py:class:`monai.networks.nets.VarAutoEncoder`. The network is composed of an encode sequence of blocks, followed
     by an intermediary sequence of blocks, and finally a decode sequence of blocks. The encode and decode blocks are
     default :py:class:`monai.networks.blocks.Convolution` instances with the encode blocks having the given stride
     and the decode blocks having transpose convolutions with the same stride. If `num_res_units` is given residual
-    blocks are used instead. 
-    
-    By default the intermediary sequence is empty but if `inter_channels` is given to specify the output channels of 
-    blocks then this will be become a sequence of Convolution blocks or of residual blocks if `num_inter_units` is 
-    given. The optional parameter `inter_dilations` can be used to specify the dilation values of the convolutions in 
-    these blocks, this allows a network to use dilated kernels in this  middle section. Since the intermediary section 
+    blocks are used instead.
+
+    By default the intermediary sequence is empty but if `inter_channels` is given to specify the output channels of
+    blocks then this will be become a sequence of Convolution blocks or of residual blocks if `num_inter_units` is
+    given. The optional parameter `inter_dilations` can be used to specify the dilation values of the convolutions in
+    these blocks, this allows a network to use dilated kernels in this  middle section. Since the intermediary section
     isn't meant to change the size of the output the strides for all these kernels is 1.
-    
+
     Args:
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
@@ -59,11 +59,11 @@ class AutoEncoder(nn.Module):
 
     .. deprecated:: 0.6.0
         ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-    
+
     Examples::
-    
+
         from monai.networks.nets import AutoEncoder
-    
+
         # 3 layers each down/up sampling their inputs by a factor 2 with no intermediate layer
         net = AutoEncoder(
             spatial_dims=2,
@@ -72,8 +72,8 @@ class AutoEncoder(nn.Module):
             channels=(2, 4, 8),
             strides=(2, 2, 2)
         )
-    
-        # 1 layer downsampling by 2, followed by a sequence of residual units with 2 convolutions defined by 
+
+        # 1 layer downsampling by 2, followed by a sequence of residual units with 2 convolutions defined by
         # progressively increasing dilations, then final upsample layer
         net = AutoEncoder(
                 spatial_dims=2,
@@ -85,7 +85,7 @@ class AutoEncoder(nn.Module):
                 inter_dilations=(1, 2, 4),
                 num_inter_units=2
             )
-    
+
     """
 
     @deprecated_arg(
@@ -158,7 +158,7 @@ class AutoEncoder(nn.Module):
     def _get_intermediate_module(self, in_channels: int, num_inter_units: int) -> Tuple[nn.Module, int]:
         """
         Returns the intermediate block of the network which accepts input from the encoder and whose output goes
-        to the decoder. 
+        to the decoder.
         """
         # Define some types
         intermediate: nn.Module
