@@ -17,6 +17,7 @@ import torch.optim as optim
 from parameterized import parameterized
 
 from monai.losses import BendingEnergyLoss, GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
+from tests.utils import SkipIfBeforePyTorchVersion
 
 TEST_CASES = [
     [BendingEnergyLoss, {}, ["pred"]],
@@ -52,6 +53,7 @@ class TestRegLossIntegration(unittest.TestCase):
         torch.backends.cudnn.benchmark = True
 
     @parameterized.expand(TEST_CASES)
+    @SkipIfBeforePyTorchVersion((1, 9))
     def test_convergence(self, loss_type, loss_args, forward_args):
         """
         The goal of this test is to assess if the gradient of the loss function

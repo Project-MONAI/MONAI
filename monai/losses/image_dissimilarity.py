@@ -259,10 +259,10 @@ class GlobalMutualInformationLoss(_Loss):
         # Note that there can still be non-zero bin values in the padded region,
         # it's just that these bins will never be a central bin for the Parzen
         # window.
-        max, min = torch.max(img), torch.min(img)
+        _max, _min = torch.max(img), torch.min(img)
         padding = 2
-        bin_size = (max - min) / (self.num_bins - 2 * padding)
-        norm_min = torch.div(min, bin_size, rounding_mode="floor") - padding
+        bin_size = (_max - _min) / (self.num_bins - 2 * padding)
+        norm_min = torch.div(_min, bin_size, rounding_mode="floor") - padding
 
         # assign bin/window index to each voxel
         window_term = torch.div(img, bin_size) - norm_min  # B[NDHW]
