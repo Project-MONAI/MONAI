@@ -339,7 +339,9 @@ def map_classes_to_indices(
     for c in range(num_classes_):
         label_flat = ravel(any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0))
         label_flat = img_flat & label_flat if img_flat is not None else label_flat
-        indices.append(nonzero(label_flat))
+        # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
+        cls_indices, *_ = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))
+        indices.append(cls_indices)
 
     return indices
 

@@ -819,6 +819,9 @@ class FgBgToIndices(Transform):
 
 
 class ClassesToIndices(Transform):
+
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
+
     def __init__(
         self,
         num_classes: Optional[int] = None,
@@ -845,10 +848,10 @@ class ClassesToIndices(Transform):
 
     def __call__(
         self,
-        label: np.ndarray,
-        image: Optional[np.ndarray] = None,
+        label: NdarrayOrTensor,
+        image: Optional[NdarrayOrTensor] = None,
         output_shape: Optional[Sequence[int]] = None,
-    ) -> List[np.ndarray]:
+    ) -> List[NdarrayOrTensor]:
         """
         Args:
             label: input data to compute the indices of every class.
@@ -857,16 +860,13 @@ class ClassesToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
-        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
-        if image is not None:
-            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
 
         if output_shape is None:
             output_shape = self.output_shape
-        indices: List[np.ndarray]
-        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)  # type: ignore
+        indices: List[NdarrayOrTensor]
+        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         if output_shape is not None:
-            indices = [np.stack([np.unravel_index(i, output_shape) for i in array]) for array in indices]
+            indices = [unravel_indices(cls_indices, output_shape) for cls_indices in indices]
 
         return indices
 
