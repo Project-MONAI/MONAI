@@ -9,6 +9,11 @@ on:
     branches:
       - tutorial-385-test-mmar
 
+concurrency:
+  # automatically cancel the previously triggered workflows when there's a newer version
+  group: mmar-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   cron-load:
     if: github.repository == 'Project-MONAI/MONAI'
