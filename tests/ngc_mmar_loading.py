@@ -12,6 +12,7 @@
 import os
 import unittest
 
+import torch
 from parameterized import parameterized
 
 from monai.apps.mmars import MODEL_DESC, load_from_mmar
@@ -26,7 +27,7 @@ class TestAllDownloadingMMAR(unittest.TestCase):
     @parameterized.expand((item,) for item in MODEL_DESC)
     def test_loading_mmar(self, item):
         pretrained_model = load_from_mmar(item=item, mmar_dir="./", map_location="cpu")
-        print(pretrained_model)
+        self.assertTrue(isinstance(pretrained_model, torch.nn.Modules))
 
     def tearDown(self):
         print(os.listdir(self.test_dir))
