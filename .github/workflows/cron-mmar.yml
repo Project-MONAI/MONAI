@@ -1,0 +1,28 @@
+name: cron-mmar
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # at 02:00 UTC
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  cron-load:
+    if: github.repository == 'Project-MONAI/MONAI'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip wheel
+        python -m pip install -r requirements-dev.txt
+    - name: Loading MMARs
+      run: |
+        # clean up temporary files
+        $(pwd)/runtests.sh --clean
+        # run tests
+        python -m tests.ngc_mmar_loading
