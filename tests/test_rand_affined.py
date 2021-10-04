@@ -209,7 +209,7 @@ class TestRandAffined(unittest.TestCase):
             if "_transforms" in key:
                 continue
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
-            assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
+            assert_allclose(result, expected, rtol=1e-3, atol=1e-3)
 
         g.set_random_state(4)
         res = g(input_data)
