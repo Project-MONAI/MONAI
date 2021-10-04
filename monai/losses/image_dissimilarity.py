@@ -269,7 +269,7 @@ class GlobalMutualInformationLoss(_Loss):
         # make sure the extreme values are in valid (non-padded) bins
         window_term = torch.clamp(window_term, padding, self.num_bins - padding - 1)  # B[NDHW]
         window_term = window_term.reshape(window_term.shape[0], -1, 1)  # (batch, num_sample, 1)
-        bins = torch.arange(self.num_bins).reshape(1, 1, -1)  # (1, 1, num_bins)
+        bins = torch.arange(self.num_bins, device=window_term.device).reshape(1, 1, -1)  # (1, 1, num_bins)
         sample_bin_matrix = torch.abs(bins - window_term)  # (batch, num_sample, num_bins)
 
         # b-spleen kernel
