@@ -37,6 +37,19 @@ class TestScaleIntensityd(NumpyImageTestCase2D):
             expected = (self.imt * (1 + 0.1)).astype(np.float32)
             assert_allclose(result[key], p(expected))
 
+    def test_channel_wise(self):
+        key = "img"
+        for p in TEST_NDARRAYS:
+            scaler = ScaleIntensityd(keys=[key], minv=1.0, maxv=2.0, channel_wise=True)
+            data = p(self.imt)
+            result = scaler({key: data})
+            mina = self.imt.min()
+            maxa = self.imt.max()
+            for i, c in enumerate(data):
+                norm = (c - mina) / (maxa - mina)
+                expected = p((norm * (2.0 - 1.0)) + 1.0)
+                assert_allclose(result[key][i], expected, type_test=False, rtol=1e-7, atol=0)
+
 
 if __name__ == "__main__":
     unittest.main()
