@@ -1165,6 +1165,8 @@ class ClassesToIndicesd(MapTransform):
 
     """
 
+    backend = ClassesToIndices.backend
+
     def __init__(
         self,
         keys: KeysCollection,
