@@ -99,7 +99,6 @@ class TestRegLossIntegration(unittest.TestCase):
             loss_input = {"pred": output, "target": target}
 
             loss_val = loss(**{k: loss_input[k] for k in forward_args})
-            print(loss_val)
             if it == 0:
                 init_loss = loss_val
 
