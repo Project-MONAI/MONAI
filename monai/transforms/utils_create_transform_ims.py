@@ -246,10 +246,9 @@ def pre_process_data(data, ndim, is_map, is_post):
 
 
 def get_2d_slice(image, view, is_label):
-    """Remove channel and get the central slice of a 3D volume. If is already 2d, only remove channel.
+    """If image is 3d, get the central slice. If is already 2d, return as-is.
     If image is label, set 0 to np.nan.
     """
-    image = image[0]  # remove channel
     if image.ndim == 2:
         out = image
     else:
@@ -280,22 +279,24 @@ def get_stacked_before_after(before, after, is_label=False):
     return [get_stacked_2d_ims(d, is_label) for d in (before, after)]
 
 
-def save_image(images, labels, filename, transform_name, transform_args, im_sizes, colorbar=False):
+def save_image(images, labels, filename, transform_name, transform_args, shapes, colorbar=False):
     """Save image to file, ensuring there's no whitespace around the edge."""
     plt.rcParams.update({"font.family": "monospace"})
     plt.style.use("dark_background")
-    fig, axes = plt.subplots(len(images), len(images[0]))
-    for row in range(len(images)):
+    nrow = len(images)  # before and after (should always be 2)
+    ncol = len(images[0])  # num orthogonal views (either 1 or 3)
+    fig, axes = plt.subplots(nrow, ncol)
+    for row in range(nrow):
         vmin = min(i.min() for i in images[row])
         vmax = max(i.max() for i in images[row])
-        for col in range(len(images[0])):
-            ax = axes[row][col]
+        for col in range(ncol):
+            ax = axes[row][col] if ncol > 1 else axes[row]
             imshow = ax.imshow(images[row][col], cmap="gray", vmin=vmin, vmax=vmax)
             if colorbar and col == len(images[0]) - 1:
                 plt.colorbar(imshow, ax=ax)
             if col == 0:
                 y_label = "After" if row else "Before"
-                y_label += ("\n" + im_sizes[row]) if im_sizes[0] != im_sizes[1] else ""
+                y_label += ("\n" + shapes[row]) if shapes[0] != shapes[1] else ""
                 ax.set_ylabel(y_label)
             ax.set_xticks([])
             ax.set_yticks([])
@@ -326,28 +327,47 @@ def save_image(images, labels, filename, transform_name, transform_args, im_size
     plt.close(fig)
 
 
-def get_image(data, is_map, key):
+def get_images(data, is_label=False):
     """Get image. If is dictionary, extract key. If is list, stack. If both dictionary and list, do both.
     Also return the image size as string to be used im the imshow. If it's a list, return `N x (H,W,D)`.
     """
-    # if list, extract.
+    # If not a list, convert
     if not isinstance(data, list):
-        data = data[key] if is_map else data
-        im_size = str(data.shape[1:])
+        data = [data]
+    key = CommonKeys.LABEL if is_label else CommonKeys.IMAGE
+    is_map = isinstance(data[0], dict)
+    # length of the list will be equal to number of samples produced. This will be 1 except for transforms that
+    # produce `num_samples`.
+    data = [d[key] if is_map else d for d in data]
+    data = [d[0] for d in data]  # remove channel component
 
-    # output is sometimes a list (e.g., RandSpatialCropSamples)
-    if isinstance(data, list):
-        data = [d[key] if is_map else d for d in data]
-        im_size = str(len(data)) + " x " + str(data[0].shape[1:])
-        # if we can stack in square or cube (e.g., there are 4 or 8 examples), then do that
-        log2 = np.log2(len(data))
-        if log2 % 1 == 0:
-            for i in range(int(log2)):
-                data = [np.concatenate(data[j : j + 2], axis=i + 1) for j in range(0, len(data), 2)]
-            data = data[0]
-        else:
-            data = np.hstack(data)
-    return data, im_size
+    # for each sample, create a list of the orthogonal views. If image is 2d, length will be 1. If 3d, there
+    # will be three orthogonal views
+    num_samples = len(data)
+    num_orthog_views = 3 if data[0].ndim == 3 else 1
+    shape_str = (f"{num_samples} x " if num_samples > 1 else "") + str(data[0].shape)
+    for i in range(num_samples):
+        data[i] = [get_2d_slice(data[i], view, is_label) for view in range(num_orthog_views)]
+
+    # we might need to panel the images. this happens if a transform produces e.g. 4 output images. In this case, we
+    # create a 2-by-2 grid from them. Output will be a list containing n_orthog_views, each element being either the image
+    # (if num_samples is 1) or the panelled image.
+    nrows = int(np.floor(num_samples ** 0.5))
+    out = []
+    if num_samples == 1:
+        out = data[0]
+    else:
+        for view in range(num_orthog_views):
+            result = np.asarray([d[view] for d in data])
+            nindex, height, width = result.shape
+            ncols = nindex // nrows
+            # only implemented for square number of images (e.g. 4 images goes to a 2-by-2 panel)
+            if nindex != nrows * ncols:
+                raise NotImplementedError
+            # want result.shape = (height*nrows, width*ncols), have to be careful about striding
+            result = result.reshape(nrows, ncols, height, width).swapaxes(1, 2).reshape(height * nrows, width * ncols)
+            out.append(result)
+    return out, shape_str
 
 
 def create_transform_im(
@@ -384,18 +404,18 @@ def create_transform_im(
 
     data_tr = transform(deepcopy(data_in))
 
-    image_before, im_before_shape = get_image(data_in, is_map, CommonKeys.IMAGE)
-    image_after, im_after_shape = get_image(data_tr, is_map, CommonKeys.IMAGE)
+    images_before, before_shape = get_images(data_in)
+    images_after, after_shape = get_images(data_tr)
+    images = (images_before, images_after)
+    shapes = (before_shape, after_shape)
 
-    im_sizes = (im_before_shape, im_after_shape)
-    stacked_images = get_stacked_before_after(image_before, image_after)
-    stacked_labels = None
+    labels = None
     if is_map:
-        label_before, _ = get_image(data_in, is_map, CommonKeys.LABEL)
-        label_after, _ = get_image(data_tr, is_map, CommonKeys.LABEL)
-        stacked_labels = get_stacked_before_after(label_before, label_after, is_label=True)
+        labels_before, *_ = get_images(data_in, is_label=True)
+        labels_after, *_ = get_images(data_tr, is_label=True)
+        labels = (labels_before, labels_after)
 
-    save_image(stacked_images, stacked_labels, out_file, transform_name, transform_args, im_sizes, colorbar)
+    save_image(images, labels, out_file, transform_name, transform_args, shapes, colorbar)
 
     if update_doc:
         base_dir = pathlib.Path(__file__).parent.parent.parent
@@ -571,29 +591,31 @@ if __name__ == "__main__":
     create_transform_im(CenterSpatialCropd, dict(keys=keys, roi_size=(100, 100, 100)), data)
     create_transform_im(RandSpatialCrop, dict(roi_size=(100, 100, 100), random_size=False), data)
     create_transform_im(RandSpatialCropd, dict(keys=keys, roi_size=(100, 100, 100), random_size=False), data)
-    create_transform_im(RandSpatialCropSamples, dict(num_samples=8, roi_size=(100, 100, 100), random_size=False), data)
+    create_transform_im(RandSpatialCropSamples, dict(num_samples=4, roi_size=(100, 100, 100), random_size=False), data)
     create_transform_im(
-        RandSpatialCropSamplesd, dict(keys=keys, num_samples=8, roi_size=(100, 100, 100), random_size=False), data
+        RandSpatialCropSamplesd, dict(keys=keys, num_samples=4, roi_size=(100, 100, 100), random_size=False), data
     )
     create_transform_im(
-        RandWeightedCrop, dict(spatial_size=(100, 100, 100), num_samples=8, weight_map=data[CommonKeys.IMAGE] > 0), data
+        RandWeightedCrop, dict(spatial_size=(100, 100, 100), num_samples=4, weight_map=data[CommonKeys.IMAGE] > 0), data
     )
     create_transform_im(
-        RandWeightedCropd, dict(keys=keys, spatial_size=(100, 100, 100), num_samples=8, w_key=CommonKeys.IMAGE), data
+        RandWeightedCropd, dict(keys=keys, spatial_size=(100, 100, 100), num_samples=4, w_key=CommonKeys.IMAGE), data
     )
     create_transform_im(
         RandCropByPosNegLabel,
-        dict(spatial_size=(100, 100, 100), label=data[CommonKeys.LABEL], neg=0, num_samples=8),
+        dict(spatial_size=(100, 100, 100), label=data[CommonKeys.LABEL], neg=0, num_samples=4),
         data,
     )
     create_transform_im(
         RandCropByPosNegLabeld,
-        dict(keys=keys, spatial_size=(100, 100, 100), label_key=CommonKeys.LABEL, neg=0, num_samples=8),
+        dict(keys=keys, spatial_size=(100, 100, 100), label_key=CommonKeys.LABEL, neg=0, num_samples=4),
         data,
     )
     create_transform_im(
         RandCropByLabelClasses,
-        dict(spatial_size=(100, 100, 100), label=data[CommonKeys.LABEL], num_classes=2, ratios=[0, 1], num_samples=8),
+        dict(
+            spatial_size=(100, 100, 100), label=data[CommonKeys.LABEL] > 0, num_classes=2, ratios=[0, 1], num_samples=4
+        ),
         data,
     )
     create_transform_im(
@@ -604,7 +626,7 @@ if __name__ == "__main__":
             label_key=CommonKeys.LABEL,
             num_classes=2,
             ratios=[0, 1],
-            num_samples=8,
+            num_samples=4,
         ),
         data,
     )
