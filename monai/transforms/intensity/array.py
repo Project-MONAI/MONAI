@@ -1320,7 +1320,7 @@ class GibbsNoise(Transform, Fourier):
         # build and apply mask
         k = self._apply_mask(k)
         # map back
-        img, *_ = convert_to_dst_type(self.inv_shift_fourier(k, n_dims), dst=img)
+        img = self.inv_shift_fourier(k, n_dims)
 
         return img
 
