@@ -67,7 +67,7 @@ class FocalLoss(_Loss):
                 fl(pred, grnd)
 
         """
-        super(FocalLoss, self).__init__(reduction=LossReduction(reduction).value)
+        super().__init__(reduction=LossReduction(reduction).value)
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.gamma = gamma
