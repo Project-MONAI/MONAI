@@ -95,6 +95,7 @@ class Spacing(Transform):
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
+        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -127,6 +128,7 @@ class Spacing(Transform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            image_only: return just the image or the image, the old affine and new affine. Default is `False`.
 
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
@@ -135,6 +137,7 @@ class Spacing(Transform):
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
+        self.image_only = image_only
 
     def __call__(
         self,
@@ -145,7 +148,7 @@ class Spacing(Transform):
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
         output_spatial_shape: Optional[np.ndarray] = None,
-    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]:
+    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
         """
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
@@ -221,6 +224,8 @@ class Spacing(Transform):
             output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=torch.float32)
             new_affine = to_affine_nd(affine, new_affine)  # type: ignore
 
+        if self.image_only:
+            return output_data
         return output_data, affine, new_affine
 
 
@@ -234,6 +239,7 @@ class Orientation(Transform):
         axcodes: Optional[str] = None,
         as_closest_canonical: bool = False,
         labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
+        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -246,6 +252,7 @@ class Orientation(Transform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+            image_only: if True return only the image volume, otherwise return (image, affine, new_affine).
 
         Raises:
             ValueError: When ``axcodes=None`` and ``as_closest_canonical=True``. Incompatible values.
@@ -260,10 +267,11 @@ class Orientation(Transform):
         self.axcodes = axcodes
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
+        self.image_only = image_only
 
     def __call__(
         self, data_array: np.ndarray, affine: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """
         original orientation of `data_array` is defined by `affine`.
 
@@ -276,7 +284,8 @@ class Orientation(Transform):
             ValueError: When ``axcodes`` spatiality differs from ``data_array``.
 
         Returns:
-            data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
+            data_array [reoriented in `self.axcodes`] if `self.image_only`, else
+            (data_array [reoriented in `self.axcodes`], original axcodes, current axcodes).
 
         """
         data_array, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
@@ -308,6 +317,8 @@ class Orientation(Transform):
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
         new_affine = to_affine_nd(affine, new_affine)
 
+        if self.image_only:
+            return data_array
         return data_array, affine, new_affine
 
 
