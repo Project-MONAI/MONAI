@@ -41,7 +41,6 @@ from monai.utils import (
 )
 from monai.utils.deprecated import deprecated_arg
 from monai.utils.enums import TransformBackends
-from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_to_tensor, get_equivalent_dtype
 
 __all__ = [
@@ -1493,11 +1492,10 @@ class KSpaceSpikeNoise(Transform, Fourier):
 
         n_dims = len(img.shape[1:])
 
-        lib = np if isinstance(img, np.ndarray) else torch
-
         # FT
         k = self.shift_fourier(img, n_dims)
-        log_abs = lib.log(lib.absolute(k) + 1e-10)  # type: ignore
+        lib = np if isinstance(k, np.ndarray) else torch
+        log_abs = lib.log(lib.abs(k) + 1e-10)  # type: ignore
         phase = lib.angle(k)  # type: ignore
 
         k_intensity = self.k_intensity
@@ -1512,13 +1510,8 @@ class KSpaceSpikeNoise(Transform, Fourier):
         else:
             self._set_spike(log_abs, self.loc, k_intensity)
         # map back
-        # complex exponential not implemented for older pytorch
-        if isinstance(phase, torch.Tensor) and not is_module_ver_at_least(torch, (1, 6, 0)):
-            phase = phase.cpu()
-            k = torch.exp(log_abs) * torch.exp(1j * phase.cpu()).to(log_abs.device)
-        else:
-            k = lib.exp(log_abs) * lib.exp(1j * phase)  # type: ignore
-        img = self.inv_shift_fourier(k, n_dims)
+        k = lib.exp(log_abs) * lib.exp(1j * phase)  # type: ignore
+        img, *_ = convert_to_dst_type(self.inv_shift_fourier(k, n_dims), dst=img)
 
         return img
 
@@ -1695,7 +1688,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         n_dims = len(img.shape[1:])
 
         k = self.shift_fourier(img, n_dims)
-        mod = torch if isinstance(img, torch.Tensor) else np
+        mod = torch if isinstance(k, torch.Tensor) else np
         log_abs = mod.log(mod.absolute(k) + 1e-10)  # type: ignore
         shifted_means = mod.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5  # type: ignore
         return tuple((i * 0.95, i * 1.1) for i in shifted_means)
