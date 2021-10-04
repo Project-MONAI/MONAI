@@ -141,7 +141,7 @@ class TestRandAffine(unittest.TestCase):
         result = g(**input_data)
         if input_param.get("cache_grid", False):
             self.assertTrue(g._cached_grid is not None)
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        assert_allclose(result, expected_val, rtol=1e-3, atol=1e-3)
 
     def test_ill_cache(self):
         with self.assertWarns(UserWarning):

@@ -95,7 +95,7 @@ class TestToNormAffine(unittest.TestCase):
             affine = torch.as_tensor(affine, device=torch.device("cuda:0"), dtype=torch.float32)
             new_affine = to_norm_affine(affine, src_size, dst_size, align_corners)
             new_affine = new_affine.detach().cpu().numpy()
-            np.testing.assert_allclose(new_affine, expected, atol=1e-4)
+            np.testing.assert_allclose(new_affine, expected, atol=1e-3, rtol=1e-3)
 
     @parameterized.expand(TEST_ILL_TO_NORM_AFFINE_CASES)
     def test_to_norm_affine_ill(self, affine, src_size, dst_size, align_corners):
@@ -113,7 +113,7 @@ class TestAffineTransform(unittest.TestCase):
         out = AffineTransform()(image, affine)
         out = out.detach().cpu().numpy()
         expected = [[[[0, 4, 1, 3], [0, 7, 6, 8], [0, 3, 5, 3]]]]
-        np.testing.assert_allclose(out, expected, atol=1e-5)
+        np.testing.assert_allclose(out, expected, atol=1e-5, rtol=1e-3)
 
     def test_affine_shift_1(self):
         affine = torch.as_tensor([[1.0, 0.0, -1.0], [0.0, 1.0, -1.0]])
@@ -121,7 +121,7 @@ class TestAffineTransform(unittest.TestCase):
         out = AffineTransform()(image, affine)
         out = out.detach().cpu().numpy()
         expected = [[[[0, 0, 0, 0], [0, 4, 1, 3], [0, 7, 6, 8]]]]
-        np.testing.assert_allclose(out, expected, atol=1e-5)
+        np.testing.assert_allclose(out, expected, atol=1e-5, rtol=1e-3)
 
     def test_affine_shift_2(self):
         affine = torch.as_tensor([[1.0, 0.0, -1.0], [0.0, 1.0, 0.0]])
@@ -129,28 +129,28 @@ class TestAffineTransform(unittest.TestCase):
         out = AffineTransform()(image, affine)
         out = out.detach().cpu().numpy()
         expected = [[[[0, 0, 0, 0], [4, 1, 3, 2], [7, 6, 8, 5]]]]
-        np.testing.assert_allclose(out, expected, atol=1e-5)
+        np.testing.assert_allclose(out, expected, atol=1e-5, rtol=1e-3)
 
     def test_zoom(self):
         affine = torch.as_tensor([[1.0, 0.0, 0.0], [0.0, 2.0, 0.0]])
         image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform((3, 2))(image, affine)
         expected = [[[[1, 3], [5, 7], [9, 11]]]]
-        np.testing.assert_allclose(out, expected, atol=1e-5)
+        np.testing.assert_allclose(out, expected, atol=1e-5, rtol=1e-3)
 
     def test_zoom_1(self):
         affine = torch.as_tensor([[2.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
         image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform()(image, affine, (1, 4))
         expected = [[[[1, 2, 3, 4]]]]
-        np.testing.assert_allclose(out, expected, atol=1e-5)
+        np.testing.assert_allclose(out, expected, atol=1e-3)
 
     def test_zoom_2(self):
         affine = torch.as_tensor([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0]], dtype=torch.float32)
         image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform((1, 2))(image, affine)
         expected = [[[[1, 3]]]]
-        np.testing.assert_allclose(out, expected, atol=1e-5)
+        np.testing.assert_allclose(out, expected, atol=1e-3)
 
     def test_affine_transform_minimum(self):
         t = np.pi / 3
@@ -169,7 +169,7 @@ class TestAffineTransform(unittest.TestCase):
                 ]
             ]
         ]
-        np.testing.assert_allclose(out, expected, atol=1e-5)
+        np.testing.assert_allclose(out, expected, atol=1e-3)
 
     def test_affine_transform_2d(self):
         t = np.pi / 3
@@ -188,7 +188,7 @@ class TestAffineTransform(unittest.TestCase):
                 ]
             ]
         ]
-        np.testing.assert_allclose(out, expected, atol=1e-5)
+        np.testing.assert_allclose(out, expected, atol=1e-3)
 
         if torch.cuda.is_available():
             affine = torch.as_tensor(affine, device=torch.device("cuda:0"), dtype=torch.float32)
@@ -205,7 +205,7 @@ class TestAffineTransform(unittest.TestCase):
                     ]
                 ]
             ]
-            np.testing.assert_allclose(out, expected, atol=1e-4)
+            np.testing.assert_allclose(out, expected, atol=1e-3)
 
     def test_affine_transform_3d(self):
         t = np.pi / 3
@@ -231,7 +231,7 @@ class TestAffineTransform(unittest.TestCase):
                 ]
             ],
         ]
-        np.testing.assert_allclose(out, expected, atol=1e-4)
+        np.testing.assert_allclose(out, expected, atol=1e-3)
 
         if torch.cuda.is_available():
             affine = torch.as_tensor(affine, device=torch.device("cuda:0"), dtype=torch.float32)
@@ -255,7 +255,7 @@ class TestAffineTransform(unittest.TestCase):
                     ]
                 ],
             ]
-            np.testing.assert_allclose(out, expected, atol=1e-4)
+            np.testing.assert_allclose(out, expected, atol=1e-3)
 
     def test_ill_affine_transform(self):
         with self.assertRaises(ValueError):  # image too small
