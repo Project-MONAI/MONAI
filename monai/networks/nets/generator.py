@@ -25,13 +25,35 @@ class Generator(nn.Module):
     """
     Defines a simple generator network accepting a latent vector and through a sequence of convolution layers
     constructs an output tensor of greater size and high dimensionality. The method `_get_layer` is used to
-    create each of these layers, override this method to define layers beyond the default Convolution or
-    ResidualUnit layers.
+    create each of these layers, override this method to define layers beyond the default 
+    :py:class:`monai.networks.blocks.Convolution` or :py:class:`monai.networks.blocks.ResidualUnit` layers.
+    
+    The layers are constructed using the values in the `channels` and `strides` arguments, the number being defined by 
+    the length of these (which must match). Input is first passed through a :py:class:`torch.nn.Linear` layer to 
+    convert the input vector to an image tensor with dimensions `start_shape`. This passes through the convolution 
+    layers and is progressively upsampled if the `strides` valus are greater than 1 using transpose convolutions. The
+    size of the final output is defined by the `start_shape` dimension and the amount of upsampling done through 
+    strides. In the default definition the size of the output's spatial dimensions will be that of `start_shape` 
+    multiplied by the product of `strides`, thus the example network below upsamples an starting size of (64, 8, 8)
+    to (1, 64, 64) since its `strides` are (2, 2, 2).
 
-    For example, a generator accepting a latent vector if shape (42,24) and producing an output volume of
-    shape (1,64,64) can be constructed as:
+    Args:
+        latent_shape: tuple of integers stating the dimension of the input latent vector (minus batch dimension)
+        start_shape: tuple of integers stating the dimension of the tensor to pass to convolution subnetwork
+        channels: tuple of integers stating the output channels of each convolutional layer
+        strides: tuple of integers stating the stride (upscale factor) of each convolutional layer
+        kernel_size: integer or tuple of integers stating size of convolutional kernels
+        num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
+        act: name or type defining activation layers
+        norm: name or type defining normalization layers
+        dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
+        bias: boolean stating if convolution layers should have a bias component
 
-        gen = Generator((42, 24), (64, 8, 8), (32, 16, 1), (2, 2, 2))
+    Examples::
+
+        # 3 layers, latent input vector of shape (42, 24), output volume of shape (1, 64, 64)
+        net = Generator((42, 24), (64, 8, 8), (32, 16, 1), (2, 2, 2))
+        
     """
 
     def __init__(
@@ -47,26 +69,6 @@ class Generator(nn.Module):
         dropout: Optional[float] = None,
         bias: bool = True,
     ) -> None:
-        """
-        Construct the generator network with the number of layers defined by `channels` and `strides`. In the
-        forward pass a `nn.Linear` layer relates the input latent vector to a tensor of dimensions `start_shape`,
-        this is then fed forward through the sequence of convolutional layers. The number of layers is defined by
-        the length of `channels` and `strides` which must match, each layer having the number of output channels
-        given in `channels` and an upsample factor given in `strides` (ie. a transpose convolution with that stride
-        size).
-
-        Args:
-            latent_shape: tuple of integers stating the dimension of the input latent vector (minus batch dimension)
-            start_shape: tuple of integers stating the dimension of the tensor to pass to convolution subnetwork
-            channels: tuple of integers stating the output channels of each convolutional layer
-            strides: tuple of integers stating the stride (upscale factor) of each convolutional layer
-            kernel_size: integer or tuple of integers stating size of convolutional kernels
-            num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
-            act: name or type defining activation layers
-            norm: name or type defining normalization layers
-            dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
-            bias: boolean stating if convolution layers should have a bias component
-        """
         super().__init__()
 
         self.in_channels, *self.start_shape = ensure_tuple(start_shape)

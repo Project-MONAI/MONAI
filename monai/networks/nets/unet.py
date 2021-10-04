@@ -38,7 +38,7 @@ class UNet(nn.Module):
     block rather than afterwards as is typical in UNet implementations. 
     
     To further explain this consider the first example network given below. This network has 3 layers with strides
-    of 2 for each of the middle layers (the last layer is the bottom connect which does not down or up sample). Input
+    of 2 for each of the middle layers (the last layer is the bottom connection which does not down/up sample). Input
     data to this network is immediately reduced in the spatial dimensions by a factor of 2 by the first convolution of
     the residual unit defining the first layer of the encode part. The last layer of the decode part will upsample its
     input (data from the previous layer concatenated with data from the skip connection) in the first convolution. this
