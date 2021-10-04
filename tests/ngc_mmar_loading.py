@@ -27,6 +27,7 @@ class TestAllDownloadingMMAR(unittest.TestCase):
     @parameterized.expand((item,) for item in MODEL_DESC)
     def test_loading_mmar(self, item):
         pretrained_model = load_from_mmar(item=item, mmar_dir="./", map_location="cpu")
+        print(pretrained_model)
 
     def tearDown(self):
         print(os.listdir(self.test_dir))
