@@ -1276,8 +1276,8 @@ class Fourier:
             if hasattr(torch.fft, "fftshift"):
                 k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
             else:
+                # if using old PyTorch, will convert to numpy array and return
                 k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
-                k, *_ = convert_to_dst_type(k, x)
         else:
             k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
         return k
@@ -1309,8 +1309,8 @@ class Fourier:
             if hasattr(torch.fft, "ifftshift"):
                 out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
             else:
+                # if using old PyTorch, will convert to numpy array and return
                 out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
-                out, *_ = convert_to_dst_type(out, k)
         else:
             out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
         return out
