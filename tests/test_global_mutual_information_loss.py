@@ -46,6 +46,31 @@ TEST_CASES = [
         -1.083999,
     ],
     [
+        {"kernel_type": "b-spline"},
+        {
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3),
+        },
+        -1.0986018,
+    ],
+    [
+        {"kernel_type": "b-spline"},
+        {
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3)
+            ** 2,
+        },
+        -1.09861,
+    ],
+    [
         {},
         {
             "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None].expand(1, 3, 3, 3).div(3),

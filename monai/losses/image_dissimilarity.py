@@ -16,6 +16,7 @@ from torch.nn.modules.loss import _Loss
 
 from monai.networks.layers import gaussian_1d, separable_filtering
 from monai.utils import LossReduction, deprecated_arg
+from monai.utils.module import look_up_option
 
 
 def make_rectangular_kernel(kernel_size: int) -> torch.Tensor:
@@ -92,18 +93,15 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         if ndim is not None:
             spatial_dims = ndim
         self.ndim = spatial_dims
-        if self.ndim not in [1, 2, 3]:
+        if self.ndim not in {1, 2, 3}:
             raise ValueError(f"Unsupported ndim: {self.ndim}-d, only 1-d, 2-d, and 3-d inputs are supported")
 
         self.kernel_size = kernel_size
         if self.kernel_size % 2 == 0:
             raise ValueError(f"kernel_size must be odd, got {self.kernel_size}")
 
-        if kernel_type not in kernel_dict.keys():
-            raise ValueError(
-                f'Unsupported kernel_type: {kernel_type}, available options are ["rectangular", "triangular", "gaussian"].'
-            )
-        self.kernel = kernel_dict[kernel_type](self.kernel_size)
+        _kernel = look_up_option(kernel_type, kernel_dict)
+        self.kernel = _kernel(self.kernel_size)
         self.kernel_vol = self.get_kernel_vol()
 
         self.smooth_nr = float(smooth_nr)
@@ -186,15 +184,15 @@ class GlobalMutualInformationLoss(_Loss):
     ) -> None:
         """
         Args:
-            kernel_type: {``"gaussian"``, ``"spline"``}
-                - ``"gaussian"``: adapted from DeepReg
-                Reference: https://dspace.mit.edu/handle/1721.1/123142, Section 3.1, equation 3.1-3.5, Algorithm 1
-                - ``"spline"``: based on the method of Mattes et al [1,2] and adapted from ITK
+            kernel_type: {``"gaussian"``, ``"b-spline"``}
+                ``"gaussian"``: adapted from DeepReg
+                Reference: https://dspace.mit.edu/handle/1721.1/123142, Section 3.1, equation 3.1-3.5, Algorithm 1.
+                ``"b-spline"``: based on the method of Mattes et al [1,2] and adapted from ITK
                 References:
-                 [1] "Nonrigid multimodality image registration"
+                  [1] "Nonrigid multimodality image registration"
                       D. Mattes, D. R. Haynor, H. Vesselle, T. Lewellen and W. Eubank
                       Medical Imaging 2001: Image Processing, 2001, pp. 1609-1620.
-                 [2] "PET-CT Image Registration in the Chest Using Free-form Deformations"
+                  [2] "PET-CT Image Registration in the Chest Using Free-form Deformations"
                       D. Mattes, D. R. Haynor, H. Vesselle, T. Lewellen and W. Eubank
                       IEEE Transactions in Medical Imaging. Vol.22, No.1,
                       January 2003. pp.120-128.
@@ -215,8 +213,7 @@ class GlobalMutualInformationLoss(_Loss):
             raise ValueError("num_bins must > 0, got {num_bins}")
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
-        if kernel_type not in ["gaussian", "b-spline"]:
-            raise ValueError(f'Unsupported kernel_type: {kernel_type}, available options are ["gaussian", "b-spline].')
+        self.kernel_type = look_up_option(kernel_type, ["gaussian", "b-spline"])
         self.num_bins = num_bins
         self.kernel_type = kernel_type
         if self.kernel_type == "gaussian":
@@ -240,9 +237,10 @@ class GlobalMutualInformationLoss(_Loss):
             raise ValueError
         return pred_weight, pred_probability, target_weight, target_probability
 
-    def parzen_windowing_b_spline(self, img: torch.Tensor, order) -> Tuple[torch.Tensor, torch.Tensor]:
+    def parzen_windowing_b_spline(self, img: torch.Tensor, order: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Parzen windowing with b-spline kernel (adapted from ITK)
+
         Args:
             img: the shape should be B[NDHW].
             order: int.
@@ -267,7 +265,7 @@ class GlobalMutualInformationLoss(_Loss):
         norm_min = torch.div(min, bin_size, rounding_mode="floor") - padding
 
         # assign bin/window index to each voxel
-        window_term = torch.div(img, bin_size, rounding_mode="floor") - norm_min  # B[NDHW]
+        window_term = torch.div(img, bin_size) - norm_min  # B[NDHW]
         # make sure the extreme values are in valid (non-padded) bins
         window_term = torch.clamp(window_term, padding, self.num_bins - padding - 1)  # B[NDHW]
         window_term = window_term.reshape(window_term.shape[0], -1, 1)  # (batch, num_sample, 1)
