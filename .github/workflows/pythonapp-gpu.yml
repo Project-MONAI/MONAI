@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - releasing/*
+      - test-3071
   pull_request:
 
 concurrency:
@@ -101,7 +102,7 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip install ${{ matrix.pytorch }}
-        python -m pip install -r requirements-dev.txt
+        python -m pip install -r requirements-dev.txt --user
         python -m pip list
     - name: Run quick tests (GPU)
       run: |
