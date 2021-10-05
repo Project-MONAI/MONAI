@@ -205,7 +205,7 @@ class TestAffineTransform(unittest.TestCase):
                     ]
                 ]
             ]
-            np.testing.assert_allclose(out, expected, atol=1e-3)
+            np.testing.assert_allclose(out, expected, atol=5e-3)
 
     def test_affine_transform_3d(self):
         t = np.pi / 3

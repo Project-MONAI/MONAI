@@ -201,7 +201,7 @@ class TestRandAffineGrid(unittest.TestCase):
         result = g(**input_data)
         if "device" in input_data:
             self.assertEqual(result.device, input_data[device])
-        assert_allclose(result, expected_val, type_test=False, rtol=1e-3, atol=1e-3)
+        assert_allclose(result, expected_val, type_test=False, rtol=1e-2, atol=1e-2)
 
 
 if __name__ == "__main__":

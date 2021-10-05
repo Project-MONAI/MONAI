@@ -164,7 +164,7 @@ class TestRand2DElasticd(unittest.TestCase):
         for key in res:
             result = res[key]
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
-            assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
+            assert_allclose(result, expected, rtol=5e-3, atol=5e-3)
 
 
 if __name__ == "__main__":

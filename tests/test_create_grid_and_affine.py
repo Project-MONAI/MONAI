@@ -162,7 +162,7 @@ def test_assert(func, params, expected):
             m = func(*params, device="cuda:0", backend="torch")
         else:
             m = func(*params, backend=b)
-        assert_allclose(m, expected, type_test=False, atol=1e-7)
+        assert_allclose(m, expected, type_test=False, atol=1e-3, rtol=1e-3)
 
 
 class TestCreateAffine(unittest.TestCase):
