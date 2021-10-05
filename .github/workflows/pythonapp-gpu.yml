@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - releasing/*
+      - test-3071
   pull_request:
 
 concurrency:
@@ -103,7 +104,7 @@ jobs:
         # fixes preinstalled ruamel_yaml error from the docker image
         rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
         python -m pip install ${{ matrix.pytorch }}
-        python -m pip install -r requirements-dev.txt
+        python -m pip install -r requirements-dev.txt --user
         python -m pip list
     - name: Run quick tests (GPU)
       run: |
