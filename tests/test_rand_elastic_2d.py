@@ -110,7 +110,7 @@ class TestRand2DElastic(unittest.TestCase):
         g = Rand2DElastic(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
-        assert_allclose(result, expected_val, rtol=1e-2, atol=1e-2)
+        assert_allclose(result, expected_val, rtol=5e-3, atol=5e-3)
 
 
 if __name__ == "__main__":
