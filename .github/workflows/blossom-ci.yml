@@ -2,7 +2,7 @@
 name: Blossom-CI
 on:
   issue_comment:
-    types: [created, edited]
+    types: [created]
   workflow_dispatch:
       inputs:
           platform:
@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   Authorization:
-    name: Authorization (#${{ github.event.issue.number }})
+    name: Authorization
     runs-on: blossom
     outputs:
       args: ${{ env.args }}
