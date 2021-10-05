@@ -101,7 +101,8 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip install ${{ matrix.pytorch }}
-        python -m pip install -r requirements-dev.txt
+        # fixes preinstalled ruamel_yaml error from the docker image
+        python -m pip install -r requirements-dev.txt --ignore-installed ruamel_yaml
         python -m pip list
     - name: Run quick tests (GPU)
       run: |
