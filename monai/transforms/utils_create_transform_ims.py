@@ -302,7 +302,7 @@ def save_image(images, labels, filename, transform_name, transform_args, shapes,
             ax.set_yticks([])
             ax.set_frame_on(False)
             if labels is not None:
-                ax.imshow(labels[row][col], cmap="hsv", alpha=0.9)
+                ax.imshow(labels[row][col], cmap="hsv", alpha=0.9, interpolation="nearest")
     # title is e.g., Flipd(keys=keys, spatial_axis=0)
     title = transform_name + "("
     for k, v in transform_args.items():
