@@ -41,7 +41,11 @@ except AttributeError:
 
 
 _tf32_enabled: bool = False
-if torch.cuda.is_available() and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0":
+if (
+    torch.cuda.is_available()
+    and f"{torch.version.cuda}".startswith("11")
+    and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
+):
     try:
         # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
         g_gpu = torch.Generator(device="cuda")
@@ -51,3 +55,4 @@ if torch.cuda.is_available() and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != 
         _tf32_enabled = (a_full.float() @ b_full.float() - a_full @ b_full).abs().max().item() > 0.01  # 0.1713
     except BaseException:
         pass
+print(f"tf32 enabled: {_tf32_enabled}")

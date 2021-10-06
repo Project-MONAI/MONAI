@@ -208,7 +208,7 @@ class TestAffineTransform(unittest.TestCase):
                     ]
                 ]
             ]
-            np.testing.assert_allclose(out, expected, atol=1e-4, rtol=_rtol)
+            np.testing.assert_allclose(out, expected, atol=5e-3)
 
     def test_affine_transform_3d(self):
         t = np.pi / 3
@@ -258,7 +258,7 @@ class TestAffineTransform(unittest.TestCase):
                     ]
                 ],
             ]
-            np.testing.assert_allclose(out, expected, atol=1e-4, rtol=_rtol)
+            np.testing.assert_allclose(out, expected, atol=5e-3)
 
     def test_ill_affine_transform(self):
         with self.assertRaises(ValueError):  # image too small
