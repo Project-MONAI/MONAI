@@ -25,7 +25,7 @@ from functools import partial
 from io import BytesIO
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
-from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.error import HTTPError, URLError
 
 import numpy as np
 import torch
@@ -39,6 +39,7 @@ from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.module import version_leq
 from monai.utils.type_conversion import convert_data_type
+from tests import _tf32_enabled
 
 nib, _ = optional_import("nibabel")
 
@@ -94,10 +95,9 @@ def assert_allclose(
 
 def test_pretrained_networks(network, input_param, device):
     try:
-        net = network(**input_param).to(device)
-    except (URLError, HTTPError, ContentTooShortError) as e:
+        return network(**input_param).to(device)
+    except (URLError, HTTPError) as e:
         raise unittest.SkipTest(e) from e
-    return net
 
 
 def test_is_quick():
@@ -110,7 +110,7 @@ def is_tf32_env():
     or programmatic configuration of NVIDIA libraries, and consequently,
     cuBLAS will not accelerate FP32 computations with TF32 tensor cores.
     """
-    return os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
+    return _tf32_enabled
 
 
 def skip_if_quick(obj):
