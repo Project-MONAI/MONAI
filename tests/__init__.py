@@ -9,12 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import sys
 import unittest
 import warnings
-
-import torch
 
 
 def _enter_pr_4800(self):
@@ -38,21 +35,3 @@ try:
     unittest.case._AssertWarnsContext.__enter__ = _enter_pr_4800  # type: ignore
 except AttributeError:
     pass
-
-
-_tf32_enabled: bool = False
-if (
-    torch.cuda.is_available()
-    and f"{torch.version.cuda}".startswith("11")
-    and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
-):
-    try:
-        # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
-        g_gpu = torch.Generator(device="cuda")
-        g_gpu.manual_seed(2147483647)
-        a_full = torch.randn(10240, 10240, dtype=torch.double, device="cuda", generator=g_gpu)
-        b_full = torch.randn(10240, 10240, dtype=torch.double, device="cuda", generator=g_gpu)
-        _tf32_enabled = (a_full.float() @ b_full.float() - a_full @ b_full).abs().max().item() > 0.01  # 0.1713
-    except BaseException:
-        pass
-print(f"tf32 enabled: {_tf32_enabled}")

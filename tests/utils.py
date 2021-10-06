@@ -39,11 +39,11 @@ from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.module import version_leq
 from monai.utils.type_conversion import convert_data_type
-from tests import _tf32_enabled
 
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
+_tf32_enabled = None
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -110,6 +110,25 @@ def is_tf32_env():
     or programmatic configuration of NVIDIA libraries, and consequently,
     cuBLAS will not accelerate FP32 computations with TF32 tensor cores.
     """
+    global _tf32_enabled
+    if _tf32_enabled is None:
+        _tf32_enabled = False
+        if (
+            torch.cuda.is_available()
+            and f"{torch.version.cuda}".startswith("11")
+            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
+            and torch.cuda.device_count() > 0
+        ):
+            try:
+                # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
+                g_gpu = torch.Generator(device="cuda")
+                g_gpu.manual_seed(2147483647)
+                a_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
+                b_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
+                _tf32_enabled = (a_full.float() @ b_full.float() - a_full @ b_full).abs().max().item() > 0.001  # 0.1713
+            except BaseException:
+                pass
+        print(f"tf32 enabled: {_tf32_enabled}")
     return _tf32_enabled
 
 
