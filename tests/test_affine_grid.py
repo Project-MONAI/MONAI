@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import AffineGrid
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -107,6 +107,8 @@ for p in TEST_NDARRAYS:
             ]
         )
 
+_rtol = 5e-2 if is_tf32_env() else 1e-4
+
 
 class TestAffineGrid(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -115,7 +117,7 @@ class TestAffineGrid(unittest.TestCase):
         result, _ = g(**input_data)
         if "device" in input_data:
             self.assertEqual(result.device, input_data[device])
-        assert_allclose(result, expected_val, type_test=False, rtol=5e-2, atol=5e-2)
+        assert_allclose(result, expected_val, type_test=False, rtol=_rtol)
 
 
 if __name__ == "__main__":

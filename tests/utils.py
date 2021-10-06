@@ -104,6 +104,15 @@ def test_is_quick():
     return os.environ.get(quick_test_var, "").lower() == "true"
 
 
+def is_tf32_env():
+    """
+    The environment variable NVIDIA_TF32_OVERRIDE=0 will override any defaults
+    or programmatic configuration of NVIDIA libraries, and consequently,
+    cuBLAS will not accelerate FP32 computations with TF32 tensor cores.
+    """
+    return os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
+
+
 def skip_if_quick(obj):
     """
     Skip the unit tests if environment variable `quick_test_var=true`.
