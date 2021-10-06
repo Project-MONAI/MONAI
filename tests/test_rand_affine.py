@@ -17,7 +17,9 @@ from parameterized import parameterized
 
 from monai.transforms import RandAffine
 from monai.utils.type_conversion import convert_data_type
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+
+_rtol = 1e-3 if is_tf32_env() else 1e-4
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -141,7 +143,7 @@ class TestRandAffine(unittest.TestCase):
         result = g(**input_data)
         if input_param.get("cache_grid", False):
             self.assertTrue(g._cached_grid is not None)
-        assert_allclose(result, expected_val, rtol=1e-3, atol=1e-3)
+        assert_allclose(result, expected_val, rtol=_rtol, atol=1e-4)
 
     def test_ill_cache(self):
         with self.assertWarns(UserWarning):

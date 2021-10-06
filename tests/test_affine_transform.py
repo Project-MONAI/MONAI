@@ -98,7 +98,7 @@ class TestToNormAffine(unittest.TestCase):
             affine = torch.as_tensor(affine, device=torch.device("cuda:0"), dtype=torch.float32)
             new_affine = to_norm_affine(affine, src_size, dst_size, align_corners)
             new_affine = new_affine.detach().cpu().numpy()
-            np.testing.assert_allclose(new_affine, expected, atol=1e-5, rtol=1e-3)
+            np.testing.assert_allclose(new_affine, expected, atol=1e-5, rtol=_rtol)
 
     @parameterized.expand(TEST_ILL_TO_NORM_AFFINE_CASES)
     def test_to_norm_affine_ill(self, affine, src_size, dst_size, align_corners):
@@ -146,7 +146,7 @@ class TestAffineTransform(unittest.TestCase):
         image = torch.arange(1.0, 13.0).view(1, 1, 3, 4).to(device=torch.device("cpu:0"))
         out = AffineTransform()(image, affine, (1, 4))
         expected = [[[[1, 2, 3, 4]]]]
-        np.testing.assert_allclose(out, expected, atol=1e-3)
+        np.testing.assert_allclose(out, expected, atol=_rtol)
 
     def test_zoom_2(self):
         affine = torch.as_tensor([[2.0, 0.0, 0.0], [0.0, 2.0, 0.0]], dtype=torch.float32)

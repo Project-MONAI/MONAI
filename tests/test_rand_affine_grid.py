@@ -16,7 +16,9 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import RandAffineGrid
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+
+_rtol = 1e-2 if is_tf32_env else 1e-4
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -201,7 +203,7 @@ class TestRandAffineGrid(unittest.TestCase):
         result = g(**input_data)
         if "device" in input_data:
             self.assertEqual(result.device, input_data[device])
-        assert_allclose(result, expected_val, type_test=False, rtol=1e-2, atol=1e-2)
+        assert_allclose(result, expected_val, type_test=False, rtol=_rtol, atol=1e-4)
 
 
 if __name__ == "__main__":

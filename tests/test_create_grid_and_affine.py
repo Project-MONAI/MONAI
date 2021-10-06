@@ -162,7 +162,7 @@ def test_assert(func, params, expected):
             m = func(*params, device="cuda:0", backend="torch")
         else:
             m = func(*params, backend=b)
-        assert_allclose(m, expected, type_test=False, rtol=1e-3 if is_tf32_env() else 1e-5)
+        assert_allclose(m, expected, type_test=False, rtol=1e-3 if is_tf32_env() else 1e-5, atol=1e-5)
 
 
 class TestCreateAffine(unittest.TestCase):
