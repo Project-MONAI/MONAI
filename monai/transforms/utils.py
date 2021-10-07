@@ -386,7 +386,7 @@ def weighted_patch_samples(
     s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
     v = w[s]  # weight map in the 'valid' mode
     v_size = v.shape
-    v = v.ravel()
+    v = ravel(v)
     if (v < 0).any():
         v -= v.min()  # shifting to non-negative
     v = cumsum(v)
