@@ -839,7 +839,7 @@ def _create_translate(
 
 
 def generate_spatial_bounding_box(
-    img: np.ndarray,
+    img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
     channel_indices: Optional[IndexSelection] = None,
     margin: Union[Sequence[int], int] = 0,
@@ -864,7 +864,7 @@ def generate_spatial_bounding_box(
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
     """
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
-    data = np.any(select_fn(data), axis=0)
+    data = select_fn(data).any(0)
     ndim = len(data.shape)
     margin = ensure_tuple_rep(margin, ndim)
     for m in margin:
@@ -875,13 +875,25 @@ def generate_spatial_bounding_box(
     box_end = [0] * ndim
 
     for di, ax in enumerate(itertools.combinations(reversed(range(ndim)), ndim - 1)):
-        dt = data.any(axis=ax)
-        if not np.any(dt):
+        dt = data
+        if len(ax) != 0:
+            if isinstance(dt, np.ndarray):
+                dt = dt.any(ax)
+            # pytorch can't handle multiple dimensions to `any` so loop across them
+            # this works because the dimensions will be reverse sorted.
+            else:
+                for i in ax:
+                    dt = dt.any(i)
+
+        if not dt.any():
             # if no foreground, return all zero bounding box coords
             return [0] * ndim, [0] * ndim
 
-        min_d = max(np.argmax(dt) - margin[di], 0)
-        max_d = max(data.shape[di] - max(np.argmax(dt[::-1]) - margin[di], 0), min_d + 1)
+        dt = dt if isinstance(dt, np.ndarray) else dt.int()
+        rev_dt = dt[::-1] if isinstance(dt, np.ndarray) else dt.flip(0)
+
+        min_d = max(dt.argmax() - margin[di], 0)
+        max_d = max(data.shape[di] - max(rev_dt.argmax() - margin[di], 0), min_d + 1)
         box_start[di], box_end[di] = min_d, max_d
 
     return box_start, box_end
@@ -1203,8 +1215,8 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
 
 
 def equalize_hist(
-    img: np.ndarray,
-    mask: Optional[np.ndarray] = None,
+    img: NdarrayOrTensor,
+    mask: Optional[NdarrayOrTensor] = None,
     num_bins: int = 256,
     min: int = 0,
     max: int = 255,
@@ -1226,8 +1238,14 @@ def equalize_hist(
         dtype: data type of the output, default to `float32`.
 
     """
-    orig_shape = img.shape
-    hist_img = img[np.array(mask, dtype=bool)] if mask is not None else img
+    img_np: np.ndarray
+    img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    mask_np: Optional[np.ndarray] = None
+    if mask is not None:
+        mask_np, *_ = convert_data_type(mask, np.ndarray)  # type: ignore
+
+    orig_shape = img_np.shape
+    hist_img = img_np[np.array(mask_np, dtype=bool)] if mask_np is not None else img_np
     if has_skimage:
         hist, bins = exposure.histogram(hist_img.flatten(), num_bins)
     else:
@@ -1239,9 +1257,9 @@ def equalize_hist(
     cum = rescale_array(arr=cum, minv=min, maxv=max)
 
     # apply linear interpolation
-    img = np.interp(img.flatten(), bins, cum)
+    img_np = np.interp(img_np.flatten(), bins, cum)
 
-    return img.reshape(orig_shape).astype(dtype)
+    return img_np.reshape(orig_shape).astype(dtype)
 
 
 class Fourier:
