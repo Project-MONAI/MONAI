@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Sequence, Union
 
 import numpy as np
 import torch
@@ -30,6 +30,9 @@ __all__ = [
     "ravel",
     "any_np_pt",
     "maximum",
+    "concatenate",
+    "cumsum",
+    "isfinite",
 ]
 
 
@@ -114,17 +117,23 @@ def percentile(x: NdarrayOrTensor, q) -> Union[NdarrayOrTensor, float, int]:
     return result
 
 
-def where(condition: NdarrayOrTensor, x, y) -> NdarrayOrTensor:
+def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
     """
     Note that `torch.where` may convert y.dtype to x.dtype.
     """
     result: NdarrayOrTensor
     if isinstance(condition, np.ndarray):
-        result = np.where(condition, x, y)
+        if x is not None:
+            result = np.where(condition, x, y)
+        else:
+            result = np.where(condition)
     else:
-        x = torch.as_tensor(x, device=condition.device)
-        y = torch.as_tensor(y, device=condition.device, dtype=x.dtype)
-        result = torch.where(condition, x, y)
+        if x is not None:
+            x = torch.as_tensor(x, device=condition.device)
+            y = torch.as_tensor(y, device=condition.device, dtype=x.dtype)
+            result = torch.where(condition, x, y)
+        else:
+            result = torch.where(condition)  # type: ignore
     return result
 
 
@@ -250,3 +259,38 @@ def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
             return torch.maximum(a, b)
         return torch.stack((a, b)).max(dim=0)[0]
     return np.maximum(a, b)
+
+
+def concatenate(to_cat: Sequence[NdarrayOrTensor], axis: int = 0, out=None) -> NdarrayOrTensor:
+    """`np.concatenate` with equivalent implementation for torch (`torch.cat`)."""
+    if isinstance(to_cat[0], np.ndarray):
+        return np.concatenate(to_cat, axis, out)  # type: ignore
+    else:
+        return torch.cat(to_cat, dim=axis, out=out)  # type: ignore
+
+
+def cumsum(a: NdarrayOrTensor, axis=None):
+    """`np.cumsum` with equivalent implementation for torch."""
+    if isinstance(a, np.ndarray):
+        return np.cumsum(a, axis)
+    else:
+        if axis is None:
+            return torch.cumsum(a[:], 0)
+        else:
+            return torch.cumsum(a, dim=axis)
+
+
+def isfinite(x):
+    """`np.isfinite` with equivalent implementation for torch."""
+    if not isinstance(x, torch.Tensor):
+        return np.isfinite(x)
+    else:
+        return torch.isfinite(x)
+
+
+def searchsorted(a: NdarrayOrTensor, v: NdarrayOrTensor, right=False, sorter=None):
+    if isinstance(a, np.ndarray):
+        side = "right" if right else "left"
+        return np.searchsorted(a, v, side, sorter)  # type: ignore
+    else:
+        return torch.searchsorted(a, v, right=right)  # type: ignore

@@ -790,20 +790,25 @@ class RandWeightedCrop(Randomizable, Transform):
             It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`.
     """
 
+    backend = SpatialCrop.backend
+
     def __init__(
-        self, spatial_size: Union[Sequence[int], int], num_samples: int = 1, weight_map: Optional[np.ndarray] = None
+        self,
+        spatial_size: Union[Sequence[int], int],
+        num_samples: int = 1,
+        weight_map: Optional[NdarrayOrTensor] = None,
     ):
         self.spatial_size = ensure_tuple(spatial_size)
         self.num_samples = int(num_samples)
         self.weight_map = weight_map
         self.centers: List[np.ndarray] = []
 
-    def randomize(self, weight_map: np.ndarray) -> None:
+    def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
-    def __call__(self, img: np.ndarray, weight_map: Optional[np.ndarray] = None) -> List[np.ndarray]:
+    def __call__(self, img: NdarrayOrTensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[NdarrayOrTensor]:
         """
         Args:
             img: input image to sample patches from. assuming `img` is a channel-first array.
@@ -814,7 +819,6 @@ class RandWeightedCrop(Randomizable, Transform):
         Returns:
             A list of image patches
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if weight_map is None:
             weight_map = self.weight_map
         if weight_map is None:
@@ -822,15 +826,12 @@ class RandWeightedCrop(Randomizable, Transform):
         if img.shape[1:] != weight_map.shape[1:]:
             raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
 
-        weight_map, *_ = convert_data_type(weight_map, np.ndarray)  # type: ignore
-
         self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
-        results = []
+        results: List[NdarrayOrTensor] = []
         for center in self.centers:
             cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-            cropped: np.ndarray = cropper(img)  # type: ignore
-            results.append(cropped)
+            results.append(cropper(img))
         return results
 
 
