@@ -86,6 +86,8 @@ class Activationsd(MapTransform):
     Add activation layers to the input data specified by `keys`.
     """
 
+    backend = Activations.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -125,6 +127,8 @@ class AsDiscreted(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AsDiscrete`.
     """
+
+    backend = AsDiscrete.backend
 
     @deprecated_arg("n_classes", since="0.6")
     def __init__(
