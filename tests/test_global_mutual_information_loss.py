@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses.image_dissimilarity import GlobalMutualInformationLoss
+from tests.utils import SkipIfBeforePyTorchVersion
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -44,6 +45,31 @@ TEST_CASES = [
             ** 2,
         },
         -1.083999,
+    ],
+    [
+        {"kernel_type": "b-spline"},
+        {
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3),
+        },
+        -1.0986018,
+    ],
+    [
+        {"kernel_type": "b-spline"},
+        {
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3)
+            ** 2,
+        },
+        -1.09861,
     ],
     [
         {},
@@ -85,6 +111,7 @@ TEST_CASES = [
 
 class TestGlobalMutualInformationLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
+    @SkipIfBeforePyTorchVersion((1, 9))
     def test_shape(self, input_param, input_data, expected_val):
         result = GlobalMutualInformationLoss(**input_param).forward(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)

@@ -88,6 +88,16 @@ class TestGradientClassActivationMap(unittest.TestCase):
         result2 = cam(x=image, layer_idx=-1, class_idx=model(image).max(1)[-1].cpu())
         torch.testing.assert_allclose(result, result2)
 
+    def test_ill(self):
+        model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
+        for name, x in model.named_parameters():
+            if "features" in name:
+                x.requires_grad = False
+        cam = GradCAM(nn_module=model, target_layers="class_layers.relu")
+        image = torch.rand((2, 1, 48, 64))
+        with self.assertRaises(RuntimeError):
+            cam(x=image)
+
 
 if __name__ == "__main__":
     unittest.main()

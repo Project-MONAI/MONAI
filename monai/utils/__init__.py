@@ -77,6 +77,7 @@ from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu
 from .state_cacher import StateCacher
 from .type_conversion import (
     convert_data_type,
+    convert_to_cupy,
     convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,

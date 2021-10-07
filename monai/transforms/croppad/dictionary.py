@@ -25,7 +25,7 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 
 from monai.config import IndexSelection, KeysCollection
-from monai.config.type_definitions import NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.croppad.array import (
     BorderPad,
@@ -33,6 +33,8 @@ from monai.transforms.croppad.array import (
     CenterSpatialCrop,
     CropForeground,
     DivisiblePad,
+    RandCropByLabelClasses,
+    RandCropByPosNegLabel,
     ResizeWithPadOrCrop,
     SpatialCrop,
     SpatialPad,
@@ -49,11 +51,12 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
-from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import InverseKeys
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
-    "NumpyPadModeSequence",
+    "PadModeSequence",
     "SpatialPadd",
     "BorderPadd",
     "DivisiblePadd",
@@ -99,6 +102,7 @@ __all__ = [
 ]
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
+PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
 
 
 class SpatialPadd(MapTransform, InvertibleTransform):
@@ -114,9 +118,9 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+        mode: PadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -129,28 +133,30 @@ class SpatialPadd(MapTransform, InvertibleTransform):
                 the spatial size of output data will be [32, 30, 30].
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
-            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = SpatialPad(spatial_size, method, **np_kwargs)
+        self.padder = SpatialPad(spatial_size, method, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -183,9 +189,9 @@ class BorderPadd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         spatial_border: Union[Sequence[int], int],
-        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+        mode: PadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -202,28 +208,30 @@ class BorderPadd(MapTransform, InvertibleTransform):
                   pad bottom of H dim with 2, pad left of W dim with 3, pad right of W dim with 4.
                   the result shape is [1, 7, 11].
 
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
-            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = BorderPad(spatial_border=spatial_border, **np_kwargs)
+        self.padder = BorderPad(spatial_border=spatial_border, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -260,10 +268,10 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         k: Union[Sequence[int], int],
-        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+        mode: PadModeSequence = NumpyPadMode.CONSTANT,
         method: Union[Method, str] = Method.SYMMETRIC,
         allow_missing_keys: bool = False,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -272,32 +280,34 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
             k: the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             allow_missing_keys: don't raise exception if key is missing.
-            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = DivisiblePad(k=k, method=method, **np_kwargs)
+        self.padder = DivisiblePad(k=k, method=method, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -331,6 +341,8 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         - the start and end coordinates of the ROI
     """
 
+    backend = SpatialCrop.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -357,14 +369,14 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.cropper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -404,13 +416,15 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = CenterSpatialCrop.backend
+
     def __init__(
         self, keys: KeysCollection, roi_size: Union[Sequence[int], int], allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.cropper = CenterSpatialCrop(roi_size)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             orig_size = d[key].shape[1:]
@@ -418,7 +432,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
             self.push_transform(d, key, orig_size=orig_size)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -454,13 +468,15 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = CenterSpatialCrop.backend
+
     def __init__(
         self, keys: KeysCollection, roi_scale: Union[Sequence[float], float], allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys=allow_missing_keys)
         self.roi_scale = roi_scale
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         # use the spatial size of first image to scale, expect all images have the same spatial size
         img_size = data[self.keys[0]].shape[1:]
@@ -473,7 +489,7 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -525,6 +541,8 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = CenterSpatialCrop.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -553,11 +571,11 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         if self._size is None:
-            raise AssertionError
+            raise RuntimeError("self._size not specified.")
         for key in self.key_iterator(d):
             if self.random_center:
                 self.push_transform(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})  # type: ignore
@@ -568,7 +586,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
                 d[key] = cropper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -626,6 +644,8 @@ class RandScaleCropd(RandSpatialCropd):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = RandSpatialCropd.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -643,11 +663,10 @@ class RandScaleCropd(RandSpatialCropd):
             random_size=random_size,
             allow_missing_keys=allow_missing_keys,
         )
-        MapTransform.__init__(self, keys, allow_missing_keys)
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         img_size = data[self.keys[0]].shape[1:]
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -711,6 +730,8 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
 
     """
 
+    backend = RandSpatialCropd.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -743,7 +764,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
     def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         ret = []
         for i in range(self.num_samples):
             d = dict(data)
@@ -753,18 +774,18 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
             cropped = self.cropper(d)
             # self.cropper will have added RandSpatialCropd to the list. Change to RandSpatialCropSamplesd
             for key in self.key_iterator(cropped):
-                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.CLASS_NAME] = self.__class__.__name__
-                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.ID] = id(self)
+                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.CLASS_NAME] = self.__class__.__name__  # type: ignore
+                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.ID] = id(self)  # type: ignore
             # add `patch_index` to the meta data
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in cropped:
                     cropped[meta_key] = {}  # type: ignore
-                cropped[meta_key][Key.PATCH_INDEX] = i
+                cropped[meta_key][Key.PATCH_INDEX] = i  # type: ignore
             ret.append(cropped)
         return ret
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = deepcopy(dict(data))
         # We changed the transform name from RandSpatialCropd to RandSpatialCropSamplesd
         # Need to revert that since we're calling RandSpatialCropd's inverse
@@ -841,7 +862,9 @@ class CropForegroundd(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
+        img: np.ndarray
+        img, *_ = convert_data_type(d[self.source_key], np.ndarray)  # type: ignore
+        box_start, box_end = self.cropper.compute_bounding_box(img=img)
         d[self.start_coord_key] = box_start
         d[self.end_coord_key] = box_end
         for key, m in self.key_iterator(d, self.mode):
@@ -849,7 +872,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -954,7 +977,8 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
             for i, center in enumerate(self.centers):
                 cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
                 orig_size = img.shape[1:]
-                results[i][key] = cropper(img)
+                cropped: np.ndarray = cropper(img)  # type: ignore
+                results[i][key] = cropped
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
                 if self.center_coord_key:
                     results[i][self.center_coord_key] = center
@@ -969,7 +993,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
 
         return results
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1048,6 +1072,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
 
     """
 
+    backend = RandCropByPosNegLabel.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1081,14 +1107,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.centers: Optional[List[List[np.ndarray]]] = None
+        self.centers: Optional[List[List[int]]] = None
 
     def randomize(
         self,
-        label: np.ndarray,
-        fg_indices: Optional[np.ndarray] = None,
-        bg_indices: Optional[np.ndarray] = None,
-        image: Optional[np.ndarray] = None,
+        label: NdarrayOrTensor,
+        fg_indices: Optional[NdarrayOrTensor] = None,
+        bg_indices: Optional[NdarrayOrTensor] = None,
+        image: Optional[NdarrayOrTensor] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         if fg_indices is None or bg_indices is None:
@@ -1100,7 +1126,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
         )
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
@@ -1114,7 +1140,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             raise ValueError("no available ROI centers to crop.")
 
         # initialize returned list with shallow copy to preserve key ordering
-        results: List[Dict[Hashable, np.ndarray]] = [dict(d) for _ in range(self.num_samples)]
+        results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(self.num_samples)]
 
         for i, center in enumerate(self.centers):
             # fill in the extra keys with unmodified data
@@ -1122,7 +1148,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
                 results[i][key] = deepcopy(d[key])
             for key in self.key_iterator(d):
                 img = d[key]
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
                 orig_size = img.shape[1:]
                 results[i][key] = cropper(img)
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
@@ -1131,11 +1157,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in results[i]:
                     results[i][meta_key] = {}  # type: ignore
-                results[i][meta_key][Key.PATCH_INDEX] = i
+                results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
 
         return results
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1234,6 +1260,8 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
 
     """
 
+    backend = RandCropByLabelClasses.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1262,16 +1290,15 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.centers: Optional[List[List[np.ndarray]]] = None
+        self.centers: Optional[List[List[int]]] = None
 
     def randomize(
         self,
-        label: np.ndarray,
-        indices: Optional[List[np.ndarray]] = None,
-        image: Optional[np.ndarray] = None,
+        label: NdarrayOrTensor,
+        indices: Optional[List[NdarrayOrTensor]] = None,
+        image: Optional[NdarrayOrTensor] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-        indices_: List[np.ndarray]
         if indices is None:
             indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         else:
@@ -1280,7 +1307,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
         )
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
@@ -1293,7 +1320,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             raise ValueError("no available ROI centers to crop.")
 
         # initialize returned list with shallow copy to preserve key ordering
-        results: List[Dict[Hashable, np.ndarray]] = [dict(d) for _ in range(self.num_samples)]
+        results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(self.num_samples)]
 
         for i, center in enumerate(self.centers):
             # fill in the extra keys with unmodified data
@@ -1301,7 +1328,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
                 results[i][key] = deepcopy(d[key])
             for key in self.key_iterator(d):
                 img = d[key]
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
                 orig_size = img.shape[1:]
                 results[i][key] = cropper(img)
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
@@ -1310,11 +1337,11 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in results[i]:
                     results[i][meta_key] = {}  # type: ignore
-                results[i][meta_key][Key.PATCH_INDEX] = i
+                results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
 
         return results
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1359,6 +1386,8 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
 
     """
 
+    backend = ResizeWithPadOrCrop.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1372,7 +1401,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **np_kwargs)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             orig_size = d[key].shape[1:]
@@ -1387,7 +1416,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)

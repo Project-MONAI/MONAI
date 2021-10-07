@@ -37,6 +37,9 @@ class NetAdapter(torch.nn.Module):
         bias: the bias value when replacing the last layer. if False, the layer will not learn an additive bias,
             default to True.
 
+    .. deprecated:: 0.6.0
+        ``n_classes`` is deprecated, use ``num_classes`` instead.
+
     """
 
     @deprecated_arg("n_classes", since="0.6")

@@ -23,7 +23,7 @@ def _read_testing_data_answers(fname: Optional[str] = None, delimiter=",") -> Li
     pwd = os.path.dirname(os.path.abspath(__file__))
     filename = os.path.join(pwd, fname)
     if not os.path.isfile(filename):
-        warnings.warn("test data {} not found.".format(filename))
+        warnings.warn(f"test data {filename} not found.")
         return answers
     with open(filename) as f:
         res_reader = csv.reader(f, delimiter=delimiter)
