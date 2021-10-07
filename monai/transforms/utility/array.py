@@ -887,9 +887,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         if img.ndim == 4 and img.shape[0] == 1:
             img = np.squeeze(img, axis=0)
 
-        result = []
-        # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
-        result.append(np.logical_or(img == 1, img == 4))
+        result = [np.logical_or(img == 1, img == 4)]
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
         result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
         # label 4 is ET
@@ -1124,6 +1122,8 @@ class ToDevice(Transform):
         So usually suggest to set `num_workers=0` in the `DataLoader` or `ThreadDataLoader`.
 
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, device: Union[torch.device, str], **kwargs) -> None:
         """

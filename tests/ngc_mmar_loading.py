@@ -27,7 +27,7 @@ class TestAllDownloadingMMAR(unittest.TestCase):
     @parameterized.expand((item,) for item in MODEL_DESC)
     def test_loading_mmar(self, item):
         pretrained_model = load_from_mmar(item=item, mmar_dir="./", map_location="cpu")
-        self.assertTrue(isinstance(pretrained_model, torch.nn.Modules))
+        self.assertTrue(isinstance(pretrained_model, torch.nn.Module))
 
     def tearDown(self):
         print(os.listdir(self.test_dir))
