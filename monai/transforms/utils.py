@@ -1389,20 +1389,29 @@ def get_transform_backends():
             continue
         unique_transforms.append(obj)
 
-        if isclass(obj) and issubclass(obj, Transform):
-            if n in [
-                "Transform",
+        if (
+            isclass(obj)
+            and issubclass(obj, Transform)
+            and n
+            not in [
+                "BatchInverseTransform",
+                "Compose",
+                "Decollated",
+                "InvertD",
                 "InvertibleTransform",
                 "Lambda",
                 "LambdaD",
-                "Compose",
-                "RandomizableTransform",
+                "MapTransform",
                 "OneOf",
-                "BatchInverseTransform",
-                "InverteD",
-            ]:
-                continue
-
+                "PadListDataCollate",
+                "RandLambda",
+                "RandLambdaD",
+                "RandTorchVisionD",
+                "RandomizableTransform",
+                "TorchVisionD",
+                "Transform",
+            ]
+        ):
             backends[n] = [
                 TransformBackends.TORCH in obj.backend,
                 TransformBackends.NUMPY in obj.backend,

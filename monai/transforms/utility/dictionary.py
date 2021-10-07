@@ -704,8 +704,7 @@ class SelectItemsd(MapTransform):
     """
 
     def __call__(self, data):
-        result = {key: data[key] for key in self.key_iterator(data)}
-        return result
+        return {key: data[key] for key in self.key_iterator(data)}
 
 
 class SqueezeDimd(MapTransform):
@@ -1470,6 +1469,8 @@ class ToDeviced(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToDevice`.
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,

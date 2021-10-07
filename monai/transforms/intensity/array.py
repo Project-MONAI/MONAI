@@ -1076,6 +1076,8 @@ class RandGaussianSmooth(RandomizableTransform):
 
     """
 
+    backend = GaussianSmooth.backend
+
     def __init__(
         self,
         sigma_x: Tuple[float, float] = (0.25, 1.5),
