@@ -1249,6 +1249,8 @@ class RandHistogramShift(RandomizableTransform):
         prob: probability of histogram shift.
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(self, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
 
@@ -1273,16 +1275,17 @@ class RandHistogramShift(RandomizableTransform):
                 self.floating_control_points[i - 1], self.floating_control_points[i + 1]
             )
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
+        img_np: np.ndarray
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         self.randomize()
         if not self._do_transform:
-            return img
-        img_min, img_max = img.min(), img.max()
+            return img_np
+        img_min, img_max = img_np.min(), img_np.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
         return np.asarray(
-            np.interp(img, reference_control_points_scaled, floating_control_points_scaled), dtype=img.dtype
+            np.interp(img_np, reference_control_points_scaled, floating_control_points_scaled), dtype=img_np.dtype
         )
 
 
@@ -1902,12 +1905,14 @@ class HistogramNormalize(Transform):
 
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(
         self,
         num_bins: int = 256,
         min: int = 0,
         max: int = 255,
-        mask: Optional[np.ndarray] = None,
+        mask: Optional[NdarrayOrTensor] = None,
         dtype: DtypeLike = np.float32,
     ) -> None:
         self.num_bins = num_bins
@@ -1916,8 +1921,7 @@ class HistogramNormalize(Transform):
         self.mask = mask
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    def __call__(self, img: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> np.ndarray:
         return equalize_hist(
             img=img,
             mask=mask if mask is not None else self.mask,

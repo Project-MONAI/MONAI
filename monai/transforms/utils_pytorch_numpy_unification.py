@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Sequence, Union
 
 import numpy as np
 import torch
@@ -114,17 +114,23 @@ def percentile(x: NdarrayOrTensor, q) -> Union[NdarrayOrTensor, float, int]:
     return result
 
 
-def where(condition: NdarrayOrTensor, x, y) -> NdarrayOrTensor:
+def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
     """
     Note that `torch.where` may convert y.dtype to x.dtype.
     """
     result: NdarrayOrTensor
     if isinstance(condition, np.ndarray):
-        result = np.where(condition, x, y)
+        if x is not None:
+            result = np.where(condition, x, y)
+        else:
+            result = np.where(condition)
     else:
-        x = torch.as_tensor(x, device=condition.device)
-        y = torch.as_tensor(y, device=condition.device, dtype=x.dtype)
-        result = torch.where(condition, x, y)
+        if x is not None:
+            x = torch.as_tensor(x, device=condition.device)
+            y = torch.as_tensor(y, device=condition.device, dtype=x.dtype)
+            result = torch.where(condition, x, y)
+        else:
+            result = torch.where(condition)  # type: ignore
     return result
 
 
@@ -211,7 +217,7 @@ def ravel(x: NdarrayOrTensor):
     return np.ravel(x)
 
 
-def any_np_pt(x: NdarrayOrTensor, axis: int):
+def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]):
     """`np.any` with equivalent implementation for torch.
 
     For pytorch, convert to boolean for compatibility with older versions.
@@ -223,13 +229,18 @@ def any_np_pt(x: NdarrayOrTensor, axis: int):
     Returns:
         Return a contiguous flattened array/tensor.
     """
-    if isinstance(x, torch.Tensor):
+    if isinstance(x, np.ndarray):
+        return np.any(x, axis)
+
+    # pytorch can't handle multiple dimensions to `any` so loop across them
+    axis = [axis] if not isinstance(axis, Sequence) else axis
+    for ax in axis:
         try:
-            return torch.any(x, axis)
+            x = torch.any(x, ax)
         except RuntimeError:
             # older versions of pytorch require the input to be cast to boolean
-            return torch.any(x.bool(), axis)
-    return np.any(x, axis)
+            x = torch.any(x.bool(), ax)
+    return x
 
 
 def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
