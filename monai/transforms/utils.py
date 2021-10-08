@@ -25,7 +25,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform, apply_transform
-from monai.transforms.utils_pytorch_numpy_unification import any_np_pt, nonzero, ravel, unravel_index
+from monai.transforms.utils_pytorch_numpy_unification import any_np_pt, nonzero, ravel, unravel_index, where
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -877,23 +877,16 @@ def generate_spatial_bounding_box(
     for di, ax in enumerate(itertools.combinations(reversed(range(ndim)), ndim - 1)):
         dt = data
         if len(ax) != 0:
-            if isinstance(dt, np.ndarray):
-                dt = dt.any(ax)
-            # pytorch can't handle multiple dimensions to `any` so loop across them
-            # this works because the dimensions will be reverse sorted.
-            else:
-                for i in ax:
-                    dt = dt.any(i)
+            dt = any_np_pt(dt, ax)
 
         if not dt.any():
             # if no foreground, return all zero bounding box coords
             return [0] * ndim, [0] * ndim
 
-        dt = dt if isinstance(dt, np.ndarray) else dt.int()
-        rev_dt = dt[::-1] if isinstance(dt, np.ndarray) else dt.flip(0)
+        arg_max = where(dt == dt.max())[0]
+        min_d = max(arg_max[0] - margin[di], 0)
+        max_d = arg_max[-1] + margin[di] + 1
 
-        min_d = max(dt.argmax() - margin[di], 0)
-        max_d = max(data.shape[di] - max(rev_dt.argmax() - margin[di], 0), min_d + 1)
         box_start[di], box_end[di] = min_d, max_d
 
     return box_start, box_end
