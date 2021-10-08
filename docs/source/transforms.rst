@@ -53,6 +53,11 @@ Generic Interfaces
 .. autoclass:: Decollated
     :members:
 
+`OneOf`
+^^^^^^^
+.. autoclass:: OneOf
+    :members:
+
 Vanilla Transforms
 ------------------
 
