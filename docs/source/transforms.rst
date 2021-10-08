@@ -386,39 +386,39 @@ Intensity
 """"""""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandKSpaceSpikeNoise.png
     :alt: example of RandKSpaceSpikeNoise
- .. autoclass:: RandKSpaceSpikeNoise
-     :members:
-     :special-members: __call__
+.. autoclass:: RandKSpaceSpikeNoise
+    :members:
+    :special-members: __call__
 
 `RandCoarseTransform`
 """""""""""""""""""""
- .. autoclass:: RandCoarseTransform
-     :members:
-     :special-members: __call__
+.. autoclass:: RandCoarseTransform
+    :members:
+    :special-members: __call__
 
 `RandCoarseDropout`
 """""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCoarseDropout.png
     :alt: example of RandCoarseDropout
- .. autoclass:: RandCoarseDropout
-     :members:
-     :special-members: __call__
+.. autoclass:: RandCoarseDropout
+    :members:
+    :special-members: __call__
 
 `RandCoarseShuffle`
 """""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCoarseShuffle.png
     :alt: example of RandCoarseShuffle
- .. autoclass:: RandCoarseShuffle
-     :members:
-     :special-members: __call__
+.. autoclass:: RandCoarseShuffle
+    :members:
+    :special-members: __call__
 
 `HistogramNormalize`
 """"""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/HistogramNormalize.png
     :alt: example of HistogramNormalize
- .. autoclass:: HistogramNormalize
-     :members:
-     :special-members: __call__
+.. autoclass:: HistogramNormalize
+    :members:
+    :special-members: __call__
 
 IO
 ^^
@@ -843,13 +843,13 @@ Utility
 
 `IntensityStats`
 """"""""""""""""
- .. autoclass:: IntensityStats
-     :members:
-     :special-members: __call__
+.. autoclass:: IntensityStats
+    :members:
+    :special-members: __call__
 
 `ToDevice`
 """"""""""
- .. autoclass:: ToDevice
+.. autoclass:: ToDevice
      :members:
      :special-members: __call__
 
@@ -1205,9 +1205,9 @@ Intensity (Dict)
 """""""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/HistogramNormalized.png
     :alt: example of HistogramNormalized
- .. autoclass:: HistogramNormalized
-     :members:
-     :special-members: __call__
+.. autoclass:: HistogramNormalized
+    :members:
+    :special-members: __call__
 
 
 IO (Dict)
@@ -1622,9 +1622,9 @@ Utility (Dict)
 
 `ToDeviced`
 """""""""""
- .. autoclass:: ToDeviced
-     :members:
-     :special-members: __call__
+.. autoclass:: ToDeviced
+    :members:
+    :special-members: __call__
 
 `CuCIMd`
 """"""""
