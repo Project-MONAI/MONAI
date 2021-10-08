@@ -168,24 +168,19 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         self.std = std
         self._noise: List[np.ndarray] = []
 
-    def randomize(self, im_shape: Sequence[int]) -> None:
-        super().randomize(None)
-        self._noise.clear()
-        for m in self.mean:
-            self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
+    def _add_noise(self, img: NdarrayTensor, mean: float) -> NdarrayTensor:
+        noise = self.R.normal(mean, self.R.uniform(0, self.std), size=img.shape)
+        noise_, *_ = convert_to_dst_type(noise, img)
+        return img + noise_
 
     def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
-
-        image_shape = d[self.keys[0]].shape  # image shape from the first data key
-        self.randomize(image_shape)
-        if len(self._noise) != len(self.keys):
-            raise RuntimeError("inconsistent noise items and keys.")
+        super().randomize(None)
         if not self._do_transform:
             return d
-        for key, noise in self.key_iterator(d, self._noise):
-            noise, *_ = convert_to_dst_type(noise, d[key])
-            d[key] = d[key] + noise
+
+        for key, mean in self.key_iterator(d, self.mean):
+            d[key] = self._add_noise(img=d[key], mean=mean)
         return d
 
 

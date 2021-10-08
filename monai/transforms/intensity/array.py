@@ -90,27 +90,28 @@ class RandGaussianNoise(RandomizableTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1) -> None:
+    def __init__(self, prob: float = 0.1, mean: float = 0.0, std: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
         self.mean = mean
         self.std = std
-        self._noise: np.ndarray
 
-    def randomize(self, im_shape: Sequence[int]) -> None:
+    def randomize(self, data: Any) -> None:
         super().randomize(None)
-        self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
+        self._rand_std = self.R.uniform(0, self.std)
+
+    def _add_noise(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        noise = self.R.normal(self.mean, self._rand_std, size=img.shape)
+        noise_, *_ = convert_to_dst_type(noise, img)
+        return img + noise_
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        self.randomize(img.shape)
-        if self._noise is None:
-            raise RuntimeError("randomized factor should not be None.")
+        self.randomize(None)
         if not self._do_transform:
             return img
-        noise, *_ = convert_to_dst_type(self._noise, img)
-        return img + noise
+        return self._add_noise(img)
 
 
 class RandRicianNoise(RandomizableTransform):
