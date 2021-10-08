@@ -37,6 +37,7 @@ from monai.transforms.spatial.array import (
     Rand2DElastic,
     Rand3DElastic,
     RandAffine,
+    RandRotate90,
     Resize,
     Rotate,
     Rotate90,
@@ -457,25 +458,23 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.rotator = RandRotate90(prob, max_k, spatial_axes)
 
-        self.max_k = max_k
-        self.spatial_axes = spatial_axes
-
-        self._rand_k = 0
+    def set_random_state(self, seed=None, state=None):
+        self.rotator = self.rotator.set_random_state(seed, state)
+        return RandomizableTransform.set_random_state(self, seed, state)
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._rand_k = self.R.randint(self.max_k) + 1
-        super().randomize(None)
+        self.rotator.randomize(data)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
         d = dict(data)
 
-        rotator = Rotate90(self._rand_k, self.spatial_axes)
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = rotator(d[key])
-            self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
+                d[key] = self.rotator(d[key], randomize=False)
+            self.push_transform(d, key, extra_info={"rand_k": self.rotator._rand_k})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -487,7 +486,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
                 # Create inverse transform
                 num_times_rotated = transform[InverseKeys.EXTRA_INFO]["rand_k"]
                 num_times_to_rotate = 4 - num_times_rotated
-                inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
+                inverse_transform = Rotate90(num_times_to_rotate, self.rotator.spatial_axes)
                 # Apply inverse
                 d[key] = inverse_transform(d[key])
             # Remove the applied transform

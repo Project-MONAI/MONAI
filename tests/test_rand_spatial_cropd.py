@@ -63,7 +63,7 @@ class TestRandSpatialCropd(unittest.TestCase):
     def test_value(self, input_param, input_data):
         cropper = RandSpatialCropd(**input_param)
         result = cropper(input_data)
-        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
+        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper.cropper._size]
         np.testing.assert_allclose(result["img"], input_data["img"][:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5])

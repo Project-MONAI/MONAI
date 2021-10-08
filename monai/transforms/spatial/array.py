@@ -724,12 +724,13 @@ class RandRotate90(RandomizableTransform):
         self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
         if not self._do_transform:
             return img
         rotator = Rotate90(self._rand_k, self.spatial_axes)

@@ -26,7 +26,6 @@ import numpy as np
 
 from monai.config import IndexSelection, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
@@ -35,6 +34,7 @@ from monai.transforms.croppad.array import (
     DivisiblePad,
     RandCropByLabelClasses,
     RandCropByPosNegLabel,
+    RandSpatialCrop,
     ResizeWithPadOrCrop,
     SpatialCrop,
     SpatialPad,
@@ -541,7 +541,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = CenterSpatialCrop.backend
+    backend = RandSpatialCrop.backend
 
     def __init__(
         self,
@@ -553,37 +553,25 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        self.roi_size = roi_size
-        self.max_roi_size = max_roi_size
-        self.random_center = random_center
-        self.random_size = random_size
-        self._slices: Optional[Tuple[slice, ...]] = None
-        self._size: Optional[Sequence[int]] = None
+        self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
+
+    def set_random_state(self, seed=None, state=None):
+        self.cropper = self.cropper.set_random_state(seed, state)
+        return Randomizable.set_random_state(self, seed, state)
 
     def randomize(self, img_size: Sequence[int]) -> None:
-        self._size = fall_back_tuple(self.roi_size, img_size)
-        if self.random_size:
-            max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
-            if any(i > j for i, j in zip(self._size, max_size)):
-                raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
-            self._size = [self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))]
-        if self.random_center:
-            valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
+        self.cropper.randomize(img_size)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
-        if self._size is None:
-            raise RuntimeError("self._size not specified.")
+
         for key in self.key_iterator(d):
-            if self.random_center:
-                self.push_transform(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})  # type: ignore
-                d[key] = d[key][self._slices]
+            d[key] = self.cropper(d[key], randomize=False)
+            if self.cropper.random_center:
+                self.push_transform(d, key, {"slices": [(i.start, i.stop) for i in self.cropper._slices[1:]]})  # type: ignore
             else:
                 self.push_transform(d, key)
-                cropper = CenterSpatialCrop(self._size)
-                d[key] = cropper(d[key])
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -593,7 +581,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = transform[InverseKeys.ORIG_SIZE]
-            random_center = self.random_center
+            random_center = self.cropper.random_center
             pad_to_start = np.empty((len(orig_size)), dtype=np.int32)
             pad_to_end = np.empty((len(orig_size)), dtype=np.int32)
             if random_center:
@@ -671,9 +659,11 @@ class RandScaleCropd(RandSpatialCropd):
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         if self.max_roi_scale is not None:
-            self.max_roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
+            self.cropper.max_roi_size = [
+                ceil(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)
+            ]
         else:
-            self.max_roi_size = None
+            self.cropper.max_roi_size = None
         return super().__call__(data=data)
 
 
