@@ -375,7 +375,7 @@ class DenseNet264(DenseNet):
         self,
         init_features: int = 64,
         growth_rate: int = 32,
-        block_config: Sequence[int] = (6, 12, 48, 32),
+        block_config: Sequence[int] = (6, 12, 64, 48),
         pretrained: bool = False,
         progress: bool = True,
         **kwargs,
