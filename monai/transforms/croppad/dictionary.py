@@ -1002,7 +1002,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
             orig_size = np.asarray(transform[InverseKeys.ORIG_SIZE])
             current_size = np.asarray(d[key].shape[1:])
             center = transform[InverseKeys.EXTRA_INFO]["center"]
-            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+            cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
             # get required pad to start and end
             pad_to_start = np.array([s.indices(o)[0] for s, o in zip(cropper.slices, orig_size)])
             pad_to_end = orig_size - current_size - pad_to_start
