@@ -268,8 +268,7 @@ def get_stacked_2d_ims(im, is_label):
     Requires that all images be same size, but this is taken care
     of by the `SpatialPadd` earlier.
     """
-    out = [get_2d_slice(im, i, is_label) for i in range(3)]
-    return out
+    return [get_2d_slice(im, i, is_label) for i in range(3)]
 
 
 def get_stacked_before_after(before, after, is_label=False):
@@ -285,21 +284,32 @@ def save_image(images, labels, filename, transform_name, transform_args, shapes,
     plt.style.use("dark_background")
     nrow = len(images)  # before and after (should always be 2)
     ncol = len(images[0])  # num orthogonal views (either 1 or 3)
-    fig, axes = plt.subplots(nrow, ncol)
+    # roughly estimate the height_ratios of the first:second row
+    hs = [float(r[0].shape[0]) for r in images]
+    fig = plt.figure(tight_layout=True)
+    spec = fig.add_gridspec(nrow, ncol, hspace=0, wspace=0, height_ratios=hs)
     for row in range(nrow):
         vmin = min(i.min() for i in images[row])
         vmax = max(i.max() for i in images[row])
         for col in range(ncol):
-            ax = axes[row][col] if ncol > 1 else axes[row]
+            ax = fig.add_subplot(spec[row, col])
             imshow = ax.imshow(images[row][col], cmap="gray", vmin=vmin, vmax=vmax)
-            if colorbar and col == len(images[0]) - 1:
+            ax.set_aspect("equal")
+            if colorbar and col == ncol - 1:
                 plt.colorbar(imshow, ax=ax)
             if col == 0:
                 y_label = "After" if row else "Before"
                 y_label += ("\n" + shapes[row]) if shapes[0] != shapes[1] else ""
                 ax.set_ylabel(y_label)
+            # print yticks for the right most column
+            if col != ncol - 1 or colorbar:
+                ax.set_yticks([])
+            else:
+                ax.yaxis.tick_right()
+                for n, label in enumerate(ax.yaxis.get_ticklabels()):
+                    if n > 2:
+                        label.set_visible(False)
             ax.set_xticks([])
-            ax.set_yticks([])
             ax.set_frame_on(False)
             if labels is not None:
                 ax.imshow(labels[row][col], cmap="hsv", alpha=0.9, interpolation="nearest")
@@ -322,7 +332,6 @@ def save_image(images, labels, filename, transform_name, transform_args, shapes,
     # shorten the lines
     title = textwrap.fill(title, 50, break_long_words=False, subsequent_indent=" " * (len(transform_name) + 1))
     fig.suptitle(title, x=0.1, horizontalalignment="left")
-    plt.tight_layout()
     fig.savefig(filename)
     plt.close(fig)
 
@@ -349,14 +358,14 @@ def get_images(data, is_label=False):
     for i in range(num_samples):
         data[i] = [get_2d_slice(data[i], view, is_label) for view in range(num_orthog_views)]
 
-    # we might need to panel the images. this happens if a transform produces e.g. 4 output images. In this case, we
-    # create a 2-by-2 grid from them. Output will be a list containing n_orthog_views, each element being either the image
-    # (if num_samples is 1) or the panelled image.
-    nrows = int(np.floor(num_samples ** 0.5))
     out = []
     if num_samples == 1:
         out = data[0]
     else:
+        # we might need to panel the images. this happens if a transform produces e.g. 4 output images.
+        # In this case, we create a 2-by-2 grid from them. Output will be a list containing n_orthog_views,
+        # each element being either the image (if num_samples is 1) or the panelled image.
+        nrows = int(np.floor(num_samples ** 0.5))
         for view in range(num_orthog_views):
             result = np.asarray([d[view] for d in data])
             nindex, height, width = result.shape
