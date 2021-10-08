@@ -95,8 +95,12 @@ class RandGaussianNoise(RandomizableTransform):
         self.mean = mean
         self.std = std
 
+    def randomize(self, data: Any) -> None:
+        super().randomize(None)
+        self._rand_std = self.R.uniform(0, self.std)
+
     def _add_noise(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=img.shape)
+        noise = self.R.normal(self.mean, self._rand_std, size=img.shape)
         noise_, *_ = convert_to_dst_type(noise, img)
         return img + noise_
 
@@ -104,7 +108,7 @@ class RandGaussianNoise(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
-        super().randomize(None)
+        self.randomize(None)
         if not self._do_transform:
             return img
         return self._add_noise(img)
