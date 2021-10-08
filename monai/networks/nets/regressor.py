@@ -29,6 +29,30 @@ class Regressor(nn.Module):
     This defines a network for relating large-sized input tensors to small output tensors, ie. regressing large
     values to a prediction. An output of a single dimension can be used as value regression or multi-label
     classification prediction, an output of a single value can be used as a discriminator or critic prediction.
+
+    The network is constructed as a sequence of layers, either :py:class:`monai.networks.blocks.Convolution` or
+    :py:class:`monai.networks.blocks.ResidualUnit`, with a final fully-connected layer resizing the output from the
+    blocks to the final size. Each block is defined with a stride value typically used to downsample the input using
+    strided convolutions. In this way each block progressively condenses information from the input into a deep
+    representation the final fully-connected layer relates to a final result.
+
+    Args:
+        in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
+        out_shape: tuple of integers stating the dimension of the final output tensor (minus batch dimension)
+        channels: tuple of integers stating the output channels of each convolutional layer
+        strides: tuple of integers stating the stride (downscale factor) of each convolutional layer
+        kernel_size: integer or tuple of integers stating size of convolutional kernels
+        num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
+        act: name or type defining activation layers
+        norm: name or type defining normalization layers
+        dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
+        bias: boolean stating if convolution layers should have a bias component
+
+    Examples::
+
+        # infers a 2-value result (eg. a 2D cartesian coordinate) from a 64x64 image
+        net = Regressor((1, 64, 64), (2,), (2, 4, 8), (2, 2, 2))
+
     """
 
     def __init__(
@@ -44,23 +68,6 @@ class Regressor(nn.Module):
         dropout: Optional[float] = None,
         bias: bool = True,
     ) -> None:
-        """
-        Construct the regressor network with the number of layers defined by `channels` and `strides`. Inputs are
-        first passed through the convolutional layers in the forward pass, the output from this is then pass
-        through a fully connected layer to relate them to the final output tensor.
-
-        Args:
-            in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
-            out_shape: tuple of integers stating the dimension of the final output tensor
-            channels: tuple of integers stating the output channels of each convolutional layer
-            strides: tuple of integers stating the stride (downscale factor) of each convolutional layer
-            kernel_size: integer or tuple of integers stating size of convolutional kernels
-            num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
-            act: name or type defining activation layers
-            norm: name or type defining normalization layers
-            dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
-            bias: boolean stating if convolution layers should have a bias component
-        """
         super().__init__()
 
         self.in_channels, *self.in_shape = ensure_tuple(in_shape)

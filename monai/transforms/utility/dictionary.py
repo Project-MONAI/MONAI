@@ -701,8 +701,7 @@ class SelectItemsd(MapTransform):
     """
 
     def __call__(self, data):
-        result = {key: data[key] for key in self.key_iterator(data)}
-        return result
+        return {key: data[key] for key in self.key_iterator(data)}
 
 
 class SqueezeDimd(MapTransform):
@@ -1119,6 +1118,8 @@ class FgBgToIndicesd(MapTransform):
 
     """
 
+    backend = FgBgToIndices.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1135,7 +1136,7 @@ class FgBgToIndicesd(MapTransform):
         self.image_key = image_key
         self.converter = FgBgToIndices(image_threshold, output_shape)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.key_iterator(d):
@@ -1163,6 +1164,8 @@ class ClassesToIndicesd(MapTransform):
 
     """
 
+    backend = ClassesToIndices.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1178,7 +1181,7 @@ class ClassesToIndicesd(MapTransform):
         self.image_key = image_key
         self.converter = ClassesToIndices(num_classes, image_threshold, output_shape)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, Any]):
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.key_iterator(d):
@@ -1460,6 +1463,8 @@ class ToDeviced(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToDevice`.
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,

@@ -137,6 +137,11 @@ class ModelWithHooks:
             self.score = self.class_score(logits, self.class_idx)
             self.model.zero_grad()
             self.score.sum().backward(retain_graph=retain_graph)
+            for layer in self.target_layers:
+                if layer not in self.gradients:
+                    raise RuntimeError(
+                        f"Backward hook for {layer} is not triggered; `requires_grad` of {layer} should be `True`."
+                    )
             grad = tuple(self.gradients[layer] for layer in self.target_layers)
         if train:
             self.model.train()
@@ -220,6 +225,8 @@ class CAM(CAMBase):
     Examples
 
     .. code-block:: python
+
+        import torch
 
         # densenet 2d
         from monai.networks.nets import DenseNet121
@@ -318,6 +325,8 @@ class GradCAM(CAMBase):
     Examples
 
     .. code-block:: python
+
+        import torch
 
         # densenet 2d
         from monai.networks.nets import DenseNet121

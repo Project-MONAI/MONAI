@@ -135,6 +135,8 @@ class Spacingd(MapTransform, InvertibleTransform):
         :py:class:`monai.transforms.Spacing`
     """
 
+    backend = Spacing.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -211,8 +213,8 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(
-        self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
-    ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
+        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
+    ) -> Dict[Union[Hashable, str], Union[NdarrayOrTensor, Dict[str, NdarrayOrTensor]]]:
         d: Dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, meta_key, meta_key_postfix in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
@@ -226,7 +228,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             # using affine fetched from d[affine_key]
             original_spatial_shape = d[key].shape[1:]
             d[key], old_affine, new_affine = self.spacing_transform(
-                data_array=np.asarray(d[key]),
+                data_array=d[key],
                 affine=meta_data["affine"],
                 mode=mode,
                 padding_mode=padding_mode,
@@ -249,7 +251,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             meta_data["affine"] = new_affine
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
@@ -269,15 +271,15 @@ class Spacingd(MapTransform, InvertibleTransform):
             inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
             # Apply inverse
             d[key], _, new_affine = inverse_transform(
-                data_array=np.asarray(d[key]),
-                affine=meta_data["affine"],
+                data_array=d[key],
+                affine=meta_data["affine"],  # type: ignore
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=False if align_corners == "none" else align_corners,
                 dtype=dtype,
                 output_spatial_shape=orig_size,
             )
-            meta_data["affine"] = new_affine
+            meta_data["affine"] = new_affine  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 

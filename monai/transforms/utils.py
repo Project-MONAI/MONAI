@@ -43,7 +43,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
@@ -286,13 +286,14 @@ def map_binary_to_indices(
     fg_indices = nonzero(label_flat)
     if image is not None:
         img_flat = ravel(any_np_pt(image > image_threshold, 0))
-        img_flat, *_ = convert_data_type(
-            img_flat, type(label), device=label.device if isinstance(label, torch.Tensor) else None
-        )
+        img_flat, *_ = convert_to_dst_type(img_flat, label, dtype=img_flat.dtype)
         bg_indices = nonzero(img_flat & ~label_flat)
     else:
         bg_indices = nonzero(~label_flat)
 
+    # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
+    fg_indices, *_ = convert_data_type(fg_indices, device=torch.device("cpu"))
+    bg_indices, *_ = convert_data_type(bg_indices, device=torch.device("cpu"))
     return fg_indices, bg_indices
 
 
@@ -338,7 +339,9 @@ def map_classes_to_indices(
     for c in range(num_classes_):
         label_flat = ravel(any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0))
         label_flat = img_flat & label_flat if img_flat is not None else label_flat
-        indices.append(nonzero(label_flat))
+        # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
+        cls_indices, *_ = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))
+        indices.append(cls_indices)
 
     return indices
 
@@ -391,12 +394,12 @@ def correct_crop_centers(
     centers: List[Union[int, torch.Tensor]],
     spatial_size: Union[Sequence[int], int],
     label_spatial_shape: Sequence[int],
-) -> List[int]:
+):
     """
     Utility to correct the crop center if the crop size is bigger than the image size.
 
     Args:
-        ceters: pre-computed crop centers, will correct based on the valid region.
+        centers: pre-computed crop centers of every dim, will correct based on the valid region.
         spatial_size: spatial size of the ROIs to be sampled.
         label_spatial_shape: spatial shape of the original label data to compare with ROI.
 
@@ -424,9 +427,7 @@ def correct_crop_centers(
             center_i = valid_end[i] - 1
         centers[i] = center_i
 
-    corrected_centers: List[int] = [c.item() if isinstance(c, torch.Tensor) else c for c in centers]  # type: ignore
-
-    return corrected_centers
+    return centers
 
 
 def generate_pos_neg_label_crop_centers(
@@ -478,8 +479,7 @@ def generate_pos_neg_label_crop_centers(
         idx = indices_to_use[random_int]
         center = unravel_index(idx, label_spatial_shape)
         # shift center to range of valid centers
-        center_ori = list(center)
-        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
+        centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape))
 
     return centers
 
@@ -513,7 +513,7 @@ def generate_label_classes_crop_centers(
         raise ValueError("num_samples must be an int number and greater than 0.")
     ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
     if len(ratios_) != len(indices):
-        raise ValueError("random crop radios must match the number of indices of classes.")
+        raise ValueError("random crop ratios must match the number of indices of classes.")
     if any(i < 0 for i in ratios_):
         raise ValueError("ratios should not contain negative number.")
 
@@ -1253,7 +1253,7 @@ class Fourier:
     @deprecated_arg(
         name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
-    def shift_fourier(x: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
+    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
@@ -1270,16 +1270,23 @@ class Fourier:
         """
         if n_dims is not None:
             spatial_dims = n_dims
-        k: torch.Tensor = torch.fft.fftshift(
-            torch.fft.fftn(x, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
-        )
+        dims = tuple(range(-spatial_dims, 0))
+        k: NdarrayOrTensor
+        if isinstance(x, torch.Tensor):
+            if hasattr(torch.fft, "fftshift"):
+                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
+            else:
+                # if using old PyTorch, will convert to numpy array and return
+                k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
+        else:
+            k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
         return k
 
     @staticmethod
     @deprecated_arg(
         name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
-    def inv_shift_fourier(k: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
+    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
@@ -1296,10 +1303,17 @@ class Fourier:
         """
         if n_dims is not None:
             spatial_dims = n_dims
-        x: torch.Tensor = torch.fft.ifftn(
-            torch.fft.ifftshift(k, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
-        ).real
-        return x
+        dims = tuple(range(-spatial_dims, 0))
+        out: NdarrayOrTensor
+        if isinstance(k, torch.Tensor):
+            if hasattr(torch.fft, "ifftshift"):
+                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
+            else:
+                # if using old PyTorch, will convert to numpy array and return
+                out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
+        else:
+            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
+        return out
 
 
 def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Optional[Hashable] = None) -> int:
@@ -1356,20 +1370,29 @@ def get_transform_backends():
             continue
         unique_transforms.append(obj)
 
-        if isclass(obj) and issubclass(obj, Transform):
-            if n in [
-                "Transform",
+        if (
+            isclass(obj)
+            and issubclass(obj, Transform)
+            and n
+            not in [
+                "BatchInverseTransform",
+                "Compose",
+                "Decollated",
+                "InvertD",
                 "InvertibleTransform",
                 "Lambda",
                 "LambdaD",
-                "Compose",
-                "RandomizableTransform",
+                "MapTransform",
                 "OneOf",
-                "BatchInverseTransform",
-                "InverteD",
-            ]:
-                continue
-
+                "PadListDataCollate",
+                "RandLambda",
+                "RandLambdaD",
+                "RandTorchVisionD",
+                "RandomizableTransform",
+                "TorchVisionD",
+                "Transform",
+            ]
+        ):
             backends[n] = [
                 TransformBackends.TORCH in obj.backend,
                 TransformBackends.NUMPY in obj.backend,

@@ -16,7 +16,9 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Rand2DElastic
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+
+_rtol = 5e-3 if is_tf32_env() else 1e-4
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -110,7 +112,7 @@ class TestRand2DElastic(unittest.TestCase):
         g = Rand2DElastic(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        assert_allclose(result, expected_val, rtol=_rtol, atol=1e-4)
 
 
 if __name__ == "__main__":

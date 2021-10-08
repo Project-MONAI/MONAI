@@ -59,7 +59,7 @@ def create_multigpu_supervised_trainer(
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_transform,
     distributed: bool = False,
-) -> Engine:
+):
     """
     Derived from `create_supervised_trainer` in Ignite.
 
@@ -107,7 +107,7 @@ def create_multigpu_supervised_evaluator(
     prepare_batch: Callable = _prepare_batch,
     output_transform: Callable = _default_eval_transform,
     distributed: bool = False,
-) -> Engine:
+):
     """
     Derived from `create_supervised_evaluator` in Ignite.
 
