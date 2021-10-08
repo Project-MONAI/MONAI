@@ -367,14 +367,22 @@ def get_torch_version_tuple():
     return tuple(int(x) for x in torch.__version__.split(".")[:2])
 
 
-def version_leq(lhs, rhs):
-    """Returns True if version `lhs` is earlier or equal to `rhs`."""
+def version_leq(lhs: str, rhs: str):
+    """
+    Returns True if version `lhs` is earlier or equal to `rhs`.
 
+    Args:
+        lhs: version name to compare with `rhs`, return True if earlier or equal to `rhs`.
+        rhs: version name to compare with `lhs`, return True if later or equal to `lhs`.
+
+    """
+
+    lhs, rhs = str(lhs), str(rhs)
     ver, has_ver = optional_import("pkg_resources", name="parse_version")
     if has_ver:
         return ver(lhs) <= ver(rhs)
 
-    def _try_cast(val):
+    def _try_cast(val: str):
         val = val.strip()
         try:
             m = match("(\\d+)(.*)", val)
@@ -390,10 +398,10 @@ def version_leq(lhs, rhs):
     rhs = rhs.split("+", 1)[0]
 
     # parse the version strings in this basic way without `packaging` package
-    lhs = map(_try_cast, lhs.split("."))
-    rhs = map(_try_cast, rhs.split("."))
+    lhs_ = map(_try_cast, lhs.split("."))
+    rhs_ = map(_try_cast, rhs.split("."))
 
-    for l, r in zip(lhs, rhs):
+    for l, r in zip(lhs_, rhs_):
         if l != r:
             if isinstance(l, int) and isinstance(r, int):
                 return l < r
