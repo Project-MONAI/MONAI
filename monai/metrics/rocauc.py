@@ -104,9 +104,11 @@ def compute_roc_auc(
 
     Args:
         y_pred: input data to compute, typical classification model output.
-            it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
-        y: ground truth to compute ROC AUC metric, the first dim is batch.
-            example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
+            the first dim must be batch, if multi-classes, it must be in One-Hot format.
+            for example: shape `[16]` or `[16, 1]` for a binary data, shape `[16, 2]` for 2 classes data.
+        y: ground truth to compute ROC AUC metric, the first dim must be batch.
+            if multi-classes, it must be in One-Hot format.
+            for example: shape `[16]` or `[16, 1]` for a binary data, shape `[16, 2]` for 2 classes data.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
             Defaults to ``"macro"``.
