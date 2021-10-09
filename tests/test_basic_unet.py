@@ -101,7 +101,7 @@ class TestBasicUNET(unittest.TestCase):
         self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):
-        net = BasicUNet(dimensions=2, in_channels=1, out_channels=3)
+        net = BasicUNet(spatial_dims=2, in_channels=1, out_channels=3)
         test_data = torch.randn(16, 1, 32, 32)
         test_script_save(net, test_data)
 

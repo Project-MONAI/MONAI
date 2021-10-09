@@ -35,7 +35,7 @@ class Bottleneck3x3x1(nn.Module):
         downsample: Optional[nn.Sequential] = None,
     ) -> None:
 
-        super(Bottleneck3x3x1, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -87,7 +87,7 @@ class Bottleneck3x3x1(nn.Module):
 
 class Projection(nn.Sequential):
     def __init__(self, spatial_dims: int, num_input_features: int, num_output_features: int):
-        super(Projection, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -108,7 +108,7 @@ class DenseBlock(nn.Sequential):
         growth_rate: int,
         dropout_prob: float,
     ):
-        super(DenseBlock, self).__init__()
+        super().__init__()
         for i in range(num_layers):
             layer = Pseudo3DLayer(
                 spatial_dims, num_input_features + i * growth_rate, growth_rate, bn_size, dropout_prob
@@ -120,7 +120,7 @@ class UpTransition(nn.Sequential):
     def __init__(
         self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
-        super(UpTransition, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -145,7 +145,7 @@ class Final(nn.Sequential):
     def __init__(
         self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
-        super(Final, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -178,7 +178,7 @@ class Final(nn.Sequential):
 
 class Pseudo3DLayer(nn.Module):
     def __init__(self, spatial_dims: int, num_input_features: int, growth_rate: int, bn_size: int, dropout_prob: float):
-        super(Pseudo3DLayer, self).__init__()
+        super().__init__()
         # 1x1x1
 
         conv_type = Conv[Conv.CONV, spatial_dims]
@@ -244,7 +244,7 @@ class Pseudo3DLayer(nn.Module):
 
 class PSP(nn.Module):
     def __init__(self, spatial_dims: int, psp_block_num: int, in_ch: int, upsample_mode: str = "transpose"):
-        super(PSP, self).__init__()
+        super().__init__()
         self.up_modules = nn.ModuleList()
         conv_type = Conv[Conv.CONV, spatial_dims]
         pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
@@ -356,7 +356,7 @@ class AHNet(nn.Module):
         progress: bool = True,
     ):
         self.inplanes = 64
-        super(AHNet, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
