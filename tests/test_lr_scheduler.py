@@ -19,7 +19,7 @@ from monai.optimizers.lr_scheduler import WarmupCosineSchedule
 
 class SchedulerTestNet(torch.nn.Module):
     def __init__(self):
-        super(SchedulerTestNet, self).__init__()
+        super().__init__()
         self.conv1 = torch.nn.Conv2d(1, 1, 1)
         self.conv2 = torch.nn.Conv2d(1, 1, 1)
 
@@ -47,11 +47,11 @@ class TestLRSCHEDULER(unittest.TestCase):
         self.assertEqual(len([scheduler.get_last_lr()[0]]), 1)
         lrs_1 = []
         for _ in range(input_param["t_total"]):
-            lrs_1.append(float("{:.3f}".format(scheduler.get_last_lr()[0])))
+            lrs_1.append(float(f"{scheduler.get_last_lr()[0]:.3f}"))
             optimizer.step()
             scheduler.step()
         for a, b in zip(lrs_1, expected_lr):
-            self.assertEqual(a, b, msg="LR is wrong ! expected {}, got {}".format(b, a))
+            self.assertEqual(a, b, msg=f"LR is wrong ! expected {b}, got {a}")
 
 
 if __name__ == "__main__":
