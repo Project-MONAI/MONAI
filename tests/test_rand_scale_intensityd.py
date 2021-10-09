@@ -25,6 +25,8 @@ class TestRandScaleIntensityd(NumpyImageTestCase2D):
             scaler.set_random_state(seed=0)
             result = scaler({key: p(self.imt)})
             np.random.seed(0)
+            # simulate the randomize() of transform
+            np.random.random()
             expected = (self.imt * (1 + np.random.uniform(low=-0.5, high=0.5))).astype(np.float32)
             assert_allclose(result[key], p(expected))
 

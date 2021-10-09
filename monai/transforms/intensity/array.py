@@ -99,8 +99,8 @@ class RandGaussianNoise(RandomizableTransform):
         super().randomize(None)
         self._rand_std = self.R.uniform(0, self.std)
 
-    def _add_noise(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        noise = self.R.normal(self.mean, self._rand_std, size=img.shape)
+    def compute(self, img: NdarrayOrTensor, mean: float = 0.0) -> NdarrayOrTensor:
+        noise = self.R.normal(mean, self._rand_std, size=img.shape)
         noise_, *_ = convert_to_dst_type(noise, img)
         return img + noise_
 
@@ -111,7 +111,7 @@ class RandGaussianNoise(RandomizableTransform):
         self.randomize(None)
         if not self._do_transform:
             return img
-        return self._add_noise(img)
+        return self.compute(img=img, mean=self.mean)
 
 
 class RandRicianNoise(RandomizableTransform):
@@ -171,13 +171,7 @@ class RandRicianNoise(RandomizableTransform):
 
         return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
-        """
-        Apply the transform to `img`.
-        """
-        super().randomize(None)
-        if not self._do_transform:
-            return img
+    def compute(self, img: NdarrayTensor) -> NdarrayTensor:
         if self.channel_wise:
             _mean = ensure_tuple_rep(self.mean, len(img))
             _std = ensure_tuple_rep(self.std, len(img))
@@ -192,6 +186,16 @@ class RandRicianNoise(RandomizableTransform):
             if not isinstance(std, (int, float)):
                 raise RuntimeError("std must be a float or int number.")
             img = self._add_noise(img, mean=self.mean, std=std)
+        return img
+
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        """
+        Apply the transform to `img`.
+        """
+        super().randomize(None)
+        if self._do_transform:
+            img = self.compute(img=img)
+
         return img
 
 
@@ -245,8 +249,11 @@ class RandShiftIntensity(RandomizableTransform):
         self._shfiter = ShiftIntensity(self._offset)
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
+        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
+
+    def compute(self, img: NdarrayOrTensor, factor: Optional[float] = None) -> NdarrayOrTensor:
+        return self._shfiter(img, self._offset if factor is None else self._offset * factor)
 
     def __call__(self, img: NdarrayOrTensor, factor: Optional[float] = None) -> NdarrayOrTensor:
         """
@@ -259,9 +266,10 @@ class RandShiftIntensity(RandomizableTransform):
 
         """
         self.randomize()
-        if not self._do_transform:
-            return img
-        return self._shfiter(img, self._offset if factor is None else self._offset * factor)
+        if self._do_transform:
+            img = self.compute(img=img, factor=factor)
+
+        return img
 
 
 class StdShiftIntensity(Transform):
@@ -357,20 +365,24 @@ class RandStdShiftIntensity(RandomizableTransform):
         self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+
+    def compute(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        shifter = StdShiftIntensity(
+            factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise, dtype=self.dtype
+        )
+        return shifter(img)
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
         self.randomize()
-        if not self._do_transform:
-            return img
-        shifter = StdShiftIntensity(
-            factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise, dtype=self.dtype
-        )
-        return shifter(img)
+        if self._do_transform:
+            img = self.compute(img=img)
+
+        return img
 
 
 class ScaleIntensity(Transform):
@@ -459,18 +471,22 @@ class RandScaleIntensity(RandomizableTransform):
         self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+
+    def compute(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
+        return scaler(img)
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
         self.randomize()
-        if not self._do_transform:
-            return img
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)
-        return scaler(img)
+        if self._do_transform:
+            img = self.compute(img=img)
+
+        return img
 
 
 class RandBiasField(RandomizableTransform):
@@ -498,7 +514,7 @@ class RandBiasField(RandomizableTransform):
         degree: int = 3,
         coeff_range: Tuple[float, float] = (0.0, 0.1),
         dtype: DtypeLike = np.float32,
-        prob: float = 1.0,
+        prob: float = 0.1,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         if degree < 1:
@@ -537,14 +553,8 @@ class RandBiasField(RandomizableTransform):
         n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, len(data.shape[1:]) + 1)]))
         self._coeff = self.R.uniform(*self.coeff_range, n_coeff).tolist()
 
-    def __call__(self, img: np.ndarray):
-        """
-        Apply the transform to `img`.
-        """
+    def compute(self, img: np.ndarray):
         img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-        self.randomize(data=img)
-        if not self._do_transform:
-            return img
         num_channels, *spatial_shape = img.shape
         _bias_fields = np.stack(
             [
@@ -554,6 +564,16 @@ class RandBiasField(RandomizableTransform):
             axis=0,
         )
         return (img * np.exp(_bias_fields)).astype(self.dtype)
+
+    def __call__(self, img: np.ndarray):
+        """
+        Apply the transform to `img`.
+        """
+        self.randomize(data=img)
+        if self._do_transform:
+            img = self.compute(img=img)
+
+        return img
 
 
 class NormalizeIntensity(Transform):
@@ -785,6 +805,9 @@ class RandAdjustContrast(RandomizableTransform):
         super().randomize(None)
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
+    def compute(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        return AdjustContrast(self.gamma_value)(img)
+
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
@@ -792,10 +815,10 @@ class RandAdjustContrast(RandomizableTransform):
         self.randomize()
         if self.gamma_value is None:
             raise ValueError("gamma_value is not set.")
-        if not self._do_transform:
-            return img
-        adjuster = AdjustContrast(self.gamma_value)
-        return adjuster(img)
+        if self._do_transform:
+            img = self.compute(img=img)
+
+        return img
 
 
 class ScaleIntensityRangePercentiles(Transform):

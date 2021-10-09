@@ -34,8 +34,9 @@ class TestRandGaussianNoised(NumpyImageTestCase2D):
         im = im_type(self.imt)
         noised = gaussian_fn({k: im for k in keys})
         np.random.seed(seed)
-        np.random.random()
         for k in keys:
+            # simulate the randomize() of transform
+            np.random.random()
             expected = self.imt + np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
             self.assertEqual(type(im), type(noised[k]))
             if isinstance(noised[k], torch.Tensor):
