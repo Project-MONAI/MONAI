@@ -34,11 +34,32 @@ class MLFlowHandler:
     And it can track both epoch level and iteration level logging, then MLFlow can store
     the data and visualize.
     The expected data source is Ignite ``engine.state.output`` and ``engine.state.metrics``.
+
     Default behaviors:
         - When EPOCH_COMPLETED, track each dictionary item in
           ``engine.state.metrics`` in MLFlow.
         - When ITERATION_COMPLETED, track expected item in
           ``self.output_transform(engine.state.output)`` in MLFlow, default to `Loss`.
+
+    Args:
+        tracking_uri: connects to a tracking URI. can also set the `MLFLOW_TRACKING_URI` environment
+            variable to have MLflow find a URI from there. in both cases, the URI can either be
+            a HTTP/HTTPS URI for a remote server, a database connection string, or a local path
+            to log data to a directory. The URI defaults to path `mlruns`.
+            for more details: https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.set_tracking_uri.
+        epoch_logger: customized callable logger for epoch level logging with MLFlow.
+            Must accept parameter "engine", use default logger if None.
+        iteration_logger: customized callable logger for iteration level logging with MLFlow.
+            Must accept parameter "engine", use default logger if None.
+        output_transform: a callable that is used to transform the
+            ``ignite.engine.state.output`` into a scalar to track, or a dictionary of {key: scalar}.
+            By default this value logging happens when every iteration completed.
+            The default behavior is to track loss from output[0] as output is a decollated list
+            and we replicated loss value for every item of the decollated list.
+        global_epoch_transform: a callable that is used to customize global epoch number.
+            For example, in evaluation, the evaluator engine might want to track synced epoch number
+            with the trainer engine.
+        tag_name: when iteration output is a scalar, `tag_name` is used to track, defaults to `'Loss'`.
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
 
@@ -53,29 +74,6 @@ class MLFlowHandler:
         global_epoch_transform: Callable = lambda x: x,
         tag_name: str = DEFAULT_TAG,
     ) -> None:
-        """
-
-        Args:
-            tracking_uri: connects to a tracking URI. can also set the `MLFLOW_TRACKING_URI` environment
-                variable to have MLflow find a URI from there. in both cases, the URI can either be
-                a HTTP/HTTPS URI for a remote server, a database connection string, or a local path
-                to log data to a directory. The URI defaults to path `mlruns`.
-                for more details: https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.set_tracking_uri.
-            epoch_logger: customized callable logger for epoch level logging with MLFlow.
-                Must accept parameter "engine", use default logger if None.
-            iteration_logger: customized callable logger for iteration level logging with MLFlow.
-                Must accept parameter "engine", use default logger if None.
-            output_transform: a callable that is used to transform the
-                ``ignite.engine.state.output`` into a scalar to track, or a dictionary of {key: scalar}.
-                By default this value logging happens when every iteration completed.
-                The default behavior is to track loss from output[0] as output is a decollated list
-                and we replicated loss value for every item of the decollated list.
-            global_epoch_transform: a callable that is used to customize global epoch number.
-                For example, in evaluation, the evaluator engine might want to track synced epoch number
-                with the trainer engine.
-            tag_name: when iteration output is a scalar, `tag_name` is used to track, defaults to `'Loss'`.
-
-        """
         if tracking_uri is not None:
             mlflow.set_tracking_uri(tracking_uri)
 
