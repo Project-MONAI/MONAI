@@ -165,6 +165,11 @@ NVTX Handlers
 .. automodule:: monai.handlers.nvtx_handlers
   :members:
 
+MLFlow handler
+--------------
+.. autoclass:: MLFlowHandler
+    :members:
+
 Utilities
 ---------
 .. automodule:: monai.handlers.utils
