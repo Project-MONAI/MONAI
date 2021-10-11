@@ -693,6 +693,8 @@ class CropForeground(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         select_fn: Callable = is_positive,
@@ -728,13 +730,15 @@ class CropForeground(Transform):
         self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
-    def compute_bounding_box(self, img: np.ndarray):
+    def compute_bounding_box(self, img: NdarrayOrTensor) -> Tuple[np.ndarray, np.ndarray]:
         """
         Compute the start points and end points of bounding box to crop.
         And adjust bounding box coords to be divisible by `k`.
 
         """
         box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indices, self.margin)
+        box_start = [i.cpu() if isinstance(i, torch.Tensor) else i for i in box_start]  # type: ignore
+        box_end = [i.cpu() if isinstance(i, torch.Tensor) else i for i in box_end]  # type: ignore
         box_start_ = np.asarray(box_start, dtype=np.int16)
         box_end_ = np.asarray(box_end, dtype=np.int16)
         orig_spatial_size = box_end_ - box_start_
@@ -747,7 +751,7 @@ class CropForeground(Transform):
 
     def crop_pad(
         self,
-        img: np.ndarray,
+        img: NdarrayOrTensor,
         box_start: np.ndarray,
         box_end: np.ndarray,
         mode: Optional[Union[NumpyPadMode, str]] = None,
@@ -762,13 +766,11 @@ class CropForeground(Transform):
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
         return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.np_kwargs)(cropped)
 
-    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None):
+    def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-
         box_start, box_end = self.compute_bounding_box(img)
         cropped = self.crop_pad(img, box_start, box_end, mode)
 

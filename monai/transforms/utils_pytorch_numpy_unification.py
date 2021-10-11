@@ -220,7 +220,7 @@ def ravel(x: NdarrayOrTensor):
     return np.ravel(x)
 
 
-def any_np_pt(x: NdarrayOrTensor, axis: int):
+def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]):
     """`np.any` with equivalent implementation for torch.
 
     For pytorch, convert to boolean for compatibility with older versions.
@@ -232,13 +232,18 @@ def any_np_pt(x: NdarrayOrTensor, axis: int):
     Returns:
         Return a contiguous flattened array/tensor.
     """
-    if isinstance(x, torch.Tensor):
+    if isinstance(x, np.ndarray):
+        return np.any(x, axis)
+
+    # pytorch can't handle multiple dimensions to `any` so loop across them
+    axis = [axis] if not isinstance(axis, Sequence) else axis
+    for ax in axis:
         try:
-            return torch.any(x, axis)
+            x = torch.any(x, ax)
         except RuntimeError:
             # older versions of pytorch require the input to be cast to boolean
-            return torch.any(x.bool(), axis)
-    return np.any(x, axis)
+            x = torch.any(x.bool(), ax)
+    return x
 
 
 def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:

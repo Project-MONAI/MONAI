@@ -49,6 +49,7 @@ from monai.transforms.transform import MapTransform, Randomizable, RandomizableT
 from monai.transforms.utils import is_positive
 from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 from monai.utils.deprecated import deprecated_arg
+from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
@@ -168,24 +169,19 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         self.std = std
         self._noise: List[np.ndarray] = []
 
-    def randomize(self, im_shape: Sequence[int]) -> None:
-        super().randomize(None)
-        self._noise.clear()
-        for m in self.mean:
-            self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
+    def _add_noise(self, img: NdarrayTensor, mean: float) -> NdarrayTensor:
+        noise = self.R.normal(mean, self.R.uniform(0, self.std), size=img.shape)
+        noise_, *_ = convert_to_dst_type(noise, img)
+        return img + noise_
 
     def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
-
-        image_shape = d[self.keys[0]].shape  # image shape from the first data key
-        self.randomize(image_shape)
-        if len(self._noise) != len(self.keys):
-            raise RuntimeError("inconsistent noise items and keys.")
+        super().randomize(None)
         if not self._do_transform:
             return d
-        for key, noise in self.key_iterator(d, self._noise):
-            noise, *_ = convert_to_dst_type(noise, d[key])
-            d[key] = d[key] + noise
+
+        for key, mean in self.key_iterator(d, self.mean):
+            d[key] = self._add_noise(img=d[key], mean=mean)
         return d
 
 
@@ -1113,6 +1109,8 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1143,17 +1141,19 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
                 self.floating_control_points[i - 1], self.floating_control_points[i + 1]
             )
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
-        if not self._do_transform:
-            return d
         for key in self.key_iterator(d):
-            img_min, img_max = d[key].min(), d[key].max()
-            reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
-            floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-            dtype = d[key].dtype
-            d[key] = np.interp(d[key], reference_control_points_scaled, floating_control_points_scaled).astype(dtype)
+            d[key] = convert_data_type(d[key], np.ndarray)[0]
+            if self._do_transform:
+                img_min, img_max = d[key].min(), d[key].max()
+                reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
+                floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
+                dtype = d[key].dtype
+                d[key] = np.interp(d[key], reference_control_points_scaled, floating_control_points_scaled).astype(
+                    dtype
+                )
         return d
 
 
@@ -1599,13 +1599,15 @@ class HistogramNormalized(MapTransform):
 
     """
 
+    backend = HistogramNormalize.backend
+
     def __init__(
         self,
         keys: KeysCollection,
         num_bins: int = 256,
         min: int = 0,
         max: int = 255,
-        mask: Optional[np.ndarray] = None,
+        mask: Optional[NdarrayOrTensor] = None,
         mask_key: Optional[str] = None,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
@@ -1614,7 +1616,7 @@ class HistogramNormalized(MapTransform):
         self.transform = HistogramNormalize(num_bins=num_bins, min=min, max=max, mask=mask, dtype=dtype)
         self.mask_key = mask_key if mask is None else None
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key], d[self.mask_key]) if self.mask_key is not None else self.transform(d[key])
