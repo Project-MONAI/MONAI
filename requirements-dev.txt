@@ -39,3 +39,4 @@ pandas
 requests
 einops
 transformers
+mlflow
