@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandSpatialCrop
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_0 = [
     {"roi_size": [3, 3, -1], "random_center": True},
@@ -56,10 +57,11 @@ class TestRandSpatialCrop(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_value(self, input_param, input_data):
-        cropper = RandSpatialCrop(**input_param)
-        result = cropper(input_data)
-        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
-        np.testing.assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
+        for p in TEST_NDARRAYS:
+            cropper = RandSpatialCrop(**input_param)
+            result = cropper(p(input_data))
+            roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
+            assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test=False)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
     def test_random_shape(self, input_param, input_data, expected_shape):

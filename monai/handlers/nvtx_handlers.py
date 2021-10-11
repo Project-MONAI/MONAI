@@ -97,9 +97,7 @@ class RangeHandler:
         )
 
     def get_event(self, event: Union[str, Events]) -> Events:
-        if isinstance(event, str):
-            event = event.upper()
-        return Events[event]
+        return Events[event.upper()] if isinstance(event, str) else event
 
     def attach(self, engine: Engine) -> None:
         """
@@ -126,10 +124,8 @@ class RangePushHandler:
         msg: ASCII message to associate with range
     """
 
-    def __init__(self, event: Events, msg: Optional[str] = None) -> None:
-        if isinstance(event, str):
-            event = event.upper()
-        self.event = Events[event]
+    def __init__(self, event: Union[str, Events], msg: Optional[str] = None) -> None:
+        self.event = Events[event.upper()] if isinstance(event, str) else event
         if msg is None:
             msg = self.event.name
         self.msg = msg
@@ -156,10 +152,8 @@ class RangePopHandler:
         msg: ASCII message to associate with range
     """
 
-    def __init__(self, event: Events) -> None:
-        if isinstance(event, str):
-            event = event.upper()
-        self.event = Events[event]
+    def __init__(self, event: Union[str, Events]) -> None:
+        self.event = Events[event.upper()] if isinstance(event, str) else event
 
     def attach(self, engine: Engine) -> None:
         """
@@ -181,10 +175,8 @@ class MarkHandler:
         msg: ASCII message to associate with range
     """
 
-    def __init__(self, event: Events, msg: Optional[str] = None) -> None:
-        if isinstance(event, str):
-            event = event.upper()
-        self.event = Events[event]
+    def __init__(self, event: Union[str, Events], msg: Optional[str] = None) -> None:
+        self.event = Events[event.upper()] if isinstance(event, str) else event
         if msg is None:
             msg = self.event.name
         self.msg = msg

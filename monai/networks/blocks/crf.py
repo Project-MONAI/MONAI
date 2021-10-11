@@ -57,7 +57,7 @@ class CRF(torch.nn.Module):
             compatibility_matrix: a matrix describing class compatibility,
                 should be NxN where N is the number of classes.
         """
-        super(CRF, self).__init__()
+        super().__init__()
         self.iterations = iterations
         self.bilateral_weight = bilateral_weight
         self.gaussian_weight = gaussian_weight
