@@ -86,6 +86,7 @@ class RandGaussianNoise(RandomizableTransform):
         prob: Probability to add Gaussian noise.
         mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -94,32 +95,36 @@ class RandGaussianNoise(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         self.mean = mean
         self.std = std
+        self.noise: Optional[np.ndarray] = None
 
-    def randomize(self, data: Any) -> None:
+    def randomize(self, img: NdarrayOrTensor, mean: Optional[float] = None) -> None:
         super().randomize(None)
-        self._rand_std = self.R.uniform(0, self.std)
+        if self._do_transform:
+            rand_std = self.R.uniform(0, self.std)
+            self.noise = self.R.normal(self.mean if mean is None else mean, rand_std, size=img.shape)
 
-    def compute(self, img: NdarrayOrTensor, mean: float = 0.0) -> NdarrayOrTensor:
-        noise = self.R.normal(mean, self._rand_std, size=img.shape)
-        noise_, *_ = convert_to_dst_type(noise, img)
-        return img + noise_
-
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, mean: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        self.randomize(None)
-        if not self._do_transform:
-            return img
-        return self.compute(img=img, mean=self.mean)
+        if randomize:
+            self.randomize(img=img, mean=self.mean if mean is None else mean)
+
+        if self._do_transform:
+            if self.noise is None:
+                raise RuntimeError("please call the `randomize()` function first.")
+            noise, *_ = convert_to_dst_type(self.noise, img)
+            img = img + noise
+
+        return img
 
 
 class RandRicianNoise(RandomizableTransform):
     """
     Add Rician noise to image.
     Rician noise in MRI is the result of performing a magnitude operation on complex
-    data with Gaussian noise of the same variance in both channels, as described in `Noise in Magnitude Magnetic Resonance Images
-    <https://doi.org/10.1002/cmr.a.20124>`_. This transform is adapted from
+    data with Gaussian noise of the same variance in both channels, as described in `Noise in Magnitude
+    Magnetic Resonance Images <https://doi.org/10.1002/cmr.a.20124>`_. This transform is adapted from
     `DIPY<https://github.com/dipy/dipy>`_. See also: `The rician distribution of noisy mri data
     <https://doi.org/10.1002/mrm.1910340618>`_.
 

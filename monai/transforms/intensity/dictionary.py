@@ -163,14 +163,13 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        mean: Union[Sequence[float], float] = 0.0,
+        mean: float = 0.0,
         std: float = 0.1,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.mean = ensure_tuple_rep(mean, len(self.keys))
-        self.rand_gaussian_noise = RandGaussianNoise(std=std)
+        self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0)
 
     def set_random_state(self, seed=None, state=None):
         super().set_random_state(seed, state)
@@ -182,9 +181,10 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
 
-        for key, mean in self.key_iterator(d, self.mean):
-            self.rand_gaussian_noise.randomize(None)
-            d[key] = self.rand_gaussian_noise.compute(img=d[key], mean=mean)
+        # all the keys share the same random noise
+        self.rand_gaussian_noise.randomize(d[self.keys[0]])
+        for key in self.key_iterator(d):
+            d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
         return d
 
 
