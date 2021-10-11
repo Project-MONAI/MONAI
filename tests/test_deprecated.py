@@ -245,6 +245,8 @@ class TestDeprecated(unittest.TestCase):
             return a
 
         self.assertEqual(afoo4(b=2), 2)
+        # self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
+        self.assertEqual(afoo4(1, b=2), 1)  # new name is in use
         self.assertEqual(afoo4(a=1, b=2), 1)  # prefers the new arg
 
 

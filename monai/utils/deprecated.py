@@ -191,6 +191,11 @@ def deprecated_arg(
                 # replace the deprecated arg "name" with "new_name"
                 # if name is specified and new_name is not specified
                 kwargs[new_name] = kwargs[name]
+                try:
+                    sig.bind(*args, **kwargs).arguments
+                except TypeError:
+                    # multiple values for new_name using both args and kwargs
+                    kwargs.pop(new_name, None)
             binding = sig.bind(*args, **kwargs).arguments
 
             positional_found = name in binding
