@@ -25,7 +25,6 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform, apply_transform
-from monai.transforms.utils_pytorch_numpy_unification import any_np_pt, nonzero, ravel, unravel_index, where
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
     cumsum,
