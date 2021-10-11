@@ -820,9 +820,9 @@ class RandAdjustContrast(RandomizableTransform):
         if randomize:
             self.randomize()
 
-        if self.gamma_value is None:
-            raise RuntimeError("gamma_value is not set, please call `randomize` function first.")
         if self._do_transform:
+            if self.gamma_value is None:
+                raise RuntimeError("gamma_value is not set, please call `randomize` function first.")
             img = AdjustContrast(self.gamma_value)(img)
 
         return img
