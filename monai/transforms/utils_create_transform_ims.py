@@ -139,8 +139,8 @@ from monai.transforms.intensity.dictionary import (
     StdShiftIntensityd,
     ThresholdIntensityd,
 )
-from monai.transforms.post.array import LabelFilter, LabelToContour
-from monai.transforms.post.dictionary import AsDiscreted, LabelFilterd, LabelToContourd
+from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour
+from monai.transforms.post.dictionary import AsDiscreted, KeepLargestConnectedComponentd, LabelFilterd, LabelToContourd
 from monai.transforms.spatial.array import Rand2DElastic, RandAffine, RandAxisFlip, RandRotate90, Resize, Spacing
 from monai.transforms.spatial.dictionary import (
     Rand2DElasticd,
@@ -666,3 +666,9 @@ if __name__ == "__main__":
     create_transform_im(RandAxisFlipd, dict(keys=keys, prob=1), data)
     create_transform_im(Resize, dict(spatial_size=(100, 100, 100)), data)
     create_transform_im(Resized, dict(keys=keys, spatial_size=(100, 100, 100), mode=["area", "nearest"]), data)
+    data_binary = deepcopy(data)
+    data_binary[CommonKeys.LABEL] = (data_binary[CommonKeys.LABEL] > 0).astype(np.float32)
+    create_transform_im(KeepLargestConnectedComponent, dict(applied_labels=1), data_binary, is_post=True, ndim=2)
+    create_transform_im(
+        KeepLargestConnectedComponentd, dict(keys=CommonKeys.LABEL, applied_labels=1), data_binary, is_post=True, ndim=2
+    )
