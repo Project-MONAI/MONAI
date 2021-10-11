@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import glob
+import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from ignite.engine import Engine, Events
 
@@ -35,12 +37,13 @@ class TestHandlerMLFlow(unittest.TestCase):
                 engine.state.metrics["acc"] = current_metric + 0.1
 
             # set up testing handler
-            handler = MLFlowHandler(tracking_uri="file:/" + tempdir)
+            test_path = os.path.join(tempdir, "mlflow_test")
+            handler = MLFlowHandler(tracking_uri=Path(test_path).as_uri())
             handler.attach(engine)
             engine.run(range(3), max_epochs=2)
             handler.close()
             # check logging output
-            self.assertTrue(len(glob.glob(tempdir)) > 0)
+            self.assertTrue(len(glob.glob(test_path)) > 0)
 
 
 if __name__ == "__main__":
