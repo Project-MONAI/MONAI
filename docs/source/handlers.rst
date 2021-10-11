@@ -160,6 +160,11 @@ Decollate batch
 .. autoclass:: DecollateBatch
     :members:
 
+MLFlow handler
+--------------
+.. autoclass:: MLFlowHandler
+    :members:
+
 NVTX Handlers
 -------------
 .. automodule:: monai.handlers.nvtx_handlers
