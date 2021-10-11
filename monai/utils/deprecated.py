@@ -189,7 +189,7 @@ def deprecated_arg(
         def _wrapper(*args, **kwargs):
             if new_name is not None and name in kwargs and new_name not in kwargs:
                 # replace the deprecated arg "name" with "new_name"
-                # if name is specified and new_name is not speficified
+                # if name is specified and new_name is not specified
                 kwargs[new_name] = kwargs[name]
             binding = sig.bind(*args, **kwargs).arguments
 
