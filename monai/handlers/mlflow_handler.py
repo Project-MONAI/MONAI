@@ -116,7 +116,7 @@ class MLFlowHandler:
     def epoch_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.
-        Track epoch level log, default values are from Ignite state.metrics dict.
+        Track epoch level log, default values are from Ignite `engine.state.metrics` dict.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -143,8 +143,8 @@ class MLFlowHandler:
 
     def _default_epoch_log(self, engine: Engine) -> None:
         """
-        Execute epoch level log operation based on Ignite engine.state data.
-        Track the values from Ignite state.metrics dict.
+        Execute epoch level log operation.
+        Default to track the values from Ignite `engine.state.metrics` dict.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -159,7 +159,8 @@ class MLFlowHandler:
 
     def _default_iteration_log(self, engine: Engine) -> None:
         """
-        Execute iteration log operation based on Ignite engine.state data.
+        Execute iteration log operation based on Ignite `engine.state.output` data.
+        Log the values from `self.output_transform(engine.state.output)`.
         The default behavior is to track loss from output[0] as output is a decollated list
         and we replicated loss value for every item of the decollated list.
 
