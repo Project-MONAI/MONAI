@@ -181,8 +181,8 @@ class StatsHandler:
         """
         Execute iteration log operation based on Ignite `engine.state.output` data.
         Print the values from `self.output_transform(engine.state.output)`.
-        The default behavior is to print loss from output[0] as output is a decollated list and we replicated loss
-        value for every item of the decollated list.
+        Since `engine.state.output` is a decollated list and we replicated the loss value for every item
+        of the decollated list, the default behavior is to print the loss from `output[0]`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.

@@ -181,8 +181,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         """
         Execute iteration level event write operation based on Ignite `engine.state.output` data.
         Extract the values from `self.output_transform(engine.state.output)`.
-        The default behavior is to track loss from output[0] as output is a decollated list and
-        we replicated loss value for every item of the decollated list.
+        Since `engine.state.output` is a decollated list and we replicated the loss value for every item
+        of the decollated list, the default behavior is to track the loss from `output[0]`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
