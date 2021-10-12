@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
@@ -268,6 +269,8 @@ class FillHolesd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.FillHoles`.
     """
 
+    backend = FillHoles.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -291,7 +294,7 @@ class FillHolesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = FillHoles(applied_labels=applied_labels, connectivity=connectivity)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -406,6 +409,8 @@ class VoteEnsembled(Ensembled):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.VoteEnsemble`.
     """
+
+    backend = VoteEnsemble.backend
 
     def __init__(
         self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None

@@ -16,7 +16,8 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms import FillHoles
+from monai.transforms import FillHolesd
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose, clone
 
 grid_1_raw = [
@@ -276,19 +277,21 @@ INVALID_CASES = [ITEST_CASE_1]
 class TestFillHoles(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, args, input_image, expected):
-        converter = FillHoles(**args)
+        key = CommonKeys.IMAGE
+        converter = FillHolesd(keys=key, **args)
         for p in TEST_NDARRAYS:
-            result = converter(p(clone(input_image)))
+            result = converter({key: p(clone(input_image))})[key]
             assert_allclose(result, np.asarray(expected))
 
     @parameterized.expand(INVALID_CASES)
     def test_raise_exception(self, _, args, input_image, expected_error):
+        key = CommonKeys.IMAGE
         with self.assertRaises(expected_error):
-            converter = FillHoles(**args)
+            converter = FillHolesd(keys=key, **args)
             if isinstance(input_image, torch.Tensor) and torch.cuda.is_available():
-                _ = converter(clone(input_image).cuda())
+                _ = converter({key: clone(input_image).cuda()})[key]
             else:
-                _ = converter(clone(input_image))
+                _ = converter({key: clone(input_image)})[key]
 
 
 if __name__ == "__main__":

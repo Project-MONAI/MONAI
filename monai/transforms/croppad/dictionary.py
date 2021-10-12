@@ -1466,6 +1466,8 @@ class BoundingRectd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = BoundingRect.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1477,7 +1479,7 @@ class BoundingRectd(MapTransform):
         self.bbox = BoundingRect(select_fn=select_fn)
         self.bbox_key_postfix = bbox_key_postfix
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """

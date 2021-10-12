@@ -663,6 +663,8 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -702,6 +704,8 @@ class SelectItemsd(MapTransform):
     Select only specified items from data dictionary to release memory.
     It will copy the selected key-values and construct and new dictionary.
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __call__(self, data):
         return {key: data[key] for key in self.key_iterator(data)}

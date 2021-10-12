@@ -47,7 +47,6 @@ from monai.utils import (
     look_up_option,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "SpatialPad",
@@ -1181,14 +1180,15 @@ class BoundingRect(Transform):
         select_fn: function to select expected foreground, default is to select values > 0.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, select_fn: Callable = is_positive) -> None:
         self.select_fn = select_fn
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         bbox = []
 
         for channel in range(img.shape[0]):
