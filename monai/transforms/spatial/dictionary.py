@@ -478,11 +478,9 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random factor
         self.rand_rotate90.randomize()
         for key in self.key_iterator(d):
-            if not self._do_transform:
-                self.push_transform(d, key)
-            else:
+            if self._do_transform:
                 d[key] = self.rand_rotate90(d[key], randomize=False)
-                self.push_transform(d, key, extra_info={"rand_k": self.rand_rotate90._rand_k})
+            self.push_transform(d, key, extra_info={"rand_k": self.rand_rotate90._rand_k})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1459,9 +1457,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            if not self._do_transform:
-                self.push_transform(d, key)
-            else:
+            if self._do_transform:
                 d[key], rot_mat = self.rand_rotate(
                     d[key],
                     mode=mode,
@@ -1471,17 +1467,19 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     randomize=False,
                     get_matrix=True,
                 )
-                self.push_transform(
-                    d,
-                    key,
-                    orig_size=d[key].shape[1:],
-                    extra_info={
-                        "rot_mat": rot_mat,
-                        "mode": mode.value if isinstance(mode, Enum) else mode,
-                        "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                        "align_corners": align_corners if align_corners is not None else "none",
-                    },
-                )
+            else:
+                rot_mat = np.eye(d[key].ndim)
+            self.push_transform(
+                d,
+                key,
+                orig_size=d[key].shape[1:],
+                extra_info={
+                    "rot_mat": rot_mat,
+                    "mode": mode.value if isinstance(mode, Enum) else mode,
+                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                    "align_corners": align_corners if align_corners is not None else "none",
+                },
+            )
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1691,13 +1689,11 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.randomize(None)
 
         # all the keys share the same random zoom factor
-        self.rand_zoom.randomize()
+        self.rand_zoom.randomize(d[self.keys[0]])
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
-            if not self._do_transform:
-                self.push_transform(d, key)
-            else:
+            if self._do_transform:
                 d[key] = self.rand_zoom(
                     d[key],
                     mode=mode,
@@ -1705,16 +1701,16 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=align_corners,
                     randomize=False,
                 )
-                self.push_transform(
-                    d,
-                    key,
-                    extra_info={
-                        "zoom": self.rand_zoom._zoom,
-                        "mode": mode.value if isinstance(mode, Enum) else mode,
-                        "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                        "align_corners": align_corners if align_corners is not None else "none",
-                    },
-                )
+            self.push_transform(
+                d,
+                key,
+                extra_info={
+                    "zoom": self.rand_zoom._zoom,
+                    "mode": mode.value if isinstance(mode, Enum) else mode,
+                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                    "align_corners": align_corners if align_corners is not None else "none",
+                },
+            )
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

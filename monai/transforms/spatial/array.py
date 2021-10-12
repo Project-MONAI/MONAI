@@ -989,11 +989,17 @@ class RandZoom(RandomizableTransform):
 
         self._zoom: Sequence[float] = [1.0]
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, img: NdarrayOrTensor) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
+        if len(self._zoom) == 1:
+            # to keep the spatial shape ratio, use same random zoom factor for all dims
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
+        elif len(self._zoom) == 2 and img.ndim > 3:
+            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
 
     def __call__(
         self,
@@ -1024,17 +1030,11 @@ class RandZoom(RandomizableTransform):
         """
         # match the spatial image dim
         if randomize:
-            self.randomize()
+            self.randomize(img=img)
 
         if not self._do_transform:
             return img
 
-        if len(self._zoom) == 1:
-            # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
-        elif len(self._zoom) == 2 and img.ndim > 3:
-            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
         return Zoom(
             self._zoom,
             keep_size=self.keep_size,
