@@ -33,6 +33,7 @@ from monai.transforms.utils import (
     create_translate,
     map_spatial_axes,
 )
+from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -2022,6 +2023,8 @@ class AddCoordinateChannels(Transform):
     Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         spatial_channels: Sequence[int],
@@ -2034,12 +2037,11 @@ class AddCoordinateChannels(Transform):
         """
         self.spatial_channels = spatial_channels
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel first.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if max(self.spatial_channels) > img.ndim - 1:
             raise ValueError(
                 f"input has {img.ndim-1} spatial dimensions, cannot add AddCoordinateChannels channel for "
@@ -2050,7 +2052,8 @@ class AddCoordinateChannels(Transform):
 
         spatial_dims = img.shape[1:]
         coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing="ij"))
+        coord_channels, *_ = convert_to_dst_type(coord_channels, img)  # type: ignore
         # only keep required dimensions. need to subtract 1 since im will be 0-based
         # but user input is 1-based (because channel dim is 0)
         coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
-        return np.concatenate((img, coord_channels), axis=0)
+        return concatenate((img, coord_channels), axis=0)
