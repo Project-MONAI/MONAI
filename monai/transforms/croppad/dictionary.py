@@ -929,6 +929,8 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
         :py:class:`monai.transforms.RandWeightedCrop`
     """
 
+    backend = SpatialCrop.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -951,18 +953,18 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.centers: List[np.ndarray] = []
 
-    def randomize(self, weight_map: np.ndarray) -> None:
+    def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         d = dict(data)
         self.randomize(d[self.w_key])
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
         # initialize returned list with shallow copy to preserve key ordering
-        results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]
+        results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(data) for _ in range(self.num_samples)]
         # fill in the extra keys with unmodified data
         for i in range(self.num_samples):
             for key in set(data.keys()).difference(set(self.keys)):
@@ -977,8 +979,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
             for i, center in enumerate(self.centers):
                 cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
                 orig_size = img.shape[1:]
-                cropped: np.ndarray = cropper(img)  # type: ignore
-                results[i][key] = cropped
+                results[i][key] = cropper(img)
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
                 if self.center_coord_key:
                     results[i][self.center_coord_key] = center
@@ -989,7 +990,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in results[i]:
                     results[i][meta_key] = {}  # type: ignore
-                results[i][meta_key][Key.PATCH_INDEX] = i
+                results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
 
         return results
 
@@ -1001,7 +1002,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
             orig_size = np.asarray(transform[InverseKeys.ORIG_SIZE])
             current_size = np.asarray(d[key].shape[1:])
             center = transform[InverseKeys.EXTRA_INFO]["center"]
-            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+            cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
             # get required pad to start and end
             pad_to_start = np.array([s.indices(o)[0] for s, o in zip(cropper.slices, orig_size)])
             pad_to_end = orig_size - current_size - pad_to_start

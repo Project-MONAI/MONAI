@@ -535,8 +535,11 @@ from .utils import (
 from .utils_pytorch_numpy_unification import (
     any_np_pt,
     clip,
+    concatenate,
+    cumsum,
     floor_divide,
     in1d,
+    isfinite,
     maximum,
     moveaxis,
     nonzero,
