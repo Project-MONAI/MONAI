@@ -136,7 +136,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
     def epoch_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.
-        Write epoch level events, default values are from Ignite state.metrics dict.
+        Write epoch level events, default values are from Ignite `engine.state.metrics` dict.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -150,7 +150,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
     def iteration_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation iteration completed Event.
-        Write iteration level events, default values are from Ignite state.logs dict.
+        Write iteration level events, default values are from Ignite `engine.state.output`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -163,8 +163,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
     def _default_epoch_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
-        Execute epoch level event write operation based on Ignite engine.state data.
-        Default is to write the values from Ignite state.metrics dict.
+        Execute epoch level event write operation.
+        Default to write the values from Ignite `engine.state.metrics` dict.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -179,9 +179,10 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
     def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
-        Execute iteration level event write operation based on Ignite engine.state data.
-        The default behavior is to print loss from output[0] as output is a decollated list and we replicated loss
-        value for every item of the decollated list.
+        Execute iteration level event write operation based on Ignite `engine.state.output` data.
+        Extract the values from `self.output_transform(engine.state.output)`.
+        Since `engine.state.output` is a decollated list and we replicated the loss value for every item
+        of the decollated list, the default behavior is to track the loss from `output[0]`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.

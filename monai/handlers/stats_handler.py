@@ -108,7 +108,7 @@ class StatsHandler:
     def epoch_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.
-        Print epoch level log, default values are from Ignite state.metrics dict.
+        Print epoch level log, default values are from Ignite `engine.state.metrics` dict.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -122,7 +122,7 @@ class StatsHandler:
     def iteration_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation iteration completed Event.
-        Print iteration level log, default values are from Ignite state.logs dict.
+        Print iteration level log, default values are from Ignite `engine.state.output`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -149,8 +149,8 @@ class StatsHandler:
 
     def _default_epoch_print(self, engine: Engine) -> None:
         """
-        Execute epoch level log operation based on Ignite engine.state data.
-        print the values from Ignite state.metrics dict.
+        Execute epoch level log operation.
+        Default to print the values from Ignite `engine.state.metrics` dict.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -179,10 +179,10 @@ class StatsHandler:
 
     def _default_iteration_print(self, engine: Engine) -> None:
         """
-        Execute iteration log operation based on Ignite engine.state data.
-        Print the values from Ignite state.logs dict.
-        The default behavior is to print loss from output[0] as output is a decollated list and we replicated loss
-        value for every item of the decollated list.
+        Execute iteration log operation based on Ignite `engine.state.output` data.
+        Print the values from `self.output_transform(engine.state.output)`.
+        Since `engine.state.output` is a decollated list and we replicated the loss value for every item
+        of the decollated list, the default behavior is to print the loss from `output[0]`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
