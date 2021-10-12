@@ -101,7 +101,7 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
         if self.save_details:
             if self._engine is None or self._name is None:
                 raise RuntimeError("please call the attach() function to connect expected engine first.")
-            self._engine.state.metric_details[self._name] = self.metric_fn.get_buffer()
+            self._engine.state.metric_details[self._name] = self.metric_fn.get_buffer()  # type: ignore
 
         return result.item() if isinstance(result, torch.Tensor) else result
 
@@ -120,4 +120,4 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
         self._engine = engine
         self._name = name
         if self.save_details and not hasattr(engine.state, "metric_details"):
-            engine.state.metric_details = {}
+            engine.state.metric_details = {}  # type: ignore

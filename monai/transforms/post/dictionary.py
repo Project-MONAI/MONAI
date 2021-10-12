@@ -86,6 +86,8 @@ class Activationsd(MapTransform):
     Add activation layers to the input data specified by `keys`.
     """
 
+    backend = Activations.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -126,6 +128,8 @@ class AsDiscreted(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AsDiscrete`.
     """
 
+    backend = AsDiscrete.backend
+
     @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
@@ -157,6 +161,9 @@ class AsDiscreted(MapTransform):
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+
+        .. deprecated:: 0.6.0
+            ``n_classes`` is deprecated, use ``num_classes`` instead.
 
         """
         # in case the new num_classes is default but you still call deprecated n_classes

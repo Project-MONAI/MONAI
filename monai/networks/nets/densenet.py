@@ -62,7 +62,7 @@ class _DenseLayer(nn.Module):
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
         """
-        super(_DenseLayer, self).__init__()
+        super().__init__()
 
         out_channels = bn_size * growth_rate
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
@@ -110,7 +110,7 @@ class _DenseBlock(nn.Sequential):
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
         """
-        super(_DenseBlock, self).__init__()
+        super().__init__()
         for i in range(layers):
             layer = _DenseLayer(spatial_dims, in_channels, growth_rate, bn_size, dropout_prob, act=act, norm=norm)
             in_channels += growth_rate
@@ -134,7 +134,7 @@ class _Transition(nn.Sequential):
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
         """
-        super(_Transition, self).__init__()
+        super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         pool_type: Callable = Pool[Pool.AVG, spatial_dims]
@@ -178,7 +178,7 @@ class DenseNet(nn.Module):
         dropout_prob: float = 0.0,
     ) -> None:
 
-        super(DenseNet, self).__init__()
+        super().__init__()
 
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
         pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
@@ -299,14 +299,18 @@ class DenseNet121(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(DenseNet121, self).__init__(
+        super().__init__(
             init_features=init_features,
             growth_rate=growth_rate,
             block_config=block_config,
             **kwargs,
         )
         if pretrained:
-            # it only worked when `spatial_dims` is 2
+            if kwargs["spatial_dims"] > 2:
+                raise NotImplementedError(
+                    "Parameter `spatial_dims` is > 2 ; currently PyTorch Hub does not"
+                    "provide pretrained models for more than two spatial dimensions."
+                )
             _load_state_dict(self, "densenet121", progress)
 
 
@@ -322,14 +326,18 @@ class DenseNet169(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(DenseNet169, self).__init__(
+        super().__init__(
             init_features=init_features,
             growth_rate=growth_rate,
             block_config=block_config,
             **kwargs,
         )
         if pretrained:
-            # it only worked when `spatial_dims` is 2
+            if kwargs["spatial_dims"] > 2:
+                raise NotImplementedError(
+                    "Parameter `spatial_dims` is > 2 ; currently PyTorch Hub does not"
+                    "provide pretrained models for more than two spatial dimensions."
+                )
             _load_state_dict(self, "densenet169", progress)
 
 
@@ -345,14 +353,18 @@ class DenseNet201(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(DenseNet201, self).__init__(
+        super().__init__(
             init_features=init_features,
             growth_rate=growth_rate,
             block_config=block_config,
             **kwargs,
         )
         if pretrained:
-            # it only worked when `spatial_dims` is 2
+            if kwargs["spatial_dims"] > 2:
+                raise NotImplementedError(
+                    "Parameter `spatial_dims` is > 2 ; currently PyTorch Hub does not"
+                    "provide pretrained models for more than two spatial dimensions."
+                )
             _load_state_dict(self, "densenet201", progress)
 
 
@@ -363,12 +375,12 @@ class DenseNet264(DenseNet):
         self,
         init_features: int = 64,
         growth_rate: int = 32,
-        block_config: Sequence[int] = (6, 12, 48, 32),
+        block_config: Sequence[int] = (6, 12, 64, 48),
         pretrained: bool = False,
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super(DenseNet264, self).__init__(
+        super().__init__(
             init_features=init_features,
             growth_rate=growth_rate,
             block_config=block_config,

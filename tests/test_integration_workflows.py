@@ -98,7 +98,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     # create UNet, DiceLoss and Adam optimizer
     net = monai.networks.nets.UNet(
-        dimensions=3,
+        spatial_dims=3,
         in_channels=1,
         out_channels=1,
         channels=(16, 32, 64, 128, 256),
@@ -230,7 +230,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
 
     # create UNet, DiceLoss and Adam optimizer
     net = monai.networks.nets.UNet(
-        dimensions=3,
+        spatial_dims=3,
         in_channels=1,
         out_channels=1,
         channels=(16, 32, 64, 128, 256),

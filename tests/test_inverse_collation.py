@@ -48,7 +48,12 @@ TESTS_3D = [
     for t in [
         RandFlipd(keys=KEYS, prob=0.5, spatial_axis=[1, 2]),
         RandAxisFlipd(keys=KEYS, prob=0.5),
-        RandRotate90d(keys=KEYS, spatial_axes=(1, 2)),
+        Compose(
+            [
+                RandRotate90d(keys=KEYS, spatial_axes=(1, 2)),
+                ToTensord(keys=KEYS),
+            ]
+        ),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
         RandAffined(
@@ -56,7 +61,6 @@ TESTS_3D = [
             prob=0.5,
             rotate_range=np.pi,
             device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            as_tensor_output=False,
         ),
     ]
 ]
@@ -67,7 +71,12 @@ TESTS_2D = [
     for t in [
         RandFlipd(keys=KEYS, prob=0.5, spatial_axis=[1]),
         RandAxisFlipd(keys=KEYS, prob=0.5),
-        RandRotate90d(keys=KEYS, prob=0.5, spatial_axes=(0, 1)),
+        Compose(
+            [
+                RandRotate90d(keys=KEYS, prob=0.5, spatial_axes=(0, 1)),
+                ToTensord(keys=KEYS),
+            ]
+        ),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
         RandAffined(
@@ -75,7 +84,6 @@ TESTS_2D = [
             prob=0.5,
             rotate_range=np.pi,
             device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            as_tensor_output=False,
         ),
     ]
 ]
@@ -91,12 +99,12 @@ class TestInverseCollation(unittest.TestCase):
         set_determinism(seed=0)
 
         b_size = 11
-        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_3d(101, 100, 107)]
+        im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107))
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.data_3d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
         b_size = 8
-        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10)]
+        im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10))
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.data_2d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
@@ -107,10 +115,7 @@ class TestInverseCollation(unittest.TestCase):
 
     @parameterized.expand(TESTS_2D + TESTS_3D)
     def test_collation(self, _, transform, collate_fn, ndim):
-        if ndim == 3:
-            data = self.data_3d
-        else:
-            data = self.data_2d
+        data = self.data_3d if ndim == 3 else self.data_2d
         if collate_fn:
             modified_transform = transform
         else:
