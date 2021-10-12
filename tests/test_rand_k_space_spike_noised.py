@@ -49,18 +49,16 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
 
         data = self.get_data(im_shape, im_type)
 
-        intensity_ranges = {"image": (13, 15), "label": (13, 15)}
         t = RandKSpaceSpikeNoised(
             KEYS,
-            global_prob=1.0,
             prob=1.0,
-            intensity_ranges=intensity_ranges,
+            intensity_range=(13, 15),
             channel_wise=True,
         )
-        t.set_rand_state(42)
+        t.set_random_state(42)
         out1 = t(deepcopy(data))
 
-        t.set_rand_state(42)
+        t.set_random_state(42)
         out2 = t(deepcopy(data))
 
         for k in KEYS:
@@ -74,20 +72,18 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_0_prob(self, im_shape, im_type):
         data = self.get_data(im_shape, im_type)
-        intensity_ranges = {"image": (13, 15), "label": (13, 15)}
+
         t1 = RandKSpaceSpikeNoised(
             KEYS,
-            global_prob=0.0,
-            prob=1.0,
-            intensity_ranges=intensity_ranges,
+            prob=0.0,
+            intensity_range=(13, 15),
             channel_wise=True,
         )
 
         t2 = RandKSpaceSpikeNoised(
             KEYS,
-            global_prob=0.0,
-            prob=1.0,
-            intensity_ranges=intensity_ranges,
+            prob=0.0,
+            intensity_range=(13, 15),
             channel_wise=True,
         )
         out1 = t1(data)
@@ -103,52 +99,6 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
 
             np.testing.assert_allclose(data[k], out1[k])
             np.testing.assert_allclose(data[k], out2[k])
-
-    @parameterized.expand(TESTS)
-    def test_intensity(self, im_shape, im_type):
-
-        data = self.get_data(im_shape, im_type)
-        intensity_ranges = {"image": (13, 13.1), "label": (13, 13.1)}
-        t = RandKSpaceSpikeNoised(
-            KEYS,
-            global_prob=1.0,
-            prob=1.0,
-            intensity_ranges=intensity_ranges,
-            channel_wise=True,
-        )
-
-        _ = t(data)
-        self.assertGreaterEqual(t.transforms["image"].sampled_k_intensity[0], 13)
-        self.assertLessEqual(t.transforms["image"].sampled_k_intensity[0], 13.1)
-        self.assertGreaterEqual(t.transforms["label"].sampled_k_intensity[0], 13)
-        self.assertLessEqual(t.transforms["label"].sampled_k_intensity[0], 13.1)
-
-    @parameterized.expand(TESTS)
-    def test_same_transformation(self, im_shape, im_type):
-        data = self.get_data(im_shape, im_type)
-        # use same image for both dictionary entries to check same trans is applied to them
-        data = {KEYS[0]: deepcopy(data[KEYS[0]]), KEYS[1]: deepcopy(data[KEYS[0]])}
-
-        intensity_ranges = {"image": (13, 15), "label": (13, 15)}
-        # use common_sampling = True to ask for the same transformation
-        t = RandKSpaceSpikeNoised(
-            KEYS,
-            global_prob=1.0,
-            prob=1.0,
-            intensity_ranges=intensity_ranges,
-            channel_wise=True,
-            common_sampling=True,
-        )
-
-        out = t(deepcopy(data))
-
-        for k in KEYS:
-            self.assertEqual(type(out[k]), type(data[k]))
-            if isinstance(out[k], torch.Tensor):
-                self.assertEqual(out[k].device, data[k].device)
-                out[k] = out[k].cpu()
-
-        np.testing.assert_allclose(out[KEYS[0]], out[KEYS[1]])
 
 
 if __name__ == "__main__":
