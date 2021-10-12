@@ -1758,6 +1758,8 @@ class AddCoordinateChannelsd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AddCoordinateChannels`.
     """
 
+    backend = AddCoordinateChannels.backend
+
     def __init__(self, keys: KeysCollection, spatial_channels: Sequence[int], allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -1772,9 +1774,7 @@ class AddCoordinateChannelsd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.add_coordinate_channels = AddCoordinateChannels(spatial_channels)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.add_coordinate_channels(d[key])
