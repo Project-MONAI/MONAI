@@ -171,13 +171,16 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0)
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandGaussianNoised":
         super().set_random_state(seed, state)
         self.rand_gaussian_noise.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        super().randomize(None)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -238,13 +241,16 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
             sample_std=sample_std,
         )
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandRicianNoised":
         super().set_random_state(seed, state)
         self.rand_rician_noise.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
-        super().randomize(None)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -361,13 +367,16 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.shifter = RandShiftIntensity(offsets=offsets, prob=1.0)
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandShiftIntensityd":
         super().set_random_state(seed, state)
         self.shifter.set_random_state(seed, state)
+        return self
 
     def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        super().randomize(None)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -458,13 +467,16 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
             prob=1.0,
         )
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandStdShiftIntensityd":
         super().set_random_state(seed, state)
         self.shifter.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        super().randomize(None)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -549,13 +561,16 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.scaler = RandScaleIntensity(factors=factors, dtype=dtype, prob=1.0)
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandScaleIntensityd":
         super().set_random_state(seed, state)
         self.scaler.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        super().randomize(None)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -597,13 +612,16 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
 
         self.rand_bias_field = RandBiasField(degree=degree, coeff_range=coeff_range, dtype=dtype, prob=1.0)
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandBiasFieldd":
         super().set_random_state(seed, state)
         self.rand_bias_field.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        super().randomize(None)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -780,13 +798,16 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.adjuster = RandAdjustContrast(gamma=gamma, prob=1.0)
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandAdjustContrastd":
         super().set_random_state(seed, state)
         self.adjuster.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        super().randomize(None)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -950,9 +971,12 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
             prob=1.0,
         )
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandGaussianSmoothd":
         super().set_random_state(seed, state)
         self.rand_smooth.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1062,9 +1086,12 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
             prob=1.0,
         )
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandGaussianSharpend":
         super().set_random_state(seed, state)
         self.rand_sharpen.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1107,9 +1134,12 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.shifter = RandHistogramShift(num_control_points=num_control_points, prob=1.0)
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandHistogramShiftd":
         super().set_random_state(seed, state)
         self.shifter.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1165,9 +1195,12 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob=prob)
         self.rand_gibbs_noise = RandGibbsNoise(alpha=alpha, prob=1.0)
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandGibbsNoised":
         super().set_random_state(seed, state)
         self.rand_gibbs_noise.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1346,9 +1379,12 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob=prob)
         self.rand_noise = RandKSpaceSpikeNoise(prob=1.0, intensity_range=intensity_range, channel_wise=channel_wise)
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandKSpaceSpikeNoised":
         super().set_random_state(seed, state)
         self.rand_noise.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Dict[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1417,9 +1453,12 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             prob=1.0,
         )
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandCoarseDropoutd":
         super().set_random_state(seed, state)
         self.dropper.set_random_state(seed, state)
+        return self
 
     def __call__(self, data):
         d = dict(data)
@@ -1481,9 +1520,12 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
             prob=1.0,
         )
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandCoarseShuffled":
         super().set_random_state(seed, state)
         self.shuffle.set_random_state(seed, state)
+        return self
 
     def __call__(self, data):
         d = dict(data)
