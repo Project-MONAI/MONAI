@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -37,6 +37,11 @@ from monai.transforms.spatial.array import (
     Rand2DElastic,
     Rand3DElastic,
     RandAffine,
+    RandAxisFlip,
+    RandFlip,
+    RandRotate,
+    RandRotate90,
+    RandZoom,
     Resize,
     Rotate,
     Rotate90,
@@ -433,7 +438,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
     in the plane specified by `spatial_axes`.
     """
 
-    backend = Rotate90.backend
+    backend = RandRotate90.backend
 
     def __init__(
         self,
@@ -457,25 +462,25 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.rand_rotate90 = RandRotate90(prob=1.0, max_k=max_k, spatial_axes=spatial_axes)
 
-        self.max_k = max_k
-        self.spatial_axes = spatial_axes
-
-        self._rand_k = 0
-
-    def randomize(self, data: Optional[Any] = None) -> None:
-        self._rand_k = self.R.randint(self.max_k) + 1
-        super().randomize(None)
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandRotate90d":
+        super().set_random_state(seed, state)
+        self.rand_rotate90.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
-        self.randomize()
         d = dict(data)
+        self.randomize(None)
 
-        rotator = Rotate90(self._rand_k, self.spatial_axes)
+        # all the keys share the same random factor
+        self.rand_rotate90.randomize()
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = rotator(d[key])
-            self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
+                d[key] = self.rand_rotate90(d[key], randomize=False)
+            self.push_transform(d, key, extra_info={"rand_k": self.rand_rotate90._rand_k})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -487,7 +492,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
                 # Create inverse transform
                 num_times_rotated = transform[InverseKeys.EXTRA_INFO]["rand_k"]
                 num_times_to_rotate = 4 - num_times_rotated
-                inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
+                inverse_transform = Rotate90(num_times_to_rotate, self.rand_rotate90.spatial_axes)
                 # Apply inverse
                 d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -794,13 +799,11 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
-        self.rand_affine.randomize()
-
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        self.randomize()
+        self.randomize(None)
+        # all the keys share the same random Affine factor
+        self.rand_affine.randomize()
 
         device = self.rand_affine.resampler.device
 
@@ -960,15 +963,13 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, spatial_size: Sequence[int]) -> None:
-        super().randomize(None)
-        self.rand_2d_elastic.randomize(spatial_size)
-
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
+        self.randomize(None)
 
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
-        self.randomize(spatial_size=sp_size)
+        # all the keys share the same random elastic factor
+        self.rand_2d_elastic.randomize(sp_size)
 
         if self._do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
@@ -1094,15 +1095,14 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, grid_size: Sequence[int]) -> None:
-        super().randomize(None)
-        self.rand_3d_elastic.randomize(grid_size)
-
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        self.randomize(None)
 
-        self.randomize(grid_size=sp_size)
+        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        # all the keys share the same random elastic factor
+        self.rand_3d_elastic.randomize(sp_size)
+
         _device = self.rand_3d_elastic.device
         grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         if self._do_transform:
@@ -1174,7 +1174,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = Flip.backend
+    backend = RandFlip.backend
 
     def __init__(
         self,
@@ -1185,16 +1185,22 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.spatial_axis = spatial_axis
+        self.flipper = RandFlip(prob=1.0, spatial_axis=spatial_axis)
 
-        self.flipper = Flip(spatial_axis=spatial_axis)
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandFlipd":
+        super().set_random_state(seed, state)
+        self.flipper.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        self.randomize(None)
         d = dict(data)
+        self.randomize(None)
+
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = self.flipper(d[key])
+                d[key] = self.flipper(d[key], randomize=False)
             self.push_transform(d, key)
         return d
 
@@ -1205,7 +1211,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
             # Check if random transform was actually performed (based on `prob`)
             if transform[InverseKeys.DO_TRANSFORM]:
                 # Inverse is same as forward
-                d[key] = self.flipper(d[key])
+                d[key] = self.flipper(d[key], randomize=False)
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
@@ -1225,26 +1231,30 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     """
 
-    backend = Flip.backend
+    backend = RandAxisFlip.backend
 
     def __init__(self, keys: KeysCollection, prob: float = 0.1, allow_missing_keys: bool = False) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self._axis: Optional[int] = None
+        self.flipper = RandAxisFlip(prob=1.0)
 
-    def randomize(self, data: NdarrayOrTensor) -> None:
-        super().randomize(None)
-        self._axis = self.R.randint(data.ndim - 1)
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandAxisFlipd":
+        super().set_random_state(seed, state)
+        self.flipper.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        self.randomize(data=data[self.keys[0]])
-        flipper = Flip(spatial_axis=self._axis)
-
         d = dict(data)
+        self.randomize(None)
+
+        # all the keys share the same random selected axis
+        self.flipper.randomize(d[self.keys[0]])
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = flipper(d[key])
-            self.push_transform(d, key, extra_info={"axis": self._axis})
+                d[key] = self.flipper(d[key], randomize=False)
+            self.push_transform(d, key, extra_info={"axis": self.flipper._axis})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1407,7 +1417,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = Rotate.backend
+    backend = RandRotate.backend
 
     def __init__(
         self,
@@ -1425,56 +1435,44 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.range_x = ensure_tuple(range_x)
-        if len(self.range_x) == 1:
-            self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
-        self.range_y = ensure_tuple(range_y)
-        if len(self.range_y) == 1:
-            self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
-        self.range_z = ensure_tuple(range_z)
-        if len(self.range_z) == 1:
-            self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
-
-        self.keep_size = keep_size
+        self.rand_rotate = RandRotate(range_x=range_x, range_y=range_y, range_z=range_z, prob=1.0, keep_size=keep_size)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-        self.x = 0.0
-        self.y = 0.0
-        self.z = 0.0
-
-    def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
-        self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
-        self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
-        self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandRotated":
+        super().set_random_state(seed, state)
+        self.rand_rotate.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        self.randomize()
         d = dict(data)
-        angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
-        rotator = Rotate(angle=angle, keep_size=self.keep_size)
+        self.randomize(None)
+
+        # all the keys share the same random rotate angle
+        self.rand_rotate.randomize()
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            orig_size = d[key].shape[1:]
             if self._do_transform:
-                d[key] = rotator(
+                d[key], rot_mat = self.rand_rotate(
                     d[key],
                     mode=mode,
                     padding_mode=padding_mode,
                     align_corners=align_corners,
                     dtype=dtype,
+                    randomize=False,
+                    get_matrix=True,
                 )
-                rot_mat = rotator.get_rotation_matrix()
             else:
                 rot_mat = np.eye(d[key].ndim)
             self.push_transform(
                 d,
                 key,
-                orig_size=orig_size,
+                orig_size=d[key].shape[1:],
                 extra_info={
                     "rot_mat": rot_mat,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
@@ -1657,7 +1655,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     """
 
-    backend = Zoom.backend
+    backend = RandZoom.backend
 
     def __init__(
         self,
@@ -1674,56 +1672,45 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.min_zoom = ensure_tuple(min_zoom)
-        self.max_zoom = ensure_tuple(max_zoom)
-        if len(self.min_zoom) != len(self.max_zoom):
-            raise AssertionError("min_zoom and max_zoom must have same length.")
-
+        self.rand_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, **kwargs)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.keep_size = keep_size
-        self.kwargs = kwargs
 
-        self._zoom: Sequence[float] = [1.0]
-
-    def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
-        self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandZoomd":
+        super().set_random_state(seed, state)
+        self.rand_zoom.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        # match the spatial dim of first item
-        self.randomize()
         d = dict(data)
+        self.randomize(None)
 
-        img_dims = data[self.keys[0]].ndim
-        if len(self._zoom) == 1:
-            # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = ensure_tuple_rep(self._zoom[0], img_dims - 1)
-        elif len(self._zoom) == 2 and img_dims > 3:
-            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-            self._zoom = ensure_tuple_rep(self._zoom[0], img_dims - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(self._zoom, keep_size=self.keep_size, **self.kwargs)
+        # all the keys share the same random zoom factor
+        self.rand_zoom.randomize(d[self.keys[0]])
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
+            if self._do_transform:
+                d[key] = self.rand_zoom(
+                    d[key],
+                    mode=mode,
+                    padding_mode=padding_mode,
+                    align_corners=align_corners,
+                    randomize=False,
+                )
             self.push_transform(
                 d,
                 key,
                 extra_info={
-                    "zoom": self._zoom,
+                    "zoom": self.rand_zoom._zoom,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
                     "align_corners": align_corners if align_corners is not None else "none",
                 },
             )
-            if self._do_transform:
-                d[key] = zoomer(
-                    d[key],
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=align_corners,
-                )
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1737,7 +1724,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 mode = transform[InverseKeys.EXTRA_INFO]["mode"]
                 padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
                 align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
-                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.keep_size)
+                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
                 # Apply inverse
                 d[key] = inverse_transform(
                     d[key],
