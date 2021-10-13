@@ -108,7 +108,7 @@ class StatsHandler:
     def epoch_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.
-        Print epoch level log, default values are from Ignite state.metrics dict.
+        Print epoch level log, default values are from Ignite `engine.state.metrics` dict.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -122,7 +122,7 @@ class StatsHandler:
     def iteration_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation iteration completed Event.
-        Print iteration level log, default values are from Ignite state.logs dict.
+        Print iteration level log, default values are from Ignite `engine.state.output`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -149,8 +149,8 @@ class StatsHandler:
 
     def _default_epoch_print(self, engine: Engine) -> None:
         """
-        Execute epoch level log operation based on Ignite engine.state data.
-        print the values from Ignite state.metrics dict.
+        Execute epoch level log operation.
+        Default to print the values from Ignite `engine.state.metrics` dict.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -172,16 +172,17 @@ class StatsHandler:
             and hasattr(engine.state, "best_metric")
             and hasattr(engine.state, "best_metric_epoch")
         ):
-            out_str = f"Key metric: {engine.state.key_metric_name} "
-            out_str += f"best value: {engine.state.best_metric} at epoch: {engine.state.best_metric_epoch}"
+            out_str = f"Key metric: {engine.state.key_metric_name} "  # type: ignore
+            out_str += f"best value: {engine.state.best_metric} "  # type: ignore
+            out_str += f"at epoch: {engine.state.best_metric_epoch}"  # type: ignore
         self.logger.info(out_str)
 
     def _default_iteration_print(self, engine: Engine) -> None:
         """
-        Execute iteration log operation based on Ignite engine.state data.
-        Print the values from Ignite state.logs dict.
-        The default behavior is to print loss from output[0] as output is a decollated list and we replicated loss
-        value for every item of the decollated list.
+        Execute iteration log operation based on Ignite `engine.state.output` data.
+        Print the values from `self.output_transform(engine.state.output)`.
+        Since `engine.state.output` is a decollated list and we replicated the loss value for every item
+        of the decollated list, the default behavior is to print the loss from `output[0]`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -220,7 +221,9 @@ class StatsHandler:
             return  # no value to print
 
         num_iterations = engine.state.epoch_length
-        current_iteration = (engine.state.iteration - 1) % num_iterations + 1
+        current_iteration = engine.state.iteration - 1
+        if num_iterations is not None:
+            current_iteration %= num_iterations + 1
         current_epoch = engine.state.epoch
         num_epochs = engine.state.max_epochs
 

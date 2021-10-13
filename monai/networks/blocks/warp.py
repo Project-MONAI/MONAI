@@ -50,7 +50,7 @@ class Warp(nn.Module):
 
         See also: :py:class:`monai.networks.layers.grid_pull`
         """
-        super(Warp, self).__init__()
+        super().__init__()
         # resolves _interp_mode for different methods
 
         if USE_COMPILED:
@@ -148,7 +148,7 @@ class DVF2DDF(nn.Module):
         mode=GridSampleMode.BILINEAR.value,
         padding_mode=GridSamplePadMode.ZEROS.value,
     ):
-        super(DVF2DDF, self).__init__()
+        super().__init__()
         if num_steps <= 0:
             raise ValueError(f"expecting positive num_steps, got {num_steps}")
         self.num_steps = num_steps

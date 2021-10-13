@@ -36,7 +36,7 @@ class GCN(nn.Module):
             planes: number of output channels.
             ks: kernel size for one dimension. Defaults to 7.
         """
-        super(GCN, self).__init__()
+        super().__init__()
 
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
         self.conv_l1 = conv2d_type(in_channels=inplanes, out_channels=planes, kernel_size=(ks, 1), padding=(ks // 2, 0))
@@ -67,7 +67,7 @@ class Refine(nn.Module):
         Args:
             planes: number of input channels.
         """
-        super(Refine, self).__init__()
+        super().__init__()
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
@@ -116,7 +116,7 @@ class FCN(nn.Module):
     def __init__(
         self, out_channels: int = 1, upsample_mode: str = "bilinear", pretrained: bool = True, progress: bool = True
     ):
-        super(FCN, self).__init__()
+        super().__init__()
 
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
@@ -155,7 +155,7 @@ class FCN(nn.Module):
 
         if self.upsample_mode == "transpose":
             self.up_conv = UpSample(
-                dimensions=2,
+                spatial_dims=2,
                 in_channels=self.out_channels,
                 scale_factor=2,
                 mode="deconv",
@@ -231,12 +231,12 @@ class MCFCN(FCN):
         pretrained: bool = True,
         progress: bool = True,
     ):
-        super(MCFCN, self).__init__(
+        super().__init__(
             out_channels=out_channels, upsample_mode=upsample_mode, pretrained=pretrained, progress=progress
         )
 
         self.init_proj = Convolution(
-            dimensions=2,
+            spatial_dims=2,
             in_channels=in_channels,
             out_channels=3,
             kernel_size=1,
@@ -251,4 +251,4 @@ class MCFCN(FCN):
             x: in shape (batch, in_channels, spatial_1, spatial_2).
         """
         x = self.init_proj(x)
-        return super(MCFCN, self).forward(x)
+        return super().forward(x)
