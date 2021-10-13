@@ -7,6 +7,7 @@ on:
       - dev
       - main
       - releasing/*
+      - 3122-pytorch-versions-tests
   pull_request:
 
 concurrency:
