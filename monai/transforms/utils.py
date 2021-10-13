@@ -25,7 +25,16 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform, apply_transform
-from monai.transforms.utils_pytorch_numpy_unification import any_np_pt, nonzero, ravel, unravel_index
+from monai.transforms.utils_pytorch_numpy_unification import (
+    any_np_pt,
+    cumsum,
+    isfinite,
+    nonzero,
+    ravel,
+    searchsorted,
+    unravel_index,
+    where,
+)
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -348,7 +357,7 @@ def map_classes_to_indices(
 
 def weighted_patch_samples(
     spatial_size: Union[int, Sequence[int]],
-    w: np.ndarray,
+    w: NdarrayOrTensor,
     n_samples: int = 1,
     r_state: Optional[np.random.RandomState] = None,
 ) -> List:
@@ -377,17 +386,20 @@ def weighted_patch_samples(
     s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
     v = w[s]  # weight map in the 'valid' mode
     v_size = v.shape
-    v = v.ravel()
-    if np.any(v < 0):
-        v -= np.min(v)  # shifting to non-negative
-    v = v.cumsum()
-    if not v[-1] or not np.isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
+    v = ravel(v)
+    if (v < 0).any():
+        v -= v.min()  # shifting to non-negative
+    v = cumsum(v)
+    if not v[-1] or not isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
-        idx = v.searchsorted(r_state.random(n_samples) * v[-1], side="right")
+        r, *_ = convert_to_dst_type(r_state.random(n_samples), v)  # type: ignore
+        idx = searchsorted(v, r * v[-1], right=True)
+    idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
-    return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=int)]
+    diff, *_ = convert_to_dst_type(diff, v)  # type: ignore
+    return [unravel_index(i, v_size) + diff for i in idx]
 
 
 def correct_crop_centers(
@@ -839,7 +851,7 @@ def _create_translate(
 
 
 def generate_spatial_bounding_box(
-    img: np.ndarray,
+    img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
     channel_indices: Optional[IndexSelection] = None,
     margin: Union[Sequence[int], int] = 0,
@@ -864,7 +876,7 @@ def generate_spatial_bounding_box(
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
     """
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
-    data = np.any(select_fn(data), axis=0)
+    data = select_fn(data).any(0)
     ndim = len(data.shape)
     margin = ensure_tuple_rep(margin, ndim)
     for m in margin:
@@ -875,13 +887,18 @@ def generate_spatial_bounding_box(
     box_end = [0] * ndim
 
     for di, ax in enumerate(itertools.combinations(reversed(range(ndim)), ndim - 1)):
-        dt = data.any(axis=ax)
-        if not np.any(dt):
+        dt = data
+        if len(ax) != 0:
+            dt = any_np_pt(dt, ax)
+
+        if not dt.any():
             # if no foreground, return all zero bounding box coords
             return [0] * ndim, [0] * ndim
 
-        min_d = max(np.argmax(dt) - margin[di], 0)
-        max_d = max(data.shape[di] - max(np.argmax(dt[::-1]) - margin[di], 0), min_d + 1)
+        arg_max = where(dt == dt.max())[0]
+        min_d = max(arg_max[0] - margin[di], 0)
+        max_d = arg_max[-1] + margin[di] + 1
+
         box_start[di], box_end[di] = min_d, max_d
 
     return box_start, box_end
@@ -966,7 +983,7 @@ def fill_holes(
 
 
 def get_extreme_points(
-    img: np.ndarray, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
+    img: NdarrayOrTensor, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
 ) -> List[Tuple[int, ...]]:
     """
     Generate extreme points from an image. These are used to generate initial segmentation
@@ -990,7 +1007,7 @@ def get_extreme_points(
     """
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
-    indices = np.where(img != background)
+    indices = where(img != background)
     if np.size(indices[0]) == 0:
         raise ValueError("get_extreme_points: no foreground object in mask!")
 
@@ -1002,7 +1019,9 @@ def get_extreme_points(
             val : value for comparison
             dim : dimension in which to look for value
         """
-        idx = rand_state.choice(np.where(indices[dim] == val)[0])
+        idx = where(indices[dim] == val)[0]
+        idx = idx.cpu() if isinstance(idx, torch.Tensor) else idx
+        idx = rand_state.choice(idx)
         pt = []
         for j in range(img.ndim):
             # add +- pert to each dimension
@@ -1014,19 +1033,19 @@ def get_extreme_points(
 
     points = []
     for i in range(img.ndim):
-        points.append(tuple(_get_point(np.min(indices[i][...]), i)))
-        points.append(tuple(_get_point(np.max(indices[i][...]), i)))
+        points.append(tuple(_get_point(indices[i].min(), i)))
+        points.append(tuple(_get_point(indices[i].max(), i)))
 
     return points
 
 
 def extreme_points_to_image(
     points: List[Tuple[int, ...]],
-    label: np.ndarray,
+    label: NdarrayOrTensor,
     sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
     rescale_min: float = -1.0,
     rescale_max: float = 1.0,
-):
+) -> torch.Tensor:
     """
     Please refer to :py:class:`monai.transforms.AddExtremePointsChannel` for the usage.
 
@@ -1044,21 +1063,26 @@ def extreme_points_to_image(
         rescale_max: maximum value of output data.
     """
     # points to image
-    points_image = torch.zeros(label.shape[1:], dtype=torch.float)
+    # points_image = torch.zeros(label.shape[1:], dtype=torch.float)
+    points_image = torch.zeros_like(torch.as_tensor(label[0]), dtype=torch.float)
     for p in points:
         points_image[p] = 1.0
+
+    if isinstance(sigma, Sequence):
+        sigma = [torch.as_tensor(s, device=points_image.device) for s in sigma]
+    else:
+        sigma = torch.as_tensor(sigma, device=points_image.device)
 
     # add channel and add batch
     points_image = points_image.unsqueeze(0).unsqueeze(0)
     gaussian_filter = GaussianFilter(label.ndim - 1, sigma=sigma)
-    points_image = gaussian_filter(points_image).squeeze(0).detach().numpy()
+    points_image = gaussian_filter(points_image).squeeze(0).detach()
 
     # rescale the points image to [rescale_min, rescale_max]
-    min_intensity = np.min(points_image)
-    max_intensity = np.max(points_image)
+    min_intensity = points_image.min()
+    max_intensity = points_image.max()
     points_image = (points_image - min_intensity) / (max_intensity - min_intensity)
-    points_image = points_image * (rescale_max - rescale_min) + rescale_min
-    return points_image
+    return points_image * (rescale_max - rescale_min) + rescale_min
 
 
 def map_spatial_axes(
@@ -1203,8 +1227,8 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
 
 
 def equalize_hist(
-    img: np.ndarray,
-    mask: Optional[np.ndarray] = None,
+    img: NdarrayOrTensor,
+    mask: Optional[NdarrayOrTensor] = None,
     num_bins: int = 256,
     min: int = 0,
     max: int = 255,
@@ -1226,8 +1250,14 @@ def equalize_hist(
         dtype: data type of the output, default to `float32`.
 
     """
-    orig_shape = img.shape
-    hist_img = img[np.array(mask, dtype=bool)] if mask is not None else img
+    img_np: np.ndarray
+    img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    mask_np: Optional[np.ndarray] = None
+    if mask is not None:
+        mask_np, *_ = convert_data_type(mask, np.ndarray)  # type: ignore
+
+    orig_shape = img_np.shape
+    hist_img = img_np[np.array(mask_np, dtype=bool)] if mask_np is not None else img_np
     if has_skimage:
         hist, bins = exposure.histogram(hist_img.flatten(), num_bins)
     else:
@@ -1239,9 +1269,9 @@ def equalize_hist(
     cum = rescale_array(arr=cum, minv=min, maxv=max)
 
     # apply linear interpolation
-    img = np.interp(img.flatten(), bins, cum)
+    img_np = np.interp(img_np.flatten(), bins, cum)
 
-    return img.reshape(orig_shape).astype(dtype)
+    return img_np.reshape(orig_shape).astype(dtype)
 
 
 class Fourier:

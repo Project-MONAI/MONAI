@@ -53,6 +53,11 @@ Generic Interfaces
 .. autoclass:: Decollated
     :members:
 
+`OneOf`
+^^^^^^^
+.. autoclass:: OneOf
+    :members:
+
 Vanilla Transforms
 ------------------
 
@@ -483,6 +488,8 @@ Post-processing
 
 `KeepLargestConnectedComponent`
 """""""""""""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KeepLargestConnectedComponent.png
+    :alt: example of KeepLargestConnectedComponent
 .. autoclass:: KeepLargestConnectedComponent
     :members:
     :special-members: __call__
@@ -1244,6 +1251,8 @@ Post-processing (Dict)
 
 `KeepLargestConnectedComponentd`
 """"""""""""""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KeepLargestConnectedComponentd.png
+    :alt: example of KeepLargestConnectedComponentd
 .. autoclass:: KeepLargestConnectedComponentd
     :members:
     :special-members: __call__
