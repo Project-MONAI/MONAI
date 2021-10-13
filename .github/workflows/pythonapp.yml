@@ -201,6 +201,62 @@ jobs:
       env:
         QUICKTEST: True
 
+  min-dep-pt:  # min dependencies installed tests for different pytorch
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pytorch-version: [1.5.1, 1.6.0, 1.7.1, 1.8.1, lateset]
+    timeout-minutes: 40
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Prepare pip wheel
+      run: |
+        which python
+        python -m pip install --user --upgrade pip setuptools wheel
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: |
+        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "::set-output name=dir::$(pip cache dir)"
+      shell: bash
+    - name: cache for pip
+      uses: actions/cache@v2
+      id: cache
+      with:
+        path: ${{ steps.pip-cache.outputs.dir }}
+        key: ubuntu-latest-latest-pip-${{ steps.pip-cache.outputs.datew }}
+    - name: Install the dependencies
+      run: |
+        # min. requirements
+        if [ ${{ matrix.pytorch-version }} == "latest" ]; then
+          python -m pip install torch torchvision
+        elif [ ${{ matrix.pytorch-version }} == "1.5.1" ]; then
+          python -m pip install torch==1.5.1 torchvision==0.6.1
+        elif [ ${{ matrix.pytorch-version }} == "1.6.0" ]; then
+          python -m pip install torch==1.6.0 torchvision==0.7.0
+        elif [ ${{ matrix.pytorch-version }} == "1.7.1" ]; then
+          python -m pip install torch==1.7.1 torchvision==0.8.2
+        elif [ ${{ matrix.pytorch-version }} == "1.8.1" ]; then
+          python -m pip install torch==1.8.1 torchvision==0.9.1
+        fi
+        python -m pip install -r requirements-min.txt
+        python -m pip list
+        BUILD_MONAI=0 python setup.py develop  # no compile of extensions
+      shell: bash
+    - name: Run quick tests (pytorch ${{ runner.os }})
+      run: |
+        python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+        python -c "import monai; monai.config.print_config()"
+        ./runtests.sh --min
+      env:
+        QUICKTEST: True
+
+
   packaging:
     runs-on: ubuntu-latest
     env:
