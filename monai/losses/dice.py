@@ -221,11 +221,11 @@ class DiceLoss(_Loss):
                 nitems = np.prod(intersection.shape[2:])
 
             split_smooth_nr = self.smooth_nr / nitems
-            numer_split = (2.0 * intersection + split_smooth_nr)
-            denom_split = (denominator + self.smooth_dr)
+            numer_split = 2.0 * intersection + split_smooth_nr
+            denom_split = denominator + self.smooth_dr
 
             lead_split = 1 / nitems
-            f: torch.Tensor = lead_split - numer_split  / denom_split
+            f: torch.Tensor = lead_split - numer_split / denom_split
         else:
             intersection = torch.sum(target * input, dim=reduce_axis, keepdim=True)
 
@@ -234,8 +234,8 @@ class DiceLoss(_Loss):
             else:
                 denominator = union
 
-            numer = (2.0 * intersection + self.smooth_nr)
-            denom = (denominator + self.smooth_dr)
+            numer = 2.0 * intersection + self.smooth_nr
+            denom = denominator + self.smooth_dr
             f: torch.Tensor = 1.0 - numer / denom
 
             if self.reduction == LossReduction.MEAN.value:
@@ -246,7 +246,9 @@ class DiceLoss(_Loss):
                 pass
                 # f = torch.sum(f, dim=reduce_axis)
             else:
-                raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+                raise ValueError(
+                    f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].'
+                )
 
         return f
 
@@ -470,13 +472,13 @@ class GeneralizedDiceLoss(_Loss):
             intersection = target * input
 
             # Weight the numerator and denominator
-            w_intersection = (intersection * w)
+            w_intersection = intersection * w
             w_union = (union * w).sum(0 if self.batch else 1, keepdim=True)
 
             # Split the numerator smooth term across voxels
             split_smooth_nr = self.smooth_nr / w_intersection.numel()
 
-            numer_split = (2.0 * w_intersection + split_smooth_nr)
+            numer_split = 2.0 * w_intersection + split_smooth_nr
             denom_split = w_union + self.smooth_dr
 
             if self.batch:
@@ -493,7 +495,7 @@ class GeneralizedDiceLoss(_Loss):
             w_intersection = (intersection * w).sum(0 if self.batch else 1, keepdim=True)
             w_union = (union * w).sum(0 if self.batch else 1, keepdim=True)
 
-            numer = (2.0 * w_intersection + self.smooth_nr)
+            numer = 2.0 * w_intersection + self.smooth_nr
             denom = w_union + self.smooth_dr
             f: torch.Tensor = 1.0 - numer / denom
 
@@ -505,7 +507,9 @@ class GeneralizedDiceLoss(_Loss):
                 pass
                 # f = torch.sum(f, dim=reduce_axis)
             else:
-                raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+                raise ValueError(
+                    f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].'
+                )
 
         return f
 
@@ -692,7 +696,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         if self.pixelwise and self.reduction == LossReduction.NONE.value:
             # Dont reduce over the spatial resolution
             smooth_nr_split = self.smooth_nr / ST
-            numer_split = (2.0 * true_pos_split + smooth_nr_split)
+            numer_split = 2.0 * true_pos_split + smooth_nr_split
             wass_dice_split: torch.Tensor = numer_split / (denom[:, None] + self.smooth_dr)
             lead_split = 1 / ST
             wass_dice_loss_flat = lead_split - wass_dice_split
@@ -700,7 +704,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             wass_dice_loss = wass_dice_loss_flat.view(B, 1, *ST_DIMS)
         else:
             # Compute the final loss
-            numer = (2.0 * true_pos + self.smooth_nr)
+            numer = 2.0 * true_pos + self.smooth_nr
             wass_dice = numer / (denom + self.smooth_dr)
             wass_dice_loss_flat = 1.0 - wass_dice
 
@@ -714,7 +718,9 @@ class GeneralizedWassersteinDiceLoss(_Loss):
                 broadcast_shape = [B, 1] + ([1] * len(ST_DIMS))
                 wass_dice_loss: torch.Tensor = wass_dice_loss_flat.view(broadcast_shape)
             else:
-                raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+                raise ValueError(
+                    f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].'
+                )
 
         return wass_dice_loss
 
@@ -796,7 +802,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         alpha_extended = torch.gather(alpha_lut, index=flat_target_extended, dim=1)  # [B, 1, ST]
         wass_2sim = (2.0 - wass_dist_map)[None, :]  # [1, B, ST]
         prod = alpha_extended * wass_2sim  # [B, B, ST]
-        denom_split  = torch.sum(prod, dim=[1])  # [B, ST]
+        denom_split = torch.sum(prod, dim=[1])  # [B, ST]
         return denom_split
 
     def _compute_alpha_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
@@ -997,14 +1003,13 @@ class DiceCELoss(_Loss):
                 # Broadcasting will introduce duplicates of items, so we have to
                 # componestate for that. This does cause "mean" reduction
                 # to compoenstate
-                nitems_final = np.prod(torch.broadcast_shapes(
-                    dice_loss.shape, ce_loss.shape))
+                nitems_final = np.prod(torch.broadcast_shapes(dice_loss.shape, ce_loss.shape))
 
                 nitems_dice = np.prod(dice_loss.shape)
                 nitems_ce = np.prod(ce_loss.shape)
 
-                dice_bcast_factor = (nitems_final // nitems_dice)
-                ce_bcase_factor   = (nitems_final // nitems_ce)
+                dice_bcast_factor = nitems_final // nitems_dice
+                ce_bcase_factor = nitems_final // nitems_ce
 
                 dice_loss = dice_loss * (1.0 / dice_bcast_factor)
                 ce_loss = ce_loss * (1.0 / ce_bcase_factor)
@@ -1175,14 +1180,13 @@ class DiceFocalLoss(_Loss):
                 # Broadcasting will introduce duplicates of items, so we have to
                 # componestate for that. This does cause "mean" reduction
                 # to compoenstate
-                nitems_final = np.prod(torch.broadcast_shapes(
-                    dice_loss.shape, focal_loss.shape))
+                nitems_final = np.prod(torch.broadcast_shapes(dice_loss.shape, focal_loss.shape))
 
                 nitems_dice = np.prod(dice_loss.shape)
                 nitems_focal = np.prod(focal_loss.shape)
 
-                dice_bcast_factor = (nitems_final // nitems_dice)
-                focal_bcase_factor   = (nitems_final // nitems_focal)
+                dice_bcast_factor = nitems_final // nitems_dice
+                focal_bcase_factor = nitems_final // nitems_focal
 
                 dice_loss = dice_loss * (1.0 / dice_bcast_factor)
                 focal_loss = focal_loss * (1.0 / focal_bcase_factor)
