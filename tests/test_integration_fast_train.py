@@ -38,7 +38,15 @@ from monai.transforms import (
     EnsureTyped,
     FgBgToIndicesd,
     LoadImaged,
+    RandAffined,
+    RandAxisFlipd,
     RandCropByPosNegLabeld,
+    RandFlipd,
+    RandGaussianNoised,
+    RandRotate90d,
+    RandRotated,
+    RandStdShiftIntensityd,
+    RandZoomd,
     ScaleIntensityd,
     Spacingd,
     ToDeviced,
@@ -66,7 +74,7 @@ class IntegrationFastTrain(DistTestCase):
         shutil.rmtree(self.data_dir)
 
     # test the fast training speed is as expected
-    @TimedCall(seconds=20, daemon=False)
+    @TimedCall(seconds=30, daemon=False)
     def test_train_timing(self):
         images = sorted(glob(os.path.join(self.data_dir, "img*.nii.gz")))
         segs = sorted(glob(os.path.join(self.data_dir, "seg*.nii.gz")))
@@ -103,6 +111,20 @@ class IntegrationFastTrain(DistTestCase):
                     fg_indices_key="label_fg",
                     bg_indices_key="label_bg",
                 ),
+                RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=[1, 2]),
+                RandAxisFlipd(keys=["image", "label"], prob=0.5),
+                RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=(1, 2)),
+                RandZoomd(keys=["image", "label"], prob=0.5, min_zoom=0.8, max_zoom=1.2, keep_size=True),
+                RandRotated(
+                    keys=["image", "label"],
+                    prob=0.5,
+                    range_x=np.pi / 4,
+                    mode=("bilinear", "nearest"),
+                    align_corners=True,
+                ),
+                RandAffined(keys=["image", "label"], prob=0.5, rotate_range=np.pi / 2, mode=("bilinear", "nearest")),
+                RandGaussianNoised(keys="image", prob=0.5),
+                RandStdShiftIntensityd(keys="image", prob=0.5, factors=0.05, nonzero=True),
             ]
         )
 
