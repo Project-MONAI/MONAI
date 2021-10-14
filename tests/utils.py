@@ -115,8 +115,8 @@ def is_tf32_env():
         _tf32_enabled = False
         if (
             torch.cuda.is_available()
-            and not version_leq(f"{torch.version.cuda}", "10.100")  # at least 11.0
-            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
+            and not version_leq(f"{torch.version.cuda}", "10.100")
+            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"  # at least 11.0
             and torch.cuda.device_count() > 0
         ):
             try:
