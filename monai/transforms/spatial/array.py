@@ -2209,10 +2209,8 @@ class RandGridDistortion(RandomizableTransform):
         super().randomize(None)
         self.distort_steps = [
             tuple(
-
-                    1 + self.R.uniform(low=self.distort_limit[0], high=self.distort_limit[1])
-                    for _ in range(self.num_cells + 1)
-
+                1 + self.R.uniform(low=self.distort_limit[0], high=self.distort_limit[1])
+                for _ in range(self.num_cells + 1)
             )
             for _dim in range(self.spatial_dims)
         ]
