@@ -33,6 +33,7 @@ from monai.transforms.utils import (
     create_translate,
     map_spatial_axes,
 )
+from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -95,6 +96,7 @@ class Spacing(Transform):
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
+        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -127,6 +129,7 @@ class Spacing(Transform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            image_only: return just the image or the image, the old affine and new affine. Default is `False`.
 
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
@@ -135,6 +138,7 @@ class Spacing(Transform):
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
+        self.image_only = image_only
 
     def __call__(
         self,
@@ -145,7 +149,7 @@ class Spacing(Transform):
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
         output_spatial_shape: Optional[np.ndarray] = None,
-    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]:
+    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
         """
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
@@ -221,6 +225,8 @@ class Spacing(Transform):
             output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=torch.float32)
             new_affine = to_affine_nd(affine, new_affine)  # type: ignore
 
+        if self.image_only:
+            return output_data
         return output_data, affine, new_affine
 
 
@@ -234,6 +240,7 @@ class Orientation(Transform):
         axcodes: Optional[str] = None,
         as_closest_canonical: bool = False,
         labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
+        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -246,6 +253,7 @@ class Orientation(Transform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+            image_only: if True return only the image volume, otherwise return (image, affine, new_affine).
 
         Raises:
             ValueError: When ``axcodes=None`` and ``as_closest_canonical=True``. Incompatible values.
@@ -260,10 +268,11 @@ class Orientation(Transform):
         self.axcodes = axcodes
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
+        self.image_only = image_only
 
     def __call__(
         self, data_array: np.ndarray, affine: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """
         original orientation of `data_array` is defined by `affine`.
 
@@ -276,7 +285,8 @@ class Orientation(Transform):
             ValueError: When ``axcodes`` spatiality differs from ``data_array``.
 
         Returns:
-            data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
+            data_array [reoriented in `self.axcodes`] if `self.image_only`, else
+            (data_array [reoriented in `self.axcodes`], original axcodes, current axcodes).
 
         """
         data_array, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
@@ -308,6 +318,8 @@ class Orientation(Transform):
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
         new_affine = to_affine_nd(affine, new_affine)
 
+        if self.image_only:
+            return data_array
         return data_array, affine, new_affine
 
 
@@ -710,19 +722,24 @@ class RandRotate90(RandomizableTransform):
         self._rand_k = 0
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
+        if not self._do_transform:
+            return None
+        self._rand_k = self.R.randint(self.max_k) + 1
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            randomize: whether to execute `randomize()` function first, default to True.
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
             return img
-        rotator = Rotate90(self._rand_k, self.spatial_axes)
-        return rotator(img)
+
+        return Rotate90(self._rand_k, self.spatial_axes)(img)
 
 
 class RandRotate(RandomizableTransform):
@@ -790,6 +807,8 @@ class RandRotate(RandomizableTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
@@ -801,7 +820,9 @@ class RandRotate(RandomizableTransform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: Union[DtypeLike, torch.dtype] = None,
-    ) -> NdarrayOrTensor:
+        randomize: bool = True,
+        get_matrix: bool = False,
+    ):
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -816,12 +837,15 @@ class RandRotate(RandomizableTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            randomize: whether to execute `randomize()` function first, default to True.
+            get_matrix: wheter to return the rotated image and rotate matrix together, default to False.
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
-            img_t: torch.Tensor
-            img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
-            return img_t
+            return img
+
         rotator = Rotate(
             angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
             keep_size=self.keep_size,
@@ -830,7 +854,8 @@ class RandRotate(RandomizableTransform):
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,
         )
-        return rotator(img)
+        img = rotator(img)
+        return (img, rotator.get_rotation_matrix()) if get_matrix else img
 
 
 class RandFlip(RandomizableTransform):
@@ -850,14 +875,18 @@ class RandFlip(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            randomize: whether to execute `randomize()` function first, default to True.
         """
-        self.randomize(None)
+        if randomize:
+            self.randomize(None)
+
         if not self._do_transform:
             return img
+
         return self.flipper(img)
 
 
@@ -880,18 +909,23 @@ class RandAxisFlip(RandomizableTransform):
 
     def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self._axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            randomize: whether to execute `randomize()` function first, default to True.
         """
-        self.randomize(data=img)
+        if randomize:
+            self.randomize(data=img)
+
         if not self._do_transform:
             return img
-        flipper = Flip(spatial_axis=self._axis)
-        return flipper(img)
+
+        return Flip(spatial_axis=self._axis)(img)
 
 
 class RandZoom(RandomizableTransform):
@@ -955,9 +989,17 @@ class RandZoom(RandomizableTransform):
 
         self._zoom: Sequence[float] = [1.0]
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, img: NdarrayOrTensor) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
+        if len(self._zoom) == 1:
+            # to keep the spatial shape ratio, use same random zoom factor for all dims
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
+        elif len(self._zoom) == 2 and img.ndim > 3:
+            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
 
     def __call__(
         self,
@@ -965,6 +1007,7 @@ class RandZoom(RandomizableTransform):
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -982,28 +1025,24 @@ class RandZoom(RandomizableTransform):
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            randomize: whether to execute `randomize()` function first, default to True.
+
         """
         # match the spatial image dim
-        self.randomize()
+        if randomize:
+            self.randomize(img=img)
+
         if not self._do_transform:
-            img_t: torch.Tensor
-            img_t, *_ = convert_data_type(img, dtype=torch.float32)  # type: ignore
-            return img_t
-        if len(self._zoom) == 1:
-            # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
-        elif len(self._zoom) == 2 and img.ndim > 3:
-            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(
+            return img
+
+        return Zoom(
             self._zoom,
             keep_size=self.keep_size,
             mode=look_up_option(mode or self.mode, InterpolateMode),
             padding_mode=padding_mode or self.padding_mode,
             align_corners=align_corners or self.align_corners,
             **self.kwargs,
-        )
-        return zoomer(img)
+        )(img)
 
 
 class AffineGrid(Transform):
@@ -1619,6 +1658,8 @@ class RandAffine(RandomizableTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self.rand_affine_grid.randomize()
 
     def __call__(
@@ -1627,6 +1668,7 @@ class RandAffine(RandomizableTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1642,8 +1684,12 @@ class RandAffine(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            randomize: whether to execute `randomize()` function first, default to True.
+
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
+
         # if not doing transform and spatial size doesn't change, nothing to do
         # except convert to float and device
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
@@ -1761,6 +1807,8 @@ class Rand2DElastic(RandomizableTransform):
 
     def randomize(self, spatial_size: Sequence[int]) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
@@ -1770,6 +1818,7 @@ class Rand2DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1783,9 +1832,12 @@ class Rand2DElastic(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            randomize: whether to execute `randomize()` function first, default to True.
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        self.randomize(spatial_size=sp_size)
+        if randomize:
+            self.randomize(spatial_size=sp_size)
+
         if self._do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
             grid = self.rand_affine_grid(grid=grid)
@@ -1913,8 +1965,9 @@ class Rand3DElastic(RandomizableTransform):
 
     def randomize(self, grid_size: Sequence[int]) -> None:
         super().randomize(None)
-        if self._do_transform:
-            self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
+        if not self._do_transform:
+            return None
+        self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
         self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
         self.rand_affine_grid.randomize()
@@ -1925,6 +1978,7 @@ class Rand3DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1938,9 +1992,12 @@ class Rand3DElastic(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            randomize: whether to execute `randomize()` function first, default to True.
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        self.randomize(grid_size=sp_size)
+        if randomize:
+            self.randomize(grid_size=sp_size)
+
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         if self._do_transform:
@@ -1966,6 +2023,8 @@ class AddCoordinateChannels(Transform):
     Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         spatial_channels: Sequence[int],
@@ -1978,12 +2037,11 @@ class AddCoordinateChannels(Transform):
         """
         self.spatial_channels = spatial_channels
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel first.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if max(self.spatial_channels) > img.ndim - 1:
             raise ValueError(
                 f"input has {img.ndim-1} spatial dimensions, cannot add AddCoordinateChannels channel for "
@@ -1994,7 +2052,8 @@ class AddCoordinateChannels(Transform):
 
         spatial_dims = img.shape[1:]
         coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing="ij"))
+        coord_channels, *_ = convert_to_dst_type(coord_channels, img)  # type: ignore
         # only keep required dimensions. need to subtract 1 since im will be 0-based
         # but user input is 1-based (because channel dim is 0)
         coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
-        return np.concatenate((img, coord_channels), axis=0)
+        return concatenate((img, coord_channels), axis=0)

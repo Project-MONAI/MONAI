@@ -30,6 +30,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
+    AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
     CastToType,
@@ -59,8 +60,10 @@ from monai.transforms.utility.array import (
     Transpose,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
+from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys, TransformBackends
+from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "AddChannelD",
@@ -701,8 +704,7 @@ class SelectItemsd(MapTransform):
     """
 
     def __call__(self, data):
-        result = {key: data[key] for key in self.key_iterator(data)}
-        return result
+        return {key: data[key] for key in self.key_iterator(data)}
 
 
 class SqueezeDimd(MapTransform):
@@ -1165,6 +1167,8 @@ class ClassesToIndicesd(MapTransform):
 
     """
 
+    backend = ClassesToIndices.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1180,7 +1184,7 @@ class ClassesToIndicesd(MapTransform):
         self.image_key = image_key
         self.converter = ClassesToIndices(num_classes, image_threshold, output_shape)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, Any]):
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.key_iterator(d):
@@ -1230,6 +1234,8 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
 
     """
 
+    backend = AddExtremePointsChannel.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1250,10 +1256,10 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
         self.rescale_min = rescale_min
         self.rescale_max = rescale_max
 
-    def randomize(self, label: np.ndarray) -> None:
+    def randomize(self, label: NdarrayOrTensor) -> None:
         self.points = get_extreme_points(label, rand_state=self.R, background=self.background, pert=self.pert)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         label = d[self.label_key]
         if label.shape[0] != 1:
@@ -1271,7 +1277,8 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
                 rescale_min=self.rescale_min,
                 rescale_max=self.rescale_max,
             )
-            d[key] = np.concatenate([img, points_image], axis=0)
+            points_image, *_ = convert_to_dst_type(points_image, img)  # type: ignore
+            d[key] = concatenate([img, points_image], axis=0)
         return d
 
 
@@ -1462,6 +1469,8 @@ class ToDeviced(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToDevice`.
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,

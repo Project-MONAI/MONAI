@@ -419,7 +419,7 @@ class SpatialCrop(Transform):
             if roi_start_torch.numel() == 1:
                 self.slices = [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
             else:
-                self.slices = [slice(int(s.item()), int(e.item())) for s, e in zip(roi_start_torch, roi_end_torch)]
+                self.slices = [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -693,6 +693,8 @@ class CropForeground(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         select_fn: Callable = is_positive,
@@ -728,13 +730,15 @@ class CropForeground(Transform):
         self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
-    def compute_bounding_box(self, img: np.ndarray):
+    def compute_bounding_box(self, img: NdarrayOrTensor) -> Tuple[np.ndarray, np.ndarray]:
         """
         Compute the start points and end points of bounding box to crop.
         And adjust bounding box coords to be divisible by `k`.
 
         """
         box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indices, self.margin)
+        box_start = [i.cpu() if isinstance(i, torch.Tensor) else i for i in box_start]  # type: ignore
+        box_end = [i.cpu() if isinstance(i, torch.Tensor) else i for i in box_end]  # type: ignore
         box_start_ = np.asarray(box_start, dtype=np.int16)
         box_end_ = np.asarray(box_end, dtype=np.int16)
         orig_spatial_size = box_end_ - box_start_
@@ -747,7 +751,7 @@ class CropForeground(Transform):
 
     def crop_pad(
         self,
-        img: np.ndarray,
+        img: NdarrayOrTensor,
         box_start: np.ndarray,
         box_end: np.ndarray,
         mode: Optional[Union[NumpyPadMode, str]] = None,
@@ -762,13 +766,11 @@ class CropForeground(Transform):
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
         return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.np_kwargs)(cropped)
 
-    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None):
+    def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-
         box_start, box_end = self.compute_bounding_box(img)
         cropped = self.crop_pad(img, box_start, box_end, mode)
 
@@ -790,20 +792,25 @@ class RandWeightedCrop(Randomizable, Transform):
             It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`.
     """
 
+    backend = SpatialCrop.backend
+
     def __init__(
-        self, spatial_size: Union[Sequence[int], int], num_samples: int = 1, weight_map: Optional[np.ndarray] = None
+        self,
+        spatial_size: Union[Sequence[int], int],
+        num_samples: int = 1,
+        weight_map: Optional[NdarrayOrTensor] = None,
     ):
         self.spatial_size = ensure_tuple(spatial_size)
         self.num_samples = int(num_samples)
         self.weight_map = weight_map
         self.centers: List[np.ndarray] = []
 
-    def randomize(self, weight_map: np.ndarray) -> None:
+    def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
-    def __call__(self, img: np.ndarray, weight_map: Optional[np.ndarray] = None) -> List[np.ndarray]:
+    def __call__(self, img: NdarrayOrTensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[NdarrayOrTensor]:
         """
         Args:
             img: input image to sample patches from. assuming `img` is a channel-first array.
@@ -814,7 +821,6 @@ class RandWeightedCrop(Randomizable, Transform):
         Returns:
             A list of image patches
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if weight_map is None:
             weight_map = self.weight_map
         if weight_map is None:
@@ -822,15 +828,12 @@ class RandWeightedCrop(Randomizable, Transform):
         if img.shape[1:] != weight_map.shape[1:]:
             raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
 
-        weight_map, *_ = convert_data_type(weight_map, np.ndarray)  # type: ignore
-
         self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
-        results = []
+        results: List[NdarrayOrTensor] = []
         for center in self.centers:
             cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-            cropped: np.ndarray = cropper(img)  # type: ignore
-            results.append(cropped)
+            results.append(cropper(img))
         return results
 
 
@@ -966,7 +969,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         results: List[NdarrayOrTensor] = []
         if self.centers is not None:
             for center in self.centers:
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
                 results.append(cropper(img))
 
         return results

@@ -9,24 +9,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import unittest
 
-import numpy as np
+import torch
+from parameterized import parameterized
 
-from monai.transforms import RandShiftIntensity
-from tests.utils import NumpyImageTestCase2D
+from monai.apps.mmars import MODEL_DESC, load_from_mmar
+from monai.config import print_debug_info
 
 
-class TestRandShiftIntensity(NumpyImageTestCase2D):
-    def test_value(self):
-        shifter = RandShiftIntensity(offsets=1.0, prob=1.0)
-        shifter.set_random_state(seed=0)
-        result = shifter(self.imt, factor=1.0)
-        np.random.seed(0)
-        # simulate the randomize() of transform
-        np.random.random()
-        expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
-        np.testing.assert_allclose(result, expected)
+class TestAllDownloadingMMAR(unittest.TestCase):
+    def setUp(self):
+        print_debug_info()
+        self.test_dir = "./"
+
+    @parameterized.expand((item,) for item in MODEL_DESC)
+    def test_loading_mmar(self, item):
+        pretrained_model = load_from_mmar(item=item, mmar_dir="./", map_location="cpu")
+        self.assertTrue(isinstance(pretrained_model, torch.nn.Module))
+
+    def tearDown(self):
+        print(os.listdir(self.test_dir))
 
 
 if __name__ == "__main__":

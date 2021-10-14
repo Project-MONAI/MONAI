@@ -187,9 +187,15 @@ def deprecated_arg(
 
         @wraps(func)
         def _wrapper(*args, **kwargs):
-            if new_name is not None and name in kwargs:
+            if new_name is not None and name in kwargs and new_name not in kwargs:
                 # replace the deprecated arg "name" with "new_name"
+                # if name is specified and new_name is not specified
                 kwargs[new_name] = kwargs[name]
+                try:
+                    sig.bind(*args, **kwargs).arguments
+                except TypeError:
+                    # multiple values for new_name using both args and kwargs
+                    kwargs.pop(new_name, None)
             binding = sig.bind(*args, **kwargs).arguments
 
             positional_found = name in binding

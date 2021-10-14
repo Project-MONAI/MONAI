@@ -181,7 +181,7 @@ class OneOf(Compose):
         weights: probabilities corresponding to each callable in transforms.
             Probabilities are normalized to sum to one.
 
-    OneOf inherits from Compose and uses args map_items and unpack_items in
+    ``OneOf`` inherits from ``Compose`` and uses args ``map_items`` and ``unpack_items`` in
     the same way.
     """
 

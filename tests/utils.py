@@ -25,7 +25,7 @@ from functools import partial
 from io import BytesIO
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
-from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.error import HTTPError, URLError
 
 import numpy as np
 import torch
@@ -43,6 +43,7 @@ from monai.utils.type_conversion import convert_data_type
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
+_tf32_enabled = None
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -94,14 +95,41 @@ def assert_allclose(
 
 def test_pretrained_networks(network, input_param, device):
     try:
-        net = network(**input_param).to(device)
-    except (URLError, HTTPError, ContentTooShortError) as e:
+        return network(**input_param).to(device)
+    except (URLError, HTTPError) as e:
         raise unittest.SkipTest(e) from e
-    return net
 
 
 def test_is_quick():
     return os.environ.get(quick_test_var, "").lower() == "true"
+
+
+def is_tf32_env():
+    """
+    The environment variable NVIDIA_TF32_OVERRIDE=0 will override any defaults
+    or programmatic configuration of NVIDIA libraries, and consequently,
+    cuBLAS will not accelerate FP32 computations with TF32 tensor cores.
+    """
+    global _tf32_enabled
+    if _tf32_enabled is None:
+        _tf32_enabled = False
+        if (
+            torch.cuda.is_available()
+            and not version_leq(f"{torch.version.cuda}", "10.100")  # at least 11.0
+            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
+            and torch.cuda.device_count() > 0
+        ):
+            try:
+                # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
+                g_gpu = torch.Generator(device="cuda")
+                g_gpu.manual_seed(2147483647)
+                a_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
+                b_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
+                _tf32_enabled = (a_full.float() @ b_full.float() - a_full @ b_full).abs().max().item() > 0.001  # 0.1713
+            except BaseException:
+                pass
+        print(f"tf32 enabled: {_tf32_enabled}")
+    return _tf32_enabled
 
 
 def skip_if_quick(obj):
