@@ -164,7 +164,7 @@ class FocalLoss(_Loss):
             voxel_dims = list(input.shape[2:])
             # Hack for JIT, which requires static parsing of reshape
             if len(voxel_dims) == 1:
-                d1, = voxel_dims
+                (d1,) = voxel_dims
                 return loss.reshape(b, n, d1)
             elif len(voxel_dims) == 2:
                 d1, d2 = voxel_dims
