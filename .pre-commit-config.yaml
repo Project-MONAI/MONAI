@@ -46,6 +46,7 @@ repos:
           - flake8-executable
           - flake8-pyi
           - pep8-naming
+        exclude: monai/__init__.py
 
   #- repo: https://github.com/PyCQA/isort
   #  rev: 5.9.3
