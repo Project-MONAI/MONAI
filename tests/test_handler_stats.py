@@ -140,7 +140,7 @@ class TestHandlerStats(unittest.TestCase):
             engine.run(range(3), max_epochs=2)
             handler.close()
             stats_handler.logger.removeHandler(handler)
-            with open(filename, "r") as f:
+            with open(filename) as f:
                 output_str = f.read()
                 grep = re.compile(f".*{key_to_handler}.*")
                 has_key_word = re.compile(f".*{key_to_print}.*")

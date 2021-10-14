@@ -99,7 +99,7 @@ class BatchInverseTransform(Transform):
             re_str = str(re)
             if "equal size" in re_str:
                 re_str += "\nMONAI hint: try creating `BatchInverseTransform` with `collate_fn=lambda x: x`."
-            raise RuntimeError(re_str)
+            raise RuntimeError(re_str) from re
 
 
 class Decollated(MapTransform):
