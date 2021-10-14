@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 import torch
 
@@ -59,6 +59,8 @@ class MLFlowHandler:
         global_epoch_transform: a callable that is used to customize global epoch number.
             For example, in evaluation, the evaluator engine might want to track synced epoch number
             with the trainer engine.
+        state_attributes: expected attributes from `engine.state`, if provided, will extract them
+            when epoch completed.
         tag_name: when iteration output is a scalar, `tag_name` is used to track, defaults to `'Loss'`.
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
@@ -72,6 +74,7 @@ class MLFlowHandler:
         iteration_logger: Optional[Callable[[Engine], Any]] = None,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
+        state_attributes: Optional[Sequence[str]] = None,
         tag_name: str = DEFAULT_TAG,
     ) -> None:
         if tracking_uri is not None:
@@ -81,6 +84,7 @@ class MLFlowHandler:
         self.iteration_logger = iteration_logger
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
+        self.state_attributes = state_attributes
         self.tag_name = tag_name
 
     def attach(self, engine: Engine) -> None:
@@ -144,7 +148,8 @@ class MLFlowHandler:
     def _default_epoch_log(self, engine: Engine) -> None:
         """
         Execute epoch level log operation.
-        Default to track the values from Ignite `engine.state.metrics` dict.
+        Default to track the values from Ignite `engine.state.metrics` dict and
+        track the values of specified attributes of `engine.state`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -156,6 +161,10 @@ class MLFlowHandler:
 
         current_epoch = self.global_epoch_transform(engine.state.epoch)
         mlflow.log_metrics(log_dict, step=current_epoch)
+
+        if self.state_attributes is not None:
+            attrs = {attr: getattr(engine.state, attr, None) for attr in self.state_attributes}
+            mlflow.log_metrics(attrs, step=current_epoch)
 
     def _default_iteration_log(self, engine: Engine) -> None:
         """

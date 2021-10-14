@@ -48,7 +48,7 @@ def dtype_torch_to_numpy(dtype):
 def dtype_numpy_to_torch(dtype):
     """Convert a numpy dtype to its torch equivalent."""
     # np dtypes can be given as np.float32 and np.dtype(np.float32) so unify them
-    dtype = np.dtype(dtype) if type(dtype) is type else dtype
+    dtype = np.dtype(dtype) if isinstance(dtype, type) else dtype
     return look_up_option(dtype, _np_to_torch_dtype)
 
 
@@ -64,11 +64,11 @@ def get_equivalent_dtype(dtype, data_type):
     if dtype is None:
         return None
     if data_type is torch.Tensor:
-        if type(dtype) is torch.dtype:
+        if isinstance(dtype, torch.dtype):
             # already a torch dtype and target `data_type` is torch.Tensor
             return dtype
         return dtype_numpy_to_torch(dtype)
-    if type(dtype) is not torch.dtype:
+    if not isinstance(dtype, torch.dtype):
         # assuming the dtype is ok if it is not a torch dtype and target `data_type` is not torch.Tensor
         return dtype
     return dtype_torch_to_numpy(dtype)
