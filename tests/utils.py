@@ -116,8 +116,8 @@ def is_tf32_env():
         if (
             torch.cuda.is_available()
             and not version_leq(f"{torch.version.cuda}", "10.100")
-            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"  # at least 11.0
-            and torch.cuda.device_count() > 0
+            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
+            and torch.cuda.device_count() > 0  # at least 11.0
         ):
             try:
                 # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
