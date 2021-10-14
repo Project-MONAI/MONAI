@@ -76,6 +76,46 @@ TESTS = [
         },
         (3, 2, 2, 2),
     ],
+    [
+        {
+            "keys": ["image", "extra", "label"],
+            "label_key": "label",
+            "spatial_size": [4, 4, 2],
+            "pos": 1,
+            "neg": 1,
+            "num_samples": 2,
+            "image_key": None,
+            "image_threshold": 0,
+            "allow_smaller": True,
+        },
+        {
+            "image": np.zeros([3, 3, 3, 3]) - 1,
+            "extra": np.zeros([3, 3, 3, 3]),
+            "label": np.ones([3, 3, 3, 3]),
+            "extra_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
+        },
+        (3, 3, 3, 2),
+    ],
+    [
+        {
+            "keys": ["image", "extra", "label"],
+            "label_key": "label",
+            "spatial_size": [4, 4, 4],
+            "pos": 1,
+            "neg": 1,
+            "num_samples": 2,
+            "image_key": None,
+            "image_threshold": 0,
+            "allow_smaller": True,
+        },
+        {
+            "image": np.zeros([3, 3, 3, 3]) - 1,
+            "extra": np.zeros([3, 3, 3, 3]),
+            "label": np.ones([3, 3, 3, 3]),
+            "extra_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
+        },
+        (3, 3, 3, 3),
+    ],
 ]
 
 
