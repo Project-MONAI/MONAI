@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 import numpy as np
 import torch
@@ -85,6 +85,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         iteration_interval: int = 1,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
+        state_attributes: Optional[Sequence[str]] = None,
         tag_name: str = DEFAULT_TAG,
     ) -> None:
         """
@@ -107,6 +108,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number
                 when plotting epoch vs metric curves.
+            state_attributes: expected attributes from `engine.state`, if provided, will extract them
+                when epoch completed.
             tag_name: when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
@@ -116,6 +119,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         self.iteration_interval = iteration_interval
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
+        self.state_attributes = state_attributes
         self.tag_name = tag_name
 
     def attach(self, engine: Engine) -> None:
@@ -164,7 +168,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
     def _default_epoch_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
         Execute epoch level event write operation.
-        Default to write the values from Ignite `engine.state.metrics` dict.
+        Default to write the values from Ignite `engine.state.metrics` dict and
+        write the values of specified attributes of `engine.state`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -175,6 +180,10 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         summary_dict = engine.state.metrics
         for name, value in summary_dict.items():
             writer.add_scalar(name, value, current_epoch)
+
+        if self.state_attributes is not None:
+            for attr in self.state_attributes:
+                writer.add_scalar(attr, getattr(engine.state, attr, None), current_epoch)
         writer.flush()
 
     def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter) -> None:
