@@ -61,6 +61,12 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: _version.py
+    - name: Install Latest Docker
+      run: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+        sudo apt-get update
+        sudo apt-get install docker-ce
     - name: docker_build
       shell: bash
       run: |
@@ -78,7 +84,7 @@ jobs:
         docker push localhost:5000/local_monai:dockerhub
         # distribute as always w/ tag "latest" to hub.docker.com
         echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
-        docker push projectmonai/monai:latest
+        # docker push projectmonai/monai:latest
         docker logout
         docker image prune -f
 
