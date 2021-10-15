@@ -406,6 +406,7 @@ def correct_crop_centers(
     centers: List[Union[int, torch.Tensor]],
     spatial_size: Union[Sequence[int], int],
     label_spatial_shape: Sequence[int],
+    allow_smaller: bool = False,
 ):
     """
     Utility to correct the crop center if the crop size is bigger than the image size.
@@ -414,11 +415,16 @@ def correct_crop_centers(
         centers: pre-computed crop centers of every dim, will correct based on the valid region.
         spatial_size: spatial size of the ROIs to be sampled.
         label_spatial_shape: spatial shape of the original label data to compare with ROI.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     """
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
-    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
-        raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+    if any(np.subtract(label_spatial_shape, spatial_size) < 0):
+        if not allow_smaller:
+            raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+        spatial_size = tuple(min(l, s) for l, s in zip(label_spatial_shape, spatial_size))
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(spatial_size, 2)
@@ -450,6 +456,7 @@ def generate_pos_neg_label_crop_centers(
     fg_indices: NdarrayOrTensor,
     bg_indices: NdarrayOrTensor,
     rand_state: Optional[np.random.RandomState] = None,
+    allow_smaller: bool = False,
 ) -> List[List[int]]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
@@ -463,6 +470,9 @@ def generate_pos_neg_label_crop_centers(
         fg_indices: pre-computed foreground indices in 1 dimension.
         bg_indices: pre-computed background indices in 1 dimension.
         rand_state: numpy randomState object to align with other modules.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     Raises:
         ValueError: When the proposed roi is larger than the image.
@@ -491,7 +501,7 @@ def generate_pos_neg_label_crop_centers(
         idx = indices_to_use[random_int]
         center = unravel_index(idx, label_spatial_shape)
         # shift center to range of valid centers
-        centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape))
+        centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
     return centers
 
@@ -503,6 +513,7 @@ def generate_label_classes_crop_centers(
     indices: Sequence[NdarrayOrTensor],
     ratios: Optional[List[Union[float, int]]] = None,
     rand_state: Optional[np.random.RandomState] = None,
+    allow_smaller: bool = False,
 ) -> List[List[int]]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
@@ -516,6 +527,9 @@ def generate_label_classes_crop_centers(
         ratios: ratios of every class in the label to generate crop centers, including background class.
             if None, every class will have the same ratio to generate crop centers.
         rand_state: numpy randomState object to align with other modules.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     """
     if rand_state is None:
@@ -543,7 +557,7 @@ def generate_label_classes_crop_centers(
         center = unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
-        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
+        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape, allow_smaller))
 
     return centers
 
