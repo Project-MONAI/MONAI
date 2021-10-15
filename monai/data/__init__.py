@@ -37,6 +37,7 @@ from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
 from .test_time_augmentation import TestTimeAugmentation
 from .thread_buffer import ThreadBuffer, ThreadDataLoader
+from .torchscript_utils import save_net_with_metadata, load_net_with_metadata
 from .utils import (
     compute_importance_map,
     compute_shape_offset,
