@@ -20,7 +20,7 @@ from typing import Any, Callable, Mapping, Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
-from monai.utils.deprecated import deprecated_arg
+from monai.utils.deprecate_utils import deprecated_arg
 
 __all__ = [
     "one_hot",

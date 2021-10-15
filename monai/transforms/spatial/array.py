@@ -47,7 +47,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.deprecated import deprecated_arg
+from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type

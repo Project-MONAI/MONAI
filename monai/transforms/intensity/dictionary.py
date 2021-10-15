@@ -54,7 +54,7 @@ from monai.transforms.intensity.array import (
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import ensure_tuple, ensure_tuple_rep
-from monai.utils.deprecated import deprecated_arg
+from monai.utils.deprecate_utils import deprecated_arg
 
 __all__ = [
     "RandGaussianNoised",

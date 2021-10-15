@@ -52,11 +52,12 @@ from monai.transforms import (
     ToDeviced,
 )
 from monai.utils import set_determinism
-from tests.utils import DistTestCase, TimedCall, skip_if_no_cuda, skip_if_quick
+from tests.utils import DistTestCase, SkipIfBeforePyTorchVersion, TimedCall, skip_if_no_cuda, skip_if_quick
 
 
 @skip_if_no_cuda
 @skip_if_quick
+@SkipIfBeforePyTorchVersion((1, 7))
 class IntegrationFastTrain(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
@@ -75,7 +76,7 @@ class IntegrationFastTrain(DistTestCase):
         shutil.rmtree(self.data_dir)
 
     # test the fast training speed is as expected
-    @TimedCall(seconds=30, daemon=False)
+    @TimedCall(seconds=100, daemon=False, force_quit=False)
     def test_train_timing(self):
         images = sorted(glob(os.path.join(self.data_dir, "img*.nii.gz")))
         segs = sorted(glob(os.path.join(self.data_dir, "seg*.nii.gz")))
