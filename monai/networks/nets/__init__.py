@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .ahnet import AHnet, Ahnet, AHNet, ahnet
+from .ahnet import AHnet, Ahnet, AHNet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .classifier import Classifier, Critic, Discriminator

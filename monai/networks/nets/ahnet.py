@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from monai.networks.blocks.fcn import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
 
-__all__ = ["AHnet", "Ahnet", "ahnet", "AHNet"]
+__all__ = ["AHnet", "Ahnet", "AHNet"]
 
 
 class Bottleneck3x3x1(nn.Module):
@@ -559,4 +559,4 @@ def copy_bn_param(module2d, module3d):
         p3d.data[:] = p2d.data[:]  # Two parameter gamma and beta
 
 
-AHnet = Ahnet = ahnet = AHNet
+AHnet = Ahnet = AHNet
