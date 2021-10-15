@@ -493,7 +493,7 @@ class SEResNext101(SENet):
             _load_state_dict(self, "se_resnext101_32x4d", progress)
 
 
-SEnet = Senet = senet = SENet
+SEnet = Senet = SENet
 SEnet154 = Senet154 = senet154 = SENet154
 SEresnet50 = Seresnet50 = seresnet50 = SEResNet50
 SEresnet101 = Seresnet101 = seresnet101 = SEResNet101
