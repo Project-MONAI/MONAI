@@ -27,8 +27,8 @@ def save_net_with_metadata(
     filename_prefix_or_stream: Union[str, IO[Any]],
     include_config_vals: bool = True,
     append_timestamp: bool = False,
-    meta_values: Mapping[str, Any] = {},
-    more_extra_files: Mapping[str, bytes] = {},
+    meta_values: Optional[Mapping[str, Any]] = None,
+    more_extra_files: Optional[Mapping[str, bytes]] = None,
 ) -> None:
     """
     Save the JIT object (script or trace produced object) `jit_obj` to the given file or stream with metadata
@@ -74,11 +74,15 @@ def save_net_with_metadata(
         metadict.update(get_config_values())
         metadict[JITMetadataKeys.TIMESTAMP.value] = now.astimezone().isoformat()
 
-    metadict.update(meta_values)
+    if meta_values is not None:
+        metadict.update(meta_values)
+
     json_data = json.dumps(metadict)
 
     extra_files = {METADATA_FILENAME: json_data.encode()}
-    extra_files.update(more_extra_files)
+
+    if more_extra_files is not None:
+        extra_files.update(more_extra_files)
 
     if isinstance(filename_prefix_or_stream, str):
         filename_no_ext, ext = os.path.splitext(filename_prefix_or_stream)
