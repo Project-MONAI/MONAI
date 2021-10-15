@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - dev
+      - docker-test
   # Allows you to run this workflow manually from the Actions tab
   # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
@@ -18,15 +19,17 @@ jobs:
     # upload as artifact
     # (also used in release.yml)
     if: github.repository == 'Project-MONAI/MONAI'
-    container:
-      image: localhost:5000/local_monai:latest
-    runs-on: [self-hosted, linux, x64, build_only]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         # full history so that we can git describe
         with:
           ref: dev
           fetch-depth: 0
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
       - shell: bash
         run: |
           git describe
