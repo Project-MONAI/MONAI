@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -153,7 +153,7 @@ class SegResNet(nn.Module):
             get_conv_layer(self.spatial_dims, self.init_filters, out_channels, kernel_size=1, bias=True),
         )
 
-    def forward(self, x):
+    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
         x = self.convInit(x)
         if self.dropout_prob is not None:
             x = self.dropout(x)
@@ -164,14 +164,23 @@ class SegResNet(nn.Module):
             x = down(x)
             down_x.append(x)
 
-        down_x.reverse()
+        return x, down_x
 
+    def decode(self, x: torch.Tensor, down_x: List[torch.Tensor]) -> torch.Tensor:
         for i, (up, upl) in enumerate(zip(self.up_samples, self.up_layers)):
             x = up(x) + down_x[i + 1]
             x = upl(x)
 
         if self.use_conv_final:
             x = self.conv_final(x)
+
+        return x
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x, down_x = self.encode(x)
+        down_x.reverse()
+
+        x = self.decode(x, down_x)
         return x
 
 
@@ -226,7 +235,7 @@ class SegResNetVAE(SegResNet):
         blocks_up: tuple = (1, 1, 1),
         upsample_mode: Union[UpsampleMode, str] = UpsampleMode.NONTRAINABLE,
     ):
-        super(SegResNetVAE, self).__init__(
+        super().__init__(
             spatial_dims=spatial_dims,
             init_filters=init_filters,
             in_channels=in_channels,

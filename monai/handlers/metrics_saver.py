@@ -132,10 +132,12 @@ class MetricsSaver:
             if self.metrics is not None and len(engine.state.metrics) > 0:
                 _metrics = {k: v for k, v in engine.state.metrics.items() if k in self.metrics or "*" in self.metrics}
             _metric_details = {}
-            if self.metric_details is not None and len(engine.state.metric_details) > 0:
-                for k, v in engine.state.metric_details.items():
-                    if k in self.metric_details or "*" in self.metric_details:
-                        _metric_details[k] = v
+            if hasattr(engine.state, "metric_details"):
+                details = engine.state.metric_details  # type: ignore
+                if self.metric_details is not None and len(details) > 0:
+                    for k, v in details.items():
+                        if k in self.metric_details or "*" in self.metric_details:
+                            _metric_details[k] = v
 
             write_metrics_reports(
                 save_dir=self.save_dir,

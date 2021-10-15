@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandScaleCropd
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     {"keys": "img", "roi_scale": [1.0, 1.0, -1.0], "random_center": True},
@@ -66,10 +67,14 @@ class TestRandScaleCropd(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_value(self, input_param, input_data):
-        cropper = RandScaleCropd(**input_param)
-        result = cropper(input_data)
-        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
-        np.testing.assert_allclose(result["img"], input_data["img"][:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
+        for p in TEST_NDARRAYS:
+            cropper = RandScaleCropd(**input_param)
+            input_data["img"] = p(input_data["img"])
+            result = cropper(input_data)
+            roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
+            assert_allclose(
+                result["img"], input_data["img"][:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test=False
+            )
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_random_shape(self, input_param, input_data, expected_shape):
