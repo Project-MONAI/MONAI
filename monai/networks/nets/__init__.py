@@ -24,7 +24,6 @@ from .densenet import (
     Densenet201,
     DenseNet264,
     Densenet264,
-    densenet,
     densenet121,
     densenet169,
     densenet201,
