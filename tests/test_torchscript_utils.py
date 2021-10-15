@@ -31,16 +31,16 @@ class TestTorchscript(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tempdir:
             save_net_with_metadata(m, f"{tempdir}/test")
-            
+
             self.assertTrue(os.path.isfile(f"{tempdir}/test.pt"))
-            
+
     def test_save_net_with_metadata_ext(self):
         """Save a network without metadata to a file."""
         m = torch.jit.script(TestModule())
 
         with tempfile.TemporaryDirectory() as tempdir:
             save_net_with_metadata(m, f"{tempdir}/test.zip")
-            
+
             self.assertTrue(os.path.isfile(f"{tempdir}/test.zip"))
 
     def test_save_net_with_metadata_with_extra(self):
@@ -51,7 +51,7 @@ class TestTorchscript(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tempdir:
             save_net_with_metadata(m, f"{tempdir}/test", meta_values=test_metadata)
-            
+
             self.assertTrue(os.path.isfile(f"{tempdir}/test.pt"))
 
     def test_load_net_with_metadata(self):
@@ -63,7 +63,7 @@ class TestTorchscript(unittest.TestCase):
             _, meta, extra_files = load_net_with_metadata(f"{tempdir}/test.pt")
 
         del meta[JITMetadataKeys.TIMESTAMP.value]  # no way of knowing precisely what this value would be
-        
+
         self.assertEqual(meta, get_config_values())
         self.assertEqual(extra_files, {})
 
@@ -84,7 +84,7 @@ class TestTorchscript(unittest.TestCase):
 
         self.assertEqual(meta, test_compare)
         self.assertEqual(extra_files, {})
-        
+
 
 if __name__ == "__main__":
     unittest.main()
