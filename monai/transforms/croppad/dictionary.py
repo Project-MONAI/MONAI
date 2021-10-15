@@ -1065,6 +1065,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
@@ -1089,6 +1092,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         bg_indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
+        allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1109,6 +1113,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.centers: Optional[List[List[int]]] = None
+        self.allow_smaller = allow_smaller
 
     def randomize(
         self,
@@ -1124,7 +1129,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
         self.centers = generate_pos_neg_label_crop_centers(
-            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
+            self.spatial_size,
+            self.num_samples,
+            self.pos_ratio,
+            label.shape[1:],
+            fg_indices_,
+            bg_indices_,
+            self.R,
+            self.allow_smaller,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
@@ -1257,6 +1269,9 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will remain
+            unchanged.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -1276,6 +1291,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
+        allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1292,6 +1308,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.centers: Optional[List[List[int]]] = None
+        self.allow_smaller = allow_smaller
 
     def randomize(
         self,
@@ -1305,7 +1322,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         else:
             indices_ = indices
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
+            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R, self.allow_smaller
         )
 
     def __call__(self, data: Mapping[Hashable, Any]) -> List[Dict[Hashable, NdarrayOrTensor]]:
