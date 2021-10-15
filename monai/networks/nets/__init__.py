@@ -30,7 +30,7 @@ from .densenet import (
     densenet201,
     densenet264,
 )
-from .dynunet import DynUNet, DynUnet, Dynunet, dynunet
+from .dynunet import DynUNet, DynUnet, Dynunet
 from .efficientnet import (
     BlockArgs,
     EfficientNet,
