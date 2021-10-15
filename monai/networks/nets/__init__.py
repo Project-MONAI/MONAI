@@ -80,7 +80,7 @@ from .senet import (
 )
 from .torchvision_fc import TorchVisionFCModel, TorchVisionFullyConvModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
-from .unet import UNet, Unet, unet
+from .unet import UNet, Unet
 from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
 from .vit import ViT
