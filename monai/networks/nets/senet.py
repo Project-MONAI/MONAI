@@ -17,12 +17,32 @@ import torch
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
+from monai.apps.utils import download_url
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.squeeze_and_excitation import SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, Pool
 from monai.utils.module import look_up_option
 
-__all__ = ["SENet", "SENet154", "SEResNet50", "SEResNet101", "SEResNet152", "SEResNeXt50", "SEResNext101"]
+__all__ = [
+    "SENet",
+    "SENet154",
+    "SEResNet50",
+    "SEResNet101",
+    "SEResNet152",
+    "SEResNeXt50",
+    "SEResNext101",
+    "SE_NET_MODELS",
+]
+
+
+SE_NET_MODELS = {
+    "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
+    "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",
+    "se_resnet101": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet101-7e38fcc6.pth",
+    "se_resnet152": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet152-d17c99b7.pth",
+    "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
+    "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
+}
 
 
 class SENet(nn.Module):
@@ -254,15 +274,7 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool):
     """
     This function is used to load pretrained models.
     """
-    model_urls = {
-        "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
-        "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",
-        "se_resnet101": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet101-7e38fcc6.pth",
-        "se_resnet152": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet152-d17c99b7.pth",
-        "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
-        "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
-    }
-    model_url = look_up_option(arch, model_urls, None)
+    model_url = look_up_option(arch, SE_NET_MODELS, None)
     if model_url is None:
         raise ValueError(
             "only 'senet154', 'se_resnet50', 'se_resnet101',  'se_resnet152', 'se_resnext50_32x4d', "
@@ -276,7 +288,11 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool):
     pattern_down_conv = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.0.)(\w*)$")
     pattern_down_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.1.)(\w*)$")
 
-    state_dict = load_state_dict_from_url(model_url, progress=progress)
+    if isinstance(model_url, dict):
+        download_url(model_url["url"], filepath=model_url["filename"])
+        state_dict = torch.load(model_url["filename"], map_location=None)
+    else:
+        state_dict = load_state_dict_from_url(model_url, progress=progress)
     for key in list(state_dict.keys()):
         new_key = None
         if pattern_conv.match(key):
@@ -493,7 +509,7 @@ class SEResNext101(SENet):
             _load_state_dict(self, "se_resnext101_32x4d", progress)
 
 
-SEnet = Senet = senet = SENet
+SEnet = Senet = SENet
 SEnet154 = Senet154 = senet154 = SENet154
 SEresnet50 = Seresnet50 = seresnet50 = SEResNet50
 SEresnet101 = Seresnet101 = seresnet101 = SEResNet101
