@@ -128,7 +128,8 @@ def download_url(
 
     Args:
         url: source URL link to download file.
-        filepath: target filepath to save the downloaded file. If undefined, `os.path.basename(url)` will be used.
+        filepath: target filepath to save the downloaded file (including the filename).
+            If undefined, `os.path.basename(url)` will be used.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
