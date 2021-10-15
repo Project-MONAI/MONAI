@@ -29,7 +29,7 @@ class TestCSVSaver(unittest.TestCase):
             saver.finalize()
             filepath = os.path.join(tempdir, "predictions.csv")
             self.assertTrue(os.path.exists(filepath))
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 reader = csv.reader(f)
                 i = 0
                 for row in reader:

@@ -419,7 +419,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
                 wass_loss(pred_score, grnd)  # 0
 
         """
-        super(GeneralizedWassersteinDiceLoss, self).__init__(reduction=LossReduction(reduction).value)
+        super().__init__(reduction=LossReduction(reduction).value)
 
         if dist_matrix.shape[0] != dist_matrix.shape[1]:
             raise ValueError(f"dist_matrix must be C x C, got {dist_matrix.shape[0]} x {dist_matrix.shape[1]}.")

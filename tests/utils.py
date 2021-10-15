@@ -25,7 +25,7 @@ from functools import partial
 from io import BytesIO
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
-from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.error import HTTPError, URLError
 
 import numpy as np
 import torch
@@ -38,10 +38,12 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.module import version_leq
+from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
+_tf32_enabled = None
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -57,29 +59,77 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
     return copy.deepcopy(data)
 
 
-def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
+def assert_allclose(
+    actual: NdarrayOrTensor,
+    desired: NdarrayOrTensor,
+    type_test: bool = True,
+    device_test: bool = False,
+    *args,
+    **kwargs,
+):
     """
-    Assert that all values of two data objects are close.
+    Assert that types and all values of two data objects are close.
 
     Args:
-        a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
-        b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
+        actual: Pytorch Tensor or numpy array for comparison.
+        desired: Pytorch Tensor or numpy array to compare against.
+        type_test: whether to test that `actual` and `desired` are both numpy arrays or torch tensors.
+        device_test: whether to test the device property.
+        args: extra arguments to pass on to `np.testing.assert_allclose`.
+        kwargs: extra arguments to pass on to `np.testing.assert_allclose`.
+
+
     """
-    a = a.cpu() if isinstance(a, torch.Tensor) else a
-    b = b.cpu() if isinstance(b, torch.Tensor) else b
-    np.testing.assert_allclose(a, b, *args, **kwargs)
+    if type_test:
+        # check both actual and desired are of the same type
+        np.testing.assert_equal(isinstance(actual, np.ndarray), isinstance(desired, np.ndarray), "numpy type")
+        np.testing.assert_equal(isinstance(actual, torch.Tensor), isinstance(desired, torch.Tensor), "torch type")
+
+    if isinstance(desired, torch.Tensor) or isinstance(actual, torch.Tensor):
+        if device_test:
+            np.testing.assert_equal(str(actual.device), str(desired.device), "torch device check")  # type: ignore
+        actual = actual.cpu().numpy() if isinstance(actual, torch.Tensor) else actual
+        desired = desired.cpu().numpy() if isinstance(desired, torch.Tensor) else desired
+    np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
 def test_pretrained_networks(network, input_param, device):
     try:
-        net = network(**input_param).to(device)
-    except (URLError, HTTPError, ContentTooShortError) as e:
-        raise unittest.SkipTest(e)
-    return net
+        return network(**input_param).to(device)
+    except (URLError, HTTPError) as e:
+        raise unittest.SkipTest(e) from e
 
 
 def test_is_quick():
     return os.environ.get(quick_test_var, "").lower() == "true"
+
+
+def is_tf32_env():
+    """
+    The environment variable NVIDIA_TF32_OVERRIDE=0 will override any defaults
+    or programmatic configuration of NVIDIA libraries, and consequently,
+    cuBLAS will not accelerate FP32 computations with TF32 tensor cores.
+    """
+    global _tf32_enabled
+    if _tf32_enabled is None:
+        _tf32_enabled = False
+        if (
+            torch.cuda.is_available()
+            and not version_leq(f"{torch.version.cuda}", "10.100")
+            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
+            and torch.cuda.device_count() > 0  # at least 11.0
+        ):
+            try:
+                # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
+                g_gpu = torch.Generator(device="cuda")
+                g_gpu.manual_seed(2147483647)
+                a_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
+                b_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
+                _tf32_enabled = (a_full.float() @ b_full.float() - a_full @ b_full).abs().max().item() > 0.001  # 0.1713
+            except BaseException:
+                pass
+        print(f"tf32 enabled: {_tf32_enabled}")
+    return _tf32_enabled
 
 
 def skip_if_quick(obj):
@@ -166,11 +216,15 @@ class SkipIfAtLeastPyTorchVersion:
         )(obj)
 
 
-def make_nifti_image(array, affine=None):
+def make_nifti_image(array: NdarrayOrTensor, affine=None):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
     """
+    if isinstance(array, torch.Tensor):
+        array, *_ = convert_data_type(array, np.ndarray)
+    if isinstance(affine, torch.Tensor):
+        affine, *_ = convert_data_type(affine, np.ndarray)
     if affine is None:
         affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)
