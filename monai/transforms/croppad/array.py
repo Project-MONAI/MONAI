@@ -632,7 +632,7 @@ class RandSpatialCropSamples(Randomizable, Transform):
 
     """
 
-    backend = RandScaleCrop.backend
+    backend = RandSpatialCrop.backend
 
     def __init__(
         self,
@@ -706,7 +706,7 @@ class CropForeground(Transform):
         margin: Union[Sequence[int], int] = 0,
         return_coords: bool = False,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
         **np_kwargs,
     ) -> None:
         """
@@ -718,10 +718,12 @@ class CropForeground(Transform):
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode: padding mode {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                one of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                see also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
                 more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
@@ -758,7 +760,7 @@ class CropForeground(Transform):
         img: NdarrayOrTensor,
         box_start: np.ndarray,
         box_end: np.ndarray,
-        mode: Optional[Union[NumpyPadMode, str]] = None,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
     ):
         """
         Crop and pad based on the bounding box.
