@@ -31,8 +31,8 @@ class TestModuleAlias(unittest.TestCase):
             mod_name = mod_name[1:].replace(mod_name[0], ".")
             mod, cls = mod_name.rsplit(".", 1)
             obj, exist = optional_import(mod, name=cls)
-            self.assertTrue(exist, msg=mod_name)
-            self.assertTrue(inspect.ismodule(obj), msg=mod_name)
+            if exist:
+                self.assertTrue(inspect.ismodule(obj), msg=mod_name)
 
 
 if __name__ == "__main__":
