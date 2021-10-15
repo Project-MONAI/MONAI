@@ -32,7 +32,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         key = "test"
         rotate = RandRotate90d(keys=key, max_k=2)
         for p in TEST_NDARRAYS:
-            rotate.set_random_state(123)
+            rotate.set_random_state(234)
             rotated = rotate({key: p(self.imt[0])})
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
@@ -42,7 +42,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         key = "test"
         rotate = RandRotate90d(keys=key, spatial_axes=(0, 1))
         for p in TEST_NDARRAYS:
-            rotate.set_random_state(123)
+            rotate.set_random_state(234)
             rotated = rotate({key: p(self.imt[0])})
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
