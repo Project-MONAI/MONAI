@@ -2174,7 +2174,7 @@ class RandGridDistortion(RandomizableTransform):
         Args:
             num_cells: number of grid cells on each dimension.
             prob: probability of returning a randomized grid distortion transform. Defaults to 0.1.
-            spatial_dims: spatial dimension of input data. Defaults to 2.
+            spatial_dims: spatial dimension of input data. The value should be 2 or 3. Defaults to 2.
             distort_limit: range to randomly distort.
                 If single number, distort_limit is picked from (-distort_limit, distort_limit).
                 Defaults to (-0.03, 0.03).
@@ -2191,6 +2191,8 @@ class RandGridDistortion(RandomizableTransform):
         if num_cells <= 0:
             raise ValueError("num_cells should be no less than 1.")
         self.num_cells = num_cells
+        if spatial_dims not in [2, 3]:
+            raise ValueError("spatial_size should be 2 or 3.")
         self.spatial_dims = spatial_dims
         if isinstance(distort_limit, (int, float)):
             self.distort_limit = (min(-distort_limit, distort_limit), max(-distort_limit, distort_limit))
