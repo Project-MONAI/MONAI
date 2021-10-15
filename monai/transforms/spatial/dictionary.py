@@ -59,7 +59,7 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
-from monai.utils.deprecated import deprecated_arg
+from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import InverseKeys
 from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type

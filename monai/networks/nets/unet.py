@@ -20,7 +20,7 @@ from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.utils import alias, deprecated_arg, export
 
-__all__ = ["UNet", "Unet", "unet"]
+__all__ = ["UNet", "Unet"]
 
 
 @export("monai.networks.nets")
@@ -282,4 +282,4 @@ class UNet(nn.Module):
         return x
 
 
-Unet = unet = UNet
+Unet = UNet

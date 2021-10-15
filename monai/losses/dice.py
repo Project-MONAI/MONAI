@@ -819,7 +819,7 @@ class DiceFocalLoss(_Loss):
         return total_loss
 
 
-dice = Dice = DiceLoss
+Dice = DiceLoss
 dice_ce = DiceCELoss
 dice_focal = DiceFocalLoss
 generalized_dice = GeneralizedDiceLoss
