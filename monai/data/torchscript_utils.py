@@ -12,12 +12,12 @@
 import datetime
 import json
 import os
+from typing import IO, Any, Mapping, Optional, Sequence, Tuple, Union
+
 import torch
-from typing import Any, IO, Mapping, Optional, Sequence, Tuple, Union
 
 from monai.config import get_config_values
 from monai.utils import JITMetadataKeys
-
 
 METADATA_FILENAME = "metadata.json"
 

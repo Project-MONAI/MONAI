@@ -16,8 +16,9 @@ import unittest
 import torch
 
 from monai.config import get_config_values
-from monai.data import save_net_with_metadata, load_net_with_metadata
+from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.utils import JITMetadataKeys
+
 
 class TestModule(torch.nn.Module):
     def forward(self, x):
@@ -68,7 +69,7 @@ class TestTorchscript(unittest.TestCase):
         self.assertEqual(extra_files, {})
 
     def test_load_net_with_metadata_with_extra(self):
-        """Save then load a network with basic metadata. """
+        """Save then load a network with basic metadata."""
         m = torch.jit.script(TestModule())
 
         test_metadata = {"foo": [1, 2], "bar": "string"}
