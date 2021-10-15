@@ -35,10 +35,11 @@ class TestHandlerMLFlow(unittest.TestCase):
             def _update_metric(engine):
                 current_metric = engine.state.metrics.get("acc", 0.1)
                 engine.state.metrics["acc"] = current_metric + 0.1
+                engine.state.test = current_metric
 
             # set up testing handler
             test_path = os.path.join(tempdir, "mlflow_test")
-            handler = MLFlowHandler(tracking_uri=Path(test_path).as_uri())
+            handler = MLFlowHandler(tracking_uri=Path(test_path).as_uri(), state_attributes=["test"])
             handler.attach(engine)
             engine.run(range(3), max_epochs=2)
             handler.close()

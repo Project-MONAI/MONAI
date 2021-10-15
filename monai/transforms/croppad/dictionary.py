@@ -756,9 +756,9 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Randomizable":
-        super().set_random_state(seed=seed, state=state)
-        self.cropper.set_random_state(state=self.R)
+    ) -> "RandSpatialCropSamplesd":
+        super().set_random_state(seed, state)
+        self.cropper.set_random_state(seed, state)
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:

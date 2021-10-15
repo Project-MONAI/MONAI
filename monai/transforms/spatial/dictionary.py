@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from copy import deepcopy
 from enum import Enum
-from typing import Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -40,7 +40,6 @@ from monai.transforms.spatial.array import (
     RandAxisFlip,
     RandFlip,
     RandRotate,
-    RandRotate90,
     RandZoom,
     Resize,
     Rotate,
@@ -438,7 +437,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
     in the plane specified by `spatial_axes`.
     """
 
-    backend = RandRotate90.backend
+    backend = Rotate90.backend
 
     def __init__(
         self,
@@ -462,25 +461,27 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.rand_rotate90 = RandRotate90(prob=1.0, max_k=max_k, spatial_axes=spatial_axes)
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandRotate90d":
-        super().set_random_state(seed, state)
-        self.rand_rotate90.set_random_state(seed, state)
-        return self
+        self.max_k = max_k
+        self.spatial_axes = spatial_axes
+
+        self._rand_k = 0
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self._rand_k = self.R.randint(self.max_k) + 1
+        super().randomize(None)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        self.randomize()
         d = dict(data)
-        self.randomize(None)
 
-        # all the keys share the same random factor
-        self.rand_rotate90.randomize()
+        # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
+        # to be compatible with the random status of some previous integration tests
+        rotator = Rotate90(self._rand_k, self.spatial_axes)
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = self.rand_rotate90(d[key], randomize=False)
-            self.push_transform(d, key, extra_info={"rand_k": self.rand_rotate90._rand_k})
+                d[key] = rotator(d[key])
+            self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -492,7 +493,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
                 # Create inverse transform
                 num_times_rotated = transform[InverseKeys.EXTRA_INFO]["rand_k"]
                 num_times_to_rotate = 4 - num_times_rotated
-                inverse_transform = Rotate90(num_times_to_rotate, self.rand_rotate90.spatial_axes)
+                inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
                 # Apply inverse
                 d[key] = inverse_transform(d[key])
             # Remove the applied transform

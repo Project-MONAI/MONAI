@@ -11,7 +11,7 @@
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 import torch
 
@@ -47,6 +47,7 @@ class StatsHandler:
         iteration_print_logger: Optional[Callable[[Engine], Any]] = None,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
+        state_attributes: Optional[Sequence[str]] = None,
         name: Optional[str] = None,
         tag_name: str = DEFAULT_TAG,
         key_var_format: str = DEFAULT_KEY_VAL_FORMAT,
@@ -68,6 +69,8 @@ class StatsHandler:
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to print synced epoch number
                 with the trainer engine.
+            state_attributes: expected attributes from `engine.state`, if provided, will extract them
+                when epoch completed.
             name: identifier of logging.logger to use, defaulting to ``engine.logger``.
             tag_name: when iteration output is a scalar, tag_name is used to print
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
@@ -80,6 +83,7 @@ class StatsHandler:
         self.iteration_print_logger = iteration_print_logger
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
+        self.state_attributes = state_attributes
         self.logger = logging.getLogger(name)
         self._name = name
 
@@ -150,22 +154,22 @@ class StatsHandler:
     def _default_epoch_print(self, engine: Engine) -> None:
         """
         Execute epoch level log operation.
-        Default to print the values from Ignite `engine.state.metrics` dict.
+        Default to print the values from Ignite `engine.state.metrics` dict and
+        print the values of specified attributes of `engine.state`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
-        prints_dict = engine.state.metrics
-        if not prints_dict:
-            return
         current_epoch = self.global_epoch_transform(engine.state.epoch)
 
-        out_str = f"Epoch[{current_epoch}] Metrics -- "
-        for name in sorted(prints_dict):
-            value = prints_dict[name]
-            out_str += self.key_var_format.format(name, value)
-        self.logger.info(out_str)
+        prints_dict = engine.state.metrics
+        if prints_dict is not None and len(prints_dict) > 0:
+            out_str = f"Epoch[{current_epoch}] Metrics -- "
+            for name in sorted(prints_dict):
+                value = prints_dict[name]
+                out_str += self.key_var_format.format(name, value)
+            self.logger.info(out_str)
 
         if (
             hasattr(engine.state, "key_metric_name")
@@ -175,7 +179,13 @@ class StatsHandler:
             out_str = f"Key metric: {engine.state.key_metric_name} "  # type: ignore
             out_str += f"best value: {engine.state.best_metric} "  # type: ignore
             out_str += f"at epoch: {engine.state.best_metric_epoch}"  # type: ignore
-        self.logger.info(out_str)
+            self.logger.info(out_str)
+
+        if self.state_attributes is not None and len(self.state_attributes) > 0:
+            out_str = "State values: "
+            for attr in self.state_attributes:
+                out_str += f"{attr}: {getattr(engine.state, attr, None)} "
+            self.logger.info(out_str)
 
     def _default_iteration_print(self, engine: Engine) -> None:
         """
