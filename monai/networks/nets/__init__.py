@@ -71,7 +71,6 @@ from .senet import (
     SEResNeXt101,
     SEresnext101,
     Seresnext101,
-    senet,
     senet154,
     seresnet50,
     seresnet101,
