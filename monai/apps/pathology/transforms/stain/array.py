@@ -9,14 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Union
-
-import numpy as np
+from typing import Union
 
 from monai.transforms.transform import Transform
 from monai.utils import optional_import
-
-cp, has_cp = optional_import("cupy")
 
 
 class ExtractHEStains(Transform):
@@ -29,6 +25,8 @@ class ExtractHEStains(Transform):
         beta: absorbance threshold for transparent pixels. Defaults to 0.15
         max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E).
             Defaults to (1.9705, 1.0308).
+        cuda: if to perform the tranform computation using CUDA (on GPU). Defaults to False.
+            When it is set to True, CuPy is used instead of NumPy for computations.
 
     Note:
         For more information refer to:
@@ -44,17 +42,18 @@ class ExtractHEStains(Transform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        max_cref: tuple = (1.9705, 1.0308),
-        backend: str = "numpy",
+        max_cref: Union[tuple, list] = (1.9705, 1.0308),
+        cuda: bool = False,
     ) -> None:
-        # set backend to numpy or cupy
-        self.backend, has_it = optional_import(backend)
-        if not has_it:
-            raise ValueError(f"The requested backend [{backend}] is not installed!")
+        # Use NumPy for computation on CPU and CuPy for GPU
+        if cuda is True:
+            self.npcp, _ = optional_import("cupy", descriptor="CuPy is required for computation on GPU (CUDA)!")
+        else:
+            self.npcp, _ = optional_import("numpy", descriptor="NumPy is required for computation on CPU!")
         self.tli = tli
         self.alpha = alpha
         self.beta = beta
-        self.max_cref = self.backend.array(max_cref)
+        self.max_cref = self.npcp.array(max_cref)
 
     def _deconvolution_extract_stain(self, image):
         """Perform Stain Deconvolution and return stain matrix for the image.
@@ -68,7 +67,7 @@ class ExtractHEStains(Transform):
                 H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
         """
         # check image type and values
-        if not isinstance(image, self.backend.ndarray):
+        if not isinstance(image, self.npcp.ndarray):
             raise TypeError("Image must be of type numpy.ndarray.")
         if image.min() < 0:
             raise ValueError("Image should not have negative values.")
@@ -77,36 +76,36 @@ class ExtractHEStains(Transform):
 
         # reshape image and calculate absorbance
         image = image.reshape((-1, 3))
-        image = image.astype(self.backend.float32) + 1.0
-        absorbance = -self.backend.log(self.backend.clip(image, a_min=None, a_max=self.tli) / self.tli)
+        image = image.astype(self.npcp.float32) + 1.0
+        absorbance = -self.npcp.log(self.npcp.clip(image, a_min=None, a_max=self.tli) / self.tli)
 
         # remove transparent pixels
-        absorbance_hat = absorbance[self.backend.all(absorbance > self.beta, axis=1)]
+        absorbance_hat = absorbance[self.npcp.all(absorbance > self.beta, axis=1)]
         if len(absorbance_hat) == 0:
             raise ValueError("All pixels of the input image are below the absorbance threshold.")
 
         # compute eigenvectors
-        _, eigvecs = self.backend.linalg.eigh(self.backend.cov(absorbance_hat.T).astype(self.backend.float32))
+        _, eigvecs = self.npcp.linalg.eigh(self.npcp.cov(absorbance_hat.T).astype(self.npcp.float32))
 
         # project on the plane spanned by the eigenvectors corresponding to the two largest eigenvalues
         t_hat = absorbance_hat.dot(eigvecs[:, 1:3])
 
         # find the min and max vectors and project back to absorbance space
-        phi = self.backend.arctan2(t_hat[:, 1], t_hat[:, 0])
-        min_phi = self.backend.percentile(phi, self.alpha)
-        max_phi = self.backend.percentile(phi, 100 - self.alpha)
+        phi = self.npcp.arctan2(t_hat[:, 1], t_hat[:, 0])
+        min_phi = self.npcp.percentile(phi, self.alpha)
+        max_phi = self.npcp.percentile(phi, 100 - self.alpha)
         v_min = eigvecs[:, 1:3].dot(
-            self.backend.array([(self.backend.cos(min_phi), self.backend.sin(min_phi))], dtype=self.backend.float32).T
+            self.npcp.array([(self.npcp.cos(min_phi), self.npcp.sin(min_phi))], dtype=self.npcp.float32).T
         )
         v_max = eigvecs[:, 1:3].dot(
-            self.backend.array([(self.backend.cos(max_phi), self.backend.sin(max_phi))], dtype=self.backend.float32).T
+            self.npcp.array([(self.npcp.cos(max_phi), self.npcp.sin(max_phi))], dtype=self.npcp.float32).T
         )
 
         # a heuristic to make the vector corresponding to hematoxylin first and the one corresponding to eosin second
         if v_min[0] > v_max[0]:
-            he = self.backend.array((v_min[:, 0], v_max[:, 0]), dtype=self.backend.float32).T
+            he = self.npcp.array((v_min[:, 0], v_max[:, 0]), dtype=self.npcp.float32).T
         else:
-            he = self.backend.array((v_max[:, 0], v_min[:, 0]), dtype=self.backend.float32).T
+            he = self.npcp.array((v_max[:, 0], v_min[:, 0]), dtype=self.npcp.float32).T
 
         return he
 
@@ -122,7 +121,7 @@ class ExtractHEStains(Transform):
                 H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
 
         """
-        if not isinstance(image, self.backend.ndarray):
+        if not isinstance(image, self.npcp.ndarray):
             raise TypeError("Image must be of type numpy.ndarray.")
 
         target_he = self._deconvolution_extract_stain(image)
@@ -146,7 +145,9 @@ class NormalizeHEStains(Transform):
         beta: absorbance threshold for transparent pixels. Defaults to 0.15.
         target_he: target stain matrix. Defaults to ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)).
         max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E).
-            Defaults to [1.9705, 1.0308].
+            Defaults to (1.9705, 1.0308).
+        cuda: if to perform the tranform computation using CUDA (on GPU). Defaults to False.
+            When it is set to True, CuPy is used instead of NumPy for computations.
 
     Note:
         For more information refer to:
@@ -162,24 +163,19 @@ class NormalizeHEStains(Transform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: Union[tuple, np.ndarray] = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
-        max_cref: tuple = (1.9705, 1.0308),
-        backend: str = "numpy",
+        target_he: Union[tuple, list] = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
+        max_cref: Union[tuple, list] = (1.9705, 1.0308),
+        cuda: bool = False,
     ) -> None:
-        # set backend to numpy or cupy
-        self.backend, has_it = optional_import(backend)
-        if not has_it:
-            raise ValueError(f"The requested backend [{backend}] is not installed!")
+        # Use NumPy for computation on CPU and CuPy for GPU
+        if cuda is True:
+            self.npcp, _ = optional_import("cupy", descriptor="CuPy is required for computation on GPU (CUDA)!")
+        else:
+            self.npcp, _ = optional_import("numpy", descriptor="NumPy is required for computation on CPU!")
         self.tli = tli
-        self.target_he = self.backend.array(target_he)
-        self.max_cref = self.backend.array(max_cref)
-        self.stain_extractor = ExtractHEStains(
-            tli=self.tli,
-            alpha=alpha,
-            beta=beta,
-            max_cref=self.max_cref,
-            backend=backend,
-        )
+        self.target_he = self.npcp.array(target_he)
+        self.max_cref = self.npcp.array(max_cref)
+        self.stain_extractor = ExtractHEStains(tli=self.tli, alpha=alpha, beta=beta, max_cref=self.max_cref, cuda=cuda)
 
     def __call__(self, image):
         """Perform stain normalization.
@@ -193,7 +189,7 @@ class NormalizeHEStains(Transform):
                 stain normalized image/patch
         """
         # check image type and values
-        if not isinstance(image, self.backend.ndarray):
+        if not isinstance(image, self.npcp.ndarray):
             raise TypeError("Image must be of type numpy.ndarray.")
         if image.min() < 0:
             raise ValueError("Image should not have negative values.")
@@ -206,26 +202,26 @@ class NormalizeHEStains(Transform):
         # reshape image and calculate absorbance
         h, w, _ = image.shape
         image = image.reshape((-1, 3))
-        image = image.astype(self.backend.float32) + 1.0
-        absorbance = -self.backend.log(self.backend.clip(image, a_min=None, a_max=self.tli) / self.tli)
+        image = image.astype(self.npcp.float32) + 1.0
+        absorbance = -self.npcp.log(self.npcp.clip(image, a_min=None, a_max=self.tli) / self.tli)
 
         # rows correspond to channels (RGB), columns to absorbance values
-        y = self.backend.reshape(absorbance, (-1, 3)).T
+        y = self.npcp.reshape(absorbance, (-1, 3)).T
 
         # determine concentrations of the individual stains
-        conc = self.backend.linalg.lstsq(he, y, rcond=None)[0]
+        conc = self.npcp.linalg.lstsq(he, y, rcond=None)[0]
 
         # normalize stain concentrations
-        max_conc = self.backend.array(
-            [self.backend.percentile(conc[0, :], 99), self.backend.percentile(conc[1, :], 99)],
-            dtype=self.backend.float32,
+        max_conc = self.npcp.array(
+            [self.npcp.percentile(conc[0, :], 99), self.npcp.percentile(conc[1, :], 99)],
+            dtype=self.npcp.float32,
         )
-        tmp = self.backend.divide(max_conc, self.max_cref, dtype=self.backend.float32)
-        image_c = self.backend.divide(conc, tmp[:, self.backend.newaxis], dtype=self.backend.float32)
+        tmp = self.npcp.divide(max_conc, self.max_cref, dtype=self.npcp.float32)
+        image_c = self.npcp.divide(conc, tmp[:, self.npcp.newaxis], dtype=self.npcp.float32)
 
-        image_norm: self.backend.ndarray = self.backend.multiply(
-            self.tli, self.backend.exp(-self.target_he.dot(image_c)), dtype=self.backend.float32
+        image_norm: self.npcp.ndarray = self.npcp.multiply(
+            self.tli, self.npcp.exp(-self.target_he.dot(image_c)), dtype=self.npcp.float32
         )
         image_norm[image_norm > 255] = 254
-        image_norm = self.backend.reshape(image_norm.T, (h, w, 3)).astype(self.backend.uint8)
+        image_norm = self.npcp.reshape(image_norm.T, (h, w, 3)).astype(self.npcp.uint8)
         return image_norm

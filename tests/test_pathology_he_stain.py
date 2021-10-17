@@ -119,11 +119,11 @@ class TestExtractHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStains(backend="cupy")(image)
+                ExtractHEStains(cuda=True)(image)
         else:
             image = cp.array(image)
             with self.assertRaises(ValueError):
-                ExtractHEStains(backend="cupy")(image)
+                ExtractHEStains(cuda=True)(image)
 
     @parameterized.expand(
         [
@@ -168,10 +168,10 @@ class TestExtractHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStains(backend="cupy")(image)
+                ExtractHEStains(cuda=True)(image)
         else:
             image = cp.array(image)
-            result = ExtractHEStains(backend="cupy")(image)
+            result = ExtractHEStains(cuda=True)(image)
             cp.testing.assert_array_equal(result[:, 0], result[:, 1])
 
     @parameterized.expand(
@@ -253,11 +253,11 @@ class TestExtractHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStains(backend="cupy")(image)
+                ExtractHEStains(cuda=True)(image)
         else:
             image = cp.array(image)
             expected_data = cp.array(expected_data)
-            result = ExtractHEStains(backend="cupy")(image)
+            result = ExtractHEStains(cuda=True)(image)
             cp.testing.assert_allclose(result, expected_data)
 
 
@@ -305,11 +305,11 @@ class TestNormalizeHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeHEStains(backend="cupy")(image)
+                NormalizeHEStains(cuda=True)(image)
         else:
             image = cp.array(image)
             with self.assertRaises(ValueError):
-                NormalizeHEStains(backend="cupy")(image)
+                NormalizeHEStains(cuda=True)(image)
 
     @parameterized.expand(
         [
@@ -428,11 +428,11 @@ class TestNormalizeHEStains(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeHEStains(backend="cupy")(image)
+                NormalizeHEStains(cuda=True)(image)
         else:
             image = cp.array(image)
             expected_data = cp.array(expected_data)
-            result = NormalizeHEStains(backend="cupy", **arguments)(image)
+            result = NormalizeHEStains(cuda=True, **arguments)(image)
             cp.testing.assert_allclose(result, expected_data)
 
 
