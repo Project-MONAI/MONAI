@@ -76,7 +76,7 @@ class IntegrationFastTrain(DistTestCase):
         shutil.rmtree(self.data_dir)
 
     # test the fast training speed is as expected
-    @TimedCall(seconds=30, daemon=False)
+    @TimedCall(seconds=100, daemon=False, force_quit=False)
     def test_train_timing(self):
         images = sorted(glob(os.path.join(self.data_dir, "img*.nii.gz")))
         segs = sorted(glob(os.path.join(self.data_dir, "seg*.nii.gz")))
