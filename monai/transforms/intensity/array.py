@@ -39,7 +39,7 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
 )
-from monai.utils.deprecated import deprecated_arg
+from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_to_tensor, get_equivalent_dtype
 

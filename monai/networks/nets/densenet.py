@@ -23,7 +23,6 @@ from monai.utils.module import look_up_option
 
 __all__ = [
     "DenseNet",
-    "densenet",
     "Densenet",
     "DenseNet121",
     "densenet121",
@@ -390,7 +389,7 @@ class DenseNet264(DenseNet):
             raise NotImplementedError("Currently PyTorch Hub does not provide densenet264 pretrained models.")
 
 
-Densenet = densenet = DenseNet
+Densenet = DenseNet
 Densenet121 = densenet121 = DenseNet121
 Densenet169 = densenet169 = DenseNet169
 Densenet201 = densenet201 = DenseNet201
