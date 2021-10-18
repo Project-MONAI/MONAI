@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -33,12 +33,14 @@ from monai.transforms.spatial.array import (
     Affine,
     AffineGrid,
     Flip,
+    GridDistortion,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
     RandAffine,
     RandAxisFlip,
     RandFlip,
+    RandGridDistortion,
     RandRotate,
     RandZoom,
     Resize,
@@ -78,6 +80,8 @@ __all__ = [
     "Rand3DElasticd",
     "Flipd",
     "RandFlipd",
+    "GridDistortiond",
+    "RandGridDistortiond",
     "RandAxisFlipd",
     "Rotated",
     "RandRotated",
@@ -105,6 +109,10 @@ __all__ = [
     "FlipDict",
     "RandFlipD",
     "RandFlipDict",
+    "GridDistortionD",
+    "GridDistortionDict",
+    "RandGridDistortionD",
+    "RandGridDistortionDict",
     "RandAxisFlipD",
     "RandAxisFlipDict",
     "RotateD",
@@ -1769,6 +1777,129 @@ class AddCoordinateChannelsd(MapTransform):
         return d
 
 
+class GridDistortiond(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GridDistortion`.
+    """
+
+    backend = GridDistortion.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        num_cells: int,
+        distort_steps: List[Tuple],
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            num_cells: number of grid cells on each dimension.
+            distort_steps: This argument is a list of tuples, where each tuple contains the distort steps of the
+                corresponding dimensions (in the order of H, W[, D]). The length of each tuple equals to `num_cells + 1`.
+                Each value in the tuple represents the distort step of the related cell.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            device: device on which the tensor will be allocated.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.grid_distortion = GridDistortion(
+            num_cells=num_cells,
+            distort_steps=distort_steps,
+            device=device,
+        )
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            d[key] = self.grid_distortion(d[key], mode=mode, padding_mode=padding_mode)
+        return d
+
+
+class RandGridDistortiond(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandGridDistortion`.
+    """
+
+    backend = RandGridDistortion.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        num_cells: int = 5,
+        prob: float = 0.1,
+        spatial_dims: int = 2,
+        distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            num_cells: number of grid cells on each dimension.
+            prob: probability of returning a randomized grid distortion transform. Defaults to 0.1.
+            spatial_dims: spatial dimension of input data. Defaults to 2.
+            distort_limit: range to randomly distort.
+                If single number, distort_limit is picked from (-distort_limit, distort_limit).
+                Defaults to (-0.03, 0.03).
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            device: device on which the tensor will be allocated.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.rand_grid_distortion = RandGridDistortion(
+            num_cells=num_cells,
+            prob=1.0,
+            spatial_dims=spatial_dims,
+            distort_limit=distort_limit,
+            device=device,
+        )
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandGridDistortiond":
+        super().set_random_state(seed, state)
+        self.rand_grid_distortion.set_random_state(seed, state)
+        return self
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+
+        self.rand_grid_distortion.randomize(None)
+        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode)
+        return d
+
+
 SpacingD = SpacingDict = Spacingd
 OrientationD = OrientationDict = Orientationd
 Rotate90D = Rotate90Dict = Rotate90d
@@ -1780,6 +1911,8 @@ Rand2DElasticD = Rand2DElasticDict = Rand2DElasticd
 Rand3DElasticD = Rand3DElasticDict = Rand3DElasticd
 FlipD = FlipDict = Flipd
 RandFlipD = RandFlipDict = RandFlipd
+GridDistortionD = GridDistortionDict = GridDistortiond
+RandGridDistortionD = RandGridDistortionDict = RandGridDistortiond
 RandAxisFlipD = RandAxisFlipDict = RandAxisFlipd
 RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated

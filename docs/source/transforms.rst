@@ -624,6 +624,18 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridDistortion`
+""""""""""""""""
+.. autoclass:: GridDistortion
+    :members:
+    :special-members: __call__
+
+`RandGridDistortion`
+""""""""""""""""""""
+.. autoclass:: RandGridDistortion
+    :members:
+    :special-members: __call__
+
 `Rand2DElastic`
 """""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Rand2DElastic.png
@@ -1443,6 +1455,18 @@ Spatial (Dict)
 `AddCoordinateChannelsd`
 """"""""""""""""""""""""
 .. autoclass:: AddCoordinateChannelsd
+    :members:
+    :special-members: __call__
+
+`GridDistortiond`
+"""""""""""""""""
+.. autoclass:: GridDistortiond
+    :members:
+    :special-members: __call__
+
+`RandGridDistortiond`
+"""""""""""""""""""""
+.. autoclass:: RandGridDistortiond
     :members:
     :special-members: __call__
 
