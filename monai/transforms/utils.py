@@ -916,7 +916,6 @@ def generate_spatial_bounding_box(
         box_start[di] = min_d.detach().cpu().item() if isinstance(max_d, torch.Tensor) else min_d
         box_end[di] = max_d.detach().cpu().item() if isinstance(max_d, torch.Tensor) else max_d
 
-
     return box_start, box_end
 
 
