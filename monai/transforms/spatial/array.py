@@ -2067,8 +2067,8 @@ class GridDistortion(Transform):
 
     def __init__(
         self,
-        num_cells: int,
-        distort_steps: List[Tuple],
+        num_cells: Union[Tuple[int], int],
+        distort_steps: Sequence[Sequence[float]],
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         device: Optional[torch.device] = None,
@@ -2091,14 +2091,7 @@ class GridDistortion(Transform):
             device: device on which the tensor will be allocated.
 
         """
-        self.resampler = Resample(
-            mode=mode,
-            padding_mode=padding_mode,
-            device=device,
-        )
-        for dim_steps in distort_steps:
-            if len(dim_steps) != num_cells + 1:
-                raise ValueError("the length of each tuple in `distort_steps` must equal to `num_cells + 1`.")
+        self.resampler = Resample(mode=mode, padding_mode=padding_mode, device=device)
         self.num_cells = num_cells
         self.distort_steps = distort_steps
         self.device = device
@@ -2106,7 +2099,7 @@ class GridDistortion(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        distort_steps: Optional[List[Tuple]] = None,
+        distort_steps: Optional[Sequence[Sequence]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ) -> NdarrayOrTensor:
@@ -2129,12 +2122,13 @@ class GridDistortion(Transform):
             raise ValueError("the spatial size of `img` does not match with the length of `distort_steps`")
 
         all_ranges = []
+        num_cells = ensure_tuple_rep(self.num_cells, len(img.shape) - 1)
         for dim_idx, dim_size in enumerate(img.shape[1:]):
             dim_distort_steps = distort_steps[dim_idx]
             ranges = torch.zeros(dim_size, dtype=torch.float32)
-            cell_size = dim_size // self.num_cells
+            cell_size = dim_size // num_cells[dim_idx]
             prev = 0
-            for idx in range(self.num_cells + 1):
+            for idx in range(num_cells[dim_idx] + 1):
                 start = int(idx * cell_size)
                 end = start + cell_size
                 if end > dim_size:
@@ -2159,9 +2153,8 @@ class RandGridDistortion(RandomizableTransform):
 
     def __init__(
         self,
-        num_cells: int = 5,
+        num_cells: Union[Tuple[int], int] = 5,
         prob: float = 0.1,
-        spatial_dims: int = 2,
         distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
@@ -2174,7 +2167,6 @@ class RandGridDistortion(RandomizableTransform):
         Args:
             num_cells: number of grid cells on each dimension.
             prob: probability of returning a randomized grid distortion transform. Defaults to 0.1.
-            spatial_dims: spatial dimension of input data. The value should be 2 or 3. Defaults to 2.
             distort_limit: range to randomly distort.
                 If single number, distort_limit is picked from (-distort_limit, distort_limit).
                 Defaults to (-0.03, 0.03).
@@ -2188,17 +2180,12 @@ class RandGridDistortion(RandomizableTransform):
 
         """
         RandomizableTransform.__init__(self, prob)
-        if num_cells <= 0:
-            raise ValueError("num_cells should be no less than 1.")
         self.num_cells = num_cells
-        if spatial_dims not in [2, 3]:
-            raise ValueError("spatial_size should be 2 or 3.")
-        self.spatial_dims = spatial_dims
         if isinstance(distort_limit, (int, float)):
             self.distort_limit = (min(-distort_limit, distort_limit), max(-distort_limit, distort_limit))
         else:
             self.distort_limit = (min(distort_limit), max(distort_limit))
-        self.distort_steps = [tuple([1 + self.distort_limit[0]] * (self.num_cells + 1)) for _ in range(spatial_dims)]
+        self.distort_steps: Sequence[Sequence[float]] = ((1.0,),)
         self.grid_distortion = GridDistortion(
             num_cells=num_cells,
             distort_steps=self.distort_steps,
@@ -2207,21 +2194,21 @@ class RandGridDistortion(RandomizableTransform):
             device=device,
         )
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, spatial_shape: Sequence[int]) -> None:
         super().randomize(None)
-        self.distort_steps = [
-            tuple(
-                1 + self.R.uniform(low=self.distort_limit[0], high=self.distort_limit[1])
-                for _ in range(self.num_cells + 1)
-            )
-            for _dim in range(self.spatial_dims)
-        ]
+        if not self._do_transform:
+            return
+        self.distort_steps = tuple(
+            tuple(1.0 + self.R.uniform(low=self.distort_limit[0], high=self.distort_limit[1], size=n_cells + 1))
+            for n_cells in ensure_tuple_rep(self.num_cells, len(spatial_shape))
+        )
 
     def __call__(
         self,
         img: NdarrayOrTensor,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -2232,9 +2219,10 @@ class RandGridDistortion(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-
+            randomize: whether to shuffle the random factors using `randomize()`, default to True.
         """
-        self.randomize()
+        if randomize:
+            self.randomize(img.shape[1:])
         if not self._do_transform:
             return img
         return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)

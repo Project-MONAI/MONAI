@@ -382,8 +382,12 @@ class TestExtractFeatures(unittest.TestCase):
     def test_shape(self, input_param, input_shape, expected_shapes):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # initialize model
-        net = EfficientNetBNFeatures(**input_param).to(device)
+        try:
+            # initialize model
+            net = EfficientNetBNFeatures(**input_param).to(device)
+        except (ContentTooShortError, HTTPError, RuntimeError) as e:
+            print(str(e))
+            return  # skipping the tests because of http errors
 
         # run inference with random tensor
         with eval_mode(net):

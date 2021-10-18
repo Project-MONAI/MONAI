@@ -632,6 +632,8 @@ Spatial
 
 `RandGridDistortion`
 """"""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGridDistortion.png
+    :alt: example of RandGridDistortion
 .. autoclass:: RandGridDistortion
     :members:
     :special-members: __call__
@@ -1466,6 +1468,8 @@ Spatial (Dict)
 
 `RandGridDistortiond`
 """""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGridDistortiond.png
+    :alt: example of RandGridDistortiond
 .. autoclass:: RandGridDistortiond
     :members:
     :special-members: __call__
