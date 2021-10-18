@@ -103,6 +103,7 @@ def run_testsuit():
         "test_nifti_rw",
         "test_nifti_saver",
         "test_occlusion_sensitivity",
+        "test_openslide_reader",
         "test_orientation",
         "test_orientationd",
         "test_parallel_execution",
