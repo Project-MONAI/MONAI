@@ -81,7 +81,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
             if not has_tqdm and progress:
                 warnings.warn("tqdm is not installed, will not show the downloading progress bar.")
             urlretrieve(url, filepath)
-    except (URLError, HTTPError, ContentTooShortError, IOError) as e:
+    except (URLError, HTTPError, ContentTooShortError, OSError) as e:
         print(f"Download failed from {url} to {filepath}.")
         raise e
 
@@ -128,7 +128,8 @@ def download_url(
 
     Args:
         url: source URL link to download file.
-        filepath: target filepath to save the downloaded file. If undefined, `os.path.basename(url)` will be used.
+        filepath: target filepath to save the downloaded file (including the filename).
+            If undefined, `os.path.basename(url)` will be used.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.

@@ -12,7 +12,7 @@
 # have to explicitly bring these in here to resolve circular import issues
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
-from .deprecated import DeprecatedError, deprecated, deprecated_arg
+from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg
 from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
     Average,
@@ -77,6 +77,7 @@ from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu
 from .state_cacher import StateCacher
 from .type_conversion import (
     convert_data_type,
+    convert_to_cupy,
     convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
