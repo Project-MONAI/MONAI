@@ -2091,11 +2091,7 @@ class GridDistortion(Transform):
             device: device on which the tensor will be allocated.
 
         """
-        self.resampler = Resample(
-            mode=mode,
-            padding_mode=padding_mode,
-            device=device,
-        )
+        self.resampler = Resample(mode=mode, padding_mode=padding_mode, device=device)
         self.num_cells = num_cells
         self.distort_steps = distort_steps
         self.device = device
@@ -2225,7 +2221,7 @@ class RandGridDistortion(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-
+            randomize: whether to shuffle the random factors using `randomize()`, default to True.
         """
         if randomize:
             self.randomize(img.shape[1:])
