@@ -14,78 +14,78 @@ on:
   workflow_dispatch:
 
 jobs:
-  versioning:
-    # compute versioning file from python setup.py
-    # upload as artifact
-    # (also used in release.yml)
-    if: github.repository == 'Project-MONAI/MONAI'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        # full history so that we can git describe
-        with:
-          ref: dev
-          fetch-depth: 0
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-      - shell: bash
-        run: |
-          git describe
-          python setup.py build
-          cat build/lib/monai/_version.py
-      - name: Upload version
-        uses: actions/upload-artifact@v2
-        with:
-          name: _version.py
-          path: build/lib/monai/_version.py
-      - name: Clean up directory
-        shell: bash
-        run: |
-          ls -al
-          rm -rf {*,.[^.]*}
+#   versioning:
+#     # compute versioning file from python setup.py
+#     # upload as artifact
+#     # (also used in release.yml)
+#     if: github.repository == 'Project-MONAI/MONAI'
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#         # full history so that we can git describe
+#         with:
+#           ref: dev
+#           fetch-depth: 0
+#       - name: Set up Python 3.8
+#         uses: actions/setup-python@v2
+#         with:
+#           python-version: 3.8
+#       - shell: bash
+#         run: |
+#           git describe
+#           python setup.py build
+#           cat build/lib/monai/_version.py
+#       - name: Upload version
+#         uses: actions/upload-artifact@v2
+#         with:
+#           name: _version.py
+#           path: build/lib/monai/_version.py
+#       - name: Clean up directory
+#         shell: bash
+#         run: |
+#           ls -al
+#           rm -rf {*,.[^.]*}
 
-  docker_build:
-    # builds projectmonai/monai:latest
-    if: github.repository == 'Project-MONAI/MONAI'
-    needs: versioning
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        ref: dev
-    - name: Download version
-      uses: actions/download-artifact@v2
-      with:
-        name: _version.py
-    - name: Install Latest Docker
-      run: |
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
-        sudo apt-get update
-        sudo apt-get install docker-ce
-    - name: docker_build
-      shell: bash
-      run: |
-        # get tag info for versioning
-        cat _version.py
-        mv _version.py monai/
+  # docker_build:
+  #   # builds projectmonai/monai:latest
+  #   if: github.repository == 'Project-MONAI/MONAI'
+  #   needs: versioning
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #     with:
+  #       ref: dev
+  #   - name: Download version
+  #     uses: actions/download-artifact@v2
+  #     with:
+  #       name: _version.py
+  #   - name: Install Latest Docker
+  #     run: |
+  #       curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  #       sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+  #       sudo apt-get update
+  #       sudo apt-get install docker-ce
+  #   - name: docker_build
+  #     shell: bash
+  #     run: |
+  #       # get tag info for versioning
+  #       cat _version.py
+  #       mv _version.py monai/
 
-        # build "latest": remove flake package as it is not needed on hub.docker.com
-        sed -i '/flake/d' requirements-dev.txt
-        docker build -t projectmonai/monai:latest -f Dockerfile .
+  #       # build "latest": remove flake package as it is not needed on hub.docker.com
+  #       sed -i '/flake/d' requirements-dev.txt
+  #       docker build -t projectmonai/monai:latest -f Dockerfile .
 
-        # distribute as always w/ tag "latest" to hub.docker.com
-        echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
+  #       # distribute as always w/ tag "latest" to hub.docker.com
+  #       echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
 
-        # docker push projectmonai/monai:latest
-        docker logout
-        docker image prune -f
+  #       # docker push projectmonai/monai:latest
+  #       docker logout
+  #       docker image prune -f
 
   docker_test_dockerhub:
     if: github.repository == 'Project-MONAI/MONAI'
-    needs: local_docker
+    # needs: docker_build
     container:
       image: projectmonai/monai:latest
     runs-on: ubuntu-latest
