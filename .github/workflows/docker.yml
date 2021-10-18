@@ -46,10 +46,8 @@ jobs:
           ls -al
           rm -rf {*,.[^.]*}
 
-  local_docker:
-    # builds two versions: local_monai:latest and local_monai:dockerhub
-    # latest: used for local tests
-    # dockerhub: release, no flake package
+  docker_build:
+    # builds projectmonai/monai:latest
     if: github.repository == 'Project-MONAI/MONAI'
     needs: versioning
     runs-on: ubuntu-latest
