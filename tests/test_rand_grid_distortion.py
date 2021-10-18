@@ -26,7 +26,6 @@ for p in TEST_NDARRAYS:
             dict(
                 num_cells=num_cells,
                 prob=1.0,
-                spatial_dims=2,
                 distort_limit=0.5,
                 mode="nearest",
                 padding_mode="zeros",
@@ -64,7 +63,6 @@ for p in TEST_NDARRAYS:
             dict(
                 num_cells=num_cells,
                 prob=1.0,
-                spatial_dims=2,
                 distort_limit=0.1,
                 mode="bilinear",
                 padding_mode="reflection",

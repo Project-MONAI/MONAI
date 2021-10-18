@@ -1841,7 +1841,6 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         num_cells: int = 5,
         prob: float = 0.1,
-        spatial_dims: int = 2,
         distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
@@ -1853,7 +1852,6 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
             keys: keys of the corresponding items to be transformed.
             num_cells: number of grid cells on each dimension.
             prob: probability of returning a randomized grid distortion transform. Defaults to 0.1.
-            spatial_dims: spatial dimension of input data. Defaults to 2.
             distort_limit: range to randomly distort.
                 If single number, distort_limit is picked from (-distort_limit, distort_limit).
                 Defaults to (-0.03, 0.03).
@@ -1874,7 +1872,6 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         self.rand_grid_distortion = RandGridDistortion(
             num_cells=num_cells,
             prob=1.0,
-            spatial_dims=spatial_dims,
             distort_limit=distort_limit,
             device=device,
         )
@@ -1894,9 +1891,9 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
 
-        self.rand_grid_distortion.randomize(None)
+        self.rand_grid_distortion.randomize(d[self.keys[0]].shape[1:])
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode)
+            d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode, randomize=False)
         return d
 
 

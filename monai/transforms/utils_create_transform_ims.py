@@ -141,11 +141,20 @@ from monai.transforms.intensity.dictionary import (
 )
 from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour
 from monai.transforms.post.dictionary import AsDiscreted, KeepLargestConnectedComponentd, LabelFilterd, LabelToContourd
-from monai.transforms.spatial.array import Rand2DElastic, RandAffine, RandAxisFlip, RandRotate90, Resize, Spacing
+from monai.transforms.spatial.array import (
+    Rand2DElastic,
+    RandAffine,
+    RandAxisFlip,
+    RandGridDistortion,
+    RandRotate90,
+    Resize,
+    Spacing,
+)
 from monai.transforms.spatial.dictionary import (
     Rand2DElasticd,
     RandAffined,
     RandAxisFlipd,
+    RandGridDistortiond,
     RandRotate90d,
     Resized,
     Spacingd,
@@ -672,3 +681,5 @@ if __name__ == "__main__":
     create_transform_im(
         KeepLargestConnectedComponentd, dict(keys=CommonKeys.LABEL, applied_labels=1), data_binary, is_post=True, ndim=2
     )
+    create_transform_im(RandGridDistortion, dict(num_cells=3, prob=1.0, distort_limit=(-0.1, 0.1)), data)
+    create_transform_im(RandGridDistortiond, dict(keys=keys, num_cells=5, prob=1.0, distort_limit=(-0.1, 0.1)), data)
