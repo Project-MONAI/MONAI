@@ -215,6 +215,9 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
         # reset the status for next computation round
         dice_metric.reset()
 
+    And to load `predictions` and `labels` from files, then compute metrics with multi-processing, please refer to:
+    https://github.com/Project-MONAI/tutorials/blob/master/modules/compute_metric.py.
+
     """
 
     def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
