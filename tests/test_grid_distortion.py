@@ -19,13 +19,11 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    num_cells = 3
-    distort_steps = [(1.5,) * (1 + num_cells)] * 2
     TESTS.append(
         [
             dict(
-                num_cells=num_cells,
-                distort_steps=distort_steps,
+                num_cells=3,
+                distort_steps=[(1.5,) * 4] * 2,
                 mode="nearest",
                 padding_mode="zeros",
             ),
@@ -89,13 +87,11 @@ for p in TEST_NDARRAYS:
             ),
         ]
     )
-    num_cells = 2
-    distort_steps = [(1.25,) * (1 + num_cells)] * 3
     TESTS.append(
         [
             dict(
-                num_cells=num_cells,
-                distort_steps=distort_steps,
+                num_cells=2,
+                distort_steps=[(1.25,) * 3] * 3,
                 mode="nearest",
                 padding_mode="zeros",
             ),

@@ -2180,8 +2180,6 @@ class RandGridDistortion(RandomizableTransform):
 
         """
         RandomizableTransform.__init__(self, prob)
-        if num_cells <= 0:
-            raise ValueError("num_cells should be no less than 1.")
         self.num_cells = num_cells
         if isinstance(distort_limit, (int, float)):
             self.distort_limit = (min(-distort_limit, distort_limit), max(-distort_limit, distort_limit))
