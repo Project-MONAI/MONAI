@@ -47,7 +47,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.deprecated import deprecated_arg
+from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
@@ -58,6 +58,7 @@ __all__ = [
     "Spacing",
     "Orientation",
     "Flip",
+    "GridDistortion",
     "Resize",
     "Rotate",
     "Zoom",
@@ -65,6 +66,7 @@ __all__ = [
     "RandRotate90",
     "RandRotate",
     "RandFlip",
+    "RandGridDistortion",
     "RandAxisFlip",
     "RandZoom",
     "AffineGrid",
@@ -722,19 +724,24 @@ class RandRotate90(RandomizableTransform):
         self._rand_k = 0
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
+        if not self._do_transform:
+            return None
+        self._rand_k = self.R.randint(self.max_k) + 1
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            randomize: whether to execute `randomize()` function first, default to True.
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
             return img
-        rotator = Rotate90(self._rand_k, self.spatial_axes)
-        return rotator(img)
+
+        return Rotate90(self._rand_k, self.spatial_axes)(img)
 
 
 class RandRotate(RandomizableTransform):
@@ -802,6 +809,8 @@ class RandRotate(RandomizableTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
@@ -813,7 +822,9 @@ class RandRotate(RandomizableTransform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: Union[DtypeLike, torch.dtype] = None,
-    ) -> NdarrayOrTensor:
+        randomize: bool = True,
+        get_matrix: bool = False,
+    ):
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -828,12 +839,15 @@ class RandRotate(RandomizableTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            randomize: whether to execute `randomize()` function first, default to True.
+            get_matrix: wheter to return the rotated image and rotate matrix together, default to False.
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
-            img_t: torch.Tensor
-            img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
-            return img_t
+            return img
+
         rotator = Rotate(
             angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
             keep_size=self.keep_size,
@@ -842,7 +856,8 @@ class RandRotate(RandomizableTransform):
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,
         )
-        return rotator(img)
+        img = rotator(img)
+        return (img, rotator.get_rotation_matrix()) if get_matrix else img
 
 
 class RandFlip(RandomizableTransform):
@@ -862,14 +877,18 @@ class RandFlip(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            randomize: whether to execute `randomize()` function first, default to True.
         """
-        self.randomize(None)
+        if randomize:
+            self.randomize(None)
+
         if not self._do_transform:
             return img
+
         return self.flipper(img)
 
 
@@ -892,18 +911,23 @@ class RandAxisFlip(RandomizableTransform):
 
     def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self._axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            randomize: whether to execute `randomize()` function first, default to True.
         """
-        self.randomize(data=img)
+        if randomize:
+            self.randomize(data=img)
+
         if not self._do_transform:
             return img
-        flipper = Flip(spatial_axis=self._axis)
-        return flipper(img)
+
+        return Flip(spatial_axis=self._axis)(img)
 
 
 class RandZoom(RandomizableTransform):
@@ -967,9 +991,17 @@ class RandZoom(RandomizableTransform):
 
         self._zoom: Sequence[float] = [1.0]
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, img: NdarrayOrTensor) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
+        if len(self._zoom) == 1:
+            # to keep the spatial shape ratio, use same random zoom factor for all dims
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
+        elif len(self._zoom) == 2 and img.ndim > 3:
+            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
 
     def __call__(
         self,
@@ -977,6 +1009,7 @@ class RandZoom(RandomizableTransform):
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -994,28 +1027,24 @@ class RandZoom(RandomizableTransform):
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            randomize: whether to execute `randomize()` function first, default to True.
+
         """
         # match the spatial image dim
-        self.randomize()
+        if randomize:
+            self.randomize(img=img)
+
         if not self._do_transform:
-            img_t: torch.Tensor
-            img_t, *_ = convert_data_type(img, dtype=torch.float32)  # type: ignore
-            return img_t
-        if len(self._zoom) == 1:
-            # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
-        elif len(self._zoom) == 2 and img.ndim > 3:
-            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(
+            return img
+
+        return Zoom(
             self._zoom,
             keep_size=self.keep_size,
             mode=look_up_option(mode or self.mode, InterpolateMode),
             padding_mode=padding_mode or self.padding_mode,
             align_corners=align_corners or self.align_corners,
             **self.kwargs,
-        )
-        return zoomer(img)
+        )(img)
 
 
 class AffineGrid(Transform):
@@ -1631,6 +1660,8 @@ class RandAffine(RandomizableTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self.rand_affine_grid.randomize()
 
     def __call__(
@@ -1639,6 +1670,7 @@ class RandAffine(RandomizableTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1654,8 +1686,12 @@ class RandAffine(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            randomize: whether to execute `randomize()` function first, default to True.
+
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
+
         # if not doing transform and spatial size doesn't change, nothing to do
         # except convert to float and device
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
@@ -1773,6 +1809,8 @@ class Rand2DElastic(RandomizableTransform):
 
     def randomize(self, spatial_size: Sequence[int]) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
@@ -1782,6 +1820,7 @@ class Rand2DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1795,9 +1834,12 @@ class Rand2DElastic(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            randomize: whether to execute `randomize()` function first, default to True.
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        self.randomize(spatial_size=sp_size)
+        if randomize:
+            self.randomize(spatial_size=sp_size)
+
         if self._do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
             grid = self.rand_affine_grid(grid=grid)
@@ -1925,8 +1967,9 @@ class Rand3DElastic(RandomizableTransform):
 
     def randomize(self, grid_size: Sequence[int]) -> None:
         super().randomize(None)
-        if self._do_transform:
-            self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
+        if not self._do_transform:
+            return None
+        self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
         self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
         self.rand_affine_grid.randomize()
@@ -1937,6 +1980,7 @@ class Rand3DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1950,9 +1994,12 @@ class Rand3DElastic(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            randomize: whether to execute `randomize()` function first, default to True.
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        self.randomize(grid_size=sp_size)
+        if randomize:
+            self.randomize(grid_size=sp_size)
+
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         if self._do_transform:
@@ -2012,3 +2059,182 @@ class AddCoordinateChannels(Transform):
         # but user input is 1-based (because channel dim is 0)
         coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
         return concatenate((img, coord_channels), axis=0)
+
+
+class GridDistortion(Transform):
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        num_cells: int,
+        distort_steps: List[Tuple],
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        """
+        Grid distortion transform. Refer to:
+        https://github.com/albumentations-team/albumentations/blob/master/albumentations/augmentations/transforms.py
+
+        Args:
+            num_cells: number of grid cells on each dimension.
+            distort_steps: This argument is a list of tuples, where each tuple contains the distort steps of the
+                corresponding dimensions (in the order of H, W[, D]). The length of each tuple equals to `num_cells + 1`.
+                Each value in the tuple represents the distort step of the related cell.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            device: device on which the tensor will be allocated.
+
+        """
+        self.resampler = Resample(
+            mode=mode,
+            padding_mode=padding_mode,
+            device=device,
+        )
+        for dim_steps in distort_steps:
+            if len(dim_steps) != num_cells + 1:
+                raise ValueError("the length of each tuple in `distort_steps` must equal to `num_cells + 1`.")
+        self.num_cells = num_cells
+        self.distort_steps = distort_steps
+        self.device = device
+
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        distort_steps: Optional[List[Tuple]] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+    ) -> NdarrayOrTensor:
+        """
+        Args:
+            img: shape must be (num_channels, H, W[, D]).
+            distort_steps: This argument is a list of tuples, where each tuple contains the distort steps of the
+                corresponding dimensions (in the order of H, W[, D]). The length of each tuple equals to `num_cells + 1`.
+                Each value in the tuple represents the distort step of the related cell.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
+        """
+        distort_steps = self.distort_steps if distort_steps is None else distort_steps
+        if len(img.shape) != len(distort_steps) + 1:
+            raise ValueError("the spatial size of `img` does not match with the length of `distort_steps`")
+
+        all_ranges = []
+        for dim_idx, dim_size in enumerate(img.shape[1:]):
+            dim_distort_steps = distort_steps[dim_idx]
+            ranges = torch.zeros(dim_size, dtype=torch.float32)
+            cell_size = dim_size // self.num_cells
+            prev = 0
+            for idx in range(self.num_cells + 1):
+                start = int(idx * cell_size)
+                end = start + cell_size
+                if end > dim_size:
+                    end = dim_size
+                    cur = dim_size
+                else:
+                    cur = prev + cell_size * dim_distort_steps[idx]
+                ranges[start:end] = torch.linspace(prev, cur, end - start)
+                prev = cur
+            ranges = ranges - (dim_size - 1.0) / 2.0
+            all_ranges.append(ranges)
+
+        coords = torch.meshgrid(*all_ranges)
+        grid = torch.stack([*coords, torch.ones_like(coords[0])])
+
+        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore
+
+
+class RandGridDistortion(RandomizableTransform):
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        num_cells: int = 5,
+        prob: float = 0.1,
+        spatial_dims: int = 2,
+        distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        """
+        Random grid distortion transform. Refer to:
+        https://github.com/albumentations-team/albumentations/blob/master/albumentations/augmentations/transforms.py
+
+        Args:
+            num_cells: number of grid cells on each dimension.
+            prob: probability of returning a randomized grid distortion transform. Defaults to 0.1.
+            spatial_dims: spatial dimension of input data. The value should be 2 or 3. Defaults to 2.
+            distort_limit: range to randomly distort.
+                If single number, distort_limit is picked from (-distort_limit, distort_limit).
+                Defaults to (-0.03, 0.03).
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            device: device on which the tensor will be allocated.
+
+        """
+        RandomizableTransform.__init__(self, prob)
+        if num_cells <= 0:
+            raise ValueError("num_cells should be no less than 1.")
+        self.num_cells = num_cells
+        if spatial_dims not in [2, 3]:
+            raise ValueError("spatial_size should be 2 or 3.")
+        self.spatial_dims = spatial_dims
+        if isinstance(distort_limit, (int, float)):
+            self.distort_limit = (min(-distort_limit, distort_limit), max(-distort_limit, distort_limit))
+        else:
+            self.distort_limit = (min(distort_limit), max(distort_limit))
+        self.distort_steps = [tuple([1 + self.distort_limit[0]] * (self.num_cells + 1)) for _ in range(spatial_dims)]
+        self.grid_distortion = GridDistortion(
+            num_cells=num_cells,
+            distort_steps=self.distort_steps,
+            mode=mode,
+            padding_mode=padding_mode,
+            device=device,
+        )
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+        self.distort_steps = [
+            tuple(
+                1 + self.R.uniform(low=self.distort_limit[0], high=self.distort_limit[1])
+                for _ in range(self.num_cells + 1)
+            )
+            for _dim in range(self.spatial_dims)
+        ]
+
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+    ) -> NdarrayOrTensor:
+        """
+        Args:
+            img: shape must be (num_channels, H, W[, D]).
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
+        """
+        self.randomize()
+        if not self._do_transform:
+            return img
+        return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)

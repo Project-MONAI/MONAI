@@ -162,7 +162,7 @@ class TestInvertd(unittest.TestCase):
         # 25300: 2 workers (cpu, non-macos)
         # 1812: 0 workers (gpu or macos)
         # 1824: torch 1.5.1
-        self.assertTrue((reverted.size - n_good) in (25300, 1812, 1824), "diff. in 3 possible values")
+        self.assertTrue((reverted.size - n_good) in (34007, 1812, 1824), "diff. in 3 possible values")
 
         set_determinism(seed=None)
 

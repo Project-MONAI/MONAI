@@ -382,6 +382,7 @@ class SpatialCrop(Transform):
         roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_slices: Optional[Sequence[slice]] = None,
+        allow_smaller: bool = False,
     ) -> None:
         """
         Args:
@@ -392,6 +393,9 @@ class SpatialCrop(Transform):
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
+            allow_smaller: if `False`, an exception will be raised if the image is smaller than
+                the requested ROI in any dimension. If `True`, any smaller dimensions will remain
+                unchanged.
         """
         roi_start_torch: torch.Tensor
 
@@ -644,9 +648,9 @@ class RandSpatialCropSamples(Randomizable, Transform):
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Randomizable":
-        super().set_random_state(seed=seed, state=state)
-        self.cropper.set_random_state(state=self.R)
+    ) -> "RandSpatialCropSamples":
+        super().set_random_state(seed, state)
+        self.cropper.set_random_state(seed, state)
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -879,6 +883,9 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices`
             and `bg_indices` together, expect to be 1 dim array of spatial indices after flattening.
             a typical usage is to call `FgBgToIndices` transform first and cache the results.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.
@@ -899,6 +906,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         image_threshold: float = 0.0,
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
+        allow_smaller: bool = False,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
         self.label = label
@@ -913,6 +921,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         self.centers: Optional[List[List[int]]] = None
         self.fg_indices = fg_indices
         self.bg_indices = bg_indices
+        self.allow_smaller = allow_smaller
 
     def randomize(
         self,
@@ -932,7 +941,14 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
         self.centers = generate_pos_neg_label_crop_centers(
-            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
+            self.spatial_size,
+            self.num_samples,
+            self.pos_ratio,
+            label.shape[1:],
+            fg_indices_,
+            bg_indices_,
+            self.R,
+            self.allow_smaller,
         )
 
     def __call__(
@@ -1030,6 +1046,9 @@ class RandCropByLabelClasses(Randomizable, Transform):
             `image_threshold`, and randomly select crop centers based on them, expect to be 1 dim array
             of spatial indices after flattening. a typical usage is to call `ClassesToIndices` transform first
             and cache the results for better performance.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will remain
+            unchanged.
 
     """
 
@@ -1045,6 +1064,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         image: Optional[NdarrayOrTensor] = None,
         image_threshold: float = 0.0,
         indices: Optional[List[NdarrayOrTensor]] = None,
+        allow_smaller: bool = False,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
         self.ratios = ratios
@@ -1055,6 +1075,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         self.image_threshold = image_threshold
         self.centers: Optional[List[List[int]]] = None
         self.indices = indices
+        self.allow_smaller = allow_smaller
 
     def randomize(
         self,
@@ -1072,7 +1093,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         else:
             indices_ = indices
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
+            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R, self.allow_smaller
         )
 
     def __call__(

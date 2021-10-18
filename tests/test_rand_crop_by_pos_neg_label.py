@@ -68,6 +68,36 @@ TESTS.append(
         (3, 2, 2, 2),
     ]
 )
+TESTS.append(
+    [
+        {
+            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "spatial_size": [4, 4, 2],
+            "pos": 1,
+            "neg": 1,
+            "num_samples": 2,
+            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "allow_smaller": True,
+        },
+        {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+        (3, 3, 3, 2),
+    ]
+)
+TESTS.append(
+    [
+        {
+            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "spatial_size": [4, 4, 4],
+            "pos": 1,
+            "neg": 1,
+            "num_samples": 2,
+            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            "allow_smaller": True,
+        },
+        {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+        (3, 3, 3, 3),
+    ]
+)
 
 
 class TestRandCropByPosNegLabel(unittest.TestCase):
