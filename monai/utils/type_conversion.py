@@ -119,17 +119,14 @@ def convert_to_tensor(
             if data.ndim > 0:
                 data = np.ascontiguousarray(data)
             return torch.as_tensor(data, dtype=dtype, device=device)  # type: ignore
-    elif (
-        has_cp
-        and isinstance(data, cp_ndarray)
-        or isinstance(data, (float, int, bool))
-        or (isinstance(data, Sequence) and wrap_sequence)
-    ):
+    elif (has_cp and isinstance(data, cp_ndarray)) or isinstance(data, (float, int, bool)):
         return torch.as_tensor(data, dtype=dtype, device=device)  # type: ignore
     elif isinstance(data, list):
-        return [convert_to_tensor(i, dtype=dtype, device=device) for i in data]
+        list_ret = [convert_to_tensor(i, dtype=dtype, device=device) for i in data]
+        return torch.as_tensor(list_ret, dtype=dtype, device=device) if wrap_sequence else list_ret  # type: ignore
     elif isinstance(data, tuple):
-        return tuple(convert_to_tensor(i, dtype=dtype, device=device) for i in data)
+        tuple_ret = tuple(convert_to_tensor(i, dtype=dtype, device=device) for i in data)
+        return torch.as_tensor(tuple_ret, dtype=dtype, device=device) if wrap_sequence else tuple_ret  # type: ignore
     elif isinstance(data, dict):
         return {k: convert_to_tensor(v, dtype=dtype, device=device) for k, v in data.items()}
 
