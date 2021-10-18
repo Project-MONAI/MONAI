@@ -2153,7 +2153,7 @@ class RandGridDistortion(RandomizableTransform):
 
     def __init__(
         self,
-        num_cells: int = 5,
+        num_cells: Union[Tuple[int], int] = 5,
         prob: float = 0.1,
         distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,

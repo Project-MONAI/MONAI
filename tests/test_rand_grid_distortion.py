@@ -56,7 +56,7 @@ for p in TEST_NDARRAYS:
             ),
         ]
     )
-    num_cells = 2
+    num_cells = (2, 2)
     seed = 1
     TESTS.append(
         [

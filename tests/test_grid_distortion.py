@@ -54,8 +54,8 @@ for p in TEST_NDARRAYS:
             ),
         ]
     )
-    num_cells = 2
-    distort_steps = [(1.5,) * (1 + num_cells), (1.0,) * (1 + num_cells)]
+    num_cells = (2, 2)
+    distort_steps = [(1.5,) * (1 + num_cells[0]), (1.0,) * (1 + num_cells[1])]
     TESTS.append(
         [
             dict(
