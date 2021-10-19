@@ -151,14 +151,14 @@ jobs:
           # get tag info for versioning
           mv _version.py monai/
           # version checks
-          target="\"version\"\:\ \"$RELEASE_VERSION\""
-          echo $target
+          target="\"version\": \"$RELEASE_VERSION\""
           local=`grep "\"version\"" monai/_version.py`
+          echo $target
           echo $local
           if [ "$local" = "$target" ]; then
             echo "matched version string"
           else
-            echo "unmatched version string, please check the main branch"
+            echo "unmatched version string, please check the tagging branch."
             exit 1
           fi
           # remove flake package as it is not needed on hub.docker.com
