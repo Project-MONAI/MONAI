@@ -22,10 +22,7 @@ class MeanDice(IgniteMetric):
     """
 
     def __init__(
-        self,
-        include_background: bool = True,
-        output_transform: Callable = lambda x: x,
-        save_details: bool = True,
+        self, include_background: bool = True, output_transform: Callable = lambda x: x, save_details: bool = True
     ) -> None:
         """
 
@@ -44,8 +41,4 @@ class MeanDice(IgniteMetric):
             :py:meth:`monai.metrics.meandice.compute_meandice`
         """
         metric_fn = DiceMetric(include_background=include_background, reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

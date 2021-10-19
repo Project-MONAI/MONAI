@@ -41,22 +41,14 @@ TEST_CASE_2 = [
 # shape: [1, 2, 1]
 TEST_CASE_3 = [
     {"keys": ["pred0", "pred1", "pred2"], "output_key": "output", "num_classes": 3},
-    {
-        "pred0": torch.tensor([[[0], [2]]]),
-        "pred1": torch.tensor([[[0], [2]]]),
-        "pred2": torch.tensor([[[1], [1]]]),
-    },
+    {"pred0": torch.tensor([[[0], [2]]]), "pred1": torch.tensor([[[0], [2]]]), "pred2": torch.tensor([[[1], [1]]])},
     torch.tensor([[[0], [2]]]),
 ]
 
 # shape: [1, 2, 1]
 TEST_CASE_4 = [
     {"keys": ["pred0", "pred1", "pred2"], "output_key": "output", "num_classes": 5},
-    {
-        "pred0": torch.tensor([[[0], [2]]]),
-        "pred1": torch.tensor([[[0], [2]]]),
-        "pred2": torch.tensor([[[1], [1]]]),
-    },
+    {"pred0": torch.tensor([[[0], [2]]]), "pred1": torch.tensor([[[0], [2]]]), "pred2": torch.tensor([[[1], [1]]])},
     torch.tensor([[[0], [2]]]),
 ]
 

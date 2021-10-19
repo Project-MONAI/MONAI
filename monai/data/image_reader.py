@@ -637,12 +637,7 @@ class PILReader(ImageReader):
             img: a PIL Image object loaded from an image file.
 
         """
-        return {
-            "format": img.format,
-            "mode": img.mode,
-            "width": img.width,
-            "height": img.height,
-        }
+        return {"format": img.format, "mode": img.mode, "width": img.width, "height": img.height}
 
     def _get_spatial_shape(self, img):
         """
@@ -729,10 +724,7 @@ class WSIReader(ImageReader):
 
         if self.reader_lib == "openslide" and size is None:
             # the maximum size is set to WxH
-            size = (
-                img.shape[0] // (2 ** level) - location[0],
-                img.shape[1] // (2 ** level) - location[1],
-            )
+            size = (img.shape[0] // (2 ** level) - location[0], img.shape[1] // (2 ** level) - location[1])
 
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
@@ -745,10 +737,7 @@ class WSIReader(ImageReader):
         else:
             tuple_patch_size = ensure_tuple_rep(patch_size, 2)
             patches = self._extract_patches(
-                region,
-                patch_size=tuple_patch_size,  # type: ignore
-                grid_shape=grid_shape,
-                dtype=dtype,
+                region, patch_size=tuple_patch_size, grid_shape=grid_shape, dtype=dtype  # type: ignore
             )
 
         return patches, metadata
@@ -772,11 +761,7 @@ class WSIReader(ImageReader):
         region = self.convert_to_rgb_array(region, dtype)
         return region
 
-    def convert_to_rgb_array(
-        self,
-        raw_region,
-        dtype: DtypeLike = np.uint8,
-    ):
+    def convert_to_rgb_array(self, raw_region, dtype: DtypeLike = np.uint8):
         """Convert to RGB mode and numpy array"""
         if self.reader_lib == "openslide":
             # convert to RGB

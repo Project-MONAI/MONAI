@@ -43,14 +43,7 @@ TEST_CASE_SUBPIXEL_3D_EXTRA = [
 ]
 
 conv_block = nn.Sequential(
-    Conv[Conv.CONV, 3](1, 4, kernel_size=1),
-    Conv[Conv.CONV, 3](
-        4,
-        8,
-        kernel_size=3,
-        stride=1,
-        padding=1,
-    ),
+    Conv[Conv.CONV, 3](1, 4, kernel_size=1), Conv[Conv.CONV, 3](4, 8, kernel_size=3, stride=1, padding=1)
 )
 
 TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA = [

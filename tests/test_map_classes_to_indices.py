@@ -28,11 +28,7 @@ for p in TEST_NDARRAYS:
                 "image": None,
                 "image_threshold": 0.0,
             },
-            [
-                np.array([0, 4, 8]),
-                np.array([1, 5, 6]),
-                np.array([2, 3, 7]),
-            ],
+            [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
         ]
     )
 
@@ -44,11 +40,7 @@ for p in TEST_NDARRAYS:
                 "image": p(np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]])),
                 "image_threshold": 60,
             },
-            [
-                np.array([0, 8]),
-                np.array([1, 5, 6]),
-                np.array([3]),
-            ],
+            [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
         ]
     )
 
@@ -68,11 +60,7 @@ for p in TEST_NDARRAYS:
                 "image": None,
                 "image_threshold": 0.0,
             },
-            [
-                np.array([0, 4, 8]),
-                np.array([1, 5, 6]),
-                np.array([2, 3, 7]),
-            ],
+            [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
         ]
     )
 
@@ -92,11 +80,7 @@ for p in TEST_NDARRAYS:
                 "image": p(np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]])),
                 "image_threshold": 60,
             },
-            [
-                np.array([0, 8]),
-                np.array([1, 5, 6]),
-                np.array([3]),
-            ],
+            [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
         ]
     )
 
@@ -109,13 +93,7 @@ for p in TEST_NDARRAYS:
                 "image": None,
                 "image_threshold": 0.0,
             },
-            [
-                np.array([0, 4, 8]),
-                np.array([1, 5, 6]),
-                np.array([2, 3, 7]),
-                np.array([]),
-                np.array([]),
-            ],
+            [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7]), np.array([]), np.array([])],
         ]
     )
 
@@ -137,13 +115,7 @@ for p in TEST_NDARRAYS:
                 "image": None,
                 "image_threshold": 0.0,
             },
-            [
-                np.array([0, 4, 8]),
-                np.array([1, 5, 6]),
-                np.array([2, 3, 7]),
-                np.array([]),
-                np.array([]),
-            ],
+            [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7]), np.array([]), np.array([])],
         ]
     )
 

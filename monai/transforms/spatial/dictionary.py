@@ -381,9 +381,7 @@ class Orientationd(MapTransform, InvertibleTransform):
             orig_affine = transform[InverseKeys.EXTRA_INFO]["old_affine"]
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
             inverse_transform = Orientation(
-                axcodes=orig_axcodes,
-                as_closest_canonical=False,
-                labels=self.ornt_transform.labels,
+                axcodes=orig_axcodes, as_closest_canonical=False, labels=self.ornt_transform.labels
             )
             # Apply inverse
             d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
@@ -576,9 +574,7 @@ class Resized(MapTransform, InvertibleTransform):
             align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
             # Create inverse transform
             inverse_transform = Resize(
-                spatial_size=orig_size,
-                mode=mode,
-                align_corners=None if align_corners == "none" else align_corners,
+                spatial_size=orig_size, mode=mode, align_corners=None if align_corners == "none" else align_corners
             )
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
@@ -1336,11 +1332,7 @@ class Rotated(MapTransform, InvertibleTransform):
         ):
             orig_size = d[key].shape[1:]
             d[key] = self.rotator(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-                dtype=dtype,
+                d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
             )
             rot_mat = self.rotator.get_rotation_matrix()
             self.push_transform(
@@ -1379,11 +1371,7 @@ class Rotated(MapTransform, InvertibleTransform):
             transform_t: torch.Tensor
             transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
 
-            output = xform(
-                img_t.unsqueeze(0),
-                transform_t,
-                spatial_size=transform[InverseKeys.ORIG_SIZE],
-            )
+            output = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[InverseKeys.ORIG_SIZE])
             d[key] = output.squeeze(0).detach().float()
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -1516,11 +1504,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 transform_t: torch.Tensor
                 transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
                 output: torch.Tensor
-                output = xform(
-                    img_t.unsqueeze(0),
-                    transform_t,
-                    spatial_size=transform[InverseKeys.ORIG_SIZE],
-                )
+                output = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[InverseKeys.ORIG_SIZE])
                 d[key] = output.squeeze(0).detach().float()
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -1592,12 +1576,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                     "align_corners": align_corners if align_corners is not None else "none",
                 },
             )
-            d[key] = self.zoomer(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-            )
+            d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1704,11 +1683,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         ):
             if self._do_transform:
                 d[key] = self.rand_zoom(
-                    d[key],
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=align_corners,
-                    randomize=False,
+                    d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
                 )
             self.push_transform(
                 d,
@@ -1814,11 +1789,7 @@ class GridDistortiond(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.grid_distortion = GridDistortion(
-            num_cells=num_cells,
-            distort_steps=distort_steps,
-            device=device,
-        )
+        self.grid_distortion = GridDistortion(num_cells=num_cells, distort_steps=distort_steps, device=device)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
@@ -1870,10 +1841,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.rand_grid_distortion = RandGridDistortion(
-            num_cells=num_cells,
-            prob=1.0,
-            distort_limit=distort_limit,
-            device=device,
+            num_cells=num_cells, prob=1.0, distort_limit=distort_limit, device=device
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))

@@ -333,13 +333,7 @@ class SENet154(SENet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(
-            block=SEBottleneck,
-            layers=layers,
-            groups=groups,
-            reduction=reduction,
-            **kwargs,
-        )
+        super().__init__(block=SEBottleneck, layers=layers, groups=groups, reduction=reduction, **kwargs)
         if pretrained:
             # it only worked when `spatial_dims` is 2
             _load_state_dict(self, "senet154", progress)

@@ -21,21 +21,9 @@ from tests.utils import SkipIfBeforePyTorchVersion
 
 TEST_CASES = [
     [BendingEnergyLoss, {}, ["pred"]],
-    [
-        LocalNormalizedCrossCorrelationLoss,
-        {"kernel_size": 7, "kernel_type": "rectangular"},
-        ["pred", "target"],
-    ],
-    [
-        LocalNormalizedCrossCorrelationLoss,
-        {"kernel_size": 5, "kernel_type": "triangular"},
-        ["pred", "target"],
-    ],
-    [
-        LocalNormalizedCrossCorrelationLoss,
-        {"kernel_size": 3, "kernel_type": "gaussian"},
-        ["pred", "target"],
-    ],
+    [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 7, "kernel_type": "rectangular"}, ["pred", "target"]],
+    [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 5, "kernel_type": "triangular"}, ["pred", "target"]],
+    [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 3, "kernel_type": "gaussian"}, ["pred", "target"]],
     [GlobalMutualInformationLoss, {"num_bins": 10}, ["pred", "target"]],
     [GlobalMutualInformationLoss, {"kernel_type": "b-spline", "num_bins": 10}, ["pred", "target"]],
 ]

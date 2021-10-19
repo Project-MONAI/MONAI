@@ -536,10 +536,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         flat_target_extended = torch.unsqueeze(flat_target, dim=1)
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
 
-        return torch.sum(
-            alpha_extended * (1.0 - wasserstein_distance_map),
-            dim=[1, 2],
-        )
+        return torch.sum(alpha_extended * (1.0 - wasserstein_distance_map), dim=[1, 2])
 
     def _compute_denominator(
         self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
@@ -556,10 +553,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         flat_target_extended = torch.unsqueeze(flat_target, dim=1)
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
 
-        return torch.sum(
-            alpha_extended * (2.0 - wasserstein_distance_map),
-            dim=[1, 2],
-        )
+        return torch.sum(alpha_extended * (2.0 - wasserstein_distance_map), dim=[1, 2])
 
     def _compute_alpha_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
         """
@@ -657,10 +651,7 @@ class DiceCELoss(_Loss):
             smooth_dr=smooth_dr,
             batch=batch,
         )
-        self.cross_entropy = nn.CrossEntropyLoss(
-            weight=ce_weight,
-            reduction=reduction,
-        )
+        self.cross_entropy = nn.CrossEntropyLoss(weight=ce_weight, reduction=reduction)
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
         if lambda_ce < 0.0:

@@ -134,9 +134,7 @@ def iter_patch_slices(
 
 
 def dense_patch_slices(
-    image_size: Sequence[int],
-    patch_size: Sequence[int],
-    scan_interval: Sequence[int],
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
 ) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.

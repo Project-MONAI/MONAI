@@ -33,11 +33,7 @@ for p in TEST_NDARRAYS:
         TESTS.append([{"device": device}, {"grid": p(torch.ones((3, 3, 3)))}, p(np.ones((3, 3, 3)))])
         TESTS.append(
             [
-                {
-                    "rotate_params": (1.0, 1.0),
-                    "scale_params": (-20, 10),
-                    "device": device,
-                },
+                {"rotate_params": (1.0, 1.0), "scale_params": (-20, 10), "device": device},
                 {"grid": p(torch.ones((3, 3, 3)))},
                 p(
                     torch.tensor(
@@ -60,11 +56,7 @@ for p in TEST_NDARRAYS:
         )
         TESTS.append(
             [
-                {
-                    "rotate_params": (1.0, 1.0, 1.0),
-                    "scale_params": (-20, 10),
-                    "device": device,
-                },
+                {"rotate_params": (1.0, 1.0, 1.0), "scale_params": (-20, 10), "device": device},
                 {"grid": p(torch.ones((4, 3, 3, 3)))},
                 p(
                     torch.tensor(

@@ -52,10 +52,7 @@ class BendingEnergyLoss(_Loss):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
-    def __init__(
-        self,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
-    ) -> None:
+    def __init__(self, reduction: Union[LossReduction, str] = LossReduction.MEAN) -> None:
         """
         Args:
             reduction: {``"none"``, ``"mean"``, ``"sum"``}

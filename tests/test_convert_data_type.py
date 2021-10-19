@@ -28,7 +28,7 @@ TESTS_LIST: List[Tuple] = []
 for in_type in TEST_NDARRAYS + (int, float):
     for out_type in TEST_NDARRAYS:
         TESTS_LIST.append(
-            ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True),  # type: ignore
+            ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True)  # type: ignore
         )
         TESTS_LIST.append(
             (

@@ -49,13 +49,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
     def test_keep_size(self):
         key = "img"
         random_zoom = RandZoomd(
-            keys=key,
-            prob=1.0,
-            min_zoom=0.6,
-            max_zoom=0.7,
-            keep_size=True,
-            padding_mode="constant",
-            constant_values=2,
+            keys=key, prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True, padding_mode="constant", constant_values=2
         )
         for p in TEST_NDARRAYS:
             zoomed = random_zoom({key: p(self.imt[0])})
@@ -73,12 +67,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
 
     def test_auto_expand_3d(self):
         random_zoom = RandZoomd(
-            keys="img",
-            prob=1.0,
-            min_zoom=[0.8, 0.7],
-            max_zoom=[1.2, 1.3],
-            mode="nearest",
-            keep_size=False,
+            keys="img", prob=1.0, min_zoom=[0.8, 0.7], max_zoom=[1.2, 1.3], mode="nearest", keep_size=False
         )
         for p in TEST_NDARRAYS:
             random_zoom.set_random_state(1234)

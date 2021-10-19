@@ -183,15 +183,7 @@ class AsDiscreted(MapTransform):
         for key, argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
             d, self.argmax, self.to_onehot, self.num_classes, self.threshold_values, self.logit_thresh, self.rounding
         ):
-            d[key] = self.converter(
-                d[key],
-                argmax,
-                to_onehot,
-                num_classes,
-                threshold_values,
-                logit_thresh,
-                rounding,
-            )
+            d[key] = self.converter(d[key], argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding)
         return d
 
 
@@ -240,10 +232,7 @@ class LabelFilterd(MapTransform):
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        applied_labels: Union[Sequence[int], int],
-        allow_missing_keys: bool = False,
+        self, keys: KeysCollection, applied_labels: Union[Sequence[int], int], allow_missing_keys: bool = False
     ) -> None:
         """
         Args:
@@ -466,10 +455,7 @@ class ProbNMSd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.prob_nms = ProbNMS(
-            spatial_dims=spatial_dims,
-            sigma=sigma,
-            prob_threshold=prob_threshold,
-            box_size=box_size,
+            spatial_dims=spatial_dims, sigma=sigma, prob_threshold=prob_threshold, box_size=box_size
         )
 
     def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]):
@@ -604,19 +590,14 @@ class Invertd(MapTransform):
             transform_info = d[transform_key]
             if nearest_interp:
                 transform_info = convert_inverse_interp_mode(
-                    trans_info=deepcopy(transform_info),
-                    mode="nearest",
-                    align_corners=None,
+                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
                 )
 
             input = d[key]
             if isinstance(input, torch.Tensor):
                 input = input.detach()
             # construct the input dict data for BatchInverseTransform
-            input_dict = {
-                orig_key: input,
-                transform_key: transform_info,
-            }
+            input_dict = {orig_key: input, transform_key: transform_info}
             orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
             if orig_meta_key in d:

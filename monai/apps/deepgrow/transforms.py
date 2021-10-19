@@ -163,13 +163,7 @@ class AddGuidanceSignald(Transform):
 
     """
 
-    def __init__(
-        self,
-        image: str = "image",
-        guidance: str = "guidance",
-        sigma: int = 2,
-        number_intensity_ch: int = 1,
-    ):
+    def __init__(self, image: str = "image", guidance: str = "guidance", sigma: int = 2, number_intensity_ch: int = 1):
         self.image = image
         self.guidance = guidance
         self.sigma = sigma
@@ -276,12 +270,7 @@ class AddRandomGuidanced(Randomizable, Transform):
 
     """
 
-    def __init__(
-        self,
-        guidance: str = "guidance",
-        discrepancy: str = "discrepancy",
-        probability: str = "probability",
-    ):
+    def __init__(self, guidance: str = "guidance", discrepancy: str = "discrepancy", probability: str = "probability"):
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability

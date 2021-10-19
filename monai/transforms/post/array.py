@@ -647,10 +647,7 @@ class ProbNMS(Transform):
         self.box_lower_bd = self.box_size // 2
         self.box_upper_bd = self.box_size - self.box_lower_bd
 
-    def __call__(
-        self,
-        prob_map: Union[np.ndarray, torch.Tensor],
-    ):
+    def __call__(self, prob_map: Union[np.ndarray, torch.Tensor]):
         """
         prob_map: the input probabilities map, it must have shape (H[, W, ...]).
         """

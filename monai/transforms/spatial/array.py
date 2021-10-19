@@ -1098,9 +1098,7 @@ class AffineGrid(Transform):
         self.affine = affine
 
     def __call__(
-        self,
-        spatial_size: Optional[Sequence[int]] = None,
-        grid: Optional[NdarrayOrTensor] = None,
+        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[NdarrayOrTensor] = None
     ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
         The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
@@ -1234,9 +1232,7 @@ class RandAffineGrid(Randomizable, Transform):
         self.scale_params = self._get_rand_param(self.scale_range, 1.0)
 
     def __call__(
-        self,
-        spatial_size: Optional[Sequence[int]] = None,
-        grid: Optional[NdarrayOrTensor] = None,
+        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[NdarrayOrTensor] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -2027,10 +2023,7 @@ class AddCoordinateChannels(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(
-        self,
-        spatial_channels: Sequence[int],
-    ) -> None:
+    def __init__(self, spatial_channels: Sequence[int]) -> None:
         """
         Args:
             spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
@@ -2187,11 +2180,7 @@ class RandGridDistortion(RandomizableTransform):
             self.distort_limit = (min(distort_limit), max(distort_limit))
         self.distort_steps: Sequence[Sequence[float]] = ((1.0,),)
         self.grid_distortion = GridDistortion(
-            num_cells=num_cells,
-            distort_steps=self.distort_steps,
-            mode=mode,
-            padding_mode=padding_mode,
-            device=device,
+            num_cells=num_cells, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode, device=device
         )
 
     def randomize(self, spatial_shape: Sequence[int]) -> None:

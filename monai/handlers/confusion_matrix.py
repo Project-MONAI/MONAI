@@ -58,8 +58,4 @@ class ConfusionMatrix(IgniteMetric):
             reduction=MetricReduction.MEAN,
         )
         self.metric_name = metric_name
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

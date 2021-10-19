@@ -21,11 +21,7 @@ class MeanSquaredError(IgniteMetric):
     Computes Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
 
-    def __init__(
-        self,
-        output_transform: Callable = lambda x: x,
-        save_details: bool = True,
-    ) -> None:
+    def __init__(self, output_transform: Callable = lambda x: x, save_details: bool = True) -> None:
         """
 
         Args:
@@ -41,11 +37,7 @@ class MeanSquaredError(IgniteMetric):
             :py:class:`monai.metrics.MSEMetric`
         """
         metric_fn = MSEMetric(reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
 class MeanAbsoluteError(IgniteMetric):
@@ -53,11 +45,7 @@ class MeanAbsoluteError(IgniteMetric):
     Computes Mean Absolute Error from full size Tensor and collects average over batch, iterations.
     """
 
-    def __init__(
-        self,
-        output_transform: Callable = lambda x: x,
-        save_details: bool = True,
-    ) -> None:
+    def __init__(self, output_transform: Callable = lambda x: x, save_details: bool = True) -> None:
         """
 
         Args:
@@ -69,11 +57,7 @@ class MeanAbsoluteError(IgniteMetric):
             :py:class:`monai.metrics.MAEMetric`
         """
         metric_fn = MAEMetric(reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
 class RootMeanSquaredError(IgniteMetric):
@@ -81,11 +65,7 @@ class RootMeanSquaredError(IgniteMetric):
     Computes Root Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
 
-    def __init__(
-        self,
-        output_transform: Callable = lambda x: x,
-        save_details: bool = True,
-    ) -> None:
+    def __init__(self, output_transform: Callable = lambda x: x, save_details: bool = True) -> None:
         """
 
         Args:
@@ -97,11 +77,7 @@ class RootMeanSquaredError(IgniteMetric):
             :py:class:`monai.metrics.RMSEMetric`
         """
         metric_fn = RMSEMetric(reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
 class PeakSignalToNoiseRatio(IgniteMetric):
@@ -110,10 +86,7 @@ class PeakSignalToNoiseRatio(IgniteMetric):
     """
 
     def __init__(
-        self,
-        max_val: Union[int, float],
-        output_transform: Callable = lambda x: x,
-        save_details: bool = True,
+        self, max_val: Union[int, float], output_transform: Callable = lambda x: x, save_details: bool = True
     ) -> None:
         """
 
@@ -129,8 +102,4 @@ class PeakSignalToNoiseRatio(IgniteMetric):
             :py:class:`monai.metrics.PSNRMetric`
         """
         metric_fn = PSNRMetric(max_val=max_val, reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

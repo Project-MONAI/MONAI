@@ -224,13 +224,7 @@ class TestRandAffined(unittest.TestCase):
             RandAffined(device=device, spatial_size=None, prob=1.0, cache_grid=True, keys=("img", "seg"))
         with self.assertWarns(UserWarning):
             # spatial size is dynamic
-            RandAffined(
-                device=device,
-                spatial_size=(2, -1),
-                prob=1.0,
-                cache_grid=True,
-                keys=("img", "seg"),
-            )
+            RandAffined(device=device, spatial_size=(2, -1), prob=1.0, cache_grid=True, keys=("img", "seg"))
 
 
 if __name__ == "__main__":

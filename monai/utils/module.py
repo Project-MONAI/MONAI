@@ -136,9 +136,7 @@ def damerau_levenshtein_distance(s1: str, s2: str):
         for j, s2j in enumerate(s2):
             cost = 0 if s1i == s2j else 1
             d[(i, j)] = min(
-                d[(i - 1, j)] + 1,  # deletion
-                d[(i, j - 1)] + 1,  # insertion
-                d[(i - 1, j - 1)] + cost,  # substitution
+                d[(i - 1, j)] + 1, d[(i, j - 1)] + 1, d[(i - 1, j - 1)] + cost  # deletion  # insertion  # substitution
             )
             if i and j and s1i == s2[j - 1] and s1[i - 1] == s2j:
                 d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition

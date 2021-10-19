@@ -100,9 +100,7 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
 
 
 def default_prepare_batch(
-    batchdata: Dict[str, torch.Tensor],
-    device: Optional[Union[str, torch.device]] = None,
-    non_blocking: bool = False,
+    batchdata: Dict[str, torch.Tensor], device: Optional[Union[str, torch.device]] = None, non_blocking: bool = False
 ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     """
     Default function to prepare the data for current iteration.
@@ -126,10 +124,7 @@ def default_prepare_batch(
 
 
 def default_make_latent(
-    num_latents: int,
-    latent_size: int,
-    device: Optional[Union[str, torch.device]] = None,
-    non_blocking: bool = False,
+    num_latents: int, latent_size: int, device: Optional[Union[str, torch.device]] = None, non_blocking: bool = False
 ) -> torch.Tensor:
     return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking)
 
