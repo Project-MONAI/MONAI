@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - release-yaml
     tags:
       - '*'
 
@@ -87,18 +88,18 @@ jobs:
   versioning:
     # compute versioning file from python setup.py
     # upload as artifact
-    # (also used in docker.yml)
     if: github.repository == 'Project-MONAI/MONAI'
     needs: packaging
-    container:
-      image: localhost:5000/local_monai:latest
-    runs-on: [self-hosted, linux, x64, build_only]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         # full history so that we can git describe
         with:
-          ref: main
           fetch-depth: 0
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
       - shell: bash
         run: |
           git describe
@@ -118,11 +119,11 @@ jobs:
   release_tag_docker:
     if: github.repository == 'Project-MONAI/MONAI'
     needs: versioning
-    runs-on: [self-hosted, linux, x64, build_only]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: main
+          ref: release-yaml
       - name: Download version
         uses: actions/download-artifact@v2
         with:
@@ -160,5 +161,5 @@ jobs:
           docker build -t projectmonai/monai:"$RELEASE_VERSION" -f Dockerfile .
           # distribute with a tag to hub.docker.com
           echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
-          docker push projectmonai/monai:"$RELEASE_VERSION"
+          # docker push projectmonai/monai:"$RELEASE_VERSION"
           docker logout
