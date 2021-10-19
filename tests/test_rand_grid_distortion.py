@@ -19,14 +19,12 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    num_cells = 2
     seed = 0
     TESTS.append(
         [
             dict(
-                num_cells=num_cells,
+                num_cells=2,
                 prob=1.0,
-                spatial_dims=2,
                 distort_limit=0.5,
                 mode="nearest",
                 padding_mode="zeros",
@@ -57,14 +55,12 @@ for p in TEST_NDARRAYS:
             ),
         ]
     )
-    num_cells = 2
     seed = 1
     TESTS.append(
         [
             dict(
-                num_cells=num_cells,
+                num_cells=(2, 2),
                 prob=1.0,
-                spatial_dims=2,
                 distort_limit=0.1,
                 mode="bilinear",
                 padding_mode="reflection",

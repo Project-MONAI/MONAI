@@ -53,7 +53,6 @@ from monai.transforms.utils import (
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import InverseKeys
-from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "PadModeSequence",
@@ -810,6 +809,8 @@ class CropForegroundd(MapTransform, InvertibleTransform):
     channels. And it can also add margin to every dim of the bounding box of foreground object.
     """
 
+    backend = CropForeground.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -818,7 +819,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         channel_indices: Optional[IndexSelection] = None,
         margin: Union[Sequence[int], int] = 0,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
@@ -835,10 +836,12 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode: padding mode {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                one of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                see also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 it also can be a sequence of string, each element corresponds to a key in ``keys``.
             start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
@@ -860,11 +863,9 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        img: np.ndarray
-        img, *_ = convert_data_type(d[self.source_key], np.ndarray)  # type: ignore
-        box_start, box_end = self.cropper.compute_bounding_box(img=img)
+        box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
         d[self.start_coord_key] = box_start
         d[self.end_coord_key] = box_end
         for key, m in self.key_iterator(d, self.mode):
