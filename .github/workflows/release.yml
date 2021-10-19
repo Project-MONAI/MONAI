@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - release-yaml
     tags:
       - '*'
 
@@ -89,7 +88,7 @@ jobs:
     # compute versioning file from python setup.py
     # upload as artifact
     if: github.repository == 'Project-MONAI/MONAI'
-    # needs: packaging
+    needs: packaging
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -166,5 +165,5 @@ jobs:
           docker build -t projectmonai/monai:"$RELEASE_VERSION" -f Dockerfile .
           # distribute with a tag to hub.docker.com
           echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
-          # docker push projectmonai/monai:"$RELEASE_VERSION"
+          docker push projectmonai/monai:"$RELEASE_VERSION"
           docker logout
