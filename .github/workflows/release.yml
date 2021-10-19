@@ -155,7 +155,7 @@ jobs:
           local=`grep "\"version\"" monai/_version.py`
           echo $target
           echo $local
-          if [ "$local" = "$target" ]; then
+          if [[ "$local" == "$target" ]]; then
             echo "matched version string"
           else
             echo "unmatched version string, please check the tagging branch."
