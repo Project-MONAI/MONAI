@@ -586,6 +586,8 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
     Dictionary-based version :py:class:`monai.transforms.RandBiasField`.
     """
 
+    backend = RandBiasField.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -619,14 +621,14 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
         self.rand_bias_field.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
             return d
 
         # all the keys share the same random bias factor
-        self.rand_bias_field.randomize(d[self.keys[0]])
+        self.rand_bias_field.randomize(img_size=d[self.keys[0]].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.rand_bias_field(d[key], randomize=False)
         return d
@@ -1429,6 +1431,8 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
 
     """
 
+    backend = RandCoarseDropout.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1499,6 +1503,8 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
+    backend = RandCoarseShuffle.backend
 
     def __init__(
         self,
