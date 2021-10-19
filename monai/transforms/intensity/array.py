@@ -441,8 +441,7 @@ class ScaleIntensity(Transform):
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
                 return torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
-            else:
-                return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
+            return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
         if self.factor is not None:
             ret = img * (1 + self.factor)
             ret, *_ = convert_data_type(ret, dtype=self.dtype)
