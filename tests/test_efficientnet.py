@@ -107,11 +107,7 @@ def make_shape_cases(
                     ret_tests.append(
                         [
                             kwargs,
-                            (
-                                batch,
-                                in_channels,
-                            )
-                            + (get_expected_model_shape(model),) * spatial_dim,
+                            (batch, in_channels) + (get_expected_model_shape(model),) * spatial_dim,
                             (batch, num_classes),
                         ]
                     )
@@ -245,7 +241,7 @@ CASE_EXTRACT_FEATURES = [
         },
         [1, 2, 224, 224],
         ([1, 32, 112, 112], [1, 56, 56, 56], [1, 88, 28, 28], [1, 248, 14, 14], [1, 704, 7, 7]),
-    ),
+    )
 ]
 
 

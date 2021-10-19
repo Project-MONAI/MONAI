@@ -187,9 +187,7 @@ class TestHandlerStats(unittest.TestCase):
 
         # set up testing handler
         stats_handler = StatsHandler(
-            name=key_to_handler,
-            state_attributes=["test1", "test2", "test3"],
-            logger_handler=log_handler,
+            name=key_to_handler, state_attributes=["test1", "test2", "test3"], logger_handler=log_handler
         )
         stats_handler.attach(engine)
 

@@ -89,10 +89,7 @@ def get_dtype(data: Any):
 
 
 def convert_to_tensor(
-    data,
-    dtype: Optional[torch.dtype] = None,
-    device: Optional[torch.device] = None,
-    wrap_sequence: bool = False,
+    data, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = False
 ):
     """
     Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
@@ -290,10 +287,4 @@ def convert_to_dst_type(
         output_type = np.ndarray
     else:
         output_type = type(dst)
-    return convert_data_type(
-        data=src,
-        output_type=output_type,
-        device=device,
-        dtype=dtype,
-        wrap_sequence=wrap_sequence,
-    )
+    return convert_data_type(data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence)

@@ -190,13 +190,7 @@ class TestUNET(unittest.TestCase):
         test_script_save(net, test_data)
 
     def test_ill_input_shape(self):
-        net = UNet(
-            spatial_dims=2,
-            in_channels=1,
-            out_channels=3,
-            channels=(16, 32, 64),
-            strides=(2, 2),
-        )
+        net = UNet(spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2))
         with eval_mode(net):
             with self.assertRaisesRegex(RuntimeError, "Sizes of tensors must match"):
                 net.forward(torch.randn(2, 1, 16, 5))

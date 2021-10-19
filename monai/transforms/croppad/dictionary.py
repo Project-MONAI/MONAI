@@ -855,11 +855,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
         self.cropper = CropForeground(
-            select_fn=select_fn,
-            channel_indices=channel_indices,
-            margin=margin,
-            k_divisible=k_divisible,
-            **np_kwargs,
+            select_fn=select_fn, channel_indices=channel_indices, margin=margin, k_divisible=k_divisible, **np_kwargs
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
@@ -1425,14 +1421,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         for key, m in self.key_iterator(d, self.mode):
             orig_size = d[key].shape[1:]
             d[key] = self.padcropper(d[key], mode=m)
-            self.push_transform(
-                d,
-                key,
-                orig_size=orig_size,
-                extra_info={
-                    "mode": m.value if isinstance(m, Enum) else m,
-                },
-            )
+            self.push_transform(d, key, orig_size=orig_size, extra_info={"mode": m.value if isinstance(m, Enum) else m})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

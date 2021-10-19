@@ -256,13 +256,7 @@ class PSP(nn.Module):
             size = (2 ** (i + 3), 2 ** (i + 3), 1)[-spatial_dims:]
             self.pool_modules.append(pool_type(kernel_size=size, stride=size))
             self.project_modules.append(
-                conv_type(
-                    in_ch,
-                    1,
-                    kernel_size=(1, 1, 1)[-spatial_dims:],
-                    stride=1,
-                    padding=(1, 1, 0)[-spatial_dims:],
-                )
+                conv_type(in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:])
             )
 
         self.spatial_dims = spatial_dims
@@ -274,15 +268,7 @@ class PSP(nn.Module):
             for i in range(psp_block_num):
                 size = (2 ** (i + 3), 2 ** (i + 3), 1)[-spatial_dims:]
                 pad_size = (2 ** (i + 3), 2 ** (i + 3), 0)[-spatial_dims:]
-                self.up_modules.append(
-                    conv_trans_type(
-                        1,
-                        1,
-                        kernel_size=size,
-                        stride=size,
-                        padding=pad_size,
-                    )
-                )
+                self.up_modules.append(conv_trans_type(1, 1, kernel_size=size, stride=size, padding=pad_size))
 
     def forward(self, x):
         outputs = []
@@ -451,13 +437,7 @@ class AHNet(nn.Module):
             net2d = FCN(pretrained=True, progress=progress)
             self.copy_from(net2d)
 
-    def _make_layer(
-        self,
-        block: Type[Bottleneck3x3x1],
-        planes: int,
-        blocks: int,
-        stride: int = 1,
-    ) -> nn.Sequential:
+    def _make_layer(self, block: Type[Bottleneck3x3x1], planes: int, blocks: int, stride: int = 1) -> nn.Sequential:
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(

@@ -259,12 +259,7 @@ class RandShiftIntensity(RandomizableTransform):
             return None
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
 
-    def __call__(
-        self,
-        img: NdarrayOrTensor,
-        factor: Optional[float] = None,
-        randomize: bool = True,
-    ) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, factor: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
 
@@ -441,8 +436,7 @@ class ScaleIntensity(Transform):
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
                 return torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
-            else:
-                return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
+            return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
         if self.factor is not None:
             ret = img * (1 + self.factor)
             ret, *_ = convert_data_type(ret, dtype=self.dtype)
@@ -459,10 +453,7 @@ class RandScaleIntensity(RandomizableTransform):
     backend = ScaleIntensity.backend
 
     def __init__(
-        self,
-        factors: Union[Tuple[float, float], float],
-        prob: float = 0.1,
-        dtype: DtypeLike = np.float32,
+        self, factors: Union[Tuple[float, float], float], prob: float = 0.1, dtype: DtypeLike = np.float32
     ) -> None:
         """
         Args:
@@ -1885,11 +1876,7 @@ class RandCoarseDropout(RandCoarseTransform):
         prob: float = 0.1,
     ) -> None:
         super().__init__(
-            holes=holes,
-            spatial_size=spatial_size,
-            max_holes=max_holes,
-            max_spatial_size=max_spatial_size,
-            prob=prob,
+            holes=holes, spatial_size=spatial_size, max_holes=max_holes, max_spatial_size=max_spatial_size, prob=prob
         )
         self.dropout_holes = dropout_holes
         if isinstance(fill_value, (tuple, list)):

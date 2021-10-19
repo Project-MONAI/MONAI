@@ -21,10 +21,7 @@ from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        },
+        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.307576,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
@@ -91,26 +88,17 @@ TEST_CASES = [
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        },
+        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.307576,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "squared_pred": True},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        },
+        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.178337,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "jaccard": True},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        },
+        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.470451,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)

@@ -35,13 +35,7 @@ TEST_CASE_0 = [  # single channel 2D, batch 4, no residual
 ]
 
 TEST_CASE_1 = [  # single channel 2D, batch 4
-    {
-        "dimensions": 2,
-        "in_channels": 1,
-        "out_channels": 1,
-        "channels": (4, 8, 16),
-        "strides": (2, 2, 2),
-    },
+    {"dimensions": 2, "in_channels": 1, "out_channels": 1, "channels": (4, 8, 16), "strides": (2, 2, 2)},
     (1, 1, 128, 128),
     (1, 1, 128, 128),
 ]
@@ -60,13 +54,7 @@ TEST_CASE_2 = [  # 3-channel 2D, batch 4, LeakyReLU activation
 ]
 
 TEST_CASE_3 = [  # 4-channel 3D, batch 4
-    {
-        "dimensions": 3,
-        "in_channels": 4,
-        "out_channels": 3,
-        "channels": (4, 8, 16),
-        "strides": (2, 2, 2),
-    },
+    {"dimensions": 3, "in_channels": 4, "out_channels": 3, "channels": (4, 8, 16), "strides": (2, 2, 2)},
     (1, 4, 128, 128, 128),
     (1, 3, 128, 128, 128),
 ]

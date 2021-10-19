@@ -84,11 +84,7 @@ def load_module(
         # This will either run the build or return the existing .so object.
         name = module_name + platform_str.replace(".", "_")
         module = load(
-            name=name,
-            sources=source,
-            extra_cflags=define_args,
-            extra_cuda_cflags=define_args,
-            verbose=verbose_build,
+            name=name, sources=source, extra_cflags=define_args, extra_cuda_cflags=define_args, verbose=verbose_build
         )
 
     return module

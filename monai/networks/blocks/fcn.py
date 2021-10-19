@@ -154,12 +154,7 @@ class FCN(nn.Module):
         self.transformer = self.conv2d_type(in_channels=256, out_channels=64, kernel_size=1)
 
         if self.upsample_mode == "transpose":
-            self.up_conv = UpSample(
-                spatial_dims=2,
-                in_channels=self.out_channels,
-                scale_factor=2,
-                mode="deconv",
-            )
+            self.up_conv = UpSample(spatial_dims=2, in_channels=self.out_channels, scale_factor=2, mode="deconv")
 
     def forward(self, x: torch.Tensor):
         """
@@ -195,14 +190,7 @@ class FCN(nn.Module):
         fs2 = self.refine7(F.interpolate(fs1, fm2.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm3)
         fs3 = self.refine8(F.interpolate(fs2, pool_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm4)
         fs4 = self.refine9(F.interpolate(fs3, conv_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm5)
-        return self.refine10(
-            F.interpolate(
-                fs4,
-                org_input.size()[2:],
-                mode=self.upsample_mode,
-                align_corners=True,
-            )
-        )
+        return self.refine10(F.interpolate(fs4, org_input.size()[2:], mode=self.upsample_mode, align_corners=True))
 
 
 class MCFCN(FCN):

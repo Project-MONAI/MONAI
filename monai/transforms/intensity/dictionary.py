@@ -233,12 +233,7 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, global_prob)
         self.rand_rician_noise = RandRicianNoise(
-            prob=1.0,
-            mean=mean,
-            std=std,
-            channel_wise=channel_wise,
-            relative=relative,
-            sample_std=sample_std,
+            prob=1.0, mean=mean, std=std, channel_wise=channel_wise, relative=relative, sample_std=sample_std
         )
 
     def set_random_state(
@@ -460,11 +455,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.shifter = RandStdShiftIntensity(
-            factors=factors,
-            nonzero=nonzero,
-            channel_wise=channel_wise,
-            dtype=dtype,
-            prob=1.0,
+            factors=factors, nonzero=nonzero, channel_wise=channel_wise, dtype=dtype, prob=1.0
         )
 
     def set_random_state(
@@ -966,11 +957,7 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.rand_smooth = RandGaussianSmooth(
-            sigma_x=sigma_x,
-            sigma_y=sigma_y,
-            sigma_z=sigma_z,
-            approx=approx,
-            prob=1.0,
+            sigma_x=sigma_x, sigma_y=sigma_y, sigma_z=sigma_z, approx=approx, prob=1.0
         )
 
     def set_random_state(
@@ -1519,11 +1506,7 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
         self.shuffle = RandCoarseShuffle(
-            holes=holes,
-            spatial_size=spatial_size,
-            max_holes=max_holes,
-            max_spatial_size=max_spatial_size,
-            prob=1.0,
+            holes=holes, spatial_size=spatial_size, max_holes=max_holes, max_spatial_size=max_spatial_size, prob=1.0
         )
 
     def set_random_state(

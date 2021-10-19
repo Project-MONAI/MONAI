@@ -22,13 +22,7 @@ for p in TEST_NDARRAYS:
     seed = 0
     TESTS.append(
         [
-            dict(
-                num_cells=2,
-                prob=1.0,
-                distort_limit=0.5,
-                mode="nearest",
-                padding_mode="zeros",
-            ),
+            dict(num_cells=2, prob=1.0, distort_limit=0.5, mode="nearest", padding_mode="zeros"),
             seed,
             p(np.indices([6, 6]).astype(np.float32)),
             p(
@@ -58,13 +52,7 @@ for p in TEST_NDARRAYS:
     seed = 1
     TESTS.append(
         [
-            dict(
-                num_cells=(2, 2),
-                prob=1.0,
-                distort_limit=0.1,
-                mode="bilinear",
-                padding_mode="reflection",
-            ),
+            dict(num_cells=(2, 2), prob=1.0, distort_limit=0.1, mode="bilinear", padding_mode="reflection"),
             seed,
             p(np.indices([6, 6]).astype(np.float32)),
             p(

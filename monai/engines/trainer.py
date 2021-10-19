@@ -356,9 +356,7 @@ class GanTrainer(Trainer):
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
-        d_total_loss = torch.zeros(
-            1,
-        )
+        d_total_loss = torch.zeros(1)
         for _ in range(self.d_train_steps):
             # `set_to_none` only work from PyTorch 1.7.0
             if PT_BEFORE_1_7:

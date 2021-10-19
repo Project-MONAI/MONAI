@@ -99,12 +99,7 @@ class SegResNet(nn.Module):
 
     def _make_down_layers(self):
         down_layers = nn.ModuleList()
-        blocks_down, spatial_dims, filters, norm = (
-            self.blocks_down,
-            self.spatial_dims,
-            self.init_filters,
-            self.norm,
-        )
+        blocks_down, spatial_dims, filters, norm = (self.blocks_down, self.spatial_dims, self.init_filters, self.norm)
         for i in range(len(blocks_down)):
             layer_in_channels = filters * 2 ** i
             pre_conv = (
@@ -113,8 +108,7 @@ class SegResNet(nn.Module):
                 else nn.Identity()
             )
             down_layer = nn.Sequential(
-                pre_conv,
-                *[ResBlock(spatial_dims, layer_in_channels, norm=norm) for _ in range(blocks_down[i])],
+                pre_conv, *[ResBlock(spatial_dims, layer_in_channels, norm=norm) for _ in range(blocks_down[i])]
             )
             down_layers.append(down_layer)
         return down_layers

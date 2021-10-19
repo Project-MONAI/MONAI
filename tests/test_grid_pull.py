@@ -53,11 +53,7 @@ for bound in bounds:
                         "interpolation": interp,
                         "bound": bound,
                     },
-                    {
-                        "val": torch.tensor([[expected_val]]),
-                        "device": device,
-                        "grad": torch.tensor(expected_grad),
-                    },
+                    {"val": torch.tensor([[expected_val]]), "device": device, "grad": torch.tensor(expected_grad)},
                 ]
                 TEST_1D_GP.append(test_case)
 

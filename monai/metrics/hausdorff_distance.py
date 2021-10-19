@@ -141,10 +141,7 @@ def compute_hausdorff_distance(
     """
 
     if not include_background:
-        y_pred, y = ignore_background(
-            y_pred=y_pred,
-            y=y,
-        )
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
     if isinstance(y, torch.Tensor):
         y = y.float()
     if isinstance(y_pred, torch.Tensor):
@@ -172,10 +169,7 @@ def compute_hausdorff_distance(
 
 
 def compute_percent_hausdorff_distance(
-    edges_pred: np.ndarray,
-    edges_gt: np.ndarray,
-    distance_metric: str = "euclidean",
-    percentile: Optional[float] = None,
+    edges_pred: np.ndarray, edges_gt: np.ndarray, distance_metric: str = "euclidean", percentile: Optional[float] = None
 ):
     """
     This function is used to compute the directed Hausdorff distance.

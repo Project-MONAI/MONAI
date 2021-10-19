@@ -47,21 +47,9 @@ MODES += PT_MODES
 MODES += [PytorchPadMode(i) for i in PT_MODES]
 
 for mode in MODES:
-    TESTS.append(
-        [
-            {"spatial_size": [3, 4], "method": "end", "mode": mode},
-            (1, 2, 3),
-            (1, 3, 4),
-        ]
-    )
+    TESTS.append([{"spatial_size": [3, 4], "method": "end", "mode": mode}, (1, 2, 3), (1, 3, 4)])
 
-    TESTS.append(
-        [
-            {"spatial_size": [15, 4, -1], "method": "symmetric", "mode": mode},
-            (3, 8, 8, 4),
-            (3, 15, 8, 4),
-        ]
-    )
+    TESTS.append([{"spatial_size": [15, 4, -1], "method": "symmetric", "mode": mode}, (3, 8, 8, 4), (3, 15, 8, 4)])
 
 
 class TestSpatialPad(unittest.TestCase):

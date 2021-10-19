@@ -26,10 +26,7 @@ class TestEnsureTyped(unittest.TestCase):
         for test_data in test_datas:
             for dtype in ("tensor", "NUMPY"):
                 result = EnsureTyped(
-                    keys="data",
-                    data_type=dtype,
-                    dtype=np.float32 if dtype == "NUMPY" else None,
-                    device="cpu",
+                    keys="data", data_type=dtype, dtype=np.float32 if dtype == "NUMPY" else None, device="cpu"
                 )({"data": test_data})["data"]
                 if dtype == "NUMPY":
                     self.assertTrue(result.dtype == np.float32)

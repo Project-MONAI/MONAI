@@ -189,11 +189,7 @@ def rescale_array_int_max(arr: np.ndarray, dtype: DtypeLike = np.uint16) -> np.n
 
 
 def copypaste_arrays(
-    src_shape,
-    dest_shape,
-    srccenter: Sequence[int],
-    destcenter: Sequence[int],
-    dims: Sequence[Optional[int]],
+    src_shape, dest_shape, srccenter: Sequence[int], destcenter: Sequence[int], dims: Sequence[Optional[int]]
 ) -> Tuple[Tuple[slice, ...], Tuple[slice, ...]]:
     """
     Calculate the slices to copy a sliced area of array in `src_shape` into array in `dest_shape`.
@@ -270,9 +266,7 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
 
 
 def map_binary_to_indices(
-    label: NdarrayOrTensor,
-    image: Optional[NdarrayOrTensor] = None,
-    image_threshold: float = 0.0,
+    label: NdarrayOrTensor, image: Optional[NdarrayOrTensor] = None, image_threshold: float = 0.0
 ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Compute the foreground and background of input label data, return the indices after fattening.
@@ -1100,9 +1094,7 @@ def extreme_points_to_image(
 
 
 def map_spatial_axes(
-    img_ndim: int,
-    spatial_axes: Optional[Union[Sequence[int], int]] = None,
-    channel_first: bool = True,
+    img_ndim: int, spatial_axes: Optional[Union[Sequence[int], int]] = None, channel_first: bool = True
 ) -> List[int]:
     """
     Utility to map the spatial axes to real axes in channel first/last shape.
@@ -1437,10 +1429,7 @@ def get_transform_backends():
                 "Transform",
             ]
         ):
-            backends[n] = [
-                TransformBackends.TORCH in obj.backend,
-                TransformBackends.NUMPY in obj.backend,
-            ]
+            backends[n] = [TransformBackends.TORCH in obj.backend, TransformBackends.NUMPY in obj.backend]
     return backends
 
 

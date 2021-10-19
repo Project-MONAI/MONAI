@@ -28,13 +28,7 @@ class SchedulerTestNet(torch.nn.Module):
 
 
 TEST_CASE_LRSCHEDULER = [
-    [
-        {
-            "warmup_steps": 2,
-            "t_total": 10,
-        },
-        [0.000, 0.500, 1.00, 0.962, 0.854, 0.691, 0.500, 0.309, 0.146, 0.038],
-    ]
+    [{"warmup_steps": 2, "t_total": 10}, [0.000, 0.500, 1.00, 0.962, 0.854, 0.691, 0.500, 0.309, 0.146, 0.038]]
 ]
 
 

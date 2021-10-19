@@ -36,24 +36,14 @@ for p in TEST_NDARRAYS:
         )
         TESTS.append(
             [
-                {
-                    "magnitude_range": (0.3, 2.3),
-                    "sigma_range": (1.0, 20.0),
-                    "prob": 0.0,
-                    "device": device,
-                },
+                {"magnitude_range": (0.3, 2.3), "sigma_range": (1.0, 20.0), "prob": 0.0, "device": device},
                 {"img": p(torch.ones((2, 3, 3, 3))), "spatial_size": (2, 2, 2)},
                 p(np.ones((2, 2, 2, 2))),
             ]
         )
         TESTS.append(
             [
-                {
-                    "magnitude_range": (0.3, 0.3),
-                    "sigma_range": (1.0, 2.0),
-                    "prob": 0.9,
-                    "device": device,
-                },
+                {"magnitude_range": (0.3, 0.3), "sigma_range": (1.0, 2.0), "prob": 0.9, "device": device},
                 {"img": p(torch.arange(27).reshape((1, 3, 3, 3))), "spatial_size": (2, 2, 2)},
                 p(
                     np.array(
