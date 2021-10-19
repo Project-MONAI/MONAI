@@ -58,6 +58,7 @@ __all__ = [
     "Spacing",
     "Orientation",
     "Flip",
+    "GridDistortion",
     "Resize",
     "Rotate",
     "Zoom",
@@ -65,6 +66,7 @@ __all__ = [
     "RandRotate90",
     "RandRotate",
     "RandFlip",
+    "RandGridDistortion",
     "RandAxisFlip",
     "RandZoom",
     "AffineGrid",
@@ -2057,3 +2059,170 @@ class AddCoordinateChannels(Transform):
         # but user input is 1-based (because channel dim is 0)
         coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
         return concatenate((img, coord_channels), axis=0)
+
+
+class GridDistortion(Transform):
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        num_cells: Union[Tuple[int], int],
+        distort_steps: Sequence[Sequence[float]],
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        """
+        Grid distortion transform. Refer to:
+        https://github.com/albumentations-team/albumentations/blob/master/albumentations/augmentations/transforms.py
+
+        Args:
+            num_cells: number of grid cells on each dimension.
+            distort_steps: This argument is a list of tuples, where each tuple contains the distort steps of the
+                corresponding dimensions (in the order of H, W[, D]). The length of each tuple equals to `num_cells + 1`.
+                Each value in the tuple represents the distort step of the related cell.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            device: device on which the tensor will be allocated.
+
+        """
+        self.resampler = Resample(mode=mode, padding_mode=padding_mode, device=device)
+        self.num_cells = num_cells
+        self.distort_steps = distort_steps
+        self.device = device
+
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        distort_steps: Optional[Sequence[Sequence]] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+    ) -> NdarrayOrTensor:
+        """
+        Args:
+            img: shape must be (num_channels, H, W[, D]).
+            distort_steps: This argument is a list of tuples, where each tuple contains the distort steps of the
+                corresponding dimensions (in the order of H, W[, D]). The length of each tuple equals to `num_cells + 1`.
+                Each value in the tuple represents the distort step of the related cell.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
+        """
+        distort_steps = self.distort_steps if distort_steps is None else distort_steps
+        if len(img.shape) != len(distort_steps) + 1:
+            raise ValueError("the spatial size of `img` does not match with the length of `distort_steps`")
+
+        all_ranges = []
+        num_cells = ensure_tuple_rep(self.num_cells, len(img.shape) - 1)
+        for dim_idx, dim_size in enumerate(img.shape[1:]):
+            dim_distort_steps = distort_steps[dim_idx]
+            ranges = torch.zeros(dim_size, dtype=torch.float32)
+            cell_size = dim_size // num_cells[dim_idx]
+            prev = 0
+            for idx in range(num_cells[dim_idx] + 1):
+                start = int(idx * cell_size)
+                end = start + cell_size
+                if end > dim_size:
+                    end = dim_size
+                    cur = dim_size
+                else:
+                    cur = prev + cell_size * dim_distort_steps[idx]
+                ranges[start:end] = torch.linspace(prev, cur, end - start)
+                prev = cur
+            ranges = ranges - (dim_size - 1.0) / 2.0
+            all_ranges.append(ranges)
+
+        coords = torch.meshgrid(*all_ranges)
+        grid = torch.stack([*coords, torch.ones_like(coords[0])])
+
+        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore
+
+
+class RandGridDistortion(RandomizableTransform):
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        num_cells: Union[Tuple[int], int] = 5,
+        prob: float = 0.1,
+        distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        """
+        Random grid distortion transform. Refer to:
+        https://github.com/albumentations-team/albumentations/blob/master/albumentations/augmentations/transforms.py
+
+        Args:
+            num_cells: number of grid cells on each dimension.
+            prob: probability of returning a randomized grid distortion transform. Defaults to 0.1.
+            distort_limit: range to randomly distort.
+                If single number, distort_limit is picked from (-distort_limit, distort_limit).
+                Defaults to (-0.03, 0.03).
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            device: device on which the tensor will be allocated.
+
+        """
+        RandomizableTransform.__init__(self, prob)
+        self.num_cells = num_cells
+        if isinstance(distort_limit, (int, float)):
+            self.distort_limit = (min(-distort_limit, distort_limit), max(-distort_limit, distort_limit))
+        else:
+            self.distort_limit = (min(distort_limit), max(distort_limit))
+        self.distort_steps: Sequence[Sequence[float]] = ((1.0,),)
+        self.grid_distortion = GridDistortion(
+            num_cells=num_cells,
+            distort_steps=self.distort_steps,
+            mode=mode,
+            padding_mode=padding_mode,
+            device=device,
+        )
+
+    def randomize(self, spatial_shape: Sequence[int]) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return
+        self.distort_steps = tuple(
+            tuple(1.0 + self.R.uniform(low=self.distort_limit[0], high=self.distort_limit[1], size=n_cells + 1))
+            for n_cells in ensure_tuple_rep(self.num_cells, len(spatial_shape))
+        )
+
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
+    ) -> NdarrayOrTensor:
+        """
+        Args:
+            img: shape must be (num_channels, H, W[, D]).
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            randomize: whether to shuffle the random factors using `randomize()`, default to True.
+        """
+        if randomize:
+            self.randomize(img.shape[1:])
+        if not self._do_transform:
+            return img
+        return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)
