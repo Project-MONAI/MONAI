@@ -155,7 +155,7 @@ jobs:
           # version checks
           target="\"version\": \"$RELEASE_VERSION\""
           echo $target
-          local=`grep "\"version\"" monai/_version.py
+          local=`grep "\"version\"" monai/_version.py`
           echo $local
           if [ "$local" = "$target" ]; then
             echo "matched version string"
