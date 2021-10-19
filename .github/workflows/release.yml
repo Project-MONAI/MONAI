@@ -122,8 +122,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          ref: release-yaml
       - name: Download version
         uses: actions/download-artifact@v2
         with:
@@ -153,7 +151,7 @@ jobs:
           # get tag info for versioning
           mv _version.py monai/
           # version checks
-          target="\"version\": \"$RELEASE_VERSION\""
+          target="\"version\"\:\ \"$RELEASE_VERSION\""
           echo $target
           local=`grep "\"version\"" monai/_version.py`
           echo $local
