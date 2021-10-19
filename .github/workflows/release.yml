@@ -89,7 +89,7 @@ jobs:
     # compute versioning file from python setup.py
     # upload as artifact
     if: github.repository == 'Project-MONAI/MONAI'
-    needs: packaging
+    # needs: packaging
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
