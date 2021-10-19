@@ -138,6 +138,13 @@ jobs:
           echo "$RELEASE_VERSION"
           cat _version.py
       - if: startsWith(github.ref, 'refs/tags/')
+        name: Install Latest Docker
+        run: |
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+          sudo apt-get update
+          sudo apt-get install docker-ce
+      - if: startsWith(github.ref, 'refs/tags/')
         name: build with the tag
         env:
           RELEASE_VERSION: ${{ steps.versioning.outputs.tag }}
