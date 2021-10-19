@@ -136,7 +136,7 @@ jobs:
           echo "$RELEASE_VERSION"
           cat _version.py
       - if: startsWith(github.ref, 'refs/tags/')
-        name: Install Latest Docker
+        name: Install latest docker
         run: |
           curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
           sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
@@ -151,10 +151,10 @@ jobs:
           # get tag info for versioning
           mv _version.py monai/
           # version checks
-          target="\"version\": \"$RELEASE_VERSION\""
+          target=" \"version\": \"$RELEASE_VERSION\""
           local=`grep "\"version\"" monai/_version.py`
-          echo $target
-          echo $local
+          echo "$target"
+          echo "$local"
           if [[ "$local" == "$target" ]]; then
             echo "matched version string"
           else
