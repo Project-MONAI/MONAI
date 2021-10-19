@@ -728,9 +728,7 @@ class LabelToMask(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(  # pytype: disable=annotation-type-mismatch
-        self,
-        select_labels: Union[Sequence[int], int],
-        merge_channels: bool = False,
+        self, select_labels: Union[Sequence[int], int], merge_channels: bool = False
     ) -> None:  # pytype: disable=annotation-type-mismatch
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
@@ -1058,10 +1056,7 @@ class IntensityStats(Transform):
         self.channel_wise = channel_wise
 
     def __call__(
-        self,
-        img: np.ndarray,
-        meta_data: Optional[Dict] = None,
-        mask: Optional[np.ndarray] = None,
+        self, img: np.ndarray, meta_data: Optional[Dict] = None, mask: Optional[np.ndarray] = None
     ) -> Tuple[np.ndarray, Dict]:
         """
         Compute statistics for the intensity of input image.

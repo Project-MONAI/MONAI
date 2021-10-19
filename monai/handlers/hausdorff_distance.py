@@ -57,8 +57,4 @@ class HausdorffDistance(IgniteMetric):
             directed=directed,
             reduction=MetricReduction.MEAN,
         )
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

@@ -27,12 +27,7 @@ __all__ = ["BatchInverseTransform", "Decollated"]
 
 
 class _BatchInverseDataset(Dataset):
-    def __init__(
-        self,
-        data: Sequence[Any],
-        transform: InvertibleTransform,
-        pad_collation_used: bool,
-    ) -> None:
+    def __init__(self, data: Sequence[Any], transform: InvertibleTransform, pad_collation_used: bool) -> None:
         self.data = data
         self.invertible_transform = transform
         self.pad_collation_used = pad_collation_used
@@ -119,10 +114,7 @@ class Decollated(MapTransform):
     """
 
     def __init__(
-        self,
-        keys: Optional[KeysCollection] = None,
-        detach: bool = True,
-        allow_missing_keys: bool = False,
+        self, keys: Optional[KeysCollection] = None, detach: bool = True, allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.detach = detach

@@ -45,22 +45,10 @@ class _UnetResBlockV1(UnetResBlock):
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims,
-            out_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            stride=1,
-            dropout=dropout,
-            conv_only=True,
+            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, dropout=dropout, conv_only=True
         )
         self.conv3 = get_conv_layer(
-            spatial_dims,
-            in_channels,
-            out_channels,
-            kernel_size=1,
-            stride=stride,
-            dropout=dropout,
-            conv_only=True,
+            spatial_dims, in_channels, out_channels, kernel_size=1, stride=stride, dropout=dropout, conv_only=True
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
         self.norm1 = _get_norm_layer(spatial_dims, out_channels, norm_name)
@@ -98,13 +86,7 @@ class _UnetBasicBlockV1(UnetBasicBlock):
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims,
-            out_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            stride=1,
-            dropout=dropout,
-            conv_only=True,
+            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, dropout=dropout, conv_only=True
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
         self.norm1 = _get_norm_layer(spatial_dims, out_channels, norm_name)

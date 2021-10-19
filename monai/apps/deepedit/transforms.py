@@ -15,12 +15,7 @@ distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="di
 
 
 class DiscardAddGuidanced(MapTransform):
-    def __init__(
-        self,
-        keys: KeysCollection,
-        probability: float = 1.0,
-        allow_missing_keys: bool = False,
-    ):
+    def __init__(self, keys: KeysCollection, probability: float = 1.0, allow_missing_keys: bool = False):
         """
         Discard positive and negative points randomly or Add the two channels for inference time
 
@@ -54,11 +49,7 @@ class ResizeGuidanceCustomd(Transform):
     Resize the guidance based on cropped vs resized image.
     """
 
-    def __init__(
-        self,
-        guidance: str,
-        ref_image: str,
-    ) -> None:
+    def __init__(self, guidance: str, ref_image: str) -> None:
         self.guidance = guidance
         self.ref_image = ref_image
 

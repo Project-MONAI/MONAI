@@ -165,9 +165,7 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
         # Test Data
         if vol_label is None:
             data_list.append(
-                {
-                    "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
-                }
+                {"image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file}
             )
             continue
 
@@ -236,11 +234,7 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
 
     # Test Data
     if vol_label is None:
-        data_list.append(
-            {
-                "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
-            }
-        )
+        data_list.append({"image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file})
     else:
         # For all Labels
         unique_labels = np.unique(vol_label.flatten())

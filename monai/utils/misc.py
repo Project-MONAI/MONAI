@@ -302,10 +302,7 @@ def list_to_dict(items):
 
 
 def copy_to_device(
-    obj: Any,
-    device: Optional[Union[str, torch.device]],
-    non_blocking: bool = True,
-    verbose: bool = False,
+    obj: Any, device: Optional[Union[str, torch.device]], non_blocking: bool = True, verbose: bool = False
 ) -> Any:
     """
     Copy object or tuple/list/dictionary of objects to ``device``.

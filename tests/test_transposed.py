@@ -21,30 +21,10 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TESTS.append(
-        [
-            p(np.arange(5 * 4).reshape(5, 4)),
-            [1, 0],
-        ]
-    )
-    TESTS.append(
-        [
-            p(np.arange(5 * 4).reshape(5, 4)),
-            None,
-        ]
-    )
-    TESTS.append(
-        [
-            p(np.arange(5 * 4 * 3).reshape(5, 4, 3)),
-            [2, 0, 1],
-        ]
-    )
-    TESTS.append(
-        [
-            p(np.arange(5 * 4 * 3).reshape(5, 4, 3)),
-            None,
-        ]
-    )
+    TESTS.append([p(np.arange(5 * 4).reshape(5, 4)), [1, 0]])
+    TESTS.append([p(np.arange(5 * 4).reshape(5, 4)), None])
+    TESTS.append([p(np.arange(5 * 4 * 3).reshape(5, 4, 3)), [2, 0, 1]])
+    TESTS.append([p(np.arange(5 * 4 * 3).reshape(5, 4, 3)), None])
 
 
 class TestTranspose(unittest.TestCase):

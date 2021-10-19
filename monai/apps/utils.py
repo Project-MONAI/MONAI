@@ -31,12 +31,7 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = [
-    "check_hash",
-    "download_url",
-    "extractall",
-    "download_and_extract",
-]
+__all__ = ["check_hash", "download_url", "extractall", "download_and_extract"]
 
 
 def _basename(p):
@@ -69,13 +64,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
                         self.total = tsize
                     self.update(b * bsize - self.n)  # will also set self.n = b * bsize
 
-            with TqdmUpTo(
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-                miniters=1,
-                desc=_basename(filepath),
-            ) as t:
+            with TqdmUpTo(unit="B", unit_scale=True, unit_divisor=1024, miniters=1, desc=_basename(filepath)) as t:
                 urlretrieve(url, filepath, reporthook=t.update_to)
         else:
             if not has_tqdm and progress:

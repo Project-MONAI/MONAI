@@ -245,12 +245,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
             AsDiscreted(keys="pred", threshold_values=True),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
-            SaveImaged(
-                keys="pred",
-                meta_keys="image_meta_dict",
-                output_dir=root_dir,
-                output_postfix="seg_transform",
-            ),
+            SaveImaged(keys="pred", meta_keys="image_meta_dict", output_dir=root_dir, output_postfix="seg_transform"),
         ]
     )
     val_handlers = [
@@ -357,11 +352,7 @@ class IntegrationWorkflows(DistTestCase):
             repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(
-        seconds=300,
-        skip_timing=not torch.cuda.is_available(),
-        daemon=False,
-    )
+    @TimedCall(seconds=300, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
         if monai.utils.module.get_torch_version_tuple() >= (1, 6):
             self.train_and_infer(idx=2)

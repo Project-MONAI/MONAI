@@ -106,9 +106,7 @@ class RegUNet(nn.Module):
         # build layers
         self.build_layers()
 
-    def build_layers(
-        self,
-    ):
+    def build_layers(self):
         self.build_encode_layers()
         self.build_decode_layers()
 
@@ -125,23 +123,13 @@ class RegUNet(nn.Module):
             ]
         )
         self.encode_pools = nn.ModuleList(
-            [
-                self.build_down_sampling_block(
-                    channels=self.num_channels[d],
-                )
-                for d in range(self.depth)
-            ]
+            [self.build_down_sampling_block(channels=self.num_channels[d]) for d in range(self.depth)]
         )
         self.bottom_block = self.build_bottom_block(
             in_channels=self.num_channels[-2], out_channels=self.num_channels[-1]
         )
 
-    def build_conv_block(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size,
-    ):
+    def build_conv_block(self, in_channels, out_channels, kernel_size):
         return nn.Sequential(
             get_conv_block(
                 spatial_dims=self.spatial_dims,
@@ -157,10 +145,7 @@ class RegUNet(nn.Module):
             ),
         )
 
-    def build_down_sampling_block(
-        self,
-        channels: int,
-    ):
+    def build_down_sampling_block(self, channels: int):
         return RegistrationDownSampleBlock(spatial_dims=self.spatial_dims, channels=channels, pooling=self.pooling)
 
     def build_bottom_block(self, in_channels: int, out_channels: int):
@@ -203,11 +188,7 @@ class RegUNet(nn.Module):
         # extraction
         self.output_block = self.build_output_block()
 
-    def build_up_sampling_block(
-        self,
-        in_channels: int,
-        out_channels: int,
-    ) -> nn.Module:
+    def build_up_sampling_block(self, in_channels: int, out_channels: int) -> nn.Module:
         return get_deconv_block(spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels)
 
     def build_output_block(self) -> nn.Module:
@@ -255,13 +236,7 @@ class RegUNet(nn.Module):
 
 
 class AffineHead(nn.Module):
-    def __init__(
-        self,
-        spatial_dims: int,
-        image_size: List[int],
-        decode_size: List[int],
-        in_channels: int,
-    ):
+    def __init__(self, spatial_dims: int, image_size: List[int], decode_size: List[int], in_channels: int):
         super().__init__()
         self.spatial_dims = spatial_dims
         if spatial_dims == 2:
@@ -365,12 +340,7 @@ class GlobalNet(RegUNet):
 
 
 class AdditiveUpSampleBlock(nn.Module):
-    def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-    ):
+    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int):
         super().__init__()
         self.deconv = get_deconv_block(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels)
 
@@ -435,17 +405,10 @@ class LocalNet(RegUNet):
     def build_bottom_block(self, in_channels: int, out_channels: int):
         kernel_size = self.encode_kernel_sizes[self.depth]
         return get_conv_block(
-            spatial_dims=self.spatial_dims,
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
+            spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size
         )
 
-    def build_up_sampling_block(
-        self,
-        in_channels: int,
-        out_channels: int,
-    ) -> nn.Module:
+    def build_up_sampling_block(self, in_channels: int, out_channels: int) -> nn.Module:
         if self._use_additive_upsampling:
             return AdditiveUpSampleBlock(
                 spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels

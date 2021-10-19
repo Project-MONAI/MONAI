@@ -293,11 +293,7 @@ class MaskedInferenceWSIDataset(Dataset):
         location_on_image = sample["image_locations"][patch_num]
         location_on_mask = sample["mask_locations"][patch_num]
 
-        image, _ = self.image_reader.get_data(
-            img=sample["image"],
-            location=location_on_image,
-            size=self.patch_size,
-        )
+        image, _ = self.image_reader.get_data(img=sample["image"], location=location_on_image, size=self.patch_size)
         processed_sample = {"image": image, "name": sample["name"], "mask_location": location_on_mask}
         return processed_sample
 
