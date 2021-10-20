@@ -61,21 +61,11 @@ for p in TEST_NDARRAYS:
 
     # shape: [1]
     TESTS.append(
-        [
-            {"num_classes": 3},
-            [p(torch.tensor([2])), p(torch.tensor([2])), p(torch.tensor([1]))],
-            torch.tensor([2]),
-        ]
+        [{"num_classes": 3}, [p(torch.tensor([2])), p(torch.tensor([2])), p(torch.tensor([1]))], torch.tensor([2])]
     )
 
     # shape: 1
-    TESTS.append(
-        [
-            {"num_classes": 3},
-            [p(torch.tensor(2)), p(torch.tensor(2)), p(torch.tensor(1))],
-            torch.tensor(2),
-        ]
-    )
+    TESTS.append([{"num_classes": 3}, [p(torch.tensor(2)), p(torch.tensor(2)), p(torch.tensor(1))], torch.tensor(2)])
 
 
 class TestVoteEnsemble(unittest.TestCase):
