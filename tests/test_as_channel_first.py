@@ -34,7 +34,7 @@ class TestAsChannelFirst(unittest.TestCase):
         if isinstance(test_data, torch.Tensor):
             test_data = test_data.cpu().numpy()
         expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
-        assert_allclose(expected, result)
+        assert_allclose(result, expected, type_test=False)
 
 
 if __name__ == "__main__":

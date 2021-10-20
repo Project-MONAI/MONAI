@@ -60,11 +60,7 @@ class TestPNGSaver(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
 
             saver = PNGSaver(
-                output_dir=tempdir,
-                output_postfix="seg",
-                output_ext=".png",
-                scale=255,
-                data_root_dir="test",
+                output_dir=tempdir, output_postfix="seg", output_ext=".png", scale=255, data_root_dir="test"
             )
 
             meta_data = {

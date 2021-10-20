@@ -20,20 +20,10 @@ from tests.utils import test_script_save
 
 CASES_1D = []
 for mode in ["pixelshuffle", "nontrainable", "deconv", None]:
-    kwargs = {
-        "dimensions": 1,
-        "in_channels": 5,
-        "out_channels": 8,
-    }
+    kwargs = {"dimensions": 1, "in_channels": 5, "out_channels": 8}
     if mode is not None:
         kwargs["upsample"] = mode  # type: ignore
-    CASES_1D.append(
-        [
-            kwargs,
-            (10, 5, 33),
-            (10, 8, 33),
-        ]
-    )
+    CASES_1D.append([kwargs, (10, 5, 33), (10, 8, 33)])
 
 CASES_2D = []
 for mode in ["pixelshuffle", "nontrainable", "deconv"]:
@@ -101,7 +91,7 @@ class TestBasicUNET(unittest.TestCase):
         self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):
-        net = BasicUNet(dimensions=2, in_channels=1, out_channels=3)
+        net = BasicUNet(spatial_dims=2, in_channels=1, out_channels=3)
         test_data = torch.randn(16, 1, 32, 32)
         test_script_save(net, test_data)
 

@@ -575,6 +575,7 @@ class CacheDataset(Dataset):
         cache_rate: float = 1.0,
         num_workers: Optional[int] = None,
         progress: bool = True,
+        copy_cache: bool = True,
     ) -> None:
         """
         Args:
@@ -587,11 +588,16 @@ class CacheDataset(Dataset):
             num_workers: the number of worker processes to use.
                 If num_workers is None then the number returned by os.cpu_count() is used.
             progress: whether to display a progress bar.
+            copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+                default to `True`. if the random transforms don't modify the cache content
+                or every cache item is only used once in a `multi-processing` environment,
+                may set `copy=False` for better performance.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.progress = progress
+        self.copy_cache = copy_cache
         self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
         self.num_workers = num_workers
         if self.num_workers is not None:
@@ -656,7 +662,8 @@ class CacheDataset(Dataset):
                 # only need to deep copy data on first non-deterministic transform
                 if not start_run:
                     start_run = True
-                    data = deepcopy(data)
+                    if self.copy_cache:
+                        data = deepcopy(data)
                 data = apply_transform(_transform, data)
         return data
 
@@ -722,6 +729,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
             it will not modify the original input data sequence in-place.
         seed: random seed if shuffle is `True`, default to `0`.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cache content
+            or every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
     """
 
     def __init__(
@@ -736,6 +747,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         progress: bool = True,
         shuffle: bool = True,
         seed: int = 0,
+        copy_cache: bool = True,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
@@ -743,7 +755,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             self.randomize(data)
         self.shuffle = shuffle
 
-        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress)
+        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache)
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
@@ -977,7 +989,7 @@ class ZipDataset(Dataset):
         super().__init__(list(datasets), transform=transform)
 
     def __len__(self) -> int:
-        return min((len(dataset) for dataset in self.data))
+        return min(len(dataset) for dataset in self.data)
 
     def _transform(self, index: int):
         def to_list(x):
@@ -1206,11 +1218,6 @@ class CSVDataset(Dataset):
         files = ensure_tuple(filename)
         dfs = [pd.read_csv(f) for f in files]
         data = convert_tables_to_dicts(
-            dfs=dfs,
-            row_indices=row_indices,
-            col_names=col_names,
-            col_types=col_types,
-            col_groups=col_groups,
-            **kwargs,
+            dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
         super().__init__(data=data, transform=transform)
