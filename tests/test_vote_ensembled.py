@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import VoteEnsembled
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -87,7 +87,7 @@ class TestVoteEnsembled(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, input_param, img, expected_value):
         result = VoteEnsembled(**input_param)(img)
-        torch.testing.assert_allclose(result["output"], expected_value)
+        assert_allclose(result["output"], expected_value)
 
     def test_cuda_value(self):
         img = torch.stack(
@@ -98,7 +98,7 @@ class TestVoteEnsembled(unittest.TestCase):
             img = img.to(torch.device("cuda:0"))
             expected_value = expected_value.to(torch.device("cuda:0"))
         result = VoteEnsembled(keys="output", num_classes=None)({"output": img})
-        torch.testing.assert_allclose(result["output"], expected_value)
+        assert_allclose(result["output"], expected_value)
 
 
 if __name__ == "__main__":
