@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import hashlib
+import logging
 import os
 import shutil
+import sys
 import tarfile
 import tempfile
 import warnings
@@ -31,7 +33,25 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = ["check_hash", "download_url", "extractall", "download_and_extract"]
+__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger"]
+
+DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
+
+
+def get_logger(module_name="monai.apps", fmt=DEFAULT_FMT, datefmt=None):
+    logger = logging.getLogger(module_name)
+    logger.propagate = False
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
+
+
+# apps module-level default logger
+logger = get_logger("monai.apps")
+__all__.append("logger")
 
 
 def _basename(p):
@@ -71,7 +91,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
                 warnings.warn("tqdm is not installed, will not show the downloading progress bar.")
             urlretrieve(url, filepath)
     except (URLError, HTTPError, ContentTooShortError, OSError) as e:
-        print(f"Download failed from {url} to {filepath}.")
+        logger.error(f"Download failed from {url} to {filepath}.")
         raise e
 
 
@@ -86,7 +106,7 @@ def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5")
 
     """
     if val is None:
-        print(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
+        logger.info(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
         return True
     if hash_type.lower() == "md5":
         actual_hash = hashlib.md5()
@@ -99,13 +119,13 @@ def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5")
             for chunk in iter(lambda: f.read(1024 * 1024), b""):
                 actual_hash.update(chunk)
     except Exception as e:
-        print(f"Exception in check_hash: {e}")
+        logger.error(f"Exception in check_hash: {e}")
         return False
     if val != actual_hash.hexdigest():
-        print(f"check_hash failed {actual_hash.hexdigest()}.")
+        logger.error(f"check_hash failed {actual_hash.hexdigest()}.")
         return False
 
-    print(f"Verified '{_basename(filepath)}', {hash_type}: {val}.")
+    logger.info(f"Verified '{_basename(filepath)}', {hash_type}: {val}.")
     return True
 
 
@@ -137,13 +157,13 @@ def download_url(
     """
     if not filepath:
         filepath = os.path.abspath(os.path.join(".", _basename(url)))
-        print(f"Default downloading to '{filepath}'")
+        logger.info(f"Default downloading to '{filepath}'")
     if os.path.exists(filepath):
         if not check_hash(filepath, hash_val, hash_type):
             raise RuntimeError(
                 f"{hash_type} check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
             )
-        print(f"File exists: {filepath}, skipped downloading.")
+        logger.info(f"File exists: {filepath}, skipped downloading.")
         return
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -162,7 +182,7 @@ def download_url(
         if file_dir:
             os.makedirs(file_dir, exist_ok=True)
         shutil.move(tmp_name, filepath)  # copy the downloaded to a user-specified cache.
-        print(f"Downloaded: {filepath}")
+        logger.info(f"Downloaded: {filepath}")
     if not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of downloaded file failed: URL={url}, "
@@ -205,13 +225,13 @@ def extractall(
     else:
         cache_dir = output_dir
     if os.path.exists(cache_dir) and len(os.listdir(cache_dir)) > 0:
-        print(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
+        logger.info(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
         return
     if hash_val and not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
         )
-    print(f"Writing into directory: {output_dir}.")
+    logger.info(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
     if filepath.endswith("zip") or _file_type == "zip":
         zip_file = zipfile.ZipFile(filepath)
