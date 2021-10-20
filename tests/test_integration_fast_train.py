@@ -148,8 +148,23 @@ class IntegrationFastTrain(DistTestCase):
         val_interval = 1  # do validation for every epoch
 
         # set CacheDataset, ThreadDataLoader and DiceCE loss for MONAI fast training
-        train_ds = CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8)
-        val_ds = CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=5)
+        # as `RandCropByPosNegLabeld` is the first random transform and it crops from the cached content
+        # and `deepcopy` the crop area instead of modifying the cached value, we can set `copy_cache=False`
+        # to avoid unnecessary deepcopy of cached content in `CacheDataset`
+        train_ds = CacheDataset(
+            data=train_files,
+            transform=train_transforms,
+            cache_rate=1.0,
+            num_workers=8,
+            copy_cache=False,
+        )
+        val_ds = CacheDataset(
+            data=val_files,
+            transform=val_transforms,
+            cache_rate=1.0,
+            num_workers=5,
+            copy_cache=False,
+        )
         # disable multi-workers because `ThreadDataLoader` works with multi-threads
         train_loader = ThreadDataLoader(train_ds, num_workers=0, batch_size=4, shuffle=True)
         val_loader = ThreadDataLoader(val_ds, num_workers=0, batch_size=1)
