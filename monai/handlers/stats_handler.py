@@ -31,13 +31,16 @@ DEFAULT_TAG = "Loss"
 class StatsHandler:
     """
     StatsHandler defines a set of Ignite Event-handlers for all the log printing logics.
-    It's can be used for any Ignite Engine(trainer, validator and evaluator).
+    It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support logging for epoch level and iteration level with pre-defined loggers.
 
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
         - When ITERATION_COMPLETED, logs
           ``self.output_transform(engine.state.output)`` using ``self.logger``.
+
+    Usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
 
     """
 
