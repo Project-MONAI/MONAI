@@ -710,7 +710,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
 
-    backend = Affine.backend
+    backend = RandAffine.backend
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
@@ -1373,8 +1373,9 @@ class Rotated(MapTransform, InvertibleTransform):
             transform_t: torch.Tensor
             transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
 
-            output = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[InverseKeys.ORIG_SIZE])
-            d[key] = output.squeeze(0).detach().float()
+            out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[InverseKeys.ORIG_SIZE]).squeeze(0)
+            out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
+            d[key] = out
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1506,8 +1507,9 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 transform_t: torch.Tensor
                 transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
                 output: torch.Tensor
-                output = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[InverseKeys.ORIG_SIZE])
-                d[key] = output.squeeze(0).detach().float()
+                out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[InverseKeys.ORIG_SIZE]).squeeze(0)
+                out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
+                d[key] = out
             # Remove the applied transform
             self.pop_transform(d, key)
 

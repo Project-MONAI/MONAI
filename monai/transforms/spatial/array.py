@@ -185,7 +185,7 @@ class Spacing(Transform):
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             # default to identity
-            affine = np.eye(sr + 1, dtype=np.float64)
+            affine_np = affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_np, *_ = convert_data_type(affine, np.ndarray)
@@ -300,7 +300,7 @@ class Orientation(Transform):
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             # default to identity
-            affine = np.eye(sr + 1, dtype=np.float64)
+            affine_np = affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_np, *_ = convert_data_type(affine, np.ndarray)
