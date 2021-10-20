@@ -226,7 +226,7 @@ class Spacingd(MapTransform, InvertibleTransform):
 
     def __call__(
         self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
-    ) -> Dict[Union[Hashable, str], Union[NdarrayOrTensor, Dict[str, NdarrayOrTensor]]]:
+    ) -> Dict[Hashable, NdarrayOrTensor]:
         d: Dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, meta_key, meta_key_postfix in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
@@ -309,6 +309,8 @@ class Orientationd(MapTransform, InvertibleTransform):
     to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
     """
 
+    backend = Orientation.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -358,8 +360,8 @@ class Orientationd(MapTransform, InvertibleTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(
-        self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
-    ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
+        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
+    ) -> Dict[Hashable, NdarrayOrTensor]:
         d: Dict = dict(data)
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
@@ -372,7 +374,7 @@ class Orientationd(MapTransform, InvertibleTransform):
             d[meta_key]["affine"] = new_affine
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
