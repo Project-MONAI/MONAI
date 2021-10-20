@@ -64,7 +64,7 @@ class TensorBoardHandler:
 class TensorBoardStatsHandler(TensorBoardHandler):
     """
     TensorBoardStatsHandler defines a set of Ignite Event-handlers for all the TensorBoard logics.
-    It's can be used for any Ignite Engine(trainer, validator and evaluator).
+    It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support both epoch level and iteration level with pre-defined TensorBoard event writer.
     The expected data source is Ignite ``engine.state.output`` and ``engine.state.metrics``.
 

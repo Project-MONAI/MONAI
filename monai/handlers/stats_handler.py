@@ -31,7 +31,7 @@ DEFAULT_TAG = "Loss"
 class StatsHandler:
     """
     StatsHandler defines a set of Ignite Event-handlers for all the log printing logics.
-    It's can be used for any Ignite Engine(trainer, validator and evaluator).
+    It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support logging for epoch level and iteration level with pre-defined loggers.
 
     Default behaviors:

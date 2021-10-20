@@ -30,7 +30,7 @@ DEFAULT_TAG = "Loss"
 class MLFlowHandler:
     """
     MLFlowHandler defines a set of Ignite Event-handlers for the MLFlow tracking logics.
-    It's can be used for any Ignite Engine(trainer, validator and evaluator).
+    It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can track both epoch level and iteration level logging, then MLFlow can store
     the data and visualize.
     The expected data source is Ignite ``engine.state.output`` and ``engine.state.metrics``.
