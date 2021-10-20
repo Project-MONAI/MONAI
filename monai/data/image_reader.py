@@ -25,21 +25,17 @@ from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
 from .utils import is_supported_format
 
 if TYPE_CHECKING:
-    import cucim
     import itk  # type: ignore
     import nibabel as nib
-    import openslide
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_itk = has_nib = has_pil = has_cim = has_osl = True
+    has_itk = has_nib = has_pil = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
-    cucim, has_cim = optional_import("cucim")
-    openslide, has_osl = optional_import("openslide")
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
 
@@ -641,12 +637,7 @@ class PILReader(ImageReader):
             img: a PIL Image object loaded from an image file.
 
         """
-        return {
-            "format": img.format,
-            "mode": img.mode,
-            "width": img.width,
-            "height": img.height,
-        }
+        return {"format": img.format, "mode": img.mode, "width": img.width, "height": img.height}
 
     def _get_spatial_shape(self, img):
         """
@@ -670,11 +661,9 @@ class WSIReader(ImageReader):
         super().__init__()
         self.reader_lib = reader_lib.lower()
         if self.reader_lib == "openslide":
-            if has_osl:
-                self.wsi_reader = openslide.OpenSlide
+            self.wsi_reader, *_ = optional_import("openslide", name="OpenSlide")
         elif self.reader_lib == "cucim":
-            if has_cim:
-                self.wsi_reader = cucim.CuImage
+            self.wsi_reader, *_ = optional_import("cucim", name="CuImage")
         else:
             raise ValueError('`reader_lib` should be either "cuCIM" or "OpenSlide"')
 
@@ -697,11 +686,6 @@ class WSIReader(ImageReader):
             data: file name or a list of file names to read.
 
         """
-        if (self.reader_lib == "openslide") and (not has_osl):
-            raise ImportError("No module named 'openslide'")
-        if (self.reader_lib == "cucim") and (not has_cim):
-            raise ImportError("No module named 'cucim'")
-
         img_: List = []
 
         filenames: Sequence[str] = ensure_tuple(data)
@@ -740,10 +724,7 @@ class WSIReader(ImageReader):
 
         if self.reader_lib == "openslide" and size is None:
             # the maximum size is set to WxH
-            size = (
-                img.shape[0] // (2 ** level) - location[0],
-                img.shape[1] // (2 ** level) - location[1],
-            )
+            size = (img.shape[0] // (2 ** level) - location[0], img.shape[1] // (2 ** level) - location[1])
 
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
@@ -756,10 +737,7 @@ class WSIReader(ImageReader):
         else:
             tuple_patch_size = ensure_tuple_rep(patch_size, 2)
             patches = self._extract_patches(
-                region,
-                patch_size=tuple_patch_size,  # type: ignore
-                grid_shape=grid_shape,
-                dtype=dtype,
+                region, patch_size=tuple_patch_size, grid_shape=grid_shape, dtype=dtype  # type: ignore
             )
 
         return patches, metadata
@@ -783,11 +761,7 @@ class WSIReader(ImageReader):
         region = self.convert_to_rgb_array(region, dtype)
         return region
 
-    def convert_to_rgb_array(
-        self,
-        raw_region,
-        dtype: DtypeLike = np.uint8,
-    ):
+    def convert_to_rgb_array(self, raw_region, dtype: DtypeLike = np.uint8):
         """Convert to RGB mode and numpy array"""
         if self.reader_lib == "openslide":
             # convert to RGB

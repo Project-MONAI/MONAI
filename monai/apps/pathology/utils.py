@@ -62,11 +62,7 @@ class PathologyProbNMS(ProbNMS):
     Pathology.
     """
 
-    def __call__(
-        self,
-        probs_map: Union[np.ndarray, torch.Tensor],
-        resolution_level: int = 0,
-    ):
+    def __call__(self, probs_map: Union[np.ndarray, torch.Tensor], resolution_level: int = 0):
         """
         probs_map: the input probabilities map, it must have shape (H[, W, ...]).
         resolution_level: the level at which the probabilities map is made.

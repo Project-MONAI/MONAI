@@ -45,14 +45,6 @@ class ROCAUC(IgniteMetric):  # type: ignore[valid-type, misc]  # due to optional
 
     """
 
-    def __init__(
-        self,
-        average: Union[Average, str] = Average.MACRO,
-        output_transform: Callable = lambda x: x,
-    ) -> None:
+    def __init__(self, average: Union[Average, str] = Average.MACRO, output_transform: Callable = lambda x: x) -> None:
         metric_fn = ROCAUCMetric(average=Average(average))
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=False,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=False)

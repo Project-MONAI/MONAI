@@ -32,11 +32,7 @@ class CSVSaver:
     """
 
     def __init__(
-        self,
-        output_dir: str = "./",
-        filename: str = "predictions.csv",
-        overwrite: bool = True,
-        flush: bool = False,
+        self, output_dir: str = "./", filename: str = "predictions.csv", overwrite: bool = True, flush: bool = False
     ) -> None:
         """
         Args:
