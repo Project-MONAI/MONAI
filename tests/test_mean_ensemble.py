@@ -17,23 +17,11 @@ from parameterized import parameterized
 
 from monai.transforms import MeanEnsemble
 
-TEST_CASE_1 = [
-    {"weights": None},
-    [torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2],
-    torch.ones(2, 2, 2) + 1,
-]
+TEST_CASE_1 = [{"weights": None}, [torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2], torch.ones(2, 2, 2) + 1]
 
-TEST_CASE_2 = [
-    {"weights": None},
-    torch.stack([torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2]),
-    torch.ones(2, 2, 2) + 1,
-]
+TEST_CASE_2 = [{"weights": None}, torch.stack([torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2]), torch.ones(2, 2, 2) + 1]
 
-TEST_CASE_3 = [
-    {"weights": [1, 3]},
-    [torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2],
-    torch.ones(2, 2, 2) * 2.5,
-]
+TEST_CASE_3 = [{"weights": [1, 3]}, [torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2], torch.ones(2, 2, 2) * 2.5]
 
 TEST_CASE_4 = [
     {"weights": [[1, 3], [3, 1]]},

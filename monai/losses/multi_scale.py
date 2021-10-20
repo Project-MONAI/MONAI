@@ -21,12 +21,7 @@ from monai.utils import LossReduction
 def make_gaussian_kernel(sigma: int) -> torch.Tensor:
     if sigma <= 0:
         raise ValueError(f"expecting positive sigma, got sigma={sigma}")
-    return gaussian_1d(
-        sigma=torch.tensor(sigma),
-        truncated=3,
-        approx="sampled",
-        normalize=False,
-    )
+    return gaussian_1d(sigma=torch.tensor(sigma), truncated=3, approx="sampled", normalize=False)
 
 
 def make_cauchy_kernel(sigma: int) -> torch.Tensor:
@@ -39,10 +34,7 @@ def make_cauchy_kernel(sigma: int) -> torch.Tensor:
     return k
 
 
-kernel_fn_dict = {
-    "gaussian": make_gaussian_kernel,
-    "cauchy": make_cauchy_kernel,
-}
+kernel_fn_dict = {"gaussian": make_gaussian_kernel, "cauchy": make_cauchy_kernel}
 
 
 class MultiScaleLoss(_Loss):
@@ -67,7 +59,7 @@ class MultiScaleLoss(_Loss):
             scales: list of scalars or None, if None, do not apply any scaling.
             kernel: gaussian or cauchy.
         """
-        super(MultiScaleLoss, self).__init__(reduction=LossReduction(reduction).value)
+        super().__init__(reduction=LossReduction(reduction).value)
         if kernel not in kernel_fn_dict.keys():
             raise ValueError(f"got unsupported kernel type: {kernel}", "only support gaussian and cauchy")
         self.kernel_fn = kernel_fn_dict[kernel]

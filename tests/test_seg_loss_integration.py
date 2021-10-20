@@ -91,7 +91,7 @@ class TestSegLossIntegration(unittest.TestCase):
         # define a one layer model
         class OnelayerNet(nn.Module):
             def __init__(self):
-                super(OnelayerNet, self).__init__()
+                super().__init__()
                 self.layer_1 = nn.Linear(num_voxels, 200)
                 self.acti = nn.ReLU()
                 self.layer_2 = nn.Linear(200, num_voxels * num_classes)

@@ -31,38 +31,21 @@ from monai.utils import Range, optional_import
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
 
-TEST_CASE_ARRAY_0 = [
-    np.random.randn(3, 3),
-]
-TEST_CASE_ARRAY_1 = [
-    np.random.randn(3, 10, 10),
-]
+TEST_CASE_ARRAY_0 = [np.random.randn(3, 3)]
+TEST_CASE_ARRAY_1 = [np.random.randn(3, 10, 10)]
 
-TEST_CASE_DICT_0 = [
-    {"image": np.random.randn(3, 3)},
-]
-TEST_CASE_DICT_1 = [
-    {"image": np.random.randn(3, 10, 10)},
-]
+TEST_CASE_DICT_0 = [{"image": np.random.randn(3, 3)}]
+TEST_CASE_DICT_1 = [{"image": np.random.randn(3, 10, 10)}]
 
-TEST_CASE_TORCH_0 = [
-    torch.randn(3, 3),
-]
-TEST_CASE_TORCH_1 = [
-    torch.randn(3, 10, 10),
-]
+TEST_CASE_TORCH_0 = [torch.randn(3, 3)]
+TEST_CASE_TORCH_1 = [torch.randn(3, 10, 10)]
 
 
 class TestNVTXRangeDecorator(unittest.TestCase):
     @parameterized.expand([TEST_CASE_ARRAY_0, TEST_CASE_ARRAY_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_tranform_array(self, input):
-        transforms = Compose(
-            [
-                Range("random flip")(Flip()),
-                Range()(ToTensor()),
-            ]
-        )
+        transforms = Compose([Range("random flip")(Flip()), Range()(ToTensor())])
         # Apply transforms
         output = transforms(input)
 
@@ -88,12 +71,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
     @parameterized.expand([TEST_CASE_DICT_0, TEST_CASE_DICT_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_tranform_dict(self, input):
-        transforms = Compose(
-            [
-                Range("random flip dict")(FlipD(keys="image")),
-                Range()(ToTensorD("image")),
-            ]
-        )
+        transforms = Compose([Range("random flip dict")(FlipD(keys="image")), Range()(ToTensorD("image"))])
         # Apply transforms
         output = transforms(input)["image"]
 
@@ -161,10 +139,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_network(self, input):
         # Create a network
-        model = torch.nn.Sequential(
-            torch.nn.ReLU(),
-            torch.nn.Sigmoid(),
-        )
+        model = torch.nn.Sequential(torch.nn.ReLU(), torch.nn.Sigmoid())
 
         # Forward
         output = model(input)
