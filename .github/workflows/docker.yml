@@ -16,7 +16,6 @@ jobs:
   versioning_dev:
     # compute versioning file from python setup.py
     # upload as artifact
-    # (also used in release.yml)
     if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
