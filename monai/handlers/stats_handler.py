@@ -39,6 +39,9 @@ class StatsHandler:
         - When ITERATION_COMPLETED, logs
           ``self.output_transform(engine.state.output)`` using ``self.logger``.
 
+    Usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
+
     """
 
     def __init__(

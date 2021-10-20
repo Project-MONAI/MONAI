@@ -41,6 +41,9 @@ class MLFlowHandler:
         - When ITERATION_COMPLETED, track expected item in
           ``self.output_transform(engine.state.output)`` in MLFlow, default to `Loss`.
 
+    Usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
+
     Args:
         tracking_uri: connects to a tracking URI. can also set the `MLFLOW_TRACKING_URI` environment
             variable to have MLflow find a URI from there. in both cases, the URI can either be
