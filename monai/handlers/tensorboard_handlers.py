@@ -64,7 +64,7 @@ class TensorBoardHandler:
 class TensorBoardStatsHandler(TensorBoardHandler):
     """
     TensorBoardStatsHandler defines a set of Ignite Event-handlers for all the TensorBoard logics.
-    It's can be used for any Ignite Engine(trainer, validator and evaluator).
+    It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support both epoch level and iteration level with pre-defined TensorBoard event writer.
     The expected data source is Ignite ``engine.state.output`` and ``engine.state.metrics``.
 
@@ -73,6 +73,10 @@ class TensorBoardStatsHandler(TensorBoardHandler):
           ``engine.state.metrics`` to TensorBoard.
         - When ITERATION_COMPLETED, write each dictionary item in
           ``self.output_transform(engine.state.output)`` to TensorBoard.
+
+    Usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
+
     """
 
     def __init__(
@@ -248,6 +252,9 @@ class TensorBoardImageHandler(TensorBoardHandler):
           format: (image[N, channel, ...], label[N, channel, ...]).
         - Expects ``output_transform(engine.state.output)`` to return a torch
           tensor in format (y_pred[N, channel, ...], loss).
+
+    Usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
 
     """
 
