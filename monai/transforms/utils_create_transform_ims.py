@@ -520,13 +520,7 @@ if __name__ == "__main__":
     create_transform_im(RandKSpaceSpikeNoise, dict(prob=1, intensity_range=(10, 13)), data)
     create_transform_im(
         RandKSpaceSpikeNoised,
-        dict(
-            keys=CommonKeys.IMAGE,
-            global_prob=1,
-            prob=1,
-            common_sampling=True,
-            intensity_ranges={CommonKeys.IMAGE: (13, 15)},
-        ),
+        dict(keys=CommonKeys.IMAGE, global_prob=1, prob=1, common_sampling=True, intensity_range=(13, 15)),
         data,
     )
     create_transform_im(GibbsNoise, dict(alpha=0.8), data)
@@ -677,4 +671,8 @@ if __name__ == "__main__":
         KeepLargestConnectedComponentd, dict(keys=CommonKeys.LABEL, applied_labels=1), data_binary, is_post=True, ndim=2
     )
     create_transform_im(RandGridDistortion, dict(num_cells=3, prob=1.0, distort_limit=(-0.1, 0.1)), data)
-    create_transform_im(RandGridDistortiond, dict(keys=keys, num_cells=5, prob=1.0, distort_limit=(-0.1, 0.1)), data)
+    create_transform_im(
+        RandGridDistortiond,
+        dict(keys=keys, num_cells=4, prob=1.0, distort_limit=(-0.2, 0.2), mode=["bilinear", "nearest"]),
+        data,
+    )
