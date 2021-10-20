@@ -44,29 +44,16 @@ def get_conv_block(
 
 
 def get_conv_layer(
-    spatial_dims: int,
-    in_channels: int,
-    out_channels: int,
-    kernel_size: Union[Sequence[int], int] = 3,
+    spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int] = 3
 ) -> nn.Module:
     padding = same_padding(kernel_size)
     mod: nn.Module = Convolution(
-        spatial_dims,
-        in_channels,
-        out_channels,
-        kernel_size=kernel_size,
-        bias=False,
-        conv_only=True,
-        padding=padding,
+        spatial_dims, in_channels, out_channels, kernel_size=kernel_size, bias=False, conv_only=True, padding=padding
     )
     return mod
 
 
-def get_deconv_block(
-    spatial_dims: int,
-    in_channels: int,
-    out_channels: int,
-) -> nn.Module:
+def get_deconv_block(spatial_dims: int, in_channels: int, out_channels: int) -> nn.Module:
     mod: nn.Module = Convolution(
         spatial_dims=spatial_dims,
         in_channels=in_channels,
@@ -84,11 +71,7 @@ def get_deconv_block(
 
 class ResidualBlock(nn.Module):
     def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Union[Sequence[int], int],
+        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int]
     ) -> None:
         super().__init__()
         if in_channels != out_channels:
@@ -96,10 +79,7 @@ class ResidualBlock(nn.Module):
                 f"expecting in_channels == out_channels, " f"got in_channels={in_channels}, out_channels={out_channels}"
             )
         self.conv_block = get_conv_block(
-            spatial_dims=spatial_dims,
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
+            spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size
         )
         self.conv = get_conv_layer(
             spatial_dims=spatial_dims, in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size
@@ -113,22 +93,13 @@ class ResidualBlock(nn.Module):
 
 
 class LocalNetResidualBlock(nn.Module):
-    def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-    ) -> None:
+    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
         super().__init__()
         if in_channels != out_channels:
             raise ValueError(
                 f"expecting in_channels == out_channels, " f"got in_channels={in_channels}, out_channels={out_channels}"
             )
-        self.conv_layer = get_conv_layer(
-            spatial_dims=spatial_dims,
-            in_channels=in_channels,
-            out_channels=out_channels,
-        )
+        self.conv_layer = get_conv_layer(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels)
         self.norm = Norm[Norm.BATCH, spatial_dims](out_channels)
         self.relu = nn.ReLU()
 
@@ -150,11 +121,7 @@ class LocalNetDownSampleBlock(nn.Module):
     """
 
     def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Union[Sequence[int], int],
+        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int]
     ) -> None:
         """
         Args:
@@ -172,9 +139,7 @@ class LocalNetDownSampleBlock(nn.Module):
         self.residual_block = ResidualBlock(
             spatial_dims=spatial_dims, in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size
         )
-        self.max_pool = Pool[Pool.MAX, spatial_dims](
-            kernel_size=2,
-        )
+        self.max_pool = Pool[Pool.MAX, spatial_dims](kernel_size=2)
 
     def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -211,12 +176,7 @@ class LocalNetUpSampleBlock(nn.Module):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
-    def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-    ) -> None:
+    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions.
@@ -227,19 +187,11 @@ class LocalNetUpSampleBlock(nn.Module):
         """
         super().__init__()
         self.deconv_block = get_deconv_block(
-            spatial_dims=spatial_dims,
-            in_channels=in_channels,
-            out_channels=out_channels,
+            spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels
         )
-        self.conv_block = get_conv_block(
-            spatial_dims=spatial_dims,
-            in_channels=out_channels,
-            out_channels=out_channels,
-        )
+        self.conv_block = get_conv_block(spatial_dims=spatial_dims, in_channels=out_channels, out_channels=out_channels)
         self.residual_block = LocalNetResidualBlock(
-            spatial_dims=spatial_dims,
-            in_channels=out_channels,
-            out_channels=out_channels,
+            spatial_dims=spatial_dims, in_channels=out_channels, out_channels=out_channels
         )
         if in_channels / out_channels != 2:
             raise ValueError(

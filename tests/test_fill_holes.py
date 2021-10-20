@@ -19,29 +19,13 @@ from parameterized import parameterized
 from monai.transforms import FillHoles
 from tests.utils import TEST_NDARRAYS, assert_allclose, clone
 
-grid_1_raw = [
-    [1, 1, 1],
-    [1, 0, 1],
-    [1, 1, 1],
-]
+grid_1_raw = [[1, 1, 1], [1, 0, 1], [1, 1, 1]]
 
-grid_2_raw = [
-    [0, 1, 0],
-    [1, 0, 1],
-    [0, 1, 0],
-]
+grid_2_raw = [[0, 1, 0], [1, 0, 1], [0, 1, 0]]
 
-grid_3_raw = [
-    [1, 1, 1],
-    [1, 1, 1],
-    [1, 1, 1],
-]
+grid_3_raw = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
 
-grid_4_raw = [
-    [0, 1, 0],
-    [1, 1, 1],
-    [0, 1, 0],
-]
+grid_4_raw = [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
 
 grid_1 = torch.tensor([grid_1_raw])
 
@@ -51,49 +35,15 @@ grid_3 = torch.tensor([grid_3_raw])
 
 grid_4 = torch.tensor([grid_4_raw])
 
-grid_5 = torch.tensor(
-    [
-        [
-            [1, 1, 1],
-            [1, 0, 0],
-            [1, 1, 1],
-        ]
-    ]
-)
+grid_5 = torch.tensor([[[1, 1, 1], [1, 0, 0], [1, 1, 1]]])
 
-grid_6 = torch.tensor(
-    [
-        [
-            [1, 1, 2, 2, 2],
-            [1, 0, 2, 0, 2],
-            [1, 1, 2, 2, 2],
-        ]
-    ]
-)
+grid_6 = torch.tensor([[[1, 1, 2, 2, 2], [1, 0, 2, 0, 2], [1, 1, 2, 2, 2]]])
 
-grid_7 = torch.tensor(
-    [
-        [
-            [1, 1, 2, 2, 2],
-            [1, 0, 2, 2, 2],
-            [1, 1, 2, 2, 2],
-        ]
-    ]
-)
+grid_7 = torch.tensor([[[1, 1, 2, 2, 2], [1, 0, 2, 2, 2], [1, 1, 2, 2, 2]]])
 
-TEST_CASE_0 = [
-    "enclosed_default_full_connectivity_default_applied_labels",
-    {},
-    grid_1,
-    grid_3,
-]
+TEST_CASE_0 = ["enclosed_default_full_connectivity_default_applied_labels", {}, grid_1, grid_3]
 
-TEST_CASE_1 = [
-    "enclosed_full_connectivity_default_applied_labels",
-    {"connectivity": 2},
-    grid_1,
-    grid_3,
-]
+TEST_CASE_1 = ["enclosed_full_connectivity_default_applied_labels", {"connectivity": 2}, grid_1, grid_3]
 
 TEST_CASE_2 = [
     "enclosed_full_connectivity_applied_labels_same_single",
@@ -130,40 +80,15 @@ TEST_CASE_6 = [
     grid_3,
 ]
 
-TEST_CASE_7 = [
-    "enclosed_connectivity_1_default_applied_labels",
-    {"connectivity": 1},
-    grid_1,
-    grid_3,
-]
+TEST_CASE_7 = ["enclosed_connectivity_1_default_applied_labels", {"connectivity": 1}, grid_1, grid_3]
 
-TEST_CASE_8 = [
-    "enclosed_connectivity_1_default_applied_labels",
-    {"connectivity": 1},
-    grid_2,
-    grid_4,
-]
+TEST_CASE_8 = ["enclosed_connectivity_1_default_applied_labels", {"connectivity": 1}, grid_2, grid_4]
 
-TEST_CASE_9 = [
-    "open_full_connectivity_default_applied_labels",
-    {"connectivity": 2},
-    grid_2,
-    grid_2,
-]
+TEST_CASE_9 = ["open_full_connectivity_default_applied_labels", {"connectivity": 2}, grid_2, grid_2]
 
-TEST_CASE_10 = [
-    "open_to_edge_connectivity_1_default_applied_labels",
-    {"connectivity": 1},
-    grid_5,
-    grid_5,
-]
+TEST_CASE_10 = ["open_to_edge_connectivity_1_default_applied_labels", {"connectivity": 1}, grid_5, grid_5]
 
-TEST_CASE_11 = [
-    "open_to_other_label_connectivity_1_default_applied_labels",
-    {"connectivity": 1},
-    grid_6,
-    grid_7,
-]
+TEST_CASE_11 = ["open_to_other_label_connectivity_1_default_applied_labels", {"connectivity": 1}, grid_6, grid_7]
 
 TEST_CASE_12 = [
     "open_to_other_label_connectivity_1_applied_labels_other",

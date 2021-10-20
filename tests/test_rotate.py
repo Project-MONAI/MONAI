@@ -62,13 +62,7 @@ class TestRotate2D(NumpyImageTestCase2D):
         for channel in self.imt[0]:
             expected.append(
                 scipy.ndimage.rotate(
-                    channel,
-                    -np.rad2deg(angle),
-                    (0, 1),
-                    not keep_size,
-                    order=_order,
-                    mode=_mode,
-                    prefilter=False,
+                    channel, -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
                 )
             )
         expected = np.stack(expected).astype(np.float32)
@@ -96,13 +90,7 @@ class TestRotate3D(NumpyImageTestCase3D):
         for channel in self.imt[0]:
             expected.append(
                 scipy.ndimage.rotate(
-                    channel,
-                    -np.rad2deg(angle),
-                    (1, 2),
-                    not keep_size,
-                    order=_order,
-                    mode=_mode,
-                    prefilter=False,
+                    channel, -np.rad2deg(angle), (1, 2), not keep_size, order=_order, mode=_mode, prefilter=False
                 )
             )
         expected = np.stack(expected).astype(np.float32)

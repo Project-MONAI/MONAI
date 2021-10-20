@@ -24,14 +24,7 @@ from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 from monai.utils.enums import TransformBackends
 
-__all__ = [
-    "ThreadUnsafe",
-    "apply_transform",
-    "Randomizable",
-    "RandomizableTransform",
-    "Transform",
-    "MapTransform",
-]
+__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -61,10 +54,7 @@ def _apply_transform(
 
 
 def apply_transform(
-    transform: Callable[..., ReturnType],
-    data: Any,
-    map_items: bool = True,
-    unpack_items: bool = False,
+    transform: Callable[..., ReturnType], data: Any, map_items: bool = True, unpack_items: bool = False
 ) -> Union[List[ReturnType], ReturnType]:
     """
     Transform `data` with `transform`.
@@ -355,11 +345,7 @@ class MapTransform(Transform):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def key_iterator(
-        self,
-        data: Dict[Hashable, Any],
-        *extra_iterables: Optional[Iterable],
-    ) -> Generator:
+    def key_iterator(self, data: Dict[Hashable, Any], *extra_iterables: Optional[Iterable]) -> Generator:
         """
         Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
         `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.

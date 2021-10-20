@@ -39,18 +39,12 @@ TEST_CASE_2 = [
 TESTS_CUPY = [
     [
         {"keys": "image", "dtype": np.uint8},
-        {
-            "image": np.array([[0, 1], [1, 2]], dtype=np.float32),
-            "label": np.array([[0, 1], [1, 1]], dtype=np.float32),
-        },
+        {"image": np.array([[0, 1], [1, 2]], dtype=np.float32), "label": np.array([[0, 1], [1, 1]], dtype=np.float32)},
         {"image": np.uint8, "label": np.float32},
     ],
     [
         {"keys": ["image", "label"], "dtype": np.float32},
-        {
-            "image": np.array([[0, 1], [1, 2]], dtype=np.uint8),
-            "label": np.array([[0, 1], [1, 1]], dtype=np.uint8),
-        },
+        {"image": np.array([[0, 1], [1, 2]], dtype=np.uint8), "label": np.array([[0, 1], [1, 1]], dtype=np.uint8)},
         {"image": np.float32, "label": np.float32},
     ],
 ]

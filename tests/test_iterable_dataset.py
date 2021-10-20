@@ -38,12 +38,7 @@ class TestIterableDataset(unittest.TestCase):
                 nib.save(test_image, os.path.join(tempdir, f"test_image{str(i)}.nii.gz"))
                 test_data.append({"image": os.path.join(tempdir, f"test_image{str(i)}.nii.gz")})
 
-            test_transform = Compose(
-                [
-                    LoadImaged(keys="image"),
-                    SimulateDelayd(keys="image", delay_time=1e-7),
-                ]
-            )
+            test_transform = Compose([LoadImaged(keys="image"), SimulateDelayd(keys="image", delay_time=1e-7)])
 
             data_iterator = _Stream(test_data)
             with self.assertRaises(TypeError):  # Dataset doesn't work

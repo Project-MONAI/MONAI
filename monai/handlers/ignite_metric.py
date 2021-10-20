@@ -49,10 +49,7 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
     """
 
     def __init__(
-        self,
-        metric_fn: CumulativeIterationMetric,
-        output_transform: Callable = lambda x: x,
-        save_details: bool = True,
+        self, metric_fn: CumulativeIterationMetric, output_transform: Callable = lambda x: x, save_details: bool = True
     ) -> None:
         self._is_reduced: bool = False
         self.metric_fn = metric_fn

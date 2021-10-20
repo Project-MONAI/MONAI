@@ -276,11 +276,7 @@ class ResNet(nn.Module):
 
         layers = [
             block(
-                in_planes=self.in_planes,
-                planes=planes,
-                spatial_dims=spatial_dims,
-                stride=stride,
-                downsample=downsample,
+                in_planes=self.in_planes, planes=planes, spatial_dims=spatial_dims, stride=stride, downsample=downsample
             )
         ]
 

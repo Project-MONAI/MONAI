@@ -259,12 +259,7 @@ class RandShiftIntensity(RandomizableTransform):
             return None
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
 
-    def __call__(
-        self,
-        img: NdarrayOrTensor,
-        factor: Optional[float] = None,
-        randomize: bool = True,
-    ) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, factor: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
 
@@ -441,8 +436,7 @@ class ScaleIntensity(Transform):
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
                 return torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
-            else:
-                return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
+            return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
         if self.factor is not None:
             ret = img * (1 + self.factor)
             ret, *_ = convert_data_type(ret, dtype=self.dtype)
@@ -459,10 +453,7 @@ class RandScaleIntensity(RandomizableTransform):
     backend = ScaleIntensity.backend
 
     def __init__(
-        self,
-        factors: Union[Tuple[float, float], float],
-        prob: float = 0.1,
-        dtype: DtypeLike = np.float32,
+        self, factors: Union[Tuple[float, float], float], prob: float = 0.1, dtype: DtypeLike = np.float32
     ) -> None:
         """
         Args:
@@ -521,6 +512,8 @@ class RandBiasField(RandomizableTransform):
 
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(
         self,
         degree: int = 3,
@@ -560,24 +553,23 @@ class RandBiasField(RandomizableTransform):
             return np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
         raise NotImplementedError("only supports 2D or 3D fields")
 
-    def randomize(self, data: np.ndarray) -> None:
+    def randomize(self, img_size: Sequence[int]) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, len(data.shape[1:]) + 1)]))
+        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, len(img_size) + 1)]))
         self._coeff = self.R.uniform(*self.coeff_range, n_coeff).tolist()
 
-    def __call__(self, img: np.ndarray, randomize: bool = True):
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
         if randomize:
-            self.randomize(data=img)
+            self.randomize(img_size=img.shape[1:])
 
         if not self._do_transform:
             return img
 
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         num_channels, *spatial_shape = img.shape
         _bias_fields = np.stack(
             [
@@ -586,7 +578,10 @@ class RandBiasField(RandomizableTransform):
             ],
             axis=0,
         )
-        return (img * np.exp(_bias_fields)).astype(self.dtype)
+        img_np, *_ = convert_data_type(img, np.ndarray)
+        out = img_np * np.exp(_bias_fields)
+        out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype)
+        return out
 
 
 class NormalizeIntensity(Transform):
@@ -1784,6 +1779,8 @@ class RandCoarseTransform(RandomizableTransform):
 
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(
         self,
         holes: int,
@@ -1823,15 +1820,18 @@ class RandCoarseTransform(RandomizableTransform):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def __call__(self, img: np.ndarray, randomize: bool = True):
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         if randomize:
             self.randomize(img.shape[1:])
 
         if not self._do_transform:
             return img
 
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-        return self._transform_holes(img=img)
+        img_np: np.ndarray
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        out = self._transform_holes(img=img_np)
+        ret, *_ = convert_to_dst_type(src=out, dst=img)
+        return ret
 
 
 class RandCoarseDropout(RandCoarseTransform):
@@ -1876,11 +1876,7 @@ class RandCoarseDropout(RandCoarseTransform):
         prob: float = 0.1,
     ) -> None:
         super().__init__(
-            holes=holes,
-            spatial_size=spatial_size,
-            max_holes=max_holes,
-            max_spatial_size=max_spatial_size,
-            prob=prob,
+            holes=holes, spatial_size=spatial_size, max_holes=max_holes, max_spatial_size=max_spatial_size, prob=prob
         )
         self.dropout_holes = dropout_holes
         if isinstance(fill_value, (tuple, list)):

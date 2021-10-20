@@ -94,8 +94,7 @@ class PatchEmbeddingBlock(nn.Module):
             to_chars = f"b ({' '.join([c[0] for c in chars])}) ({' '.join([c[1] for c in chars])} c)"
             axes_len = {f"p{i+1}": p for i, p in enumerate(patch_size)}
             self.patch_embeddings = nn.Sequential(
-                Rearrange(f"{from_chars} -> {to_chars}", **axes_len),
-                nn.Linear(self.patch_dim, hidden_size),
+                Rearrange(f"{from_chars} -> {to_chars}", **axes_len), nn.Linear(self.patch_dim, hidden_size)
             )
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
         self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))

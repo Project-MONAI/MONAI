@@ -81,21 +81,12 @@ class NetAdapter(torch.nn.Module):
         self.fc: Union[torch.nn.Linear, torch.nn.Conv2d, torch.nn.Conv3d]
         if use_conv:
             # add 1x1 conv (it behaves like a FC layer)
-            self.fc = Conv[Conv.CONV, dim](
-                in_channels=in_channels_,
-                out_channels=num_classes,
-                kernel_size=1,
-                bias=bias,
-            )
+            self.fc = Conv[Conv.CONV, dim](in_channels=in_channels_, out_channels=num_classes, kernel_size=1, bias=bias)
         else:
             # remove the last Linear layer (fully connected)
             self.features = torch.nn.Sequential(*layers[:-1])
             # replace the out_features of FC layer
-            self.fc = torch.nn.Linear(
-                in_features=in_channels_,
-                out_features=num_classes,
-                bias=bias,
-            )
+            self.fc = torch.nn.Linear(in_features=in_channels_, out_features=num_classes, bias=bias)
         self.use_conv = use_conv
 
     def forward(self, x):

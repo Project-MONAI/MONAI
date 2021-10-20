@@ -202,9 +202,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         def _run_postprocessing(engine: Engine) -> None:
             if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
                 engine.state.batch, engine.state.output = engine_apply_transform(
-                    batch=engine.state.batch,
-                    output=engine.state.output,
-                    transform=posttrans,
+                    batch=engine.state.batch, output=engine.state.output, transform=posttrans
                 )
             else:
                 for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):

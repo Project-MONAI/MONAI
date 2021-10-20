@@ -147,11 +147,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             )
 
         return [
-            {
-                "image": image_files_list[i],
-                "label": image_class[i],
-                "class_name": class_name[i],
-            }
+            {"image": image_files_list[i], "label": image_class[i], "class_name": class_name[i]}
             for i in section_indices
         ]
 
@@ -366,13 +362,7 @@ class CrossValidation:
 
     """
 
-    def __init__(
-        self,
-        dataset_cls,
-        nfolds: int = 5,
-        seed: int = 0,
-        **dataset_params,
-    ) -> None:
+    def __init__(self, dataset_cls, nfolds: int = 5, seed: int = 0, **dataset_params) -> None:
         if not hasattr(dataset_cls, "_split_datalist"):
             raise ValueError("dataset class must have _split_datalist API.")
         self.dataset_cls = dataset_cls

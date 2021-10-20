@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandCoarseShuffle
@@ -31,14 +32,19 @@ TEST_CASES = [
                     [[8, 19, 26], [24, 6, 15], [0, 13, 25]],
                     [[17, 3, 5], [10, 1, 12], [22, 4, 11]],
                     [[21, 20, 23], [14, 2, 16], [18, 9, 7]],
-                ],
-            ],
+                ]
+            ]
         ),
     ],
     [
         {"holes": 2, "spatial_size": 1, "max_spatial_size": -1, "prob": 1.0},
         {"img": np.arange(16).reshape((2, 2, 2, 2))},
         np.asarray([[[[6, 1], [4, 3]], [[0, 2], [7, 5]]], [[[14, 10], [9, 8]], [[12, 15], [13, 11]]]]),
+    ],
+    [
+        {"holes": 2, "spatial_size": 1, "max_spatial_size": -1, "prob": 1.0},
+        {"img": torch.arange(16).reshape((2, 2, 2, 2))},
+        torch.as_tensor([[[[6, 1], [4, 3]], [[0, 2], [7, 5]]], [[[14, 10], [9, 8]], [[12, 15], [13, 11]]]]),
     ],
 ]
 

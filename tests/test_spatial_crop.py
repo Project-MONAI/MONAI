@@ -19,38 +19,16 @@ from monai.transforms import SpatialCrop
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = [
-    [
-        {"roi_center": [1, 1, 1], "roi_size": [2, 2, 2]},
-        (3, 3, 3, 3),
-        (3, 2, 2, 2),
-    ],
+    [{"roi_center": [1, 1, 1], "roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
     [{"roi_start": [0, 0, 0], "roi_end": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
     [{"roi_start": [0, 0], "roi_end": [2, 2]}, (3, 3, 3, 3), (3, 2, 2, 3)],
-    [
-        {"roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]},
-        (3, 3, 3, 3),
-        (3, 2, 2, 2),
-    ],
-    [
-        {"roi_start": [0, 0, 0, 0, 0], "roi_end": [8, 8, 8, 2, 2]},
-        (3, 3, 3, 3),
-        (3, 3, 3, 3),
-    ],
-    [
-        {"roi_start": [1, 0, 0], "roi_end": [1, 8, 8]},
-        (3, 3, 3, 3),
-        (3, 0, 3, 3),
-    ],
-    [
-        {"roi_slices": [slice(s, e) for s, e in zip([-1, -2, 0], [None, None, 2])]},
-        (3, 3, 3, 3),
-        (3, 1, 2, 2),
-    ],
+    [{"roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
+    [{"roi_start": [0, 0, 0, 0, 0], "roi_end": [8, 8, 8, 2, 2]}, (3, 3, 3, 3), (3, 3, 3, 3)],
+    [{"roi_start": [1, 0, 0], "roi_end": [1, 8, 8]}, (3, 3, 3, 3), (3, 0, 3, 3)],
+    [{"roi_slices": [slice(s, e) for s, e in zip([-1, -2, 0], [None, None, 2])]}, (3, 3, 3, 3), (3, 1, 2, 2)],
 ]
 
-TEST_ERRORS = [
-    [{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}],
-]
+TEST_ERRORS = [[{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}]]
 
 
 class TestSpatialCrop(unittest.TestCase):

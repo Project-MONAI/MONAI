@@ -369,10 +369,7 @@ class EfficientNet(nn.Module):
                 )
                 idx += 1  # increment blocks index counter
 
-            self._blocks.add_module(
-                str(stack_idx),
-                sub_stack,
-            )
+            self._blocks.add_module(str(stack_idx), sub_stack)
 
         # sanity check to see if len(self._blocks) equal expected num_blocks
         if idx != num_blocks:

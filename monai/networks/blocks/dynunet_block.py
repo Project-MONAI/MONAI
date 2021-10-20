@@ -58,22 +58,10 @@ class UnetResBlock(nn.Module):
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims,
-            out_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            stride=1,
-            dropout=dropout,
-            conv_only=True,
+            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, dropout=dropout, conv_only=True
         )
         self.conv3 = get_conv_layer(
-            spatial_dims,
-            in_channels,
-            out_channels,
-            kernel_size=1,
-            stride=stride,
-            dropout=dropout,
-            conv_only=True,
+            spatial_dims, in_channels, out_channels, kernel_size=1, stride=stride, dropout=dropout, conv_only=True
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
         self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
@@ -137,13 +125,7 @@ class UnetBasicBlock(nn.Module):
             conv_only=True,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims,
-            out_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            stride=1,
-            dropout=dropout,
-            conv_only=True,
+            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, dropout=dropout, conv_only=True
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
         self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
@@ -266,8 +248,7 @@ def get_conv_layer(
 
 
 def get_padding(
-    kernel_size: Union[Sequence[int], int],
-    stride: Union[Sequence[int], int],
+    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int]
 ) -> Union[Tuple[int, ...], int]:
 
     kernel_size_np = np.atleast_1d(kernel_size)
@@ -281,9 +262,7 @@ def get_padding(
 
 
 def get_output_padding(
-    kernel_size: Union[Sequence[int], int],
-    stride: Union[Sequence[int], int],
-    padding: Union[Sequence[int], int],
+    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int], padding: Union[Sequence[int], int]
 ) -> Union[Tuple[int, ...], int]:
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)

@@ -60,14 +60,7 @@ for p in TEST_NDARRAYS:
                 "image_meta_dict": {"affine": np.eye(4)},
                 "seg_meta_dict": {"affine": np.eye(4)},
             },
-            dict(
-                keys=("image", "seg"),
-                mode="nearest",
-                pixdim=(
-                    1,
-                    0.2,
-                ),
-            ),
+            dict(keys=("image", "seg"), mode="nearest", pixdim=(1, 0.2)),
             ("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"),
             (2, 1, 46),
             np.diag((1, 0.2, 1, 1)),

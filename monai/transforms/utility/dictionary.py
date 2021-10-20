@@ -550,10 +550,7 @@ class ToNumpyd(MapTransform):
     backend = ToNumpy.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        dtype: Optional[DtypeLike] = None,
-        allow_missing_keys: bool = False,
+        self, keys: KeysCollection, dtype: Optional[DtypeLike] = None, allow_missing_keys: bool = False
     ) -> None:
         """
         Args:
@@ -665,12 +662,7 @@ class DeleteItemsd(MapTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        sep: str = ".",
-        use_re: Union[Sequence[bool], bool] = False,
-    ) -> None:
+    def __init__(self, keys: KeysCollection, sep: str = ".", use_re: Union[Sequence[bool], bool] = False) -> None:
         """
         Args:
             keys: keys of the corresponding items to delete, can be "A{sep}B{sep}C"
@@ -794,15 +786,7 @@ class DataStatsd(MapTransform):
         for key, prefix, data_type, data_shape, value_range, data_value, additional_info in self.key_iterator(
             d, self.prefix, self.data_type, self.data_shape, self.value_range, self.data_value, self.additional_info
         ):
-            d[key] = self.printer(
-                d[key],
-                prefix,
-                data_type,
-                data_shape,
-                value_range,
-                data_value,
-                additional_info,
-            )
+            d[key] = self.printer(d[key], prefix, data_type, data_shape, value_range, data_value, additional_info)
         return d
 
 
@@ -1296,14 +1280,7 @@ class TorchVisiond(MapTransform):
         data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -1340,14 +1317,7 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -1462,9 +1432,7 @@ class IntensityStatsd(MapTransform):
         ):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
             d[key], d[meta_key] = self.stats(
-                img=d[key],
-                meta_data=d.get(meta_key),
-                mask=d.get(mask_key) if mask_key is not None else None,
+                img=d[key], meta_data=d.get(meta_key), mask=d.get(mask_key) if mask_key is not None else None
             )
         return d
 
@@ -1477,11 +1445,7 @@ class ToDeviced(MapTransform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        device: Union[torch.device, str],
-        allow_missing_keys: bool = False,
-        **kwargs,
+        self, keys: KeysCollection, device: Union[torch.device, str], allow_missing_keys: bool = False, **kwargs
     ) -> None:
         """
         Args:
@@ -1520,14 +1484,7 @@ class CuCIMd(MapTransform):
         Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
         self.trans = CuCIM(name, *args, **kwargs)
 
@@ -1571,12 +1528,7 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
     """
 
-    def __init__(
-        self,
-        apply_prob: float = 1.0,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, apply_prob: float = 1.0, *args, **kwargs) -> None:
         CuCIMd.__init__(self, *args, **kwargs)
         RandomizableTransform.__init__(self, prob=apply_prob)
 

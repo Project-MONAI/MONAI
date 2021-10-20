@@ -190,12 +190,7 @@ def get_data(keys):
     data = {CommonKeys.IMAGE: image, CommonKeys.LABEL: label}
 
     transforms = Compose(
-        [
-            LoadImaged(keys),
-            AddChanneld(keys),
-            ScaleIntensityd(CommonKeys.IMAGE),
-            Rotate90d(keys, spatial_axes=[0, 2]),
-        ]
+        [LoadImaged(keys), AddChanneld(keys), ScaleIntensityd(CommonKeys.IMAGE), Rotate90d(keys, spatial_axes=[0, 2])]
     )
     data = transforms(data)
     max_size = max(data[keys[0]].shape)

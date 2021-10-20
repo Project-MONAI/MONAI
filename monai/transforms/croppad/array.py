@@ -108,9 +108,7 @@ class Pad(Transform):
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -186,9 +184,7 @@ class SpatialPad(Transform):
         return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -251,9 +247,7 @@ class BorderPad(Transform):
         self.kwargs = kwargs
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -333,9 +327,7 @@ class DivisiblePad(Transform):
         self.kwargs = kwargs
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -350,12 +342,7 @@ class DivisiblePad(Transform):
 
         """
         new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
-        spatial_pad = SpatialPad(
-            spatial_size=new_size,
-            method=self.method,
-            mode=mode or self.mode,
-            **self.kwargs,
-        )
+        spatial_pad = SpatialPad(spatial_size=new_size, method=self.method, mode=mode or self.mode, **self.kwargs)
 
         return spatial_pad(img)
 
@@ -407,25 +394,18 @@ class SpatialCrop(Transform):
         else:
             if roi_center is not None and roi_size is not None:
                 roi_center, *_ = convert_data_type(
-                    data=roi_center,
-                    output_type=torch.Tensor,
-                    dtype=torch.int16,
-                    wrap_sequence=True,
+                    data=roi_center, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
                 )
                 roi_size, *_ = convert_to_dst_type(src=roi_size, dst=roi_center, wrap_sequence=True)
                 roi_start_torch = maximum(
-                    roi_center - floor_divide(roi_size, 2),
-                    torch.zeros_like(roi_center),  # type: ignore
+                    roi_center - floor_divide(roi_size, 2), torch.zeros_like(roi_center)  # type: ignore
                 )
                 roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
                 roi_start_torch, *_ = convert_data_type(  # type: ignore
-                    data=roi_start,
-                    output_type=torch.Tensor,
-                    dtype=torch.int16,
-                    wrap_sequence=True,
+                    data=roi_start, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
                 )
                 roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))  # type: ignore
                 roi_end_torch, *_ = convert_to_dst_type(src=roi_end, dst=roi_start_torch, wrap_sequence=True)
