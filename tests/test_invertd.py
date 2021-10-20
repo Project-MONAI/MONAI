@@ -36,7 +36,7 @@ from monai.transforms import (
     Spacingd,
     ToTensord,
 )
-from monai.utils import convert_data_type, set_determinism
+from monai.utils import set_determinism
 from tests.utils import make_nifti_image
 
 KEYS = ["image", "label"]
