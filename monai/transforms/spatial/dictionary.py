@@ -379,7 +379,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            meta_data = d[transform[InverseKeys.EXTRA_INFO]["meta_key"]]
+            meta_data: Dict = d[transform[InverseKeys.EXTRA_INFO]["meta_key"]]  # type: ignore
             orig_affine = transform[InverseKeys.EXTRA_INFO]["old_affine"]
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
             inverse_transform = Orientation(

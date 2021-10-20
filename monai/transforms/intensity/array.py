@@ -17,7 +17,6 @@ from abc import abstractmethod
 from collections.abc import Iterable
 from functools import partial
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
-from unittest.loader import defaultTestLoader
 from warnings import warn
 
 import numpy as np
@@ -965,16 +964,16 @@ class MaskIntensity(Transform):
         if mask_data is None:
             raise ValueError("must provide the mask_data when initializing the transform or at runtime.")
 
-        mask_data, *_ = convert_to_dst_type(src=mask_data, dst=img)
+        mask_data_, *_ = convert_to_dst_type(src=mask_data, dst=img)
 
-        mask_data = self.select_fn(mask_data)
-        if mask_data.shape[0] != 1 and mask_data.shape[0] != img.shape[0]:
+        mask_data_ = self.select_fn(mask_data_)
+        if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
             raise ValueError(
                 "When mask_data is not single channel, mask_data channels must match img, "
-                f"got img channels={img.shape[0]} mask_data channels={mask_data.shape[0]}."
+                f"got img channels={img.shape[0]} mask_data channels={mask_data_.shape[0]}."
             )
 
-        return img * mask_data
+        return img * mask_data_
 
 
 class SavitzkyGolaySmooth(Transform):
@@ -1057,6 +1056,7 @@ class DetectEnvelope(Transform):
             np.ndarray containing envelope of data in img along the specified axis.
 
         """
+        img_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         # add one to transform axis because a batch axis will be added at dimension 0
         hilbert_transform = HilbertTransform(self.axis + 1, self.n)

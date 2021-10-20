@@ -188,8 +188,8 @@ class Spacing(Transform):
             affine_np = affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_np, *_ = convert_data_type(affine, np.ndarray)
-            affine_ = to_affine_nd(sr, affine_np)  # type: ignore
+            affine_np, *_ = convert_data_type(affine, np.ndarray)  # type: ignore
+            affine_ = to_affine_nd(sr, affine_np)
 
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
@@ -226,7 +226,7 @@ class Spacing(Transform):
 
         output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=torch.float32)
         new_affine = to_affine_nd(affine_np, new_affine)  # type: ignore
-        new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine)
+        new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
 
         if self.image_only:
             return output_data
@@ -303,8 +303,8 @@ class Orientation(Transform):
             affine_np = affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_np, *_ = convert_data_type(affine, np.ndarray)
-            affine_ = to_affine_nd(sr, affine_np)  # type: ignore
+            affine_np, *_ = convert_data_type(affine, np.ndarray)  # type: ignore
+            affine_ = to_affine_nd(sr, affine_np)
 
         src = nib.io_orientation(affine_)
         if self.as_closest_canonical:
@@ -326,7 +326,7 @@ class Orientation(Transform):
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
         new_affine = to_affine_nd(affine_np, new_affine)
         out, *_ = convert_to_dst_type(src=data_array_np, dst=data_array)
-        new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine)
+        new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
 
         if self.image_only:
             return out
