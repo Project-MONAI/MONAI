@@ -66,6 +66,8 @@ class StatsHandler:
                 By default this value logging happens when every iteration completed.
                 The default behavior is to print loss from output[0] as output is a decollated list
                 and we replicated loss value for every item of the decollated list.
+                if output is list of dictionaries, the output_transform can be:
+                `lambda x: x[0]["loss"]` or `from_engine(["loss"], first=True)`.
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to print synced epoch number
                 with the trainer engine.

@@ -50,6 +50,8 @@ class MetricsSaver:
         batch_transform: a callable that is used to extract the `meta_data` dictionary of
             the input images from `ignite.engine.state.batch` if saving metric details. the purpose is to get the
             input filenames from the `meta_data` and store with metric details together.
+            for example, if already decollated data in postprocessing, the batch_transform can be:
+            `lambda x: [i["image_meta_dict"] for i in x]` or `from_engine("image_meta_dict")`.
         summary_ops: expected computation operations to generate the summary report.
             it can be: None, "*" or list of strings, default to None.
             None - don't generate summary report for every expected metric_details.

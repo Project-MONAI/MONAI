@@ -36,8 +36,10 @@ class ROCAUC(IgniteMetric):  # type: ignore[valid-type, misc]  # due to optional
         output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
             construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
             lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-            for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
-            output_transform can be `lambda x: (x["pred"], x["label"])`.
+            for example, if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
+            output_transform can be `lambda x: (x["pred"], x["label"])` or `from_engine(["pred", "label"])`.
+            if already decollated data in postprocessing, the output_transform can be:
+            `lambda x: ([i["pred"] for i in x], [i["label"] for i in x])` or `from_engine(["pred", "label"])`.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's.

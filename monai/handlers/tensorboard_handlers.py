@@ -105,6 +105,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 By default this value plotting happens when every iteration completed.
                 The default behavior is to print loss from output[0] as output is a decollated list
                 and we replicated loss value for every item of the decollated list.
+                if output is list of dictionaries, the output_transform can be:
+                `lambda x: x[0]["loss"]` or `from_engine(["loss"], first=True)`.
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number
                 when plotting epoch vs metric curves.
@@ -275,9 +277,13 @@ class TensorBoardImageHandler(TensorBoardHandler):
             batch_transform: a callable that is used to extract `image` and `label` from `ignite.engine.state.batch`,
                 then construct `(image, label)` pair. for example: if `ignite.engine.state.batch` is `{"image": xxx,
                 "label": xxx, "other": xxx}`, `batch_transform` can be `lambda x: (x["image"], x["label"])`.
+                if already decollated data in postprocessing, the batch_transform can be:
+                `lambda x: ([i["image"] for i in x], [i["label"] for i in x])` or `from_engine(["image", "label"])`.
                 will use the result to plot image from `result[0][index]` and plot label from `result[1][index]`.
             output_transform: a callable that is used to extract the `predictions` data from
                 `ignite.engine.state.output`, will use the result to plot output from `result[index]`.
+                for example, if already decollated data in postprocessing, the output_transform can be:
+                `lambda x: [i["pred"] for i in x]` or `from_engine("pred")`.
             global_iter_transform: a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
