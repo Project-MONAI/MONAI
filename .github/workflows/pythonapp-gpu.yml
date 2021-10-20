@@ -43,9 +43,9 @@ jobs:
           - environment: PT19+CUDA114
             # we explicitly set pytorch to -h to avoid pip install error
             # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
-            # 21.08: 1.10.0a0+3fd9dcf
+            # 21.09: 1.10.0a0+3fd9dcf
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.08-py3"
+            base: "nvcr.io/nvidia/pytorch:21.09-py3"
           - environment: PT19+CUDA102
             pytorch: "torch==1.9.1 torchvision==0.10.1"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
@@ -100,6 +100,8 @@ jobs:
       run: |
         which python
         python -m pip install --upgrade pip wheel
+        # fixes preinstalled ruamel_yaml error from the docker image
+        rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
         python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
         python -m pip list

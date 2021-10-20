@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Sequence, Union
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.utils.misc import is_module_ver_at_least
+from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "moveaxis",
@@ -26,9 +27,13 @@ __all__ = [
     "nonzero",
     "floor_divide",
     "unravel_index",
+    "unravel_indices",
     "ravel",
     "any_np_pt",
     "maximum",
+    "concatenate",
+    "cumsum",
+    "isfinite",
 ]
 
 
@@ -91,9 +96,8 @@ def percentile(x: NdarrayOrTensor, q) -> Union[NdarrayOrTensor, float, int]:
     if np.isscalar(q):
         if not 0 <= q <= 100:
             raise ValueError
-    else:
-        if any(q < 0) or any(q > 100):
-            raise ValueError
+    elif any(q < 0) or any(q > 100):
+        raise ValueError
     result: Union[NdarrayOrTensor, float, int]
     if isinstance(x, np.ndarray):
         result = np.percentile(x, q)
@@ -114,17 +118,23 @@ def percentile(x: NdarrayOrTensor, q) -> Union[NdarrayOrTensor, float, int]:
     return result
 
 
-def where(condition: NdarrayOrTensor, x, y) -> NdarrayOrTensor:
+def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
     """
     Note that `torch.where` may convert y.dtype to x.dtype.
     """
     result: NdarrayOrTensor
     if isinstance(condition, np.ndarray):
-        result = np.where(condition, x, y)
+        if x is not None:
+            result = np.where(condition, x, y)
+        else:
+            result = np.where(condition)
     else:
-        x = torch.as_tensor(x, device=condition.device)
-        y = torch.as_tensor(y, device=condition.device, dtype=x.dtype)
-        result = torch.where(condition, x, y)
+        if x is not None:
+            x = torch.as_tensor(x, device=condition.device)
+            y = torch.as_tensor(y, device=condition.device, dtype=x.dtype)
+            result = torch.where(condition, x, y)
+        else:
+            result = torch.where(condition)  # type: ignore
     return result
 
 
@@ -167,7 +177,7 @@ def unravel_index(idx, shape):
 
     Args:
         idx: index to unravel
-        b: shape of array/tensor
+        shape: shape of array/tensor
 
     Returns:
         Index unravelled for given shape
@@ -175,10 +185,24 @@ def unravel_index(idx, shape):
     if isinstance(idx, torch.Tensor):
         coord = []
         for dim in reversed(shape):
-            coord.insert(0, idx % dim)
+            coord.append(idx % dim)
             idx = floor_divide(idx, dim)
-        return torch.stack(coord)
-    return np.unravel_index(np.asarray(idx, dtype=int), shape)
+        return torch.stack(coord[::-1])
+    return np.asarray(np.unravel_index(idx, shape))
+
+
+def unravel_indices(idx, shape):
+    """Computing unravel cooridnates from indices.
+
+    Args:
+        idx: a sequence of indices to unravel
+        shape: shape of array/tensor
+
+    Returns:
+        Stacked indices unravelled for given shape
+    """
+    lib_stack = torch.stack if isinstance(idx[0], torch.Tensor) else np.stack
+    return lib_stack([unravel_index(i, shape) for i in idx])
 
 
 def ravel(x: NdarrayOrTensor):
@@ -197,7 +221,7 @@ def ravel(x: NdarrayOrTensor):
     return np.ravel(x)
 
 
-def any_np_pt(x: NdarrayOrTensor, axis: int):
+def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]):
     """`np.any` with equivalent implementation for torch.
 
     For pytorch, convert to boolean for compatibility with older versions.
@@ -209,13 +233,18 @@ def any_np_pt(x: NdarrayOrTensor, axis: int):
     Returns:
         Return a contiguous flattened array/tensor.
     """
-    if isinstance(x, torch.Tensor):
+    if isinstance(x, np.ndarray):
+        return np.any(x, axis)
+
+    # pytorch can't handle multiple dimensions to `any` so loop across them
+    axis = [axis] if not isinstance(axis, Sequence) else axis
+    for ax in axis:
         try:
-            return torch.any(x, axis)
+            x = torch.any(x, ax)
         except RuntimeError:
             # older versions of pytorch require the input to be cast to boolean
-            return torch.any(x.bool(), axis)
-    return np.any(x, axis)
+            x = torch.any(x.bool(), ax)
+    return x
 
 
 def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -236,3 +265,38 @@ def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
             return torch.maximum(a, b)
         return torch.stack((a, b)).max(dim=0)[0]
     return np.maximum(a, b)
+
+
+def concatenate(to_cat: Sequence[NdarrayOrTensor], axis: int = 0, out=None) -> NdarrayOrTensor:
+    """`np.concatenate` with equivalent implementation for torch (`torch.cat`)."""
+    if isinstance(to_cat[0], np.ndarray):
+        return np.concatenate(to_cat, axis, out)  # type: ignore
+    return torch.cat(to_cat, dim=axis, out=out)  # type: ignore
+
+
+def cumsum(a: NdarrayOrTensor, axis=None):
+    """`np.cumsum` with equivalent implementation for torch."""
+    if isinstance(a, np.ndarray):
+        return np.cumsum(a, axis)
+    if axis is None:
+        return torch.cumsum(a[:], 0)
+    return torch.cumsum(a, dim=axis)
+
+
+def isfinite(x):
+    """`np.isfinite` with equivalent implementation for torch."""
+    if not isinstance(x, torch.Tensor):
+        return np.isfinite(x)
+    return torch.isfinite(x)
+
+
+def searchsorted(a: NdarrayOrTensor, v: NdarrayOrTensor, right=False, sorter=None):
+    side = "right" if right else "left"
+    if isinstance(a, np.ndarray):
+        return np.searchsorted(a, v, side, sorter)  # type: ignore
+    if hasattr(torch, "searchsorted"):
+        return torch.searchsorted(a, v, right=right)  # type: ignore
+    # if using old PyTorch, will convert to numpy array then compute
+    ret = np.searchsorted(a.cpu().numpy(), v.cpu().numpy(), side, sorter)  # type: ignore
+    ret, *_ = convert_to_dst_type(ret, a)
+    return ret

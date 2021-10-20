@@ -46,13 +46,7 @@ TEST_CASE_2 = [
 
 TEST_CASE_3 = [
     FILE_PATH,
-    {
-        "location": (0, 0),
-        "size": (8, 8),
-        "level": 2,
-        "grid_shape": (2, 1),
-        "patch_size": 2,
-    },
+    {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 2},
     np.array(
         [
             [[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[239, 239], [239, 239]]],
@@ -63,13 +57,7 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [
     FILE_PATH,
-    {
-        "location": (0, 0),
-        "size": (8, 8),
-        "level": 2,
-        "grid_shape": (2, 1),
-        "patch_size": 1,
-    },
+    {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
     np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
 ]
 

@@ -47,13 +47,7 @@ TEST_CASE_2 = [
 
 TEST_CASE_3 = [
     FILE_PATH,
-    {
-        "location": (0, 0),
-        "size": (8, 8),
-        "level": 2,
-        "grid_shape": (2, 1),
-        "patch_size": 2,
-    },
+    {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 2},
     np.array(
         [
             [[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[239, 239], [239, 239]]],
@@ -64,23 +58,13 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [
     FILE_PATH,
-    {
-        "location": (0, 0),
-        "size": (8, 8),
-        "level": 2,
-        "grid_shape": (2, 1),
-        "patch_size": 1,
-    },
+    {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
     np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
 ]
 
-TEST_CASE_RGB_0 = [
-    np.ones((3, 2, 2), dtype=np.uint8),  # CHW
-]
+TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
-TEST_CASE_RGB_1 = [
-    np.ones((3, 100, 100), dtype=np.uint8),  # CHW
-]
+TEST_CASE_RGB_1 = [np.ones((3, 100, 100), dtype=np.uint8)]  # CHW
 
 
 class TestCuCIMReader(unittest.TestCase):

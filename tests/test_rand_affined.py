@@ -17,7 +17,9 @@ from parameterized import parameterized
 
 from monai.transforms import RandAffined
 from monai.utils import GridSampleMode
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+
+_rtol = 1e-3 if is_tf32_env() else 1e-4
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -209,7 +211,7 @@ class TestRandAffined(unittest.TestCase):
             if "_transforms" in key:
                 continue
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
-            assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
+            assert_allclose(result, expected, rtol=_rtol, atol=1e-3)
 
         g.set_random_state(4)
         res = g(input_data)
@@ -222,13 +224,7 @@ class TestRandAffined(unittest.TestCase):
             RandAffined(device=device, spatial_size=None, prob=1.0, cache_grid=True, keys=("img", "seg"))
         with self.assertWarns(UserWarning):
             # spatial size is dynamic
-            RandAffined(
-                device=device,
-                spatial_size=(2, -1),
-                prob=1.0,
-                cache_grid=True,
-                keys=("img", "seg"),
-            )
+            RandAffined(device=device, spatial_size=(2, -1), prob=1.0, cache_grid=True, keys=("img", "seg"))
 
 
 if __name__ == "__main__":

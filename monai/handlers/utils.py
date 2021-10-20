@@ -25,12 +25,7 @@ if TYPE_CHECKING:
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
-__all__ = [
-    "stopping_fn_from_metric",
-    "stopping_fn_from_loss",
-    "write_metrics_reports",
-    "from_engine",
-]
+__all__ = ["stopping_fn_from_metric", "stopping_fn_from_loss", "write_metrics_reports", "from_engine"]
 
 
 def stopping_fn_from_metric(metric_name: str):
@@ -50,7 +45,7 @@ def stopping_fn_from_loss():
     """
 
     def stopping_fn(engine: Engine):
-        return -engine.state.output
+        return -engine.state.output  # type:ignore
 
     return stopping_fn
 

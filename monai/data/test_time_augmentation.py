@@ -184,9 +184,7 @@ class TestTimeAugmentation:
             transform_info = batch_data[transform_key]
             if self.nearest_interp:
                 transform_info = convert_inverse_interp_mode(
-                    trans_info=deepcopy(transform_info),
-                    mode="nearest",
-                    align_corners=None,
+                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
                 )
 
             # create a dictionary containing the inferred batch and their transforms

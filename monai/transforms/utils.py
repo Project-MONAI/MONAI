@@ -25,7 +25,16 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform, apply_transform
-from monai.transforms.utils_pytorch_numpy_unification import any_np_pt, nonzero, ravel, unravel_index
+from monai.transforms.utils_pytorch_numpy_unification import (
+    any_np_pt,
+    cumsum,
+    isfinite,
+    nonzero,
+    ravel,
+    searchsorted,
+    unravel_index,
+    where,
+)
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -43,7 +52,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
@@ -180,11 +189,7 @@ def rescale_array_int_max(arr: np.ndarray, dtype: DtypeLike = np.uint16) -> np.n
 
 
 def copypaste_arrays(
-    src_shape,
-    dest_shape,
-    srccenter: Sequence[int],
-    destcenter: Sequence[int],
-    dims: Sequence[Optional[int]],
+    src_shape, dest_shape, srccenter: Sequence[int], destcenter: Sequence[int], dims: Sequence[Optional[int]]
 ) -> Tuple[Tuple[slice, ...], Tuple[slice, ...]]:
     """
     Calculate the slices to copy a sliced area of array in `src_shape` into array in `dest_shape`.
@@ -261,9 +266,7 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
 
 
 def map_binary_to_indices(
-    label: NdarrayOrTensor,
-    image: Optional[NdarrayOrTensor] = None,
-    image_threshold: float = 0.0,
+    label: NdarrayOrTensor, image: Optional[NdarrayOrTensor] = None, image_threshold: float = 0.0
 ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Compute the foreground and background of input label data, return the indices after fattening.
@@ -286,13 +289,14 @@ def map_binary_to_indices(
     fg_indices = nonzero(label_flat)
     if image is not None:
         img_flat = ravel(any_np_pt(image > image_threshold, 0))
-        img_flat, *_ = convert_data_type(
-            img_flat, type(label), device=label.device if isinstance(label, torch.Tensor) else None
-        )
+        img_flat, *_ = convert_to_dst_type(img_flat, label, dtype=img_flat.dtype)
         bg_indices = nonzero(img_flat & ~label_flat)
     else:
         bg_indices = nonzero(~label_flat)
 
+    # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
+    fg_indices, *_ = convert_data_type(fg_indices, device=torch.device("cpu"))
+    bg_indices, *_ = convert_data_type(bg_indices, device=torch.device("cpu"))
     return fg_indices, bg_indices
 
 
@@ -338,14 +342,16 @@ def map_classes_to_indices(
     for c in range(num_classes_):
         label_flat = ravel(any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0))
         label_flat = img_flat & label_flat if img_flat is not None else label_flat
-        indices.append(nonzero(label_flat))
+        # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
+        cls_indices, *_ = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))
+        indices.append(cls_indices)
 
     return indices
 
 
 def weighted_patch_samples(
     spatial_size: Union[int, Sequence[int]],
-    w: np.ndarray,
+    w: NdarrayOrTensor,
     n_samples: int = 1,
     r_state: Optional[np.random.RandomState] = None,
 ) -> List:
@@ -374,36 +380,45 @@ def weighted_patch_samples(
     s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
     v = w[s]  # weight map in the 'valid' mode
     v_size = v.shape
-    v = v.ravel()
-    if np.any(v < 0):
-        v -= np.min(v)  # shifting to non-negative
-    v = v.cumsum()
-    if not v[-1] or not np.isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
+    v = ravel(v)
+    if (v < 0).any():
+        v -= v.min()  # shifting to non-negative
+    v = cumsum(v)
+    if not v[-1] or not isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
-        idx = v.searchsorted(r_state.random(n_samples) * v[-1], side="right")
+        r, *_ = convert_to_dst_type(r_state.random(n_samples), v)  # type: ignore
+        idx = searchsorted(v, r * v[-1], right=True)
+    idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
-    return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=int)]
+    diff, *_ = convert_to_dst_type(diff, v)  # type: ignore
+    return [unravel_index(i, v_size) + diff for i in idx]
 
 
 def correct_crop_centers(
     centers: List[Union[int, torch.Tensor]],
     spatial_size: Union[Sequence[int], int],
     label_spatial_shape: Sequence[int],
-) -> List[int]:
+    allow_smaller: bool = False,
+):
     """
     Utility to correct the crop center if the crop size is bigger than the image size.
 
     Args:
-        ceters: pre-computed crop centers, will correct based on the valid region.
+        centers: pre-computed crop centers of every dim, will correct based on the valid region.
         spatial_size: spatial size of the ROIs to be sampled.
         label_spatial_shape: spatial shape of the original label data to compare with ROI.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     """
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
-    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
-        raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+    if any(np.subtract(label_spatial_shape, spatial_size) < 0):
+        if not allow_smaller:
+            raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+        spatial_size = tuple(min(l, s) for l, s in zip(label_spatial_shape, spatial_size))
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(spatial_size, 2)
@@ -424,9 +439,7 @@ def correct_crop_centers(
             center_i = valid_end[i] - 1
         centers[i] = center_i
 
-    corrected_centers: List[int] = [c.item() if isinstance(c, torch.Tensor) else c for c in centers]  # type: ignore
-
-    return corrected_centers
+    return centers
 
 
 def generate_pos_neg_label_crop_centers(
@@ -437,6 +450,7 @@ def generate_pos_neg_label_crop_centers(
     fg_indices: NdarrayOrTensor,
     bg_indices: NdarrayOrTensor,
     rand_state: Optional[np.random.RandomState] = None,
+    allow_smaller: bool = False,
 ) -> List[List[int]]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
@@ -450,6 +464,9 @@ def generate_pos_neg_label_crop_centers(
         fg_indices: pre-computed foreground indices in 1 dimension.
         bg_indices: pre-computed background indices in 1 dimension.
         rand_state: numpy randomState object to align with other modules.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     Raises:
         ValueError: When the proposed roi is larger than the image.
@@ -478,8 +495,7 @@ def generate_pos_neg_label_crop_centers(
         idx = indices_to_use[random_int]
         center = unravel_index(idx, label_spatial_shape)
         # shift center to range of valid centers
-        center_ori = list(center)
-        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
+        centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
     return centers
 
@@ -491,6 +507,7 @@ def generate_label_classes_crop_centers(
     indices: Sequence[NdarrayOrTensor],
     ratios: Optional[List[Union[float, int]]] = None,
     rand_state: Optional[np.random.RandomState] = None,
+    allow_smaller: bool = False,
 ) -> List[List[int]]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
@@ -504,6 +521,9 @@ def generate_label_classes_crop_centers(
         ratios: ratios of every class in the label to generate crop centers, including background class.
             if None, every class will have the same ratio to generate crop centers.
         rand_state: numpy randomState object to align with other modules.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     """
     if rand_state is None:
@@ -513,7 +533,7 @@ def generate_label_classes_crop_centers(
         raise ValueError("num_samples must be an int number and greater than 0.")
     ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
     if len(ratios_) != len(indices):
-        raise ValueError("random crop radios must match the number of indices of classes.")
+        raise ValueError("random crop ratios must match the number of indices of classes.")
     if any(i < 0 for i in ratios_):
         raise ValueError("ratios should not contain negative number.")
 
@@ -531,7 +551,7 @@ def generate_label_classes_crop_centers(
         center = unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
-        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
+        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape, allow_smaller))
 
     return centers
 
@@ -561,7 +581,7 @@ def create_grid(
         return _create_grid_numpy(spatial_size, spacing, homogeneous, dtype)
     if _backend == TransformBackends.TORCH:
         return _create_grid_torch(spatial_size, spacing, homogeneous, dtype, device)
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_grid_numpy(
@@ -662,7 +682,7 @@ def create_rotate(
             cos_func=lambda th: torch.cos(torch.as_tensor(th, dtype=torch.float32, device=device)),
             eye_func=lambda rank: torch.eye(rank, device=device),
         )
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_rotate(
@@ -747,7 +767,7 @@ def create_shear(
         return _create_shear(
             spatial_dims=spatial_dims, coefs=coefs, eye_func=lambda rank: torch.eye(rank, device=device)
         )
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_shear(spatial_dims: int, coefs: Union[Sequence[float], float], eye_func=np.eye) -> NdarrayOrTensor:
@@ -790,7 +810,7 @@ def create_scale(
             scaling_factor=scaling_factor,
             array_func=lambda x: torch.diag(torch.as_tensor(x, device=device)),
         )
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_scale(
@@ -825,7 +845,7 @@ def create_translate(
             eye_func=lambda x: torch.eye(torch.as_tensor(x), device=device),  # type: ignore
             array_func=lambda x: torch.as_tensor(x, device=device),  # type: ignore
         )
-    raise ValueError("backend {} is not supported".format(backend))
+    raise ValueError(f"backend {backend} is not supported")
 
 
 def _create_translate(
@@ -839,7 +859,7 @@ def _create_translate(
 
 
 def generate_spatial_bounding_box(
-    img: np.ndarray,
+    img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
     channel_indices: Optional[IndexSelection] = None,
     margin: Union[Sequence[int], int] = 0,
@@ -864,7 +884,7 @@ def generate_spatial_bounding_box(
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
     """
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
-    data = np.any(select_fn(data), axis=0)
+    data = select_fn(data).any(0)
     ndim = len(data.shape)
     margin = ensure_tuple_rep(margin, ndim)
     for m in margin:
@@ -875,13 +895,18 @@ def generate_spatial_bounding_box(
     box_end = [0] * ndim
 
     for di, ax in enumerate(itertools.combinations(reversed(range(ndim)), ndim - 1)):
-        dt = data.any(axis=ax)
-        if not np.any(dt):
+        dt = data
+        if len(ax) != 0:
+            dt = any_np_pt(dt, ax)
+
+        if not dt.any():
             # if no foreground, return all zero bounding box coords
             return [0] * ndim, [0] * ndim
 
-        min_d = max(np.argmax(dt) - margin[di], 0)
-        max_d = max(data.shape[di] - max(np.argmax(dt[::-1]) - margin[di], 0), min_d + 1)
+        arg_max = where(dt == dt.max())[0]
+        min_d = max(arg_max[0] - margin[di], 0)
+        max_d = arg_max[-1] + margin[di] + 1
+
         box_start[di], box_end[di] = min_d, max_d
 
     return box_start, box_end
@@ -966,7 +991,7 @@ def fill_holes(
 
 
 def get_extreme_points(
-    img: np.ndarray, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
+    img: NdarrayOrTensor, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
 ) -> List[Tuple[int, ...]]:
     """
     Generate extreme points from an image. These are used to generate initial segmentation
@@ -990,7 +1015,7 @@ def get_extreme_points(
     """
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
-    indices = np.where(img != background)
+    indices = where(img != background)
     if np.size(indices[0]) == 0:
         raise ValueError("get_extreme_points: no foreground object in mask!")
 
@@ -1002,7 +1027,9 @@ def get_extreme_points(
             val : value for comparison
             dim : dimension in which to look for value
         """
-        idx = rand_state.choice(np.where(indices[dim] == val)[0])
+        idx = where(indices[dim] == val)[0]
+        idx = idx.cpu() if isinstance(idx, torch.Tensor) else idx
+        idx = rand_state.choice(idx)
         pt = []
         for j in range(img.ndim):
             # add +- pert to each dimension
@@ -1014,19 +1041,19 @@ def get_extreme_points(
 
     points = []
     for i in range(img.ndim):
-        points.append(tuple(_get_point(np.min(indices[i][...]), i)))
-        points.append(tuple(_get_point(np.max(indices[i][...]), i)))
+        points.append(tuple(_get_point(indices[i].min(), i)))
+        points.append(tuple(_get_point(indices[i].max(), i)))
 
     return points
 
 
 def extreme_points_to_image(
     points: List[Tuple[int, ...]],
-    label: np.ndarray,
+    label: NdarrayOrTensor,
     sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
     rescale_min: float = -1.0,
     rescale_max: float = 1.0,
-):
+) -> torch.Tensor:
     """
     Please refer to :py:class:`monai.transforms.AddExtremePointsChannel` for the usage.
 
@@ -1044,27 +1071,30 @@ def extreme_points_to_image(
         rescale_max: maximum value of output data.
     """
     # points to image
-    points_image = torch.zeros(label.shape[1:], dtype=torch.float)
+    # points_image = torch.zeros(label.shape[1:], dtype=torch.float)
+    points_image = torch.zeros_like(torch.as_tensor(label[0]), dtype=torch.float)
     for p in points:
         points_image[p] = 1.0
+
+    if isinstance(sigma, Sequence):
+        sigma = [torch.as_tensor(s, device=points_image.device) for s in sigma]
+    else:
+        sigma = torch.as_tensor(sigma, device=points_image.device)
 
     # add channel and add batch
     points_image = points_image.unsqueeze(0).unsqueeze(0)
     gaussian_filter = GaussianFilter(label.ndim - 1, sigma=sigma)
-    points_image = gaussian_filter(points_image).squeeze(0).detach().numpy()
+    points_image = gaussian_filter(points_image).squeeze(0).detach()
 
     # rescale the points image to [rescale_min, rescale_max]
-    min_intensity = np.min(points_image)
-    max_intensity = np.max(points_image)
+    min_intensity = points_image.min()
+    max_intensity = points_image.max()
     points_image = (points_image - min_intensity) / (max_intensity - min_intensity)
-    points_image = points_image * (rescale_max - rescale_min) + rescale_min
-    return points_image
+    return points_image * (rescale_max - rescale_min) + rescale_min
 
 
 def map_spatial_axes(
-    img_ndim: int,
-    spatial_axes: Optional[Union[Sequence[int], int]] = None,
-    channel_first: bool = True,
+    img_ndim: int, spatial_axes: Optional[Union[Sequence[int], int]] = None, channel_first: bool = True
 ) -> List[int]:
     """
     Utility to map the spatial axes to real axes in channel first/last shape.
@@ -1203,8 +1233,8 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
 
 
 def equalize_hist(
-    img: np.ndarray,
-    mask: Optional[np.ndarray] = None,
+    img: NdarrayOrTensor,
+    mask: Optional[NdarrayOrTensor] = None,
     num_bins: int = 256,
     min: int = 0,
     max: int = 255,
@@ -1226,8 +1256,14 @@ def equalize_hist(
         dtype: data type of the output, default to `float32`.
 
     """
-    orig_shape = img.shape
-    hist_img = img[np.array(mask, dtype=bool)] if mask is not None else img
+    img_np: np.ndarray
+    img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    mask_np: Optional[np.ndarray] = None
+    if mask is not None:
+        mask_np, *_ = convert_data_type(mask, np.ndarray)  # type: ignore
+
+    orig_shape = img_np.shape
+    hist_img = img_np[np.array(mask_np, dtype=bool)] if mask_np is not None else img_np
     if has_skimage:
         hist, bins = exposure.histogram(hist_img.flatten(), num_bins)
     else:
@@ -1239,9 +1275,9 @@ def equalize_hist(
     cum = rescale_array(arr=cum, minv=min, maxv=max)
 
     # apply linear interpolation
-    img = np.interp(img.flatten(), bins, cum)
+    img_np = np.interp(img_np.flatten(), bins, cum)
 
-    return img.reshape(orig_shape).astype(dtype)
+    return img_np.reshape(orig_shape).astype(dtype)
 
 
 class Fourier:
@@ -1253,7 +1289,7 @@ class Fourier:
     @deprecated_arg(
         name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
-    def shift_fourier(x: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
+    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
@@ -1270,16 +1306,23 @@ class Fourier:
         """
         if n_dims is not None:
             spatial_dims = n_dims
-        k: torch.Tensor = torch.fft.fftshift(
-            torch.fft.fftn(x, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
-        )
+        dims = tuple(range(-spatial_dims, 0))
+        k: NdarrayOrTensor
+        if isinstance(x, torch.Tensor):
+            if hasattr(torch.fft, "fftshift"):
+                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
+            else:
+                # if using old PyTorch, will convert to numpy array and return
+                k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
+        else:
+            k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
         return k
 
     @staticmethod
     @deprecated_arg(
         name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
-    def inv_shift_fourier(k: torch.Tensor, spatial_dims: int, n_dims: Optional[int] = None) -> torch.Tensor:
+    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
@@ -1296,10 +1339,17 @@ class Fourier:
         """
         if n_dims is not None:
             spatial_dims = n_dims
-        x: torch.Tensor = torch.fft.ifftn(
-            torch.fft.ifftshift(k, dim=tuple(range(-spatial_dims, 0))), dim=tuple(range(-spatial_dims, 0))
-        ).real
-        return x
+        dims = tuple(range(-spatial_dims, 0))
+        out: NdarrayOrTensor
+        if isinstance(k, torch.Tensor):
+            if hasattr(torch.fft, "ifftshift"):
+                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
+            else:
+                # if using old PyTorch, will convert to numpy array and return
+                out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
+        else:
+            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
+        return out
 
 
 def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Optional[Hashable] = None) -> int:
@@ -1356,24 +1406,30 @@ def get_transform_backends():
             continue
         unique_transforms.append(obj)
 
-        if isclass(obj) and issubclass(obj, Transform):
-            if n in [
-                "Transform",
+        if (
+            isclass(obj)
+            and issubclass(obj, Transform)
+            and n
+            not in [
+                "BatchInverseTransform",
+                "Compose",
+                "Decollated",
+                "InvertD",
                 "InvertibleTransform",
                 "Lambda",
                 "LambdaD",
-                "Compose",
-                "RandomizableTransform",
+                "MapTransform",
                 "OneOf",
-                "BatchInverseTransform",
-                "InverteD",
-            ]:
-                continue
-
-            backends[n] = [
-                TransformBackends.TORCH in obj.backend,
-                TransformBackends.NUMPY in obj.backend,
+                "PadListDataCollate",
+                "RandLambda",
+                "RandLambdaD",
+                "RandTorchVisionD",
+                "RandomizableTransform",
+                "TorchVisionD",
+                "Transform",
             ]
+        ):
+            backends[n] = [TransformBackends.TORCH in obj.backend, TransformBackends.NUMPY in obj.backend]
     return backends
 
 
@@ -1390,7 +1446,7 @@ def print_transform_backends():
         print(f"\033[{color}m{t}\033[00m")
 
     def print_table_column(name, torch, numpy, color=Colors.none):
-        print_color("{:<50} {:<8} {:<8}".format(name, torch, numpy), color)
+        print_color(f"{name:<50} {torch:<8} {numpy:<8}", color)
 
     backends = get_transform_backends()
     n_total = len(backends)

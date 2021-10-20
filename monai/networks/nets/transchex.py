@@ -27,15 +27,7 @@ cached_path = optional_import("transformers.file_utils", name="cached_path")[0]
 BertEmbeddings = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")[0]
 BertLayer = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")[0]
 
-__all__ = [
-    "BertPreTrainedModel",
-    "BertAttention",
-    "BertOutput",
-    "BertMixedLayer",
-    "Pooler",
-    "MultiModal",
-    "Transchex",
-]
+__all__ = ["BertPreTrainedModel", "BertAttention", "BertOutput", "BertMixedLayer", "Pooler", "MultiModal", "Transchex"]
 
 
 class BertPreTrainedModel(nn.Module):
@@ -48,7 +40,7 @@ class BertPreTrainedModel(nn.Module):
     """
 
     def __init__(self, *inputs, **kwargs) -> None:
-        super(BertPreTrainedModel, self).__init__()
+        super().__init__()
 
     def init_bert_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
@@ -134,10 +126,7 @@ class BertAttention(nn.Module):
     https://github.com/huggingface/transformers
     """
 
-    def __init__(
-        self,
-        config,
-    ) -> None:
+    def __init__(self, config) -> None:
         super().__init__()
         self.num_attention_heads = config.num_attention_heads
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
@@ -176,7 +165,7 @@ class BertOutput(nn.Module):
     """
 
     def __init__(self, config) -> None:
-        super(BertOutput, self).__init__()
+        super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.LayerNorm = torch.nn.LayerNorm(config.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -194,10 +183,7 @@ class BertMixedLayer(nn.Module):
     https://github.com/huggingface/transformers
     """
 
-    def __init__(
-        self,
-        config,
-    ) -> None:
+    def __init__(self, config) -> None:
         super().__init__()
         self.att = BertAttention(config)
         self.output = BertOutput(config)
@@ -213,11 +199,8 @@ class Pooler(nn.Module):
     https://github.com/huggingface/transformers
     """
 
-    def __init__(
-        self,
-        hidden_size,
-    ) -> None:
-        super(Pooler, self).__init__()
+    def __init__(self, hidden_size) -> None:
+        super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.activation = nn.Tanh()
 
@@ -234,11 +217,7 @@ class MultiModal(BertPreTrainedModel):
     """
 
     def __init__(
-        self,
-        num_language_layers: int,
-        num_vision_layers: int,
-        num_mixed_layers: int,
-        bert_config: dict,  # type: ignore
+        self, num_language_layers: int, num_vision_layers: int, num_mixed_layers: int, bert_config: dict  # type: ignore
     ) -> None:
         """
         Args:
@@ -331,7 +310,7 @@ class Transchex(torch.nn.Module):
                                  drop_out=0.2)
 
         """
-        super(Transchex, self).__init__()
+        super().__init__()
         bert_config = {
             "attention_probs_dropout_prob": attention_probs_dropout_prob,
             "classifier_dropout": None,

@@ -59,7 +59,7 @@ class ResNetBlock(nn.Module):
             stride: stride to use for first conv layer.
             downsample: which downsample layer to use.
         """
-        super(ResNetBlock, self).__init__()
+        super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
@@ -111,7 +111,7 @@ class ResNetBottleneck(nn.Module):
             downsample: which downsample layer to use.
         """
 
-        super(ResNetBottleneck, self).__init__()
+        super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
@@ -192,7 +192,7 @@ class ResNet(nn.Module):
         n_classes: Optional[int] = None,
     ) -> None:
 
-        super(ResNet, self).__init__()
+        super().__init__()
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes == 400:
             num_classes = n_classes
@@ -276,11 +276,7 @@ class ResNet(nn.Module):
 
         layers = [
             block(
-                in_planes=self.in_planes,
-                planes=planes,
-                spatial_dims=spatial_dims,
-                stride=stride,
-                downsample=downsample,
+                in_planes=self.in_planes, planes=planes, spatial_dims=spatial_dims, stride=stride, downsample=downsample
             )
         ]
 

@@ -11,25 +11,26 @@ Model training is often a time-consuming step during deep learning development,
 especially for medical imaging applications. Even with powerful hardware (e.g.
 CPU/GPU with large RAM), the workflows often require careful profiling and
 tuning to achieve high performance. MONAI has been focusing on performance
-enhancements, and in this version, [a fast model training
-guide](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md)
-is provided to help build highly performant workflows, with a comprehensive
-overview of the profiling tools and practical strategies.  The following figure
-shows the use of [Nvidia Nsight™ Systems](https://developer.nvidia.com/nsight-systems) for system-wide performance analysis during
-a performance enhancement study.
+enhancements, and in this version, a fast model training guide is provided
+to help build highly performant workflows, with a comprehensive overview of
+the profiling tools and practical strategies:
+https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md.
+
+The following figure shows the use of [Nvidia Nsight™ Systems](https://developer.nvidia.com/nsight-systems) for system-wide
+performance analysis during a performance enhancement study.
 ![nsight_vis](../images/nsight_comparison.png)
 
 With the performance profiling and enhancements, several typical use cases were studied to
 improve the training efficiency.  The following figure shows that fast
-training using MONAI can be 20 times faster than a regular baseline ([learn
-more](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb)).
+training using MONAI can be `200` times faster than a regular baseline ([learn
+more](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb)), and it's `20` times faster than the MONAI v0.6 fast training solution.
 ![fast_training](../images/fast_training.png)
 
 ## Major usability improvements in `monai.transforms` for NumPy/PyTorch inputs and backends
 
  MONAI starts to roll out major usability enhancements for the
  `monai.transforms` module. Many transforms are now supporting both NumPy and
- PyTorch, as input types and computational backends.
+ PyTorch, as input types and computational backends. To get the supported backends of every transform, please execute: `python monai/transforms/utils.py`.
 
 One benefit of these enhancements is that the users can now better leverage the
 GPUs for preprocessing. By transferring the input data onto GPU using

@@ -31,7 +31,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import in1d, moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
 from monai.utils import (
     convert_data_type,
     convert_to_cupy,
@@ -45,6 +45,7 @@ from monai.utils import (
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
+from monai.utils.type_conversion import convert_to_dst_type
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -577,7 +578,7 @@ class DataStats(Transform):
         lines = [f"{prefix or self.prefix} statistics:"]
 
         if self.data_type if data_type is None else data_type:
-            lines.append(f"Type: {type(img)}")
+            lines.append(f"Type: {type(img)} {img.dtype if hasattr(img, 'dtype') else None}")
         if self.data_shape if data_shape is None else data_shape:
             lines.append(f"Shape: {img.shape}")
         if self.value_range if value_range is None else value_range:
@@ -727,9 +728,7 @@ class LabelToMask(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(  # pytype: disable=annotation-type-mismatch
-        self,
-        select_labels: Union[Sequence[int], int],
-        merge_channels: bool = False,
+        self, select_labels: Union[Sequence[int], int], merge_channels: bool = False
     ) -> None:  # pytype: disable=annotation-type-mismatch
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
@@ -789,16 +788,18 @@ class FgBgToIndices(Transform):
 
     """
 
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
+
     def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
         self.image_threshold = image_threshold
         self.output_shape = output_shape
 
     def __call__(
         self,
-        label: np.ndarray,
-        image: Optional[np.ndarray] = None,
+        label: NdarrayOrTensor,
+        image: Optional[NdarrayOrTensor] = None,
         output_shape: Optional[Sequence[int]] = None,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
         Args:
             label: input data to compute foreground and background indices.
@@ -807,22 +808,19 @@ class FgBgToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
-        fg_indices: np.ndarray
-        bg_indices: np.ndarray
-        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
-        if image is not None:
-            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
         if output_shape is None:
             output_shape = self.output_shape
-        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)  # type: ignore
+        fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
         if output_shape is not None:
-            fg_indices = np.stack([np.unravel_index(i, output_shape) for i in fg_indices])
-            bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
-
+            fg_indices = unravel_indices(fg_indices, output_shape)
+            bg_indices = unravel_indices(bg_indices, output_shape)
         return fg_indices, bg_indices
 
 
 class ClassesToIndices(Transform):
+
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
+
     def __init__(
         self,
         num_classes: Optional[int] = None,
@@ -849,10 +847,10 @@ class ClassesToIndices(Transform):
 
     def __call__(
         self,
-        label: np.ndarray,
-        image: Optional[np.ndarray] = None,
+        label: NdarrayOrTensor,
+        image: Optional[NdarrayOrTensor] = None,
         output_shape: Optional[Sequence[int]] = None,
-    ) -> List[np.ndarray]:
+    ) -> List[NdarrayOrTensor]:
         """
         Args:
             label: input data to compute the indices of every class.
@@ -861,16 +859,13 @@ class ClassesToIndices(Transform):
             output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
 
         """
-        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
-        if image is not None:
-            image, *_ = convert_data_type(image, np.ndarray)  # type: ignore
 
         if output_shape is None:
             output_shape = self.output_shape
-        indices: List[np.ndarray]
-        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)  # type: ignore
+        indices: List[NdarrayOrTensor]
+        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         if output_shape is not None:
-            indices = [np.stack([np.unravel_index(i, output_shape) for i in array]) for array in indices]
+            indices = [unravel_indices(cls_indices, output_shape) for cls_indices in indices]
 
         return indices
 
@@ -891,9 +886,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         if img.ndim == 4 and img.shape[0] == 1:
             img = np.squeeze(img, axis=0)
 
-        result = []
-        # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
-        result.append(np.logical_or(img == 1, img == 4))
+        result = [np.logical_or(img == 1, img == 4)]
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
         result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
         # label 4 is ET
@@ -921,22 +914,24 @@ class AddExtremePointsChannel(Randomizable, Transform):
         ValueError: When label image is not single channel.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, background: int = 0, pert: float = 0.0) -> None:
         self._background = background
         self._pert = pert
         self._points: List[Tuple[int, ...]] = []
 
-    def randomize(self, label: np.ndarray) -> None:
+    def randomize(self, label: NdarrayOrTensor) -> None:
         self._points = get_extreme_points(label, rand_state=self.R, background=self._background, pert=self._pert)
 
     def __call__(
         self,
-        img: np.ndarray,
-        label: Optional[np.ndarray] = None,
+        img: NdarrayOrTensor,
+        label: Optional[NdarrayOrTensor] = None,
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 3.0,
         rescale_min: float = -1.0,
         rescale_max: float = 1.0,
-    ):
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: the image that we want to add new channel to.
@@ -953,17 +948,14 @@ class AddExtremePointsChannel(Randomizable, Transform):
         if label.shape[0] != 1:
             raise ValueError("Only supports single channel labels!")
 
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-        label, *_ = convert_data_type(label, np.ndarray)  # type: ignore
-
         # Generate extreme points
         self.randomize(label[0, :])
 
         points_image = extreme_points_to_image(
             points=self._points, label=label, sigma=sigma, rescale_min=rescale_min, rescale_max=rescale_max
         )
-
-        return np.concatenate([img, points_image], axis=0)
+        points_image, *_ = convert_to_dst_type(points_image, img)  # type: ignore
+        return concatenate((img, points_image), axis=0)
 
 
 class TorchVision:
@@ -1064,10 +1056,7 @@ class IntensityStats(Transform):
         self.channel_wise = channel_wise
 
     def __call__(
-        self,
-        img: np.ndarray,
-        meta_data: Optional[Dict] = None,
-        mask: Optional[np.ndarray] = None,
+        self, img: np.ndarray, meta_data: Optional[Dict] = None, mask: Optional[np.ndarray] = None
     ) -> Tuple[np.ndarray, Dict]:
         """
         Compute statistics for the intensity of input image.
@@ -1128,6 +1117,8 @@ class ToDevice(Transform):
         So usually suggest to set `num_workers=0` in the `DataLoader` or `ThreadDataLoader`.
 
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, device: Union[torch.device, str], **kwargs) -> None:
         """

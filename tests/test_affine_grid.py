@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import AffineGrid
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -33,11 +33,7 @@ for p in TEST_NDARRAYS:
         TESTS.append([{"device": device}, {"grid": p(torch.ones((3, 3, 3)))}, p(np.ones((3, 3, 3)))])
         TESTS.append(
             [
-                {
-                    "rotate_params": (1.0, 1.0),
-                    "scale_params": (-20, 10),
-                    "device": device,
-                },
+                {"rotate_params": (1.0, 1.0), "scale_params": (-20, 10), "device": device},
                 {"grid": p(torch.ones((3, 3, 3)))},
                 p(
                     torch.tensor(
@@ -60,11 +56,7 @@ for p in TEST_NDARRAYS:
         )
         TESTS.append(
             [
-                {
-                    "rotate_params": (1.0, 1.0, 1.0),
-                    "scale_params": (-20, 10),
-                    "device": device,
-                },
+                {"rotate_params": (1.0, 1.0, 1.0), "scale_params": (-20, 10), "device": device},
                 {"grid": p(torch.ones((4, 3, 3, 3)))},
                 p(
                     torch.tensor(
@@ -107,6 +99,8 @@ for p in TEST_NDARRAYS:
             ]
         )
 
+_rtol = 5e-2 if is_tf32_env() else 1e-4
+
 
 class TestAffineGrid(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -115,7 +109,7 @@ class TestAffineGrid(unittest.TestCase):
         result, _ = g(**input_data)
         if "device" in input_data:
             self.assertEqual(result.device, input_data[device])
-        assert_allclose(result, expected_val, type_test=False, rtol=1e-4, atol=1e-4)
+        assert_allclose(result, expected_val, type_test=False, rtol=_rtol)
 
 
 if __name__ == "__main__":

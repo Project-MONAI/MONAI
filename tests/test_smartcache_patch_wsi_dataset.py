@@ -134,13 +134,7 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
     def setUp(self):
         download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     @skipUnless(has_cim, "Requires CuCIM")
     def test_read_patches(self, input_parameters, expected):
         dataset = SmartCachePatchWSIDataset(**input_parameters)

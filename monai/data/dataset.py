@@ -989,7 +989,7 @@ class ZipDataset(Dataset):
         super().__init__(list(datasets), transform=transform)
 
     def __len__(self) -> int:
-        return min((len(dataset) for dataset in self.data))
+        return min(len(dataset) for dataset in self.data)
 
     def _transform(self, index: int):
         def to_list(x):
@@ -1218,11 +1218,6 @@ class CSVDataset(Dataset):
         files = ensure_tuple(filename)
         dfs = [pd.read_csv(f) for f in files]
         data = convert_tables_to_dicts(
-            dfs=dfs,
-            row_indices=row_indices,
-            col_names=col_names,
-            col_types=col_types,
-            col_groups=col_groups,
-            **kwargs,
+            dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
         super().__init__(data=data, transform=transform)

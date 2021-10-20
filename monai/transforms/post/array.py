@@ -25,7 +25,7 @@ from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
-from monai.utils import deprecated_arg, ensure_tuple, look_up_option
+from monai.utils import TransformBackends, deprecated_arg, ensure_tuple, look_up_option
 
 __all__ = [
     "Activations",
@@ -56,6 +56,8 @@ class Activations(Transform):
         TypeError: When ``other`` is not an ``Optional[Callable]``.
 
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None) -> None:
         self.sigmoid = sigmoid
@@ -133,6 +135,8 @@ class AsDiscrete(Transform):
         ``n_classes`` is deprecated, use ``num_classes`` instead.
 
     """
+
+    backend = [TransformBackends.TORCH]
 
     @deprecated_arg("n_classes", since="0.6")
     def __init__(
@@ -643,10 +647,7 @@ class ProbNMS(Transform):
         self.box_lower_bd = self.box_size // 2
         self.box_upper_bd = self.box_size - self.box_lower_bd
 
-    def __call__(
-        self,
-        prob_map: Union[np.ndarray, torch.Tensor],
-    ):
+    def __call__(self, prob_map: Union[np.ndarray, torch.Tensor]):
         """
         prob_map: the input probabilities map, it must have shape (H[, W, ...]).
         """
@@ -655,9 +656,8 @@ class ProbNMS(Transform):
                 prob_map = torch.as_tensor(prob_map, dtype=torch.float)
             self.filter.to(prob_map)
             prob_map = self.filter(prob_map)
-        else:
-            if not isinstance(prob_map, torch.Tensor):
-                prob_map = prob_map.copy()
+        elif not isinstance(prob_map, torch.Tensor):
+            prob_map = prob_map.copy()
 
         if isinstance(prob_map, torch.Tensor):
             prob_map = prob_map.detach().cpu().numpy()

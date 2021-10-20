@@ -18,15 +18,7 @@ from monai.networks.nets import Unet
 from monai.optimizers import generate_param_groups
 from monai.utils import ensure_tuple
 
-TEST_CASE_1 = [
-    {
-        "layer_matches": [lambda x: x.model[-1]],
-        "match_types": "select",
-        "lr_values": [1],
-    },
-    (1, 100),
-    [5, 21],
-]
+TEST_CASE_1 = [{"layer_matches": [lambda x: x.model[-1]], "match_types": "select", "lr_values": [1]}, (1, 100), [5, 21]]
 
 TEST_CASE_2 = [
     {
@@ -39,11 +31,7 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [
-    {
-        "layer_matches": [lambda x: x.model[2][1].conv[0].conv],
-        "match_types": ["select"],
-        "lr_values": [1],
-    },
+    {"layer_matches": [lambda x: x.model[2][1].conv[0].conv], "match_types": ["select"], "lr_values": [1]},
     (1, 100),
     [2, 24],
 ]
@@ -59,12 +47,7 @@ TEST_CASE_4 = [
 ]
 
 TEST_CASE_5 = [
-    {
-        "layer_matches": [lambda x: x.model[-1]],
-        "match_types": ["select"],
-        "lr_values": [1],
-        "include_others": False,
-    },
+    {"layer_matches": [lambda x: x.model[-1]], "match_types": ["select"], "lr_values": [1], "include_others": False},
     (1),
     [5],
 ]
@@ -86,12 +69,7 @@ class TestGenerateParamGroups(unittest.TestCase):
     def test_lr_values(self, input_param, expected_values, expected_groups):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         net = Unet(
-            dimensions=3,
-            in_channels=1,
-            out_channels=3,
-            channels=(16, 32, 64),
-            strides=(2, 2),
-            num_res_units=1,
+            dimensions=3, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=1
         ).to(device)
 
         params = generate_param_groups(network=net, **input_param)
@@ -107,12 +85,7 @@ class TestGenerateParamGroups(unittest.TestCase):
         """overlapped"""
         device = "cuda" if torch.cuda.is_available() else "cpu"
         net = Unet(
-            dimensions=3,
-            in_channels=1,
-            out_channels=3,
-            channels=(16, 32, 64),
-            strides=(2, 2),
-            num_res_units=1,
+            dimensions=3, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=1
         ).to(device)
 
         params = generate_param_groups(

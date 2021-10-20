@@ -18,7 +18,7 @@ from torch.nn.functional import interpolate
 
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
 
-__all__ = ["DynUNet", "DynUnet", "Dynunet", "dynunet"]
+__all__ = ["DynUNet", "DynUnet", "Dynunet"]
 
 
 class DynUNetSkipLayer(nn.Module):
@@ -78,6 +78,9 @@ class DynUNet(nn.Module):
     For example, if `strides=((1, 2, 4), 2, 1, 1)`, the minimal spatial size of the input is `(8, 16, 32)`, and
     the spatial size of the output is `(8, 8, 8)`.
 
+    Usage example with medical segmentation decathlon dataset is available at:
+    https://github.com/Project-MONAI/tutorials/tree/master/modules/dynunet_pipeline.
+
     Args:
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
@@ -122,7 +125,7 @@ class DynUNet(nn.Module):
         deep_supr_num: int = 1,
         res_block: bool = False,
     ):
-        super(DynUNet, self).__init__()
+        super().__init__()
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -193,11 +196,11 @@ class DynUNet(nn.Module):
         for idx, k_i in enumerate(kernels):
             kernel, stride = k_i, strides[idx]
             if not isinstance(kernel, int):
-                error_msg = "length of kernel_size in block {} should be the same as spatial_dims.".format(idx)
+                error_msg = f"length of kernel_size in block {idx} should be the same as spatial_dims."
                 if len(kernel) != self.spatial_dims:
                     raise AssertionError(error_msg)
             if not isinstance(stride, int):
-                error_msg = "length of stride in block {} should be the same as spatial_dims.".format(idx)
+                error_msg = f"length of stride in block {idx} should be the same as spatial_dims."
                 if len(stride) != self.spatial_dims:
                     raise AssertionError(error_msg)
 
@@ -308,4 +311,4 @@ class DynUNet(nn.Module):
                 module.bias = nn.init.constant_(module.bias, 0)
 
 
-DynUnet = Dynunet = dynunet = DynUNet
+DynUnet = Dynunet = DynUNet
