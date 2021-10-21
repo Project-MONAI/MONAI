@@ -38,7 +38,18 @@ __all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 
 
-def get_logger(module_name="monai.apps", fmt=DEFAULT_FMT, datefmt=None):
+def get_logger(
+    module_name: str = "monai.apps",
+    fmt: str = DEFAULT_FMT,
+    datefmt: Optional[str] = None,
+    logger_handler: Optional[logging.Handler] = None,
+):
+    """
+    Get a `module_name` logger with the specified format and date format.
+    By default, the logger will print to `stdout` at the INFO level.
+    If `module_name` is `None`, return the root logger.
+    `logger_handler` can be used to add an additional handler.
+    """
     logger = logging.getLogger(module_name)
     logger.propagate = False
     logger.setLevel(logging.INFO)
@@ -46,6 +57,8 @@ def get_logger(module_name="monai.apps", fmt=DEFAULT_FMT, datefmt=None):
     formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+    if logger_handler is not None:
+        logger.addHandler(logger_handler)
     return logger
 
 
