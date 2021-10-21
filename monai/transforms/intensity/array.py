@@ -224,9 +224,9 @@ class ShiftIntensity(Transform):
 
         offset = self.offset if offset is None else offset
         out = img + offset
-        if isinstance(out, torch.Tensor):
-            return out.type(img.dtype)
-        return out.astype(img.dtype)  # type: ignore
+        out, *_ = convert_data_type(data=out, dtype=img.dtype)
+
+        return out
 
 
 class RandShiftIntensity(RandomizableTransform):
@@ -941,11 +941,13 @@ class MaskIntensity(Transform):
 
     """
 
-    def __init__(self, mask_data: Optional[np.ndarray] = None, select_fn: Callable = is_positive) -> None:
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(self, mask_data: Optional[NdarrayOrTensor] = None, select_fn: Callable = is_positive) -> None:
         self.mask_data = mask_data
         self.select_fn = select_fn
 
-    def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor, mask_data: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
         """
         Args:
             mask_data: if mask data is single channel, apply to every channel
@@ -958,21 +960,20 @@ class MaskIntensity(Transform):
             - ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
 
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         mask_data = self.mask_data if mask_data is None else mask_data
         if mask_data is None:
             raise ValueError("must provide the mask_data when initializing the transform or at runtime.")
 
-        mask_data, *_ = convert_data_type(mask_data, np.ndarray)  # type: ignore
+        mask_data_, *_ = convert_to_dst_type(src=mask_data, dst=img)
 
-        mask_data = np.asarray(self.select_fn(mask_data))
-        if mask_data.shape[0] != 1 and mask_data.shape[0] != img.shape[0]:
+        mask_data_ = self.select_fn(mask_data_)
+        if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
             raise ValueError(
                 "When mask_data is not single channel, mask_data channels must match img, "
-                f"got img channels={img.shape[0]} mask_data channels={mask_data.shape[0]}."
+                f"got img channels={img.shape[0]} mask_data channels={mask_data_.shape[0]}."
             )
 
-        return np.asarray(img * mask_data)
+        return img * mask_data_
 
 
 class SavitzkyGolaySmooth(Transform):
@@ -1032,6 +1033,8 @@ class DetectEnvelope(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
 
         if PT_BEFORE_1_7:
@@ -1043,7 +1046,7 @@ class DetectEnvelope(Transform):
         self.axis = axis
         self.n = n
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor):
         """
 
         Args:
@@ -1053,12 +1056,15 @@ class DetectEnvelope(Transform):
             np.ndarray containing envelope of data in img along the specified axis.
 
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         # add one to transform axis because a batch axis will be added at dimension 0
         hilbert_transform = HilbertTransform(self.axis + 1, self.n)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
-        return np.abs(hilbert_transform(input_data).squeeze(0).numpy())
+        out = hilbert_transform(img_t.unsqueeze(0)).squeeze(0).abs()
+        out, *_ = convert_to_dst_type(src=out, dst=img)
+
+        return out
 
 
 class GaussianSmooth(Transform):

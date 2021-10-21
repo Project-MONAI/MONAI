@@ -36,7 +36,7 @@ from monai.transforms import (
     Spacingd,
     ToTensord,
 )
-from monai.utils.misc import set_determinism
+from monai.utils import set_determinism
 from tests.utils import make_nifti_image
 
 KEYS = ["image", "label"]
@@ -134,7 +134,7 @@ class TestInvertd(unittest.TestCase):
                 torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
                 self.assertTupleEqual(i.shape[1:], (100, 101, 107))
                 i = item["label_inverted"]
-                np.testing.assert_allclose(i.astype(np.uint8).astype(np.float32), i.astype(np.float32))
+                torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
                 self.assertTupleEqual(i.shape[1:], (100, 101, 107))
                 # test inverted test_dict
                 self.assertTrue(isinstance(item["test_dict"]["affine"], np.ndarray))
@@ -152,7 +152,7 @@ class TestInvertd(unittest.TestCase):
                 self.assertTupleEqual(d.shape, (1, 100, 101, 107))
 
         # check labels match
-        reverted = item["label_inverted"].astype(np.int32)
+        reverted = item["label_inverted"].detach().cpu().numpy().astype(np.int32)
         original = LoadImaged(KEYS)(data[-1])["label"]
         n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
         reverted_name = item["label_inverted_meta_dict"]["filename_or_obj"]
