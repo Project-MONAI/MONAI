@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - releasing/*
+      - 3168-torch-1-10
   pull_request:
 
 concurrency:
