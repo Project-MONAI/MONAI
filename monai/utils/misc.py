@@ -22,7 +22,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.utils.module import get_torch_version_tuple, version_leq
+from monai.utils.module import version_leq
 
 __all__ = [
     "zip_with",
@@ -256,12 +256,10 @@ def set_determinism(
     else:  # restore the original flags
         torch.backends.cudnn.deterministic = _flag_deterministic
         torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
-
     if use_deterministic_algorithms is not None:
-        torch_ver = get_torch_version_tuple()
-        if torch_ver >= (1, 9):
+        if hasattr(torch, "use_deterministic_algorithms"):
             torch.use_deterministic_algorithms(use_deterministic_algorithms)
-        elif torch_ver >= (1, 7):
+        elif hasattr(torch, "set_deterministic"):
             torch.set_deterministic(use_deterministic_algorithms)  # beta feature
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
@@ -279,9 +277,7 @@ def list_to_dict(items):
     def _parse_var(s):
         items = s.split("=", maxsplit=1)
         key = items[0].strip(" \n\r\t'")
-        value = None
-        if len(items) > 1:
-            value = items[1].strip(" \n\r\t'")
+        value = items[1].strip(" \n\r\t'") if len(items) > 1 else None
         return key, value
 
     d = {}
