@@ -260,7 +260,7 @@ def set_determinism(
         if hasattr(torch, "use_deterministic_algorithms"):
             torch.use_deterministic_algorithms(use_deterministic_algorithms)
         elif hasattr(torch, "set_deterministic"):
-            torch.set_deterministic(use_deterministic_algorithms)  # beta feature
+            torch.set_deterministic(use_deterministic_algorithms)  # type: ignore
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
 
