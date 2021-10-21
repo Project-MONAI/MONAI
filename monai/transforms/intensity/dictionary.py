@@ -871,10 +871,12 @@ class MaskIntensityd(MapTransform):
 
     """
 
+    backend = MaskIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
-        mask_data: Optional[np.ndarray] = None,
+        mask_data: Optional[NdarrayOrTensor] = None,
         mask_key: Optional[str] = None,
         select_fn: Callable = is_positive,
         allow_missing_keys: bool = False,
@@ -883,7 +885,7 @@ class MaskIntensityd(MapTransform):
         self.converter = MaskIntensity(mask_data=mask_data, select_fn=select_fn)
         self.mask_key = mask_key if mask_data is None else None
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key], d[self.mask_key]) if self.mask_key is not None else self.converter(d[key])

@@ -185,11 +185,11 @@ class Spacing(Transform):
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             # default to identity
-            affine = np.eye(sr + 1, dtype=np.float64)
+            affine_np = affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine, *_ = convert_data_type(affine, np.ndarray)
-            affine_ = to_affine_nd(sr, affine)  # type: ignore
+            affine_np, *_ = convert_data_type(affine, np.ndarray)  # type: ignore
+            affine_ = to_affine_nd(sr, affine_np)
 
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
@@ -205,8 +205,7 @@ class Spacing(Transform):
 
         # no resampling if it's identity transform
         if np.allclose(transform, np.diag(np.ones(len(transform))), atol=1e-3):
-            output_data, *_ = convert_data_type(data_array, dtype=torch.float32)
-            new_affine = to_affine_nd(affine, new_affine)  # type: ignore
+            output_data = data_array
         else:
             # resample
             affine_xform = AffineTransform(
@@ -224,8 +223,10 @@ class Spacing(Transform):
                 convert_data_type(transform, torch.Tensor, data_array_t.device, dtype=_dtype)[0],
                 spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
             ).squeeze(0)
-            output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=torch.float32)
-            new_affine = to_affine_nd(affine, new_affine)  # type: ignore
+
+        output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=torch.float32)
+        new_affine = to_affine_nd(affine_np, new_affine)  # type: ignore
+        new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
 
         if self.image_only:
             return output_data
@@ -236,6 +237,8 @@ class Orientation(Transform):
     """
     Change the input image's orientation into the specified based on `axcodes`.
     """
+
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -273,8 +276,8 @@ class Orientation(Transform):
         self.image_only = image_only
 
     def __call__(
-        self, data_array: np.ndarray, affine: Optional[np.ndarray] = None
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+        self, data_array: NdarrayOrTensor, affine: Optional[NdarrayOrTensor] = None
+    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
         """
         original orientation of `data_array` is defined by `affine`.
 
@@ -291,15 +294,18 @@ class Orientation(Transform):
             (data_array [reoriented in `self.axcodes`], original axcodes, current axcodes).
 
         """
-        data_array, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
-        sr = data_array.ndim - 1
+        data_array_np, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
+        sr = data_array_np.ndim - 1
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
-            affine = np.eye(sr + 1, dtype=np.float64)
+            # default to identity
+            affine_np = affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_ = to_affine_nd(sr, affine)
+            affine_np, *_ = convert_data_type(affine, np.ndarray)  # type: ignore
+            affine_ = to_affine_nd(sr, affine_np)
+
         src = nib.io_orientation(affine_)
         if self.as_closest_canonical:
             spatial_ornt = src
@@ -315,14 +321,16 @@ class Orientation(Transform):
         ornt = spatial_ornt.copy()
         ornt[:, 0] += 1  # skip channel dim
         ornt = np.concatenate([np.array([[0, 1]]), ornt])
-        shape = data_array.shape[1:]
-        data_array = np.ascontiguousarray(nib.orientations.apply_orientation(data_array, ornt))
+        shape = data_array_np.shape[1:]
+        data_array_np = np.ascontiguousarray(nib.orientations.apply_orientation(data_array_np, ornt))
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
-        new_affine = to_affine_nd(affine, new_affine)
+        new_affine = to_affine_nd(affine_np, new_affine)
+        out, *_ = convert_to_dst_type(src=data_array_np, dst=data_array)
+        new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
 
         if self.image_only:
-            return data_array
-        return data_array, affine, new_affine
+            return out
+        return out, affine, new_affine
 
 
 class Flip(Transform):
