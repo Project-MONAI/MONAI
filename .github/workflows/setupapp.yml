@@ -44,6 +44,7 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
+        rm -rf \$(python -c \"from distutils.sysconfig import get_python_lib; print(get_python_lib())\")/ruamel*
         python -m pip install torch==1.10.0 torchvision==0.11.1
         python -m pip install -r requirements-dev.txt
     - name: Run unit tests report coverage
