@@ -27,6 +27,7 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
 from monai.utils import TransformBackends, convert_data_type, deprecated_arg, ensure_tuple, look_up_option
+from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "Activations",
@@ -452,7 +453,9 @@ class FillHoles(Transform):
             raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
         img_np: np.ndarray
         img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-        return fill_holes(img_np, self.applied_labels, self.connectivity)
+        out_np: np.ndarray = fill_holes(img_np, self.applied_labels, self.connectivity)
+        out, *_ = convert_to_dst_type(out_np, img)
+        return out
 
 
 class LabelToContour(Transform):
@@ -593,9 +596,12 @@ class VoteEnsemble(Transform):
 
         if self.num_classes is not None:
             # if not One-Hot, use "argmax" to vote the most common class
-            return torch.argmax(img_, dim=0, keepdim=has_ch_dim)
-        # for One-Hot data, round the float number to 0 or 1
-        return torch.round(img_)
+            out_pt = torch.argmax(img_, dim=0, keepdim=has_ch_dim)
+        else:
+            # for One-Hot data, round the float number to 0 or 1
+            out_pt = torch.round(img_)
+        out, *_ = convert_to_dst_type(out_pt, img)
+        return out
 
 
 class ProbNMS(Transform):
