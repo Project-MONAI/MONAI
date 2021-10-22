@@ -34,6 +34,7 @@ __all__ = [
     "eval_mode",
     "train_mode",
     "copy_model_state",
+    "save_to_torchscript",
 ]
 
 
@@ -424,3 +425,46 @@ def copy_model_state(
     if inplace and isinstance(dst, torch.nn.Module):
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
+
+
+def save_to_torchscript(
+    model: nn.Module,
+    output_path: str,
+    verify: bool = False,
+    input_shape: Optional[Sequence[int]] = None,
+    device: Optional[torch.device] = None,
+    rtol: float = 1e-4,
+    atol: float = 0.0,
+):
+    """
+    Utility to save a model into TorchScript model with optional input / output data verification.
+
+    Args:
+        model: source PyTorch model to save.
+        output_path: the path to save converted TorchScript model.
+        verify: whether to verify the input and output of TorchScript model.
+        input_shape: shape of the input data to verify model.
+        device: target device to verify the model.
+        rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+
+    """
+    model.eval()
+    with torch.no_grad():
+        script_module = torch.jit.script(model)
+        script_module.save(output_path)
+
+    if verify:
+        if input_shape is None:
+            raise ValueError("missing input_shape argument for verification.")
+        dummy_input = torch.randn(tuple(input_shape), requires_grad=False).to(device)
+        torchscript_model = torch.jit.load(output_path).eval().to(device)
+        model = model.to(device)
+
+        with torch.no_grad():
+            torch_out = model(dummy_input)
+            torchscript_out = torchscript_model(dummy_input)
+        # compare TorchScript and PyTorch results
+        torch.testing.assert_allclose(torch_out, torchscript_out, rtol=rtol, atol=atol)
+
+    return script_module

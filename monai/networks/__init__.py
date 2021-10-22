@@ -18,6 +18,7 @@ from .utils import (
     one_hot,
     pixelshuffle,
     predict_segmentation,
+    save_to_torchscript,
     slice_channels,
     to_norm_affine,
     train_mode,
