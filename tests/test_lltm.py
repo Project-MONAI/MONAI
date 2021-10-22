@@ -15,7 +15,9 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import LLTM
-from tests.utils import SkipIfNoModule
+from tests.utils import SkipIfNoModule, is_tf32_env
+
+_rtol = 0.001 if is_tf32_env() else 0.0001
 
 TEST_CASE_1 = [
     {"input_features": 32, "state_size": 2},
@@ -50,8 +52,8 @@ class TestLLTM(unittest.TestCase):
         new_h, new_c = lltm(x, (h, c))
         (new_h.sum() + new_c.sum()).backward()
 
-        torch.testing.assert_allclose(new_h, expected_h.to(device), rtol=0.0001, atol=1e-04)
-        torch.testing.assert_allclose(new_c, expected_c.to(device), rtol=0.0001, atol=1e-04)
+        torch.testing.assert_allclose(new_h, expected_h.to(device), rtol=_rtol, atol=0.001)
+        torch.testing.assert_allclose(new_c, expected_c.to(device), rtol=_rtol, atol=0.001)
 
 
 if __name__ == "__main__":

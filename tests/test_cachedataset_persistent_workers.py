@@ -23,12 +23,7 @@ class TestTransformsWCacheDatasetAndPersistentWorkers(unittest.TestCase):
         data = [{"img": im} for _ in range(2)]
 
         # at least 1 deterministic followed by at least 1 random
-        transform = Compose(
-            [
-                Spacingd("img", pixdim=(1, 1)),
-                RandAffined("img", prob=1.0),
-            ]
-        )
+        transform = Compose([Spacingd("img", pixdim=(1, 1)), RandAffined("img", prob=1.0)])
 
         # cachedataset and data loader w persistent_workers
         train_ds = CacheDataset(data, transform, cache_num=1)

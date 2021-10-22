@@ -23,15 +23,10 @@ TEST_CASE_1 = [
     {"orig_max": 3.0, "orig_mean": 1.5},
 ]
 
-TEST_CASE_2 = [
-    {"ops": "std", "key_prefix": "orig"},
-    np.array([[[0.0, 1.0], [2.0, 3.0]]]),
-    None,
-    {"orig_std": 1.118034},
-]
+TEST_CASE_2 = [{"ops": "std", "key_prefix": "orig"}, np.array([[[0.0, 1.0], [2.0, 3.0]]]), None, {"orig_std": 1.118034}]
 
 TEST_CASE_3 = [
-    {"ops": [lambda x: np.mean(x), "max", lambda x: np.min(x)], "key_prefix": "orig"},
+    {"ops": [np.mean, "max", np.min], "key_prefix": "orig"},
     np.array([[[0.0, 1.0], [2.0, 3.0]]]),
     None,
     {"orig_custom_0": 1.5, "orig_max": 3.0, "orig_custom_1": 0.0},

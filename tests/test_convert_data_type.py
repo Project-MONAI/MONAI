@@ -24,6 +24,24 @@ for in_type in TEST_NDARRAYS + (int, float):
     for out_type in TEST_NDARRAYS:
         TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0))))  # type: ignore
 
+TESTS_LIST: List[Tuple] = []
+for in_type in TEST_NDARRAYS + (int, float):
+    for out_type in TEST_NDARRAYS:
+        TESTS_LIST.append(
+            ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True)  # type: ignore
+        )
+        TESTS_LIST.append(
+            (
+                [in_type(np.array(1.0)), in_type(np.array(1.0))],  # type: ignore
+                [out_type(np.array(1.0)), out_type(np.array(1.0))],
+                False,
+            )
+        )
+
+
+class TestTensor(torch.Tensor):
+    pass
+
 
 class TestConvertDataType(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -47,9 +65,23 @@ class TestConvertDataType(unittest.TestCase):
             convert_data_type(None, torch.Tensor)
         convert_data_type(None, np.ndarray)
 
+    @parameterized.expand(TESTS_LIST)
+    def test_convert_list(self, in_image, im_out, wrap):
+        output_type = type(im_out) if wrap else type(im_out[0])
+        converted_im, *_ = convert_data_type(in_image, output_type, wrap_sequence=wrap)
+        # check output is desired type
+        if not wrap:
+            converted_im = converted_im[0]
+            im_out = im_out[0]
+        self.assertEqual(type(converted_im), type(im_out))
+        # check dtype is unchanged
+        if isinstance(in_type, (np.ndarray, torch.Tensor)):
+            self.assertEqual(converted_im.dtype, im_out.dtype)
+
 
 class TestConvertDataSame(unittest.TestCase):
-    @parameterized.expand(TESTS)
+    # add test for subclass of Tensor
+    @parameterized.expand(TESTS + [(np.array(1.0), TestTensor(np.array(1.0)))])
     def test_convert_data_type(self, in_image, im_out):
         converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out)
         # check input is unchanged
@@ -57,7 +89,11 @@ class TestConvertDataSame(unittest.TestCase):
         if isinstance(in_image, torch.Tensor):
             self.assertEqual(in_image.device, orig_device)
         # check output is desired type
-        self.assertEqual(type(converted_im), type(im_out))
+        if isinstance(im_out, torch.Tensor):
+            output_type = torch.Tensor
+        else:
+            output_type = np.ndarray
+        self.assertEqual(type(converted_im), output_type)
         # check dtype is unchanged
         if isinstance(in_type, (np.ndarray, torch.Tensor)):
             self.assertEqual(converted_im.dtype, im_out.dtype)
