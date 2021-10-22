@@ -589,8 +589,9 @@ class CacheDataset(Dataset):
                 If num_workers is None then the number returned by os.cpu_count() is used.
             progress: whether to display a progress bar.
             copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
-                default to `True`. if the random transforms don't modify the cache content
-                or every cache item is only used once in a `multi-processing` environment,
+                default to `True`. if the random transforms don't modify the cached content
+                (for example, randomly crop from the cached image and deepcopy the crop region)
+                or if every cache item is only used once in a `multi-processing` environment,
                 may set `copy=False` for better performance.
         """
         if not isinstance(transform, Compose):

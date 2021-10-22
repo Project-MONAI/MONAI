@@ -113,9 +113,15 @@ class SegmentationSaver:
             batch_transform: a callable that is used to extract the `meta_data` dictionary of the input images
                 from `ignite.engine.state.batch`. the purpose is to extract necessary information from the meta data:
                 filename, affine, original_shape, etc.
+                `engine.state` and `batch_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             output_transform: a callable that is used to extract the model prediction data from
                 `ignite.engine.state.output`. the first dimension of its output will be treated as the batch dimension.
                 each item in the batch will be saved individually.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
