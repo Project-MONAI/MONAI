@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from .utils import (
+    convert_to_torchscript,
     copy_model_state,
     eval_mode,
     icnr_init,
@@ -18,7 +19,6 @@ from .utils import (
     one_hot,
     pixelshuffle,
     predict_segmentation,
-    save_to_torchscript,
     slice_channels,
     to_norm_affine,
     train_mode,

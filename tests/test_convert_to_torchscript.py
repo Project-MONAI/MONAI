@@ -15,7 +15,7 @@ import unittest
 
 import torch
 
-from monai.networks import save_to_torchscript
+from monai.networks import convert_to_torchscript
 from monai.networks.nets import UNet
 
 
@@ -25,7 +25,7 @@ class TestArrayDataset(unittest.TestCase):
             spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0
         )
         with tempfile.TemporaryDirectory() as tempdir:
-            torchscript_model = save_to_torchscript(
+            torchscript_model = convert_to_torchscript(
                 model=model,
                 output_path=os.path.join(tempdir, "model.ts"),
                 verify=True,
@@ -33,7 +33,7 @@ class TestArrayDataset(unittest.TestCase):
                 device="cuda" if torch.cuda.is_available() else "cpu",
                 rtol=1e-3,
             )
-            self.assertTrue(isinstance(torchscript_model, torch.jit._script.RecursiveScriptModule))
+            self.assertTrue(isinstance(torchscript_model, torch.nn.Module))
 
 
 if __name__ == "__main__":

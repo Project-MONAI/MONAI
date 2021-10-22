@@ -35,6 +35,7 @@ from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
+from monai.networks import convert_to_torchscript
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.module import version_leq
@@ -598,7 +599,7 @@ def test_script_save(net, *inputs, eval_nets=True, device=None, rtol=1e-4):
     # Convert to device
     inputs = [i.to(device) for i in inputs]
 
-    scripted = torch.jit.script(net.cpu())
+    scripted = convert_to_torchscript(net.cpu(), output_path=None)
     buffer = scripted.save_to_buffer()
     reloaded_net = torch.jit.load(BytesIO(buffer)).to(device)
     net.to(device)
