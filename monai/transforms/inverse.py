@@ -64,18 +64,11 @@ class InvertibleTransform(Transform):
     """
 
     def push_transform(
-        self,
-        data: dict,
-        key: Hashable,
-        extra_info: Optional[dict] = None,
-        orig_size: Optional[Tuple] = None,
+        self, data: dict, key: Hashable, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
     ) -> None:
         """Append to list of applied transforms for that key."""
         key_transform = str(key) + InverseKeys.KEY_SUFFIX
-        info = {
-            InverseKeys.CLASS_NAME: self.__class__.__name__,
-            InverseKeys.ID: id(self),
-        }
+        info = {InverseKeys.CLASS_NAME: self.__class__.__name__, InverseKeys.ID: id(self)}
         if orig_size is not None:
             info[InverseKeys.ORIG_SIZE] = orig_size
         elif hasattr(data[key], "shape"):
