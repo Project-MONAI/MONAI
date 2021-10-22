@@ -28,10 +28,9 @@ class MeanSquaredError(IgniteMetric):
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-                for example, if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
-                output_transform can be `lambda x: (x["pred"], x["label"])` or `from_engine(["pred", "label"])`.
-                if already decollated data in postprocessing, the output_transform can be:
-                `lambda x: ([i["pred"] for i in x], [i["label"] for i in x])` or `from_engine(["pred", "label"])`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
@@ -54,10 +53,9 @@ class MeanAbsoluteError(IgniteMetric):
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-                for example, if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
-                output_transform can be `lambda x: (x["pred"], x["label"])` or `from_engine(["pred", "label"])`.
-                if already decollated data in postprocessing, the output_transform can be:
-                `lambda x: ([i["pred"] for i in x], [i["label"] for i in x])` or `from_engine(["pred", "label"])`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
@@ -80,10 +78,9 @@ class RootMeanSquaredError(IgniteMetric):
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-                for example, if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
-                output_transform can be `lambda x: (x["pred"], x["label"])` or `from_engine(["pred", "label"])`.
-                if already decollated data in postprocessing, the output_transform can be:
-                `lambda x: ([i["pred"] for i in x], [i["label"] for i in x])` or `from_engine(["pred", "label"])`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
@@ -110,10 +107,9 @@ class PeakSignalToNoiseRatio(IgniteMetric):
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-                for example, if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
-                output_transform can be `lambda x: (x["pred"], x["label"])` or `from_engine(["pred", "label"])`.
-                if already decollated data in postprocessing, the output_transform can be:
-                `lambda x: ([i["pred"] for i in x], [i["label"] for i in x])` or `from_engine(["pred", "label"])`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
             reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,

@@ -55,13 +55,15 @@ class ClassificationSaver:
             batch_transform: a callable that is used to extract the `meta_data` dictionary of
                 the input images from `ignite.engine.state.batch`. the purpose is to get the input
                 filenames from the `meta_data` and store with classification results together.
-                for example, if already decollated data in postprocessing, the batch_transform can be:
-                `lambda x: [i["image_meta_dict"] for i in x]` or `from_engine("image_meta_dict")`.
+                `engine.state` and `batch_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             output_transform: a callable that is used to extract the model prediction data from
                 `ignite.engine.state.output`. the first dimension of its output will be treated as
                 the batch dimension. each item in the batch will be saved individually.
-                for example, if already decollated data in postprocessing, the output_transform can be:
-                `lambda x: [i["pred"] for i in x]` or `from_engine("pred")`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
             save_rank: only the handler on specified rank will save to CSV file in multi-gpus validation,
                 default to 0.
