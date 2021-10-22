@@ -73,7 +73,7 @@ class TestInvertd(unittest.TestCase):
         data = [{"image": im_fname, "label": seg_fname} for _ in range(12)]
 
         # num workers = 0 for mac or gpu transforms
-        num_workers = 0 if sys.platform == "darwin" or torch.cuda.is_available() else 2
+        num_workers = 0 if sys.platform != "linux" or torch.cuda.is_available() else 2
 
         dataset = CacheDataset(data, transform=transform, progress=False)
         loader = DataLoader(dataset, num_workers=num_workers, batch_size=5)
@@ -162,7 +162,8 @@ class TestInvertd(unittest.TestCase):
         # 25300: 2 workers (cpu, non-macos)
         # 1812: 0 workers (gpu or macos)
         # 1824: torch 1.5.1
-        self.assertTrue((reverted.size - n_good) in (34007, 1812, 1824), "diff. in 3 possible values")
+        # 1821: windows torch 1.10.0
+        self.assertTrue((reverted.size - n_good) in (34007, 1812, 1824, 1821), f"diff.  {reverted.size - n_good}")
 
         set_determinism(seed=None)
 
