@@ -120,7 +120,7 @@ class TestDeCollate(unittest.TestCase):
 
     def check_decollate(self, dataset):
         batch_size = 2
-        num_workers = 2
+        num_workers = 2 if sys.platform == "linux" else 0
 
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
