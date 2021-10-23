@@ -21,6 +21,7 @@ import torch
 import torch.nn as nn
 
 from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.module import PT_BEFORE_1_7
 
 __all__ = [
     "one_hot",
@@ -447,6 +448,7 @@ def convert_to_torchscript(
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush)
             or a string containing a file path name to save the TorchScript model.
         extra_files: map from filename to contents which will be stored as part of the save model file.
+            works for PyTorch 1.7 or later.
             for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
         verify: whether to verify the input and output of TorchScript model.
             if `output_path` is not None, load the saved TorchScript model and verify.
@@ -461,7 +463,10 @@ def convert_to_torchscript(
     with torch.no_grad():
         script_module = torch.jit.script(model)
         if filename_or_obj is not None:
-            torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
+            if PT_BEFORE_1_7:
+                torch.jit.save(m=script_module, f=filename_or_obj)
+            else:
+                torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
     if verify:
         if input_shape is None:
