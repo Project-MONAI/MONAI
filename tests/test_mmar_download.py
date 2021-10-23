@@ -109,7 +109,8 @@ class TestMMMARDownload(unittest.TestCase):
             # test model specification
             cand = get_model_spec(idx)
             self.assertEqual(cand[RemoteMMARKeys.ID], idx)
-            download_mmar(idx)
+            with self.assertLogs(level="INFO", logger="monai.apps"):
+                download_mmar(idx)
             download_mmar(idx, progress=False)  # repeated to check caching
             with tempfile.TemporaryDirectory() as tmp_dir:
                 download_mmar(idx, mmar_dir=tmp_dir, progress=False)
