@@ -15,7 +15,7 @@ import re
 import warnings
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Callable, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -429,7 +429,8 @@ def copy_model_state(
 
 def convert_to_torchscript(
     model: nn.Module,
-    output_path: Optional[str] = None,
+    filename_or_obj: Optional[Any] = None,
+    extra_files: Optional[Dict] = None,
     verify: bool = False,
     input_shape: Optional[Sequence[int]] = None,
     device: Optional[torch.device] = None,
@@ -443,7 +444,10 @@ def convert_to_torchscript(
 
     Args:
         model: source PyTorch model to save.
-        output_path: if not None, specify the path to save converted TorchScript model.
+        filename_or_obj: if not None, specify a file-like object (has to implement write and flush)
+            or a string containing a file path name to save the TorchScript model.
+        extra_files: map from filename to contents which will be stored as part of the save model file.
+            for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
         verify: whether to verify the input and output of TorchScript model.
             if `output_path` is not None, load the saved TorchScript model and verify.
         input_shape: shape of the input data to verify model.
@@ -456,14 +460,15 @@ def convert_to_torchscript(
     model.eval()
     with torch.no_grad():
         script_module = torch.jit.script(model)
-        if output_path is not None:
-            script_module.save(output_path)
+        if filename_or_obj is not None:
+            torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
     if verify:
         if input_shape is None:
             raise ValueError("missing input_shape argument for verification.")
         dummy_input = torch.randn(tuple(input_shape), requires_grad=False).to(device)
-        ts_model = (torch.jit.load(output_path) if output_path is not None else script_module).eval().to(device)
+        ts_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else script_module
+        ts_model.eval().to(device)
         model = model.to(device)
 
         with torch.no_grad():

@@ -19,19 +19,21 @@ from monai.networks import convert_to_torchscript
 from monai.networks.nets import UNet
 
 
-class TestArrayDataset(unittest.TestCase):
-    def test_shape(self):
+class TestConvertToTorchScript(unittest.TestCase):
+    def test_value(self):
         model = UNet(
             spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0
         )
         with tempfile.TemporaryDirectory() as tempdir:
             torchscript_model = convert_to_torchscript(
                 model=model,
-                output_path=os.path.join(tempdir, "model.ts"),
+                filename_or_obj=os.path.join(tempdir, "model.ts"),
+                extra_files={"foo.txt": b"bar"},
                 verify=True,
                 input_shape=(16, 1, 32, 32),
                 device="cuda" if torch.cuda.is_available() else "cpu",
                 rtol=1e-3,
+                atol=1e-4,
             )
             self.assertTrue(isinstance(torchscript_model, torch.nn.Module))
 

@@ -599,9 +599,10 @@ def test_script_save(net, *inputs, eval_nets=True, device=None, rtol=1e-4):
     # Convert to device
     inputs = [i.to(device) for i in inputs]
 
-    scripted = convert_to_torchscript(net.cpu(), output_path=None)
-    buffer = scripted.save_to_buffer()
-    reloaded_net = torch.jit.load(BytesIO(buffer)).to(device)
+    buffer = BytesIO()
+    convert_to_torchscript(net.cpu(), filename_or_obj=buffer, verify=False)
+    buffer.seek(0)
+    reloaded_net = torch.jit.load(buffer).to(device)
     net.to(device)
 
     if eval_nets:
