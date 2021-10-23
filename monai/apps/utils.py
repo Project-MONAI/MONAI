@@ -48,6 +48,8 @@ def get_logger(
     Get a `module_name` logger with the specified format and date format.
     By default, the logger will print to `stdout` at the INFO level.
     If `module_name` is `None`, return the root logger.
+    `fmt` and `datafmt` are passed to a `logging.Formatter` object
+    (https://docs.python.org/3/library/logging.html#formatter-objects).
     `logger_handler` can be used to add an additional handler.
     """
     logger = logging.getLogger(module_name)
