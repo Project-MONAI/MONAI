@@ -66,7 +66,7 @@ __all__ = [
     "is_supported_format",
     "partition_dataset",
     "partition_dataset_classes",
-    "scale_datalist",
+    "resample_datalist",
     "select_cross_validation_folds",
     "json_hashing",
     "pickle_hashing",
@@ -992,9 +992,9 @@ def partition_dataset_classes(
     return datasets
 
 
-def scale_datalist(data: Sequence, factor: float, random_pick: bool = False, seed: int = 0):
+def resample_datalist(data: Sequence, factor: float, random_pick: bool = False, seed: int = 0):
     """
-    Utility function to scale the loaded datalist for training, for example:
+    Utility function to resample the loaded datalist for training, for example:
     If factor < 1.0, randomly pick part of the datalist and set to Dataset, useful to quickly test the program.
     If factor > 1.0, repeat the datalist to enhance the Dataset.
 

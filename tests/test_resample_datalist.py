@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import scale_datalist
+from monai.data import resample_datalist
 
 TEST_CASE_1 = [
     {"data": [1, 2, 3, 4, 5], "factor": 2.5, "random_pick": True, "seed": 123},
@@ -29,10 +29,10 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [{"data": [1, 2, 3, 4, 5], "factor": 0.6, "random_pick": True, "seed": 123}, [2, 4, 5]]
 
 
-class TestScaleDatalist(unittest.TestCase):
+class TestResampleDatalist(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value_shape(self, input_param, expected):
-        result = scale_datalist(**input_param)
+        result = resample_datalist(**input_param)
         np.testing.assert_allclose(result, expected)
 
 

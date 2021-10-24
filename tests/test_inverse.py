@@ -450,7 +450,7 @@ class TestInverse(unittest.TestCase):
 
         batch_size = 10
         # num workers = 0 for mac
-        num_workers = 2 if sys.platform != "darwin" else 0
+        num_workers = 2 if sys.platform == "linux" else 0
         transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), extra_transform])
         num_invertible_transforms = sum(1 for i in transforms.transforms if isinstance(i, InvertibleTransform))
 
