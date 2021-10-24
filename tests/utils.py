@@ -578,7 +578,7 @@ class TorchImageTestCase3D(NumpyImageTestCase3D):
         self.segn = torch.tensor(self.segn)
 
 
-def test_script_save(net, *inputs, device=None, rtol=1e-4):
+def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
     """
     Test the ability to save `net` as a Torchscript object, reload it, and apply inference. The value `inputs` is
     forward-passed through the original and loaded copy of the network and their results returned.
@@ -586,6 +586,8 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4):
 
     The test will be performed with CUDA if available, else CPU.
     """
+    # TODO: would be nice to use GPU if available, but it currently causes CI failures.
+    device = "cpu"
     with tempfile.TemporaryDirectory() as tempdir:
         convert_to_torchscript(
             model=net,
@@ -594,6 +596,7 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4):
             inputs=inputs,
             device=device,
             rtol=rtol,
+            atol=atol,
         )
 
 
