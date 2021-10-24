@@ -45,18 +45,10 @@ TEST_CASE_4 = [
 ]
 
 # shape: [1]
-TEST_CASE_5 = [
-    {"num_classes": 3},
-    [torch.tensor([2]), torch.tensor([2]), torch.tensor([1])],
-    torch.tensor([2]),
-]
+TEST_CASE_5 = [{"num_classes": 3}, [torch.tensor([2]), torch.tensor([2]), torch.tensor([1])], torch.tensor([2])]
 
 # shape: 1
-TEST_CASE_6 = [
-    {"num_classes": 3},
-    [torch.tensor(2), torch.tensor(2), torch.tensor(1)],
-    torch.tensor(2),
-]
+TEST_CASE_6 = [{"num_classes": 3}, [torch.tensor(2), torch.tensor(2), torch.tensor(1)], torch.tensor(2)]
 
 
 class TestVoteEnsemble(unittest.TestCase):

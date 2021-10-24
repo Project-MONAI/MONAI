@@ -39,9 +39,7 @@ class RegressionMetric(CumulativeIterationMetric):
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__()
         self.reduction = reduction
@@ -57,9 +55,7 @@ class RegressionMetric(CumulativeIterationMetric):
 
     def _check_shape(self, y_pred: torch.Tensor, y: torch.Tensor) -> None:
         if y_pred.shape != y.shape:
-            raise ValueError(
-                "y_pred and y shapes dont match, received y_pred: [{}] and y: [{}]".format(y_pred.shape, y.shape)
-            )
+            raise ValueError(f"y_pred and y shapes dont match, received y_pred: [{y_pred.shape}] and y: [{y.shape}]")
 
         # also check if there is atleast one non-batch dimension i.e. num_dims >= 2
         if len(y_pred.shape) < 2:
@@ -96,9 +92,7 @@ class MSEMetric(RegressionMetric):
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)
@@ -130,9 +124,7 @@ class MAEMetric(RegressionMetric):
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.abs_func = torch.abs
@@ -165,9 +157,7 @@ class RMSEMetric(RegressionMetric):
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)
