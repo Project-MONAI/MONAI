@@ -30,7 +30,7 @@ class TestConvertToTorchScript(unittest.TestCase):
                 filename_or_obj=os.path.join(tempdir, "model.ts"),
                 extra_files={"foo.txt": b"bar"},
                 verify=True,
-                input_shape=(16, 1, 32, 32),
+                inputs=[torch.randn((16, 1, 32, 32), requires_grad=False)],
                 device="cuda" if torch.cuda.is_available() else "cpu",
                 rtol=1e-3,
                 atol=1e-4,

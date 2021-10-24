@@ -21,6 +21,7 @@ import torch
 import torch.nn as nn
 
 from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.misc import ensure_tuple, set_determinism
 from monai.utils.module import PT_BEFORE_1_7
 
 __all__ = [
@@ -433,7 +434,7 @@ def convert_to_torchscript(
     filename_or_obj: Optional[Any] = None,
     extra_files: Optional[Dict] = None,
     verify: bool = False,
-    input_shape: Optional[Sequence[int]] = None,
+    inputs: Optional[Sequence[Any]] = None,
     device: Optional[torch.device] = None,
     rtol: float = 1e-4,
     atol: float = 0.0,
@@ -452,11 +453,11 @@ def convert_to_torchscript(
             for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
         verify: whether to verify the input and output of TorchScript model.
             if `output_path` is not None, load the saved TorchScript model and verify.
-        input_shape: shape of the input data to verify model.
-        device: target device to verify the model.
+        inputs: input test data to verify model, should be a sequence of data, every item maps to a argument
+            of `model()` function.
+        device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
-        kwargs: besides input data, other arguments for the call function of model.
 
     """
     model.eval()
@@ -469,17 +470,25 @@ def convert_to_torchscript(
                 torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
     if verify:
-        if input_shape is None:
-            raise ValueError("missing input_shape argument for verification.")
-        dummy_input = torch.randn(tuple(input_shape), requires_grad=False).to(device)
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        if inputs is None:
+            raise ValueError("missing input data for verification.")
+
+        inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
         ts_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else script_module
         ts_model.eval().to(device)
         model = model.to(device)
 
         with torch.no_grad():
-            torch_out = model(dummy_input, **kwargs)
-            torchscript_out = ts_model(dummy_input, **kwargs)
+            set_determinism(seed=0)
+            torch_out = ensure_tuple(model(*inputs))
+            set_determinism(seed=0)
+            torchscript_out = ensure_tuple(ts_model(*inputs))
+            set_determinism(seed=None)
         # compare TorchScript and PyTorch results
-        torch.testing.assert_allclose(torch_out, torchscript_out, rtol=rtol, atol=atol)
+        for r1, r2 in zip(torch_out, torchscript_out):
+            if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
+                torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
 
     return script_module
