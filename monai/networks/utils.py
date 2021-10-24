@@ -452,7 +452,7 @@ def convert_to_torchscript(
             works for PyTorch 1.7 or later.
             for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
         verify: whether to verify the input and output of TorchScript model.
-            if `output_path` is not None, load the saved TorchScript model and verify.
+            if `filename_or_obj` is not None, load the saved TorchScript model and verify.
         inputs: input test data to verify model, should be a sequence of data, every item maps to a argument
             of `model()` function.
         device: target device to verify the model, if None, use CUDA if available.
@@ -471,7 +471,7 @@ def convert_to_torchscript(
 
     if verify:
         if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if inputs is None:
             raise ValueError("missing input data for verification.")
 
