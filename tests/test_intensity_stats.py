@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import IntensityStats
@@ -46,9 +47,16 @@ TEST_CASE_5 = [
     {"orig_max": 3.0, "orig_mean": 1.5},
 ]
 
+TEST_CASE_6 = [
+    {"ops": ["max", "mean"], "key_prefix": "orig"},
+    torch.as_tensor([[[0.0, 1.0], [2.0, 3.0]]]),
+    {"affine": None},
+    {"orig_max": 3.0, "orig_mean": 1.5},
+]
+
 
 class TestIntensityStats(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_value(self, input_param, img, meta_dict, expected):
         _, meta_dict = IntensityStats(**input_param)(img, meta_dict)
         for k, v in expected.items():

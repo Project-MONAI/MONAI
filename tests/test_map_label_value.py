@@ -12,9 +12,11 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import MapLabelValue
+from tests.utils import assert_allclose
 
 TEST_CASE_1 = [
     {"orig_labels": [3, 2, 1], "target_labels": [0, 1, 2]},
@@ -60,14 +62,26 @@ TEST_CASE_8 = [
     np.array([["label1", "label3"], ["label3", "label2"]]),
 ]
 
+TEST_CASE_9 = [
+    {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": np.int8},
+    torch.as_tensor([3.5, 1.5, 1.5, 2.5]),
+    torch.as_tensor([2, 0, 0, 1]),
+]
+
 
 class TestMapLabelValue(unittest.TestCase):
     @parameterized.expand(
-        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
+        [
+            TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5,
+            TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9,
+        ]
     )
     def test_shape(self, input_param, input_data, expected_value):
         result = MapLabelValue(**input_param)(input_data)
-        np.testing.assert_equal(result, expected_value)
+        if isinstance(result, np.ndarray):
+            np.testing.assert_equal(result, expected_value)
+        else:
+            torch.testing.assert_allclose(result, expected_value)
         self.assertTupleEqual(result.shape, expected_value.shape)
 
 

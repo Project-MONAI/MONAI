@@ -941,7 +941,7 @@ class MaskIntensity(Transform):
 
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, mask_data: Optional[NdarrayOrTensor] = None, select_fn: Callable = is_positive) -> None:
         self.mask_data = mask_data

@@ -389,11 +389,9 @@ class EnsureType(Transform):
                 if applicable.
 
         """
-        if self.data_type == "tensor":
-            dtype_ = get_equivalent_dtype(self.dtype, torch.Tensor)
-            return convert_to_tensor(data, dtype=dtype_, device=self.device)
-        dtype_ = get_equivalent_dtype(self.dtype, np.ndarray)
-        return convert_to_numpy(data, dtype=dtype_)
+        output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
+        out, *_ = convert_data_type(data, output_type=output_type, dtype=self.dtype, device=self.device)
+        return out
 
 
 class ToNumpy(Transform):
@@ -965,6 +963,7 @@ class TorchVision:
     data to be PyTorch Tensor, users can easily call `ToTensor` transform to convert a Numpy array to Tensor.
 
     """
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, name: str, *args, **kwargs) -> None:
         """
@@ -996,6 +995,7 @@ class MapLabelValue:
     The label data must be numpy array or array-like data and the output data will be numpy array.
 
     """
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, orig_labels: Sequence, target_labels: Sequence, dtype: DtypeLike = np.float32) -> None:
         """
@@ -1014,9 +1014,9 @@ class MapLabelValue:
         self.target_labels = target_labels
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray):
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-        img_flat = img.flatten()
+    def __call__(self, img: NdarrayOrTensor):
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_flat = img_np.flatten()
         try:
             out_flat = np.copy(img_flat).astype(self.dtype)
         except ValueError:
@@ -1028,7 +1028,9 @@ class MapLabelValue:
                 continue
             np.place(out_flat, img_flat == o, t)
 
-        return out_flat.reshape(img.shape)
+        out = out_flat.reshape(img_np.shape)
+        out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype)
+        return out
 
 
 class IntensityStats(Transform):
@@ -1049,6 +1051,7 @@ class IntensityStats(Transform):
             if True, return a list of values for every operation, default to False.
 
     """
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
         self.ops = ensure_tuple(ops)
@@ -1056,8 +1059,8 @@ class IntensityStats(Transform):
         self.channel_wise = channel_wise
 
     def __call__(
-        self, img: np.ndarray, meta_data: Optional[Dict] = None, mask: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, Dict]:
+        self, img: NdarrayOrTensor, meta_data: Optional[Dict] = None, mask: Optional[np.ndarray] = None
+    ) -> Tuple[NdarrayOrTensor, Dict]:
         """
         Compute statistics for the intensity of input image.
 
@@ -1068,15 +1071,14 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if meta_data is None:
             meta_data = {}
 
-        img_: np.ndarray = img
         if mask is not None:
             if mask.shape != img.shape or mask.dtype != bool:
                 raise TypeError("mask must be bool array with the same shape as input `img`.")
-            img_ = img[mask]
+            img_np = img[mask]
 
         supported_ops = {
             "mean": np.nanmean,
@@ -1095,9 +1097,9 @@ class IntensityStats(Transform):
         for o in self.ops:
             if isinstance(o, str):
                 o = look_up_option(o, supported_ops.keys())
-                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)  # type: ignore
+                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_np)  # type: ignore
             elif callable(o):
-                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
+                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_np)
                 custom_index += 1
             else:
                 raise ValueError("ops must be key string for predefined operations or callable function.")
