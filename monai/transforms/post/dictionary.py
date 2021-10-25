@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
@@ -257,6 +258,8 @@ class FillHolesd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.FillHoles`.
     """
 
+    backend = FillHoles.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -280,7 +283,7 @@ class FillHolesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = FillHoles(applied_labels=applied_labels, connectivity=connectivity)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -320,7 +323,7 @@ class Ensembled(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        ensemble: Callable[[Union[Sequence[torch.Tensor], torch.Tensor]], torch.Tensor],
+        ensemble: Callable[[Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]], NdarrayOrTensor],
         output_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -346,9 +349,9 @@ class Ensembled(MapTransform):
             raise ValueError("Incompatible values: len(self.keys) > 1 and output_key=None.")
         self.output_key = output_key if output_key is not None else self.keys[0]
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        items: Union[List[torch.Tensor], torch.Tensor]
+        items: Union[List[NdarrayOrTensor], NdarrayOrTensor]
         if len(self.keys) == 1:
             items = d[self.keys[0]]
         else:
@@ -367,7 +370,7 @@ class MeanEnsembled(Ensembled):
         self,
         keys: KeysCollection,
         output_key: Optional[str] = None,
-        weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None,
+        weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None,
     ) -> None:
         """
         Args:
@@ -395,6 +398,8 @@ class VoteEnsembled(Ensembled):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.VoteEnsemble`.
     """
+
+    backend = VoteEnsemble.backend
 
     def __init__(
         self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None
