@@ -120,7 +120,7 @@ class ValDataLoaderIter(DataLoaderIter):
 
     def __next__(self):
         self.run_counter += 1
-        return super(ValDataLoaderIter, self).__next__()
+        return super().__next__()
 
 
 def default_image_extractor(x: Any) -> torch.Tensor:
@@ -328,11 +328,7 @@ class LearningRateFinder:
                 print(f"Computing optimal learning rate, iteration {iteration + 1}/{num_iter}")
 
             # Train on batch and retrieve loss
-            loss = self._train_batch(
-                train_iter,
-                accumulation_steps,
-                non_blocking_transfer=non_blocking_transfer,
-            )
+            loss = self._train_batch(train_iter, accumulation_steps, non_blocking_transfer=non_blocking_transfer)
             if val_loader:
                 loss = self._validate(val_iter, non_blocking_transfer=non_blocking_transfer)
 
@@ -429,11 +425,7 @@ class LearningRateFinder:
 
         return running_loss / len(val_iter.dataset)
 
-    def get_lrs_and_losses(
-        self,
-        skip_start: int = 0,
-        skip_end: int = 0,
-    ) -> Tuple[list, list]:
+    def get_lrs_and_losses(self, skip_start: int = 0, skip_end: int = 0) -> Tuple[list, list]:
         """Get learning rates and their corresponding losses
 
         Args:
@@ -454,9 +446,7 @@ class LearningRateFinder:
         return lrs, losses
 
     def get_steepest_gradient(
-        self,
-        skip_start: int = 0,
-        skip_end: int = 0,
+        self, skip_start: int = 0, skip_end: int = 0
     ) -> Union[Tuple[float, float], Tuple[None, None]]:
         """Get learning rate which has steepest gradient and its corresponding loss
 
@@ -476,14 +466,7 @@ class LearningRateFinder:
             print("Failed to compute the gradients, there might not be enough points.")
             return None, None
 
-    def plot(
-        self,
-        skip_start: int = 0,
-        skip_end: int = 0,
-        log_lr: bool = True,
-        ax=None,
-        steepest_lr: bool = True,
-    ):
+    def plot(self, skip_start: int = 0, skip_end: int = 0, log_lr: bool = True, ax=None, steepest_lr: bool = True):
         """Plots the learning rate range test.
 
         Args:
