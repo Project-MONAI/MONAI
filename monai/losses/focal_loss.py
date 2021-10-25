@@ -147,12 +147,13 @@ class FocalLoss(_Loss):
         # Compute the loss mini-batch.
         # (1-p_t)^gamma * log(p_t) with reduced chance of overflow
         p = F.logsigmoid(-i * (t * 2.0 - 1.0))
-        loss = torch.mean((p * self.gamma).exp() * ce, dim=-1)
+        loss = (p * self.gamma).exp() * ce
 
         if self.reduction == LossReduction.SUM.value:
             return loss.sum()
         if self.reduction == LossReduction.NONE.value:
-            return loss
+            voxel_dims = input.shape[2:]
+            return loss.reshape(b, n, *voxel_dims)
         if self.reduction == LossReduction.MEAN.value:
             return loss.mean()
         raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
