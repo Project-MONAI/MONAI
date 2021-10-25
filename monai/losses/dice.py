@@ -111,6 +111,18 @@ class DiceLoss(_Loss):
                 have different shapes.
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
+        Example:
+            >>> from monai.losses.dice import *  # NOQA
+            >>> import torch
+            >>> from monai.losses.dice import DiceLoss
+            >>> B, C, H, W = 7, 5, 3, 2
+            >>> input = torch.rand(B, C, H, W)
+            >>> target_idx = torch.randint(low=0, high=C - 1, size=(B, H, W)).long()
+            >>> target = one_hot(target_idx[:, None, ...], num_classes=C)
+            >>> self = DiceLoss(reduction='none')
+            >>> loss = self(input, target)
+            >>> assert np.broadcast_shapes(loss.shape, input.shape) == input.shape
+
         """
         if self.sigmoid:
             input = torch.sigmoid(input)
@@ -168,7 +180,12 @@ class DiceLoss(_Loss):
             f = torch.mean(f)  # the batch and channel average
         elif self.reduction == LossReduction.SUM.value:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction != LossReduction.NONE.value:
+        elif self.reduction == LossReduction.NONE.value:
+            # If we are not computing voxelwise loss components at least
+            # make sure a none reduction maintains a broadcastable shape
+            broadcast_shape = input.shape[0:2] + (1,) * (len(input.shape) - 2)
+            f = f.view(broadcast_shape)
+        else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return f
@@ -343,7 +360,12 @@ class GeneralizedDiceLoss(_Loss):
             f = torch.mean(f)  # the batch and channel average
         elif self.reduction == LossReduction.SUM.value:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction != LossReduction.NONE.value:
+        elif self.reduction == LossReduction.NONE.value:
+            # If we are not computing voxelwise loss components at least
+            # make sure a none reduction maintains a broadcastable shape
+            broadcast_shape = input.shape[0:2] + (1,) * (len(input.shape) - 2)
+            f = f.view(broadcast_shape)
+        else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return f
@@ -478,7 +500,12 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             wass_dice_loss = torch.mean(wass_dice_loss)  # the batch and channel average
         elif self.reduction == LossReduction.SUM.value:
             wass_dice_loss = torch.sum(wass_dice_loss)  # sum over the batch and channel dims
-        elif self.reduction != LossReduction.NONE.value:
+        elif self.reduction == LossReduction.NONE.value:
+            # If we are not computing voxelwise loss components at least
+            # make sure a none reduction maintains a broadcastable shape
+            broadcast_shape = input.shape[0:2] + (1,) * (len(input.shape) - 2)
+            wass_dice_loss = wass_dice_loss.view(broadcast_shape)
+        else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return wass_dice_loss
