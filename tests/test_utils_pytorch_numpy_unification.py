@@ -15,7 +15,8 @@ import numpy as np
 import torch
 
 from monai.transforms.utils_pytorch_numpy_unification import percentile
-from tests.utils import TEST_NDARRAYS, assert_allclose, set_determinism
+from monai.utils import set_determinism
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
 class TestPytorchNumpyUnification(unittest.TestCase):
