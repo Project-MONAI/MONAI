@@ -206,7 +206,7 @@ class TestFillHoles(unittest.TestCase):
         converter = FillHolesd(keys=key, **args)
         for p in TEST_NDARRAYS:
             result = converter({key: p(clone(input_image))})[key]
-            assert_allclose(result, np.asarray(expected))
+            assert_allclose(result, np.asarray(expected), type_test=False)
 
     @parameterized.expand(INVALID_CASES)
     def test_raise_exception(self, _, args, input_image, expected_error):
