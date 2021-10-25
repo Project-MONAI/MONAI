@@ -176,7 +176,7 @@ class FocalLoss(_Loss):
         # Compute the loss mini-batch.
         # (1-p_t)^gamma * log(p_t) with reduced chance of overflow
         p = F.logsigmoid(-i * (t * 2.0 - 1.0))
-        flat_loss : torch.Tensor = (p * self.gamma).exp() * ce
+        flat_loss: torch.Tensor = (p * self.gamma).exp() * ce
 
         if self.reduction == LossReduction.SUM.value:
             loss = flat_loss.sum()
@@ -184,7 +184,26 @@ class FocalLoss(_Loss):
             loss = flat_loss.mean()
         elif self.reduction == LossReduction.NONE.value:
             spacetime_dims = input.shape[2:]
-            loss = flat_loss.view(b, n, *spacetime_dims)
+            # Hack for JIT, which requires static parsing of reshape
+            if len(spacetime_dims) == 1:
+                (d1,) = spacetime_dims
+                loss = flat_loss.reshape(b, n, d1)
+            elif len(spacetime_dims) == 2:
+                d1, d2 = spacetime_dims
+                loss = flat_loss.reshape(b, n, d1, d2)
+            elif len(spacetime_dims) == 3:
+                d1, d2, d3 = spacetime_dims
+                loss = flat_loss.reshape(b, n, d1, d2, d3)
+            elif len(spacetime_dims) == 4:
+                d1, d2, d3, d4 = spacetime_dims
+                loss = flat_loss.reshape(b, n, d1, d2, d3, d4)
+            elif len(spacetime_dims) == 5:
+                d1, d2, d3, d4, d5 = spacetime_dims
+                loss = flat_loss.reshape(b, n, d1, d2, d3, d4, d5)
+            else:
+                # JIT prevents use from coding the general case
+                # return flat_loss.reshape(b, n, *spacetime_dims)
+                raise NotImplementedError
         else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
         return loss
