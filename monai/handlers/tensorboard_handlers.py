@@ -109,6 +109,9 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 By default this value plotting happens when every iteration completed.
                 The default behavior is to print loss from output[0] as output is a decollated list
                 and we replicated loss value for every item of the decollated list.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number
                 when plotting epoch vs metric curves.
@@ -283,8 +286,14 @@ class TensorBoardImageHandler(TensorBoardHandler):
                 then construct `(image, label)` pair. for example: if `ignite.engine.state.batch` is `{"image": xxx,
                 "label": xxx, "other": xxx}`, `batch_transform` can be `lambda x: (x["image"], x["label"])`.
                 will use the result to plot image from `result[0][index]` and plot label from `result[1][index]`.
+                `engine.state` and `batch_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             output_transform: a callable that is used to extract the `predictions` data from
                 `ignite.engine.state.output`, will use the result to plot output from `result[index]`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             global_iter_transform: a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.

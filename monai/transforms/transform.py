@@ -40,9 +40,9 @@ def _apply_transform(
     Otherwise `parameters` is considered as single argument to `transform`.
 
     Args:
-        transform (Callable[..., ReturnType]): a callable to be used to transform `data`.
-        parameters (Any): parameters for the `transform`.
-        unpack_parameters (bool, optional): whether to unpack parameters for `transform`. Defaults to False.
+        transform: a callable to be used to transform `data`.
+        parameters: parameters for the `transform`.
+        unpack_parameters: whether to unpack parameters for `transform`. Defaults to False.
 
     Returns:
         ReturnType: The return type of `transform`.
@@ -64,11 +64,11 @@ def apply_transform(
     otherwise transform will be applied once with `data` as the argument.
 
     Args:
-        transform (Callable[..., ReturnType]): a callable to be used to transform `data`.
-        data (Any): an object to be transformed.
-        map_items (bool, optional): whether to apply transform to each item in `data`,
+        transform: a callable to be used to transform `data`.
+        data: an object to be transformed.
+        map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
-        unpack_items (bool, optional): [description]. Defaults to False.
+        unpack_items: whether to unpack parameters using `*`. Defaults to False.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -216,17 +216,15 @@ class Transform(ABC):
         return an updated version of ``data``.
         To simplify the input validations, most of the transforms assume that
 
-        - ``data`` is a Numpy ndarray, PyTorch Tensor or string
+        - ``data`` is a Numpy ndarray, PyTorch Tensor or string,
         - the data shape can be:
 
-          #. string data without shape, `LoadImage` transform expects file paths
-          #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except that `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
-          #. most of the post-processing transforms expect
-             ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
+          #. string data without shape, `LoadImage` transform expects file paths,
+          #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
+             except for example: `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
+             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels),
 
-        - the channel dimension is not omitted even if number of channels is one
+        - the channel dimension is often not omitted even if number of channels is one.
 
         This method can optionally take additional arguments to help execute transformation operation.
 
@@ -323,18 +321,16 @@ class MapTransform(Transform):
 
         To simplify the input validations, this method assumes:
 
-        - ``data`` is a Python dictionary
+        - ``data`` is a Python dictionary,
         - ``data[key]`` is a Numpy ndarray, PyTorch Tensor or string, where ``key`` is an element
           of ``self.keys``, the data shape can be:
 
-          #. string data without shape, `LoadImaged` transform expects file paths
-          #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except that `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
+          #. string data without shape, `LoadImaged` transform expects file paths,
+          #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
+             except for example: `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
              `AsChannelFirstd` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
-          #. most of the post-processing transforms expect
-             ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
 
-        - the channel dimension is not omitted even if number of channels is one
+        - the channel dimension is often not omitted even if number of channels is one.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
