@@ -22,11 +22,44 @@ from monai.utils import LossReduction
 
 class FocalLoss(_Loss):
     """
+    FocalLoss is an extension of BCEWithLogitsLoss that down-weights loss from
+    high confidence correct predictions.
+
     Reimplementation of the Focal Loss (with a build-in sigmoid activation) described in:
 
         - "Focal Loss for Dense Object Detection", T. Lin et al., ICCV 2017
         - "AnatomyNet: Deep learning for fast and fully automated whole‐volume segmentation of head and neck anatomy",
           Zhu et al., Medical Physics 2018
+
+    Example:
+        >>> import torch
+        >>> from monai.losses import FocalLoss
+        >>> from torch.nn import BCEWithLogitsLoss
+        >>> shape = B, N, *DIMS = 2, 3, 5, 7, 11
+        >>> input = torch.rand(*shape)
+        >>> target = torch.rand(*shape)
+        >>> # Demonstrate equivalence to BCE when gamma=0
+        >>> fl_g0_criterion = FocalLoss(reduction='none', gamma=0)
+        >>> fl_g0_loss = fl_g0_criterion(input, target)
+        >>> bce_criterion = BCEWithLogitsLoss(reduction='none')
+        >>> bce_loss = bce_criterion(input, target)
+        >>> assert torch.allclose(fl_g0_loss, bce_loss)
+        >>> # Demonstrate "focus" by setting gamma > 0.
+        >>> fl_g2_criterion = FocalLoss(reduction='none', gamma=2)
+        >>> fl_g2_loss = fl_g2_criterion(input, target)
+        >>> # Mark easy and hard cases
+        >>> is_easy = (target > 0.7) & (input > 0.7)
+        >>> is_hard = (target > 0.7) & (input < 0.3)
+        >>> easy_loss_g0 = fl_g0_loss[is_easy].mean()
+        >>> hard_loss_g0 = fl_g0_loss[is_hard].mean()
+        >>> easy_loss_g2 = fl_g2_loss[is_easy].mean()
+        >>> hard_loss_g2 = fl_g2_loss[is_hard].mean()
+        >>> # Gamma > 0 causes the loss function to "focus" on the hard
+        >>> # cases.  IE, easy cases are downweighted, so hard cases
+        >>> # receive a higher proportion of the loss.
+        >>> hard_to_easy_ratio_g2 = hard_loss_g2 / easy_loss_g2
+        >>> hard_to_easy_ratio_g0 = hard_loss_g0 / easy_loss_g0
+        >>> assert hard_to_easy_ratio_g2 > hard_to_easy_ratio_g0
     """
 
     def __init__(
@@ -56,16 +89,12 @@ class FocalLoss(_Loss):
                 - ``"sum"``: the output will be summed.
 
         Example:
-            .. code-block:: python
-
-                import torch
-                from monai.losses import FocalLoss
-
-                pred = torch.tensor([[1, 0], [0, 1], [1, 0]], dtype=torch.float32)
-                grnd = torch.tensor([[0], [1], [0]], dtype=torch.int64)
-                fl = FocalLoss(to_onehot_y=True)
-                fl(pred, grnd)
-
+            >>> import torch
+            >>> from monai.losses import FocalLoss
+            >>> pred = torch.tensor([[1, 0], [0, 1], [1, 0]], dtype=torch.float32)
+            >>> grnd = torch.tensor([[0], [1], [0]], dtype=torch.int64)
+            >>> fl = FocalLoss(to_onehot_y=True)
+            >>> fl(pred, grnd)
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.include_background = include_background
@@ -147,13 +176,15 @@ class FocalLoss(_Loss):
         # Compute the loss mini-batch.
         # (1-p_t)^gamma * log(p_t) with reduced chance of overflow
         p = F.logsigmoid(-i * (t * 2.0 - 1.0))
-        loss = (p * self.gamma).exp() * ce
+        flat_loss : torch.Tensor = (p * self.gamma).exp() * ce
 
         if self.reduction == LossReduction.SUM.value:
-            return loss.sum()
-        if self.reduction == LossReduction.NONE.value:
-            voxel_dims = input.shape[2:]
-            return loss.reshape(b, n, *voxel_dims)
-        if self.reduction == LossReduction.MEAN.value:
-            return loss.mean()
-        raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+            loss = flat_loss.sum()
+        elif self.reduction == LossReduction.MEAN.value:
+            loss = flat_loss.mean()
+        elif self.reduction == LossReduction.NONE.value:
+            spacetime_dims = input.shape[2:]
+            loss = flat_loss.view(b, n, *spacetime_dims)
+        else:
+            raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+        return loss
