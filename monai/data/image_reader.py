@@ -395,6 +395,10 @@ class NibabelReader(ImageReader):
                 header["affine"] = self._get_affine(i)
             header["spatial_shape"] = self._get_spatial_shape(i)
             data = self._get_array_data(i)
+            # squeez any non-spatial dimension
+            for d in range(len(data.shape), len(header["spatial_shape"]), -1):
+                if data.shape[d - 1] == 1:
+                    data = data.squeeze(axis=d - 1)
             img_array.append(data)
             header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
