@@ -510,7 +510,25 @@ class LabelToContour(Transform):
         return contour_img.squeeze(0)
 
 
-class MeanEnsemble(Transform):
+class Ensemble(Transform):
+    @staticmethod
+    def get_stacked_torch(img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> torch.Tensor:
+        """Get either a sequence or single instance of np.ndarray/torch.Tensor. Return single torch.Tensor."""
+        if isinstance(img, Sequence) and isinstance(img[0], np.ndarray):
+            img = [torch.as_tensor(i) for i in img]
+        elif isinstance(img, np.ndarray):
+            img = torch.as_tensor(img)
+        out: torch.Tensor = torch.stack(img) if isinstance(img, Sequence) else img  # type: ignore
+        return out
+
+    @staticmethod
+    def post_convert(img: torch.Tensor, orig_img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+        orig_img_ = orig_img[0] if isinstance(orig_img, Sequence) else orig_img
+        out, *_ = convert_to_dst_type(img, orig_img_)
+        return out
+
+
+class MeanEnsemble(Ensemble):
     """
     Execute mean ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -533,11 +551,11 @@ class MeanEnsemble(Transform):
 
     """
 
-    def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None) -> None:
+    def __init__(self, weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None) -> None:
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
-    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
-        img_ = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+    def __call__(self, img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+        img_ = self.get_stacked_torch(img)
         if self.weights is not None:
             self.weights = self.weights.to(img_.device)
             shape = tuple(self.weights.shape)
@@ -547,10 +565,11 @@ class MeanEnsemble(Transform):
 
             img_ = img_ * weights / weights.mean(dim=0, keepdim=True)
 
-        return torch.mean(img_, dim=0)
+        out_pt = torch.mean(img_, dim=0)
+        return self.post_convert(out_pt, img)
 
 
-class VoteEnsemble(Transform):
+class VoteEnsemble(Ensemble):
     """
     Execute vote ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -575,12 +594,8 @@ class VoteEnsemble(Transform):
     def __init__(self, num_classes: Optional[int] = None) -> None:
         self.num_classes = num_classes
 
-    def __call__(self, img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> torch.Tensor:
-        if isinstance(img, Sequence) and isinstance(img[0], np.ndarray):
-            img = [torch.as_tensor(i) for i in img]
-        elif isinstance(img, np.ndarray):
-            img = torch.as_tensor(img)
-        img_: torch.Tensor = torch.stack(img) if isinstance(img, Sequence) else img  # type: ignore
+    def __call__(self, img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+        img_ = self.get_stacked_torch(img)
 
         if self.num_classes is not None:
             has_ch_dim = True
@@ -600,8 +615,7 @@ class VoteEnsemble(Transform):
         else:
             # for One-Hot data, round the float number to 0 or 1
             out_pt = torch.round(img_)
-        out, *_ = convert_to_dst_type(out_pt, img)
-        return out
+        return self.post_convert(out_pt, img)
 
 
 class ProbNMS(Transform):

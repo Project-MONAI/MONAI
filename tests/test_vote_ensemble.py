@@ -24,7 +24,7 @@ for p in TEST_NDARRAYS:
         [
             {"num_classes": None},
             [p(torch.tensor([[[1]], [[0]]])), p(torch.tensor([[[1]], [[0]]])), p(torch.tensor([[[0]], [[1]]]))],
-            torch.tensor([[[1.0]], [[0.0]]]),
+            p(torch.tensor([[[1.0]], [[0.0]]])),
         ]
     )
 
@@ -37,7 +37,7 @@ for p in TEST_NDARRAYS:
                     [torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[0]], [[1]]]])]
                 )
             ),
-            torch.tensor([[[[1.0]], [[0.0]]]]),
+            p(torch.tensor([[[[1.0]], [[0.0]]]])),
         ]
     )
 
@@ -46,7 +46,7 @@ for p in TEST_NDARRAYS:
         [
             {"num_classes": 3},
             [p(torch.tensor([[[0], [2]]])), p(torch.tensor([[[0], [2]]])), p(torch.tensor([[[1], [1]]]))],
-            torch.tensor([[[0], [2]]]),
+            p(torch.tensor([[[0], [2]]])),
         ]
     )
 
@@ -55,17 +55,17 @@ for p in TEST_NDARRAYS:
         [
             {"num_classes": 5},
             [p(torch.tensor([[[0], [2]]])), p(torch.tensor([[[0], [2]]])), p(torch.tensor([[[1], [1]]]))],
-            torch.tensor([[[0], [2]]]),
+            p(torch.tensor([[[0], [2]]])),
         ]
     )
 
     # shape: [1]
     TESTS.append(
-        [{"num_classes": 3}, [p(torch.tensor([2])), p(torch.tensor([2])), p(torch.tensor([1]))], torch.tensor([2])]
+        [{"num_classes": 3}, [p(torch.tensor([2])), p(torch.tensor([2])), p(torch.tensor([1]))], p(torch.tensor([2]))]
     )
 
     # shape: 1
-    TESTS.append([{"num_classes": 3}, [p(torch.tensor(2)), p(torch.tensor(2)), p(torch.tensor(1))], torch.tensor(2)])
+    TESTS.append([{"num_classes": 3}, [p(torch.tensor(2)), p(torch.tensor(2)), p(torch.tensor(1))], p(torch.tensor(2))])
 
 
 class TestVoteEnsemble(unittest.TestCase):

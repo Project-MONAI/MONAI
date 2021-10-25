@@ -323,7 +323,7 @@ class Ensembled(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        ensemble: Callable[[Union[Sequence[torch.Tensor], torch.Tensor]], torch.Tensor],
+        ensemble: Callable[[Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]], NdarrayOrTensor],
         output_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -349,9 +349,9 @@ class Ensembled(MapTransform):
             raise ValueError("Incompatible values: len(self.keys) > 1 and output_key=None.")
         self.output_key = output_key if output_key is not None else self.keys[0]
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        items: Union[List[torch.Tensor], torch.Tensor]
+        items: Union[List[NdarrayOrTensor], NdarrayOrTensor]
         if len(self.keys) == 1:
             items = d[self.keys[0]]
         else:
@@ -370,7 +370,7 @@ class MeanEnsembled(Ensembled):
         self,
         keys: KeysCollection,
         output_key: Optional[str] = None,
-        weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None,
+        weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None,
     ) -> None:
         """
         Args:

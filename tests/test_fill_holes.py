@@ -12,7 +12,6 @@
 
 import unittest
 
-import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -204,7 +203,7 @@ class TestFillHoles(unittest.TestCase):
         converter = FillHoles(**args)
         for p in TEST_NDARRAYS:
             result = converter(p(clone(input_image)))
-            assert_allclose(result, np.asarray(expected), type_test=False)
+            assert_allclose(result, p(expected))
 
     @parameterized.expand(INVALID_CASES)
     def test_raise_exception(self, _, args, input_image, expected_error):

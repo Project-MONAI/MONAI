@@ -28,7 +28,7 @@ for p in TEST_NDARRAYS:
                 "pred1": p(torch.tensor([[[[1]], [[0]]]])),
                 "pred2": p(torch.tensor([[[[0]], [[1]]]])),
             },
-            torch.tensor([[[[1.0]], [[0.0]]]]),
+            p(torch.tensor([[[[1.0]], [[0.0]]]])),
         ]
     )
 
@@ -43,7 +43,7 @@ for p in TEST_NDARRAYS:
                     )
                 )
             },
-            torch.tensor([[[[1.0]], [[0.0]]]]),
+            p(torch.tensor([[[[1.0]], [[0.0]]]])),
         ]
     )
 
@@ -56,7 +56,7 @@ for p in TEST_NDARRAYS:
                 "pred1": p(torch.tensor([[[0], [2]]])),
                 "pred2": p(torch.tensor([[[1], [1]]])),
             },
-            torch.tensor([[[0], [2]]]),
+            p(torch.tensor([[[0], [2]]])),
         ]
     )
 
@@ -69,7 +69,7 @@ for p in TEST_NDARRAYS:
                 "pred1": p(torch.tensor([[[0], [2]]])),
                 "pred2": p(torch.tensor([[[1], [1]]])),
             },
-            torch.tensor([[[0], [2]]]),
+            p(torch.tensor([[[0], [2]]])),
         ]
     )
 
@@ -78,7 +78,7 @@ for p in TEST_NDARRAYS:
         [
             {"keys": ["pred0", "pred1", "pred2"], "output_key": "output", "num_classes": 3},
             {"pred0": p(torch.tensor([2])), "pred1": p(torch.tensor([2])), "pred2": p(torch.tensor([1]))},
-            torch.tensor([2]),
+            p(torch.tensor([2])),
         ]
     )
 
