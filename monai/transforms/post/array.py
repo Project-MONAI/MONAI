@@ -433,7 +433,7 @@ class FillHoles(Transform):
         self.applied_labels = ensure_tuple(applied_labels) if applied_labels else None
         self.connectivity = connectivity
 
-    def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Fill the holes in the provided image.
 
