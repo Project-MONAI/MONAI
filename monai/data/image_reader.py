@@ -323,7 +323,7 @@ class NibabelReader(ImageReader):
 
     Args:
         as_closest_canonical: if True, load the image as closest to canonical axis format.
-        squeeze_non_spatial_dim: if True, non-spatial singletons will be squezed, e.g. (256,256,1,3) -> (256,256,3)
+        squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 

@@ -170,7 +170,7 @@ class TestLoadImage(unittest.TestCase):
             np.testing.assert_allclose(result[:, :, 1], test_image[:, :, 1].T)
             np.testing.assert_allclose(result[:, :, 2], test_image[:, :, 2].T)
 
-    def test_load_nifty_multichannel(self):
+    def test_load_nifti_multichannel(self):
         test_image = np.random.randint(0, 256, size=(31, 64, 16, 2)).astype(np.float32)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_image.nii.gz")
