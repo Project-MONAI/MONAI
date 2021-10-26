@@ -660,6 +660,8 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, keys: KeysCollection, sep: str = ".", use_re: Union[Sequence[bool], bool] = False) -> None:
         """
         Args:
@@ -694,6 +696,8 @@ class SelectItemsd(MapTransform):
     Select only specified items from data dictionary to release memory.
     It will copy the selected key-values and construct and new dictionary.
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __call__(self, data):
         return {key: data[key] for key in self.key_iterator(data)}
@@ -1188,11 +1192,13 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     and ET (Enhancing tumor).
     """
 
+    backend = ConvertToMultiChannelBasedOnBratsClasses.backend
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
         super().__init__(keys, allow_missing_keys)
         self.converter = ConvertToMultiChannelBasedOnBratsClasses()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1276,6 +1282,8 @@ class TorchVisiond(MapTransform):
         data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
     """
 
+    backend = TorchVision.backend
+
     def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
@@ -1290,7 +1298,7 @@ class TorchVisiond(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.trans = TorchVision(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
@@ -1313,6 +1321,8 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
     """
 
+    backend = TorchVision.backend
+
     def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
@@ -1327,7 +1337,7 @@ class RandTorchVisiond(Randomizable, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.trans = TorchVision(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
@@ -1338,6 +1348,8 @@ class MapLabelValued(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.MapLabelValue`.
     """
+
+    backend = MapLabelValue.backend
 
     def __init__(
         self,
@@ -1360,7 +1372,7 @@ class MapLabelValued(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.mapper = MapLabelValue(orig_labels=orig_labels, target_labels=target_labels, dtype=dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.mapper(d[key])
@@ -1402,6 +1414,8 @@ class IntensityStatsd(MapTransform):
 
     """
 
+    backend = IntensityStats.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1421,7 +1435,7 @@ class IntensityStatsd(MapTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mask_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.mask_keys, self.meta_keys, self.meta_key_postfix
@@ -1438,7 +1452,7 @@ class ToDeviced(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToDevice`.
     """
 
-    backend = [TransformBackends.TORCH]
+    backend = ToDevice.backend
 
     def __init__(
         self, keys: KeysCollection, device: Union[torch.device, str], allow_missing_keys: bool = False, **kwargs
