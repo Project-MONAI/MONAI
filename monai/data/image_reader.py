@@ -328,9 +328,16 @@ class NibabelReader(ImageReader):
 
     """
 
-    def __init__(self, as_closest_canonical: bool = False, dtype: DtypeLike = np.float32, **kwargs):
+    def __init__(
+        self,
+        as_closest_canonical: bool = False,
+        squeeze_non_spatial_dim: bool = False,
+        dtype: DtypeLike = np.float32,
+        **kwargs,
+    ):
         super().__init__()
         self.as_closest_canonical = as_closest_canonical
+        self.squeeze_non_spatial_dim = squeeze_non_spatial_dim
         self.dtype = dtype
         self.kwargs = kwargs
 
@@ -395,10 +402,10 @@ class NibabelReader(ImageReader):
                 header["affine"] = self._get_affine(i)
             header["spatial_shape"] = self._get_spatial_shape(i)
             data = self._get_array_data(i)
-            # squeez any non-spatial dimension
-            for d in range(len(data.shape), len(header["spatial_shape"]), -1):
-                if data.shape[d - 1] == 1:
-                    data = data.squeeze(axis=d - 1)
+            if self.squeeze_non_spatial_dim:
+                for d in range(len(data.shape), len(header["spatial_shape"]), -1):
+                    if data.shape[d - 1] == 1:
+                        data = data.squeeze(axis=d - 1)
             img_array.append(data)
             header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)

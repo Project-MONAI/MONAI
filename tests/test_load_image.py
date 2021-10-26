@@ -171,16 +171,17 @@ class TestLoadImage(unittest.TestCase):
             np.testing.assert_allclose(result[:, :, 2], test_image[:, :, 2].T)
 
     def test_load_nifty_multichannel(self):
-        test_image = np.random.randint(0, 256, size=(31, 64, 16, 2)).astype("uint8")
+        test_image = np.random.randint(0, 256, size=(31, 64, 16, 2)).astype(np.float32)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_image.nii.gz")
             itk_np_view = itk.image_view_from_array(test_image, is_vector=True)
             itk.imwrite(itk_np_view, filename)
+
             itk_img, itk_header = LoadImage(reader=ITKReader())(Path(filename))
             self.assertTupleEqual(tuple(itk_header["spatial_shape"]), (16, 64, 31))
             self.assertTupleEqual(tuple(itk_img.shape), (16, 64, 31, 2))
 
-            nib_image, nib_header = LoadImage(reader=NibabelReader())(Path(filename))
+            nib_image, nib_header = LoadImage(reader=NibabelReader(squeeze_non_spatial_dim=True))(Path(filename))
             self.assertTupleEqual(tuple(nib_header["spatial_shape"]), (16, 64, 31))
             self.assertTupleEqual(tuple(nib_image.shape), (16, 64, 31, 2))
 
