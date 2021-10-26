@@ -144,6 +144,8 @@ def run_testsuit():
         "test_zoomd",
         "test_transchex",
         "test_handler_mlflow",
+        "test_prepare_batch_extra_input",
+        "test_prepare_batch_default",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
