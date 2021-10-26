@@ -44,7 +44,7 @@ from monai.utils import (
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type
+from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -1016,7 +1016,7 @@ class MapLabelValue:
 
         self.orig_labels = orig_labels
         self.target_labels = target_labels
-        self.dtype = dtype
+        self.dtype = get_equivalent_dtype(dtype, data_type=np.ndarray)
 
     def __call__(self, img: NdarrayOrTensor):
         img_np, *_ = convert_data_type(img, np.ndarray)

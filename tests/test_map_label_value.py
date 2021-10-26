@@ -62,9 +62,9 @@ TEST_CASE_8 = [
 ]
 
 TEST_CASE_9 = [
-    {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": np.int8},
+    {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": np.float32},
     torch.as_tensor([3.5, 1.5, 1.5, 2.5]),
-    torch.as_tensor([2, 0, 0, 1]),
+    torch.as_tensor([2.0, 0.0, 0.0, 1.0]),
 ]
 
 
