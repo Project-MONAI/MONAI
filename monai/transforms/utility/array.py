@@ -986,7 +986,7 @@ class TorchVision:
         """
         img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         out = self.trans(img_t)
-        out, *_ = convert_to_dst_type(src=out, dst=img_t)
+        out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
 
 
