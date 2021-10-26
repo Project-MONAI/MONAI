@@ -181,7 +181,7 @@ class TestLoadImage(unittest.TestCase):
             self.assertTupleEqual(tuple(itk_header["spatial_shape"]), (16, 64, 31))
             self.assertTupleEqual(tuple(itk_img.shape), (16, 64, 31, 2))
 
-            nib_image, nib_header = LoadImage(reader=NibabelReader(squeeze_non_spatial_dim=True))(Path(filename))
+            nib_image, nib_header = LoadImage(reader=NibabelReader(squeeze_non_spatial_dims=True))(Path(filename))
             self.assertTupleEqual(tuple(nib_header["spatial_shape"]), (16, 64, 31))
             self.assertTupleEqual(tuple(nib_image.shape), (16, 64, 31, 2))
 
