@@ -15,58 +15,67 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import VoteEnsemble
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
-# shape: [2, 1, 1]
-TEST_CASE_1 = [
-    {"num_classes": None},
-    [torch.tensor([[[1]], [[0]]]), torch.tensor([[[1]], [[0]]]), torch.tensor([[[0]], [[1]]])],
-    torch.tensor([[[1.0]], [[0.0]]]),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    # shape: [2, 1, 1]
+    TESTS.append(
+        [
+            {"num_classes": None},
+            [p(torch.tensor([[[1]], [[0]]])), p(torch.tensor([[[1]], [[0]]])), p(torch.tensor([[[0]], [[1]]]))],
+            p(torch.tensor([[[1.0]], [[0.0]]])),
+        ]
+    )
 
-# shape: [1, 2, 1, 1]
-TEST_CASE_2 = [
-    {"num_classes": None},
-    torch.stack([torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[0]], [[1]]]])]),
-    torch.tensor([[[[1.0]], [[0.0]]]]),
-]
+    # shape: [1, 2, 1, 1]
+    TESTS.append(
+        [
+            {"num_classes": None},
+            p(
+                torch.stack(
+                    [torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[0]], [[1]]]])]
+                )
+            ),
+            p(torch.tensor([[[[1.0]], [[0.0]]]])),
+        ]
+    )
 
-# shape: [1, 2, 1]
-TEST_CASE_3 = [
-    {"num_classes": 3},
-    [torch.tensor([[[0], [2]]]), torch.tensor([[[0], [2]]]), torch.tensor([[[1], [1]]])],
-    torch.tensor([[[0], [2]]]),
-]
+    # shape: [1, 2, 1]
+    TESTS.append(
+        [
+            {"num_classes": 3},
+            [p(torch.tensor([[[0], [2]]])), p(torch.tensor([[[0], [2]]])), p(torch.tensor([[[1], [1]]]))],
+            p(torch.tensor([[[0], [2]]])),
+        ]
+    )
 
-# shape: [1, 2, 1]
-TEST_CASE_4 = [
-    {"num_classes": 5},
-    [torch.tensor([[[0], [2]]]), torch.tensor([[[0], [2]]]), torch.tensor([[[1], [1]]])],
-    torch.tensor([[[0], [2]]]),
-]
+    # shape: [1, 2, 1]
+    TESTS.append(
+        [
+            {"num_classes": 5},
+            [p(torch.tensor([[[0], [2]]])), p(torch.tensor([[[0], [2]]])), p(torch.tensor([[[1], [1]]]))],
+            p(torch.tensor([[[0], [2]]])),
+        ]
+    )
 
-# shape: [1]
-TEST_CASE_5 = [{"num_classes": 3}, [torch.tensor([2]), torch.tensor([2]), torch.tensor([1])], torch.tensor([2])]
+    # shape: [1]
+    TESTS.append(
+        [{"num_classes": 3}, [p(torch.tensor([2])), p(torch.tensor([2])), p(torch.tensor([1]))], p(torch.tensor([2]))]
+    )
 
-# shape: 1
-TEST_CASE_6 = [{"num_classes": 3}, [torch.tensor(2), torch.tensor(2), torch.tensor(1)], torch.tensor(2)]
+    # shape: 1
+    TESTS.append([{"num_classes": 3}, [p(torch.tensor(2)), p(torch.tensor(2)), p(torch.tensor(1))], p(torch.tensor(2))])
 
 
 class TestVoteEnsemble(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand(TESTS)
     def test_value(self, input_param, img, expected_value):
         result = VoteEnsemble(**input_param)(img)
-        torch.testing.assert_allclose(result, expected_value)
-
-    def test_cuda_value(self):
-        img = torch.stack(
-            [torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[1]], [[0]]]]), torch.tensor([[[[0]], [[1]]]])]
-        )
-        expected_value = torch.tensor([[[[1.0]], [[0.0]]]])
-        if torch.cuda.is_available():
-            img = img.to(torch.device("cuda:0"))
-            expected_value = expected_value.to(torch.device("cuda:0"))
-        result = VoteEnsemble(num_classes=None)(img)
-        torch.testing.assert_allclose(result, expected_value)
+        if isinstance(img, torch.Tensor):
+            self.assertIsInstance(result, torch.Tensor)
+            self.assertEqual(result.device, img.device)
+        assert_allclose(result, expected_value)
 
 
 if __name__ == "__main__":
