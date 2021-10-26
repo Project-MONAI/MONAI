@@ -37,23 +37,9 @@ TEST_CASE_2 = [
     0.875,
 ]
 
-TEST_CASE_3 = [
-    torch.tensor([[0.5], [0.5], [0.2], [8.3]]),
-    torch.tensor([0, 1, 0, 1]),
-    False,
-    False,
-    "macro",
-    0.875,
-]
+TEST_CASE_3 = [torch.tensor([[0.5], [0.5], [0.2], [8.3]]), torch.tensor([0, 1, 0, 1]), False, False, "macro", 0.875]
 
-TEST_CASE_4 = [
-    torch.tensor([0.5, 0.5, 0.2, 8.3]),
-    torch.tensor([0, 1, 0, 1]),
-    False,
-    False,
-    "macro",
-    0.875,
-]
+TEST_CASE_4 = [torch.tensor([0.5, 0.5, 0.2, 8.3]), torch.tensor([0, 1, 0, 1]), False, False, "macro", 0.875]
 
 TEST_CASE_5 = [
     torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),

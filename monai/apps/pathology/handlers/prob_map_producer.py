@@ -62,9 +62,10 @@ class ProbMapProducer:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
 
-        self.num_images = len(engine.data_loader.dataset.data)
+        data_loader = engine.data_loader  # type: ignore
+        self.num_images = len(data_loader.dataset.data)
 
-        for sample in engine.data_loader.dataset.data:
+        for sample in data_loader.dataset.data:
             name = sample["name"]
             self.prob_map[name] = np.zeros(sample["mask_shape"], dtype=self.dtype)
             self.counter[name] = len(sample["mask_locations"])
@@ -84,6 +85,8 @@ class ProbMapProducer:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
+        if not isinstance(engine.state.batch, dict) or not isinstance(engine.state.output, dict):
+            raise ValueError("engine.state.batch and engine.state.output must be dictionaries.")
         names = engine.state.batch["name"]
         locs = engine.state.batch["mask_location"]
         pred = engine.state.output["pred"]

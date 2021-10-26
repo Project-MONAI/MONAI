@@ -47,6 +47,7 @@ def run_testsuit():
         "test_ensure_channel_first",
         "test_ensure_channel_firstd",
         "test_fill_holes",
+        "test_fill_holesd",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -75,7 +76,6 @@ def run_testsuit():
         "test_handler_surface_distance",
         "test_handler_tb_image",
         "test_handler_tb_stats",
-        "test_handler_transform_inverter",
         "test_handler_validation",
         "test_hausdorff_distance",
         "test_header_correct",
@@ -87,6 +87,7 @@ def run_testsuit():
         "test_integration_unet_2d",
         "test_integration_workflows",
         "test_integration_workflows_gan",
+        "test_integration_fast_train",
         "test_invertd",
         "test_iterable_dataset",
         "test_keep_largest_connected_component",
@@ -103,6 +104,7 @@ def run_testsuit():
         "test_nifti_rw",
         "test_nifti_saver",
         "test_occlusion_sensitivity",
+        "test_openslide_reader",
         "test_orientation",
         "test_orientationd",
         "test_parallel_execution",
@@ -140,6 +142,8 @@ def run_testsuit():
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
+        "test_transchex",
+        "test_handler_mlflow",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
