@@ -77,11 +77,7 @@ class DiceMetric(CumulativeIterationMetric):
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute dice (BxC) for each channel for each batch
-        return compute_meandice(
-            y_pred=y_pred,
-            y=y,
-            include_background=self.include_background,
-        )
+        return compute_meandice(y_pred=y_pred, y=y, include_background=self.include_background)
 
     def aggregate(self):  # type: ignore
         """
@@ -97,11 +93,7 @@ class DiceMetric(CumulativeIterationMetric):
         return (f, not_nans) if self.get_not_nans else f
 
 
-def compute_meandice(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
-    include_background: bool = True,
-) -> torch.Tensor:
+def compute_meandice(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True) -> torch.Tensor:
     """Computes Dice score metric from full size Tensor and collects average.
 
     Args:
@@ -114,7 +106,7 @@ def compute_meandice(
             the predicted output. Defaults to True.
 
     Returns:
-        Dice scores per batch and per class, (shape [batch_size, n_classes]).
+        Dice scores per batch and per class, (shape [batch_size, num_classes]).
 
     Raises:
         ValueError: when `y_pred` and `y` have different shapes.
@@ -122,10 +114,7 @@ def compute_meandice(
     """
 
     if not include_background:
-        y_pred, y = ignore_background(
-            y_pred=y_pred,
-            y=y,
-        )
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
     y = y.float()
     y_pred = y_pred.float()
@@ -142,8 +131,4 @@ def compute_meandice(
     y_pred_o = torch.sum(y_pred, dim=reduce_axis)
     denominator = y_o + y_pred_o
 
-    return torch.where(
-        y_o > 0,
-        (2.0 * intersection) / denominator,
-        torch.tensor(float("nan"), device=y_o.device),
-    )
+    return torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float("nan"), device=y_o.device))

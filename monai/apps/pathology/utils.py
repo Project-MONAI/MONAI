@@ -51,10 +51,7 @@ def compute_isolated_tumor_cells(tumor_mask: np.ndarray, threshold: float) -> Li
     """
     max_label = np.amax(tumor_mask)
     properties = measure.regionprops(tumor_mask, coordinates="rc")
-    itc_list = []
-    for i in range(max_label):  # type: ignore
-        if properties[i].major_axis_length < threshold:
-            itc_list.append(i + 1)
+    itc_list = [i + 1 for i in range(max_label) if properties[i].major_axis_length < threshold]
 
     return itc_list
 
@@ -65,11 +62,7 @@ class PathologyProbNMS(ProbNMS):
     Pathology.
     """
 
-    def __call__(
-        self,
-        probs_map: Union[np.ndarray, torch.Tensor],
-        resolution_level: int = 0,
-    ):
+    def __call__(self, probs_map: Union[np.ndarray, torch.Tensor], resolution_level: int = 0):
         """
         probs_map: the input probabilities map, it must have shape (H[, W, ...]).
         resolution_level: the level at which the probabilities map is made.

@@ -36,12 +36,7 @@ class TestNiftiSaver(unittest.TestCase):
     def test_saved_resize_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            saver = NiftiSaver(
-                output_dir=tempdir,
-                output_postfix="seg",
-                output_ext=".nii.gz",
-                dtype=np.float32,
-            )
+            saver = NiftiSaver(output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz", dtype=np.float32)
 
             meta_data = {
                 "filename_or_obj": ["testfile" + str(i) + ".nii" for i in range(8)],
@@ -56,12 +51,7 @@ class TestNiftiSaver(unittest.TestCase):
     def test_saved_3d_resize_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            saver = NiftiSaver(
-                output_dir=tempdir,
-                output_postfix="seg",
-                output_ext=".nii.gz",
-                dtype=np.float32,
-            )
+            saver = NiftiSaver(output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz", dtype=np.float32)
 
             meta_data = {
                 "filename_or_obj": ["testfile" + str(i) + ".nii.gz" for i in range(8)],

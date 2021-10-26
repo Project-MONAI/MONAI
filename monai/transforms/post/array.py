@@ -21,11 +21,13 @@ import torch
 import torch.nn.functional as F
 
 from monai.config import NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
-from monai.utils import ensure_tuple, look_up_option
+from monai.utils import TransformBackends, convert_data_type, deprecated_arg, ensure_tuple, look_up_option
+from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "Activations",
@@ -56,6 +58,8 @@ class Activations(Transform):
         TypeError: When ``other`` is not an ``Optional[Callable]``.
 
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None) -> None:
         self.sigmoid = sigmoid
@@ -120,7 +124,7 @@ class AsDiscrete(Transform):
             Defaults to ``False``.
         to_onehot: whether to convert input data into the one-hot format.
             Defaults to ``False``.
-        n_classes: the number of classes to convert to One-Hot format.
+        num_classes: the number of classes to convert to One-Hot format.
             Defaults to ``None``.
         threshold_values: whether threshold the float value to int number 0 or 1.
             Defaults to ``False``.
@@ -129,33 +133,45 @@ class AsDiscrete(Transform):
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
 
+    .. deprecated:: 0.6.0
+        ``n_classes`` is deprecated, use ``num_classes`` instead.
+
     """
 
+    backend = [TransformBackends.TORCH]
+
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         argmax: bool = False,
         to_onehot: bool = False,
-        n_classes: Optional[int] = None,
+        num_classes: Optional[int] = None,
         threshold_values: bool = False,
         logit_thresh: float = 0.5,
         rounding: Optional[str] = None,
+        n_classes: Optional[int] = None,
     ) -> None:
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes is None:
+            num_classes = n_classes
         self.argmax = argmax
         self.to_onehot = to_onehot
-        self.n_classes = n_classes
+        self.num_classes = num_classes
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
         self.rounding = rounding
 
+    @deprecated_arg("n_classes", since="0.6")
     def __call__(
         self,
         img: torch.Tensor,
         argmax: Optional[bool] = None,
         to_onehot: Optional[bool] = None,
-        n_classes: Optional[int] = None,
+        num_classes: Optional[int] = None,
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
         rounding: Optional[str] = None,
+        n_classes: Optional[int] = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -165,8 +181,8 @@ class AsDiscrete(Transform):
                 Defaults to ``self.argmax``.
             to_onehot: whether to convert input data into the one-hot format.
                 Defaults to ``self.to_onehot``.
-            n_classes: the number of classes to convert to One-Hot format.
-                Defaults to ``self.n_classes``.
+            num_classes: the number of classes to convert to One-Hot format.
+                Defaults to ``self.num_classes``.
             threshold_values: whether threshold the float value to int number 0 or 1.
                 Defaults to ``self.threshold_values``.
             logit_thresh: the threshold value for thresholding operation..
@@ -174,14 +190,20 @@ class AsDiscrete(Transform):
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
 
+        .. deprecated:: 0.6.0
+            ``n_classes`` is deprecated, use ``num_classes`` instead.
+
         """
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes is None:
+            num_classes = n_classes
         if argmax or self.argmax:
             img = torch.argmax(img, dim=0, keepdim=True)
 
         if to_onehot or self.to_onehot:
-            _nclasses = self.n_classes if n_classes is None else n_classes
+            _nclasses = self.num_classes if num_classes is None else num_classes
             if not isinstance(_nclasses, int):
-                raise AssertionError("One of self.n_classes or n_classes must be an integer")
+                raise AssertionError("One of self.num_classes or num_classes must be an integer")
             img = one_hot(img, num_classes=_nclasses, dim=0)
 
         if threshold_values or self.threshold_values:
@@ -189,7 +211,7 @@ class AsDiscrete(Transform):
 
         rounding = self.rounding if rounding is None else rounding
         if rounding is not None:
-            rounding = look_up_option(rounding, ["torchrounding"])
+            look_up_option(rounding, ["torchrounding"])
             img = torch.round(img)
 
         return img.float()
@@ -394,6 +416,8 @@ class FillHoles(Transform):
         The background label near label 2 and 3 is not fully enclosed and therefore not filled.
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(
         self, applied_labels: Optional[Union[Iterable[int], int]] = None, connectivity: Optional[int] = None
     ) -> None:
@@ -409,7 +433,7 @@ class FillHoles(Transform):
         self.applied_labels = ensure_tuple(applied_labels) if applied_labels else None
         self.connectivity = connectivity
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Fill the holes in the provided image.
 
@@ -425,13 +449,13 @@ class FillHoles(Transform):
         Returns:
             Pytorch Tensor or numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
         """
-        if isinstance(img, np.ndarray):
-            return fill_holes(img, self.applied_labels, self.connectivity)
-        if isinstance(img, torch.Tensor):
-            img_arr = img.detach().cpu().numpy()
-            img_arr = self(img_arr)
-            return torch.as_tensor(img_arr, device=img.device)
-        raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+        if not isinstance(img, (np.ndarray, torch.Tensor)):
+            raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+        img_np: np.ndarray
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        out_np: np.ndarray = fill_holes(img_np, self.applied_labels, self.connectivity)
+        out, *_ = convert_to_dst_type(out_np, img)
+        return out
 
 
 class LabelToContour(Transform):
@@ -486,7 +510,25 @@ class LabelToContour(Transform):
         return contour_img.squeeze(0)
 
 
-class MeanEnsemble(Transform):
+class Ensemble(Transform):
+    @staticmethod
+    def get_stacked_torch(img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> torch.Tensor:
+        """Get either a sequence or single instance of np.ndarray/torch.Tensor. Return single torch.Tensor."""
+        if isinstance(img, Sequence) and isinstance(img[0], np.ndarray):
+            img = [torch.as_tensor(i) for i in img]
+        elif isinstance(img, np.ndarray):
+            img = torch.as_tensor(img)
+        out: torch.Tensor = torch.stack(img) if isinstance(img, Sequence) else img  # type: ignore
+        return out
+
+    @staticmethod
+    def post_convert(img: torch.Tensor, orig_img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+        orig_img_ = orig_img[0] if isinstance(orig_img, Sequence) else orig_img
+        out, *_ = convert_to_dst_type(img, orig_img_)
+        return out
+
+
+class MeanEnsemble(Ensemble):
     """
     Execute mean ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -509,11 +551,11 @@ class MeanEnsemble(Transform):
 
     """
 
-    def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None) -> None:
+    def __init__(self, weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None) -> None:
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
-    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
-        img_ = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+    def __call__(self, img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+        img_ = self.get_stacked_torch(img)
         if self.weights is not None:
             self.weights = self.weights.to(img_.device)
             shape = tuple(self.weights.shape)
@@ -523,10 +565,11 @@ class MeanEnsemble(Transform):
 
             img_ = img_ * weights / weights.mean(dim=0, keepdim=True)
 
-        return torch.mean(img_, dim=0)
+        out_pt = torch.mean(img_, dim=0)
+        return self.post_convert(out_pt, img)
 
 
-class VoteEnsemble(Transform):
+class VoteEnsemble(Ensemble):
     """
     Execute vote ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -546,11 +589,14 @@ class VoteEnsemble(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(self, num_classes: Optional[int] = None) -> None:
         self.num_classes = num_classes
 
-    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
-        img_ = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+    def __call__(self, img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+        img_ = self.get_stacked_torch(img)
+
         if self.num_classes is not None:
             has_ch_dim = True
             if img_.ndimension() > 1 and img_.shape[1] > 1:
@@ -565,9 +611,11 @@ class VoteEnsemble(Transform):
 
         if self.num_classes is not None:
             # if not One-Hot, use "argmax" to vote the most common class
-            return torch.argmax(img_, dim=0, keepdim=has_ch_dim)
-        # for One-Hot data, round the float number to 0 or 1
-        return torch.round(img_)
+            out_pt = torch.argmax(img_, dim=0, keepdim=has_ch_dim)
+        else:
+            # for One-Hot data, round the float number to 0 or 1
+            out_pt = torch.round(img_)
+        return self.post_convert(out_pt, img)
 
 
 class ProbNMS(Transform):
@@ -627,10 +675,7 @@ class ProbNMS(Transform):
         self.box_lower_bd = self.box_size // 2
         self.box_upper_bd = self.box_size - self.box_lower_bd
 
-    def __call__(
-        self,
-        prob_map: Union[np.ndarray, torch.Tensor],
-    ):
+    def __call__(self, prob_map: Union[np.ndarray, torch.Tensor]):
         """
         prob_map: the input probabilities map, it must have shape (H[, W, ...]).
         """
@@ -639,9 +684,8 @@ class ProbNMS(Transform):
                 prob_map = torch.as_tensor(prob_map, dtype=torch.float)
             self.filter.to(prob_map)
             prob_map = self.filter(prob_map)
-        else:
-            if not isinstance(prob_map, torch.Tensor):
-                prob_map = prob_map.copy()
+        elif not isinstance(prob_map, torch.Tensor):
+            prob_map = prob_map.copy()
 
         if isinstance(prob_map, torch.Tensor):
             prob_map = prob_map.detach().cpu().numpy()

@@ -15,26 +15,37 @@ import numpy as np
 import torch
 
 from monai.transforms import EnsureTyped
+from tests.utils import assert_allclose
 
 
 class TestEnsureTyped(unittest.TestCase):
     def test_array_input(self):
-        for test_data in (np.array([[1, 2], [3, 4]]), torch.as_tensor([[1, 2], [3, 4]])):
+        test_datas = [np.array([[1, 2], [3, 4]]), torch.as_tensor([[1, 2], [3, 4]])]
+        if torch.cuda.is_available():
+            test_datas.append(test_datas[-1].cuda())
+        for test_data in test_datas:
             for dtype in ("tensor", "NUMPY"):
-                result = EnsureTyped(keys="data", data_type=dtype)({"data": test_data})["data"]
+                result = EnsureTyped(
+                    keys="data", data_type=dtype, dtype=np.float32 if dtype == "NUMPY" else None, device="cpu"
+                )({"data": test_data})["data"]
+                if dtype == "NUMPY":
+                    self.assertTrue(result.dtype == np.float32)
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
-                torch.testing.assert_allclose(result, test_data)
+                assert_allclose(result, test_data, type_test=False)
                 self.assertTupleEqual(result.shape, (2, 2))
 
     def test_single_input(self):
-        for test_data in (5, 5.0, False, np.asarray(5), torch.tensor(5)):
+        test_datas = [5, 5.0, False, np.asarray(5), torch.tensor(5)]
+        if torch.cuda.is_available():
+            test_datas.append(test_datas[-1].cuda())
+        for test_data in test_datas:
             for dtype in ("tensor", "numpy"):
                 result = EnsureTyped(keys="data", data_type=dtype)({"data": test_data})["data"]
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
                 if isinstance(test_data, bool):
                     self.assertFalse(result)
                 else:
-                    torch.testing.assert_allclose(result, test_data)
+                    assert_allclose(result, test_data, type_test=False)
                 self.assertEqual(result.ndim, 0)
 
     def test_string(self):
@@ -68,7 +79,7 @@ class TestEnsureTyped(unittest.TestCase):
             "extra": None,
         }
         for dtype in ("tensor", "numpy"):
-            result = EnsureTyped(keys="data", data_type=dtype)({"data": test_data})["data"]
+            result = EnsureTyped(keys="data", data_type=dtype, device="cpu")({"data": test_data})["data"]
             self.assertTrue(isinstance(result, dict))
             self.assertTrue(isinstance(result["img"], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]))

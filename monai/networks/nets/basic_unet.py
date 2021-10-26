@@ -16,7 +16,7 @@ import torch.nn as nn
 
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
-from monai.utils import ensure_tuple_rep
+from monai.utils import deprecated_arg, ensure_tuple_rep
 
 __all__ = ["BasicUNet", "BasicUnet", "Basicunet"]
 
@@ -24,19 +24,21 @@ __all__ = ["BasicUNet", "BasicUnet", "Basicunet"]
 class TwoConv(nn.Sequential):
     """two convolutions."""
 
+    @deprecated_arg(name="dim", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
-        dim: int,
+        spatial_dims: int,
         in_chns: int,
         out_chns: int,
         act: Union[str, tuple],
         norm: Union[str, tuple],
         bias: bool,
         dropout: Union[float, tuple] = 0.0,
+        dim: Optional[int] = None,
     ):
         """
         Args:
-            dim: number of spatial dimensions.
+            spatial_dims: number of spatial dimensions.
             in_chns: number of input channels.
             out_chns: number of output channels.
             act: activation type and arguments.
@@ -44,11 +46,17 @@ class TwoConv(nn.Sequential):
             bias: whether to have a bias term in convolution blocks.
             dropout: dropout ratio. Defaults to no dropout.
 
+        .. deprecated:: 0.6.0
+            ``dim`` is deprecated, use ``spatial_dims`` instead.
         """
         super().__init__()
 
-        conv_0 = Convolution(dim, in_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1)
-        conv_1 = Convolution(dim, out_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1)
+        if dim is not None:
+            spatial_dims = dim
+        conv_0 = Convolution(spatial_dims, in_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1)
+        conv_1 = Convolution(
+            spatial_dims, out_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1
+        )
         self.add_module("conv_0", conv_0)
         self.add_module("conv_1", conv_1)
 
@@ -56,19 +64,21 @@ class TwoConv(nn.Sequential):
 class Down(nn.Sequential):
     """maxpooling downsampling and two convolutions."""
 
+    @deprecated_arg(name="dim", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
-        dim: int,
+        spatial_dims: int,
         in_chns: int,
         out_chns: int,
         act: Union[str, tuple],
         norm: Union[str, tuple],
         bias: bool,
         dropout: Union[float, tuple] = 0.0,
+        dim: Optional[int] = None,
     ):
         """
         Args:
-            dim: number of spatial dimensions.
+            spatial_dims: number of spatial dimensions.
             in_chns: number of input channels.
             out_chns: number of output channels.
             act: activation type and arguments.
@@ -76,11 +86,14 @@ class Down(nn.Sequential):
             bias: whether to have a bias term in convolution blocks.
             dropout: dropout ratio. Defaults to no dropout.
 
+        .. deprecated:: 0.6.0
+            ``dim`` is deprecated, use ``spatial_dims`` instead.
         """
         super().__init__()
-
-        max_pooling = Pool["MAX", dim](kernel_size=2)
-        convs = TwoConv(dim, in_chns, out_chns, act, norm, bias, dropout)
+        if dim is not None:
+            spatial_dims = dim
+        max_pooling = Pool["MAX", spatial_dims](kernel_size=2)
+        convs = TwoConv(spatial_dims, in_chns, out_chns, act, norm, bias, dropout)
         self.add_module("max_pooling", max_pooling)
         self.add_module("convs", convs)
 
@@ -88,9 +101,10 @@ class Down(nn.Sequential):
 class UpCat(nn.Module):
     """upsampling, concatenation with the encoder feature map, two convolutions"""
 
+    @deprecated_arg(name="dim", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
-        dim: int,
+        spatial_dims: int,
         in_chns: int,
         cat_chns: int,
         out_chns: int,
@@ -103,10 +117,11 @@ class UpCat(nn.Module):
         interp_mode: str = "linear",
         align_corners: Optional[bool] = True,
         halves: bool = True,
+        dim: Optional[int] = None,
     ):
         """
         Args:
-            dim: number of spatial dimensions.
+            spatial_dims: number of spatial dimensions.
             in_chns: number of input channels to be upsampled.
             cat_chns: number of channels from the decoder.
             out_chns: number of output channels.
@@ -124,14 +139,19 @@ class UpCat(nn.Module):
                 Only used in the "nontrainable" mode.
             halves: whether to halve the number of channels during upsampling.
                 This parameter does not work on ``nontrainable`` mode if ``pre_conv`` is `None`.
+
+        .. deprecated:: 0.6.0
+            ``dim`` is deprecated, use ``spatial_dims`` instead.
         """
         super().__init__()
+        if dim is not None:
+            spatial_dims = dim
         if upsample == "nontrainable" and pre_conv is None:
             up_chns = in_chns
         else:
             up_chns = in_chns // 2 if halves else in_chns
         self.upsample = UpSample(
-            dim,
+            spatial_dims,
             in_chns,
             up_chns,
             2,
@@ -140,7 +160,7 @@ class UpCat(nn.Module):
             interp_mode=interp_mode,
             align_corners=align_corners,
         )
-        self.convs = TwoConv(dim, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
+        self.convs = TwoConv(spatial_dims, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
 
     def forward(self, x: torch.Tensor, x_e: Optional[torch.Tensor]):
         """
@@ -167,9 +187,12 @@ class UpCat(nn.Module):
 
 
 class BasicUNet(nn.Module):
+    @deprecated_arg(
+        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
     def __init__(
         self,
-        dimensions: int = 3,
+        spatial_dims: int = 3,
         in_channels: int = 1,
         out_channels: int = 2,
         features: Sequence[int] = (32, 32, 64, 128, 256, 32),
@@ -178,6 +201,7 @@ class BasicUNet(nn.Module):
         bias: bool = True,
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
+        dimensions: Optional[int] = None,
     ):
         """
         A UNet implementation with 1D/2D/3D supports.
@@ -189,7 +213,7 @@ class BasicUNet(nn.Module):
             http://dx.doi.org/10.1038/s41592-018-0261-2
 
         Args:
-            dimensions: number of spatial dimensions. Defaults to 3 for spatial 3D inputs.
+            spatial_dims: number of spatial dimensions. Defaults to 3 for spatial 3D inputs.
             in_channels: number of input channels. Defaults to 1.
             out_channels: number of output channels. Defaults to 2.
             features: six integers as numbers of features.
@@ -207,16 +231,19 @@ class BasicUNet(nn.Module):
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
 
+        .. deprecated:: 0.6.0
+            ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+
         Examples::
 
             # for spatial 2D
-            >>> net = BasicUNet(dimensions=2, features=(64, 128, 256, 512, 1024, 128))
+            >>> net = BasicUNet(spatial_dims=2, features=(64, 128, 256, 512, 1024, 128))
 
             # for spatial 2D, with group norm
-            >>> net = BasicUNet(dimensions=2, features=(64, 128, 256, 512, 1024, 128), norm=("group", {"num_groups": 4}))
+            >>> net = BasicUNet(spatial_dims=2, features=(64, 128, 256, 512, 1024, 128), norm=("group", {"num_groups": 4}))
 
             # for spatial 3D
-            >>> net = BasicUNet(dimensions=3, features=(32, 32, 64, 128, 256, 32))
+            >>> net = BasicUNet(spatial_dims=3, features=(32, 32, 64, 128, 256, 32))
 
         See Also
 
@@ -225,22 +252,24 @@ class BasicUNet(nn.Module):
 
         """
         super().__init__()
+        if dimensions is not None:
+            spatial_dims = dimensions
 
         fea = ensure_tuple_rep(features, 6)
         print(f"BasicUNet features: {fea}.")
 
-        self.conv_0 = TwoConv(dimensions, in_channels, features[0], act, norm, bias, dropout)
-        self.down_1 = Down(dimensions, fea[0], fea[1], act, norm, bias, dropout)
-        self.down_2 = Down(dimensions, fea[1], fea[2], act, norm, bias, dropout)
-        self.down_3 = Down(dimensions, fea[2], fea[3], act, norm, bias, dropout)
-        self.down_4 = Down(dimensions, fea[3], fea[4], act, norm, bias, dropout)
+        self.conv_0 = TwoConv(spatial_dims, in_channels, features[0], act, norm, bias, dropout)
+        self.down_1 = Down(spatial_dims, fea[0], fea[1], act, norm, bias, dropout)
+        self.down_2 = Down(spatial_dims, fea[1], fea[2], act, norm, bias, dropout)
+        self.down_3 = Down(spatial_dims, fea[2], fea[3], act, norm, bias, dropout)
+        self.down_4 = Down(spatial_dims, fea[3], fea[4], act, norm, bias, dropout)
 
-        self.upcat_4 = UpCat(dimensions, fea[4], fea[3], fea[3], act, norm, bias, dropout, upsample)
-        self.upcat_3 = UpCat(dimensions, fea[3], fea[2], fea[2], act, norm, bias, dropout, upsample)
-        self.upcat_2 = UpCat(dimensions, fea[2], fea[1], fea[1], act, norm, bias, dropout, upsample)
-        self.upcat_1 = UpCat(dimensions, fea[1], fea[0], fea[5], act, norm, bias, dropout, upsample, halves=False)
+        self.upcat_4 = UpCat(spatial_dims, fea[4], fea[3], fea[3], act, norm, bias, dropout, upsample)
+        self.upcat_3 = UpCat(spatial_dims, fea[3], fea[2], fea[2], act, norm, bias, dropout, upsample)
+        self.upcat_2 = UpCat(spatial_dims, fea[2], fea[1], fea[1], act, norm, bias, dropout, upsample)
+        self.upcat_1 = UpCat(spatial_dims, fea[1], fea[0], fea[5], act, norm, bias, dropout, upsample, halves=False)
 
-        self.final_conv = Conv["conv", dimensions](fea[5], out_channels, kernel_size=1)
+        self.final_conv = Conv["conv", spatial_dims](fea[5], out_channels, kernel_size=1)
 
     def forward(self, x: torch.Tensor):
         """

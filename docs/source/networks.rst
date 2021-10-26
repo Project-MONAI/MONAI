@@ -358,6 +358,11 @@ Nets
 .. autoclass:: EfficientNetBN
   :members:
 
+`EfficientNetBNFeatures`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: EfficientNetBNFeatures
+  :members:
+
 `SegResNet`
 ~~~~~~~~~~~
 .. autoclass:: SegResNet
@@ -493,6 +498,11 @@ Nets
 `Critic`
 ~~~~~~~~
 .. autoclass:: Critic
+  :members:
+
+`Transchex`
+~~~~~~~~~~~~~~~~
+.. autoclass:: Transchex
   :members:
 
 `NetAdapter`

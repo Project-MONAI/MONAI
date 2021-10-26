@@ -15,26 +15,28 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-import copy
 import logging
+import re
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
+    AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
     ConvertToMultiChannelBasedOnBratsClasses,
+    CuCIM,
     DataStats,
     EnsureChannelFirst,
     EnsureType,
@@ -58,8 +60,10 @@ from monai.transforms.utility.array import (
     Transpose,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
+from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import InverseKeys, TransformBackends
+from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "AddChannelD",
@@ -86,6 +90,9 @@ __all__ = [
     "CopyItemsD",
     "CopyItemsDict",
     "CopyItemsd",
+    "CuCIMd",
+    "CuCIMD",
+    "CuCIMDict",
     "DataStatsD",
     "DataStatsDict",
     "DataStatsd",
@@ -116,6 +123,9 @@ __all__ = [
     "MapLabelValueD",
     "MapLabelValueDict",
     "MapLabelValued",
+    "RandCuCIMd",
+    "RandCuCIMD",
+    "RandCuCIMDict",
     "RandLambdaD",
     "RandLambdaDict",
     "RandLambdad",
@@ -169,6 +179,8 @@ class Identityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Identity`.
     """
 
+    backend = Identity.backend
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -180,9 +192,7 @@ class Identityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.identity = Identity()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.identity(d[key])
@@ -193,6 +203,8 @@ class AsChannelFirstd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
     """
+
+    backend = AsChannelFirst.backend
 
     def __init__(self, keys: KeysCollection, channel_dim: int = -1, allow_missing_keys: bool = False) -> None:
         """
@@ -205,7 +217,7 @@ class AsChannelFirstd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = AsChannelFirst(channel_dim=channel_dim)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -216,6 +228,8 @@ class AsChannelLastd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
     """
+
+    backend = AsChannelLast.backend
 
     def __init__(self, keys: KeysCollection, channel_dim: int = 0, allow_missing_keys: bool = False) -> None:
         """
@@ -228,7 +242,7 @@ class AsChannelLastd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = AsChannelLast(channel_dim=channel_dim)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -240,6 +254,8 @@ class AddChanneld(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
     """
 
+    backend = AddChannel.backend
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -250,7 +266,7 @@ class AddChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.adder = AddChannel()
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.adder(d[key])
@@ -261,6 +277,8 @@ class EnsureChannelFirstd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.EnsureChannelFirst`.
     """
+
+    backend = EnsureChannelFirst.backend
 
     def __init__(
         self,
@@ -289,7 +307,7 @@ class EnsureChannelFirstd(MapTransform):
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, meta_key, meta_key_postfix in zip(self.keys, self.meta_keys, self.meta_key_postfix):
             d[key] = self.adjuster(d[key], d[meta_key or f"{key}_{meta_key_postfix}"])
@@ -300,6 +318,8 @@ class RepeatChanneld(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RepeatChannel`.
     """
+
+    backend = RepeatChannel.backend
 
     def __init__(self, keys: KeysCollection, repeats: int, allow_missing_keys: bool = False) -> None:
         """
@@ -312,7 +332,7 @@ class RepeatChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.repeater = RepeatChannel(repeats)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.repeater(d[key])
@@ -323,6 +343,8 @@ class RemoveRepeatedChanneld(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RemoveRepeatedChannel`.
     """
+
+    backend = RemoveRepeatedChannel.backend
 
     def __init__(self, keys: KeysCollection, repeats: int, allow_missing_keys: bool = False) -> None:
         """
@@ -335,7 +357,7 @@ class RemoveRepeatedChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.repeater = RemoveRepeatedChannel(repeats)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.repeater(d[key])
@@ -346,8 +368,9 @@ class SplitChanneld(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
     All the input specified by `keys` should be split into same count of data.
-
     """
+
+    backend = SplitChannel.backend
 
     def __init__(
         self,
@@ -372,9 +395,7 @@ class SplitChanneld(MapTransform):
         self.output_postfixes = output_postfixes
         self.splitter = SplitChannel(channel_dim=channel_dim)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             rets = self.splitter(d[key])
@@ -429,24 +450,34 @@ class ToTensord(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+    backend = ToTensor.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: Optional[torch.dtype] = None,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype: target data content type to convert, for example: torch.float, etc.
+            device: specify the target device to put the Tensor data.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToTensor()
+        self.converter = ToTensor(dtype=dtype, device=device)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.converter(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             # Create inverse transform
@@ -471,18 +502,29 @@ class EnsureTyped(MapTransform, InvertibleTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, data_type: str = "tensor", allow_missing_keys: bool = False) -> None:
+    backend = EnsureType.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        data_type: str = "tensor",
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             data_type: target data type to convert, should be "tensor" or "numpy".
+            dtype: target data content type to convert, for example: np.float32, torch.float, etc.
+            device: for Tensor data type, specify the target device.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = EnsureType(data_type=data_type)
+        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
@@ -505,15 +547,20 @@ class ToNumpyd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
     """
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+    backend = ToNumpy.backend
+
+    def __init__(
+        self, keys: KeysCollection, dtype: Optional[DtypeLike] = None, allow_missing_keys: bool = False
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype: target data type when converting to numpy array.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToNumpy()
+        self.converter = ToNumpy(dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
@@ -525,19 +572,21 @@ class ToNumpyd(MapTransform):
 class ToCupyd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToCupy`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        dtype: data type specifier. It is inferred from the input by default.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            allow_missing_keys: don't raise exception if key is missing.
-        """
-        super().__init__(keys, allow_missing_keys)
-        self.converter = ToCupy()
+    backend = ToCupy.backend
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __init__(self, keys: KeysCollection, dtype=None, allow_missing_keys: bool = False) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = ToCupy(dtype=dtype)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -548,6 +597,8 @@ class ToPILd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
     """
+
+    backend = ToPIL.backend
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
@@ -571,13 +622,15 @@ class Transposed(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Transpose`.
     """
 
+    backend = Transpose.backend
+
     def __init__(
         self, keys: KeysCollection, indices: Optional[Sequence[int]], allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.transform = Transpose(indices)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key])
@@ -607,8 +660,35 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, keys: KeysCollection, sep: str = ".", use_re: Union[Sequence[bool], bool] = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to delete, can be "A{sep}B{sep}C"
+                to delete key `C` in nested dictionary, `C` can be regular expression.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            sep: the separator tag to define nested dictionary keys, default to ".".
+            use_re: whether the specified key is a regular expression, it also can be
+                a list of bool values, map the to keys.
+        """
+        super().__init__(keys)
+        self.sep = sep
+        self.use_re = ensure_tuple_rep(use_re, len(self.keys))
+
     def __call__(self, data):
-        return {key: val for key, val in data.items() if key not in self.key_iterator(data)}
+        def _delete_item(keys, d, use_re: bool = False):
+            key = keys[0]
+            if len(keys) > 1:
+                d[key] = _delete_item(keys[1:], d[key], use_re)
+                return d
+            return {k: v for k, v in d.items() if (use_re and not re.search(key, k)) or (not use_re and k != key)}
+
+        d = dict(data)
+        for key, use_re in zip(self.keys, self.use_re):
+            d = _delete_item(key.split(self.sep), d, use_re)
+
+        return d
 
 
 class SelectItemsd(MapTransform):
@@ -617,15 +697,18 @@ class SelectItemsd(MapTransform):
     It will copy the selected key-values and construct and new dictionary.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __call__(self, data):
-        result = {key: data[key] for key in self.key_iterator(data)}
-        return result
+        return {key: data[key] for key in self.key_iterator(data)}
 
 
 class SqueezeDimd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SqueezeDim`.
     """
+
+    backend = SqueezeDim.backend
 
     def __init__(self, keys: KeysCollection, dim: int = 0, allow_missing_keys: bool = False) -> None:
         """
@@ -638,7 +721,7 @@ class SqueezeDimd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = SqueezeDim(dim=dim)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -649,6 +732,8 @@ class DataStatsd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.DataStats`.
     """
+
+    backend = DataStats.backend
 
     def __init__(
         self,
@@ -696,20 +781,12 @@ class DataStatsd(MapTransform):
         self.logger_handler = logger_handler
         self.printer = DataStats(logger_handler=logger_handler)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, prefix, data_type, data_shape, value_range, data_value, additional_info in self.key_iterator(
             d, self.prefix, self.data_type, self.data_shape, self.value_range, self.data_value, self.additional_info
         ):
-            d[key] = self.printer(
-                d[key],
-                prefix,
-                data_type,
-                data_shape,
-                value_range,
-                data_value,
-                additional_info,
-            )
+            d[key] = self.printer(d[key], prefix, data_type, data_shape, value_range, data_value, additional_info)
         return d
 
 
@@ -717,6 +794,8 @@ class SimulateDelayd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SimulateDelay`.
     """
+
+    backend = SimulateDelay.backend
 
     def __init__(
         self, keys: KeysCollection, delay_time: Union[Sequence[float], float] = 0.0, allow_missing_keys: bool = False
@@ -734,7 +813,7 @@ class SimulateDelayd(MapTransform):
         self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
         self.delayer = SimulateDelay()
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, delay_time in self.key_iterator(d, self.delay_time):
             d[key] = self.delayer(d[key], delay_time=delay_time)
@@ -745,8 +824,9 @@ class CopyItemsd(MapTransform):
     """
     Copy specified items from data dictionary and save with different key names.
     It can copy several items together and copy several times.
-
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self, keys: KeysCollection, times: int, names: KeysCollection, allow_missing_keys: bool = False
@@ -779,7 +859,7 @@ class CopyItemsd(MapTransform):
             )
         self.names = names
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         """
         Raises:
             KeyError: When a key in ``self.names`` already exists in ``data``.
@@ -791,10 +871,11 @@ class CopyItemsd(MapTransform):
             for key, new_key in self.key_iterator(d, self.names[i * key_len : (i + 1) * key_len]):
                 if new_key in d:
                     raise KeyError(f"Key {new_key} already exists in data.")
-                if isinstance(d[key], torch.Tensor):
-                    d[new_key] = d[key].detach().clone()
+                val = d[key]
+                if isinstance(val, torch.Tensor):
+                    d[new_key] = val.detach().clone()
                 else:
-                    d[new_key] = copy.deepcopy(d[key])
+                    d[new_key] = deepcopy(val)
         return d
 
 
@@ -802,8 +883,9 @@ class ConcatItemsd(MapTransform):
     """
     Concatenate specified items from data dictionary together on the first dim to construct a big array.
     Expect all the items are numpy array or PyTorch Tensor.
-
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, keys: KeysCollection, name: str, dim: int = 0, allow_missing_keys: bool = False) -> None:
         """
@@ -818,7 +900,7 @@ class ConcatItemsd(MapTransform):
         self.name = name
         self.dim = dim
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         """
         Raises:
             TypeError: When items in ``data`` differ in type.
@@ -834,10 +916,10 @@ class ConcatItemsd(MapTransform):
             elif not isinstance(d[key], data_type):
                 raise TypeError("All items in data must have the same type.")
             output.append(d[key])
-        if data_type == np.ndarray:
+        if data_type is np.ndarray:
             d[self.name] = np.concatenate(output, axis=self.dim)
-        elif data_type == torch.Tensor:
-            d[self.name] = torch.cat(output, dim=self.dim)
+        elif data_type is torch.Tensor:
+            d[self.name] = torch.cat(output, dim=self.dim)  # type: ignore
         else:
             raise TypeError(f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor).")
         return d
@@ -873,6 +955,8 @@ class Lambdad(MapTransform, InvertibleTransform):
 
     """
 
+    backend = Lambda.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -890,7 +974,7 @@ class Lambdad(MapTransform, InvertibleTransform):
     def _transform(self, data: Any, func: Callable):
         return self._lambd(data, func=func)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
             ret = self._transform(data=d[key], func=func)
@@ -935,8 +1019,9 @@ class RandLambdad(Lambdad, RandomizableTransform):
 
     Note: The inverse operation doesn't allow to define `extra_info` or access other information, such as the
         image's original size. If need these complicated information, please write a new InvertibleTransform directly.
-
     """
+
+    backend = Lambda.backend
 
     def __init__(
         self,
@@ -984,6 +1069,8 @@ class LabelToMaskd(MapTransform):
 
     """
 
+    backend = LabelToMask.backend
+
     def __init__(  # pytype: disable=annotation-type-mismatch
         self,
         keys: KeysCollection,
@@ -994,7 +1081,7 @@ class LabelToMaskd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelToMask(select_labels=select_labels, merge_channels=merge_channels)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1022,6 +1109,8 @@ class FgBgToIndicesd(MapTransform):
 
     """
 
+    backend = FgBgToIndices.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1038,7 +1127,7 @@ class FgBgToIndicesd(MapTransform):
         self.image_key = image_key
         self.converter = FgBgToIndices(image_threshold, output_shape)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.key_iterator(d):
@@ -1066,6 +1155,8 @@ class ClassesToIndicesd(MapTransform):
 
     """
 
+    backend = ClassesToIndices.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1081,7 +1172,7 @@ class ClassesToIndicesd(MapTransform):
         self.image_key = image_key
         self.converter = ClassesToIndices(num_classes, image_threshold, output_shape)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, Any]):
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.key_iterator(d):
@@ -1101,11 +1192,13 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     and ET (Enhancing tumor).
     """
 
+    backend = ConvertToMultiChannelBasedOnBratsClasses.backend
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
         super().__init__(keys, allow_missing_keys)
         self.converter = ConvertToMultiChannelBasedOnBratsClasses()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1131,6 +1224,8 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
 
     """
 
+    backend = AddExtremePointsChannel.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1151,10 +1246,10 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
         self.rescale_min = rescale_min
         self.rescale_max = rescale_max
 
-    def randomize(self, label: np.ndarray) -> None:
+    def randomize(self, label: NdarrayOrTensor) -> None:
         self.points = get_extreme_points(label, rand_state=self.R, background=self.background, pert=self.pert)
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         label = d[self.label_key]
         if label.shape[0] != 1:
@@ -1172,7 +1267,8 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
                 rescale_min=self.rescale_min,
                 rescale_max=self.rescale_max,
             )
-            d[key] = np.concatenate([img, points_image], axis=0)
+            points_image, *_ = convert_to_dst_type(points_image, img)  # type: ignore
+            d[key] = concatenate([img, points_image], axis=0)
         return d
 
 
@@ -1186,14 +1282,9 @@ class TorchVisiond(MapTransform):
         data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    backend = TorchVision.backend
+
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -1207,7 +1298,7 @@ class TorchVisiond(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.trans = TorchVision(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
@@ -1230,14 +1321,9 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    backend = TorchVision.backend
+
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -1251,7 +1337,7 @@ class RandTorchVisiond(Randomizable, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.trans = TorchVision(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
@@ -1262,6 +1348,8 @@ class MapLabelValued(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.MapLabelValue`.
     """
+
+    backend = MapLabelValue.backend
 
     def __init__(
         self,
@@ -1284,7 +1372,7 @@ class MapLabelValued(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.mapper = MapLabelValue(orig_labels=orig_labels, target_labels=target_labels, dtype=dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.mapper(d[key])
@@ -1326,6 +1414,8 @@ class IntensityStatsd(MapTransform):
 
     """
 
+    backend = IntensityStats.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1345,16 +1435,14 @@ class IntensityStatsd(MapTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mask_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.mask_keys, self.meta_keys, self.meta_key_postfix
         ):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
             d[key], d[meta_key] = self.stats(
-                img=d[key],
-                meta_data=d.get(meta_key),
-                mask=d.get(mask_key) if mask_key is not None else None,
+                img=d[key], meta_data=d.get(meta_key), mask=d.get(mask_key) if mask_key is not None else None
             )
         return d
 
@@ -1364,12 +1452,10 @@ class ToDeviced(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToDevice`.
     """
 
+    backend = ToDevice.backend
+
     def __init__(
-        self,
-        keys: KeysCollection,
-        device: Union[torch.device, str],
-        allow_missing_keys: bool = False,
-        **kwargs,
+        self, keys: KeysCollection, device: Union[torch.device, str], allow_missing_keys: bool = False, **kwargs
     ) -> None:
         """
         Args:
@@ -1388,6 +1474,87 @@ class ToDeviced(MapTransform):
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
         return d
+
+
+class CuCIMd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for non-randomized transforms.
+    For randomized transforms of CuCIM use :py:class:`monai.transforms.RandCuCIMd`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        name: The transform name in CuCIM package.
+        allow_missing_keys: don't raise exception if key is missing.
+        args: parameters for the CuCIM transform.
+        kwargs: parameters for the CuCIM transform.
+
+    Note:
+        CuCIM transforms only work with CuPy arrays, this transform expects input data to be `cupy.ndarray`.
+        Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+    """
+
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+        super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
+        self.trans = CuCIM(name, *args, **kwargs)
+
+    def __call__(self, data):
+        """
+        Args:
+            data: Dict[Hashable, `cupy.ndarray`]
+
+        Returns:
+            Dict[Hashable, `cupy.ndarray`]
+
+        """
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.trans(d[key])
+        return d
+
+
+class RandCuCIMd(CuCIMd, RandomizableTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CuCIM` for randomized transforms.
+    For deterministic non-randomized transforms of CuCIM use :py:class:`monai.transforms.CuCIMd`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        name: The transform name in CuCIM package.
+        apply_prob: the probability to apply the transform (default=1.0)
+        allow_missing_keys: don't raise exception if key is missing.
+        args: parameters for the CuCIM transform.
+        kwargs: parameters for the CuCIM transform.
+
+    Note:
+        - CuCIM transform only work with CuPy arrays, so this transform expects input data to be `cupy.ndarray`.
+          Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
+        - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
+          the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
+          or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+          with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
+        - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
+          the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
+    """
+
+    def __init__(self, apply_prob: float = 1.0, *args, **kwargs) -> None:
+        CuCIMd.__init__(self, *args, **kwargs)
+        RandomizableTransform.__init__(self, prob=apply_prob)
+
+    def __call__(self, data):
+        """
+        Args:
+            data: Dict[Hashable, `cupy.ndarray`]
+
+        Returns:
+            Dict[Hashable, `cupy.ndarray`]
+
+        """
+        self.randomize(data)
+        if not self._do_transform:
+            return dict(data)
+        return super().__call__(data)
 
 
 IdentityD = IdentityDict = Identityd
@@ -1426,3 +1593,5 @@ RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued
 IntensityStatsD = IntensityStatsDict = IntensityStatsd
 ToDeviceD = ToDeviceDict = ToDeviced
+CuCIMD = CuCIMDict = CuCIMd
+RandCuCIMD = RandCuCIMDict = RandCuCIMd

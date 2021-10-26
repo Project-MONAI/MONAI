@@ -19,16 +19,13 @@ from parameterized import parameterized
 from PIL import Image
 
 from monai.transforms import EnsureChannelFirstd, LoadImaged
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_1 = [{"keys": "img"}, ["test_image.nii.gz"], None]
 
 TEST_CASE_2 = [{"keys": "img"}, ["test_image.nii.gz"], -1]
 
-TEST_CASE_3 = [
-    {"keys": "img"},
-    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    None,
-]
+TEST_CASE_3 = [{"keys": "img"}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], None]
 
 
 class TestEnsureChannelFirstd(unittest.TestCase):
@@ -43,9 +40,11 @@ class TestEnsureChannelFirstd(unittest.TestCase):
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
-            result = LoadImaged(**input_param)({"img": filenames})
-            result = EnsureChannelFirstd(**input_param)(result)
-            self.assertEqual(result["img"].shape[0], len(filenames))
+            for p in TEST_NDARRAYS:
+                result = LoadImaged(**input_param)({"img": filenames})
+                result["img"] = p(result["img"])
+                result = EnsureChannelFirstd(**input_param)(result)
+                self.assertEqual(result["img"].shape[0], len(filenames))
 
     def test_load_png(self):
         spatial_size = (256, 256, 3)

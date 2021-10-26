@@ -68,11 +68,7 @@ TEST_CASE_4_1 = [  # additional parameter
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_5 = [
-    {"reader": NibabelReader(mmap=False), "image_only": False},
-    ["test_image.nii.gz"],
-    (128, 128, 128),
-]
+TEST_CASE_5 = [{"reader": NibabelReader(mmap=False), "image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
 
 TEST_CASE_6 = [{"reader": ITKReader(), "image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
 

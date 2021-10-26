@@ -5,6 +5,51 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.7.0] - 2021-09-24
+### Added
+* Overview of [new features in v0.7](docs/source/whatsnew_0_7.md)
+* Initial phase of major usability improvements in `monai.transforms` to support input and backend in PyTorch and NumPy
+* Performance enhancements, with [profiling and tuning guides](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md) for typical use cases
+* Reproducing [training modules and workflows](https://github.com/Project-MONAI/tutorials/tree/master/kaggle/RANZCR/4th_place_solution) of state-of-the-art Kaggle competition solutions
+* 24 new transforms, including
+  * `OneOf` meta transform
+  * DeepEdit guidance signal transforms for interactive segmentation
+  * Transforms for self-supervised pre-training
+  * Integration of [NVIDIA Tools Extension](https://developer.nvidia.com/blog/nvidia-tools-extension-api-nvtx-annotation-tool-for-profiling-code-in-python-and-c-c/) (NVTX)
+  * Integration of [cuCIM](https://github.com/rapidsai/cucim)
+  * Stain normalization and contextual grid for digital pathology
+* `Transchex` network for vision-language transformers for chest X-ray analysis
+* `DatasetSummary` utility in `monai.data`
+* `WarmupCosineSchedule`
+* Deprecation warnings and documentation support for better backwards compatibility
+* Padding with additional `kwargs` and different backend API
+* Additional options such as `dropout` and `norm` in various networks and their submodules
+
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.08-py3` from `nvcr.io/nvidia/pytorch:21.06-py3`
+* Deprecated input argument `n_classes`, in favor of `num_classes`
+* Deprecated input argument `dimensions` and `ndims`, in favor of `spatial_dims`
+* Updated the Sphinx-based documentation theme for better readability
+* `NdarrayTensor` type is replaced by `NdarrayOrTensor` for simpler annotations
+* Self-attention-based network blocks now support both 2D and 3D inputs
+
+### Removed
+* The deprecated `TransformInverter`, in favor of `monai.transforms.InvertD`
+* GitHub self-hosted CI/CD pipelines for nightly and post-merge tests
+* `monai.handlers.utils.evenly_divisible_all_gather`
+* `monai.handlers.utils.string_list_all_gather`
+
+### Fixed
+* A Multi-thread cache writing issue in `LMDBDataset`
+* Output shape convention inconsistencies of the image readers
+* Output directory and file name flexibility issue for `NiftiSaver`, `PNGSaver`
+* Requirement of the `label` field in test-time augmentation
+* Input argument flexibility issues for  `ThreadDataLoader`
+* Decoupled `Dice` and `CrossEntropy` intermediate results in `DiceCELoss`
+* Improved documentation, code examples, and warning messages in various modules
+* Various usability issues reported by users
+
 ## [0.6.0] - 2021-07-08
 ### Added
 * 10 new transforms, a masked loss wrapper, and a `NetAdapter` for transfer learning
@@ -23,6 +68,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Fully compatible with PyTorch 1.9
 * `--disttests` and `--min` options for `runtests.sh`
 * Initial support of pre-merge tests with Nvidia Blossom system
+
 ### Changed
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.06-py3` from
   `nvcr.io/nvidia/pytorch:21.04-py3`
@@ -32,11 +78,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Unified the terms: `post_transform` is renamed to `postprocessing`, `pre_transform` is renamed to `preprocessing`
 * Unified the postprocessing transforms and event handlers to accept the "channel-first" data format
 * `evenly_divisible_all_gather` and `string_list_all_gather` moved to `monai.utils.dist`
+
 ### Removed
 * Support of 'batched' input for postprocessing transforms and event handlers
 * `TorchVisionFullyConvModel`
 * `set_visible_devices` utility function
 * `SegmentationSaver` and `TransformsInverter` handlers
+
 ### Fixed
 * Issue of handling big-endian image headers
 * Multi-thread issue for non-random transforms in the cache-based datasets
@@ -267,9 +315,11 @@ the postprocessing steps should be used before calling the metrics methods
 * Optionally depend on PyTorch-Ignite v0.4.2 instead of v0.3.0
 * Optionally depend on torchvision, ITK
 * Enhanced CI tests with 8 new testing environments
+
 ### Removed
 * `MONAI/examples` folder (relocated into [`Project-MONAI/tutorials`](https://github.com/Project-MONAI/tutorials))
 * `MONAI/research` folder (relocated to [`Project-MONAI/research-contributions`](https://github.com/Project-MONAI/research-contributions))
+
 ### Fixed
 * `dense_patch_slices` incorrect indexing
 * Data type issue in `GeneralizedWassersteinDiceLoss`
@@ -300,6 +350,7 @@ the postprocessing steps should be used before calling the metrics methods
 * Cross-platform CI tests supporting multiple Python versions
 * Optional import mechanism
 * Experimental features for third-party transforms integration
+
 ### Changed
 > For more details please visit [the project wiki](https://github.com/Project-MONAI/MONAI/wiki/Notable-changes-between-0.1.0-and-0.2.0)
 * Core modules now require numpy >= 1.17
@@ -309,9 +360,11 @@ the postprocessing steps should be used before calling the metrics methods
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:20.03-py3` from `nvcr.io/nvidia/pytorch:19.10-py3`
 * Enhanced local testing tools
 * Documentation website domain changed to https://docs.monai.io
+
 ### Removed
 * Support of Python < 3.6
 * Automatic installation of optional dependencies including pytorch-ignite, nibabel, tensorboard, pillow, scipy, scikit-image
+
 ### Fixed
 * Various issues in type and argument names consistency
 * Various issues in docstring and documentation site
@@ -334,7 +387,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.6.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.7.0...HEAD
+[0.7.0]: https://github.com/Project-MONAI/MONAI/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/Project-MONAI/MONAI/compare/0.5.3...0.6.0
 [0.5.3]: https://github.com/Project-MONAI/MONAI/compare/0.5.0...0.5.3
 [0.5.0]: https://github.com/Project-MONAI/MONAI/compare/0.4.0...0.5.0

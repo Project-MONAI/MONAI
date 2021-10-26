@@ -18,7 +18,13 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import BlockArgs, EfficientNetBN, drop_connect, get_efficientnet_image_size
+from monai.networks.nets import (
+    BlockArgs,
+    EfficientNetBN,
+    EfficientNetBNFeatures,
+    drop_connect,
+    get_efficientnet_image_size,
+)
 from monai.utils import optional_import
 from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
@@ -38,7 +44,7 @@ else:
 
 
 def get_model_names():
-    return ["efficientnet-b{}".format(d) for d in range(8)]
+    return [f"efficientnet-b{d}" for d in range(8)]
 
 
 def get_expected_model_shape(model_name):
@@ -101,11 +107,7 @@ def make_shape_cases(
                     ret_tests.append(
                         [
                             kwargs,
-                            (
-                                batch,
-                                in_channels,
-                            )
-                            + (get_expected_model_shape(model),) * spatial_dim,
+                            (batch, in_channels) + (get_expected_model_shape(model),) * spatial_dim,
                             (batch, num_classes),
                         ]
                     )
@@ -156,6 +158,7 @@ CASES_KITTY_TRAINED = [
             "in_channels": 3,
             "num_classes": 1000,
             "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
+            "adv_prop": False,
         },
         os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
         282,  # ~ tiger cat
@@ -226,14 +229,33 @@ CASES_VARIATIONS.extend(
     )
 )
 
+CASE_EXTRACT_FEATURES = [
+    (
+        {
+            "model_name": "efficientnet-b8",
+            "pretrained": True,
+            "progress": False,
+            "spatial_dims": 2,
+            "in_channels": 2,
+            "adv_prop": True,
+        },
+        [1, 2, 224, 224],
+        ([1, 32, 112, 112], [1, 56, 56, 56], [1, 88, 28, 28], [1, 248, 14, 14], [1, 704, 7, 7]),
+    )
+]
+
 
 class TestEFFICIENTNET(unittest.TestCase):
     @parameterized.expand(CASES_1D + CASES_2D + CASES_3D + CASES_VARIATIONS)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # initialize model
-        net = EfficientNetBN(**input_param).to(device)
+        try:
+            # initialize model
+            net = EfficientNetBN(**input_param).to(device)
+        except (ContentTooShortError, HTTPError, RuntimeError) as e:
+            print(str(e))
+            return  # skipping the tests because of http errors
 
         # run inference with random tensor
         with eval_mode(net):
@@ -246,8 +268,12 @@ class TestEFFICIENTNET(unittest.TestCase):
     def test_non_default_shapes(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # initialize model
-        net = EfficientNetBN(**input_param).to(device)
+        try:
+            # initialize model
+            net = EfficientNetBN(**input_param).to(device)
+        except (ContentTooShortError, HTTPError, RuntimeError) as e:
+            print(str(e))
+            return  # skipping the tests because of http errors
 
         # override input shape with different variations
         num_dims = len(input_shape) - 2
@@ -353,6 +379,28 @@ class TestEFFICIENTNET(unittest.TestCase):
         net.set_swish(memory_efficient=False)  # at the moment custom memory efficient swish is not exportable with jit
         test_data = torch.randn(1, 3, 224, 224)
         test_script_save(net, test_data)
+
+
+class TestExtractFeatures(unittest.TestCase):
+    @parameterized.expand(CASE_EXTRACT_FEATURES)
+    def test_shape(self, input_param, input_shape, expected_shapes):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        try:
+            # initialize model
+            net = EfficientNetBNFeatures(**input_param).to(device)
+        except (ContentTooShortError, HTTPError, RuntimeError) as e:
+            print(str(e))
+            return  # skipping the tests because of http errors
+
+        # run inference with random tensor
+        with eval_mode(net):
+            features = net(torch.randn(input_shape).to(device))
+
+        # check output shape
+        self.assertEqual(len(features), len(expected_shapes))
+        for feature, expected_shape in zip(features, expected_shapes):
+            self.assertEqual(feature.shape, torch.Size(expected_shape))
 
 
 if __name__ == "__main__":

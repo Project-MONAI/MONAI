@@ -22,7 +22,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.utils.module import get_torch_version_tuple
+from monai.utils.module import version_leq
 
 __all__ = [
     "zip_with",
@@ -42,6 +42,7 @@ __all__ = [
     "MAX_SEED",
     "copy_to_device",
     "ImageMetaKey",
+    "is_module_ver_at_least",
 ]
 
 _seed = None
@@ -234,8 +235,7 @@ def set_determinism(
     if seed is None:
         # cast to 32 bit seed for CUDA
         seed_ = torch.default_generator.seed() % (np.iinfo(np.int32).max + 1)
-        if not torch.cuda._is_in_bad_fork():
-            torch.cuda.manual_seed_all(seed_)
+        torch.manual_seed(seed_)
     else:
         seed = int(seed) % MAX_SEED
         torch.manual_seed(seed)
@@ -256,13 +256,11 @@ def set_determinism(
     else:  # restore the original flags
         torch.backends.cudnn.deterministic = _flag_deterministic
         torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
-
     if use_deterministic_algorithms is not None:
-        torch_ver = get_torch_version_tuple()
-        if torch_ver >= (1, 9):
+        if hasattr(torch, "use_deterministic_algorithms"):
             torch.use_deterministic_algorithms(use_deterministic_algorithms)
-        elif torch_ver >= (1, 7):
-            torch.set_deterministic(use_deterministic_algorithms)  # beta feature
+        elif hasattr(torch, "set_deterministic"):
+            torch.set_deterministic(use_deterministic_algorithms)  # type: ignore
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
 
@@ -279,9 +277,7 @@ def list_to_dict(items):
     def _parse_var(s):
         items = s.split("=", maxsplit=1)
         key = items[0].strip(" \n\r\t'")
-        value = None
-        if len(items) > 1:
-            value = items[1].strip(" \n\r\t'")
+        value = items[1].strip(" \n\r\t'") if len(items) > 1 else None
         return key, value
 
     d = {}
@@ -302,10 +298,7 @@ def list_to_dict(items):
 
 
 def copy_to_device(
-    obj: Any,
-    device: Optional[Union[str, torch.device]],
-    non_blocking: bool = True,
-    verbose: bool = False,
+    obj: Any, device: Optional[Union[str, torch.device]], non_blocking: bool = True, verbose: bool = False
 ) -> Any:
     """
     Copy object or tuple/list/dictionary of objects to ``device``.
@@ -355,3 +348,16 @@ def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
         return False
     sig = inspect.signature(obj)
     return all(key in sig.parameters for key in ensure_tuple(keywords))
+
+
+def is_module_ver_at_least(module, version):
+    """Determine if a module's version is at least equal to the given value.
+
+    Args:
+        module: imported module's name, e.g., `np` or `torch`.
+        version: required version, given as a tuple, e.g., `(1, 8, 0)`.
+    Returns:
+        `True` if module is the given version or newer.
+    """
+    test_ver = ".".join(map(str, version))
+    return module.__version__ != test_ver and version_leq(test_ver, module.__version__)
