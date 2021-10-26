@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 
 from monai.config import IgniteInfo
 from monai.transforms import apply_transform
-from monai.utils import min_version, optional_import
+from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
@@ -28,6 +29,9 @@ __all__ = [
     "GanKeys",
     "get_devices_spec",
     "default_prepare_batch",
+    "PrepareBatch",
+    "PrepareBatchDefault",
+    "PrepareBatchExtraInput",
     "default_make_latent",
     "engine_apply_transform",
     "default_metric_cmp_fn",
@@ -121,6 +125,80 @@ def default_prepare_batch(
     if GanKeys.REALS in batchdata:
         return batchdata[GanKeys.REALS].to(device=device, non_blocking=non_blocking)
     return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking), None
+
+
+class PrepareBatch(ABC):
+    """
+    Interface of customized prepare_batch in the trainer or evaluator workflows.
+    It takes the data of current batch, target device and non_blocking flag as input.
+
+    """
+
+    @abstractmethod
+    def __call__(
+        self,
+        batchdata: Dict[str, torch.Tensor],
+        device: Optional[Union[str, torch.device]] = None,
+        non_blocking: bool = False,
+    ):
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+
+class PrepareBatchDefault(PrepareBatch):
+    """
+    Default prepare_batch method to return `image` and `label` only,
+    it's consistent with `default_prerpare_batch` API.
+
+    """
+
+    def __call__(
+        self,
+        batchdata: Dict[str, torch.Tensor],
+        device: Optional[Union[str, torch.device]] = None,
+        non_blocking: bool = False,
+    ):
+        return default_prepare_batch(batchdata, device, non_blocking)
+
+
+class PrepareBatchExtraInput(PrepareBatch):
+    """
+    Customized prepare_batch for trainer or evalutor that support extra input data for network.
+    Extra items are specified by the `extra_keys` parameter.
+
+    Args:
+        extra_keys: if a string or list provided, every item is the key of extra data in current batch,
+            and will pass the extra data to the network(*args) in order.
+            if a dict provided, every `{k, v}` pair is the key of extra data in current batch,
+            `k` the param name in network, `v` is the key of extra data in current batch,
+            and will pass the `{k1: batch[v1], k2: batch[v2], ...}` as kwargs to the network.
+
+    """
+
+    def __init__(self, extra_keys: Union[str, Sequence[str], Dict[str, str]]) -> None:
+        self.extra_keys = extra_keys
+
+    def __call__(
+        self,
+        batchdata: Dict[str, torch.Tensor],
+        device: Optional[Union[str, torch.device]] = None,
+        non_blocking: bool = False,
+    ):
+        image, label = default_prepare_batch(batchdata, device, non_blocking)
+        args = list()
+        kwargs = dict()
+
+        def _get_data(key: str):
+            data = batchdata[key]
+            return data.to(device=device, non_blocking=non_blocking) if isinstance(data, torch.Tensor) else data
+
+        if isinstance(self.extra_keys, (str, list, tuple)):
+            for k in ensure_tuple(self.extra_keys):
+                args.append(_get_data(k))
+        elif isinstance(self.extra_keys, dict):
+            for k, v in self.extra_keys.items():
+                kwargs.update({k: _get_data(v)})
+
+        return image, label, tuple(args), kwargs
 
 
 def default_make_latent(
