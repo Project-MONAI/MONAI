@@ -38,7 +38,6 @@ from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
-    get_equivalent_dtype,
     look_up_option,
     min_version,
     optional_import,
@@ -878,18 +877,19 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     and ET (Enhancing tumor).
     """
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         # if img has channel dim, squeeze it
         if img.ndim == 4 and img.shape[0] == 1:
-            img = np.squeeze(img, axis=0)
+            img = img.squeeze(0)
 
-        result = [np.logical_or(img == 1, img == 4)]
+        result = [(img == 1) | (img == 4)]
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
-        result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
+        result.append((img == 1) | (img == 4) | (img == 2))
         # label 4 is ET
         result.append(img == 4)
-        return np.stack(result, axis=0)
+        return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
 
 
 class AddExtremePointsChannel(Randomizable, Transform):
@@ -963,6 +963,7 @@ class TorchVision:
     data to be PyTorch Tensor, users can easily call `ToTensor` transform to convert a Numpy array to Tensor.
 
     """
+
     backend = [TransformBackends.TORCH]
 
     def __init__(self, name: str, *args, **kwargs) -> None:
@@ -977,14 +978,16 @@ class TorchVision:
         transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, img: torch.Tensor):
+    def __call__(self, img: NdarrayOrTensor):
         """
         Args:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
-        img, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
-        return self.trans(img)
+        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        out = self.trans(img_t)
+        out, *_ = convert_to_dst_type(src=out, dst=img_t)
+        return out
 
 
 class MapLabelValue:
@@ -995,6 +998,7 @@ class MapLabelValue:
     The label data must be numpy array or array-like data and the output data will be numpy array.
 
     """
+
     backend = [TransformBackends.NUMPY]
 
     def __init__(self, orig_labels: Sequence, target_labels: Sequence, dtype: DtypeLike = np.float32) -> None:
@@ -1015,7 +1019,7 @@ class MapLabelValue:
         self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor):
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         img_flat = img_np.flatten()
         try:
             out_flat = np.copy(img_flat).astype(self.dtype)
@@ -1051,6 +1055,7 @@ class IntensityStats(Transform):
             if True, return a list of values for every operation, default to False.
 
     """
+
     backend = [TransformBackends.NUMPY]
 
     def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
@@ -1071,14 +1076,15 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
+        img_np: np.ndarray
         img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if meta_data is None:
             meta_data = {}
 
         if mask is not None:
-            if mask.shape != img.shape or mask.dtype != bool:
+            if mask.shape != img_np.shape or mask.dtype != bool:
                 raise TypeError("mask must be bool array with the same shape as input `img`.")
-            img_np = img[mask]
+            img_np = img_np[mask]
 
         supported_ops = {
             "mean": np.nanmean,

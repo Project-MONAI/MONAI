@@ -11,6 +11,7 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -48,10 +49,22 @@ TEST_CASE_3 = [
     ),
 ]
 
+TEST_CASE_4 = [
+    {"name": "Pad", "padding": [1, 1, 1, 1]},
+    np.asarray([[[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]]]),
+    np.asarray(
+        [
+            [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 2.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+            [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 2.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+            [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 2.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+        ]
+    ),
+]
+
 
 @SkipIfBeforePyTorchVersion((1, 7))
 class TestTorchVision(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, input_param, input_data, expected_value):
         set_determinism(seed=0)
         result = TorchVision(**input_param)(input_data)
