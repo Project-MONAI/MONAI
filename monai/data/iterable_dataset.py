@@ -10,13 +10,14 @@
 # limitations under the License.
 
 import math
+import warnings
 from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
 
 from monai.data.utils import convert_tables_to_dicts
-from monai.transforms import apply_transform
+from monai.transforms import Randomizable, apply_transform
 from monai.utils import ensure_tuple, optional_import
 
 pd, _ = optional_import("pandas")
@@ -52,7 +53,7 @@ class IterableDataset(_TorchIterableDataset):
             yield data
 
 
-class CSVIterableDataset(IterableDataset):
+class CSVIterableDataset(Randomizable, IterableDataset):
     """
     Iterable dataset to load CSV files and generate dictionary data.
     It is particularly useful when data come from a stream, inherits from PyTorch IterableDataset:
@@ -60,7 +61,7 @@ class CSVIterableDataset(IterableDataset):
 
     It also can be helpful when loading extremely big CSV files that can't read into memory directly,
     just treat the big CSV file as stream input, call `reset()` of `CSVIterableDataset` for every epoch.
-    Note that as a stream input, it can't randomly shuffle the dataset or get the length of dataset.
+    Note that as a stream input, it can't get the length of dataset and only can shuffle within a chunk.
 
     To accelerate the loading process, it can support multi-processing based on PyTorch DataLoader workers,
     every process executes transforms on part of every loaded chunk.
@@ -100,6 +101,8 @@ class CSVIterableDataset(IterableDataset):
             be the new column name, the `value` is the names of columns to combine. for example:
             `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
         transform: transform to apply on the loaded items of a dictionary data.
+        shuffle: whether to shuffle the data within a chunk.
+        seed: random seed to shuffle the data.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
     """
@@ -112,6 +115,8 @@ class CSVIterableDataset(IterableDataset):
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
         col_groups: Optional[Dict[str, Sequence[str]]] = None,
         transform: Optional[Callable] = None,
+        shuffle: bool = False,
+        seed: int = 0,
         **kwargs,
     ):
         self.files = ensure_tuple(filename)
@@ -120,7 +125,9 @@ class CSVIterableDataset(IterableDataset):
         self.col_names = col_names
         self.col_types = col_types
         self.col_groups = col_groups
+        self.shuffle = shuffle
         self.kwargs = kwargs
+        self.set_random_state(seed=seed)
         super().__init__(data=None, transform=transform)  # type: ignore
 
     def reset(self, filename: Optional[Union[str, Sequence[str]]] = None):
@@ -129,6 +136,12 @@ class CSVIterableDataset(IterableDataset):
             self.files = ensure_tuple(filename)
         self.iters = [pd.read_csv(f, chunksize=self.chunksize) for f in self.files]
         return self.iters
+
+    def randomize(self, data: Sequence) -> None:
+        try:
+            self.R.shuffle(data)
+        except TypeError as e:
+            warnings.warn(f"data can't be shuffled in CSVIterableDataset with numpy.random.shuffle(): {e}.")
 
     def __iter__(self):
         for chunks in zip(*self.iters):
@@ -139,6 +152,9 @@ class CSVIterableDataset(IterableDataset):
                 col_groups=self.col_groups,
                 **self.kwargs,
             )
+            if self.shuffle:
+                self.randomize(data=self.data)
+
             info = get_worker_info()
             if info is not None:
                 length = len(self.data)
