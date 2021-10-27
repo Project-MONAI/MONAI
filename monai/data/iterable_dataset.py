@@ -25,7 +25,8 @@ pd, _ = optional_import("pandas")
 class IterableDataset(_TorchIterableDataset):
     """
     A generic dataset for iterable data source and an optional callable data transform
-    when fetching a data sample.
+    when fetching a data sample. Inherit from PyTorch IterableDataset:
+    https://pytorch.org/docs/stable/data.html?highlight=iterabledataset#torch.utils.data.IterableDataset.
     For example, typical input data can be web data stream which can support multi-process access.
 
     Note that when used with `DataLoader` and `num_workers > 0`, each worker process will have a
@@ -54,7 +55,13 @@ class IterableDataset(_TorchIterableDataset):
 class CSVIterableDataset(IterableDataset):
     """
     Iterable dataset to load CSV files and generate dictionary data.
-    It can be helpful when loading extremely big CSV files that can't read into memory directly.
+    It is particularly useful when data come from a stream, inherits from PyTorch IterableDataset:
+    https://pytorch.org/docs/stable/data.html?highlight=iterabledataset#torch.utils.data.IterableDataset.
+
+    It also can be helpful when loading extremely big CSV files that can't read into memory directly,
+    just treat the big CSV file as stream input, call `reset()` of `CSVIterableDataset` for every epoch.
+    Note that as a stream input, it can't randomly shuffle the dataset or get the length of dataset.
+
     To accelerate the loading process, it can support multi-processing based on PyTorch DataLoader workers,
     every process executes transforms on part of every loaded chunk.
     Note: the order of output data may not match data source in multi-processing mode.
