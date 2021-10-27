@@ -22,10 +22,7 @@ class MeanDice(IgniteMetric):
     """
 
     def __init__(
-        self,
-        include_background: bool = True,
-        output_transform: Callable = lambda x: x,
-        save_details: bool = True,
+        self, include_background: bool = True, output_transform: Callable = lambda x: x, save_details: bool = True
     ) -> None:
         """
 
@@ -35,8 +32,9 @@ class MeanDice(IgniteMetric):
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-                for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
-                output_transform can be `lambda x: (x["pred"], x["label"])`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             save_details: whether to save metric computation details per image, for example: mean dice of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
@@ -44,8 +42,4 @@ class MeanDice(IgniteMetric):
             :py:meth:`monai.metrics.meandice.compute_meandice`
         """
         metric_fn = DiceMetric(include_background=include_background, reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

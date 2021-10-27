@@ -126,10 +126,7 @@ def load_decathlon_datalist(
     return _append_paths(base_dir, is_segmentation, expected_data)
 
 
-def load_decathlon_properties(
-    data_property_file_path: str,
-    property_keys: Union[Sequence[str], str],
-) -> Dict:
+def load_decathlon_properties(data_property_file_path: str, property_keys: Union[Sequence[str], str]) -> Dict:
     """Load the properties from the JSON file contains data property with specified `property_keys`.
 
     Args:

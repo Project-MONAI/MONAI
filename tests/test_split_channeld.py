@@ -51,13 +51,7 @@ for p in TEST_NDARRAYS:
         ]
     )
 
-    TESTS.append(
-        [
-            {"keys": "pred", "channel_dim": 1},
-            {"pred": p(np.random.randint(2, size=(3, 2, 4)))},
-            (3, 1, 4),
-        ]
-    )
+    TESTS.append([{"keys": "pred", "channel_dim": 1}, {"pred": p(np.random.randint(2, size=(3, 2, 4)))}, (3, 1, 4)])
 
 
 class TestSplitChanneld(unittest.TestCase):

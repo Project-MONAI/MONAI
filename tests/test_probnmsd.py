@@ -45,11 +45,7 @@ probs_map_4 = np.random.rand(100, 100).clip(0, 0.5)
 probs_map_4[33, 33] = 0.7
 probs_map_4[66, 66] = 0.9
 expected_4 = [[0.9, 66, 66]]
-TEST_CASES_2D_4 = [
-    {"spatial_dims": 2, "prob_threshold": 0.8, "box_size": 10},
-    {"prob_map": probs_map_4},
-    expected_4,
-]
+TEST_CASES_2D_4 = [{"spatial_dims": 2, "prob_threshold": 0.8, "box_size": 10}, {"prob_map": probs_map_4}, expected_4]
 
 probs_map_5 = np.random.rand(100, 100).clip(0, 0.5)
 TEST_CASES_2D_5 = [{"spatial_dims": 2, "prob_threshold": 0.5, "sigma": 0.1}, {"prob_map": probs_map_5}, []]
@@ -63,11 +59,7 @@ probs_map_7[66, 66] = 0.9
 if torch.cuda.is_available():
     probs_map_7 = probs_map_7.cuda()
 expected_7 = [[0.9, 66, 66], [0.7, 33, 33]]
-TEST_CASES_2D_7 = [
-    {"spatial_dims": 2, "prob_threshold": 0.5, "sigma": 0.1},
-    {"prob_map": probs_map_7},
-    expected_7,
-]
+TEST_CASES_2D_7 = [{"spatial_dims": 2, "prob_threshold": 0.5, "sigma": 0.1}, {"prob_map": probs_map_7}, expected_7]
 
 probs_map_3d = torch.rand([50, 50, 50]).uniform_(0, 0.5)
 probs_map_3d[25, 25, 25] = 0.7

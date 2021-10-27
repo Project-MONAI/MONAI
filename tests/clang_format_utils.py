@@ -50,10 +50,10 @@ def get_and_check_clang_format():
     """
     # If the host platform is not in PLATFORM_TO_HASH, it is unsupported.
     if HOST_PLATFORM not in PLATFORM_TO_HASH:
-        print("Unsupported platform: {}".format(HOST_PLATFORM))
+        print(f"Unsupported platform: {HOST_PLATFORM}")
         return False
     if HOST_PLATFORM not in PLATFORM_TO_CF_URL:
-        print("Unsupported platform: {}".format(HOST_PLATFORM))
+        print(f"Unsupported platform: {HOST_PLATFORM}")
         return False
 
     try:
@@ -69,7 +69,7 @@ def get_and_check_clang_format():
     mode = os.stat(CLANG_FORMAT_PATH).st_mode
     mode |= stat.S_IXUSR
     os.chmod(CLANG_FORMAT_PATH, mode)
-    print("Using clang-format located at {}".format(CLANG_FORMAT_PATH))
+    print(f"Using clang-format located at {CLANG_FORMAT_PATH}")
 
     return True
 
