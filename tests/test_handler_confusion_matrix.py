@@ -20,7 +20,7 @@ from monai.handlers import ConfusionMatrix
 
 TEST_CASE_1 = [{"include_background": True, "save_details": False, "metric_name": "f1"}, 0.75]
 TEST_CASE_2 = [{"include_background": False, "save_details": False, "metric_name": "ppv"}, 1.0]
-
+TEST_CASE_3 = [{"save_details": False, "metric_name": "f1", "reduction": "mean_batch"}, torch.tensor([0.6667, 0.8000])]
 TEST_CASE_SEG_1 = [{"include_background": True, "metric_name": "tpr"}, 0.7]
 
 data_1: Dict[Any, Any] = {
@@ -47,7 +47,7 @@ data_2: Dict[Any, Any] = {
 class TestHandlerConfusionMatrix(unittest.TestCase):
     # TODO test multi node averaged confusion matrix
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_compute(self, input_params, expected_avg):
         metric = ConfusionMatrix(**input_params)
         # test input a list of channel-first tensor
@@ -60,7 +60,7 @@ class TestHandlerConfusionMatrix(unittest.TestCase):
         metric.update([y_pred, y])
 
         avg_metric = metric.compute()
-        self.assertAlmostEqual(avg_metric, expected_avg, places=4)
+        torch.testing.assert_allclose(avg_metric, expected_avg)
 
     @parameterized.expand([TEST_CASE_SEG_1])
     def test_compute_seg(self, input_params, expected_avg):
@@ -80,7 +80,7 @@ class TestHandlerConfusionMatrix(unittest.TestCase):
         y = data_2["y"]
         metric.update([y_pred, y])
 
-        avg_metric = metric.compute()
+        avg_metric = metric.compute().item()
         self.assertAlmostEqual(avg_metric, expected_avg, places=4)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])

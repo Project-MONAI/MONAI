@@ -101,7 +101,7 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
                 raise RuntimeError("please call the attach() function to connect expected engine first.")
             self._engine.state.metric_details[self._name] = self.metric_fn.get_buffer()  # type: ignore
 
-        return result
+        return result.squeeze() if isinstance(result, torch.Tensor) else result
 
     def attach(self, engine: Engine, name: str) -> None:
         """
