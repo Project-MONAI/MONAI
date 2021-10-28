@@ -237,9 +237,9 @@ class StatsHandler:
             return  # no value to print
 
         num_iterations = engine.state.epoch_length
-        current_iteration = engine.state.iteration - 1
+        current_iteration = engine.state.iteration
         if num_iterations is not None:
-            current_iteration %= num_iterations + 1
+            current_iteration = (current_iteration - 1) % num_iterations + 1
         current_epoch = engine.state.epoch
         num_epochs = engine.state.max_epochs
 
