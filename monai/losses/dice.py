@@ -122,7 +122,6 @@ class DiceLoss(_Loss):
             >>> self = DiceLoss(reduction='none')
             >>> loss = self(input, target)
             >>> assert np.broadcast_shapes(loss.shape, input.shape) == input.shape
-
         """
         if self.sigmoid:
             input = torch.sigmoid(input)
@@ -183,7 +182,7 @@ class DiceLoss(_Loss):
         elif self.reduction == LossReduction.NONE.value:
             # If we are not computing voxelwise loss components at least
             # make sure a none reduction maintains a broadcastable shape
-            broadcast_shape = input.shape[0:2] + (1,) * (len(input.shape) - 2)
+            broadcast_shape = list(f.shape[0:2]) + [1] * (len(input.shape) - 2)
             f = f.view(broadcast_shape)
         else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
@@ -352,9 +351,10 @@ class GeneralizedDiceLoss(_Loss):
             b[infs] = 0.0
             b[infs] = torch.max(b)
 
-        f: torch.Tensor = 1.0 - (2.0 * (intersection * w).sum(0 if self.batch else 1) + self.smooth_nr) / (
-            (denominator * w).sum(0 if self.batch else 1) + self.smooth_dr
-        )
+        final_reduce_dim = 0 if self.batch else 1
+        numer = 2.0 * (intersection * w).sum(final_reduce_dim, keepdim=True) + self.smooth_nr
+        denom = (denominator * w).sum(final_reduce_dim, keepdim=True) + self.smooth_dr
+        f: torch.Tensor = 1.0 - (numer / denom)
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -363,7 +363,7 @@ class GeneralizedDiceLoss(_Loss):
         elif self.reduction == LossReduction.NONE.value:
             # If we are not computing voxelwise loss components at least
             # make sure a none reduction maintains a broadcastable shape
-            broadcast_shape = input.shape[0:2] + (1,) * (len(input.shape) - 2)
+            broadcast_shape = list(f.shape[0:2]) + [1] * (len(input.shape) - 2)
             f = f.view(broadcast_shape)
         else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
@@ -833,7 +833,6 @@ class DiceFocalLoss(_Loss):
         dice_loss = self.dice(input, target)
         focal_loss = self.focal(input, target)
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_focal * focal_loss
-
         return total_loss
 
 
