@@ -173,8 +173,8 @@ class Compose(Randomizable, InvertibleTransform):
 
 class OneOf(Compose):
     """
-    ``OneOf`` provides the ability to radomly choose one transform out of a
-    list of callables with predfined probabilities for each.
+    ``OneOf`` provides the ability to randomly choose one transform out of a
+    list of callables with pre-defined probabilities for each.
 
     Args:
         transforms: sequence of callables.

@@ -848,7 +848,7 @@ class RandRotate(RandomizableTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
             randomize: whether to execute `randomize()` function first, default to True.
-            get_matrix: wheter to return the rotated image and rotate matrix together, default to False.
+            get_matrix: whether to return the rotated image and rotate matrix together, default to False.
         """
         if randomize:
             self.randomize()

@@ -1642,7 +1642,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         prob: probability of applying the transform, either on all
             channels at once, or channel-wise if ``channel_wise = True``.
         intensity_range: pass a tuple (a, b) to sample the log-intensity from the interval (a, b)
-            uniformly for all channels. Or pass sequence of intevals
+            uniformly for all channels. Or pass sequence of intervals
             ((a0, b0), (a1, b1), ...) to sample for each respective channel.
             In the second case, the number of 2-tuples must match the number of channels.
             Default ranges is `(0.95x, 1.10x)` where `x` is the mean

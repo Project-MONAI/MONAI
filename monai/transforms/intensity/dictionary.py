@@ -139,6 +139,8 @@ __all__ = [
     "RandCoarseShuffleDict",
     "HistogramNormalizeD",
     "HistogramNormalizeDict",
+    "RandKSpaceSpikeNoiseD",
+    "RandKSpaceSpikeNoiseDict",
 ]
 
 
@@ -1333,7 +1335,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
             dictionary provided it is realized that the noise will be applied
             to the dictionary.
         intensity_range: pass a tuple (a, b) to sample the log-intensity from the interval (a, b)
-            uniformly for all channels. Or pass sequence of intevals
+            uniformly for all channels. Or pass sequence of intervals
             ((a0, b0), (a1, b1), ...) to sample for each respective channel.
             In the second case, the number of 2-tuples must match the number of channels.
             Default ranges is `(0.95x, 1.10x)` where `x` is the mean

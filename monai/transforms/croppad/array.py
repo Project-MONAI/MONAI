@@ -50,6 +50,7 @@ from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
+    "Pad",
     "SpatialPad",
     "BorderPad",
     "DivisiblePad",
@@ -397,9 +398,8 @@ class SpatialCrop(Transform):
                     data=roi_center, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
                 )
                 roi_size, *_ = convert_to_dst_type(src=roi_size, dst=roi_center, wrap_sequence=True)
-                roi_start_torch = maximum(
-                    roi_center - floor_divide(roi_size, 2), torch.zeros_like(roi_center)  # type: ignore
-                )
+                _zeros = torch.zeros_like(roi_center)  # type: ignore
+                roi_start_torch = maximum(roi_center - floor_divide(roi_size, 2), _zeros)  # type: ignore
                 roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
             else:
                 if roi_start is None or roi_end is None:
