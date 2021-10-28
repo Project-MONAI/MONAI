@@ -102,7 +102,7 @@ class TestHandlerHausdorffDistance(unittest.TestCase):
         hd_metric.update([y_pred, y])
         y_pred, y = TEST_SAMPLE_2
         hd_metric.update([y_pred, y])
-        torch.testing.assert_allclose(hd_metric.compute().float(), torch.tensor([10., 0.]))
+        torch.testing.assert_allclose(hd_metric.compute().float(), torch.tensor([10.0, 0.0]))
 
 
 if __name__ == "__main__":

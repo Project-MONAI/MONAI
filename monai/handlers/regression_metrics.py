@@ -21,10 +21,18 @@ class MeanSquaredError(IgniteMetric):
     Computes Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
 
-    def __init__(self, output_transform: Callable = lambda x: x, save_details: bool = True) -> None:
+    def __init__(
+        self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        output_transform: Callable = lambda x: x,
+        save_details: bool = True,
+    ) -> None:
         """
 
         Args:
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -37,7 +45,7 @@ class MeanSquaredError(IgniteMetric):
         See also:
             :py:class:`monai.metrics.MSEMetric`
         """
-        metric_fn = MSEMetric(reduction=MetricReduction.MEAN)
+        metric_fn = MSEMetric(reduction=reduction)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
@@ -46,10 +54,18 @@ class MeanAbsoluteError(IgniteMetric):
     Computes Mean Absolute Error from full size Tensor and collects average over batch, iterations.
     """
 
-    def __init__(self, output_transform: Callable = lambda x: x, save_details: bool = True) -> None:
+    def __init__(
+        self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        output_transform: Callable = lambda x: x,
+        save_details: bool = True,
+    ) -> None:
         """
 
         Args:
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -62,7 +78,7 @@ class MeanAbsoluteError(IgniteMetric):
         See also:
             :py:class:`monai.metrics.MAEMetric`
         """
-        metric_fn = MAEMetric(reduction=MetricReduction.MEAN)
+        metric_fn = MAEMetric(reduction=reduction)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
@@ -71,10 +87,18 @@ class RootMeanSquaredError(IgniteMetric):
     Computes Root Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
 
-    def __init__(self, output_transform: Callable = lambda x: x, save_details: bool = True) -> None:
+    def __init__(
+        self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        output_transform: Callable = lambda x: x,
+        save_details: bool = True,
+    ) -> None:
         """
 
         Args:
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -87,7 +111,7 @@ class RootMeanSquaredError(IgniteMetric):
         See also:
             :py:class:`monai.metrics.RMSEMetric`
         """
-        metric_fn = RMSEMetric(reduction=MetricReduction.MEAN)
+        metric_fn = RMSEMetric(reduction=reduction)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
@@ -97,13 +121,20 @@ class PeakSignalToNoiseRatio(IgniteMetric):
     """
 
     def __init__(
-        self, max_val: Union[int, float], output_transform: Callable = lambda x: x, save_details: bool = True
+        self,
+        max_val: Union[int, float],
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        output_transform: Callable = lambda x: x,
+        save_details: bool = True,
     ) -> None:
         """
 
         Args:
             max_val: The dynamic range of the images/volumes (i.e., the difference between the
                 maximum and the minimum allowed values e.g. 255 for a uint8 image).
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -117,5 +148,5 @@ class PeakSignalToNoiseRatio(IgniteMetric):
         See also:
             :py:class:`monai.metrics.PSNRMetric`
         """
-        metric_fn = PSNRMetric(max_val=max_val, reduction=MetricReduction.MEAN)
+        metric_fn = PSNRMetric(max_val=max_val, reduction=reduction)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
