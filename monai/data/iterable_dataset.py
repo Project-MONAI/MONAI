@@ -9,15 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
-import warnings
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
 
+from monai.data.thread_buffer import ListBuffer
 from monai.data.utils import convert_tables_to_dicts
-from monai.transforms import Randomizable, apply_transform
+from monai.transforms import apply_transform
 from monai.utils import ensure_tuple, optional_import
 
 pd, _ = optional_import("pandas")
@@ -43,17 +42,15 @@ class IterableDataset(_TorchIterableDataset):
         """
         self.data = data
         self.transform = transform
-        self.source = None
 
     def __iter__(self):
-        self.source = iter(self.data)
-        for data in self.source:
+        for data in iter(self.data):
             if self.transform is not None:
                 data = apply_transform(self.transform, data)
             yield data
 
 
-class CSVIterableDataset(Randomizable, IterableDataset):
+class CSVIterableDataset(IterableDataset):
     """
     Iterable dataset to load CSV files and generate dictionary data.
     It is particularly useful when data come from a stream, inherits from PyTorch IterableDataset:
@@ -63,8 +60,8 @@ class CSVIterableDataset(Randomizable, IterableDataset):
     just treat the big CSV file as stream input, call `reset()` of `CSVIterableDataset` for every epoch.
     Note that as a stream input, it can't get the length of dataset.
 
-    To effectively shuffle the data in the big dataset, it can shuffle all the data in the buffer when
-    every time a new chunk of data loaded, then produce a randomly shuffled chunk for the following tasks.
+    To effectively shuffle the data in the big dataset, users can set a big buffer to continuously store
+    the loaded chunks, then randomly pick data from the buffer for following tasks.
 
     To accelerate the loading process, it can support multi-processing based on PyTorch DataLoader workers,
     every process executes transforms on part of every loaded chunk.
@@ -81,8 +78,8 @@ class CSVIterableDataset(Randomizable, IterableDataset):
         ]
 
     Args:
-        filename: the filename of expected CSV file to load. if providing a list
-            of filenames, it will load all the files and join tables.
+        filename: the filename of CSV file to load. it can be a str, URL, path object or file-like object.
+            if providing a list of filenames, it will load all the files and join tables.
         chunksize: rows of a chunk when loading iterable data from CSV files, default to 1000. more details:
             https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html.
         buffersize: size of the buffer to store the loaded chunks, if None, same as `chunksize`.
@@ -127,13 +124,12 @@ class CSVIterableDataset(Randomizable, IterableDataset):
         self.files = ensure_tuple(filename)
         self.chunksize = chunksize
         self.buffersize = chunksize if buffersize is None else buffersize
-        self.iters = self.reset()
         self.col_names = col_names
         self.col_types = col_types
         self.col_groups = col_groups
-        self.shuffle = shuffle
+        self.buffer = ListBuffer(rand_pop=shuffle, seed=seed)
         self.kwargs = kwargs
-        self.set_random_state(seed=seed)
+        self.iters = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore
 
     def reset(self, filename: Optional[Union[str, Sequence[str]]] = None):
@@ -141,35 +137,25 @@ class CSVIterableDataset(Randomizable, IterableDataset):
             # update files if necessary
             self.files = ensure_tuple(filename)
         self.iters = [pd.read_csv(f, chunksize=self.chunksize) for f in self.files]
+        self.buffer.clear()
         return self.iters
 
-    def randomize(self, data: Sequence) -> None:
-        try:
-            self.R.shuffle(data)
-        except TypeError as e:
-            warnings.warn(f"data can't be shuffled in CSVIterableDataset with numpy.random.shuffle(): {e}.")
-
-    def _process(self, buffer: List[Dict]):
-        if len(buffer) == 0:
-            return
-        # shuffle all the items in the buffer
-        if self.shuffle:
-            self.randomize(data=buffer)
-        # fetch chunk data from the buffer
-        self.data = [buffer.pop(0) for _ in range(min(self.chunksize, len(buffer)))]
-        info = get_worker_info()
-        if info is not None:
-            length = len(self.data)
-            per_worker = int(math.ceil(length / float(info.num_workers)))
-            start = info.id * per_worker
-            self.data = self.data[start : min(start + per_worker, length)]
-
-        return super().__iter__()
+    def _process(self, num_workers: int = 1, id: int = 0, min_size: int = 0):
+        while len(self.buffer) > min_size:
+            for i in range(min(len(self.buffer), num_workers)):
+                item = self.buffer.pop()
+                if i == id:
+                    if self.transform is not None:
+                        item = apply_transform(self.transform, item)
+                    yield item
 
     def __iter__(self):
-        buffer: List[Dict] = []
+        info = get_worker_info()
+        num_workers = info.num_workers if info is not None else 1
+        id = info.id if info is not None else 0
         for chunks in zip(*self.iters):
-            buffer.extend(
+            # add new data items into buffer
+            self.buffer.extend(
                 convert_tables_to_dicts(
                     dfs=chunks,
                     col_names=self.col_names,
@@ -178,8 +164,8 @@ class CSVIterableDataset(Randomizable, IterableDataset):
                     **self.kwargs,
                 )
             )
-            if len(buffer) < self.buffersize:
+            if len(self.buffer) < self.buffersize + num_workers:
                 continue
-            self._process(buffer=buffer)
-        # process the previously loaded chunks in the buffer
-        return self._process(buffer=buffer)
+            self._process(num_workers=num_workers, id=id, min_size=self.buffersize)
+        # process the remaining data in the buffer
+        return self._process(num_workers=num_workers, id=id, min_size=0)
