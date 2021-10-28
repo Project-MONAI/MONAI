@@ -68,7 +68,7 @@ def matshow3d(
         - https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imshow.html
         - https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.matshow.html
     """
-    vol: np.ndarray = convert_data_type(data=volume, output_type=np.array)  # type: ignore
+    vol: np.ndarray = convert_data_type(data=volume, output_type=np.ndarray)[0]  # type: ignore
     if isinstance(vol, (list, tuple)):
         # a sequence of channel-first volumes
         pad_size = np.max(np.asarray([v.shape for v in vol]), axis=0)
