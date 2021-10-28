@@ -46,6 +46,7 @@ def matshow3d(
     every_n: int = 1,
     interpolation: str = "none",
     show=False,
+    fill_value=np.nan,
     **kwargs,
 ):
     """
@@ -62,6 +63,7 @@ def matshow3d(
         every_n: factor to subsample the frames so that only every n-th frame is displayed.
         interpolation: interpolation to use for the matplotlib `matshow`.
         show: if True, show the figure.
+        fill_value: value to use for the empty part of the grid.
         kwargs: additional keyword arguments to matplotlib `matshow` and `imshow`.
 
     See Also:
@@ -71,6 +73,8 @@ def matshow3d(
     vol: np.ndarray = convert_data_type(data=volume, output_type=np.ndarray)[0]  # type: ignore
     if isinstance(vol, (list, tuple)):
         # a sequence of channel-first volumes
+        if not isinstance(vol[0], np.ndarray):
+            raise ValueError("volume must be a array of a list of arrays.")
         pad_size = np.max(np.asarray([v.shape for v in vol]), axis=0)
         pad = SpatialPad(pad_size[1:])  # assuming channel-first for item in vol
         vol = np.concatenate([pad(v) for v in vol], axis=0)
@@ -84,19 +88,13 @@ def matshow3d(
     vol = vol[:: max(every_n, 1)]
     if not frames_per_row:
         frames_per_row = int(np.ceil(np.sqrt(len(vol))))
-    frames_per_row = max(min(len(vol), frames_per_row), 0)
-
-    im = np.hstack(vol[0:frames_per_row])
-    height, width = im.shape[-2:]
-    for i in range(int(np.ceil(len(vol) / frames_per_row))):
-        sub_vol = vol[frames_per_row * i : frames_per_row * (i + 1)]
-        if sub_vol.shape[0] == 0:
-            break
-        sub_vol = np.hstack(sub_vol)
-        missing = width - sub_vol.shape[1]
-        if missing:  # pad the image with np.nan
-            sub_vol = np.hstack([sub_vol, np.nan * np.ones((height, missing))])
-        im = np.concatenate([im, sub_vol], 0)
+    frames_per_row = max(min(len(vol), frames_per_row), 1)
+    height, width = vol.shape[-2:]
+    n_rows = int(np.ceil(len(vol) / frames_per_row))
+    im = np.full(shape=(height * n_rows, width * frames_per_row), fill_value=fill_value, dtype=vol.dtype)
+    for i in range(n_rows):
+        sub_vol = np.hstack(vol[slice(frames_per_row * i, frames_per_row * (i + 1))])
+        im[height * i : height * (i + 1), : sub_vol.shape[1]] = sub_vol
 
     if fig is None:
         fig = plt.figure(tight_layout=True)
@@ -128,5 +126,5 @@ def matshow3d(
 #     # image_path = "/Users/wenqili/Documents/MONAI/MarsAtlas-MNI-Colin27/colin27_MNI.nii"
 #     image_path = "/Users/wenqili/Documents/MONAI/MarsAtlas-MNI-Colin27/colin27_MNI_MarsAtlas.nii"
 #     ims = transforms({"image": image_path})
-#     out = matshow3d(ims["image"][0], every_n=4, frames_per_row=10, show=True)[0]
+#     out = matshow3d((ims["image"][0],), every_n=4, frames_per_row=10, show=True)[0]
 #     # out = matshow3d([im["image"] for im in ims], every_n=2, frames_per_row=10)[0]
