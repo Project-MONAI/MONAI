@@ -20,7 +20,7 @@ from torch.utils.data.distributed import DistributedSampler
 from monai.config import IgniteInfo
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
 from monai.transforms import Decollated, Transform
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils import ensure_tuple, is_scalar, min_version, optional_import
 
 from .utils import engine_apply_transform
 
@@ -227,10 +227,14 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         @self.on(Events.EPOCH_COMPLETED)
         def _compare_metrics(engine: Engine) -> None:
             if engine.state.key_metric_name is not None:
-                current_val_metric = engine.state.metrics[engine.state.key_metric_name]
-                if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):
-                    self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
-                    engine.state.best_metric = current_val_metric
+                current = engine.state.metrics[engine.state.key_metric_name]
+                if not is_scalar(current):
+                    warnings.warn("key metric is not a scalar value, so skip the comaprison with best metric.")
+                    return
+
+                if self.metric_cmp_fn(current, engine.state.best_metric):
+                    self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current}")
+                    engine.state.best_metric = current
                     engine.state.best_metric_epoch = engine.state.epoch
 
     def _register_handlers(self, handlers: Sequence):
