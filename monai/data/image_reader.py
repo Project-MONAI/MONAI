@@ -323,14 +323,22 @@ class NibabelReader(ImageReader):
 
     Args:
         as_closest_canonical: if True, load the image as closest to canonical axis format.
+        squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
     """
 
-    def __init__(self, as_closest_canonical: bool = False, dtype: DtypeLike = np.float32, **kwargs):
+    def __init__(
+        self,
+        as_closest_canonical: bool = False,
+        squeeze_non_spatial_dims: bool = False,
+        dtype: DtypeLike = np.float32,
+        **kwargs,
+    ):
         super().__init__()
         self.as_closest_canonical = as_closest_canonical
+        self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
         self.dtype = dtype
         self.kwargs = kwargs
 
@@ -395,6 +403,10 @@ class NibabelReader(ImageReader):
                 header["affine"] = self._get_affine(i)
             header["spatial_shape"] = self._get_spatial_shape(i)
             data = self._get_array_data(i)
+            if self.squeeze_non_spatial_dims:
+                for d in range(len(data.shape), len(header["spatial_shape"]), -1):
+                    if data.shape[d - 1] == 1:
+                        data = data.squeeze(axis=d - 1)
             img_array.append(data)
             header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)

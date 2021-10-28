@@ -47,6 +47,7 @@ def run_testsuit():
         "test_ensure_channel_first",
         "test_ensure_channel_firstd",
         "test_fill_holes",
+        "test_fill_holesd",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -143,6 +144,8 @@ def run_testsuit():
         "test_zoomd",
         "test_transchex",
         "test_handler_mlflow",
+        "test_prepare_batch_extra_input",
+        "test_prepare_batch_default",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

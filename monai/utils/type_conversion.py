@@ -244,7 +244,7 @@ def convert_data_type(
 
     output_type = output_type or orig_type
 
-    dtype_ = get_equivalent_dtype(dtype or get_dtype(data), output_type)
+    dtype_ = get_equivalent_dtype(dtype, output_type)
 
     if output_type is torch.Tensor:
         data = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence)
