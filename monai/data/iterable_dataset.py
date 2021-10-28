@@ -12,11 +12,12 @@
 from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
-from torch.utils.data import get_worker_info
 
-from monai.data.thread_buffer import ShuffleBuffer
 from monai.data.utils import convert_tables_to_dicts
 from monai.transforms import apply_transform
+
+# from torch.utils.data import get_worker_info
+from monai.transforms.transform import Randomizable
 from monai.utils import ensure_tuple, optional_import
 
 pd, _ = optional_import("pandas")
@@ -50,7 +51,39 @@ class IterableDataset(_TorchIterableDataset):
             yield data
 
 
-class CSVIterableDataset(IterableDataset):
+class ShuffleBuffer(Randomizable, IterableDataset):
+    """
+    Extend the IterableDataset with a buffer and support to randomly pop items.
+    """
+
+    def __init__(self, data, transform=None, buffer_size=512) -> None:
+        super().__init__(data=data, transform=transform)
+        self.size = buffer_size
+        self._idx = 0
+
+    def rand_pop(self, buffer):
+        self.randomize(len(buffer))
+        if self.transform is not None:
+            return apply_transform(self.transform, buffer.pop(self._idx))
+        return buffer.pop(self._idx)
+
+    def __iter__(self):
+        _buffer = []
+        for item in self.data:
+            # TODO: total size len(self.data) might be smaller than self.size
+            if len(_buffer) == self.size:
+                yield self.rand_pop(_buffer)
+                _buffer[self._idx] = item
+            else:
+                _buffer.append(item)
+        while _buffer:
+            yield self.rand_pop(_buffer)
+
+    def randomize(self, size: int) -> None:
+        self._idx = self.R.randint(size)
+
+
+class CSVIterableDataset(IterableDataset, Randomizable):
     """
     Iterable dataset to load CSV files and generate dictionary data.
     It is particularly useful when data come from a stream, inherits from PyTorch IterableDataset:
@@ -82,7 +115,7 @@ class CSVIterableDataset(IterableDataset):
             if providing a list of filenames, it will load all the files and join tables.
         chunksize: rows of a chunk when loading iterable data from CSV files, default to 1000. more details:
             https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html.
-        buffersize: size of the buffer to store the loaded chunks, if None, same as `chunksize`.
+        buffer_size: size of the buffer to store the loaded chunks, if None, same as `chunksize`.
         col_names: names of the expected columns to load. if None, load all the columns.
         col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
             it should be a dictionary, every item maps to an expected column, the `key` is the column
@@ -103,7 +136,6 @@ class CSVIterableDataset(IterableDataset):
             `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
         transform: transform to apply on the loaded items of a dictionary data.
         shuffle: whether to shuffle all the data in the buffer every time a new chunk loaded.
-        seed: random seed to shuffle the data.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
     """
@@ -112,22 +144,21 @@ class CSVIterableDataset(IterableDataset):
         self,
         filename: Union[str, Sequence[str]],
         chunksize: int = 1000,
-        buffersize: Optional[int] = None,
+        buffer_size: Optional[int] = None,
         col_names: Optional[Sequence[str]] = None,
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
         col_groups: Optional[Dict[str, Sequence[str]]] = None,
         transform: Optional[Callable] = None,
         shuffle: bool = False,
-        seed: int = 0,
         **kwargs,
     ):
         self.files = ensure_tuple(filename)
         self.chunksize = chunksize
-        self.buffersize = chunksize if buffersize is None else buffersize
+        self.buffer_size = chunksize if buffer_size is None else buffer_size
         self.col_names = col_names
         self.col_types = col_types
         self.col_groups = col_groups
-        self.buffer = ShuffleBuffer(rand_pop=shuffle, seed=seed)
+        self.shuffle = shuffle
         self.kwargs = kwargs
         self.iters = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore
@@ -137,35 +168,21 @@ class CSVIterableDataset(IterableDataset):
             # update files if necessary
             self.files = ensure_tuple(filename)
         self.iters = [pd.read_csv(f, chunksize=self.chunksize) for f in self.files]
-        self.buffer.clear()
         return self.iters
 
-    def _process(self, num_workers: int = 1, id: int = 0, min_size: int = 0):
-        while len(self.buffer) > min_size:
-            for i in range(min(len(self.buffer), num_workers)):
-                item = self.buffer.pop()
-                if i == id:
-                    if self.transform is not None:
-                        item = apply_transform(self.transform, item)
-                    yield item
+    def _flattened(self):
+        for chunks in zip(*self.iters):
+            yield from convert_tables_to_dicts(
+                dfs=chunks,
+                col_names=self.col_names,
+                col_types=self.col_types,
+                col_groups=self.col_groups,
+                **self.kwargs,
+            )
 
     def __iter__(self):
-        info = get_worker_info()
-        num_workers = info.num_workers if info is not None else 1
-        id = info.id if info is not None else 0
-        for chunks in zip(*self.iters):
-            # add new data items into buffer
-            self.buffer.extend(
-                convert_tables_to_dicts(
-                    dfs=chunks,
-                    col_names=self.col_names,
-                    col_types=self.col_types,
-                    col_groups=self.col_groups,
-                    **self.kwargs,
-                )
-            )
-            if len(self.buffer) < self.buffersize + num_workers:
-                continue
-            self._process(num_workers=num_workers, id=id, min_size=self.buffersize)
-        # process the remaining data in the buffer
-        return self._process(num_workers=num_workers, id=id, min_size=0)
+        if self.shuffle:
+            buffer = ShuffleBuffer(data=self._flattened(), transform=self.transform, buffer_size=self.buffer_size)
+            buffer.set_random_state(state=self.R)
+            yield from buffer
+        yield from IterableDataset(data=self._flattened(), transform=self.transform)

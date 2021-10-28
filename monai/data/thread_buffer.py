@@ -14,7 +14,6 @@ from queue import Empty, Full, Queue
 from threading import Thread
 
 from monai.data import DataLoader, Dataset
-from monai.transforms.transform import Randomizable
 
 
 class ThreadBuffer:
@@ -102,27 +101,3 @@ class ThreadDataLoader(DataLoader):
     def __iter__(self):
         buffer = ThreadBuffer(src=super().__iter__(), buffer_size=self.buffer_size, timeout=self.buffer_timeout)
         yield from buffer
-
-
-class ShuffleBuffer(Randomizable, list):
-    """
-    Extend list as a buffer and support to randomly pop items.
-
-    Args:
-        rand_pop: whether to randomly pop a item from the list, default to False.
-        seed: seed for the random state if randomly pop items.
-
-    """
-
-    def __init__(self, rand_pop: bool = False, seed: int = 0) -> None:
-        self.rand_pop = rand_pop
-        self.pop_index = 0
-        self.set_random_state(seed=seed)
-
-    def pop(self):
-        if self.rand_pop:
-            self.randomize(len(self))
-        return super().pop(self.pop_index)
-
-    def randomize(self, size: int) -> None:
-        self.pop_index = self.R.randint(size)
