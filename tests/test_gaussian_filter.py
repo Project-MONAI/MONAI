@@ -19,10 +19,7 @@ from monai.networks.layers import GaussianFilter
 from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick
 
 TEST_CASES = [[{"type": "erf", "gt": 2.0}], [{"type": "scalespace", "gt": 3.0}], [{"type": "sampled", "gt": 5.0}]]
-TEST_CASES_GPU = [
-    [{"type": "erf", "gt": 0.8, "device": "cuda"}],
-    [{"type": "sampled", "gt": 5.0, "device": "cuda"}],
-]
+TEST_CASES_GPU = [[{"type": "erf", "gt": 0.8, "device": "cuda"}], [{"type": "sampled", "gt": 5.0, "device": "cuda"}]]
 TEST_CASES_3d = [
     [{"type": "scalespace", "gt": 0.5, "dims": (2, 3, 8, 9, 10), "lr": 0.01, "device": "cuda"}],
     [{"type": "erf", "gt": 3.8, "dims": (2, 3, 8, 9, 10), "lr": 0.1, "device": "cuda"}],

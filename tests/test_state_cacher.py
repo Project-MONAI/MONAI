@@ -20,18 +20,9 @@ from monai.utils import StateCacher
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-TEST_CASE_0 = [
-    torch.Tensor([1]).to(DEVICE),
-    {"in_memory": True},
-]
-TEST_CASE_1 = [
-    torch.Tensor([1]).to(DEVICE),
-    {"in_memory": False, "cache_dir": gettempdir()},
-]
-TEST_CASE_2 = [
-    torch.Tensor([1]).to(DEVICE),
-    {"in_memory": False, "allow_overwrite": False},
-]
+TEST_CASE_0 = [torch.Tensor([1]).to(DEVICE), {"in_memory": True}]
+TEST_CASE_1 = [torch.Tensor([1]).to(DEVICE), {"in_memory": False, "cache_dir": gettempdir()}]
+TEST_CASE_2 = [torch.Tensor([1]).to(DEVICE), {"in_memory": False, "allow_overwrite": False}]
 
 TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2]
 

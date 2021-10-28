@@ -500,6 +500,11 @@ Nets
 .. autoclass:: Critic
   :members:
 
+`Transchex`
+~~~~~~~~~~~~~~~~
+.. autoclass:: Transchex
+  :members:
+
 `NetAdapter`
 ~~~~~~~~~~~~
 .. autoclass:: NetAdapter

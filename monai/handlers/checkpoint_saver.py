@@ -11,7 +11,7 @@
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Mapping, Optional
 
 from monai.config import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import
@@ -126,7 +126,7 @@ class CheckpointSaver:
                 super().__init__(dirname=dirname, require_empty=False, atomic=False)
                 self.filename = filename
 
-            def __call__(self, checkpoint: Dict, filename: str, metadata: Optional[Dict] = None) -> None:
+            def __call__(self, checkpoint: Mapping, filename: str, metadata: Optional[Mapping] = None) -> None:
                 if self.filename is not None:
                     filename = self.filename
                 super().__call__(checkpoint=checkpoint, filename=filename, metadata=metadata)
@@ -154,8 +154,8 @@ class CheckpointSaver:
             def _score_func(engine: Engine):
                 if isinstance(key_metric_name, str):
                     metric_name = key_metric_name
-                elif hasattr(engine.state, "key_metric_name") and isinstance(engine.state.key_metric_name, str):
-                    metric_name = engine.state.key_metric_name
+                elif hasattr(engine.state, "key_metric_name"):
+                    metric_name = engine.state.key_metric_name  # type: ignore
                 else:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
