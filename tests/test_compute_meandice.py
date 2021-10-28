@@ -168,10 +168,7 @@ TEST_CASE_9 = [
 ]
 
 TEST_CASE_10 = [
-    {
-        "y": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))],
-        "y_pred": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))],
-    },
+    {"y": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))], "y_pred": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))]},
     [[1.0000, 1.0000], [1.0000, 1.0000]],
 ]
 
