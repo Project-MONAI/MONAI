@@ -11,7 +11,7 @@
 
 import math
 import warnings
-from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
@@ -61,7 +61,10 @@ class CSVIterableDataset(Randomizable, IterableDataset):
 
     It also can be helpful when loading extremely big CSV files that can't read into memory directly,
     just treat the big CSV file as stream input, call `reset()` of `CSVIterableDataset` for every epoch.
-    Note that as a stream input, it can't get the length of dataset and only can shuffle within a chunk.
+    Note that as a stream input, it can't get the length of dataset.
+
+    To effectively shuffle the data in the big dataset, it can shuffle all the data in the buffer when
+    every time a new chunk of data loaded, then produce a randomly shuffled chunk for the following tasks.
 
     To accelerate the loading process, it can support multi-processing based on PyTorch DataLoader workers,
     every process executes transforms on part of every loaded chunk.
@@ -82,6 +85,7 @@ class CSVIterableDataset(Randomizable, IterableDataset):
             of filenames, it will load all the files and join tables.
         chunksize: rows of a chunk when loading iterable data from CSV files, default to 1000. more details:
             https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html.
+        buffersize: size of the buffer to store the loaded chunks, if None, same as `chunksize`.
         col_names: names of the expected columns to load. if None, load all the columns.
         col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
             it should be a dictionary, every item maps to an expected column, the `key` is the column
@@ -101,7 +105,7 @@ class CSVIterableDataset(Randomizable, IterableDataset):
             be the new column name, the `value` is the names of columns to combine. for example:
             `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
         transform: transform to apply on the loaded items of a dictionary data.
-        shuffle: whether to shuffle the data within a chunk.
+        shuffle: whether to shuffle all the data in the buffer every time a new chunk loaded.
         seed: random seed to shuffle the data.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
@@ -111,6 +115,7 @@ class CSVIterableDataset(Randomizable, IterableDataset):
         self,
         filename: Union[str, Sequence[str]],
         chunksize: int = 1000,
+        buffersize: Optional[int] = None,
         col_names: Optional[Sequence[str]] = None,
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
         col_groups: Optional[Dict[str, Sequence[str]]] = None,
@@ -121,6 +126,7 @@ class CSVIterableDataset(Randomizable, IterableDataset):
     ):
         self.files = ensure_tuple(filename)
         self.chunksize = chunksize
+        self.buffersize = chunksize if buffersize is None else buffersize
         self.iters = self.reset()
         self.col_names = col_names
         self.col_types = col_types
@@ -143,23 +149,37 @@ class CSVIterableDataset(Randomizable, IterableDataset):
         except TypeError as e:
             warnings.warn(f"data can't be shuffled in CSVIterableDataset with numpy.random.shuffle(): {e}.")
 
+    def _process(self, buffer: List[Dict]):
+        if len(buffer) == 0:
+            return
+        # shuffle all the items in the buffer
+        if self.shuffle:
+            self.randomize(data=buffer)
+        # fetch chunk data from the buffer
+        self.data = [buffer.pop(0) for _ in range(min(self.chunksize, len(buffer)))]
+        info = get_worker_info()
+        if info is not None:
+            length = len(self.data)
+            per_worker = int(math.ceil(length / float(info.num_workers)))
+            start = info.id * per_worker
+            self.data = self.data[start : min(start + per_worker, length)]
+
+        return super().__iter__()
+
     def __iter__(self):
+        buffer: List[Dict] = []
         for chunks in zip(*self.iters):
-            self.data = convert_tables_to_dicts(
-                dfs=chunks,
-                col_names=self.col_names,
-                col_types=self.col_types,
-                col_groups=self.col_groups,
-                **self.kwargs,
+            buffer.extend(
+                convert_tables_to_dicts(
+                    dfs=chunks,
+                    col_names=self.col_names,
+                    col_types=self.col_types,
+                    col_groups=self.col_groups,
+                    **self.kwargs,
+                )
             )
-            if self.shuffle:
-                self.randomize(data=self.data)
-
-            info = get_worker_info()
-            if info is not None:
-                length = len(self.data)
-                per_worker = int(math.ceil(length / float(info.num_workers)))
-                start = info.id * per_worker
-                self.data = self.data[start : min(start + per_worker, length)]
-
-            return super().__iter__()
+            if len(buffer) < self.buffersize:
+                continue
+            self._process(buffer=buffer)
+        # process the previously loaded chunks in the buffer
+        return self._process(buffer=buffer)

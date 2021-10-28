@@ -146,6 +146,8 @@ class TestCSVIterableDataset(unittest.TestCase):
 
             # test transform
             dataset = CSVIterableDataset(
+                chunksize=2,
+                buffersize=4,
                 filename=[filepath1, filepath2, filepath3],
                 col_groups={"ehr": [f"ehr_{i}" for i in range(5)]},
                 transform=ToNumpyd(keys="ehr"),
@@ -153,11 +155,11 @@ class TestCSVIterableDataset(unittest.TestCase):
                 seed=123,
             )
             expected = [
+                [3.7725, 4.2118, 4.6353, 5.2980, 9.5451],
                 [6.8392, 6.4745, 5.8627, 5.1922, 5.2745],
                 [3.3333, 3.2353, 3.4000, 3.1647, 3.0863],
                 [6.4275, 6.2549, 5.9765, 6.2627, 7.7176],
                 [2.0078, 2.2902, 2.0549, 3.0196, 3.8078],
-                [3.7725, 4.2118, 4.6353, 5.2980, 9.5451],
             ]
             for item, exp in zip(dataset, expected):
                 self.assertTrue(isinstance(item["ehr"], np.ndarray))
