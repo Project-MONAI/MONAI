@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
 
-from monai.data.thread_buffer import ListBuffer
+from monai.data.thread_buffer import ShuffleBuffer
 from monai.data.utils import convert_tables_to_dicts
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple, optional_import
@@ -127,7 +127,7 @@ class CSVIterableDataset(IterableDataset):
         self.col_names = col_names
         self.col_types = col_types
         self.col_groups = col_groups
-        self.buffer = ListBuffer(rand_pop=shuffle, seed=seed)
+        self.buffer = ShuffleBuffer(rand_pop=shuffle, seed=seed)
         self.kwargs = kwargs
         self.iters = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore

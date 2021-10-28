@@ -104,7 +104,7 @@ class ThreadDataLoader(DataLoader):
         yield from buffer
 
 
-class ListBuffer(Randomizable, list):
+class ShuffleBuffer(Randomizable, list):
     """
     Extend list as a buffer and support to randomly pop items.
 

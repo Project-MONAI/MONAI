@@ -205,6 +205,13 @@ ThreadBuffer
 ~~~~~~~~~~~~
 .. autoclass:: monai.data.ThreadBuffer
 
+ThreadDataLoader
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.ThreadDataLoader
+
+ShuffleBuffer
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.ShuffleBuffer
 
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
