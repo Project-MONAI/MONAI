@@ -13,17 +13,30 @@ from typing import Optional
 
 import numpy as np
 
-from monai.transforms import SpatialPad
+from monai.transforms.croppad.array import SpatialPad
 from monai.utils.module import optional_import
+from monai.utils.type_conversion import convert_data_type
 
 plt, _ = optional_import("matplotlib", name="pyplot")
 
+# from monai.transforms import (
+#     AddChanneld,
+#     Compose,
+#     LoadImaged,
+#     Orientationd,
+#     Pad,
+#     RandSpatialCropd,
+#     RandSpatialCropSamplesd,
+#     Rotate90d,
+#     ScaleIntensityd,
+#     SpatialPad,
+# )
 
 __all__ = ["matshow3d"]
 
 
 def matshow3d(
-    vol,
+    volume,
     fig=None,
     title: Optional[str] = None,
     figsize=(10, 10),
@@ -32,13 +45,14 @@ def matshow3d(
     vmax=None,
     every_n: int = 1,
     interpolation: str = "none",
+    show=False,
     **kwargs,
 ):
     """
-    Display a 3D volume as a grid of images.
+    Create a 3D volume figure as a grid of images.
 
     Args:
-        vol: 3D volume to display. Higher dimentional arrays will be reshaped into (-1, H, W).
+        volume: 3D volume to display. Higher dimentional arrays will be reshaped into (-1, H, W).
         fig: matplotlib figure to use. If None, a new figure will be created.
         title: Title of the figure.
         figsize: Size of the figure.
@@ -46,12 +60,15 @@ def matshow3d(
         vmin: `vmin` for the matplotlib `imshow`.
         vmax: `vmax` for the matplotlib `imshow`.
         every_n: factor to subsample the frames so that only every n-th frame is displayed.
+        interpolation: interpolation to use for the matplotlib `matshow`.
+        show: if True, show the figure.
         kwargs: additional keyword arguments to matplotlib `matshow` and `imshow`.
 
     See Also:
         - https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imshow.html
         - https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.matshow.html
     """
+    vol: np.ndarray = convert_data_type(data=volume, output_type=np.array)
     if isinstance(vol, (list, tuple)):
         # a sequence of channel-first volumes
         pad_size = np.max(np.asarray([v.shape for v in vol]), axis=0)
@@ -92,4 +109,24 @@ def matshow3d(
         ax.set_title(title)
     if figsize is not None:
         fig.set_size_inches(figsize)
+    if show:
+        plt.show()
     return fig, im
+
+
+# if __name__ == "__main__":
+#     keys = ("image",)
+#     transforms = Compose(
+#         [
+#             LoadImaged(keys),
+#             AddChanneld(keys),
+#             ScaleIntensityd(keys),
+#             Rotate90d(keys, spatial_axes=(0, 2)),
+#             # RandSpatialCropSamplesd("image", roi_size=(32, 32, 20), random_size=False, num_samples=10),
+#         ]
+#     )
+#     # image_path = "/Users/wenqili/Documents/MONAI/MarsAtlas-MNI-Colin27/colin27_MNI.nii"
+#     image_path = "/Users/wenqili/Documents/MONAI/MarsAtlas-MNI-Colin27/colin27_MNI_MarsAtlas.nii"
+#     ims = transforms({"image": image_path})
+#     out = matshow3d(ims["image"][0], every_n=4, frames_per_row=10, show=True)[0]
+#     # out = matshow3d([im["image"] for im in ims], every_n=2, frames_per_row=10)[0]
