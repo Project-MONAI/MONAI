@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
+from torch.utils.data import get_worker_info
 
 from monai.data.utils import convert_tables_to_dicts
 from monai.transforms import apply_transform
-
-# from torch.utils.data import get_worker_info
 from monai.transforms.transform import Randomizable
 from monai.utils import ensure_tuple, optional_import
 
@@ -54,30 +53,49 @@ class IterableDataset(_TorchIterableDataset):
 class ShuffleBuffer(Randomizable, IterableDataset):
     """
     Extend the IterableDataset with a buffer and support to randomly pop items.
+
+    Args:
+        data: input data source to load and transform to generate dataset for model.
+        transform: a callable data transform on input data.
+        buffer_size: size of the buffer to store items and randomly pop, default to 512.
+        rand_pop: randomly pop a item from the list or pop from the beginning, default to False.
+
     """
 
-    def __init__(self, data, transform=None, buffer_size=512) -> None:
+    def __init__(self, data, transform=None, buffer_size: int = 512, rand_pop: bool = False) -> None:
         super().__init__(data=data, transform=transform)
         self.size = buffer_size
+        self.rand_pop = rand_pop
         self._idx = 0
 
-    def rand_pop(self, buffer):
-        self.randomize(len(buffer))
-        if self.transform is not None:
-            return apply_transform(self.transform, buffer.pop(self._idx))
-        return buffer.pop(self._idx)
+    def _rand_pop(self, buffer: List, num_workers: int = 1, id: int = 0):
+        length = len(buffer)
+        for i in range(min(length, num_workers)):
+            if self.rand_pop:
+                # randomly select an item for every worker and pop
+                self.randomize(length)
+
+            item = buffer.pop(self._idx)
+            if i == id:
+                if self.transform is not None:
+                    item = apply_transform(self.transform, item)
+                yield item
 
     def __iter__(self):
+        # pop items for multi-workers
+        info = get_worker_info()
+        num_workers = info.num_workers if info is not None else 1
+        id = info.id if info is not None else 0
+
         _buffer = []
         for item in self.data:
-            # TODO: total size len(self.data) might be smaller than self.size
-            if len(_buffer) == self.size:
-                yield self.rand_pop(_buffer)
+            if len(_buffer) == self.size + num_workers:
+                self._rand_pop(_buffer, num_workers=num_workers, id=id)
                 _buffer[self._idx] = item
             else:
                 _buffer.append(item)
         while _buffer:
-            yield self.rand_pop(_buffer)
+            return self._rand_pop(_buffer, num_workers=num_workers, id=id)
 
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
@@ -181,8 +199,8 @@ class CSVIterableDataset(IterableDataset, Randomizable):
             )
 
     def __iter__(self):
-        if self.shuffle:
-            buffer = ShuffleBuffer(data=self._flattened(), transform=self.transform, buffer_size=self.buffer_size)
-            buffer.set_random_state(state=self.R)
-            yield from buffer
-        yield from IterableDataset(data=self._flattened(), transform=self.transform)
+        buffer = ShuffleBuffer(
+            data=self._flattened(), transform=self.transform, buffer_size=self.buffer_size, rand_pop=self.shuffle
+        )
+        buffer.set_random_state(state=self.R)
+        yield from buffer
