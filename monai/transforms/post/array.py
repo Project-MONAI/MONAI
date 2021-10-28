@@ -376,7 +376,10 @@ class LabelFilter:
             if hasattr(torch, "isin"):
                 appl_lbls = torch.as_tensor(self.applied_labels, device=img.device)
                 return torch.where(torch.isin(img, appl_lbls), img, 0)
-            img = img.detach().cpu().numpy()
+            else:
+                out = self(img.detach().cpu().numpy())
+                out, *_ = convert_to_dst_type(out, img)
+                return out
         return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
 
 
