@@ -142,7 +142,7 @@ def nonzero(x: NdarrayOrTensor):
     """`np.nonzero` with equivalent implementation for torch.
 
     Args:
-        idx: array/tensor
+        x: array/tensor
 
     Returns:
         Index unravelled for given shape
