@@ -42,6 +42,7 @@ class IterableDataset(_TorchIterableDataset):
         """
         self.data = data
         self.transform = transform
+        self.source = None
 
     def __iter__(self):
         self.source = iter(self.data)
@@ -76,8 +77,9 @@ class IterableBuffer(Randomizable, IterableDataset):
             if self.shuffle:
                 # randomly select an item for every worker and pop
                 self.randomize(length)
-
-            item = buffer.pop(self._idx)
+            # switch random index data and the last index data
+            item, buffer[self._idx] = buffer[self._idx], buffer[-1]
+            buffer.pop()
             if i == id:
                 if self.transform is not None:
                     item = apply_transform(self.transform, item)
