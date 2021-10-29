@@ -167,7 +167,7 @@ class Randomizable(ABC, ThreadUnsafe):
         self.R = np.random.RandomState()
         return self
 
-    def randomize(self, data: Any) -> None:
+    def randomize(self, data: Any) -> Any:
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 

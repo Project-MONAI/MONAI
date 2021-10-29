@@ -951,16 +951,15 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.centers: List[np.ndarray] = []
 
-    def randomize(self, weight_map: NdarrayOrTensor) -> None:
-        self.centers = weighted_patch_samples(
+    def randomize(self, weight_map: NdarrayOrTensor) -> List[List[int]]:
+        return weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         d = dict(data)
-        self.randomize(d[self.w_key])
+        centers = self.randomize(d[self.w_key])
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
         # initialize returned list with shallow copy to preserve key ordering
@@ -976,13 +975,13 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
                     f"data {key} and weight map {self.w_key} spatial shape mismatch: "
                     f"{img.shape[1:]} vs {d[self.w_key].shape[1:]}."
                 )
-            for i, center in enumerate(self.centers):
+            for i, center in enumerate(centers):
                 cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
                 orig_size = img.shape[1:]
                 results[i][key] = cropper(img)
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
                 if self.center_coord_key:
-                    results[i][self.center_coord_key] = center
+                    results[i][self.center_coord_key] = center  # type: ignore
         # fill in the extra keys with unmodified data
         for i in range(self.num_samples):
             # add `patch_index` to the meta data
@@ -1112,7 +1111,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.centers: Optional[List[List[int]]] = None
         self.allow_smaller = allow_smaller
 
     def randomize(
@@ -1121,15 +1119,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
         image: Optional[NdarrayOrTensor] = None,
-    ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+    ) -> List[List[int]]:
         if fg_indices is None or bg_indices is None:
             fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
         else:
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
-        self.centers = generate_pos_neg_label_crop_centers(
-            self.spatial_size,
+        return generate_pos_neg_label_crop_centers(
+            fall_back_tuple(self.spatial_size, default=label.shape[1:]),
             self.num_samples,
             self.pos_ratio,
             label.shape[1:],
@@ -1145,23 +1142,24 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         image = d[self.image_key] if self.image_key else None
         fg_indices = d.pop(self.fg_indices_key, None) if self.fg_indices_key is not None else None
         bg_indices = d.pop(self.bg_indices_key, None) if self.bg_indices_key is not None else None
+        spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
 
-        self.randomize(label, fg_indices, bg_indices, image)
-        if not isinstance(self.spatial_size, tuple):
+        centers = self.randomize(label, fg_indices, bg_indices, image)
+        if not isinstance(spatial_size, tuple):
             raise ValueError("spatial_size must be a valid tuple.")
-        if self.centers is None:
+        if centers is None:
             raise ValueError("no available ROI centers to crop.")
 
         # initialize returned list with shallow copy to preserve key ordering
         results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(self.num_samples)]
 
-        for i, center in enumerate(self.centers):
+        for i, center in enumerate(centers):
             # fill in the extra keys with unmodified data
             for key in set(d.keys()).difference(set(self.keys)):
                 results[i][key] = deepcopy(d[key])
             for key in self.key_iterator(d):
                 img = d[key]
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=spatial_size)
                 orig_size = img.shape[1:]
                 results[i][key] = cropper(img)
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
@@ -1307,7 +1305,6 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.centers: Optional[List[List[int]]] = None
         self.allow_smaller = allow_smaller
 
     def randomize(
@@ -1315,14 +1312,19 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         label: NdarrayOrTensor,
         indices: Optional[List[NdarrayOrTensor]] = None,
         image: Optional[NdarrayOrTensor] = None,
-    ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+    ) -> List[List[int]]:
         if indices is None:
             indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         else:
             indices_ = indices
-        self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R, self.allow_smaller
+        return generate_label_classes_crop_centers(
+            fall_back_tuple(self.spatial_size, default=label.shape[1:]),
+            self.num_samples,
+            label.shape[1:],
+            indices_,
+            self.ratios,
+            self.R,
+            self.allow_smaller,
         )
 
     def __call__(self, data: Mapping[Hashable, Any]) -> List[Dict[Hashable, NdarrayOrTensor]]:
@@ -1330,17 +1332,18 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
         indices = d.pop(self.indices_key, None) if self.indices_key is not None else None
+        spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
 
-        self.randomize(label, indices, image)
+        centers = self.randomize(label, indices, image)
         if not isinstance(self.spatial_size, tuple):
             raise ValueError("spatial_size must be a valid tuple.")
-        if self.centers is None:
+        if centers is None:
             raise ValueError("no available ROI centers to crop.")
 
         # initialize returned list with shallow copy to preserve key ordering
         results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(self.num_samples)]
 
-        for i, center in enumerate(self.centers):
+        for i, center in enumerate(centers):
             # fill in the extra keys with unmodified data
             for key in set(d.keys()).difference(set(self.keys)):
                 results[i][key] = deepcopy(d[key])

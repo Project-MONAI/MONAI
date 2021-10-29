@@ -794,10 +794,9 @@ class RandWeightedCrop(Randomizable, Transform):
         self.spatial_size = ensure_tuple(spatial_size)
         self.num_samples = int(num_samples)
         self.weight_map = weight_map
-        self.centers: List[np.ndarray] = []
 
-    def randomize(self, weight_map: NdarrayOrTensor) -> None:
-        self.centers = weighted_patch_samples(
+    def randomize(self, weight_map: NdarrayOrTensor) -> List:
+        return weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
@@ -819,10 +818,10 @@ class RandWeightedCrop(Randomizable, Transform):
         if img.shape[1:] != weight_map.shape[1:]:
             raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
 
-        self.randomize(weight_map)
+        centers = self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results: List[NdarrayOrTensor] = []
-        for center in self.centers:
+        for center in centers:
             cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
             results.append(cropper(img))
         return results
@@ -906,7 +905,6 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
-        self.centers: Optional[List[List[int]]] = None
         self.fg_indices = fg_indices
         self.bg_indices = bg_indices
         self.allow_smaller = allow_smaller
@@ -917,8 +915,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
         image: Optional[NdarrayOrTensor] = None,
-    ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+    ) -> List[List[int]]:
         if fg_indices is None or bg_indices is None:
             if self.fg_indices is not None and self.bg_indices is not None:
                 fg_indices_ = self.fg_indices
@@ -928,8 +925,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         else:
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
-        self.centers = generate_pos_neg_label_crop_centers(
-            self.spatial_size,
+        return generate_pos_neg_label_crop_centers(
+            fall_back_tuple(self.spatial_size, default=label.shape[1:]),
             self.num_samples,
             self.pos_ratio,
             label.shape[1:],
@@ -968,11 +965,12 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         if image is None:
             image = self.image
 
-        self.randomize(label, fg_indices, bg_indices, image)
+        spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        centers = self.randomize(label, fg_indices, bg_indices, image)
         results: List[NdarrayOrTensor] = []
-        if self.centers is not None:
-            for center in self.centers:
-                cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
+        if centers is not None:
+            for center in centers:
+                cropper = SpatialCrop(roi_center=center, roi_size=spatial_size)
                 results.append(cropper(img))
 
         return results
@@ -1061,7 +1059,6 @@ class RandCropByLabelClasses(Randomizable, Transform):
         self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
-        self.centers: Optional[List[List[int]]] = None
         self.indices = indices
         self.allow_smaller = allow_smaller
 
@@ -1070,8 +1067,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         label: NdarrayOrTensor,
         indices: Optional[List[NdarrayOrTensor]] = None,
         image: Optional[NdarrayOrTensor] = None,
-    ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+    ) -> List[List[int]]:
         indices_: Sequence[NdarrayOrTensor]
         if indices is None:
             if self.indices is not None:
@@ -1080,8 +1076,14 @@ class RandCropByLabelClasses(Randomizable, Transform):
                 indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         else:
             indices_ = indices
-        self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R, self.allow_smaller
+        return generate_label_classes_crop_centers(
+            fall_back_tuple(self.spatial_size, default=label.shape[1:]),
+            self.num_samples,
+            label.shape[1:],
+            indices_,
+            self.ratios,
+            self.R,
+            self.allow_smaller,
         )
 
     def __call__(
@@ -1108,11 +1110,12 @@ class RandCropByLabelClasses(Randomizable, Transform):
         if image is None:
             image = self.image
 
-        self.randomize(label, indices, image)
+        spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        centers = self.randomize(label, indices, image)
         results: List[NdarrayOrTensor] = []
-        if self.centers is not None:
-            for center in self.centers:
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+        if centers is not None:
+            for center in centers:
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=spatial_size)
                 results.append(cropper(img))
 
         return results
