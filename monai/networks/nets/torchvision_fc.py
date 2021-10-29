@@ -30,7 +30,8 @@ class TorchVisionFCModel(NetAdapter):
             ``resnext50_32x4d``, ``resnext101_32x8d``, ``wide_resnet50_2``, ``wide_resnet101_2``.
             model details: https://pytorch.org/vision/stable/models.html.
         num_classes: number of classes for the last classification layer. Default to 1.
-        dim: number of spatial dimensions, default to 2.
+        dim: number of supported spatial dimensions in the specified model, depends on the model implementation.
+            default to 2 as most Torchvision models are for 2D image processing.
         in_channels: number of the input channels of last layer. if None, get it from `in_features` of last layer.
         use_conv: whether use convolutional layer to replace the last layer, default to False.
         pool: parameters for the pooling layer, it should be a tuple, the first item is name of the pooling layer,
