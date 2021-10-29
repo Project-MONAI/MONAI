@@ -517,10 +517,7 @@ class LabelToContour(Transform):
         return contour_img.squeeze(0)
 
 
-class Ensemble(Transform):
-
-    backend = [TransformBackends.TORCH]
-
+class Ensemble:
     @staticmethod
     def get_stacked_torch(img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> torch.Tensor:
         """Get either a sequence or single instance of np.ndarray/torch.Tensor. Return single torch.Tensor."""

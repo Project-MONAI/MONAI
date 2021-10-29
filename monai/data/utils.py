@@ -469,6 +469,7 @@ def set_rnd(obj, seed: int) -> int:
     Set seed or random state for all randomisable properties of obj.
 
     Args:
+        obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
     """
     if not hasattr(obj, "__dict__"):

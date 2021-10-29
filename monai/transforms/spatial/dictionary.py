@@ -123,6 +123,7 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
+    "AddCoordinateChannelsd",
     "AddCoordinateChannelsD",
     "AddCoordinateChannelsDict",
 ]
