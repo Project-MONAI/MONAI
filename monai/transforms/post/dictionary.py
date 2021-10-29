@@ -28,7 +28,6 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
-    Ensemble,
     FillHoles,
     KeepLargestConnectedComponent,
     LabelFilter,
@@ -321,8 +320,6 @@ class Ensembled(MapTransform):
     Base class of dictionary-based ensemble transforms.
 
     """
-
-    backend = Ensemble.backend
 
     def __init__(
         self,
