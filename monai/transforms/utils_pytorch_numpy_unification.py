@@ -34,6 +34,7 @@ __all__ = [
     "concatenate",
     "cumsum",
     "isfinite",
+    "searchsorted",
 ]
 
 
@@ -192,7 +193,7 @@ def unravel_index(idx, shape):
 
 
 def unravel_indices(idx, shape):
-    """Computing unravel cooridnates from indices.
+    """Computing unravel coordinates from indices.
 
     Args:
         idx: a sequence of indices to unravel

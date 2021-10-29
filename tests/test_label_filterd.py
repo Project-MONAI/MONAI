@@ -15,7 +15,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.transforms import LabelFilter
+from monai.transforms.post.dictionary import LabelFilterd
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 grid_1 = torch.tensor([[[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]])
@@ -60,18 +60,18 @@ INVALID_CASES = [ITEST_CASE_1]
 class TestLabelFilter(unittest.TestCase):
     @parameterized.expand(VALID_TESTS)
     def test_correct_results(self, _, args, input_image, expected):
-        converter = LabelFilter(**args)
-        result = converter(input_image)
+        converter = LabelFilterd(keys="image", **args)
+        result = converter({"image": input_image})["image"]
         assert_allclose(result, expected)
 
     @parameterized.expand(INVALID_CASES)
     def test_raise_exception(self, _, args, input_image, expected_error):
         with self.assertRaises(expected_error):
-            converter = LabelFilter(**args)
+            converter = LabelFilterd(keys="image", **args)
             if isinstance(input_image, torch.Tensor) and torch.cuda.is_available():
-                _ = converter(input_image.cuda())
+                _ = converter({"image": input_image.cuda()})
             else:
-                _ = converter(input_image)
+                _ = converter({"image": input_image})
 
 
 if __name__ == "__main__":

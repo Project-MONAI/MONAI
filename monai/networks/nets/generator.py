@@ -31,7 +31,7 @@ class Generator(nn.Module):
     The layers are constructed using the values in the `channels` and `strides` arguments, the number being defined by
     the length of these (which must match). Input is first passed through a :py:class:`torch.nn.Linear` layer to
     convert the input vector to an image tensor with dimensions `start_shape`. This passes through the convolution
-    layers and is progressively upsampled if the `strides` valus are greater than 1 using transpose convolutions. The
+    layers and is progressively upsampled if the `strides` values are greater than 1 using transpose convolutions. The
     size of the final output is defined by the `start_shape` dimension and the amount of upsampling done through
     strides. In the default definition the size of the output's spatial dimensions will be that of `start_shape`
     multiplied by the product of `strides`, thus the example network below upsamples an starting size of (64, 8, 8)
