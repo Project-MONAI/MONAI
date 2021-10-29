@@ -44,13 +44,14 @@ class IterableDataset(_TorchIterableDataset):
         self.transform = transform
 
     def __iter__(self):
-        for data in iter(self.data):
+        self.source = iter(self.data)
+        for data in self.source:
             if self.transform is not None:
                 data = apply_transform(self.transform, data)
             yield data
 
 
-class ShuffleBuffer(Randomizable, IterableDataset):
+class IterableBuffer(Randomizable, IterableDataset):
     """
     Extend the IterableDataset with a buffer and support to randomly pop items.
 
@@ -58,20 +59,21 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         data: input data source to load and transform to generate dataset for model.
         transform: a callable data transform on input data.
         buffer_size: size of the buffer to store items and randomly pop, default to 512.
-        rand_pop: randomly pop a item from the list or pop from the beginning, default to False.
+        shuffle: if True, randomly pop a item from the list, otherwise, pop from the beginning,
+            default to False.
 
     """
 
-    def __init__(self, data, transform=None, buffer_size: int = 512, rand_pop: bool = False) -> None:
+    def __init__(self, data, transform=None, buffer_size: int = 512, shuffle: bool = True) -> None:
         super().__init__(data=data, transform=transform)
         self.size = buffer_size
-        self.rand_pop = rand_pop
+        self.shuffle = shuffle
         self._idx = 0
 
     def _rand_pop(self, buffer: List, num_workers: int = 1, id: int = 0):
         length = len(buffer)
         for i in range(min(length, num_workers)):
-            if self.rand_pop:
+            if self.shuffle:
                 # randomly select an item for every worker and pop
                 self.randomize(length)
 
@@ -89,11 +91,9 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
         _buffer = []
         for item in self.data:
-            if len(_buffer) == self.size + num_workers:
+            if len(_buffer) >= self.size:
                 self._rand_pop(_buffer, num_workers=num_workers, id=id)
-                _buffer[self._idx] = item
-            else:
-                _buffer.append(item)
+            _buffer.append(item)
         while _buffer:
             return self._rand_pop(_buffer, num_workers=num_workers, id=id)
 
@@ -133,7 +133,7 @@ class CSVIterableDataset(IterableDataset, Randomizable):
             if providing a list of filenames, it will load all the files and join tables.
         chunksize: rows of a chunk when loading iterable data from CSV files, default to 1000. more details:
             https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html.
-        buffer_size: size of the buffer to store the loaded chunks, if None, same as `chunksize`.
+        buffer_size: size of the buffer to store the loaded chunks, if None, set to `2 x chunksize`.
         col_names: names of the expected columns to load. if None, load all the columns.
         col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
             it should be a dictionary, every item maps to an expected column, the `key` is the column
@@ -172,7 +172,7 @@ class CSVIterableDataset(IterableDataset, Randomizable):
     ):
         self.files = ensure_tuple(filename)
         self.chunksize = chunksize
-        self.buffer_size = chunksize if buffer_size is None else buffer_size
+        self.buffer_size = 2 * chunksize if buffer_size is None else buffer_size
         self.col_names = col_names
         self.col_types = col_types
         self.col_groups = col_groups
@@ -199,8 +199,8 @@ class CSVIterableDataset(IterableDataset, Randomizable):
             )
 
     def __iter__(self):
-        buffer = ShuffleBuffer(
-            data=self._flattened(), transform=self.transform, buffer_size=self.buffer_size, rand_pop=self.shuffle
+        buffer = IterableBuffer(
+            data=self._flattened(), transform=self.transform, buffer_size=self.buffer_size, shuffle=self.shuffle
         )
         buffer.set_random_state(state=self.R)
         yield from buffer
