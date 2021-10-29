@@ -26,7 +26,7 @@ class TorchVisionFCModel(NetAdapter):
 
     Args:
         model_name: name of any torchvision model with fully connected layer at the end.
-            ``resnet18`` (default), ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``,
+            ``resnet18`` (default), ``resnet34``, ``resnet50``, ``resnet101``, ``resnet152``,
             ``resnext50_32x4d``, ``resnext101_32x8d``, ``wide_resnet50_2``, ``wide_resnet101_2``.
             model details: https://pytorch.org/vision/stable/models.html.
         num_classes: number of classes for the last classification layer. Default to 1.
@@ -81,7 +81,7 @@ class TorchVisionFullyConvModel(TorchVisionFCModel):
 
     Args:
         model_name: name of any torchvision with adaptive avg pooling and fully connected layer at the end.
-            ``resnet18`` (default), ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``,
+            ``resnet18`` (default), ``resnet34``, ``resnet50``, ``resnet101``, ``resnet152``,
             ``resnext50_32x4d``, ``resnext101_32x8d``, ``wide_resnet50_2``, ``wide_resnet101_2``.
         num_classes: number of classes for the last classification layer. Default to 1.
         pool_size: the kernel size for `AvgPool2d` to replace `AdaptiveAvgPool2d`. Default to (7, 7).

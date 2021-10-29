@@ -25,7 +25,7 @@ class NetAdapter(torch.nn.Module):
 
     Args:
         model: a PyTorch model, which can be both 2D and 3D models. typically, it can be a pretrained model
-            in Torchvision, like: ``resnet18``, ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``, etc.
+            in Torchvision, like: ``resnet18``, ``resnet34``, ``resnet50``, ``resnet101``, ``resnet152``, etc.
             more details: https://pytorch.org/vision/stable/models.html.
         num_classes: number of classes for the last classification layer. Default to 1.
         dim: number of supported spatial dimensions in the specified model, depends on the model implementation.
