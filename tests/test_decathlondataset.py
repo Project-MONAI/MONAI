@@ -68,12 +68,7 @@ class TestDecathlonDataset(unittest.TestCase):
         self.assertEqual(len(data), 208)
 
         # test dataset properties
-        data = DecathlonDataset(
-            root_dir=testing_dir,
-            task="Task04_Hippocampus",
-            section="validation",
-            download=False,
-        )
+        data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
         properties = data.get_properties(keys="labels")
         self.assertDictEqual(properties["labels"], {"0": "background", "1": "Anterior", "2": "Posterior"})
 

@@ -17,25 +17,15 @@ import torch.optim as optim
 from parameterized import parameterized
 
 from monai.losses import BendingEnergyLoss, GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
+from tests.utils import SkipIfBeforePyTorchVersion
 
 TEST_CASES = [
     [BendingEnergyLoss, {}, ["pred"]],
-    [
-        LocalNormalizedCrossCorrelationLoss,
-        {"kernel_size": 7, "kernel_type": "rectangular"},
-        ["pred", "target"],
-    ],
-    [
-        LocalNormalizedCrossCorrelationLoss,
-        {"kernel_size": 5, "kernel_type": "triangular"},
-        ["pred", "target"],
-    ],
-    [
-        LocalNormalizedCrossCorrelationLoss,
-        {"kernel_size": 3, "kernel_type": "gaussian"},
-        ["pred", "target"],
-    ],
+    [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 7, "kernel_type": "rectangular"}, ["pred", "target"]],
+    [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 5, "kernel_type": "triangular"}, ["pred", "target"]],
+    [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 3, "kernel_type": "gaussian"}, ["pred", "target"]],
     [GlobalMutualInformationLoss, {"num_bins": 10}, ["pred", "target"]],
+    [GlobalMutualInformationLoss, {"kernel_type": "b-spline", "num_bins": 10}, ["pred", "target"]],
 ]
 
 
@@ -51,6 +41,7 @@ class TestRegLossIntegration(unittest.TestCase):
         torch.backends.cudnn.benchmark = True
 
     @parameterized.expand(TEST_CASES)
+    @SkipIfBeforePyTorchVersion((1, 9))
     def test_convergence(self, loss_type, loss_args, forward_args):
         """
         The goal of this test is to assess if the gradient of the loss function
@@ -69,7 +60,7 @@ class TestRegLossIntegration(unittest.TestCase):
         # define a one layer model
         class OnelayerNet(nn.Module):
             def __init__(self):
-                super(OnelayerNet, self).__init__()
+                super().__init__()
                 self.layer = nn.Sequential(
                     nn.Conv3d(in_channels=1, out_channels=1, kernel_size=3, padding=1),
                     nn.ReLU(),

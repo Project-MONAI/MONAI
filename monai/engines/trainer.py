@@ -172,7 +172,7 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -180,7 +180,7 @@ class SupervisedTrainer(Trainer):
         else:
             inputs, targets, args, kwargs = batch
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}  # type: ignore
 
         def _compute_pred_loss():
             engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
@@ -198,13 +198,13 @@ class SupervisedTrainer(Trainer):
         if self.amp and self.scaler is not None:
             with torch.cuda.amp.autocast():
                 _compute_pred_loss()
-            self.scaler.scale(engine.state.output[Keys.LOSS]).backward()
+            self.scaler.scale(engine.state.output[Keys.LOSS]).backward()  # type: ignore
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.scaler.step(self.optimizer)
             self.scaler.update()
         else:
             _compute_pred_loss()
-            engine.state.output[Keys.LOSS].backward()
+            engine.state.output[Keys.LOSS].backward()  # type: ignore
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.optimizer.step()
         engine.fire_event(IterationEvents.MODEL_COMPLETED)
@@ -345,15 +345,18 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
         batch_size = self.data_loader.batch_size  # type: ignore
-        g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
+        g_input = self.g_prepare_batch(
+            num_latents=batch_size,
+            latent_size=self.latent_shape,
+            device=engine.state.device,  # type: ignore
+            non_blocking=engine.non_blocking,  # type: ignore
+        )
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
-        d_total_loss = torch.zeros(
-            1,
-        )
+        d_total_loss = torch.zeros(1)
         for _ in range(self.d_train_steps):
             # `set_to_none` only work from PyTorch 1.7.0
             if PT_BEFORE_1_7:
@@ -367,7 +370,12 @@ class GanTrainer(Trainer):
 
         # Train Generator
         if self.g_update_latents:
-            g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
+            g_input = self.g_prepare_batch(
+                num_latents=batch_size,
+                latent_size=self.latent_shape,
+                device=engine.state.device,  # type: ignore
+                non_blocking=engine.non_blocking,  # type: ignore
+            )
         g_output = self.g_inferer(g_input, self.g_network)
         if PT_BEFORE_1_7:
             self.g_optimizer.zero_grad()

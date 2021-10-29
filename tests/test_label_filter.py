@@ -18,34 +18,14 @@ from parameterized import parameterized
 from monai.transforms import LabelFilter
 from tests.utils import assert_allclose, clone
 
-grid_1 = torch.tensor(
-    [
-        [
-            [
-                [1, 2, 3],
-                [4, 5, 6],
-                [7, 8, 9],
-            ]
-        ]
-    ]
-)
+grid_1 = torch.tensor([[[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]])
 
 
 TEST_CASE_0 = [
     "filter_single_label",
     {"applied_labels": 3},
     grid_1,
-    torch.tensor(
-        [
-            [
-                [
-                    [0, 0, 3],
-                    [0, 0, 0],
-                    [0, 0, 0],
-                ]
-            ]
-        ]
-    ),
+    torch.tensor([[[[0, 0, 3], [0, 0, 0], [0, 0, 0]]]]),
 ]
 
 
@@ -53,49 +33,19 @@ TEST_CASE_1 = [
     "filter_single_label_list",
     {"applied_labels": [3]},
     grid_1,
-    torch.tensor(
-        [
-            [
-                [
-                    [0, 0, 3],
-                    [0, 0, 0],
-                    [0, 0, 0],
-                ]
-            ]
-        ]
-    ),
+    torch.tensor([[[[0, 0, 3], [0, 0, 0], [0, 0, 0]]]]),
 ]
 
 TEST_CASE_2 = [
     "filter_multi_label",
     {"applied_labels": [3, 5, 8]},
     grid_1,
-    torch.tensor(
-        [
-            [
-                [
-                    [0, 0, 3],
-                    [0, 5, 0],
-                    [0, 8, 0],
-                ]
-            ]
-        ]
-    ),
+    torch.tensor([[[[0, 0, 3], [0, 5, 0], [0, 8, 0]]]]),
 ]
 
-TEST_CASE_3 = [
-    "filter_all",
-    {"applied_labels": [1, 2, 3, 4, 5, 6, 7, 8, 9]},
-    grid_1,
-    grid_1,
-]
+TEST_CASE_3 = ["filter_all", {"applied_labels": [1, 2, 3, 4, 5, 6, 7, 8, 9]}, grid_1, grid_1]
 
-VALID_CASES = [
-    TEST_CASE_0,
-    TEST_CASE_1,
-    TEST_CASE_2,
-    TEST_CASE_3,
-]
+VALID_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 ITEST_CASE_1 = ["invalid_image_data_type", {"applied_labels": 1}, [[[[1, 1, 1]]]], NotImplementedError]
 
