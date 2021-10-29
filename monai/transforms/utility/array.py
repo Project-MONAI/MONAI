@@ -80,6 +80,9 @@ __all__ = [
     "MapLabelValue",
     "IntensityStats",
     "ToDevice",
+    "CuCIM",
+    "RandCuCIM",
+    "ToCupy",
 ]
 
 
@@ -243,8 +246,8 @@ class RepeatChannel(Transform):
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        repeeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
-        return repeeat_fn(img, self.repeats, 0)  # type: ignore
+        repeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
+        return repeat_fn(img, self.repeats, 0)  # type: ignore
 
 
 class RemoveRepeatedChannel(Transform):
@@ -884,11 +887,9 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         if img.ndim == 4 and img.shape[0] == 1:
             img = img.squeeze(0)
 
-        result = [(img == 1) | (img == 4)]
+        result = [(img == 1) | (img == 4), (img == 1) | (img == 4) | (img == 2), img == 4]
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
-        result.append((img == 1) | (img == 4) | (img == 2))
         # label 4 is ET
-        result.append(img == 4)
         return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
 
 
@@ -1196,7 +1197,7 @@ class RandCuCIM(CuCIM, RandomizableTransform):
           Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
         - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
           the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
-          or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+          or non-randomized) being applied randomly, so it can apply non-randomized transforms randomly but be careful
           with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
         - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.

@@ -171,6 +171,9 @@ __all__ = [
     "Transposed",
     "TransposeDict",
     "TransposeD",
+    "ClassesToIndicesd",
+    "ClassesToIndicesD",
+    "ClassesToIndicesDict",
 ]
 
 

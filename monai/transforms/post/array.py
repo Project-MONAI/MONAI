@@ -20,12 +20,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from monai.config import NdarrayTensor
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
+from monai.transforms.utils_pytorch_numpy_unification import unravel_index
 from monai.utils import TransformBackends, convert_data_type, deprecated_arg, ensure_tuple, look_up_option
 from monai.utils.type_conversion import convert_to_dst_type
 
@@ -345,6 +345,8 @@ class LabelFilter:
         [7, 8, 9]         [0, 0, 9]
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, applied_labels: Union[Iterable[int], int]) -> None:
         """
         Initialize the LabelFilter class with the labels to filter on.
@@ -354,7 +356,7 @@ class LabelFilter:
         """
         self.applied_labels = ensure_tuple(applied_labels)
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Filter the image on the `applied_labels`.
 
@@ -367,13 +369,18 @@ class LabelFilter:
         Returns:
             Pytorch tensor or numpy array of the same shape as the input.
         """
-        if isinstance(img, np.ndarray):
-            return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
+        if not isinstance(img, (np.ndarray, torch.Tensor)):
+            raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+
         if isinstance(img, torch.Tensor):
-            img_arr = img.detach().cpu().numpy()
-            img_arr = self(img_arr)
-            return torch.as_tensor(img_arr, device=img.device)
-        raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+            if hasattr(torch, "isin"):
+                appl_lbls = torch.as_tensor(self.applied_labels, device=img.device)
+                return torch.where(torch.isin(img, appl_lbls), img, 0)
+            else:
+                out = self(img.detach().cpu().numpy())
+                out, *_ = convert_to_dst_type(out, img)
+                return out
+        return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
 
 
 class FillHoles(Transform):
@@ -510,7 +517,7 @@ class LabelToContour(Transform):
         return contour_img.squeeze(0)
 
 
-class Ensemble(Transform):
+class Ensemble:
     @staticmethod
     def get_stacked_torch(img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> torch.Tensor:
         """Get either a sequence or single instance of np.ndarray/torch.Tensor. Return single torch.Tensor."""
@@ -589,8 +596,6 @@ class VoteEnsemble(Ensemble):
 
     """
 
-    backend = [TransformBackends.TORCH]
-
     def __init__(self, num_classes: Optional[int] = None) -> None:
         self.num_classes = num_classes
 
@@ -649,6 +654,8 @@ class ProbNMS(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         spatial_dims: int = 2,
@@ -675,7 +682,7 @@ class ProbNMS(Transform):
         self.box_lower_bd = self.box_size // 2
         self.box_upper_bd = self.box_size - self.box_lower_bd
 
-    def __call__(self, prob_map: Union[np.ndarray, torch.Tensor]):
+    def __call__(self, prob_map: NdarrayOrTensor):
         """
         prob_map: the input probabilities map, it must have shape (H[, W, ...]).
         """
@@ -684,23 +691,19 @@ class ProbNMS(Transform):
                 prob_map = torch.as_tensor(prob_map, dtype=torch.float)
             self.filter.to(prob_map)
             prob_map = self.filter(prob_map)
-        elif not isinstance(prob_map, torch.Tensor):
-            prob_map = prob_map.copy()
-
-        if isinstance(prob_map, torch.Tensor):
-            prob_map = prob_map.detach().cpu().numpy()
 
         prob_map_shape = prob_map.shape
 
         outputs = []
-        while np.max(prob_map) > self.prob_threshold:
-            max_idx = np.unravel_index(prob_map.argmax(), prob_map_shape)
-            prob_max = prob_map[max_idx]
-            max_idx_arr = np.asarray(max_idx)
-            outputs.append([prob_max] + list(max_idx_arr))
+        while prob_map.max() > self.prob_threshold:
+            max_idx = unravel_index(prob_map.argmax(), prob_map_shape)
+            prob_max = prob_map[tuple(max_idx)]
+            max_idx = max_idx.cpu().numpy() if isinstance(max_idx, torch.Tensor) else max_idx
+            prob_max = prob_max.item() if isinstance(prob_max, torch.Tensor) else prob_max
+            outputs.append([prob_max] + list(max_idx))
 
-            idx_min_range = (max_idx_arr - self.box_lower_bd).clip(0, None)
-            idx_max_range = (max_idx_arr + self.box_upper_bd).clip(None, prob_map_shape)
+            idx_min_range = (max_idx - self.box_lower_bd).clip(0, None)
+            idx_max_range = (max_idx + self.box_upper_bd).clip(None, prob_map_shape)
             # for each dimension, set values during index ranges to 0
             slices = tuple(slice(idx_min_range[i], idx_max_range[i]) for i in range(self.spatial_dims))
             prob_map[slices] = 0
