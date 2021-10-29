@@ -19,10 +19,9 @@ import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
-import numpy as np
 import torch
 
-from monai.config import KeysCollection, NdarrayTensor
+from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
@@ -232,6 +231,8 @@ class LabelFilterd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelFilter`.
     """
 
+    backend = LabelFilter.backend
+
     def __init__(
         self, keys: KeysCollection, applied_labels: Union[Sequence[int], int], allow_missing_keys: bool = False
     ) -> None:
@@ -246,7 +247,7 @@ class LabelFilterd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelFilter(applied_labels)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -399,8 +400,6 @@ class VoteEnsembled(Ensembled):
     Dictionary-based wrapper of :py:class:`monai.transforms.VoteEnsemble`.
     """
 
-    backend = VoteEnsemble.backend
-
     def __init__(
         self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None
     ) -> None:
@@ -449,6 +448,8 @@ class ProbNMSd(MapTransform):
 
     """
 
+    backend = ProbNMS.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -463,7 +464,7 @@ class ProbNMSd(MapTransform):
             spatial_dims=spatial_dims, sigma=sigma, prob_threshold=prob_threshold, box_size=box_size
         )
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.prob_nms(d[key])
