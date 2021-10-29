@@ -371,7 +371,6 @@ class SpatialCrop(Transform):
         roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_slices: Optional[Sequence[slice]] = None,
-        allow_smaller: bool = False,
     ) -> None:
         """
         Args:
@@ -382,9 +381,6 @@ class SpatialCrop(Transform):
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
-            allow_smaller: if `False`, an exception will be raised if the image is smaller than
-                the requested ROI in any dimension. If `True`, any smaller dimensions will remain
-                unchanged.
         """
         roi_start_torch: torch.Tensor
 
