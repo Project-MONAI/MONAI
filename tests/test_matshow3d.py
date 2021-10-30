@@ -13,8 +13,10 @@ import os
 import tempfile
 import unittest
 
+import numpy as np
+
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropSamplesd, ScaleIntensityd
-from monai.utils import optional_import, set_determinism
+from monai.utils import optional_import
 from monai.visualize.utils import matshow3d
 from tests.utils import SkipIfNoModule
 
@@ -57,6 +59,7 @@ class TestMatshow3d(unittest.TestCase):
         fig, mat = matshow3d(
             [im[keys] for im in ims], title=f"testing {keys}", figsize=(2, 2), frames_per_row=5, every_n=2, show=False
         )
+        self.assertTrue(mat.dtype == np.float32)
 
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_patch_test.png"
