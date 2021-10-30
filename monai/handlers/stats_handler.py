@@ -174,7 +174,7 @@ class StatsHandler:
             out_str = f"Epoch[{current_epoch}] Metrics -- "
             for name in sorted(prints_dict):
                 value = prints_dict[name]
-                out_str += self.key_var_format.format(name, value)
+                out_str += self.key_var_format.format(name, value) if is_scalar(value) else f"{name}: {str(value)}"
             self.logger.info(out_str)
 
         if (

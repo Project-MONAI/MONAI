@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Callable, Union
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import SurfaceDistanceMetric
@@ -26,6 +26,7 @@ class SurfaceDistance(IgniteMetric):
         include_background: bool = False,
         symmetric: bool = False,
         distance_metric: str = "euclidean",
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -38,6 +39,9 @@ class SurfaceDistance(IgniteMetric):
                 `seg_pred` and `seg_gt`. Defaults to ``False``.
             distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
                 the metric used to compute surface distance. Defaults to ``"euclidean"``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -52,6 +56,6 @@ class SurfaceDistance(IgniteMetric):
             include_background=include_background,
             symmetric=symmetric,
             distance_metric=distance_metric,
-            reduction=MetricReduction.MEAN,
+            reduction=reduction,
         )
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
