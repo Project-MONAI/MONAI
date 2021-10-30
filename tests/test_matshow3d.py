@@ -24,12 +24,6 @@ pyplot, has_pyplot = optional_import("matplotlib", name="pyplot")
 
 @SkipIfNoModule("matplotlib")
 class TestMatshow3d(unittest.TestCase):
-    def setUp(self):
-        set_determinism(0)
-
-    def tearDown(self):
-        set_determinism(None)
-
     def test_3d(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         keys = "image"
@@ -58,6 +52,7 @@ class TestMatshow3d(unittest.TestCase):
             ]
         )
         image_path = os.path.join(testing_dir, "anatomical.nii")
+        xforms.set_random_state(0)
         ims = xforms({keys: image_path})
         fig, mat = matshow3d(
             [im[keys] for im in ims], title=f"testing {keys}", figsize=(2, 2), frames_per_row=5, every_n=2, show=False
