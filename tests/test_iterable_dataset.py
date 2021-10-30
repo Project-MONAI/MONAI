@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import sys
 import tempfile
 import unittest
 
@@ -36,7 +37,7 @@ class TestIterableDataset(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             for i in range(6):
                 nib.save(test_image, os.path.join(tempdir, f"test_image{str(i)}.nii.gz"))
-                test_data.append({"image": os.path.join(tempdir, f"test_image{str(i)}.nii.gz")})
+                test_data.append({"image": os.path.join(tempdir, f"test_image{i}.nii.gz")})
 
             test_transform = Compose([LoadImaged(keys="image"), SimulateDelayd(keys="image", delay_time=1e-7)])
 
@@ -49,7 +50,8 @@ class TestIterableDataset(unittest.TestCase):
             for d in dataset:
                 self.assertTupleEqual(d["image"].shape, expected_shape)
 
-            dataloader = DataLoader(dataset=dataset, batch_size=3, num_workers=2)
+            num_workers = 2 if sys.platform == "linux" else 0
+            dataloader = DataLoader(dataset=dataset, batch_size=3, num_workers=num_workers)
             for d in dataloader:
                 self.assertTupleEqual(d["image"].shape[1:], expected_shape)
 
