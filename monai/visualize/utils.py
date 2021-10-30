@@ -19,19 +19,6 @@ from monai.utils.type_conversion import convert_data_type
 
 plt, _ = optional_import("matplotlib", name="pyplot")
 
-# from monai.transforms import (
-#     AddChanneld,
-#     Compose,
-#     LoadImaged,
-#     Orientationd,
-#     Pad,
-#     RandSpatialCropd,
-#     RandSpatialCropSamplesd,
-#     Rotate90d,
-#     ScaleIntensityd,
-#     SpatialPad,
-# )
-
 __all__ = ["matshow3d"]
 
 
@@ -53,7 +40,9 @@ def matshow3d(
     Create a 3D volume figure as a grid of images.
 
     Args:
-        volume: 3D volume to display. Higher dimentional arrays will be reshaped into (-1, H, W).
+        volume: 3D volume to display. Higher dimensional arrays will be reshaped into (-1, H, W).
+            A list of channel-first (C, H[, W, D]) images can also be passed in,
+            in which case they will be displayed as a padded and stacked volume.
         fig: matplotlib figure to use. If None, a new figure will be created.
         title: Title of the figure.
         figsize: Size of the figure.
@@ -69,6 +58,23 @@ def matshow3d(
     See Also:
         - https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.imshow.html
         - https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.matshow.html
+
+    Example:
+
+        >>> import numpy as np
+        >>> import matplotlib.pyplot as plt
+        >>> from monai.visualize import matshow3d
+        # figure 3D volume
+        >>> volume = np.random.rand(10, 10, 10)
+        >>> fig = plt.figure()
+        >>> matshow3d(volume, fig=fig, title="3D Volume")
+        >>> plt.show()
+        # figure a list of 3D volumes
+        >>> volumes = [np.random.rand(1, 10, 10, 10), np.random.rand(1, 10, 10, 10)]
+        >>> fig = plt.figure()
+        >>> matshow3d(volumes, fig=fig, title="List of Volumes")
+        >>> plt.show()
+
     """
     vol: np.ndarray = convert_data_type(data=volume, output_type=np.ndarray)[0]  # type: ignore
     if isinstance(vol, (list, tuple)):
@@ -100,6 +106,8 @@ def matshow3d(
         fig = plt.figure(tight_layout=True)
         ax = fig.add_subplot(111)
     else:
+        if not fig.axes:
+            fig.add_subplot(111)
         ax = fig.axes[0]
     ax.matshow(im, vmin=vmin, vmax=vmax, interpolation=interpolation, **kwargs)
     ax.axis("off")
@@ -110,21 +118,3 @@ def matshow3d(
     if show:
         plt.show()
     return fig, im
-
-
-# if __name__ == "__main__":
-#     keys = ("image",)
-#     transforms = Compose(
-#         [
-#             LoadImaged(keys),
-#             AddChanneld(keys),
-#             ScaleIntensityd(keys),
-#             Rotate90d(keys, spatial_axes=(0, 2)),
-#             # RandSpatialCropSamplesd("image", roi_size=(32, 32, 20), random_size=False, num_samples=10),
-#         ]
-#     )
-#     # image_path = "/Users/wenqili/Documents/MONAI/MarsAtlas-MNI-Colin27/colin27_MNI.nii"
-#     image_path = "/Users/wenqili/Documents/MONAI/MarsAtlas-MNI-Colin27/colin27_MNI_MarsAtlas.nii"
-#     ims = transforms({"image": image_path})
-#     out = matshow3d((ims["image"][0],), every_n=4, frames_per_row=10, show=True)[0]
-#     # out = matshow3d([im["image"] for im in ims], every_n=2, frames_per_row=10)[0]
