@@ -267,7 +267,7 @@ def convert_to_dst_type(
     otherwise, convert to the type of `dst` directly.
 
     Args:
-        src: sourse data to convert type.
+        src: source data to convert type.
         dst: destination data that convert to the same data type as it.
         dtype: an optional argument if the target `dtype` is different from the original `dst`'s data type.
         wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.

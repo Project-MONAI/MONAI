@@ -186,7 +186,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         current_epoch = self.global_epoch_transform(engine.state.epoch)
         summary_dict = engine.state.metrics
         for name, value in summary_dict.items():
-            writer.add_scalar(name, value, current_epoch)
+            if is_scalar(value):
+                writer.add_scalar(name, value, current_epoch)
 
         if self.state_attributes is not None:
             for attr in self.state_attributes:

@@ -89,6 +89,21 @@ class TestHandlerSurfaceDistance(unittest.TestCase):
             y = torch.ones((1, 1, 10, 10, 10))
             sur_metric.update([y_pred, y])
 
+    def test_reduction(self):
+        sur_metric = SurfaceDistance(include_background=True, reduction="mean_channel")
+
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        sur_metric.attach(engine, "surface_distance")
+
+        y_pred, y = TEST_SAMPLE_1
+        sur_metric.update([y_pred, y])
+        y_pred, y = TEST_SAMPLE_2
+        sur_metric.update([y_pred, y])
+        torch.testing.assert_allclose(sur_metric.compute().float(), torch.tensor([4.1713, 0.0000]))
+
 
 if __name__ == "__main__":
     unittest.main()

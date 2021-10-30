@@ -50,6 +50,7 @@ from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
+    "Pad",
     "SpatialPad",
     "BorderPad",
     "DivisiblePad",
@@ -370,7 +371,6 @@ class SpatialCrop(Transform):
         roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_slices: Optional[Sequence[slice]] = None,
-        allow_smaller: bool = False,
     ) -> None:
         """
         Args:
@@ -381,9 +381,6 @@ class SpatialCrop(Transform):
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
-            allow_smaller: if `False`, an exception will be raised if the image is smaller than
-                the requested ROI in any dimension. If `True`, any smaller dimensions will remain
-                unchanged.
         """
         roi_start_torch: torch.Tensor
 
@@ -397,7 +394,7 @@ class SpatialCrop(Transform):
                     data=roi_center, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
                 )
                 roi_size, *_ = convert_to_dst_type(src=roi_size, dst=roi_center, wrap_sequence=True)
-                _zeros: torch.Tensor = torch.zeros_like(roi_center)  # type: ignore
+                _zeros = torch.zeros_like(roi_center)  # type: ignore
                 roi_start_torch = maximum(roi_center - floor_divide(roi_size, 2), _zeros)  # type: ignore
                 roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
             else:

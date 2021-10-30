@@ -384,7 +384,7 @@ def get_images(data, is_label=False):
 
 
 def create_transform_im(
-    transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, out_dir=None, seed=0, is_post=False
+    transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, seed=0, is_post=False
 ):
     """Create an image with the before and after of the transform.
     Also update the transform's documentation to point to this image."""
