@@ -41,12 +41,12 @@ def matshow3d(
 
     Args:
         volume: 3D volume to display. Higher dimensional arrays will be reshaped into (-1, H, W).
-            A list of channel-first (C, H[, W, D]) images can also be passed in,
+            A list of channel-first (C, H[, W, D]) arrays can also be passed in,
             in which case they will be displayed as a padded and stacked volume.
         fig: matplotlib figure to use. If None, a new figure will be created.
-        title: Title of the figure.
-        figsize: Size of the figure.
-        frames_per_row: Number of frames to display in each row. If None, sqrt(firstdim) will be used.
+        title: title of the figure.
+        figsize: size of the figure.
+        frames_per_row: number of frames to display in each row. If None, sqrt(firstdim) will be used.
         vmin: `vmin` for the matplotlib `imshow`.
         vmax: `vmax` for the matplotlib `imshow`.
         every_n: factor to subsample the frames so that only every n-th frame is displayed.
@@ -80,7 +80,7 @@ def matshow3d(
     if isinstance(vol, (list, tuple)):
         # a sequence of channel-first volumes
         if not isinstance(vol[0], np.ndarray):
-            raise ValueError("volume must be a array of a list of arrays.")
+            raise ValueError("volume must be a list of arrays.")
         pad_size = np.max(np.asarray([v.shape for v in vol]), axis=0)
         pad = SpatialPad(pad_size[1:])  # assuming channel-first for item in vol
         vol = np.concatenate([pad(v) for v in vol], axis=0)
