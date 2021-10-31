@@ -93,20 +93,18 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
-    average: Union[Average, str] = Average.MACRO,
-):
+def compute_roc_auc(y_pred: torch.Tensor, y: torch.Tensor, average: Union[Average, str] = Average.MACRO):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
 
     Args:
         y_pred: input data to compute, typical classification model output.
-            it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
-        y: ground truth to compute ROC AUC metric, the first dim is batch.
-            example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
+            the first dim must be batch, if multi-classes, it must be in One-Hot format.
+            for example: shape `[16]` or `[16, 1]` for a binary data, shape `[16, 2]` for 2 classes data.
+        y: ground truth to compute ROC AUC metric, the first dim must be batch.
+            if multi-classes, it must be in One-Hot format.
+            for example: shape `[16]` or `[16, 1]` for a binary data, shape `[16, 2]` for 2 classes data.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
             Defaults to ``"macro"``.

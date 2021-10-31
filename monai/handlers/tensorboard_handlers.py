@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 import numpy as np
 import torch
@@ -64,7 +64,7 @@ class TensorBoardHandler:
 class TensorBoardStatsHandler(TensorBoardHandler):
     """
     TensorBoardStatsHandler defines a set of Ignite Event-handlers for all the TensorBoard logics.
-    It's can be used for any Ignite Engine(trainer, validator and evaluator).
+    It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support both epoch level and iteration level with pre-defined TensorBoard event writer.
     The expected data source is Ignite ``engine.state.output`` and ``engine.state.metrics``.
 
@@ -73,6 +73,10 @@ class TensorBoardStatsHandler(TensorBoardHandler):
           ``engine.state.metrics`` to TensorBoard.
         - When ITERATION_COMPLETED, write each dictionary item in
           ``self.output_transform(engine.state.output)`` to TensorBoard.
+
+    Usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
+
     """
 
     def __init__(
@@ -85,6 +89,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         iteration_interval: int = 1,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
+        state_attributes: Optional[Sequence[str]] = None,
         tag_name: str = DEFAULT_TAG,
     ) -> None:
         """
@@ -104,9 +109,14 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 By default this value plotting happens when every iteration completed.
                 The default behavior is to print loss from output[0] as output is a decollated list
                 and we replicated loss value for every item of the decollated list.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number
                 when plotting epoch vs metric curves.
+            state_attributes: expected attributes from `engine.state`, if provided, will extract them
+                when epoch completed.
             tag_name: when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
@@ -116,6 +126,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         self.iteration_interval = iteration_interval
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
+        self.state_attributes = state_attributes
         self.tag_name = tag_name
 
     def attach(self, engine: Engine) -> None:
@@ -136,7 +147,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
     def epoch_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.
-        Write epoch level events, default values are from Ignite state.metrics dict.
+        Write epoch level events, default values are from Ignite `engine.state.metrics` dict.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -150,7 +161,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
     def iteration_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation iteration completed Event.
-        Write iteration level events, default values are from Ignite state.logs dict.
+        Write iteration level events, default values are from Ignite `engine.state.output`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -163,8 +174,9 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
     def _default_epoch_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
-        Execute epoch level event write operation based on Ignite engine.state data.
-        Default is to write the values from Ignite state.metrics dict.
+        Execute epoch level event write operation.
+        Default to write the values from Ignite `engine.state.metrics` dict and
+        write the values of specified attributes of `engine.state`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -174,14 +186,20 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         current_epoch = self.global_epoch_transform(engine.state.epoch)
         summary_dict = engine.state.metrics
         for name, value in summary_dict.items():
-            writer.add_scalar(name, value, current_epoch)
+            if is_scalar(value):
+                writer.add_scalar(name, value, current_epoch)
+
+        if self.state_attributes is not None:
+            for attr in self.state_attributes:
+                writer.add_scalar(attr, getattr(engine.state, attr, None), current_epoch)
         writer.flush()
 
     def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
-        Execute iteration level event write operation based on Ignite engine.state data.
-        The default behavior is to print loss from output[0] as output is a decollated list and we replicated loss
-        value for every item of the decollated list.
+        Execute iteration level event write operation based on Ignite `engine.state.output` data.
+        Extract the values from `self.output_transform(engine.state.output)`.
+        Since `engine.state.output` is a decollated list and we replicated the loss value for every item
+        of the decollated list, the default behavior is to track the loss from `output[0]`.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -239,6 +257,9 @@ class TensorBoardImageHandler(TensorBoardHandler):
         - Expects ``output_transform(engine.state.output)`` to return a torch
           tensor in format (y_pred[N, channel, ...], loss).
 
+    Usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
+
     """
 
     def __init__(
@@ -266,8 +287,14 @@ class TensorBoardImageHandler(TensorBoardHandler):
                 then construct `(image, label)` pair. for example: if `ignite.engine.state.batch` is `{"image": xxx,
                 "label": xxx, "other": xxx}`, `batch_transform` can be `lambda x: (x["image"], x["label"])`.
                 will use the result to plot image from `result[0][index]` and plot label from `result[1][index]`.
+                `engine.state` and `batch_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             output_transform: a callable that is used to extract the `predictions` data from
                 `ignite.engine.state.output`, will use the result to plot output from `result[index]`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             global_iter_transform: a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
