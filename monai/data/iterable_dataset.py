@@ -93,6 +93,8 @@ class IterableBuffer(Randomizable, IterableDataset):
         for i, item in enumerate(self.data):
             if not self.shuffle:
                 if i % num_workers == id:
+                    if self.transform is not None:
+                        item = apply_transform(self.transform, item)
                     yield item
             else:
                 if len(_buffer) >= self.size:
