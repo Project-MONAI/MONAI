@@ -66,8 +66,8 @@ class TestMatshow3d(unittest.TestCase):
             fig.savefig(tempimg)
             comp = compare_images(f"{testing_dir}/matshow3d_patch_test.png", tempimg, 5e-2, in_decorator=True)
             if comp:
-                print("not none comp: ", comp)
-                np.testing.assert_allclose(comp["rms"], 29.11797096868759, atol=1e-3, rtol=1e-3)
+                print("not none comp: ", comp)  # matplotlib 3.2.2
+                np.testing.assert_allclose(comp["rms"], 30.786983, atol=1e-3, rtol=1e-3)
             else:
                 self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
 

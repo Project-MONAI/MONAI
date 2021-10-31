@@ -34,6 +34,8 @@ def matshow3d(
     interpolation: str = "none",
     show=False,
     fill_value=np.nan,
+    margin: int = 1,
+    dtype=np.float32,
     **kwargs,
 ):
     """
@@ -53,6 +55,8 @@ def matshow3d(
         interpolation: interpolation to use for the matplotlib `matshow`.
         show: if True, show the figure.
         fill_value: value to use for the empty part of the grid.
+        margin: margin to use for the grid.
+        dtype: data type of the output stacked frames.
         kwargs: additional keyword arguments to matplotlib `matshow` and `imshow`.
 
     See Also:
@@ -64,12 +68,12 @@ def matshow3d(
         >>> import numpy as np
         >>> import matplotlib.pyplot as plt
         >>> from monai.visualize import matshow3d
-        # figure 3D volume
+        # create a figure of a 3D volume
         >>> volume = np.random.rand(10, 10, 10)
         >>> fig = plt.figure()
         >>> matshow3d(volume, fig=fig, title="3D Volume")
         >>> plt.show()
-        # figure a list of 3D volumes
+        # create a figure of a list of channel-first 3D volumes
         >>> volumes = [np.random.rand(1, 10, 10, 10), np.random.rand(1, 10, 10, 10)]
         >>> fig = plt.figure()
         >>> matshow3d(volumes, fig=fig, title="List of Volumes")
@@ -84,7 +88,7 @@ def matshow3d(
         pad_size = np.max(np.asarray([v.shape for v in vol]), axis=0)
         pad = SpatialPad(pad_size[1:])  # assuming channel-first for item in vol
         vol = np.concatenate([pad(v) for v in vol], axis=0)
-    else:
+    else:  # ndarray
         while len(vol.shape) < 3:
             vol = np.expand_dims(vol, 0)  # so that we display 1d and 2d as well
     if len(vol.shape) > 3:
@@ -92,17 +96,16 @@ def matshow3d(
     vmin = np.nanmin(vol) if vmin is None else vmin
     vmax = np.nanmax(vol) if vmax is None else vmax
 
-    # making grid of every_n-th frame
+    # subsample every_n-th frame of the 3D volume
     vol = vol[:: max(every_n, 1)]
     if not frames_per_row:
         frames_per_row = int(np.ceil(np.sqrt(len(vol))))
-    frames_per_row = max(min(len(vol), frames_per_row), 1)
-    height, width = vol.shape[-2:]
-    n_rows = int(np.ceil(len(vol) / frames_per_row))
-    im = np.full(shape=(height * n_rows, width * frames_per_row), fill_value=fill_value, dtype=vol.dtype)
-    for i in range(n_rows):
-        sub_vol = np.hstack(vol[slice(frames_per_row * i, frames_per_row * (i + 1))])
-        im[height * i : height * (i + 1), : sub_vol.shape[1]] = sub_vol
+    # create the grid of frames
+    cols = max(min(len(vol), frames_per_row), 1)
+    rows = int(np.ceil(len(vol) / cols))
+    width = [[0, cols * rows - len(vol)]] + [[margin, margin]] * (len(vol.shape) - 1)
+    vol = np.pad(vol.astype(dtype), width, mode="constant", constant_values=fill_value)
+    im = np.block([[vol[i * cols + j] for j in range(cols)] for i in range(rows)])
 
     # figure related configurations
     if fig is None:
