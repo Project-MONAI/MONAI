@@ -91,6 +91,8 @@ def matshow3d(
         vol = vol.reshape((-1, vol.shape[-2], vol.shape[-1]))
     vmin = np.nanmin(vol) if vmin is None else vmin
     vmax = np.nanmax(vol) if vmax is None else vmax
+
+    # making grid of every_n-th frame
     vol = vol[:: max(every_n, 1)]
     if not frames_per_row:
         frames_per_row = int(np.ceil(np.sqrt(len(vol))))
@@ -102,13 +104,12 @@ def matshow3d(
         sub_vol = np.hstack(vol[slice(frames_per_row * i, frames_per_row * (i + 1))])
         im[height * i : height * (i + 1), : sub_vol.shape[1]] = sub_vol
 
+    # figure related configurations
     if fig is None:
         fig = plt.figure(tight_layout=True)
-        ax = fig.add_subplot(111)
-    else:
-        if not fig.axes:
-            fig.add_subplot(111)
-        ax = fig.axes[0]
+    if not fig.axes:
+        fig.add_subplot(111)
+    ax = fig.axes[0]
     ax.matshow(im, vmin=vmin, vmax=vmax, interpolation=interpolation, **kwargs)
     ax.axis("off")
     if title is not None:

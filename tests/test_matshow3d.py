@@ -64,8 +64,9 @@ class TestMatshow3d(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_patch_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/matshow3d_patch_test.png", tempimg, 5e-2)
-            if comp is not None:
+            comp = compare_images(f"{testing_dir}/matshow3d_patch_test.png", tempimg, 5e-2, in_decorator=True)
+            if comp:
+                print("not none comp: ", comp)
                 np.testing.assert_allclose(comp["rms"], 29.11797096868759, atol=1e-3, rtol=1e-3)
             else:
                 self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
