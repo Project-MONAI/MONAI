@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets.vitautoenc import ViT_AE
+from monai.networks.nets.vitautoenc import ViTAutoEnc
 
 TEST_CASE_Vit = []
 for dropout_rate in [0.6]:
@@ -48,14 +48,14 @@ for dropout_rate in [0.6]:
 class TestPatchEmbeddingBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_Vit)
     def test_shape(self, input_param, input_shape, expected_shape):
-        net = ViT_AE(**input_param)
+        net = ViTAutoEnc(**input_param)
         with eval_mode(net):
             result, _ = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
-            ViT_AE(
+            ViTAutoEnc(
                 in_channels=1,
                 img_size=(128, 128, 128),
                 patch_size=(16, 16, 16),
@@ -69,7 +69,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             )
 
         with self.assertRaises(ValueError):
-            ViT_AE(
+            ViTAutoEnc(
                 in_channels=1,
                 img_size=(32, 32, 32),
                 patch_size=(64, 64, 64),
@@ -83,7 +83,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             )
 
         with self.assertRaises(ValueError):
-            ViT_AE(
+            ViTAutoEnc(
                 in_channels=1,
                 img_size=(96, 96, 96),
                 patch_size=(8, 8, 8),
@@ -97,7 +97,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             )
 
         with self.assertRaises(ValueError):
-            ViT_AE(
+            ViTAutoEnc(
                 in_channels=1,
                 img_size=(97, 97, 97),
                 patch_size=(4, 4, 4),
@@ -111,7 +111,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             )
 
         with self.assertRaises(ValueError):
-            ViT_AE(
+            ViTAutoEnc(
                 in_channels=4,
                 img_size=(96, 96, 96),
                 patch_size=(16, 16, 16),

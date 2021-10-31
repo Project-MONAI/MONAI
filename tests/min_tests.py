@@ -138,6 +138,7 @@ def run_testsuit():
         "test_unetr",
         "test_unetr_block",
         "test_vit",
+        "test_vitautoenc",
         "test_write_metrics_reports",
         "test_zoom",
         "test_zoom_affine",
