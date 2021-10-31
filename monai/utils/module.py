@@ -351,13 +351,13 @@ def optional_import(
 
 
 def require_pkg(
-    pgk_name: str, version: str = "", version_checker: Callable[..., bool] = min_version, raise_error: bool = True
+    pkg_name: str, version: str = "", version_checker: Callable[..., bool] = min_version, raise_error: bool = True
 ):
     """
     Decorator function to check the required package installation.
 
     Args:
-        pgk_name: required package name, like: "itk", "nibabel", etc.
+        pkg_name: required package name, like: "itk", "nibabel", etc.
         version: required version string used by the version_checker.
         version_checker: a callable to check the module version, defaults to `monai.utils.min_version`.
         raise_error: if True, raise `OptionalImportError` error if the required package is not installed
@@ -368,12 +368,12 @@ def require_pkg(
     def _decorator(obj):
         is_func = isinstance(obj, FunctionType)
         call_obj = obj if is_func else obj.__init__
-        _, has = optional_import(module=pgk_name, version=version, version_checker=version_checker)
+        _, has = optional_import(module=pkg_name, version=version, version_checker=version_checker)
 
         @wraps(call_obj)
         def _wrapper(*args, **kwargs):
             if not has:
-                err_msg = f"required package `{pgk_name}` is not installed or the version doesn't match requirement."
+                err_msg = f"required package `{pkg_name}` is not installed or the version doesn't match requirement."
                 if raise_error:
                     raise OptionalImportError(err_msg)
                 else:

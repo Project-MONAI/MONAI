@@ -16,21 +16,21 @@ from monai.utils import OptionalImportError, min_version, require_pkg
 
 class TestRequirePkg(unittest.TestCase):
     def test_class(self):
-        @require_pkg(pgk_name="torch", version="1.4", version_checker=min_version)
+        @require_pkg(pkg_name="torch", version="1.4", version_checker=min_version)
         class TestClass:
             pass
 
         TestClass()
 
     def test_function(self):
-        @require_pkg(pgk_name="torch", version="1.4", version_checker=min_version)
+        @require_pkg(pkg_name="torch", version="1.4", version_checker=min_version)
         def test_func(x):
             return x
 
         test_func(x=None)
 
     def test_warning(self):
-        @require_pkg(pgk_name="test123", raise_error=False)
+        @require_pkg(pkg_name="test123", raise_error=False)
         def test_func(x):
             return x
 
@@ -39,7 +39,7 @@ class TestRequirePkg(unittest.TestCase):
     def test_class_exception(self):
         with self.assertRaises(OptionalImportError):
 
-            @require_pkg(pgk_name="test123")
+            @require_pkg(pkg_name="test123")
             class TestClass:
                 pass
 
@@ -48,7 +48,7 @@ class TestRequirePkg(unittest.TestCase):
     def test_class_version_exception(self):
         with self.assertRaises(OptionalImportError):
 
-            @require_pkg(pgk_name="torch", version="10000", version_checker=min_version)
+            @require_pkg(pkg_name="torch", version="10000", version_checker=min_version)
             class TestClass:
                 pass
 
@@ -57,7 +57,7 @@ class TestRequirePkg(unittest.TestCase):
     def test_func_exception(self):
         with self.assertRaises(OptionalImportError):
 
-            @require_pkg(pgk_name="test123")
+            @require_pkg(pkg_name="test123")
             def test_func(x):
                 return x
 
@@ -66,7 +66,7 @@ class TestRequirePkg(unittest.TestCase):
     def test_func_versions_exception(self):
         with self.assertRaises(OptionalImportError):
 
-            @require_pkg(pgk_name="torch", version="10000", version_checker=min_version)
+            @require_pkg(pkg_name="torch", version="10000", version_checker=min_version)
             def test_func(x):
                 return x
 
