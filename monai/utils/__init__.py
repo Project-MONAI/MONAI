@@ -70,6 +70,7 @@ from .module import (
     look_up_option,
     min_version,
     optional_import,
+    require_pkg,
     version_leq,
 )
 from .nvtx import Range
