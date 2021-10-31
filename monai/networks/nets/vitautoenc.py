@@ -40,7 +40,6 @@ class ViTAutoEnc(nn.Module):
         num_layers: int = 12,
         num_heads: int = 12,
         pos_embed: str = "conv",
-        same_as_input_size: bool = True,
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
     ) -> None:
@@ -56,16 +55,15 @@ class ViTAutoEnc(nn.Module):
             pos_embed: position embedding layer type.
             dropout_rate: faction of the input units to drop.
             spatial_dims: number of spatial dimensions.
-            same_as_input_size: If set to True, ViT_AE will return output of same dimension as of input
 
         Examples::
 
             # for single channel input with image size of (96,96,96), conv position embedding and segmentation backbone
             # It will provide an output of same size as that of the input
-            >>> net = ViTAutoEnc(in_channels=1, img_size=(96,96,96), pos_embed='conv', same_as_input_size=True)
+            >>> net = ViTAutoEnc(in_channels=1, img_size=(96,96,96), pos_embed='conv')
 
             # for 3-channel with image size of (128,128,128), output will be same size as of input
-            >>> net = ViTAutoEnc(in_channels=3, img_size=(128,128,128), pos_embed='conv', same_as_input_size=True)
+            >>> net = ViTAutoEnc(in_channels=3, img_size=(128,128,128), pos_embed='conv')
 
         """
 
@@ -77,7 +75,6 @@ class ViTAutoEnc(nn.Module):
         if hidden_size % num_heads != 0:
             raise ValueError("hidden_size should be divisible by num_heads.")
 
-        self.same_as_input_size = same_as_input_size
         self.patch_embedding = PatchEmbeddingBlock(
             in_channels=in_channels,
             img_size=img_size,
@@ -93,10 +90,9 @@ class ViTAutoEnc(nn.Module):
         )
         self.norm = nn.LayerNorm(hidden_size)
 
-        if self.same_as_input_size:
-            new_patch_size = [4, 4, 4]
-            self.conv3d_transpose = nn.ConvTranspose3d(hidden_size, 16, kernel_size=new_patch_size, stride=new_patch_size)
-            self.conv3d_transpose_1 = nn.ConvTranspose3d(in_channels=16, out_channels=1, kernel_size=new_patch_size, stride=new_patch_size)
+        new_patch_size = [4, 4, 4]
+        self.conv3d_transpose = nn.ConvTranspose3d(hidden_size, 16, kernel_size=new_patch_size, stride=new_patch_size)
+        self.conv3d_transpose_1 = nn.ConvTranspose3d(in_channels=16, out_channels=1, kernel_size=new_patch_size, stride=new_patch_size)
 
     def forward(self, x):
         x = self.patch_embedding(x)
@@ -105,9 +101,8 @@ class ViTAutoEnc(nn.Module):
             x = blk(x)
             hidden_states_out.append(x)
         x = self.norm(x)
-        if self.same_as_input_size:
-            x = x.transpose(1, 2)
-            cubeRoot = round(math.pow(x.size()[2], 1 / 3))
-            x = self.conv3d_transpose(x.unflatten(2, (cubeRoot, cubeRoot, cubeRoot)))
-            x = self.conv3d_transpose_1(x)
+        x = x.transpose(1, 2)
+        cubeRoot = round(math.pow(x.size()[2], 1 / 3))
+        x = self.conv3d_transpose(x.unflatten(2, (cubeRoot, cubeRoot, cubeRoot)))
+        x = self.conv3d_transpose_1(x)
         return x, hidden_states_out
