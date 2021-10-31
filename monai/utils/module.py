@@ -11,9 +11,11 @@
 import enum
 import sys
 import warnings
+from functools import wraps
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
+from types import FunctionType
 from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
 
 import torch
@@ -29,6 +31,7 @@ __all__ = [
     "look_up_option",
     "min_version",
     "optional_import",
+    "require_pkg",
     "load_submodules",
     "get_full_type_name",
     "get_package_version",
@@ -345,6 +348,45 @@ def optional_import(
             raise self._exception
 
     return _LazyRaise(), False
+
+
+def require_pkg(
+    pgk_name: str, version: str = "", version_checker: Callable[..., bool] = min_version, raise_error: bool = True
+):
+    """
+    Decorator function to check the required package installation.
+
+    Args:
+        pgk_name: required package name, like: "itk", "nibabel", etc.
+        version: required version string used by the version_checker.
+        version_checker: a callable to check the module version, defaults to `monai.utils.min_version`.
+        raise_error: if True, raise `OptionalImportError` error if the required package is not installed
+            or the version doesn't match requirement, if False, print the error in a warning.
+
+    """
+
+    def _decorator(obj):
+        is_func = isinstance(obj, FunctionType)
+        call_obj = obj if is_func else obj.__init__
+
+        @wraps(call_obj)
+        def _wrapper(*args, **kwargs):
+            _, has = optional_import(module=pgk_name, version=version, version_checker=version_checker)
+            if not has:
+                err_msg = f"required package `{pgk_name}` is not installed or the version doesn't match requirement."
+                if raise_error:
+                    raise OptionalImportError(err_msg)
+                else:
+                    warnings.warn(err_msg)
+
+            return call_obj(*args, **kwargs)
+
+        if is_func:
+            return _wrapper
+        obj.__init__ = _wrapper
+        return obj
+
+    return _decorator
 
 
 def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
