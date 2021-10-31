@@ -123,12 +123,6 @@ class ViT_AE(nn.Module):
         if self.same_as_input_size:
             x = x.transpose(1, 2)
             cubeRoot = round(math.pow(x.size()[2], 1 / 3))
-            #print('X shape is {}'.format(x.shape))
-            x_flatten = x.unflatten(2, (cubeRoot, cubeRoot, cubeRoot))
-            #print('X flatten shape is {}'.format(x_flatten.shape))
             x = self.conv3d_transpose(x.unflatten(2, (cubeRoot, cubeRoot, cubeRoot)))
-            #print('X after Conv shape is {}'.format(x.shape))
             x = self.conv3d_transpose_1(x)
-            #print('X after Conv 1 shape is {}'.format(x.shape))
-            #print('Get ready to see the reds ...')
         return x, hidden_states_out
