@@ -72,10 +72,9 @@ class IterableBuffer(Randomizable, IterableDataset):
         self._idx = 0
 
     def _rand_pop(self, buffer: List, num_workers: int = 1, id: int = 0):
-        length = len(buffer)
-        for i in range(min(length, num_workers)):
+        for i in range(min(len(buffer), num_workers)):
             # randomly select an item for every worker and pop
-            self.randomize(length)
+            self.randomize(len(buffer))
             # switch random index data and the last index data
             item, buffer[self._idx] = buffer[self._idx], buffer[-1]
             buffer.pop()
