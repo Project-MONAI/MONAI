@@ -40,9 +40,7 @@ class ViT_AE(nn.Module):
         num_layers: int = 12,
         num_heads: int = 12,
         pos_embed: str = "conv",
-        classification: bool = False,
         same_as_input_size: bool = True,
-        num_classes: int = 2,
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
     ) -> None:
@@ -83,7 +81,6 @@ class ViT_AE(nn.Module):
             raise ValueError("hidden_size should be divisible by num_heads.")
 
         self.same_as_input_size = same_as_input_size
-        self.classification = classification
         self.patch_embedding = PatchEmbeddingBlock(
             in_channels=in_channels,
             img_size=img_size,
@@ -98,9 +95,6 @@ class ViT_AE(nn.Module):
             [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
         )
         self.norm = nn.LayerNorm(hidden_size)
-        if self.classification:
-            self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
-            self.classification_head = nn.Sequential(nn.Linear(hidden_size, num_classes), nn.Tanh())
 
         if self.same_as_input_size:
             new_patch_size = [4, 4, 4]
@@ -110,16 +104,11 @@ class ViT_AE(nn.Module):
 
     def forward(self, x):
         x = self.patch_embedding(x)
-        if self.classification:
-            cls_token = self.cls_token.expand(x.shape[0], -1, -1)
-            x = torch.cat((cls_token, x), dim=1)
         hidden_states_out = []
         for blk in self.blocks:
             x = blk(x)
             hidden_states_out.append(x)
         x = self.norm(x)
-        if self.classification:
-            x = self.classification_head(x[:, 0])
         if self.same_as_input_size:
             x = x.transpose(1, 2)
             cubeRoot = round(math.pow(x.size()[2], 1 / 3))
