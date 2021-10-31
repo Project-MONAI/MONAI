@@ -19,10 +19,10 @@ import torch.nn as nn
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 
-__all__ = ["ViT_AE"]
+__all__ = ["ViTAutoEnc"]
 
 
-class ViT_AE(nn.Module):
+class ViTAutoEnc(nn.Module):
     """
     Vision Transformer (ViT), based on: "Dosovitskiy et al.,
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"

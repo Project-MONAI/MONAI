@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets.vit_ae import ViT_AE
+from monai.networks.nets.vitautoenc import ViT_AE
 
 TEST_CASE_Vit = []
 for dropout_rate in [0.6]:
