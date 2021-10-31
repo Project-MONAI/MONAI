@@ -20,7 +20,7 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
 
 from .utils import is_supported_format
 
@@ -132,6 +132,7 @@ def _stack_images(image_list: List, meta_dict: Dict):
     return np.stack(image_list, axis=0)
 
 
+@require_pkg(pkg_name="itk")
 class ITKReader(ImageReader):
     """
     Load medical images based on ITK library.
@@ -317,6 +318,7 @@ class ITKReader(ImageReader):
         return np.moveaxis(np_data, 0, -1)  # channel last is compatible with `write_nifti`
 
 
+@require_pkg(pkg_name="nibabel")
 class NibabelReader(ImageReader):
     """
     Load NIfTI format images based on Nibabel library.
@@ -564,6 +566,7 @@ class NumpyReader(ImageReader):
         return _stack_images(img_array, compatible_meta), compatible_meta
 
 
+@require_pkg(pkg_name="PIL")
 class PILReader(ImageReader):
     """
     Load common 2D image format (supports PNG, JPG, BMP) file or files from provided path.
