@@ -368,10 +368,10 @@ def require_pkg(
     def _decorator(obj):
         is_func = isinstance(obj, FunctionType)
         call_obj = obj if is_func else obj.__init__
+        _, has = optional_import(module=pgk_name, version=version, version_checker=version_checker)
 
         @wraps(call_obj)
         def _wrapper(*args, **kwargs):
-            _, has = optional_import(module=pgk_name, version=version, version_checker=version_checker)
             if not has:
                 err_msg = f"required package `{pgk_name}` is not installed or the version doesn't match requirement."
                 if raise_error:
