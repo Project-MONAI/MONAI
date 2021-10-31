@@ -46,7 +46,7 @@ class ViT_AE(nn.Module):
     ) -> None:
         """
         Args:
-            in_channels: dimension of input channels.
+            in_channels: dimension of input channels or the number of channels for input
             img_size: dimension of input image.
             patch_size: dimension of patch size.
             hidden_size: dimension of hidden layer.
@@ -54,8 +54,6 @@ class ViT_AE(nn.Module):
             num_layers: number of transformer blocks.
             num_heads: number of attention heads.
             pos_embed: position embedding layer type.
-            classification: bool argument to determine if classification is used.
-            num_classes: number of classes if classification is used.
             dropout_rate: faction of the input units to drop.
             spatial_dims: number of spatial dimensions.
 
@@ -100,7 +98,6 @@ class ViT_AE(nn.Module):
             new_patch_size = [4, 4, 4]
             self.conv3d_transpose = nn.ConvTranspose3d(hidden_size, 16, kernel_size=new_patch_size, stride=new_patch_size)
             self.conv3d_transpose_1 = nn.ConvTranspose3d(in_channels=16, out_channels=1, kernel_size=new_patch_size, stride=new_patch_size)
-
 
     def forward(self, x):
         x = self.patch_embedding(x)
