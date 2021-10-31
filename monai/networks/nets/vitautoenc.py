@@ -61,17 +61,15 @@ class ViTAutoEnc(nn.Module):
         Examples::
 
             # for single channel input with image size of (96,96,96), conv position embedding and segmentation backbone
-            >>> net = ViT(in_channels=1, img_size=(96,96,96), pos_embed='conv')
+            # It will provide an output of same size as that of the input
+            >>> net = ViTAutoEnc(in_channels=1, img_size=(96,96,96), pos_embed='conv', same_as_input_size=True)
 
-            # for 3-channel with image size of (128,128,128), 24 layers and classification backbone
-            >>> net = ViT(in_channels=3, img_size=(128,128,128), pos_embed='conv', classification=True)
-
-            # for 3-channel with image size of (224,224), 12 layers and classification backbone
-            >>> net = ViT(in_channels=3, img_size=(224,224), pos_embed='conv', classification=True, spatial_dims=2)
+            # for 3-channel with image size of (128,128,128), output will be same size as of input
+            >>> net = ViTAutoEnc(in_channels=3, img_size=(128,128,128), pos_embed='conv', same_as_input_size=True)
 
         """
 
-        super(ViT_AE, self).__init__()
+        super(ViTAutoEnc, self).__init__()
 
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
