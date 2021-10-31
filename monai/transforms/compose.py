@@ -173,15 +173,15 @@ class Compose(Randomizable, InvertibleTransform):
 
 class OneOf(Compose):
     """
-    ``OneOf`` provides the ability to radomly choose one transform out of a
-    list of callables with predfined probabilities for each.
+    ``OneOf`` provides the ability to randomly choose one transform out of a
+    list of callables with pre-defined probabilities for each.
 
     Args:
         transforms: sequence of callables.
         weights: probabilities corresponding to each callable in transforms.
             Probabilities are normalized to sum to one.
 
-    OneOf inherits from Compose and uses args map_items and unpack_items in
+    ``OneOf`` inherits from ``Compose`` and uses args ``map_items`` and ``unpack_items`` in
     the same way.
     """
 
@@ -204,14 +204,13 @@ class OneOf(Compose):
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
             return weights
-        else:
-            weights = np.array(weights)
-            if np.any(weights < 0):
-                raise AssertionError("Probabilities must be greater than or equal to zero.")
-            if np.all(weights == 0):
-                raise AssertionError("At least one probability must be greater than zero.")
-            weights = weights / weights.sum()
-            return list(weights)
+        weights = np.array(weights)
+        if np.any(weights < 0):
+            raise AssertionError("Probabilities must be greater than or equal to zero.")
+        if np.all(weights == 0):
+            raise AssertionError("At least one probability must be greater than zero.")
+        weights = weights / weights.sum()
+        return list(weights)
 
     def flatten(self):
         transforms = []
@@ -232,16 +231,15 @@ class OneOf(Compose):
     def __call__(self, data):
         if len(self.transforms) == 0:
             return data
-        else:
-            index = self.R.multinomial(1, self.weights).argmax()
-            _transform = self.transforms[index]
-            data = apply_transform(_transform, data, self.map_items, self.unpack_items)
-            # if the data is a mapping (dictionary), append the OneOf transform to the end
-            if isinstance(data, Mapping):
-                for key in data.keys():
-                    if key + InverseKeys.KEY_SUFFIX in data:
-                        self.push_transform(data, key, extra_info={"index": index})
-            return data
+        index = self.R.multinomial(1, self.weights).argmax()
+        _transform = self.transforms[index]
+        data = apply_transform(_transform, data, self.map_items, self.unpack_items)
+        # if the data is a mapping (dictionary), append the OneOf transform to the end
+        if isinstance(data, Mapping):
+            for key in data.keys():
+                if key + InverseKeys.KEY_SUFFIX in data:
+                    self.push_transform(data, key, extra_info={"index": index})
+        return data
 
     def inverse(self, data):
         if len(self.transforms) == 0:

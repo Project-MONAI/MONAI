@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for intensity adjustment
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-import copy
+from abc import abstractmethod
 from collections.abc import Iterable
 from functools import partial
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
@@ -28,6 +28,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
+from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
 from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
@@ -38,6 +39,7 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
 )
+from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_to_tensor, get_equivalent_dtype
 
@@ -69,9 +71,10 @@ __all__ = [
     "RandGibbsNoise",
     "KSpaceSpikeNoise",
     "RandKSpaceSpikeNoise",
+    "RandCoarseTransform",
     "RandCoarseDropout",
+    "RandCoarseShuffle",
     "HistogramNormalize",
-    "LocalPatchShuffling",
 ]
 
 
@@ -83,30 +86,37 @@ class RandGaussianNoise(RandomizableTransform):
         prob: Probability to add Gaussian noise.
         mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1) -> None:
+    def __init__(self, prob: float = 0.1, mean: float = 0.0, std: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
         self.mean = mean
         self.std = std
-        self._noise: np.ndarray
+        self.noise: Optional[np.ndarray] = None
 
-    def randomize(self, im_shape: Sequence[int]) -> None:
+    def randomize(self, img: NdarrayOrTensor, mean: Optional[float] = None) -> None:
         super().randomize(None)
-        self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
+        if not self._do_transform:
+            return None
+        rand_std = self.R.uniform(0, self.std)
+        self.noise = self.R.normal(self.mean if mean is None else mean, rand_std, size=img.shape)
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, mean: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        self.randomize(img.shape)
-        if self._noise is None:
-            raise RuntimeError("randomized factor should not be None.")
+        if randomize:
+            self.randomize(img=img, mean=self.mean if mean is None else mean)
+
         if not self._do_transform:
             return img
-        noise, *_ = convert_to_dst_type(self._noise, img)
+
+        if self.noise is None:
+            raise RuntimeError("please call the `randomize()` function first.")
+        noise, *_ = convert_to_dst_type(self.noise, img)
         return img + noise
 
 
@@ -114,8 +124,8 @@ class RandRicianNoise(RandomizableTransform):
     """
     Add Rician noise to image.
     Rician noise in MRI is the result of performing a magnitude operation on complex
-    data with Gaussian noise of the same variance in both channels, as described in `Noise in Magnitude Magnetic Resonance Images
-    <https://doi.org/10.1002/cmr.a.20124>`_. This transform is adapted from
+    data with Gaussian noise of the same variance in both channels, as described in `Noise in Magnitude
+    Magnetic Resonance Images <https://doi.org/10.1002/cmr.a.20124>`_. This transform is adapted from
     `DIPY<https://github.com/dipy/dipy>`_. See also: `The rician distribution of noisy mri data
     <https://doi.org/10.1002/mrm.1910340618>`_.
 
@@ -167,13 +177,16 @@ class RandRicianNoise(RandomizableTransform):
 
         return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayTensor, randomize: bool = True) -> NdarrayTensor:
         """
         Apply the transform to `img`.
         """
-        super().randomize(None)
+        if randomize:
+            super().randomize(None)
+
         if not self._do_transform:
             return img
+
         if self.channel_wise:
             _mean = ensure_tuple_rep(self.mean, len(img))
             _std = ensure_tuple_rep(self.std, len(img))
@@ -211,9 +224,9 @@ class ShiftIntensity(Transform):
 
         offset = self.offset if offset is None else offset
         out = img + offset
-        if isinstance(out, torch.Tensor):
-            return out.type(img.dtype)
-        return out.astype(img.dtype)  # type: ignore
+        out, *_ = convert_data_type(data=out, dtype=img.dtype)
+
+        return out
 
 
 class RandShiftIntensity(RandomizableTransform):
@@ -241,10 +254,12 @@ class RandShiftIntensity(RandomizableTransform):
         self._shfiter = ShiftIntensity(self._offset)
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
+        if not self._do_transform:
+            return None
+        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
 
-    def __call__(self, img: NdarrayOrTensor, factor: Optional[float] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, factor: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
 
@@ -254,9 +269,12 @@ class RandShiftIntensity(RandomizableTransform):
                 can be some image specific value at runtime, like: max(img), etc.
 
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
             return img
+
         return self._shfiter(img, self._offset if factor is None else self._offset * factor)
 
 
@@ -353,20 +371,25 @@ class RandStdShiftIntensity(RandomizableTransform):
         self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
+        if not self._do_transform:
+            return None
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
             return img
+
         shifter = StdShiftIntensity(
             factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise, dtype=self.dtype
         )
-        return shifter(img)
+        return shifter(img=img)
 
 
 class ScaleIntensity(Transform):
@@ -378,7 +401,12 @@ class ScaleIntensity(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None
+        self,
+        minv: Optional[float] = 0.0,
+        maxv: Optional[float] = 1.0,
+        factor: Optional[float] = None,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         """
         Args:
@@ -386,10 +414,15 @@ class ScaleIntensity(Transform):
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
                 this parameter, please set `minv` and `maxv` into None.
+            channel_wise: if True, scale on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
+            dtype: output data type, defaults to float32.
         """
         self.minv = minv
         self.maxv = maxv
         self.factor = factor
+        self.channel_wise = channel_wise
+        self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -400,11 +433,14 @@ class ScaleIntensity(Transform):
 
         """
         if self.minv is not None and self.maxv is not None:
-            return rescale_array(img, self.minv, self.maxv, img.dtype)
+            if self.channel_wise:
+                out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
+                return torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
+            return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
         if self.factor is not None:
-            out = img * (1 + self.factor)
-            out, *_ = convert_data_type(out, dtype=img.dtype)
-            return out
+            ret = img * (1 + self.factor)
+            ret, *_ = convert_data_type(ret, dtype=self.dtype)
+            return ret
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
@@ -416,12 +452,15 @@ class RandScaleIntensity(RandomizableTransform):
 
     backend = ScaleIntensity.backend
 
-    def __init__(self, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
+    def __init__(
+        self, factors: Union[Tuple[float, float], float], prob: float = 0.1, dtype: DtypeLike = np.float32
+    ) -> None:
         """
         Args:
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of scale.
+            dtype: output data type, defaults to float32.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -432,20 +471,25 @@ class RandScaleIntensity(RandomizableTransform):
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
+        self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
+        if not self._do_transform:
+            return None
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
             return img
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
-        return scaler(img)
+
+        return ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
 
 
 class RandBiasField(RandomizableTransform):
@@ -468,12 +512,14 @@ class RandBiasField(RandomizableTransform):
 
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(
         self,
         degree: int = 3,
         coeff_range: Tuple[float, float] = (0.0, 0.1),
         dtype: DtypeLike = np.float32,
-        prob: float = 1.0,
+        prob: float = 0.1,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         if degree < 1:
@@ -507,18 +553,23 @@ class RandBiasField(RandomizableTransform):
             return np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
         raise NotImplementedError("only supports 2D or 3D fields")
 
-    def randomize(self, data: np.ndarray) -> None:
+    def randomize(self, img_size: Sequence[int]) -> None:
         super().randomize(None)
-        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, len(data.shape[1:]) + 1)]))
+        if not self._do_transform:
+            return None
+        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, len(img_size) + 1)]))
         self._coeff = self.R.uniform(*self.coeff_range, n_coeff).tolist()
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        self.randomize(data=img)
+        if randomize:
+            self.randomize(img_size=img.shape[1:])
+
         if not self._do_transform:
             return img
+
         num_channels, *spatial_shape = img.shape
         _bias_fields = np.stack(
             [
@@ -527,7 +578,10 @@ class RandBiasField(RandomizableTransform):
             ],
             axis=0,
         )
-        return (img * np.exp(_bias_fields)).astype(self.dtype)
+        img_np, *_ = convert_data_type(img, np.ndarray)
+        out = img_np * np.exp(_bias_fields)
+        out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype)
+        return out
 
 
 class NormalizeIntensity(Transform):
@@ -641,6 +695,8 @@ class ThresholdIntensity(Transform):
         cval: value to fill the remaining parts of the image, default is 0.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, threshold: float, above: bool = True, cval: float = 0.0) -> None:
         if not isinstance(threshold, (int, float)):
             raise ValueError("threshold must be a float or int number.")
@@ -648,13 +704,14 @@ class ThresholdIntensity(Transform):
         self.above = above
         self.cval = cval
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return np.asarray(
-            np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval), dtype=img.dtype
-        )
+        mask = img > self.threshold if self.above else img < self.threshold
+        res = where(mask, img, self.cval)
+        res, *_ = convert_data_type(res, dtype=img.dtype)
+        return res
 
 
 class ScaleIntensityRange(Transform):
@@ -670,6 +727,8 @@ class ScaleIntensityRange(Transform):
         clip: whether to perform clip after scaling.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False) -> None:
         self.a_min = a_min
         self.a_max = a_max
@@ -677,7 +736,7 @@ class ScaleIntensityRange(Transform):
         self.b_max = b_max
         self.clip = clip
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -688,7 +747,7 @@ class ScaleIntensityRange(Transform):
         img = (img - self.a_min) / (self.a_max - self.a_min)
         img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
-            img = np.asarray(np.clip(img, self.b_min, self.b_max))
+            img = clip(img, self.b_min, self.b_max)
         return img
 
 
@@ -702,19 +761,22 @@ class AdjustContrast(Transform):
         gamma: gamma value to adjust the contrast as function.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, gamma: float) -> None:
         if not isinstance(gamma, (int, float)):
             raise ValueError("gamma must be a float or int number.")
         self.gamma = gamma
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
         epsilon = 1e-7
         img_min = img.min()
         img_range = img.max() - img_min
-        return np.power(((img - img_min) / float(img_range + epsilon)), self.gamma) * img_range + img_min
+        ret: NdarrayOrTensor = ((img - img_min) / float(img_range + epsilon)) ** self.gamma * img_range + img_min
+        return ret
 
 
 class RandAdjustContrast(RandomizableTransform):
@@ -728,6 +790,8 @@ class RandAdjustContrast(RandomizableTransform):
         gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
     """
+
+    backend = AdjustContrast.backend
 
     def __init__(self, prob: float = 0.1, gamma: Union[Sequence[float], float] = (0.5, 4.5)) -> None:
         RandomizableTransform.__init__(self, prob)
@@ -743,23 +807,27 @@ class RandAdjustContrast(RandomizableTransform):
         else:
             self.gamma = (min(gamma), max(gamma))
 
-        self.gamma_value: float
+        self.gamma_value: Optional[float] = None
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        self.randomize()
-        if self.gamma_value is None:
-            raise ValueError("gamma_value is not set.")
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
             return img
-        adjuster = AdjustContrast(self.gamma_value)
-        return adjuster(img)
+
+        if self.gamma_value is None:
+            raise RuntimeError("gamma_value is not set, please call `randomize` function first.")
+        return AdjustContrast(self.gamma_value)(img)
 
 
 class ScaleIntensityRangePercentiles(Transform):
@@ -817,6 +885,8 @@ class ScaleIntensityRangePercentiles(Transform):
         relative: whether to scale to the corresponding percentiles of [b_min, b_max].
     """
 
+    backend = ScaleIntensityRange.backend
+
     def __init__(
         self, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False, relative: bool = False
     ) -> None:
@@ -831,12 +901,12 @@ class ScaleIntensityRangePercentiles(Transform):
         self.clip = clip
         self.relative = relative
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        a_min = np.percentile(img, self.lower)
-        a_max = np.percentile(img, self.upper)
+        a_min: float = percentile(img, self.lower)  # type: ignore
+        a_max: float = percentile(img, self.upper)  # type: ignore
         b_min = self.b_min
         b_max = self.b_max
 
@@ -848,7 +918,7 @@ class ScaleIntensityRangePercentiles(Transform):
         img = scalar(img)
 
         if self.clip:
-            img = np.asarray(np.clip(img, self.b_min, self.b_max))
+            img = clip(img, self.b_min, self.b_max)
 
         return img
 
@@ -871,11 +941,13 @@ class MaskIntensity(Transform):
 
     """
 
-    def __init__(self, mask_data: Optional[np.ndarray] = None, select_fn: Callable = is_positive) -> None:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, mask_data: Optional[NdarrayOrTensor] = None, select_fn: Callable = is_positive) -> None:
         self.mask_data = mask_data
         self.select_fn = select_fn
 
-    def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor, mask_data: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
         """
         Args:
             mask_data: if mask data is single channel, apply to every channel
@@ -892,14 +964,16 @@ class MaskIntensity(Transform):
         if mask_data is None:
             raise ValueError("must provide the mask_data when initializing the transform or at runtime.")
 
-        mask_data = np.asarray(self.select_fn(mask_data))
-        if mask_data.shape[0] != 1 and mask_data.shape[0] != img.shape[0]:
+        mask_data_, *_ = convert_to_dst_type(src=mask_data, dst=img)
+
+        mask_data_ = self.select_fn(mask_data_)
+        if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
             raise ValueError(
                 "When mask_data is not single channel, mask_data channels must match img, "
-                f"got img channels={img.shape[0]} mask_data channels={mask_data.shape[0]}."
+                f"got img channels={img.shape[0]} mask_data channels={mask_data_.shape[0]}."
             )
 
-        return np.asarray(img * mask_data)
+        return img * mask_data_
 
 
 class SavitzkyGolaySmooth(Transform):
@@ -914,7 +988,7 @@ class SavitzkyGolaySmooth(Transform):
             or ``'circular'``. Default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, window_length: int, order: int, axis: int = 1, mode: str = "zeros"):
 
@@ -927,7 +1001,7 @@ class SavitzkyGolaySmooth(Transform):
         self.mode = mode
         self.img_t: torch.Tensor = torch.tensor(0.0)
 
-    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
@@ -941,7 +1015,9 @@ class SavitzkyGolaySmooth(Transform):
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        out: torch.Tensor = savgol_filter(self.img_t.unsqueeze(0)).squeeze(0)
+        smoothed = savgol_filter(self.img_t.unsqueeze(0)).squeeze(0)
+        out, *_ = convert_to_dst_type(smoothed, dst=img)
+
         return out
 
 
@@ -957,6 +1033,8 @@ class DetectEnvelope(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
 
         if PT_BEFORE_1_7:
@@ -968,7 +1046,7 @@ class DetectEnvelope(Transform):
         self.axis = axis
         self.n = n
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayOrTensor):
         """
 
         Args:
@@ -978,11 +1056,15 @@ class DetectEnvelope(Transform):
             np.ndarray containing envelope of data in img along the specified axis.
 
         """
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         # add one to transform axis because a batch axis will be added at dimension 0
         hilbert_transform = HilbertTransform(self.axis + 1, self.n)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
-        return np.abs(hilbert_transform(input_data).squeeze(0).numpy())
+        out = hilbert_transform(img_t.unsqueeze(0)).squeeze(0).abs()
+        out, *_ = convert_to_dst_type(src=out, dst=img)
+
+        return out
 
 
 class GaussianSmooth(Transform):
@@ -999,14 +1081,25 @@ class GaussianSmooth(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(self, sigma: Union[Sequence[float], float] = 1.0, approx: str = "erf") -> None:
         self.sigma = sigma
         self.approx = approx
 
-    def __call__(self, img: np.ndarray):
-        gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma, approx=self.approx)
-        input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
-        return gaussian_filter(input_data).squeeze(0).detach().numpy()
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
+        sigma: Union[Sequence[torch.Tensor], torch.Tensor]
+        if isinstance(self.sigma, Sequence):
+            sigma = [torch.as_tensor(s, device=img_t.device) for s in self.sigma]
+        else:
+            sigma = torch.as_tensor(self.sigma, device=img_t.device)
+        gaussian_filter = GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx)
+        out_t: torch.Tensor = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
+        out, *_ = convert_data_type(out_t, type(img), device=img.device if isinstance(img, torch.Tensor) else None)
+
+        return out
 
 
 class RandGaussianSmooth(RandomizableTransform):
@@ -1022,6 +1115,8 @@ class RandGaussianSmooth(RandomizableTransform):
             see also :py:meth:`monai.networks.layers.GaussianFilter`.
 
     """
+
+    backend = GaussianSmooth.backend
 
     def __init__(
         self,
@@ -1043,14 +1138,19 @@ class RandGaussianSmooth(RandomizableTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self.x = self.R.uniform(low=self.sigma_x[0], high=self.sigma_x[1])
         self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
 
-    def __call__(self, img: np.ndarray):
-        self.randomize()
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
             return img
+
         sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=img.ndim - 1)
         return GaussianSmooth(sigma=sigma, approx=self.approx)(img)
 
@@ -1082,6 +1182,8 @@ class GaussianSharpen(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(
         self,
         sigma1: Union[Sequence[float], float] = 3.0,
@@ -1094,13 +1196,19 @@ class GaussianSharpen(Transform):
         self.alpha = alpha
         self.approx = approx
 
-    def __call__(self, img: np.ndarray):
-        gaussian_filter1 = GaussianFilter(img.ndim - 1, self.sigma1, approx=self.approx)
-        gaussian_filter2 = GaussianFilter(img.ndim - 1, self.sigma2, approx=self.approx)
-        input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
-        blurred_f = gaussian_filter1(input_data)
-        filter_blurred_f = gaussian_filter2(blurred_f)
-        return (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0).detach().numpy()
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
+
+        gf1, gf2 = (
+            GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device)
+            for sigma in (self.sigma1, self.sigma2)
+        )
+        blurred_f = gf1(img_t.unsqueeze(0))
+        filter_blurred_f = gf2(blurred_f)
+        out_t: torch.Tensor = (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0)
+        out, *_ = convert_data_type(out_t, type(img), device=img.device if isinstance(img, torch.Tensor) else None)
+        return out
 
 
 class RandGaussianSharpen(RandomizableTransform):
@@ -1125,6 +1233,8 @@ class RandGaussianSharpen(RandomizableTransform):
 
     """
 
+    backend = GaussianSharpen.backend
+
     def __init__(
         self,
         sigma1_x: Tuple[float, float] = (0.5, 1.0),
@@ -1146,9 +1256,18 @@ class RandGaussianSharpen(RandomizableTransform):
         self.sigma2_z = sigma2_z
         self.alpha = alpha
         self.approx = approx
+        self.x1: Optional[float] = None
+        self.y1: Optional[float] = None
+        self.z1: Optional[float] = None
+        self.x2: Optional[float] = None
+        self.y2: Optional[float] = None
+        self.z2: Optional[float] = None
+        self.a: Optional[float] = None
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         self.x1 = self.R.uniform(low=self.sigma1_x[0], high=self.sigma1_x[1])
         self.y1 = self.R.uniform(low=self.sigma1_y[0], high=self.sigma1_y[1])
         self.z1 = self.R.uniform(low=self.sigma1_z[0], high=self.sigma1_z[1])
@@ -1160,10 +1279,15 @@ class RandGaussianSharpen(RandomizableTransform):
         self.z2 = self.R.uniform(low=sigma2_z[0], high=sigma2_z[1])
         self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
 
-    def __call__(self, img: np.ndarray):
-        self.randomize()
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
             return img
+
+        if self.x2 is None or self.y2 is None or self.z2 is None or self.a is None:
+            raise RuntimeError("please call the `randomize()` function first.")
         sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=img.ndim - 1)
         sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=img.ndim - 1)
         return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(img)
@@ -1180,6 +1304,8 @@ class RandHistogramShift(RandomizableTransform):
         prob: probability of histogram shift.
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(self, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
 
@@ -1193,9 +1319,13 @@ class RandHistogramShift(RandomizableTransform):
             if min(num_control_points) <= 2:
                 raise ValueError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (min(num_control_points), max(num_control_points))
+        self.reference_control_points: np.ndarray
+        self.floating_control_points: np.ndarray
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
+        if not self._do_transform:
+            return None
         num_control_point = self.R.randint(self.num_control_points[0], self.num_control_points[1] + 1)
         self.reference_control_points = np.linspace(0, 1, num_control_point)
         self.floating_control_points = np.copy(self.reference_control_points)
@@ -1204,78 +1334,25 @@ class RandHistogramShift(RandomizableTransform):
                 self.floating_control_points[i - 1], self.floating_control_points[i + 1]
             )
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
-        self.randomize()
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        if randomize:
+            self.randomize()
+
         if not self._do_transform:
             return img
-        img_min, img_max = img.min(), img.max()
+
+        if self.reference_control_points is None or self.floating_control_points is None:
+            raise RuntimeError("please call the `randomize()` function first.")
+        img_np: np.ndarray
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_min, img_max = img_np.min(), img_np.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-        return np.asarray(
-            np.interp(img, reference_control_points_scaled, floating_control_points_scaled), dtype=img.dtype
+        img_np = np.asarray(
+            np.interp(img_np, reference_control_points_scaled, floating_control_points_scaled), dtype=img_np.dtype
         )
-
-
-class RandGibbsNoise(RandomizableTransform):
-    """
-    Naturalistic image augmentation via Gibbs artifacts. The transform
-    randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
-    are one of the common type of type artifacts appearing in MRI scans.
-
-    The transform is applied to all the channels in the data.
-
-    For general information on Gibbs artifacts, please refer to:
-    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
-    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
-
-
-    Args:
-        prob (float): probability of applying the transform.
-        alpha (float, Sequence(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
-            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
-            If a length-2 list is given as [a,b] then the value of alpha will be
-            sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
-        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
-    """
-
-    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
-
-        if len(alpha) != 2:
-            raise ValueError("alpha length must be 2.")
-        if alpha[1] > 1 or alpha[0] < 0:
-            raise ValueError("alpha must take values in the interval [0,1]")
-        if alpha[0] > alpha[1]:
-            raise ValueError("When alpha = [a,b] we need a < b.")
-
-        self.alpha = alpha
-        self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
-        self.as_tensor_output = as_tensor_output
-
-        RandomizableTransform.__init__(self, prob=prob)
-
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
-
-        # randomize application and possibly alpha
-        self._randomize(None)
-
-        if self._do_transform:
-            # apply transform
-            transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
-            img = transform(img)
-        else:
-            if isinstance(img, np.ndarray) and self.as_tensor_output:
-                img = torch.Tensor(img)
-            elif isinstance(img, torch.Tensor) and not self.as_tensor_output:
-                img = img.detach().cpu().numpy()
+        img, *_ = convert_to_dst_type(img_np, dst=img)
         return img
-
-    def _randomize(self, _: Any) -> None:
-        """
-        (1) Set random variable to apply the transform.
-        (2) Get alpha from uniform distribution.
-        """
-        super().randomize(None)
-        self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
 
 
 class GibbsNoise(Transform, Fourier):
@@ -1296,21 +1373,20 @@ class GibbsNoise(Transform, Fourier):
     Args:
         alpha: Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
-        as_tensor_output: if true return torch.Tensor, else return np.array. Default: True.
     """
 
-    def __init__(self, alpha: float = 0.5, as_tensor_output: bool = True) -> None:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
+    def __init__(self, alpha: float = 0.1, as_tensor_output: bool = True) -> None:
 
         if alpha > 1 or alpha < 0:
-            raise ValueError("alpha must take values in the interval [0,1].")
+            raise ValueError("alpha must take values in the interval [0, 1].")
         self.alpha = alpha
-        self.as_tensor_output = as_tensor_output
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         n_dims = len(img.shape[1:])
 
-        if isinstance(img, np.ndarray):
-            img = torch.Tensor(img)
         # FT
         k = self.shift_fourier(img, n_dims)
         # build and apply mask
@@ -1318,13 +1394,13 @@ class GibbsNoise(Transform, Fourier):
         # map back
         img = self.inv_shift_fourier(k, n_dims)
 
-        return img if self.as_tensor_output else img.cpu().detach().numpy()
+        return img
 
-    def _apply_mask(self, k: torch.Tensor) -> torch.Tensor:
+    def _apply_mask(self, k: NdarrayOrTensor) -> NdarrayOrTensor:
         """Builds and applies a mask on the spatial dimensions.
 
         Args:
-            k (np.ndarray): k-space version of the image.
+            k: k-space version of the image.
         Returns:
             masked version of the k-space image.
         """
@@ -1345,9 +1421,71 @@ class GibbsNoise(Transform, Fourier):
         # add channel dimension into mask
         mask = np.repeat(mask[None], k.shape[0], axis=0)
 
+        if isinstance(k, torch.Tensor):
+            mask, *_ = convert_data_type(mask, torch.Tensor, device=k.device)
+
         # apply binary mask
-        k_masked = k * torch.tensor(mask, device=k.device)
+        k_masked: NdarrayOrTensor
+        k_masked = k * mask
         return k_masked
+
+
+class RandGibbsNoise(RandomizableTransform):
+    """
+    Naturalistic image augmentation via Gibbs artifacts. The transform
+    randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+
+    The transform is applied to all the channels in the data.
+
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+
+
+    Args:
+        prob (float): probability of applying the transform.
+        alpha (Sequence(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+            If a length-2 list is given as [a,b] then the value of alpha will be
+            sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
+    """
+
+    backend = GibbsNoise.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
+    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
+        if len(alpha) != 2:
+            raise ValueError("alpha length must be 2.")
+        if alpha[1] > 1 or alpha[0] < 0:
+            raise ValueError("alpha must take values in the interval [0, 1]")
+        if alpha[0] > alpha[1]:
+            raise ValueError("When alpha = [a,b] we need a < b.")
+
+        self.alpha = alpha
+        self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
+
+        RandomizableTransform.__init__(self, prob=prob)
+
+    def randomize(self, data: Any) -> None:
+        """
+        (1) Set random variable to apply the transform.
+        (2) Get alpha from uniform distribution.
+        """
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
+
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True):
+        if randomize:
+            # randomize application and possibly alpha
+            self.randomize(None)
+
+        if not self._do_transform:
+            return img
+
+        return GibbsNoise(self.sampled_alpha)(img)
 
 
 class KSpaceSpikeNoise(Transform, Fourier):
@@ -1377,8 +1515,6 @@ class KSpaceSpikeNoise(Transform, Fourier):
             receive a sequence of intensities. This value should be tested as it is
             data-dependent. The default values are the 2.5 the mean of the
             log-intensity for each channel.
-        as_tensor_output: if ``True`` return torch.Tensor, else return np.array.
-            Default: ``True``.
 
     Example:
         When working with 4D data, ``KSpaceSpikeNoise(loc = ((3,60,64,32), (64,60,32)), k_intensity = (13,14))``
@@ -1387,6 +1523,9 @@ class KSpaceSpikeNoise(Transform, Fourier):
         with `log-intensity = 14`.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         loc: Union[Tuple, Sequence[Tuple]],
@@ -1395,7 +1534,6 @@ class KSpaceSpikeNoise(Transform, Fourier):
     ):
 
         self.loc = ensure_tuple(loc)
-        self.as_tensor_output = as_tensor_output
         self.k_intensity = k_intensity
 
         # assert one-to-one relationship between factors and locations
@@ -1409,7 +1547,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
         if isinstance(self.loc[0], Sequence) and k_intensity is not None and not isinstance(self.k_intensity, Sequence):
             raise ValueError("There must be one intensity_factor value for each tuple of indices in loc.")
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: image with dimensions (C, H, W) or (C, H, W, D)
@@ -1421,22 +1559,21 @@ class KSpaceSpikeNoise(Transform, Fourier):
             raise RuntimeError("Image needs a channel direction.")
         if isinstance(self.loc[0], int) and len(img.shape) == 4 and len(self.loc) == 2:
             raise RuntimeError("Input images of dimension 4 need location tuple to be length 3 or 4")
-        if isinstance(self.loc[0], Sequence) and len(img.shape) == 4 and min(map(lambda x: len(x), self.loc)) == 2:
+        if isinstance(self.loc[0], Sequence) and len(img.shape) == 4 and min(map(len, self.loc)) == 2:
             raise RuntimeError("Input images of dimension 4 need location tuple to be length 3 or 4")
 
         n_dims = len(img.shape[1:])
 
-        if isinstance(img, np.ndarray):
-            img = torch.Tensor(img)
         # FT
         k = self.shift_fourier(img, n_dims)
-        log_abs = torch.log(torch.absolute(k) + 1e-10)
-        phase = torch.angle(k)
+        lib = np if isinstance(k, np.ndarray) else torch
+        log_abs = lib.log(lib.abs(k) + 1e-10)  # type: ignore
+        phase = lib.angle(k)  # type: ignore
 
         k_intensity = self.k_intensity
         # default log intensity
         if k_intensity is None:
-            k_intensity = tuple(torch.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5)
+            k_intensity = tuple(lib.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)  # type: ignore
 
         # highlight
         if isinstance(self.loc[0], Sequence):
@@ -1445,10 +1582,10 @@ class KSpaceSpikeNoise(Transform, Fourier):
         else:
             self._set_spike(log_abs, self.loc, k_intensity)
         # map back
-        k = torch.exp(log_abs) * torch.exp(1j * phase)
-        img = self.inv_shift_fourier(k, n_dims)
+        k = lib.exp(log_abs) * lib.exp(1j * phase)  # type: ignore
+        img, *_ = convert_to_dst_type(self.inv_shift_fourier(k, n_dims), dst=img)
 
-        return img if self.as_tensor_output else img.cpu().detach().numpy()
+        return img
 
     def _check_indices(self, img) -> None:
         """Helper method to check consistency of self.loc and input image.
@@ -1468,7 +1605,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
                     f"The index value at position {i} of one of the tuples in loc = {self.loc} is out of bounds for current image."
                 )
 
-    def _set_spike(self, k: torch.Tensor, idx: Tuple, val: Union[Sequence[float], float]):
+    def _set_spike(self, k: NdarrayOrTensor, idx: Tuple, val: Union[Sequence[float], float]):
         """
         Helper function to introduce a given intensity at given location.
 
@@ -1504,18 +1641,14 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
     Args:
         prob: probability of applying the transform, either on all
             channels at once, or channel-wise if ``channel_wise = True``.
-        intensity_range: pass a tuple
-            (a, b) to sample the log-intensity from the interval (a, b)
-            uniformly for all channels. Or pass sequence of intevals
+        intensity_range: pass a tuple (a, b) to sample the log-intensity from the interval (a, b)
+            uniformly for all channels. Or pass sequence of intervals
             ((a0, b0), (a1, b1), ...) to sample for each respective channel.
-            In the second case, the number of 2-tuples must match the number of
-            channels.
+            In the second case, the number of 2-tuples must match the number of channels.
             Default ranges is `(0.95x, 1.10x)` where `x` is the mean
             log-intensity for each channel.
         channel_wise: treat each channel independently. True by
             default.
-        as_tensor_output: if True return torch.Tensor, else
-            return np.array. default: True.
 
     Example:
         To apply `k`-space spikes randomly with probability 0.5, and
@@ -1524,17 +1657,19 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         ``RandKSpaceSpikeNoise(prob=0.5, intensity_range=(11, 12), channel_wise=True)``
     """
 
+    backend = KSpaceSpikeNoise.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
         intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
-        channel_wise=True,
+        channel_wise: bool = True,
         as_tensor_output: bool = True,
     ):
 
         self.intensity_range = intensity_range
         self.channel_wise = channel_wise
-        self.as_tensor_output = as_tensor_output
         self.sampled_k_intensity: List = []
         self.sampled_locs: List[Tuple] = []
 
@@ -1543,13 +1678,14 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 
         super().__init__(prob)
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True):
         """
         Apply transform to `img`. Assumes data is in channel-first form.
 
         Args:
             img: image with dimensions (C, H, W) or (C, H, W, D)
         """
+
         if (
             self.intensity_range is not None
             and isinstance(self.intensity_range[0], Sequence)
@@ -1562,20 +1698,16 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         self.sampled_k_intensity = []
         self.sampled_locs = []
 
-        if not isinstance(img, torch.Tensor):
-            img = torch.Tensor(img)
+        if randomize:
+            intensity_range = self._make_sequence(img)
+            self.randomize(img, intensity_range)
 
-        intensity_range = self._make_sequence(img)
-        self._randomize(img, intensity_range)
+        if not self._do_transform:
+            return img
 
-        # build/appy transform only if there are spike locations
-        if self.sampled_locs:
-            transform = KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity, self.as_tensor_output)
-            return transform(img)
+        return KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity)(img)
 
-        return img if self.as_tensor_output else img.detach().numpy()
-
-    def _randomize(self, img: torch.Tensor, intensity_range: Sequence[Sequence[float]]) -> None:
+    def randomize(self, img: NdarrayOrTensor, intensity_range: Sequence[Sequence[float]]) -> None:  # type: ignore
         """
         Helper method to sample both the location and intensity of the spikes.
         When not working channel wise (channel_wise=False) it use the random
@@ -1585,25 +1717,24 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         When working channel wise, the method randomly samples a location and
         intensity for each channel depending on ``self._do_transform``.
         """
-        # randomizing per channel
+        super().randomize(None)
+        if not self._do_transform:
+            return None
         if self.channel_wise:
+            # randomizing per channel
             for i, chan in enumerate(img):
-                super().randomize(None)
-                if self._do_transform:
-                    self.sampled_locs.append((i,) + tuple(self.R.randint(0, k) for k in chan.shape))
-                    self.sampled_k_intensity.append(self.R.uniform(intensity_range[i][0], intensity_range[i][1]))
-        # working with all channels together
+                self.sampled_locs.append((i,) + tuple(self.R.randint(0, k) for k in chan.shape))
+                self.sampled_k_intensity.append(self.R.uniform(intensity_range[i][0], intensity_range[i][1]))
         else:
-            super().randomize(None)
-            if self._do_transform:
-                spatial = tuple(self.R.randint(0, k) for k in img.shape[1:])
-                self.sampled_locs = [(i,) + spatial for i in range(img.shape[0])]
-                if isinstance(intensity_range[0], Sequence):
-                    self.sampled_k_intensity = [self.R.uniform(p[0], p[1]) for p in intensity_range]
-                else:
-                    self.sampled_k_intensity = [self.R.uniform(intensity_range[0], intensity_range[1])] * len(img)
+            # working with all channels together
+            spatial = tuple(self.R.randint(0, k) for k in img.shape[1:])
+            self.sampled_locs = [(i,) + spatial for i in range(img.shape[0])]
+            if isinstance(intensity_range[0], Sequence):
+                self.sampled_k_intensity = [self.R.uniform(p[0], p[1]) for p in intensity_range]
+            else:
+                self.sampled_k_intensity = [self.R.uniform(intensity_range[0], intensity_range[1])] * len(img)
 
-    def _make_sequence(self, x: torch.Tensor) -> Sequence[Sequence[float]]:
+    def _make_sequence(self, x: NdarrayOrTensor) -> Sequence[Sequence[float]]:
         """
         Formats the sequence of intensities ranges to Sequence[Sequence[float]].
         """
@@ -1615,7 +1746,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
             return (ensure_tuple(self.intensity_range),) * x.shape[0]
         return ensure_tuple(self.intensity_range)
 
-    def _set_default_range(self, img: torch.Tensor) -> Sequence[Sequence[float]]:
+    def _set_default_range(self, img: NdarrayOrTensor) -> Sequence[Sequence[float]]:
         """
         Sets default intensity ranges to be sampled.
 
@@ -1625,12 +1756,91 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         n_dims = len(img.shape[1:])
 
         k = self.shift_fourier(img, n_dims)
-        log_abs = torch.log(torch.absolute(k) + 1e-10)
-        shifted_means = torch.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5
+        mod = torch if isinstance(k, torch.Tensor) else np
+        log_abs = mod.log(mod.absolute(k) + 1e-10)  # type: ignore
+        shifted_means = mod.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5  # type: ignore
         return tuple((i * 0.95, i * 1.1) for i in shifted_means)
 
 
-class RandCoarseDropout(RandomizableTransform):
+class RandCoarseTransform(RandomizableTransform):
+    """
+    Randomly select coarse regions in the image, then execute transform operations for the regions.
+    It's the base class of all kinds of region transforms.
+    Refer to papers: https://arxiv.org/abs/1708.04552
+
+    Args:
+        holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
+            randomly select the expected number of regions.
+        spatial_size: spatial size of the regions to dropout, if `max_spatial_size` is not None, use this arg
+            as the minimum spatial size to randomly select size for every region.
+            if some components of the `spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        max_holes: if not None, define the maximum number to randomly select the expected number of regions.
+        max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+            if some components of the `max_spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `max_spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        prob: probability of applying the transform.
+
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        holes: int,
+        spatial_size: Union[Sequence[int], int],
+        max_holes: Optional[int] = None,
+        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        prob: float = 0.1,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        if holes < 1:
+            raise ValueError("number of holes must be greater than 0.")
+        self.holes = holes
+        self.spatial_size = spatial_size
+        self.max_holes = max_holes
+        self.max_spatial_size = max_spatial_size
+        self.hole_coords: List = []
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        size = fall_back_tuple(self.spatial_size, img_size)
+        self.hole_coords = []  # clear previously computed coords
+        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
+        for _ in range(num_holes):
+            if self.max_spatial_size is not None:
+                max_size = fall_back_tuple(self.max_spatial_size, img_size)
+                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
+            valid_size = get_valid_patch_size(img_size, size)
+            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+
+    @abstractmethod
+    def _transform_holes(self, img: np.ndarray) -> np.ndarray:
+        """
+        Transform the randomly selected `self.hole_coords` in input images.
+
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        if randomize:
+            self.randomize(img.shape[1:])
+
+        if not self._do_transform:
+            return img
+
+        img_np: np.ndarray
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        out = self._transform_holes(img=img_np)
+        ret, *_ = convert_to_dst_type(src=out, dst=img)
+        return ret
+
+
+class RandCoarseDropout(RandCoarseTransform):
     """
     Randomly coarse dropout regions in the image, then fill in the rectangular regions with specified value.
     Or keep the rectangular regions and fill in the other areas with specified value.
@@ -1671,52 +1881,78 @@ class RandCoarseDropout(RandomizableTransform):
         max_spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
     ) -> None:
-        RandomizableTransform.__init__(self, prob)
-        if holes < 1:
-            raise ValueError("number of holes must be greater than 0.")
-        self.holes = holes
-        self.spatial_size = spatial_size
+        super().__init__(
+            holes=holes, spatial_size=spatial_size, max_holes=max_holes, max_spatial_size=max_spatial_size, prob=prob
+        )
         self.dropout_holes = dropout_holes
         if isinstance(fill_value, (tuple, list)):
             if len(fill_value) != 2:
                 raise ValueError("fill value should contain 2 numbers if providing the `min` and `max`.")
         self.fill_value = fill_value
-        self.max_holes = max_holes
-        self.max_spatial_size = max_spatial_size
-        self.hole_coords: List = []
 
-    def randomize(self, img_size: Sequence[int]) -> None:
-        super().randomize(None)
-        size = fall_back_tuple(self.spatial_size, img_size)
-        self.hole_coords = []  # clear previously computed coords
-        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
-        for _ in range(num_holes):
-            if self.max_spatial_size is not None:
-                max_size = fall_back_tuple(self.max_spatial_size, img_size)
-                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
-            valid_size = get_valid_patch_size(img_size, size)
-            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+    def _transform_holes(self, img: np.ndarray):
+        """
+        Fill the randomly selected `self.hole_coords` in input images.
+        Please note that we usually only use `self.R` in `randomize()` method, here is a special case.
 
-    def __call__(self, img: np.ndarray):
-        self.randomize(img.shape[1:])
-        ret = img
-        if self._do_transform:
-            fill_value = (img.min(), img.max()) if self.fill_value is None else self.fill_value
+        """
+        fill_value = (img.min(), img.max()) if self.fill_value is None else self.fill_value
 
-            if self.dropout_holes:
-                for h in self.hole_coords:
-                    if isinstance(fill_value, (tuple, list)):
-                        ret[h] = self.R.uniform(fill_value[0], fill_value[1], size=img[h].shape)
-                    else:
-                        ret[h] = fill_value
-            else:
+        if self.dropout_holes:
+            for h in self.hole_coords:
                 if isinstance(fill_value, (tuple, list)):
-                    ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype)
+                    img[h] = self.R.uniform(fill_value[0], fill_value[1], size=img[h].shape)
                 else:
-                    ret = np.full_like(img, fill_value)
-                for h in self.hole_coords:
-                    ret[h] = img[h]
+                    img[h] = fill_value
+            ret = img
+        else:
+            if isinstance(fill_value, (tuple, list)):
+                ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype)
+            else:
+                ret = np.full_like(img, fill_value)
+            for h in self.hole_coords:
+                ret[h] = img[h]
         return ret
+
+
+class RandCoarseShuffle(RandCoarseTransform):
+    """
+    Randomly select regions in the image, then shuffle the pixels within every region.
+    It shuffles every channel separately.
+    Refer to paper:
+    Kang, Guoliang, et al. "Patchshuffle regularization." arXiv preprint arXiv:1707.07103 (2017).
+    https://arxiv.org/abs/1707.07103
+
+    Args:
+        holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
+            randomly select the expected number of regions.
+        spatial_size: spatial size of the regions to dropout, if `max_spatial_size` is not None, use this arg
+            as the minimum spatial size to randomly select size for every region.
+            if some components of the `spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        max_holes: if not None, define the maximum number to randomly select the expected number of regions.
+        max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+            if some components of the `max_spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `max_spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        prob: probability of applying the transform.
+
+    """
+
+    def _transform_holes(self, img: np.ndarray):
+        """
+        Shuffle the content of randomly selected `self.hole_coords` in input images.
+        Please note that we usually only use `self.R` in `randomize()` method, here is a special case.
+
+        """
+        for h in self.hole_coords:
+            # shuffle every channel separately
+            for i, c in enumerate(img[h]):
+                patch_channel = c.flatten()
+                self.R.shuffle(patch_channel)
+                img[h][i] = patch_channel.reshape(c.shape)
+        return img
 
 
 class HistogramNormalize(Transform):
@@ -1736,12 +1972,14 @@ class HistogramNormalize(Transform):
 
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(
         self,
         num_bins: int = 256,
         min: int = 0,
         max: int = 255,
-        mask: Optional[np.ndarray] = None,
+        mask: Optional[NdarrayOrTensor] = None,
         dtype: DtypeLike = np.float32,
     ) -> None:
         self.num_bins = num_bins
@@ -1750,7 +1988,7 @@ class HistogramNormalize(Transform):
         self.mask = mask
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> np.ndarray:
         return equalize_hist(
             img=img,
             mask=mask if mask is not None else self.mask,
@@ -1759,95 +1997,3 @@ class HistogramNormalize(Transform):
             max=self.max,
             dtype=self.dtype,
         )
-
-
-class LocalPatchShuffling(RandomizableTransform):
-    """
-    Takes a 3D image and based on input of the local patch size, shuffles the pixels of the local patch within it.
-    This process is repeated a for N number of times where every time a different random block is selected for local
-    pixel shuffling.
-
-    Kang, Guoliang, et al. "Patchshuffle regularization." arXiv preprint arXiv:1707.07103 (2017).
-    """
-
-    def __init__(
-        self,
-        prob: float = 1.0,
-        number_blocks: int = 1000,
-        blocksize_ratio: int = 10,
-        channel_wise: bool = True,
-        device: Optional[torch.device] = None,
-        image_only: bool = False,
-    ) -> None:
-        """
-        Args:
-            prob: The chance of this transform occuring on the given volume.
-            number_blocks: Total number of time a random 3D block will be selected for local shuffling of pixels/voxels
-                contained in the block.
-            blocksize_ratio: This ratio can be used to estimate the local 3D block sizes that will be selected.
-            channel_wise: If True, treats each channel of the image separately.
-            device: device on which the tensor will be allocated.
-            image_only: if True return only the image volume, otherwise return (image, affine).
-        """
-        RandomizableTransform.__init__(self, prob)
-        self.prob = prob
-        self.number_blocks = number_blocks
-        self.blocksize_ratio = blocksize_ratio
-        self.channel_wise = channel_wise
-
-    def _local_patch_shuffle(self, img: Union[torch.Tensor, np.ndarray], number_blocks: int, blocksize_ratio: int):
-        im_shape = img.shape
-        img_copy = copy.deepcopy(img)
-        for _each_block in range(number_blocks):
-
-            block_size_x = self.R.randint(1, im_shape[0] // blocksize_ratio)
-            block_size_y = self.R.randint(1, im_shape[1] // blocksize_ratio)
-            block_size_z = self.R.randint(1, im_shape[2] // blocksize_ratio)
-
-            noise_x = self.R.randint(0, im_shape[0] - block_size_x)
-            noise_y = self.R.randint(0, im_shape[1] - block_size_y)
-            noise_z = self.R.randint(0, im_shape[2] - block_size_z)
-
-            local_patch = img[
-                noise_x : noise_x + block_size_x,
-                noise_y : noise_y + block_size_y,
-                noise_z : noise_z + block_size_z,
-            ]
-
-            local_patch = local_patch.flatten()
-            self.R.shuffle(local_patch)
-            local_patch = local_patch.reshape((block_size_x, block_size_y, block_size_z))
-
-            img_copy[
-                noise_x : noise_x + block_size_x, noise_y : noise_y + block_size_y, noise_z : noise_z + block_size_z
-            ] = local_patch
-
-        shuffled_image = img_copy
-        return shuffled_image
-
-    def __call__(
-        self,
-        img: Union[np.ndarray, torch.Tensor],
-        # spatial_size: Optional[Union[Sequence[int], int]] = None,
-        # mode: Optional[Union[GridSampleMode, str]] = None,
-        # padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ):
-        """
-        Args:
-            img: shape must be (num_channels, H, W[, D]),
-
-        """
-
-        super().randomize(None)
-        if not self._do_transform:
-            return img
-
-        if self.channel_wise:
-            # img = self._local_patch_shuffle(img=img)
-            for i, _d in enumerate(img):
-                img[i] = self._local_patch_shuffle(
-                    img=img[i], blocksize_ratio=self.blocksize_ratio, number_blocks=self.number_blocks
-                )
-        else:
-            raise AssertionError("If channel_wise is False, the image needs to be set to channel first")
-        return img

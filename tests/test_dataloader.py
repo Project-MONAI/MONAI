@@ -20,19 +20,9 @@ from monai.data import CacheDataset, DataLoader, Dataset
 from monai.transforms import Compose, DataStatsd, Randomizable, SimulateDelayd
 from monai.utils import set_determinism
 
-TEST_CASE_1 = [
-    [
-        {"image": np.asarray([1, 2, 3])},
-        {"image": np.asarray([4, 5])},
-    ]
-]
+TEST_CASE_1 = [[{"image": np.asarray([1, 2, 3])}, {"image": np.asarray([4, 5])}]]
 
-TEST_CASE_2 = [
-    [
-        {"label": torch.as_tensor([[3], [2]])},
-        {"label": np.asarray([[1], [2]])},
-    ]
-]
+TEST_CASE_2 = [[{"label": torch.as_tensor([[3], [2]])}, {"label": np.asarray([[1], [2]])}]]
 
 
 class TestDataLoader(unittest.TestCase):

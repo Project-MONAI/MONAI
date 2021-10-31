@@ -138,7 +138,7 @@ class Range:
             if len(method_list) < 1:
                 raise ValueError(
                     f"The method to be wrapped for this object [{type(obj)}] is not recognized."
-                    "The name of the method should be provied or the object should have one of these methods:"
+                    "The name of the method should be provided or the object should have one of these methods:"
                     f"{default_methods}"
                 )
         return ensure_tuple(method_list)

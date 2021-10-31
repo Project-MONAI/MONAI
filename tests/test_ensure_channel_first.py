@@ -27,11 +27,7 @@ TEST_CASE_1 = [{"image_only": False}, ["test_image.nii.gz"], None]
 
 TEST_CASE_2 = [{"image_only": False}, ["test_image.nii.gz"], -1]
 
-TEST_CASE_3 = [
-    {"image_only": False},
-    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    None,
-]
+TEST_CASE_3 = [{"image_only": False}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], None]
 
 TEST_CASE_4 = [{"reader": ITKReader(), "image_only": False}, ["test_image.nii.gz"], None]
 
@@ -43,11 +39,7 @@ TEST_CASE_6 = [
     None,
 ]
 
-TEST_CASE_7 = [
-    {"image_only": False, "reader": ITKReader(pixel_type=itk.UC)},
-    "tests/testing_data/CT_DICOM",
-    None,
-]
+TEST_CASE_7 = [{"image_only": False, "reader": ITKReader(pixel_type=itk.UC)}, "tests/testing_data/CT_DICOM", None]
 
 
 class TestEnsureChannelFirst(unittest.TestCase):

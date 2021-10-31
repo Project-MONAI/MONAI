@@ -26,9 +26,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.utility.array import ToTensor
 from monai.utils.enums import InverseKeys, Method, NumpyPadMode
 
-__all__ = [
-    "PadListDataCollate",
-]
+__all__ = ["PadListDataCollate"]
 
 
 def replace_element(to_replace, batch, idx, key_or_idx):

@@ -60,7 +60,7 @@ class DatasetSummary:
         self.image_key = image_key
         self.label_key = label_key
         if image_key:
-            self.meta_key = "{}_{}".format(image_key, meta_key_postfix)
+            self.meta_key = f"{image_key}_{meta_key_postfix}"
         self.all_meta_data: List = []
 
     def collect_meta_data(self):
