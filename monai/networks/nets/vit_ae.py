@@ -56,6 +56,7 @@ class ViT_AE(nn.Module):
             pos_embed: position embedding layer type.
             dropout_rate: faction of the input units to drop.
             spatial_dims: number of spatial dimensions.
+            same_as_input_size: If set to True, ViT_AE will return output of same dimension as of input
 
         Examples::
 
