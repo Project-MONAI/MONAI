@@ -712,6 +712,7 @@ class ScaleIntensityRanged(MapTransform):
         b_min: intensity target range min.
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
+        dtype: output data type, defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -725,10 +726,11 @@ class ScaleIntensityRanged(MapTransform):
         b_min: float,
         b_max: float,
         clip: bool = False,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
+        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip, dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -826,6 +828,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
         relative: whether to scale to the corresponding percentiles of [b_min, b_max]
+        dtype: output data type, defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -840,10 +843,11 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: float,
         clip: bool = False,
         relative: bool = False,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative)
+        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative, dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

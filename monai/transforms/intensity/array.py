@@ -725,16 +725,20 @@ class ScaleIntensityRange(Transform):
         b_min: intensity target range min.
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
+        dtype: output data type, defaults to float32.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False) -> None:
+    def __init__(
+        self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False, dtype: DtypeLike = np.float32
+    ) -> None:
         self.a_min = a_min
         self.a_max = a_max
         self.b_min = b_min
         self.b_max = b_max
         self.clip = clip
+        self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -748,7 +752,9 @@ class ScaleIntensityRange(Transform):
         img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
             img = clip(img, self.b_min, self.b_max)
-        return img
+        ret, *_ = convert_data_type(img, dtype=self.dtype)
+
+        return ret
 
 
 class AdjustContrast(Transform):
@@ -883,12 +889,20 @@ class ScaleIntensityRangePercentiles(Transform):
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
         relative: whether to scale to the corresponding percentiles of [b_min, b_max].
+        dtype: output data type, defaults to float32.
     """
 
     backend = ScaleIntensityRange.backend
 
     def __init__(
-        self, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False, relative: bool = False
+        self,
+        lower: float,
+        upper: float,
+        b_min: float,
+        b_max: float,
+        clip: bool = False,
+        relative: bool = False,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         if lower < 0.0 or lower > 100.0:
             raise ValueError("Percentiles must be in the range [0, 100]")
@@ -900,6 +914,7 @@ class ScaleIntensityRangePercentiles(Transform):
         self.b_max = b_max
         self.clip = clip
         self.relative = relative
+        self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -914,7 +929,7 @@ class ScaleIntensityRangePercentiles(Transform):
             b_min = ((self.b_max - self.b_min) * (self.lower / 100.0)) + self.b_min
             b_max = ((self.b_max - self.b_min) * (self.upper / 100.0)) + self.b_min
 
-        scalar = ScaleIntensityRange(a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=False)
+        scalar = ScaleIntensityRange(a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=False, dtype=self.dtype)
         img = scalar(img)
 
         if self.clip:
