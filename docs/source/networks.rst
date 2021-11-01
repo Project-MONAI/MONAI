@@ -470,6 +470,11 @@ Nets
 .. autoclass:: ViT
   :members:
 
+`ViTAutoEnc`
+~~~~~
+.. autoclass:: ViTAutoEnc
+  :members:
+
 `FullyConnectedNet`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: FullyConnectedNet

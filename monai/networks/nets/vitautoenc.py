@@ -10,10 +10,9 @@
 # limitations under the License.
 
 
+import math
 from typing import Sequence, Union
 
-import math
-import torch
 import torch.nn as nn
 
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
@@ -90,9 +89,11 @@ class ViTAutoEnc(nn.Module):
         )
         self.norm = nn.LayerNorm(hidden_size)
 
-        new_patch_size = [4, 4, 4]
+        new_patch_size = (4, 4, 4)
         self.conv3d_transpose = nn.ConvTranspose3d(hidden_size, 16, kernel_size=new_patch_size, stride=new_patch_size)
-        self.conv3d_transpose_1 = nn.ConvTranspose3d(in_channels=16, out_channels=1, kernel_size=new_patch_size, stride=new_patch_size)
+        self.conv3d_transpose_1 = nn.ConvTranspose3d(
+            in_channels=16, out_channels=1, kernel_size=new_patch_size, stride=new_patch_size
+        )
 
     def forward(self, x):
         x = self.patch_embedding(x)
@@ -102,7 +103,7 @@ class ViTAutoEnc(nn.Module):
             hidden_states_out.append(x)
         x = self.norm(x)
         x = x.transpose(1, 2)
-        cubeRoot = round(math.pow(x.size()[2], 1 / 3))
-        x = self.conv3d_transpose(x.unflatten(2, (cubeRoot, cubeRoot, cubeRoot)))
+        cuberoot = round(math.pow(x.size()[2], 1 / 3))
+        x = self.conv3d_transpose(x.unflatten(2, (cuberoot, cuberoot, cuberoot)))
         x = self.conv3d_transpose_1(x)
         return x, hidden_states_out

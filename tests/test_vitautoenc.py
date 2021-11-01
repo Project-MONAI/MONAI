@@ -115,5 +115,6 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 dropout_rate=0.3,
             )
 
+
 if __name__ == "__main__":
     unittest.main()
