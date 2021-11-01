@@ -60,10 +60,10 @@ class ViTAutoEnc(nn.Module):
 
             # for single channel input with image size of (96,96,96), conv position embedding and segmentation backbone
             # It will provide an output of same size as that of the input
-            >>> net = ViTAutoEnc(in_channels=1, img_size=(96,96,96), pos_embed='conv')
+            >>> net = ViTAutoEnc(in_channels=1, patch_size=(16,16,16), img_size=(96,96,96), pos_embed='conv')
 
             # for 3-channel with image size of (128,128,128), output will be same size as of input
-            >>> net = ViTAutoEnc(in_channels=3, img_size=(128,128,128), pos_embed='conv')
+            >>> net = ViTAutoEnc(in_channels=3, patch_size=(16,16,16), img_size=(128,128,128), pos_embed='conv')
 
         """
 
