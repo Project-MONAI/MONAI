@@ -47,21 +47,13 @@ class IterableDataset(_TorchIterableDataset):
         self.transform = transform
         self.source = None
 
-    def _get_item(self, data):
-        """
-        Utility function to fetch data item from the source.
-        Subclass can extend it for customized logic.
-
-        """
-        yield from data
-
     def __iter__(self):
         info = get_worker_info()
         num_workers = info.num_workers if info is not None else 1
         id = info.id if info is not None else 0
 
         self.source = iter(self.data)
-        for i, item in enumerate(self._get_item(self.source)):
+        for i, item in enumerate(self.source):
             if i % num_workers == id:
                 if self.transform is not None:
                     item = apply_transform(self.transform, item)
@@ -88,7 +80,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         self.seed = seed
         self._idx = 0
 
-    def _get_item(self, data):
+    def __iter__(self):
         """
         Fetch data from the source, if buffer is not full, fill into buffer, otherwise,
         randomly pop items from the buffer.
@@ -98,6 +90,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         self.seed += 1
         self.set_random_state(seed=self.seed)  # make all workers in sync
         buffer = []
+        source = self.data
 
         def _pop_item():
             self.randomize(len(buffer))
@@ -106,13 +99,17 @@ class ShuffleBuffer(Randomizable, IterableDataset):
             buffer.pop()
             return ret
 
-        for item in data:
-            if len(buffer) >= self.size:
-                yield _pop_item()
-            buffer.append(item)
+        def _get_item():
+            for item in source:
+                if len(buffer) >= self.size:
+                    yield _pop_item()
+                buffer.append(item)
 
-        while buffer:
-            yield _pop_item()
+            while buffer:
+                yield _pop_item()
+
+        self.data = _get_item()
+        return super().__iter__()
 
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
