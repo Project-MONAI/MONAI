@@ -53,8 +53,7 @@ class IterableDataset(_TorchIterableDataset):
         Subclass can extend it for customized logic.
 
         """
-        for item in data:
-            yield item
+        yield from data
 
     def __iter__(self):
         info = get_worker_info()
