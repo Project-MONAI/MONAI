@@ -21,9 +21,9 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
-`IterableBuffer`
-~~~~~~~~~~~~~~~~
-.. autoclass:: IterableBuffer
+`ShuffleBuffer`
+~~~~~~~~~~~~~~~
+.. autoclass:: ShuffleBuffer
   :members:
   :special-members: __next__
 
