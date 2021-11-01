@@ -11,6 +11,7 @@
 
 from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
+import numpy as np
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
 
@@ -88,7 +89,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
         """
         self.seed += 1
-        self.set_random_state(seed=self.seed)  # make all workers in sync
+        super().set_random_state(seed=self.seed)  # make all workers in sync
         buffer = []
         source = self.data
 
@@ -113,6 +114,9 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
+
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+        raise NotImplementedError(f"`set_random_state` is not available in {self.__class__.__name__}.")
 
 
 class CSVIterableDataset(IterableDataset):
