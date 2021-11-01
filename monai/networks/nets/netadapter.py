@@ -71,13 +71,13 @@ class NetAdapter(torch.nn.Module):
             in_channels_ = in_channels
 
         if pool is None:
-            self.pool = None
             # remove the last layer
             self.features = torch.nn.Sequential(*layers[:-1])
+            self.pool = None
         else:
-            self.pool = get_pool_layer(name=pool, spatial_dims=dim)
             # remove the last 2 layers
             self.features = torch.nn.Sequential(*layers[:-2])
+            self.pool = get_pool_layer(name=pool, spatial_dims=dim)
 
         self.fc: Union[torch.nn.Linear, torch.nn.Conv2d, torch.nn.Conv3d]
         if use_conv:
