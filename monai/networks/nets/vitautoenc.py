@@ -74,6 +74,9 @@ class ViTAutoEnc(nn.Module):
         if hidden_size % num_heads != 0:
             raise ValueError("hidden_size should be divisible by num_heads.")
 
+        if spatial_dims == 2:
+            raise ValueError("Not implemented for 2 dimensions, please try 3")
+
         self.patch_embedding = PatchEmbeddingBlock(
             in_channels=in_channels,
             img_size=img_size,

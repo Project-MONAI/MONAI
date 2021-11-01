@@ -471,7 +471,7 @@ Nets
   :members:
 
 `ViTAutoEnc`
-~~~~~
+~~~~~~~~~~~~
 .. autoclass:: ViTAutoEnc
   :members:
 
