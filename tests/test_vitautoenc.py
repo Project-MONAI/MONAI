@@ -16,7 +16,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets.vitautoenc import ViTAutoEnc
 
-TEST_CASE_Vit = []
+TEST_CASE_Vitautoenc = []
 for in_channels in [1, 4]:
     for img_size in [64, 96, 128]:
         for patch_size in [16]:
@@ -38,11 +38,11 @@ for in_channels in [1, 4]:
                         (2, 1, *([img_size] * nd)),
                     ]
 
-                    TEST_CASE_Vit.append(test_case)
+                    TEST_CASE_Vitautoenc.append(test_case)
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
-    @parameterized.expand(TEST_CASE_Vit)
+    @parameterized.expand(TEST_CASE_Vitautoenc)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ViTAutoEnc(**input_param)
         with eval_mode(net):
