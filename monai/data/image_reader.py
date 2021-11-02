@@ -665,7 +665,7 @@ class PILReader(ImageReader):
 
 class WSIReader(ImageReader):
     """
-    Read whole slide imaging and extract patches.
+    Read whole slide images and extract patches.
 
     Args:
         backend: backend library to load the images, available options: "OpenSlide" or "cuCIM".
@@ -695,7 +695,7 @@ class WSIReader(ImageReader):
 
     def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
         """
-        Read image data from specified file or files.
+        Read image data from given file or list of files.
 
         Args:
             data: file name or a list of file names to read.
@@ -743,7 +743,7 @@ class WSIReader(ImageReader):
             level = self.level
 
         if self.backend == "openslide" and size is None:
-            # the maximum size is set to WxH
+            # the maximum size is set to WxH at the specified level
             size = (img.shape[0] // (2 ** level) - location[0], img.shape[1] // (2 ** level) - location[1])
 
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
