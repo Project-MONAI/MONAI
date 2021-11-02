@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -35,6 +35,7 @@ __all__ = [
     "cumsum",
     "isfinite",
     "searchsorted",
+    "repeat",
 ]
 
 
@@ -301,3 +302,10 @@ def searchsorted(a: NdarrayOrTensor, v: NdarrayOrTensor, right=False, sorter=Non
     ret = np.searchsorted(a.cpu().numpy(), v.cpu().numpy(), side, sorter)  # type: ignore
     ret, *_ = convert_to_dst_type(ret, a)
     return ret
+
+
+def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None):
+    """`np.repeat` with equivalent implementation for torch (`repeat_interleave`)."""
+    if isinstance(a, np.ndarray):
+        return np.repeat(a, repeats, axis)
+    return torch.repeat_interleave(a, repeats, dim=axis)
