@@ -156,9 +156,16 @@ def rescale_array(
 ) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
+
+    Args:
+        arr: input array to rescale.
+        minv: minimum value of target rescaled array.
+        maxv: maxmum value of target rescaled array.
+        dtype: data type of output, if None, same as input array.
+
     """
-    if dtype is not None:
-        arr, *_ = convert_data_type(arr, dtype=dtype)
+    dtype_ = dtype or arr.dtype
+    arr, *_ = convert_data_type(arr, dtype=dtype_)
     mina = arr.min()
     maxa = arr.max()
 
@@ -166,7 +173,9 @@ def rescale_array(
         return arr * minv
 
     norm = (arr - mina) / (maxa - mina)  # normalize the array first
-    return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
+    out = (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
+    out, *_ = convert_data_type(out, dtype=dtype_)
+    return out
 
 
 def rescale_instance_array(
