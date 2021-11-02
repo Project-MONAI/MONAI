@@ -669,6 +669,8 @@ class WSIReader(ImageReader):
 
     Args:
         backend: backend library to load the images, available options: "OpenSlide" or "cuCIM".
+        level: the whole slide image level at which the image is extracted. (default=0)
+            Note that this is overridden by the level argument in `get_data`.
 
     """
 
