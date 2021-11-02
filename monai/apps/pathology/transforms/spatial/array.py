@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
+from numpy.lib.stride_tricks import as_strided
 
-from monai.transforms.transform import Transform
+from monai.transforms.transform import Randomizable, Transform
 
-__all__ = ["SplitOnGrid"]
+__all__ = ["SplitOnGrid", "TileOnGrid"]
 
 
 class SplitOnGrid(Transform):
@@ -73,3 +75,159 @@ class SplitOnGrid(Transform):
         )
 
         return patch_size, steps
+
+
+class TileOnGrid(Randomizable, Transform):
+    """
+    Tile the 2D image into patches on a grid and maintain a subset of it.
+    This transform works only with np.ndarray inputs for 2D images.
+
+    Args:
+        tile_count: number of tiles to extract, if None Extract all non-background tiles
+            Defaults to ``None``.
+        tile_size: size of the square tile
+            Defaults to ``256``.
+        step: step size
+            Defaults to None (same as tile_size)
+        random_offset: Randomize position of tile grid, instead of starting from the top-left corner
+            Defaults to ``False``.
+        pad_full: pad image to the size evenly divisible by tile_size
+            Defaults to ``False``.
+        background_val: the background constant (e.g. 255 for white background)
+            Defaults to ``255``.
+        filter_mode: mode must be in ["min", "max", None]. If total number of tiles is more then tile_size,
+            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for None) subset
+            Defaults to ``min`` (which assumes background is white, high value)
+
+    """
+
+    def __init__(
+        self,
+        tile_count: Optional[int] = None,
+        tile_size: int = 256,
+        step: Optional[int] = None,
+        random_offset: bool = False,
+        pad_full: bool = False,
+        background_val: int = 255,
+        filter_mode: Optional[str] = "min",
+    ):
+        self.tile_count = tile_count
+        self.tile_size = tile_size
+        self.step = step
+        self.random_offset = random_offset
+        self.pad_full = pad_full
+        self.background_val = background_val
+        self.filter_mode = filter_mode
+
+        # self.tile_all = (self.tile_count is None)
+
+        # if self.tile_count is None:
+        #     self.tile_count = max((44 * 256 ** 2) // (tile_size ** 2), 1)
+
+        if self.step is None:
+            self.step = self.tile_size  # non-overlapping grid
+
+        self.offset = (0, 0)
+        self.random_idxs = [0]
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+
+        c, h, w = img_size
+        # tile_count: int = self.tile_count  # type: ignore
+        tile_step: int = self.step  # type: ignore
+
+        if self.random_offset:
+            pad_h = h % self.tile_size
+            pad_w = w % self.tile_size
+            if pad_h > 0 and pad_w > 0:
+                self.offset = (self.R.randint(pad_h), self.R.randint(pad_w))
+                h = h - self.offset[0]
+                w = w - self.offset[1]
+            else:
+                self.offset = (0, 0)
+
+        if self.pad_full:
+            pad_h = (self.tile_size - h % self.tile_size) % self.tile_size
+            pad_w = (self.tile_size - w % self.tile_size) % self.tile_size
+            h = h + pad_h
+            w = w + pad_w
+
+        h_n = (h - self.tile_size + tile_step) // tile_step
+        w_n = (w - self.tile_size + tile_step) // tile_step
+        tile_total = h_n * w_n
+
+        if self.tile_count is not None and tile_total > self.tile_count:
+            self.random_idxs = self.R.choice(range(tile_total), self.tile_count, replace=False)  # type: ignore
+        else:
+            self.random_idxs = [0]  # type: ignore
+
+    def __call__(self, image: np.ndarray) -> np.ndarray:
+
+        # add random offset
+        self.randomize(img_size=image.shape)
+        # tile_count: int = self.tile_count  # type: ignore
+        tile_step: int = self.step  # type: ignore
+
+        if self.random_offset and self.offset is not None:
+            image = image[:, self.offset[0] :, self.offset[1] :]
+
+        # pad to full size, divisible by tile_size
+        if self.pad_full:
+            c, h, w = image.shape
+            pad_h = (self.tile_size - h % self.tile_size) % self.tile_size
+            pad_w = (self.tile_size - w % self.tile_size) % self.tile_size
+            image = np.pad(
+                image,
+                [[0, 0], [pad_h // 2, pad_h - pad_h // 2], [pad_w // 2, pad_w - pad_w // 2]],
+                constant_values=self.background_val,
+            )
+
+        # extact tiles (new way)
+        xstep, ystep = tile_step, tile_step
+        xsize, ysize = self.tile_size, self.tile_size
+        clen, xlen, ylen = image.shape
+        cstride, xstride, ystride = image.strides
+        llw = as_strided(
+            image,
+            shape=((xlen - xsize) // xstep + 1, (ylen - ysize) // ystep + 1, clen, xsize, ysize),
+            strides=(xstride * xstep, ystride * ystep, cstride, xstride, ystride),
+            writeable=False,
+        )
+        image = llw.reshape(-1, clen, xsize, ysize)
+
+        # if keep all patches
+        if self.tile_count is None:
+            # retain only patches with significant foreground content to speed up inference
+            # FYI, this returns a variable number of tiles, so the batch_size much be 1 (per gpu). Used during inference
+            thresh = 0.999 * 3 * self.background_val * self.tile_size * self.tile_size
+            if self.filter_mode == "min":
+                # default, keep non-background tiles (small values)
+                idxs = np.argwhere(image.sum(axis=(1, 2, 3)) < thresh)
+                image = image[idxs.reshape(-1)]
+            elif self.filter_mode == "max":
+                idxs = np.argwhere(image.sum(axis=(1, 2, 3)) >= thresh)
+                image = image[idxs.reshape(-1)]
+
+        else:
+            if len(image) >= self.tile_count:
+
+                if self.filter_mode == "min":
+                    # default, keep non-background tiles (smallest values)
+                    idxs = np.argsort(image.sum(axis=(1, 2, 3)))[: self.tile_count]
+                    image = image[idxs]
+                elif self.filter_mode == "max":
+                    idxs = np.argsort(image.sum(axis=(1, 2, 3)))[-self.tile_count :]
+                    image = image[idxs]
+                elif len(image) > self.tile_count:
+                    # random subset (more appropriate for WSIs without distinct background)
+                    if self.random_idxs is not None:
+                        image = image[self.random_idxs]
+
+            else:
+                image = np.pad(
+                    image,
+                    [[0, self.tile_count - len(image)], [0, 0], [0, 0], [0, 0]],
+                    constant_values=self.background_val,
+                )
+
+        return image
