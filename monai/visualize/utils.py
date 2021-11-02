@@ -13,13 +13,17 @@ from typing import Optional
 
 import numpy as np
 
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.croppad.array import SpatialPad
+from monai.transforms.utils import rescale_array
+from monai.transforms.utils_pytorch_numpy_unification import repeat, where
 from monai.utils.module import optional_import
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 plt, _ = optional_import("matplotlib", name="pyplot")
+cm, _ = optional_import("matplotlib", name="cm")
 
-__all__ = ["matshow3d"]
+__all__ = ["matshow3d", "blend_images"]
 
 
 def matshow3d(
@@ -122,3 +126,36 @@ def matshow3d(
     if show:
         plt.show()
     return fig, im
+
+
+def blend_images(
+    image: NdarrayOrTensor, label: NdarrayOrTensor, alpha: float = 0.5, cmap: str = "hsv", rescale_arrays: bool = True
+):
+    """Blend two images. Both should have the shape CHW[D].
+    The image may have C==1 or 3 channels (greyscale or RGB).
+    The label is expected to have C==1."""
+    if label.shape[0] != 1:
+        raise ValueError("Label should have 1 channel")
+    if image.shape[0] not in (1, 3):
+        raise ValueError("Image should have 1 or 3 channels")
+    # rescale arrays to [0, 1] if desired
+    if rescale_arrays:
+        image = rescale_array(image)
+        label = rescale_array(label)
+    # convert image to rgb (if necessary) and then rgba
+    if image.shape[0] == 1:
+        image = repeat(image, 3, axis=0)
+
+    def get_label_rgb(cmap: str, label: NdarrayOrTensor):
+        _cmap = cm.get_cmap(cmap)
+        label_np: np.ndarray
+        label_np, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+        label_rgb_np = _cmap(label_np[0])
+        label_rgb_np = np.moveaxis(label_rgb_np, -1, 0)[:3]
+        label_rgb, *_ = convert_to_dst_type(label_rgb_np, label)
+        return label_rgb
+
+    label_rgb = get_label_rgb(cmap, label)
+    w_image = where(label == 0, 1.0, alpha)
+    w_label = where(label == 0, 0.0, 1 - alpha)
+    return w_image * image + w_label * label_rgb
