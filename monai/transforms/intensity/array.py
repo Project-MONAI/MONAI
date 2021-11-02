@@ -290,7 +290,7 @@ class StdShiftIntensity(Transform):
         nonzero: whether only count non-zero values.
         channel_wise: if True, calculate on each channel separately. Please ensure
             that the first dimension represents the channel of the image if True.
-        dtype: output data type, defaults to float32.
+        dtype: output data type, if None, same as input image. defaults to float32.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -323,7 +323,8 @@ class StdShiftIntensity(Transform):
         """
         Apply the transform to `img`.
         """
-        img, *_ = convert_data_type(img, dtype=self.dtype)
+        if self.dtype is not None:
+            img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
             for i, d in enumerate(img):
                 img[i] = self._stdshift(d)  # type: ignore
@@ -355,7 +356,7 @@ class RandStdShiftIntensity(RandomizableTransform):
             prob: probability of std shift.
             nonzero: whether only count non-zero values.
             channel_wise: if True, calculate on each channel separately.
-            dtype: output data type, defaults to float32.
+            dtype: output data type, if None, same as input image. defaults to float32.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -416,7 +417,7 @@ class ScaleIntensity(Transform):
                 this parameter, please set `minv` and `maxv` into None.
             channel_wise: if True, scale on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
-            dtype: output data type, defaults to float32.
+            dtype: output data type, if None, same as input image. defaults to float32.
         """
         self.minv = minv
         self.maxv = maxv
@@ -439,7 +440,8 @@ class ScaleIntensity(Transform):
             return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
         if self.factor is not None:
             ret = img * (1 + self.factor)
-            ret, *_ = convert_data_type(ret, dtype=self.dtype)
+            if self.dtype is not None:
+                ret, *_ = convert_data_type(ret, dtype=self.dtype or img.dtype)
             return ret
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
@@ -460,7 +462,7 @@ class RandScaleIntensity(RandomizableTransform):
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of scale.
-            dtype: output data type, defaults to float32.
+            dtype: output data type, if None, same as input image. defaults to float32.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -507,7 +509,7 @@ class RandBiasField(RandomizableTransform):
         degree: degree of freedom of the polynomials. The value should be no less than 1.
             Defaults to 3.
         coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
-        dtype: output data type, defaults to float32.
+        dtype: output data type, if None, same as input image. defaults to float32.
         prob: probability to do random bias field.
 
     """
@@ -580,7 +582,7 @@ class RandBiasField(RandomizableTransform):
         )
         img_np, *_ = convert_data_type(img, np.ndarray)
         out = img_np * np.exp(_bias_fields)
-        out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype)
+        out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype or img.dtype)
         return out
 
 
@@ -598,7 +600,7 @@ class NormalizeIntensity(Transform):
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
-        dtype: output data type, defaults to float32.
+        dtype: output data type, if None, same as input image. defaults to float32.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -665,6 +667,7 @@ class NormalizeIntensity(Transform):
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
+        dtype = self.dtype or img.dtype
         if self.channel_wise:
             if self.subtrahend is not None and len(self.subtrahend) != len(img):
                 raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
@@ -680,7 +683,7 @@ class NormalizeIntensity(Transform):
         else:
             img = self._normalize(img, self.subtrahend, self.divisor)
 
-        out, *_ = convert_data_type(img, dtype=self.dtype)
+        out, *_ = convert_data_type(img, dtype=dtype)
         return out
 
 
@@ -725,7 +728,7 @@ class ScaleIntensityRange(Transform):
         b_min: intensity target range min.
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
-        dtype: output data type, defaults to float32.
+        dtype: output data type, if None, same as input image. defaults to float32.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -744,6 +747,7 @@ class ScaleIntensityRange(Transform):
         """
         Apply the transform to `img`.
         """
+        dtype = self.dtype or img.dtype
         if self.a_max - self.a_min == 0.0:
             warn("Divide by zero (a_min == a_max)", Warning)
             return img - self.a_min + self.b_min
@@ -752,7 +756,7 @@ class ScaleIntensityRange(Transform):
         img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
             img = clip(img, self.b_min, self.b_max)
-        ret, *_ = convert_data_type(img, dtype=self.dtype)
+        ret, *_ = convert_data_type(img, dtype=dtype)
 
         return ret
 
@@ -889,7 +893,7 @@ class ScaleIntensityRangePercentiles(Transform):
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
         relative: whether to scale to the corresponding percentiles of [b_min, b_max].
-        dtype: output data type, defaults to float32.
+        dtype: output data type, if None, same as input image. defaults to float32.
     """
 
     backend = ScaleIntensityRange.backend
@@ -1983,7 +1987,7 @@ class HistogramNormalize(Transform):
         mask: if provided, must be ndarray of bools or 0s and 1s, and same shape as `image`.
             only points at which `mask==True` are used for the equalization.
             can also provide the mask along with img at runtime.
-        dtype: data type of the output, default to `float32`.
+        dtype: data type of the output, if None, same as input image. default to `float32`.
 
     """
 
@@ -2003,12 +2007,15 @@ class HistogramNormalize(Transform):
         self.mask = mask
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> np.ndarray:
-        return equalize_hist(
-            img=img,
-            mask=mask if mask is not None else self.mask,
-            num_bins=self.num_bins,
-            min=self.min,
-            max=self.max,
-            dtype=self.dtype,
-        )
+    def __call__(self, img: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
+        img_np: np.ndarray
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        mask = mask if mask is not None else self.mask
+        mask_np: Optional[np.ndarray] = None
+        if mask is not None:
+            mask_np, *_ = convert_data_type(mask, np.ndarray)  # type: ignore
+
+        ret = equalize_hist(img=img_np, mask=mask_np, num_bins=self.num_bins, min=self.min, max=self.max)
+        out, *_ = convert_to_dst_type(src=ret, dst=img, dtype=self.dtype or img.dtype)
+
+        return out
