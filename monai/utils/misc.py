@@ -43,6 +43,7 @@ __all__ = [
     "copy_to_device",
     "ImageMetaKey",
     "is_module_ver_at_least",
+    "has_option",
 ]
 
 _seed = None
@@ -307,7 +308,7 @@ def copy_to_device(
         obj: object or tuple/list/dictionary of objects to move to ``device``.
         device: move ``obj`` to this device. Can be a string (e.g., ``cpu``, ``cuda``,
             ``cuda:0``, etc.) or of type ``torch.device``.
-        non_blocking_transfer: when `True`, moves data to device asynchronously if
+        non_blocking: when `True`, moves data to device asynchronously if
             possible, e.g., moving CPU Tensors with pinned memory to CUDA devices.
         verbose: when `True`, will print a warning for any elements of incompatible type
             not copied to ``device``.

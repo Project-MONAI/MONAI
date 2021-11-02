@@ -47,7 +47,7 @@ class UNet(nn.Module):
     Padding values for the convolutions are chosen to ensure output sizes are even divisors/multiples of the input
     sizes if the `strides` value for a layer is a factor of the input sizes. A typical case is to use `strides` values
     of 2 and inputs that are multiples of powers of 2. An input can thus be downsampled evenly however many times its
-    dimensions can be divided by 2, so for the example network inputs would have to have dimensions that are mutliples
+    dimensions can be divided by 2, so for the example network inputs would have to have dimensions that are multiples
     of 4. In the second example network given below the input to the bottom layer will have shape (1, 64, 15, 15) for
     an input of shape (1, 1, 240, 240) demonstrating the input being reduced in size spatially by 2**4.
 

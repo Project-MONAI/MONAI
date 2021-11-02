@@ -20,7 +20,7 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
 
 from .utils import is_supported_format
 
@@ -132,6 +132,7 @@ def _stack_images(image_list: List, meta_dict: Dict):
     return np.stack(image_list, axis=0)
 
 
+@require_pkg(pkg_name="itk")
 class ITKReader(ImageReader):
     """
     Load medical images based on ITK library.
@@ -317,20 +318,29 @@ class ITKReader(ImageReader):
         return np.moveaxis(np_data, 0, -1)  # channel last is compatible with `write_nifti`
 
 
+@require_pkg(pkg_name="nibabel")
 class NibabelReader(ImageReader):
     """
     Load NIfTI format images based on Nibabel library.
 
     Args:
         as_closest_canonical: if True, load the image as closest to canonical axis format.
+        squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
     """
 
-    def __init__(self, as_closest_canonical: bool = False, dtype: DtypeLike = np.float32, **kwargs):
+    def __init__(
+        self,
+        as_closest_canonical: bool = False,
+        squeeze_non_spatial_dims: bool = False,
+        dtype: DtypeLike = np.float32,
+        **kwargs,
+    ):
         super().__init__()
         self.as_closest_canonical = as_closest_canonical
+        self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
         self.dtype = dtype
         self.kwargs = kwargs
 
@@ -395,6 +405,10 @@ class NibabelReader(ImageReader):
                 header["affine"] = self._get_affine(i)
             header["spatial_shape"] = self._get_spatial_shape(i)
             data = self._get_array_data(i)
+            if self.squeeze_non_spatial_dims:
+                for d in range(len(data.shape), len(header["spatial_shape"]), -1):
+                    if data.shape[d - 1] == 1:
+                        data = data.squeeze(axis=d - 1)
             img_array.append(data)
             header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
@@ -552,6 +566,7 @@ class NumpyReader(ImageReader):
         return _stack_images(img_array, compatible_meta), compatible_meta
 
 
+@require_pkg(pkg_name="PIL")
 class PILReader(ImageReader):
     """
     Load common 2D image format (supports PNG, JPG, BMP) file or files from provided path.

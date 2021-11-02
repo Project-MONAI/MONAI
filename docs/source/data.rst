@@ -21,6 +21,12 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
+`ShuffleBuffer`
+~~~~~~~~~~~~~~~
+.. autoclass:: ShuffleBuffer
+  :members:
+  :special-members: __next__
+
 `CSVIterableDataset`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: CSVIterableDataset
@@ -205,6 +211,9 @@ ThreadBuffer
 ~~~~~~~~~~~~
 .. autoclass:: monai.data.ThreadBuffer
 
+ThreadDataLoader
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.ThreadDataLoader
 
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~

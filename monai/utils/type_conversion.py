@@ -130,7 +130,7 @@ def convert_to_tensor(
     return data
 
 
-def convert_to_numpy(data, dtype: Optional[DtypeLike] = None, wrap_sequence: bool = False):
+def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False):
     """
     Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to numpy array.
@@ -244,7 +244,7 @@ def convert_data_type(
 
     output_type = output_type or orig_type
 
-    dtype_ = get_equivalent_dtype(dtype or get_dtype(data), output_type)
+    dtype_ = get_equivalent_dtype(dtype, output_type)
 
     if output_type is torch.Tensor:
         data = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence)
@@ -267,7 +267,7 @@ def convert_to_dst_type(
     otherwise, convert to the type of `dst` directly.
 
     Args:
-        src: sourse data to convert type.
+        src: source data to convert type.
         dst: destination data that convert to the same data type as it.
         dtype: an optional argument if the target `dtype` is different from the original `dst`'s data type.
         wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.

@@ -553,6 +553,7 @@ from .utils_pytorch_numpy_unification import (
     nonzero,
     percentile,
     ravel,
+    repeat,
     unravel_index,
     where,
 )

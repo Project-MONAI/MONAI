@@ -89,6 +89,21 @@ class TestHandlerHausdorffDistance(unittest.TestCase):
             y = torch.ones((1, 1, 10, 10, 10))
             hd_metric.update([y_pred, y])
 
+    def test_reduction(self):
+        hd_metric = HausdorffDistance(include_background=True, reduction="mean_channel")
+
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        hd_metric.attach(engine, "hausdorff_distance")
+
+        y_pred, y = TEST_SAMPLE_1
+        hd_metric.update([y_pred, y])
+        y_pred, y = TEST_SAMPLE_2
+        hd_metric.update([y_pred, y])
+        torch.testing.assert_allclose(hd_metric.compute().float(), torch.tensor([10.0, 0.0]))
+
 
 if __name__ == "__main__":
     unittest.main()
