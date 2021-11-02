@@ -24,7 +24,7 @@ from typing import Mapping, Union
 import torch
 
 import monai.networks.nets as monai_nets
-from monai.apps.utils import download_and_extract
+from monai.apps.utils import download_and_extract, logger
 from monai.utils.module import optional_import
 
 from .model_desc import MODEL_DESC
@@ -42,7 +42,7 @@ def get_model_spec(idx: Union[int, str]):
         for cand in MODEL_DESC:
             if str(cand[Keys.ID]).strip().lower() == key:
                 return cand
-    print(f"Available specs are: {MODEL_DESC}.")
+    logger.info(f"Available specs are: {MODEL_DESC}.")
     raise ValueError(f"Unknown MODEL_DESC request: {idx}")
 
 
@@ -213,7 +213,7 @@ def load_from_mmar(
         item = get_model_spec(item)
     model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress, version=version)
     model_file = os.path.join(model_dir, item[Keys.MODEL_FILE])
-    print(f'\n*** "{item[Keys.ID]}" available at {model_dir}.')
+    logger.info(f'\n*** "{item[Keys.ID]}" available at {model_dir}.')
 
     # loading with `torch.jit.load`
     if f"{model_file}".endswith(".ts"):
@@ -264,18 +264,18 @@ def load_from_mmar(
     else:
         raise ValueError(f"Could not load model config {model_config}.")
 
-    print(f"*** Model: {model_cls}")
+    logger.info(f"*** Model: {model_cls}")
     model_kwargs = model_config.get("args", None)
     if model_kwargs:
         model_inst = model_cls(**model_kwargs)
-        print(f"*** Model params: {model_kwargs}")
+        logger.info(f"*** Model params: {model_kwargs}")
     else:
         model_inst = model_cls()
     if pretrained:
         model_inst.load_state_dict(model_dict.get(model_key, model_dict))
-    print("\n---")
+    logger.info("\n---")
     doc_url = item.get(Keys.DOC) or _get_ngc_doc_url(item[Keys.NAME], model_prefix="nvidia:med:")
-    print(f"For more information, please visit {doc_url}\n")
+    logger.info(f"For more information, please visit {doc_url}\n")
     return model_inst
 
 

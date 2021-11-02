@@ -120,7 +120,7 @@ class TestDeCollate(unittest.TestCase):
 
     def check_decollate(self, dataset):
         batch_size = 2
-        num_workers = 2
+        num_workers = 2 if sys.platform == "linux" else 0
 
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
@@ -170,10 +170,7 @@ class TestBasicDeCollate(unittest.TestCase):
         self.assertListEqual(expected_out, out)
 
     def test_dict_examples(self):
-        test_case = {
-            "meta": {"out": ["test", "test"]},
-            "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))},
-        }
+        test_case = {"meta": {"out": ["test", "test"]}, "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))}}
         out = decollate_batch(test_case)
         self.assertEqual(out[0]["meta"]["out"], "test")
         self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)

@@ -16,11 +16,11 @@ from parameterized import parameterized
 
 from monai.transforms import RandBiasFieldd
 
-TEST_CASES_2D = [{}, (3, 32, 32)]
-TEST_CASES_3D = [{}, (3, 32, 32, 32)]
-TEST_CASES_2D_ZERO_RANGE = [{"coeff_range": (0.0, 0.0)}, (3, 32, 32)]
+TEST_CASES_2D = [{"prob": 1.0}, (3, 32, 32)]
+TEST_CASES_3D = [{"prob": 1.0}, (3, 32, 32, 32)]
+TEST_CASES_2D_ZERO_RANGE = [{"prob": 1.0, "coeff_range": (0.0, 0.0)}, (3, 32, 32)]
 TEST_CASES_2D_ONES = [
-    {"coeff_range": (1.0, 1.0)},
+    {"prob": 1.0, "coeff_range": (1.0, 1.0)},
     np.asarray([[[7.3890562e00, 1.3533528e-01], [7.3890562e00, 2.2026465e04]]]),
 ]
 

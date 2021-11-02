@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import math
+from copy import deepcopy
 from typing import List, Sequence, Union
 
 import torch
@@ -24,10 +25,10 @@ from monai.utils import (
     ChannelMatching,
     InvalidPyTorchVersionError,
     SkipMode,
-    ensure_tuple_rep,
     look_up_option,
     optional_import,
 )
+from monai.utils.misc import issequenceiterable
 
 _C, _ = optional_import("monai._C")
 if not PT_BEFORE_1_7:
@@ -393,13 +394,18 @@ class GaussianFilter(nn.Module):
                 (for example `parameters()` iterator could be used to get the parameters);
                 otherwise this module will fix the kernels using `sigma` as the std.
         """
+        if issequenceiterable(sigma):
+            if len(sigma) != spatial_dims:  # type: ignore
+                raise ValueError
+        else:
+            sigma = [deepcopy(sigma) for _ in range(spatial_dims)]  # type: ignore
         super().__init__()
         self.sigma = [
             torch.nn.Parameter(
                 torch.as_tensor(s, dtype=torch.float, device=s.device if isinstance(s, torch.Tensor) else None),
                 requires_grad=requires_grad,
             )
-            for s in ensure_tuple_rep(sigma, int(spatial_dims))
+            for s in sigma  # type: ignore
         ]
         self.truncated = truncated
         self.approx = approx
@@ -449,7 +455,7 @@ class LLTM(nn.Module):
     """
 
     def __init__(self, input_features: int, state_size: int):
-        super(LLTM, self).__init__()
+        super().__init__()
         self.input_features = input_features
         self.state_size = state_size
         self.weights = nn.Parameter(torch.empty(3 * state_size, input_features + state_size))
