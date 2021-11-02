@@ -48,7 +48,7 @@ def write_png(
 
     """
     if not isinstance(data, np.ndarray):
-        raise AssertionError("input data must be numpy array.")
+        raise ValueError("input data must be numpy array.")
     if len(data.shape) == 3 and data.shape[2] == 1:  # PIL Image can't save image with 1 channel
         data = data.squeeze(2)
     if output_spatial_shape is not None:
@@ -59,11 +59,11 @@ def write_png(
         _min, _max = np.min(data), np.max(data)
         if len(data.shape) == 3:
             data = np.moveaxis(data, -1, 0)  # to channel first
-            data = xform(data)
+            data = xform(data)  # type: ignore
             data = np.moveaxis(data, 0, -1)
         else:  # (H, W)
             data = np.expand_dims(data, 0)  # make a channel
-            data = xform(data)[0]  # first channel
+            data = xform(data)[0]  # type: ignore
         if mode != InterpolateMode.NEAREST:
             data = np.clip(data, _min, _max)  # type: ignore
 

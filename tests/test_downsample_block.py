@@ -20,11 +20,7 @@ from monai.networks.blocks import MaxAvgPool
 TEST_CASES = [
     [{"spatial_dims": 2, "kernel_size": 2}, (7, 4, 64, 48), (7, 8, 32, 24)],  # 4-channel 2D, batch 7
     [{"spatial_dims": 1, "kernel_size": 4}, (16, 4, 63), (16, 8, 15)],  # 4-channel 1D, batch 16
-    [  # 4-channel 1D, batch 16
-        {"spatial_dims": 1, "kernel_size": 4, "padding": 1},
-        (16, 4, 63),
-        (16, 8, 16),
-    ],
+    [{"spatial_dims": 1, "kernel_size": 4, "padding": 1}, (16, 4, 63), (16, 8, 16)],  # 4-channel 1D, batch 16
     [  # 4-channel 3D, batch 16
         {"spatial_dims": 3, "kernel_size": 3, "ceil_mode": True},
         (16, 4, 32, 24, 48),

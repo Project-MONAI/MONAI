@@ -43,7 +43,7 @@ Profiling
 
 Deprecated
 ----------
-.. automodule:: monai.utils.deprecated
+.. automodule:: monai.utils.deprecate_utils
   :members:
 
 
