@@ -313,7 +313,7 @@ class KeepLargestConnectedComponent(Transform):
             img[0][foreground != mask] = 0
             return img
         # one-hot, union of labels
-        foreground = img[self.applied_labels, ...].any(0)
+        foreground = (img[self.applied_labels, ...] == 1).any(0)
         mask = get_largest_connected_component_mask(foreground, self.connectivity)
         for i in self.applied_labels:
             img[i][foreground != mask] = 0
