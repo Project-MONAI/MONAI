@@ -13,6 +13,7 @@
 import math
 from typing import Sequence, Union
 
+import torch
 import torch.nn as nn
 
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
@@ -107,6 +108,8 @@ class ViTAutoEnc(nn.Module):
         x = self.norm(x)
         x = x.transpose(1, 2)
         cuberoot = round(math.pow(x.size()[2], 1 / 3))
-        x = self.conv3d_transpose(x.unflatten(2, (cuberoot, cuberoot, cuberoot)))
+        x_shape = x.size()
+        x = torch.reshape(x, [x_shape[0], x_shape[1], cuberoot, cuberoot, cuberoot])
+        x = self.conv3d_transpose(x)
         x = self.conv3d_transpose_1(x)
         return x, hidden_states_out
