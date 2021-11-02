@@ -149,14 +149,15 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
 
 
 def rescale_array(
-    arr: NdarrayOrTensor, minv: float = 0.0, maxv: float = 1.0, dtype: Union[DtypeLike, torch.dtype] = np.float32
+    arr: NdarrayOrTensor,
+    minv: float = 0.0,
+    maxv: float = 1.0,
+    dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
 ) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
-    if dtype is not None:
-        arr, *_ = convert_data_type(arr, dtype=dtype)
-
+    dtype_ = dtype or arr.dtype
     mina = arr.min()
     maxa = arr.max()
 
@@ -164,7 +165,10 @@ def rescale_array(
         return arr * minv
 
     norm = (arr - mina) / (maxa - mina)  # normalize the array first
-    return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
+    arr = (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
+
+    ret, *_ = convert_data_type(arr, dtype=dtype_)
+    return ret
 
 
 def rescale_instance_array(
@@ -173,7 +177,7 @@ def rescale_instance_array(
     """
     Rescale each array slice along the first dimension of `arr` independently.
     """
-    out: np.ndarray = np.zeros(arr.shape, dtype)
+    out: np.ndarray = np.zeros(arr.shape, dtype or arr.dtype)
     for i in range(arr.shape[0]):
         out[i] = rescale_array(arr[i], minv, maxv, dtype)
 
@@ -184,8 +188,8 @@ def rescale_array_int_max(arr: np.ndarray, dtype: DtypeLike = np.uint16) -> np.n
     """
     Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`.
     """
-    info: np.iinfo = np.iinfo(dtype)
-    return np.asarray(rescale_array(arr, info.min, info.max), dtype=dtype)
+    info: np.iinfo = np.iinfo(dtype or arr.dtype)
+    return np.asarray(rescale_array(arr, info.min, info.max), dtype=dtype or arr.dtype)
 
 
 def copypaste_arrays(
@@ -1234,12 +1238,7 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
 
 
 def equalize_hist(
-    img: NdarrayOrTensor,
-    mask: Optional[NdarrayOrTensor] = None,
-    num_bins: int = 256,
-    min: int = 0,
-    max: int = 255,
-    dtype: DtypeLike = np.float32,
+    img: np.ndarray, mask: Optional[np.ndarray] = None, num_bins: int = 256, min: int = 0, max: int = 255
 ) -> np.ndarray:
     """
     Utility to equalize input image based on the histogram.
@@ -1254,17 +1253,11 @@ def equalize_hist(
             https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
         min: the min value to normalize input image, default to `0`.
         max: the max value to normalize input image, default to `255`.
-        dtype: data type of the output, default to `float32`.
 
     """
-    img_np: np.ndarray
-    img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-    mask_np: Optional[np.ndarray] = None
-    if mask is not None:
-        mask_np, *_ = convert_data_type(mask, np.ndarray)  # type: ignore
 
-    orig_shape = img_np.shape
-    hist_img = img_np[np.array(mask_np, dtype=bool)] if mask_np is not None else img_np
+    orig_shape = img.shape
+    hist_img = img[np.array(mask, dtype=bool)] if mask is not None else img
     if has_skimage:
         hist, bins = exposure.histogram(hist_img.flatten(), num_bins)
     else:
@@ -1276,9 +1269,8 @@ def equalize_hist(
     cum = rescale_array(arr=cum, minv=min, maxv=max)
 
     # apply linear interpolation
-    img_np = np.interp(img_np.flatten(), bins, cum)
-
-    return img_np.reshape(orig_shape).astype(dtype)
+    img = np.interp(img.flatten(), bins, cum)
+    return img.reshape(orig_shape)
 
 
 class Fourier:
