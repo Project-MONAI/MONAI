@@ -157,7 +157,8 @@ def rescale_array(
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
-    dtype_ = dtype or arr.dtype
+    if dtype is not None:
+        arr, *_ = convert_data_type(arr, dtype=dtype)
     mina = arr.min()
     maxa = arr.max()
 
@@ -165,10 +166,7 @@ def rescale_array(
         return arr * minv
 
     norm = (arr - mina) / (maxa - mina)  # normalize the array first
-    arr = (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
-
-    ret, *_ = convert_data_type(arr, dtype=dtype_)
-    return ret
+    return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
 def rescale_instance_array(
