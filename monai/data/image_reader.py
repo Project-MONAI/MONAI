@@ -668,19 +668,19 @@ class WSIReader(ImageReader):
     Read whole slide imaging and extract patches.
 
     Args:
-        reader_lib: backend library to load the images, available options: "OpenSlide" or "cuCIM".
+        backend: backend library to load the images, available options: "OpenSlide" or "cuCIM".
 
     """
 
-    def __init__(self, reader_lib: str = "OpenSlide", level: int = 0):
+    def __init__(self, backend: str = "OpenSlide", level: int = 0):
         super().__init__()
-        self.reader_lib = reader_lib.lower()
-        if self.reader_lib == "openslide":
+        self.backend = backend.lower()
+        if self.backend == "openslide":
             self.wsi_reader, *_ = optional_import("openslide", name="OpenSlide")
-        elif self.reader_lib == "cucim":
+        elif self.backend == "cucim":
             self.wsi_reader, *_ = optional_import("cucim", name="CuImage")
         else:
-            raise ValueError('`reader_lib` should be either "cuCIM" or "OpenSlide"')
+            raise ValueError('`backend` should be either "cuCIM" or "OpenSlide"')
         self.level = level
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
@@ -709,7 +709,7 @@ class WSIReader(ImageReader):
         filenames: Sequence[str] = ensure_tuple(data)
         for name in filenames:
             img = self.wsi_reader(name)
-            if self.reader_lib == "openslide":
+            if self.backend == "openslide":
                 img.shape = (img.dimensions[1], img.dimensions[0], 3)
             img_.append(img)
 
@@ -742,7 +742,7 @@ class WSIReader(ImageReader):
         if level is None:
             level = self.level
 
-        if self.reader_lib == "openslide" and size is None:
+        if self.backend == "openslide" and size is None:
             # the maximum size is set to WxH
             size = (img.shape[0] // (2 ** level) - location[0], img.shape[1] // (2 ** level) - location[1])
 
@@ -783,7 +783,7 @@ class WSIReader(ImageReader):
 
     def convert_to_rgb_array(self, raw_region, dtype: DtypeLike = np.uint8):
         """Convert to RGB mode and numpy array"""
-        if self.reader_lib == "openslide":
+        if self.backend == "openslide":
             # convert to RGB
             raw_region = raw_region.convert("RGB")
             # convert to numpy
