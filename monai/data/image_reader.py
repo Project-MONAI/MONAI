@@ -672,7 +672,7 @@ class WSIReader(ImageReader):
 
     """
 
-    def __init__(self, reader_lib: str = "OpenSlide"):
+    def __init__(self, reader_lib: str = "OpenSlide", level: int = 0):
         super().__init__()
         self.reader_lib = reader_lib.lower()
         if self.reader_lib == "openslide":
@@ -681,6 +681,7 @@ class WSIReader(ImageReader):
             self.wsi_reader, *_ = optional_import("cucim", name="CuImage")
         else:
             raise ValueError('`reader_lib` should be either "cuCIM" or "OpenSlide"')
+        self.level = level
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -695,10 +696,12 @@ class WSIReader(ImageReader):
     def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
         """
         Read image data from specified file or files.
-        Note that the returned object is CuImage or list of CuImage objects.
 
         Args:
             data: file name or a list of file names to read.
+
+        Returns:
+            image object or list of image objects
 
         """
         img_: List = []
@@ -717,7 +720,7 @@ class WSIReader(ImageReader):
         img,
         location: Tuple[int, int] = (0, 0),
         size: Optional[Tuple[int, int]] = None,
-        level: int = 0,
+        level: Optional[int] = None,
         dtype: DtypeLike = np.uint8,
         grid_shape: Tuple[int, int] = (1, 1),
         patch_size: Optional[Union[int, Tuple[int, int]]] = None,
@@ -736,6 +739,8 @@ class WSIReader(ImageReader):
             grid_shape: (row, columns) tuple define a grid to extract patches on that
             patch_size: (height, width) the size of extracted patches at the given level
         """
+        if level is None:
+            level = self.level
 
         if self.reader_lib == "openslide" and size is None:
             # the maximum size is set to WxH
