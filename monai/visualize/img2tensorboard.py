@@ -24,15 +24,27 @@ GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
 if TYPE_CHECKING:
     from tensorboard.compat.proto.summary_pb2 import Summary
     from torch.utils.tensorboard import SummaryWriter
+    from tensorboardX.proto.summary_pb2 import Summary as SummaryX
+    from tensorboardX import SummaryWriter as SummaryWriterX
+    has_tensorboardX = True
 else:
     Summary, _ = optional_import("tensorboard.compat.proto.summary_pb2", name="Summary")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+    SummaryX, has_tensorboardX = optional_import("tensorboardX.proto.summary_pb2", name="Summary")
+    SummaryWriterX, has_tensorboardX = optional_import("tensorboardX", name="SummaryWriter")
+
+
 
 
 __all__ = ["make_animated_gif_summary", "add_animated_gif", "add_animated_gif_no_channels", "plot_2d_or_3d_image"]
 
 
-def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0) -> Summary:
+def _image3_animated_gif(
+    tag: str,
+    image: Union[np.ndarray, torch.Tensor],
+    writer: Union[SummaryWriter, SummaryWriterX],
+    scale_factor: float = 1.0,
+):
     """Function to actually create the animated gif.
 
     Args:
@@ -54,14 +66,17 @@ def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale
         for b_data in PIL.GifImagePlugin.getdata(i):
             img_str += b_data
     img_str += b"\x3B"
-    summary_image_str = Summary.Image(height=10, width=10, colorspace=1, encoded_image_string=img_str)
-    image_summary = Summary.Value(tag=tag, image=summary_image_str)
-    return Summary(value=[image_summary])
+
+    summary = SummaryX if has_tensorboardX and isinstance(writer, SummaryWriterX) else Summary
+    summary_image_str = summary.Image(height=10, width=10, colorspace=1, encoded_image_string=img_str)
+    image_summary = summary.Value(tag=tag, image=summary_image_str)
+    return summary(value=[image_summary])
 
 
 def make_animated_gif_summary(
     tag: str,
     image: Union[np.ndarray, torch.Tensor],
+    writer: Union[SummaryWriter, SummaryWriterX],
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
@@ -73,6 +88,7 @@ def make_animated_gif_summary(
     Args:
         tag: Data identifier
         image: The image, expected to be in CHWD format
+        writer: the tensorboard writer to plot image
         max_out: maximum number of slices to animate through
         animation_axes: axis to animate on (not currently used)
         image_axes: axes of image (not currently used)
@@ -99,12 +115,12 @@ def make_animated_gif_summary(
         one_channel_img: Union[torch.Tensor, np.ndarray] = (
             image[it_i, :, :, :].squeeze(dim=0) if isinstance(image, torch.Tensor) else image[it_i, :, :, :]
         )
-        summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, scale_factor)
+        summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, writer, scale_factor)
     return summary_op
 
 
 def add_animated_gif(
-    writer: SummaryWriter,
+    writer: Union[SummaryWriter, SummaryWriterX],
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
@@ -124,7 +140,13 @@ def add_animated_gif(
     """
     writer._get_file_writer().add_summary(
         make_animated_gif_summary(
-            tag, image_tensor, max_out=max_out, animation_axes=[1], image_axes=[2, 3], scale_factor=scale_factor
+            tag=tag,
+            image=image_tensor,
+            writer=writer,
+            max_out=max_out,
+            animation_axes=[1],
+            image_axes=[2, 3],
+            scale_factor=scale_factor,
         ),
         global_step,
     )
@@ -153,7 +175,13 @@ def add_animated_gif_no_channels(
     """
     writer._get_file_writer().add_summary(
         make_animated_gif_summary(
-            tag, image_tensor, max_out=max_out, animation_axes=[1], image_axes=[1, 2], scale_factor=scale_factor
+            tag=tag,
+            image=image_tensor,
+            writer=writer,
+            max_out=max_out,
+            animation_axes=[1],
+            image_axes=[1, 2],
+            scale_factor=scale_factor,
         ),
         global_step,
     )
@@ -162,7 +190,7 @@ def add_animated_gif_no_channels(
 def plot_2d_or_3d_image(
     data: Union[NdarrayTensor, List[NdarrayTensor]],
     step: int,
-    writer: SummaryWriter,
+    writer: Union[SummaryWriter, SummaryWriterX],
     index: int = 0,
     max_channels: int = 1,
     max_frames: int = 64,
@@ -206,7 +234,9 @@ def plot_2d_or_3d_image(
 
     if d.ndim >= 4:
         spatial = d.shape[-3:]
-        for j, d3 in enumerate(d.reshape([-1] + list(spatial))[:max_channels]):
+        d = d.reshape([-1] + list(spatial))
+
+        for j, d3 in enumerate(d[:max_channels]):
             d3 = rescale_array(d3, 0, 255)
             add_animated_gif(writer, f"{tag}_HWD_{j}", d3[None], max_frames, 1.0, step)
         return

@@ -18,6 +18,10 @@ from parameterized import parameterized
 from torch.utils.tensorboard import SummaryWriter
 
 from monai.visualize import plot_2d_or_3d_image
+from monai.utils import optional_import
+from tests.utils import SkipIfNoModule
+
+SummaryWriterX, has_tensorboardX = optional_import("tensorboardX", name="SummaryWriter")
 
 TEST_CASE_1 = [(1, 1, 10, 10)]
 
@@ -35,6 +39,16 @@ class TestPlot2dOr3dImage(unittest.TestCase):
     def test_tb_image_shape(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:
             writer = SummaryWriter(log_dir=tempdir)
+            plot_2d_or_3d_image(torch.zeros(shape), 0, writer)
+            writer.flush()
+            writer.close()
+            self.assertTrue(len(glob.glob(tempdir)) > 0)
+
+    @SkipIfNoModule("tensorboardX")
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    def test_tb_image_shape(self, shape):
+        with tempfile.TemporaryDirectory() as tempdir:
+            writer = SummaryWriterX(log_dir=tempdir)
             plot_2d_or_3d_image(torch.zeros(shape), 0, writer)
             writer.flush()
             writer.close()
