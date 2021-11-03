@@ -627,6 +627,8 @@ class PILReader(ImageReader):
         It computes `spatial_shape` and stores it in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the meta data of the first image is used to represent the output meta data.
+        Note that it will switch axis 0 and 1 after loading the array because the `HW` definition in PIL
+        is different from other common medical packages.
 
         Args:
             img: a PIL Image object loaded from a file or a list of PIL Image objects.
