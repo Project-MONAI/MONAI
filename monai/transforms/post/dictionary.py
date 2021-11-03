@@ -192,6 +192,8 @@ class KeepLargestConnectedComponentd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.KeepLargestConnectedComponent`.
     """
 
+    backend = KeepLargestConnectedComponent.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -207,9 +209,11 @@ class KeepLargestConnectedComponentd(MapTransform):
             applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
                 If the data is in one-hot format, this is the channel indices to apply transform.
-            independent: consider several labels as a whole or independent, default is `True`.
-                Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
-                you want this "independent" to be specified as False.
+            independent: whether to treat ``applied_labels`` as a union of foreground labels.
+                If ``True``, the connected component analysis will be performed on each foreground label independently
+                and return the intersection of the largest component.
+                If ``False``, the analysis will be performed on the union of foreground labels.
+                default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
@@ -219,7 +223,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
