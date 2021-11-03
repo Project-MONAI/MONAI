@@ -16,7 +16,7 @@ import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms.smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity
-from monai.transforms.transform import MapTransform, RandomizableTransform, Transform
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform, Transform
 from monai.utils import InterpolateMode
 
 __all__ = ["RandSmoothFieldAdjustContrastd", "RandSmoothFieldAdjustIntensityd"]

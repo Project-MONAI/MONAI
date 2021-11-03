@@ -719,7 +719,7 @@ Smooth Field
     :special-members: __call__
 
 `RandSmoothFieldAdjustIntensity`
-"""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""
 .. autoclass:: RandSmoothFieldAdjustIntensity
     :members:
     :special-members: __call__
@@ -1500,7 +1500,7 @@ Smooth Field (Dict)
     :special-members: __call__
 
 `RandSmoothFieldAdjustIntensityd`
-""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""
 .. autoclass:: RandSmoothFieldAdjustIntensityd
     :members:
     :special-members: __call__
