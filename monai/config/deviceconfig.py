@@ -75,6 +75,8 @@ def get_optional_config_values():
     output["einops"] = get_package_version("einops")
     output["transformers"] = get_package_version("transformers")
     output["mlflow"] = get_package_version("mlflow")
+    output["matplotlib"] = get_package_version("matplotlib")
+    output["tensorboardX"] = get_package_version("tensorboardX")
 
     return output
 
