@@ -35,6 +35,18 @@ class TestScaleIntensity(NumpyImageTestCase2D):
             expected = p((self.imt * (1 + 0.1)).astype(np.float32))
             assert_allclose(result, p(expected), rtol=1e-7, atol=0)
 
+    def test_int(self):
+        """integers should be handled by converting them to floats first."""
+        for p in TEST_NDARRAYS:
+            scaler = ScaleIntensity(minv=1.0, maxv=2.0)
+            result = scaler(p(self.imt.astype(int)))
+            _imt = self.imt.astype(int).astype(np.float32)
+            mina = _imt.min()
+            maxa = _imt.max()
+            norm = (_imt - mina) / (maxa - mina)
+            expected = p((norm * (2.0 - 1.0)) + 1.0)
+            assert_allclose(result, expected, type_test=False, rtol=1e-7, atol=0)
+
     def test_channel_wise(self):
         for p in TEST_NDARRAYS:
             scaler = ScaleIntensity(minv=1.0, maxv=2.0, channel_wise=True)
