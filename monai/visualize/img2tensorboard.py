@@ -27,12 +27,12 @@ if TYPE_CHECKING:
     from tensorboardX.proto.summary_pb2 import Summary as SummaryX
     from torch.utils.tensorboard import SummaryWriter
 
-    has_tensorboardX = True
+    has_tensorboardx = True
 else:
     Summary, _ = optional_import("tensorboard.compat.proto.summary_pb2", name="Summary")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
-    SummaryX, has_tensorboardX = optional_import("tensorboardX.proto.summary_pb2", name="Summary")
-    SummaryWriterX, has_tensorboardX = optional_import("tensorboardX", name="SummaryWriter")
+    SummaryX, has_tensorboardx = optional_import("tensorboardX.proto.summary_pb2", name="Summary")
+    SummaryWriterX, has_tensorboardx = optional_import("tensorboardX", name="SummaryWriter")
 
 __all__ = ["make_animated_gif_summary", "add_animated_gif", "add_animated_gif_no_channels", "plot_2d_or_3d_image"]
 
@@ -65,7 +65,7 @@ def _image3_animated_gif(
             img_str += b_data
     img_str += b"\x3B"
 
-    summary = SummaryX if has_tensorboardX and isinstance(writer, SummaryWriterX) else Summary
+    summary = SummaryX if has_tensorboardx and isinstance(writer, SummaryWriterX) else Summary
     summary_image_str = summary.Image(height=10, width=10, colorspace=1, encoded_image_string=img_str)
     image_summary = summary.Value(tag=tag, image=summary_image_str)
     return summary(value=[image_summary])
@@ -234,7 +234,7 @@ def plot_2d_or_3d_image(
     if d.ndim >= 4:
         spatial = d.shape[-3:]
         d = d.reshape([-1] + list(spatial))
-        if d.shape[0] == 3 and max_channels == 3 and has_tensorboardX and isinstance(writer, SummaryWriterX):  # RGB
+        if d.shape[0] == 3 and max_channels == 3 and has_tensorboardx and isinstance(writer, SummaryWriterX):  # RGB
             writer.add_video(tag, d[None], step, fps=max_frames, dataformats="NCHWT")
             return
 
