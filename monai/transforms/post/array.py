@@ -275,7 +275,7 @@ class KeepLargestConnectedComponent(Transform):
                 If the data is in one-hot format, this is used to determine which channels to apply.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
-                and return the intersection of the largest component.
+                and return the intersection of the largest components.
                 If ``False``, the analysis will be performed on the union of foreground labels.
                 default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
@@ -460,7 +460,7 @@ class FillHoles(Transform):
 
 class LabelToContour(Transform):
     """
-    Return the contour of binary input images that only compose of 0 and 1, with Laplace kernel
+    Return the contour of binary input images that only compose of 0 and 1, with Laplacian kernel
     set as default for edge detection. Typical usage is to plot the edge of label or segmentation output.
 
     Args:

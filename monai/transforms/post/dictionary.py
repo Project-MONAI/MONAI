@@ -211,7 +211,7 @@ class KeepLargestConnectedComponentd(MapTransform):
                 If the data is in one-hot format, this is the channel indices to apply transform.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
-                and return the intersection of the largest component.
+                and return the intersection of the largest components.
                 If ``False``, the analysis will be performed on the union of foreground labels.
                 default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
