@@ -18,11 +18,10 @@ from typing import Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks import one_hot
-from monai.networks.layers import GaussianFilter
+from monai.networks.layers import GaussianFilter, apply_filter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
@@ -471,12 +470,14 @@ class LabelToContour(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(self, kernel_type: str = "Laplace") -> None:
         if kernel_type != "Laplace":
             raise NotImplementedError('Currently only kernel_type="Laplace" is supported.')
         self.kernel_type = kernel_type
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: torch tensor data to extract the contour, with shape: [channels, height, width[, depth]]
@@ -492,22 +493,20 @@ class LabelToContour(Transform):
                    ideally the edge should be thin enough, but now it has a thickness.
 
         """
-        channels = img.shape[0]
-        img_ = img.unsqueeze(0)
-        if img.ndimension() == 3:
-            kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32, device=img.device)
-            kernel = kernel.repeat(channels, 1, 1, 1)
-            contour_img = F.conv2d(img_, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
-        elif img.ndimension() == 4:
-            kernel = -1 * torch.ones(3, 3, 3, dtype=torch.float32, device=img.device)
-            kernel[1, 1, 1] = 26
-            kernel = kernel.repeat(channels, 1, 1, 1, 1)
-            contour_img = F.conv3d(img_, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
+        img_: torch.Tensor = convert_data_type(img, torch.Tensor)[0]  # type: ignore
+        spatial_dims = len(img_.shape) - 1
+        img_ = img_.unsqueeze(0)  # adds a batch dim
+        if spatial_dims == 2:
+            kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)
+        elif spatial_dims == 3:
+            kernel = -1.0 * torch.ones(3, 3, 3, dtype=torch.float32)
+            kernel[1, 1, 1] = 26.0
         else:
-            raise ValueError(f"Unsupported img dimension: {img.ndimension()}, available options are [4, 5].")
-
+            raise ValueError(f"{self.__class__} can only handle 2D or 3D images.")
+        contour_img = apply_filter(img_, kernel)
         contour_img.clamp_(min=0.0, max=1.0)
-        return contour_img.squeeze(0)
+        output, *_ = convert_to_dst_type(contour_img.squeeze(0), img)
+        return output
 
 
 class Ensemble:

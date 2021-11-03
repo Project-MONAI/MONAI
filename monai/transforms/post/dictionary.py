@@ -300,6 +300,8 @@ class LabelToContourd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelToContour`.
     """
 
+    backend = LabelToContour.backend
+
     def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace", allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -312,7 +314,7 @@ class LabelToContourd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelToContour(kernel_type=kernel_type)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
