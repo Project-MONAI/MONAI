@@ -30,8 +30,7 @@ from monai.data.png_saver import PNGSaver
 from monai.transforms.transform import Transform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, ensure_tuple, optional_import
-from monai.utils.module import look_up_option
+from monai.utils import InterpolateMode, OptionalImportError, ensure_tuple, look_up_option, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -126,6 +125,10 @@ class LoadImage(Transform):
         for r in SUPPORTED_READERS:  # set predefined readers as default
             try:
                 self.register(SUPPORTED_READERS[r](*args, **kwargs))
+            except OptionalImportError:
+                logging.getLogger(self.__class__.__name__).debug(
+                    f"required package for reader {r} is not installed, or the version doesn't match requirement."
+                )
             except TypeError:  # the reader doesn't have the corresponding args/kwargs
                 logging.getLogger(self.__class__.__name__).debug(
                     f"{r} is not supported with the given parameters {args} {kwargs}."
@@ -139,6 +142,10 @@ class LoadImage(Transform):
                 the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
                 try:
                     self.register(the_reader(*args, **kwargs))
+                except OptionalImportError:
+                    warnings.warn(
+                        f"required package for reader {r} is not installed, or the version doesn't match requirement."
+                    )
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
                     warnings.warn(f"{r} is not supported with the given parameters {args} {kwargs}.")
                     self.register(the_reader())

@@ -470,6 +470,11 @@ Nets
 .. autoclass:: ViT
   :members:
 
+`ViTAutoEnc`
+~~~~~~~~~~~~
+.. autoclass:: ViTAutoEnc
+  :members:
+
 `FullyConnectedNet`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: FullyConnectedNet
@@ -498,6 +503,11 @@ Nets
 `Critic`
 ~~~~~~~~
 .. autoclass:: Critic
+  :members:
+
+`Transchex`
+~~~~~~~~~~~~~~~~
+.. autoclass:: Transchex
   :members:
 
 `NetAdapter`

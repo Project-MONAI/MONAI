@@ -159,7 +159,7 @@ class TestTimeAugmentation:
             raise ValueError("num_examples should be multiple of batch size.")
 
         # generate batch of data of size == batch_size, dataset and dataloader
-        data_in = [d] * num_examples
+        data_in = [deepcopy(d) for _ in range(num_examples)]
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
@@ -184,9 +184,7 @@ class TestTimeAugmentation:
             transform_info = batch_data[transform_key]
             if self.nearest_interp:
                 transform_info = convert_inverse_interp_mode(
-                    trans_info=deepcopy(transform_info),
-                    mode="nearest",
-                    align_corners=None,
+                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
                 )
 
             # create a dictionary containing the inferred batch and their transforms
