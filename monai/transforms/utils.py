@@ -156,6 +156,13 @@ def rescale_array(
 ) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
+
+    Args:
+        arr: input array to rescale.
+        minv: minimum value of target rescaled array.
+        maxv: maxmum value of target rescaled array.
+        dtype: if not None, convert input array to dtype before computation.
+
     """
     if dtype is not None:
         arr, *_ = convert_data_type(arr, dtype=dtype)
@@ -915,7 +922,7 @@ def generate_spatial_bounding_box(
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Optional[int] = None) -> torch.Tensor:
+def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Optional[int] = None) -> NdarrayOrTensor:
     """
     Gets the largest connected component mask of an image.
 
@@ -925,13 +932,13 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """
-    img_arr = img.detach().cpu().numpy()
-    largest_cc = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
+    img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
+    largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
     img_arr = measure.label(img_arr, connectivity=connectivity)
     if img_arr.max() != 0:
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
-
-    return torch.as_tensor(largest_cc, device=img.device)
+    largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
+    return largest_cc
 
 
 def fill_holes(
