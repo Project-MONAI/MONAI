@@ -23,7 +23,6 @@ from monai.utils import InterpolateMode, ensure_tuple
 
 __all__ = [
     "SmoothField",
-    "SmoothFieldAdjustContrast",
     "RandSmoothFieldAdjustContrast",
     "RandSmoothFieldAdjustIntensity",
 ]
