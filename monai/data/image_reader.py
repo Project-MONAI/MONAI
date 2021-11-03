@@ -559,7 +559,7 @@ class NumpyReader(ImageReader):
             header = {}
             if isinstance(i, np.ndarray):
                 # can not detect the channel dim of numpy array, use all the dims as spatial_shape
-                header["spatial_shape"] = i.shape
+                header["spatial_shape"] = np.asarray(i.shape)
             img_array.append(i)
             _copy_compatible_dict(header, compatible_meta)
 
@@ -753,7 +753,7 @@ class WSIReader(ImageReader):
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
         metadata: Dict = {}
-        metadata["spatial_shape"] = size
+        metadata["spatial_shape"] = np.asarray(size)
         metadata["original_channel_dim"] = -1
         region = EnsureChannelFirst()(region, metadata)
         if patch_size is None:
