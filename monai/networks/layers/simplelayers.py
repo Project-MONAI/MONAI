@@ -213,7 +213,8 @@ def separable_filtering(x: torch.Tensor, kernels: List[torch.Tensor], mode: str 
     Args:
         x: the input image. must have shape (batch, channels, H[, W, ...]).
         kernels: kernel along each spatial dimension.
-            could be a single kernel (duplicated for all spatial dimensions), or `spatial_dims` number of kernels.
+            could be a single kernel (duplicated for all spatial dimensions), or
+            a list of `spatial_dims` number of kernels.
         mode (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'``
             or ``'circular'``. Default: ``'zeros'``. Modes other than ``'zeros'`` require PyTorch version >= 1.5.1. See
             torch.nn.Conv1d() for more information.
@@ -246,6 +247,17 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
 
     Returns:
         The filtered `x`.
+
+    Examples:
+
+    .. code-block:: python
+
+        >>> import torch
+        >>> from monai.networks.layers import apply_filter
+        >>> img = torch.rand(2, 5, 10, 10)  # batch_size 2, channels 5, 10x10 2D images
+        >>> out = apply_filter(img, torch.rand(3, 3))   # spatial kernel
+        >>> out = apply_filter(img, torch.rand(5, 3, 3))  # channel-wise kernels
+        >>> out = apply_filter(img, torch.rand(2, 5, 3, 3))  # batch-, channel-wise kernels
 
     """
     if not isinstance(x, torch.Tensor):
