@@ -241,7 +241,7 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
     Args:
         x: the input image, must have shape (batch, channels, H[, W, D]).
         kernel: `kernel` must at least have the spatial shape (H_k[, W_k, D_k]).
-            If `kernel` has higher dimensions, it must be broadcastable to the `batch` and `channels` dimensions of `x`.
+            `kernel` shape must be broadcastable to the `batch` and `channels` dimensions of `x`.
         kwargs: keyword arguments passed to `conv*d()` functions.
 
     Returns:
@@ -259,15 +259,10 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
         raise ValueError(
             f"kernel must have {n_spatial} ~ {n_spatial + 2} dimensions to match the input shape {x.shape}."
         )
-    if k_size == n_spatial:  # need to add batch and channel dims
-        kernel = kernel.expand(1, 1, *kernel.shape)
-    elif k_size == n_spatial + 1:  # need to add a batch dim
-        kernel = kernel.expand(batch, -1, *kernel.shape[1:])
-
-    # with batch and channel
     kernel = kernel.to(x)
-    kernel = kernel.expand(batch, chns, *kernel.shape[2:])
-    kernel = kernel.reshape(-1, 1, *kernel.shape[2:])
+    # broadcast kernel size to (batch chns, spatial_kernel_size)
+    kernel = kernel.expand(batch, chns, *kernel.shape[(k_size - n_spatial) :])
+    kernel = kernel.reshape(-1, 1, *kernel.shape[2:])  # group=1
     x = x.view(1, kernel.shape[0], *spatials)
     conv = [F.conv1d, F.conv2d, F.conv3d][n_spatial - 1]
     if "padding" not in kwargs:
