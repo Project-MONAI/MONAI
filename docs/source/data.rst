@@ -200,6 +200,8 @@ DatasetSummary
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.data.load_decathlon_datalist
+.. autofunction:: monai.data.load_decathlon_properties
+.. autofunction:: monai.data.check_missing_files
 
 
 DataLoader
