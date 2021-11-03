@@ -63,9 +63,7 @@ class PostProcessing:
         """
         if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
             engine.state.batch, engine.state.output = engine_apply_transform(
-                batch=engine.state.batch,
-                output=engine.state.output,
-                transform=self.transform,
+                batch=engine.state.batch, output=engine.state.output, transform=self.transform
             )
         else:
             for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):

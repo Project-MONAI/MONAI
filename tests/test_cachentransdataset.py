@@ -42,19 +42,13 @@ class TestCacheNTransDataset(unittest.TestCase):
 
             cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
             dataset_precached = CacheNTransDataset(
-                data=test_data,
-                transform=transform,
-                cache_dir=cache_dir,
-                cache_n_trans=2,
+                data=test_data, transform=transform, cache_dir=cache_dir, cache_n_trans=2
             )
             data_precached = dataset_precached[0]
             self.assertTupleEqual(data_precached["image"].shape, expected_shape)
 
             dataset_postcached = CacheNTransDataset(
-                data=test_data,
-                transform=transform,
-                cache_dir=cache_dir,
-                cache_n_trans=2,
+                data=test_data, transform=transform, cache_dir=cache_dir, cache_n_trans=2
             )
             data_postcached = dataset_postcached[0]
             self.assertTupleEqual(data_postcached["image"].shape, expected_shape)
