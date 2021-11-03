@@ -235,6 +235,9 @@ def plot_2d_or_3d_image(
     if d.ndim >= 4:
         spatial = d.shape[-3:]
         d = d.reshape([-1] + list(spatial))
+        if d.shape[0] == 3 and max_channels == 3 and has_tensorboardX and isinstance(writer, SummaryWriterX):  # RGB
+            writer.add_video(tag, d[None], step, fps=max_frames, dataformats="NCHWT")
+            return
 
         for j, d3 in enumerate(d[:max_channels]):
             d3 = rescale_array(d3, 0, 255)
