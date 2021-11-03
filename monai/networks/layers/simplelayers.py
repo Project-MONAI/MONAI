@@ -236,14 +236,13 @@ def separable_filtering(x: torch.Tensor, kernels: List[torch.Tensor], mode: str 
 
 def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tensor:
     """
-    Filtering `x` with `kernel` independently for each batch and channel.
-    (Padding is not implemented for the even-sized kernels.)
+    Filtering `x` with `kernel` independently for each batch and channel respectively.
 
     Args:
         x: the input image, must have shape (batch, channels, H[, W, D]).
         kernel: `kernel` must at least have the spatial shape (H_k[, W_k, D_k]).
             If `kernel` has higher dimensions, it must be broadcastable to the `batch` and `channels` dimensions of `x`.
-        kwargs: keyword arguments passed to conv*d() functions.
+        kwargs: keyword arguments passed to `conv*d()` functions.
 
     Returns:
         The filtered `x`.
@@ -272,7 +271,8 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
     x = x.view(1, kernel.shape[0], *spatials)
     conv = [F.conv1d, F.conv2d, F.conv3d][n_spatial - 1]
     if "padding" not in kwargs:
-        if version_leq(torch.__version__, "1.9.10"):
+        if version_leq(torch.__version__, "1.10.0b"):
+            # even-sized kernels are not supported
             kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
         else:
             kwargs["padding"] = "same"

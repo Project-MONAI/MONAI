@@ -122,7 +122,8 @@ def gen_fixed_img(array_type):
             [0, 0, 1, 1, 1, 1, 1],
             [0, 1, 1, 1, 1, 1, 1],
             [1, 1, 1, 1, 1, 1, 1],
-        ]
+        ],
+        dtype=np.float32,
     )
     batch_size, channels = 10, 6
     img = np.tile(img, (batch_size, channels, 1, 1))
