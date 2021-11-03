@@ -436,14 +436,14 @@ class ScaleIntensity(Transform):
         if self.minv is not None and self.maxv is not None:
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
-                return torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
-            return rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
-        if self.factor is not None:
-            ret = img * (1 + self.factor)
-            if self.dtype is not None:
-                ret, *_ = convert_data_type(ret, dtype=self.dtype or img.dtype)
-            return ret
-        raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
+                ret = torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
+            else:
+                ret = rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
+        else:
+            ret = (img * (1 + self.factor)) if self.factor is not None else img
+
+        ret, *_ = convert_data_type(ret, dtype=self.dtype or img.dtype)
+        return ret
 
 
 class RandScaleIntensity(RandomizableTransform):
