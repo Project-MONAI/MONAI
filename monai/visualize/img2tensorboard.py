@@ -40,7 +40,7 @@ __all__ = ["make_animated_gif_summary", "add_animated_gif", "add_animated_gif_no
 def _image3_animated_gif(
     tag: str,
     image: Union[np.ndarray, torch.Tensor],
-    writer: Union[SummaryWriter, SummaryWriterX],
+    writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None,
     scale_factor: float = 1.0,
 ):
     """Function to actually create the animated gif.
@@ -74,7 +74,7 @@ def _image3_animated_gif(
 def make_animated_gif_summary(
     tag: str,
     image: Union[np.ndarray, torch.Tensor],
-    writer: Union[SummaryWriter, SummaryWriterX],
+    writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None,
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
