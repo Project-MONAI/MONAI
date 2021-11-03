@@ -57,12 +57,12 @@ class TestPlot2dOr3dImage(unittest.TestCase):
     @SkipIfNoModule("tensorboardX")
     @parameterized.expand([TEST_CASE_5])
     def test_tbx_video(self, shape):
-        tempdir = "./"
-        writer = SummaryWriterX(log_dir=tempdir)
-        plot_2d_or_3d_image(torch.rand(shape), 0, writer, max_channels=3)
-        writer.flush()
-        writer.close()
-        self.assertTrue(len(glob.glob(tempdir)) > 0)
+        with tempfile.TemporaryDirectory() as tempdir:
+            writer = SummaryWriterX(log_dir=tempdir)
+            plot_2d_or_3d_image(torch.rand(shape), 0, writer, max_channels=3)
+            writer.flush()
+            writer.close()
+            self.assertTrue(len(glob.glob(tempdir)) > 0)
 
 
 if __name__ == "__main__":

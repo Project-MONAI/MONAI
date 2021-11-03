@@ -33,9 +33,6 @@ else:
     SummaryX, has_tensorboardX = optional_import("tensorboardX.proto.summary_pb2", name="Summary")
     SummaryWriterX, has_tensorboardX = optional_import("tensorboardX", name="SummaryWriter")
 
-
-
-
 __all__ = ["make_animated_gif_summary", "add_animated_gif", "add_animated_gif_no_channels", "plot_2d_or_3d_image"]
 
 
@@ -200,13 +197,14 @@ def plot_2d_or_3d_image(
 
     Note:
         Plot 3D or 2D image(with more than 3 channels) as separate images.
+        And if writer is from TensorBoardX, data has 3 channels and `max_channels=3`, will plot as RGB GIF image.
 
     Args:
         data: target data to be plotted as image on the TensorBoard.
             The data is expected to have 'NCHW[D]' dimensions or a list of data with `CHW[D]` dimensions,
             and only plot the first in the batch.
         step: current step to plot in a chart.
-        writer: specify TensorBoard SummaryWriter to plot the image.
+        writer: specify TensorBoard or TensorBoardX SummaryWriter to plot the image.
         index: plot which element in the input data batch, default is the first element.
         max_channels: number of channels to plot.
         max_frames: number of frames for 2D-t plot.

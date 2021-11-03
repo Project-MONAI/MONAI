@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -23,9 +23,11 @@ Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from torch.utils.tensorboard import SummaryWriter
+    from tensorboardX import SummaryWriter as SummaryWriterX
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+    SummaryWriterX, _ = optional_import("tensorboardX", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
 
@@ -35,13 +37,13 @@ class TensorBoardHandler:
     Base class for the handlers to write data into TensorBoard.
 
     Args:
-        summary_writer: user can specify TensorBoard SummaryWriter,
-            default to create a new writer.
+        summary_writer: user can specify TensorBoard or TensorBoardX SummaryWriter,
+            default to create a new TensorBoard writer.
         log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
 
     """
 
-    def __init__(self, summary_writer: Optional[SummaryWriter] = None, log_dir: str = "./runs"):
+    def __init__(self, summary_writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None, log_dir: str = "./runs"):
         if summary_writer is None:
             self._writer = SummaryWriter(log_dir=log_dir)
             self.internal_writer = True
@@ -81,11 +83,11 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
     def __init__(
         self,
-        summary_writer: Optional[SummaryWriter] = None,
+        summary_writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None,
         log_dir: str = "./runs",
-        epoch_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
+        epoch_event_writer: Optional[Callable[[Engine, Union[SummaryWriter, SummaryWriterX]], Any]] = None,
         epoch_interval: int = 1,
-        iteration_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
+        iteration_event_writer: Optional[Callable[[Engine, Union[SummaryWriter, SummaryWriterX]], Any]] = None,
         iteration_interval: int = 1,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
@@ -94,8 +96,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
     ) -> None:
         """
         Args:
-            summary_writer: user can specify TensorBoard SummaryWriter,
-                default to create a new writer.
+            summary_writer: user can specify TensorBoard or TensorBoardX SummaryWriter,
+                default to create a new TensorBoard writer.
             log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
@@ -172,7 +174,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         else:
             self._default_iteration_writer(engine, self._writer)
 
-    def _default_epoch_writer(self, engine: Engine, writer: SummaryWriter) -> None:
+    def _default_epoch_writer(self, engine: Engine, writer: Union[SummaryWriter, SummaryWriterX]) -> None:
         """
         Execute epoch level event write operation.
         Default to write the values from Ignite `engine.state.metrics` dict and
@@ -180,7 +182,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
-            writer: TensorBoard writer, created in TensorBoardHandler.
+            writer: TensorBoard or TensorBoardX writer, passed or created in TensorBoardHandler.
 
         """
         current_epoch = self.global_epoch_transform(engine.state.epoch)
@@ -194,7 +196,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 writer.add_scalar(attr, getattr(engine.state, attr, None), current_epoch)
         writer.flush()
 
-    def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter) -> None:
+    def _default_iteration_writer(self, engine: Engine, writer: Union[SummaryWriter, SummaryWriterX]) -> None:
         """
         Execute iteration level event write operation based on Ignite `engine.state.output` data.
         Extract the values from `self.output_transform(engine.state.output)`.
@@ -203,7 +205,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
-            writer: TensorBoard writer, created in TensorBoardHandler.
+            writer: TensorBoard  or TensorBoardX writer, passed or created in TensorBoardHandler.
 
         """
         loss = self.output_transform(engine.state.output)
@@ -264,7 +266,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
 
     def __init__(
         self,
-        summary_writer: Optional[SummaryWriter] = None,
+        summary_writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None,
         log_dir: str = "./runs",
         interval: int = 1,
         epoch_level: bool = True,
@@ -277,8 +279,8 @@ class TensorBoardImageHandler(TensorBoardHandler):
     ) -> None:
         """
         Args:
-            summary_writer: user can specify TensorBoard SummaryWriter,
-                default to create a new writer.
+            summary_writer: user can specify TensorBoard or TensorBoardX SummaryWriter,
+                default to create a new TensorBoard writer.
             log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             interval: plot content from engine.state every N epochs or every N iterations, default is 1.
             epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
