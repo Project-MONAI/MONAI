@@ -21,11 +21,7 @@ from monai.transforms.transform import Randomizable, RandomizableTransform, Tran
 from monai.transforms.utils import rescale_array
 from monai.utils import InterpolateMode, ensure_tuple
 
-__all__ = [
-    "SmoothField",
-    "RandSmoothFieldAdjustContrast",
-    "RandSmoothFieldAdjustIntensity",
-]
+__all__ = ["SmoothField", "RandSmoothFieldAdjustContrast", "RandSmoothFieldAdjustIntensity"]
 
 
 class SmoothField(Randomizable):
@@ -113,9 +109,10 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Randomizable":
+    ) -> "RandSmoothFieldAdjustContrast":
         super().set_random_state(seed, state)
         self.sfield.set_random_state(seed, state)
+        return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
@@ -187,9 +184,10 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Randomizable":
+    ) -> "RandSmoothFieldAdjustIntensity":
         super().set_random_state(seed, state)
         self.sfield.set_random_state(seed, state)
+        return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)

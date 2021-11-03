@@ -59,9 +59,10 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Randomizable":
+    ) -> "RandSmoothFieldAdjustContrastd":
         super().set_random_state(seed, state)
         self.trans.set_random_state(seed, state)
+        return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
@@ -121,9 +122,10 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Randomizable":
+    ) -> "RandSmoothFieldAdjustIntensityd":
         super().set_random_state(seed, state)
         self.trans.set_random_state(seed, state)
+        return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
