@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 import numpy as np
 import torch
@@ -20,14 +20,13 @@ from monai.utils import is_scalar, min_version, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from tensorboardX import SummaryWriter as SummaryWriterX
     from torch.utils.tensorboard import SummaryWriter
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
-    SummaryWriterX, _ = optional_import("tensorboardX", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
 
@@ -43,7 +42,7 @@ class TensorBoardHandler:
 
     """
 
-    def __init__(self, summary_writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None, log_dir: str = "./runs"):
+    def __init__(self, summary_writer: Optional[SummaryWriter] = None, log_dir: str = "./runs"):
         if summary_writer is None:
             self._writer = SummaryWriter(log_dir=log_dir)
             self.internal_writer = True
@@ -83,11 +82,11 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
     def __init__(
         self,
-        summary_writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None,
+        summary_writer: Optional[SummaryWriter] = None,
         log_dir: str = "./runs",
-        epoch_event_writer: Optional[Callable[[Engine, Union[SummaryWriter, SummaryWriterX]], Any]] = None,
+        epoch_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
         epoch_interval: int = 1,
-        iteration_event_writer: Optional[Callable[[Engine, Union[SummaryWriter, SummaryWriterX]], Any]] = None,
+        iteration_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
         iteration_interval: int = 1,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
@@ -174,7 +173,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         else:
             self._default_iteration_writer(engine, self._writer)
 
-    def _default_epoch_writer(self, engine: Engine, writer: Union[SummaryWriter, SummaryWriterX]) -> None:
+    def _default_epoch_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
         Execute epoch level event write operation.
         Default to write the values from Ignite `engine.state.metrics` dict and
@@ -196,7 +195,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 writer.add_scalar(attr, getattr(engine.state, attr, None), current_epoch)
         writer.flush()
 
-    def _default_iteration_writer(self, engine: Engine, writer: Union[SummaryWriter, SummaryWriterX]) -> None:
+    def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
         Execute iteration level event write operation based on Ignite `engine.state.output` data.
         Extract the values from `self.output_transform(engine.state.output)`.
@@ -266,7 +265,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
 
     def __init__(
         self,
-        summary_writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None,
+        summary_writer: Optional[SummaryWriter] = None,
         log_dir: str = "./runs",
         interval: int = 1,
         epoch_level: bool = True,

@@ -20,28 +20,21 @@ from monai.utils import optional_import
 
 PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
+SummaryX, _ = optional_import("tensorboardX.proto.summary_pb2", name="Summary")
+SummaryWriterX, has_tensorboardx = optional_import("tensorboardX", name="SummaryWriter")
 
 if TYPE_CHECKING:
     from tensorboard.compat.proto.summary_pb2 import Summary
-    from tensorboardX import SummaryWriter as SummaryWriterX
-    from tensorboardX.proto.summary_pb2 import Summary as SummaryX
     from torch.utils.tensorboard import SummaryWriter
-
-    has_tensorboardx = True
 else:
     Summary, _ = optional_import("tensorboard.compat.proto.summary_pb2", name="Summary")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
-    SummaryX, has_tensorboardx = optional_import("tensorboardX.proto.summary_pb2", name="Summary")
-    SummaryWriterX, has_tensorboardx = optional_import("tensorboardX", name="SummaryWriter")
 
 __all__ = ["make_animated_gif_summary", "add_animated_gif", "add_animated_gif_no_channels", "plot_2d_or_3d_image"]
 
 
 def _image3_animated_gif(
-    tag: str,
-    image: Union[np.ndarray, torch.Tensor],
-    writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None,
-    scale_factor: float = 1.0,
+    tag: str, image: Union[np.ndarray, torch.Tensor], writer: Optional[SummaryWriter] = None, scale_factor: float = 1.0
 ):
     """Function to actually create the animated gif.
 
@@ -74,7 +67,7 @@ def _image3_animated_gif(
 def make_animated_gif_summary(
     tag: str,
     image: Union[np.ndarray, torch.Tensor],
-    writer: Optional[Union[SummaryWriter, SummaryWriterX]] = None,
+    writer: Optional[SummaryWriter] = None,
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
@@ -118,7 +111,7 @@ def make_animated_gif_summary(
 
 
 def add_animated_gif(
-    writer: Union[SummaryWriter, SummaryWriterX],
+    writer: SummaryWriter,
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
     max_out: int,
@@ -188,7 +181,7 @@ def add_animated_gif_no_channels(
 def plot_2d_or_3d_image(
     data: Union[NdarrayTensor, List[NdarrayTensor]],
     step: int,
-    writer: Union[SummaryWriter, SummaryWriterX],
+    writer: SummaryWriter,
     index: int = 0,
     max_channels: int = 1,
     max_frames: int = 64,
