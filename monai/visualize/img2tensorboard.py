@@ -23,9 +23,10 @@ GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
 
 if TYPE_CHECKING:
     from tensorboard.compat.proto.summary_pb2 import Summary
-    from torch.utils.tensorboard import SummaryWriter
-    from tensorboardX.proto.summary_pb2 import Summary as SummaryX
     from tensorboardX import SummaryWriter as SummaryWriterX
+    from tensorboardX.proto.summary_pb2 import Summary as SummaryX
+    from torch.utils.tensorboard import SummaryWriter
+
     has_tensorboardX = True
 else:
     Summary, _ = optional_import("tensorboard.compat.proto.summary_pb2", name="Summary")

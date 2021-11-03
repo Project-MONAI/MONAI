@@ -22,8 +22,8 @@ from monai.visualize import plot_2d_or_3d_image
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from torch.utils.tensorboard import SummaryWriter
     from tensorboardX import SummaryWriter as SummaryWriterX
+    from torch.utils.tensorboard import SummaryWriter
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
