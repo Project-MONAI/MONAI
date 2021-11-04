@@ -753,7 +753,7 @@ class WSIReader(ImageReader):
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
         metadata: Dict = {}
-        metadata["spatial_shape"] = size
+        metadata["spatial_shape"] = region.shape[:-1]
         metadata["original_channel_dim"] = -1
         region = EnsureChannelFirst()(region, metadata)
         if patch_size is None:
