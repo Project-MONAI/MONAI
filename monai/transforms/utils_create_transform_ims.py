@@ -240,9 +240,6 @@ def pre_process_data(data, ndim, is_map, is_post):
     if ndim == 2:
         for k in keys:
             data[k] = data[k][..., data[k].shape[-1] // 2]
-    if is_post:
-        for k in keys:
-            data[k] = torch.as_tensor(data[k])
 
     if is_map:
         return data
