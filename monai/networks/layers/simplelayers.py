@@ -25,6 +25,7 @@ from monai.utils import (
     ChannelMatching,
     InvalidPyTorchVersionError,
     SkipMode,
+    ensure_tuple_rep,
     look_up_option,
     optional_import,
     version_leq,
@@ -221,18 +222,30 @@ def separable_filtering(x: torch.Tensor, kernels: List[torch.Tensor], mode: str 
 
     Raises:
         TypeError: When ``x`` is not a ``torch.Tensor``.
+
+    Examples:
+    .. code-block:: python
+
+        >>> import torch
+        >>> from monai.networks.layers import separable_filtering
+        >>> img = torch.randn(2, 4, 32, 32)  # batch_size 2, channels 4, 32x32 2D images
+        >>> out = separable_filtering(img, torch.tensor((-1., 0., 1.)))
+        >>> out = separable_filtering(img, [torch.tensor((-1., 0., 1.)), torch.tensor((1., 0., -1.))])
+
     """
 
     if not isinstance(x, torch.Tensor):
         raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
 
     spatial_dims = len(x.shape) - 2
-    _kernels = [s.float() for s in kernels]
+    if isinstance(kernels, torch.Tensor):
+        kernels = [kernels] * spatial_dims
+    _kernels = [s.to(x) for s in kernels]
     _paddings = [(k.shape[0] - 1) // 2 for k in _kernels]
     n_chs = x.shape[1]
     pad_mode = "constant" if mode == "zeros" else mode
 
-    return _separable_filtering_conv(x, kernels, pad_mode, spatial_dims - 1, spatial_dims, _paddings, n_chs)
+    return _separable_filtering_conv(x, _kernels, pad_mode, spatial_dims - 1, spatial_dims, _paddings, n_chs)
 
 
 def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tensor:
