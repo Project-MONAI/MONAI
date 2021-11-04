@@ -327,6 +327,8 @@ class Ensembled(MapTransform):
 
     """
 
+    backend = list(set(VoteEnsemble.backend) & set(MeanEnsemble.backend))
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -373,6 +375,8 @@ class MeanEnsembled(Ensembled):
     Dictionary-based wrapper of :py:class:`monai.transforms.MeanEnsemble`.
     """
 
+    backend = MeanEnsemble.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -405,6 +409,8 @@ class VoteEnsembled(Ensembled):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.VoteEnsemble`.
     """
+
+    backend = VoteEnsemble.backend
 
     def __init__(
         self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None

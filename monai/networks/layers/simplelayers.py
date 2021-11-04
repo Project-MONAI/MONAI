@@ -25,7 +25,6 @@ from monai.utils import (
     ChannelMatching,
     InvalidPyTorchVersionError,
     SkipMode,
-    ensure_tuple_rep,
     look_up_option,
     optional_import,
     version_leq,

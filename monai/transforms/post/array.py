@@ -527,7 +527,7 @@ class Ensemble:
         return out
 
 
-class MeanEnsemble(Ensemble):
+class MeanEnsemble(Ensemble, Transform):
     """
     Execute mean ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -550,6 +550,8 @@ class MeanEnsemble(Ensemble):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(self, weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None) -> None:
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
@@ -568,7 +570,7 @@ class MeanEnsemble(Ensemble):
         return self.post_convert(out_pt, img)
 
 
-class VoteEnsemble(Ensemble):
+class VoteEnsemble(Ensemble, Transform):
     """
     Execute vote ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -587,6 +589,8 @@ class VoteEnsemble(Ensemble):
             from channel, need to explicitly specify the number of classes to vote.
 
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, num_classes: Optional[int] = None) -> None:
         self.num_classes = num_classes
@@ -664,9 +668,9 @@ class ProbNMS(Transform):
         self.prob_threshold = prob_threshold
         if isinstance(box_size, int):
             self.box_size = np.asarray([box_size] * spatial_dims)
+        elif len(box_size) != spatial_dims:
+            raise ValueError("the sequence length of box_size should be the same as spatial_dims.")
         else:
-            if len(box_size) != spatial_dims:
-                raise ValueError("the sequence length of box_size should be the same as spatial_dims.")
             self.box_size = np.asarray(box_size)
         if self.box_size.min() <= 0:
             raise ValueError("box_size should be larger than 0.")
