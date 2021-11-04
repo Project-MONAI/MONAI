@@ -95,17 +95,17 @@ class Activations(Transform):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
         # convert to float as activation must operate on float tensor
-        img_: torch.Tensor
-        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
         if sigmoid or self.sigmoid:
-            img_ = torch.sigmoid(img_)
+            img_t = torch.sigmoid(img_t)
         if softmax or self.softmax:
-            img_ = torch.softmax(img_, dim=0)
+            img_t = torch.softmax(img_t, dim=0)
 
         act_func = self.other if other is None else other
         if act_func is not None:
-            img_ = act_func(img_)
-        out, *_ = convert_to_dst_type(img_, img)
+            img_t = act_func(img_t)
+        out, *_ = convert_to_dst_type(img_t, img)
         return out
 
 
@@ -197,26 +197,26 @@ class AsDiscrete(Transform):
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes is None:
             num_classes = n_classes
-        img_: torch.Tensor
-        img_, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         if argmax or self.argmax:
-            img_ = torch.argmax(img_, dim=0, keepdim=True)
+            img_t = torch.argmax(img_t, dim=0, keepdim=True)
 
         if to_onehot or self.to_onehot:
             _nclasses = self.num_classes if num_classes is None else num_classes
             if not isinstance(_nclasses, int):
                 raise AssertionError("One of self.num_classes or num_classes must be an integer")
-            img_ = one_hot(img_, num_classes=_nclasses, dim=0)
+            img_t = one_hot(img_t, num_classes=_nclasses, dim=0)
 
         if threshold_values or self.threshold_values:
-            img_ = img_ >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+            img_t = img_t >= (self.logit_thresh if logit_thresh is None else logit_thresh)
 
         rounding = self.rounding if rounding is None else rounding
         if rounding is not None:
             look_up_option(rounding, ["torchrounding"])
-            img_ = torch.round(img_)
+            img_t = torch.round(img_t)
 
-        img, *_ = convert_to_dst_type(img_, img, dtype=torch.float)
+        img, *_ = convert_to_dst_type(img_t, img, dtype=torch.float)
         return img
 
 

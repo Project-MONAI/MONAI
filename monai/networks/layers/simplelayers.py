@@ -223,12 +223,17 @@ def separable_filtering(x: torch.Tensor, kernels: List[torch.Tensor], mode: str 
         TypeError: When ``x`` is not a ``torch.Tensor``.
 
     Examples:
+
     .. code-block:: python
 
         >>> import torch
         >>> from monai.networks.layers import separable_filtering
         >>> img = torch.randn(2, 4, 32, 32)  # batch_size 2, channels 4, 32x32 2D images
+        # applying a [-1, 0, 1] filter along each of the spatial dimensions.
+        # the output shape is the same as the input shape.
         >>> out = separable_filtering(img, torch.tensor((-1., 0., 1.)))
+        # applying `[-1, 0, 1]`, `[1, 0, -1]` filters along two spatial dimensions respectively.
+        # the output shape is the same as the input shape.
         >>> out = separable_filtering(img, [torch.tensor((-1., 0., 1.)), torch.tensor((1., 0., -1.))])
 
     """
