@@ -90,7 +90,7 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
     return filename
 
 
-@skipUnless(has_cucim and has_osl, "Requires cucim or openslide!")
+@skipUnless(has_cucim or has_osl, "Requires cucim or openslide!")
 def setUpModule():
     download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
