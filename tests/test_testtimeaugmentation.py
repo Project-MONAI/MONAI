@@ -113,12 +113,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
             epoch_loss /= len(train_loader)
 
-        post_trans = Compose(
-            [
-                Activations(sigmoid=True),
-                AsDiscrete(threshold_values=True),
-            ]
-        )
+        post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
 
         def inferrer_fn(x):
             return post_trans(model(x))
@@ -155,7 +150,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     @unittest.skipUnless(has_nib, "Requires nibabel")
     def test_requires_meta_dict(self):
-        transforms = Compose([RandFlipd("image"), Spacingd("image", pixdim=1.0)])
+        transforms = Compose([AddChanneld("image"), RandFlipd("image"), Spacingd("image", pixdim=1.1)])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 

@@ -18,6 +18,8 @@ import torch.nn as nn
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 
+__all__ = ["ViT"]
+
 
 class ViT(nn.Module):
     """
@@ -68,7 +70,7 @@ class ViT(nn.Module):
 
         """
 
-        super(ViT, self).__init__()
+        super().__init__()
 
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
