@@ -116,7 +116,7 @@ class Activationsd(MapTransform):
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, sigmoid, softmax, other in self.key_iterator(d, self.sigmoid, self.softmax, self.other):
             d[key] = self.converter(d[key], sigmoid, softmax, other)
@@ -178,7 +178,7 @@ class AsDiscreted(MapTransform):
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
             d, self.argmax, self.to_onehot, self.num_classes, self.threshold_values, self.logit_thresh, self.rounding
@@ -211,7 +211,7 @@ class KeepLargestConnectedComponentd(MapTransform):
                 If the data is in one-hot format, this is the channel indices to apply transform.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
-                and return the intersection of the largest component.
+                and return the intersection of the largest components.
                 If ``False``, the analysis will be performed on the union of foreground labels.
                 default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
@@ -300,6 +300,8 @@ class LabelToContourd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelToContour`.
     """
 
+    backend = LabelToContour.backend
+
     def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace", allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -312,7 +314,7 @@ class LabelToContourd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelToContour(kernel_type=kernel_type)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -324,6 +326,8 @@ class Ensembled(MapTransform):
     Base class of dictionary-based ensemble transforms.
 
     """
+
+    backend = list(set(VoteEnsemble.backend) & set(MeanEnsemble.backend))
 
     def __init__(
         self,
@@ -371,6 +375,8 @@ class MeanEnsembled(Ensembled):
     Dictionary-based wrapper of :py:class:`monai.transforms.MeanEnsemble`.
     """
 
+    backend = MeanEnsemble.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -403,6 +409,8 @@ class VoteEnsembled(Ensembled):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.VoteEnsemble`.
     """
+
+    backend = VoteEnsemble.backend
 
     def __init__(
         self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None
