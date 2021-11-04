@@ -33,9 +33,7 @@ else:
 __all__ = ["make_animated_gif_summary", "add_animated_gif", "add_animated_gif_no_channels", "plot_2d_or_3d_image"]
 
 
-def _image3_animated_gif(
-    tag: str, image: Union[np.ndarray, torch.Tensor], writer: Optional[SummaryWriter] = None, scale_factor: float = 1.0
-):
+def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], writer, scale_factor: float = 1.0):
     """Function to actually create the animated gif.
 
     Args:
@@ -67,7 +65,7 @@ def _image3_animated_gif(
 def make_animated_gif_summary(
     tag: str,
     image: Union[np.ndarray, torch.Tensor],
-    writer: Optional[SummaryWriter] = None,
+    writer=None,
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
