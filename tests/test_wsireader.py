@@ -122,6 +122,7 @@ class WSIReaderTests:
         self.assertIsNone(assert_array_equal(img, expected_img))
 
     @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
+    @skipUnless(has_tiff, "Requires tifffile.")
     def test_read_rgba(self, img_expected):
         # skip for OpenSlide since not working with images without tiles
         if self.backend == "openslide":
