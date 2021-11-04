@@ -18,11 +18,10 @@ from typing import Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks import one_hot
-from monai.networks.layers import GaussianFilter
+from monai.networks.layers import GaussianFilter, apply_filter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
@@ -70,11 +69,11 @@ class Activations(Transform):
 
     def __call__(
         self,
-        img: torch.Tensor,
+        img: NdarrayOrTensor,
         sigmoid: Optional[bool] = None,
         softmax: Optional[bool] = None,
         other: Optional[Callable] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             sigmoid: whether to execute sigmoid function on model output before transform.
@@ -96,17 +95,18 @@ class Activations(Transform):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
         # convert to float as activation must operate on float tensor
-        img = img.float()
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
         if sigmoid or self.sigmoid:
-            img = torch.sigmoid(img)
+            img_t = torch.sigmoid(img_t)
         if softmax or self.softmax:
-            img = torch.softmax(img, dim=0)
+            img_t = torch.softmax(img_t, dim=0)
 
         act_func = self.other if other is None else other
         if act_func is not None:
-            img = act_func(img)
-
-        return img
+            img_t = act_func(img_t)
+        out, *_ = convert_to_dst_type(img_t, img)
+        return out
 
 
 class AsDiscrete(Transform):
@@ -164,7 +164,7 @@ class AsDiscrete(Transform):
     @deprecated_arg("n_classes", since="0.6")
     def __call__(
         self,
-        img: torch.Tensor,
+        img: NdarrayOrTensor,
         argmax: Optional[bool] = None,
         to_onehot: Optional[bool] = None,
         num_classes: Optional[int] = None,
@@ -172,7 +172,7 @@ class AsDiscrete(Transform):
         logit_thresh: Optional[float] = None,
         rounding: Optional[str] = None,
         n_classes: Optional[int] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: the input tensor data to convert, if no channel dimension when converting to `One-Hot`,
@@ -197,24 +197,27 @@ class AsDiscrete(Transform):
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes is None:
             num_classes = n_classes
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         if argmax or self.argmax:
-            img = torch.argmax(img, dim=0, keepdim=True)
+            img_t = torch.argmax(img_t, dim=0, keepdim=True)
 
         if to_onehot or self.to_onehot:
             _nclasses = self.num_classes if num_classes is None else num_classes
             if not isinstance(_nclasses, int):
                 raise AssertionError("One of self.num_classes or num_classes must be an integer")
-            img = one_hot(img, num_classes=_nclasses, dim=0)
+            img_t = one_hot(img_t, num_classes=_nclasses, dim=0)
 
         if threshold_values or self.threshold_values:
-            img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+            img_t = img_t >= (self.logit_thresh if logit_thresh is None else logit_thresh)
 
         rounding = self.rounding if rounding is None else rounding
         if rounding is not None:
             look_up_option(rounding, ["torchrounding"])
-            img = torch.round(img)
+            img_t = torch.round(img_t)
 
-        return img.float()
+        img, *_ = convert_to_dst_type(img_t, img, dtype=torch.float)
+        return img
 
 
 class KeepLargestConnectedComponent(Transform):
@@ -275,7 +278,7 @@ class KeepLargestConnectedComponent(Transform):
                 If the data is in one-hot format, this is used to determine which channels to apply.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
-                and return the intersection of the largest component.
+                and return the intersection of the largest components.
                 If ``False``, the analysis will be performed on the union of foreground labels.
                 default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
@@ -368,7 +371,7 @@ class LabelFilter:
         if isinstance(img, torch.Tensor):
             if hasattr(torch, "isin"):
                 appl_lbls = torch.as_tensor(self.applied_labels, device=img.device)
-                return torch.where(torch.isin(img, appl_lbls), img, 0)
+                return torch.where(torch.isin(img, appl_lbls), img, torch.tensor(0.0).to(img))
             else:
                 out = self(img.detach().cpu().numpy())
                 out, *_ = convert_to_dst_type(out, img)
@@ -460,7 +463,7 @@ class FillHoles(Transform):
 
 class LabelToContour(Transform):
     """
-    Return the contour of binary input images that only compose of 0 and 1, with Laplace kernel
+    Return the contour of binary input images that only compose of 0 and 1, with Laplacian kernel
     set as default for edge detection. Typical usage is to plot the edge of label or segmentation output.
 
     Args:
@@ -471,12 +474,14 @@ class LabelToContour(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(self, kernel_type: str = "Laplace") -> None:
         if kernel_type != "Laplace":
             raise NotImplementedError('Currently only kernel_type="Laplace" is supported.')
         self.kernel_type = kernel_type
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: torch tensor data to extract the contour, with shape: [channels, height, width[, depth]]
@@ -492,22 +497,20 @@ class LabelToContour(Transform):
                    ideally the edge should be thin enough, but now it has a thickness.
 
         """
-        channels = img.shape[0]
-        img_ = img.unsqueeze(0)
-        if img.ndimension() == 3:
-            kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32, device=img.device)
-            kernel = kernel.repeat(channels, 1, 1, 1)
-            contour_img = F.conv2d(img_, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
-        elif img.ndimension() == 4:
-            kernel = -1 * torch.ones(3, 3, 3, dtype=torch.float32, device=img.device)
-            kernel[1, 1, 1] = 26
-            kernel = kernel.repeat(channels, 1, 1, 1, 1)
-            contour_img = F.conv3d(img_, kernel, bias=None, stride=1, padding=1, dilation=1, groups=channels)
+        img_: torch.Tensor = convert_data_type(img, torch.Tensor)[0]  # type: ignore
+        spatial_dims = len(img_.shape) - 1
+        img_ = img_.unsqueeze(0)  # adds a batch dim
+        if spatial_dims == 2:
+            kernel = torch.tensor([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=torch.float32)
+        elif spatial_dims == 3:
+            kernel = -1.0 * torch.ones(3, 3, 3, dtype=torch.float32)
+            kernel[1, 1, 1] = 26.0
         else:
-            raise ValueError(f"Unsupported img dimension: {img.ndimension()}, available options are [4, 5].")
-
+            raise ValueError(f"{self.__class__} can only handle 2D or 3D images.")
+        contour_img = apply_filter(img_, kernel)
         contour_img.clamp_(min=0.0, max=1.0)
-        return contour_img.squeeze(0)
+        output, *_ = convert_to_dst_type(contour_img.squeeze(0), img)
+        return output
 
 
 class Ensemble:
@@ -528,7 +531,7 @@ class Ensemble:
         return out
 
 
-class MeanEnsemble(Ensemble):
+class MeanEnsemble(Ensemble, Transform):
     """
     Execute mean ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -551,6 +554,8 @@ class MeanEnsemble(Ensemble):
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(self, weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None) -> None:
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
@@ -569,7 +574,7 @@ class MeanEnsemble(Ensemble):
         return self.post_convert(out_pt, img)
 
 
-class VoteEnsemble(Ensemble):
+class VoteEnsemble(Ensemble, Transform):
     """
     Execute vote ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -588,6 +593,8 @@ class VoteEnsemble(Ensemble):
             from channel, need to explicitly specify the number of classes to vote.
 
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, num_classes: Optional[int] = None) -> None:
         self.num_classes = num_classes
@@ -665,9 +672,9 @@ class ProbNMS(Transform):
         self.prob_threshold = prob_threshold
         if isinstance(box_size, int):
             self.box_size = np.asarray([box_size] * spatial_dims)
+        elif len(box_size) != spatial_dims:
+            raise ValueError("the sequence length of box_size should be the same as spatial_dims.")
         else:
-            if len(box_size) != spatial_dims:
-                raise ValueError("the sequence length of box_size should be the same as spatial_dims.")
             self.box_size = np.asarray(box_size)
         if self.box_size.min() <= 0:
             raise ValueError("box_size should be larger than 0.")
