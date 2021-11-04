@@ -71,7 +71,9 @@ class SeparableFilterTestCase(unittest.TestCase):
             out = separable_filtering(a, kernel)
             np.testing.assert_allclose(out.cpu().numpy()[1][2], expected, rtol=1e-4)
             if torch.cuda.is_available():
-                out = separable_filtering(a.cuda(), kernel.cuda())
+                out = separable_filtering(
+                    a.cuda(), kernel.cuda() if isinstance(kernel, torch.Tensor) else [k.cuda() for k in kernel]
+                )
                 np.testing.assert_allclose(out.cpu().numpy()[0][1], expected, rtol=1e-4)
 
     def test_wrong_args(self):

@@ -69,11 +69,11 @@ class Activations(Transform):
 
     def __call__(
         self,
-        img: torch.Tensor,
+        img: NdarrayOrTensor,
         sigmoid: Optional[bool] = None,
         softmax: Optional[bool] = None,
         other: Optional[Callable] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             sigmoid: whether to execute sigmoid function on model output before transform.
@@ -95,17 +95,18 @@ class Activations(Transform):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
         # convert to float as activation must operate on float tensor
-        img = img.float()
+        img_: torch.Tensor
+        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
         if sigmoid or self.sigmoid:
-            img = torch.sigmoid(img)
+            img_ = torch.sigmoid(img_)
         if softmax or self.softmax:
-            img = torch.softmax(img, dim=0)
+            img_ = torch.softmax(img_, dim=0)
 
         act_func = self.other if other is None else other
         if act_func is not None:
-            img = act_func(img)
-
-        return img
+            img_ = act_func(img_)
+        out, *_ = convert_to_dst_type(img_, img)
+        return out
 
 
 class AsDiscrete(Transform):
@@ -163,7 +164,7 @@ class AsDiscrete(Transform):
     @deprecated_arg("n_classes", since="0.6")
     def __call__(
         self,
-        img: torch.Tensor,
+        img: NdarrayOrTensor,
         argmax: Optional[bool] = None,
         to_onehot: Optional[bool] = None,
         num_classes: Optional[int] = None,
@@ -171,7 +172,7 @@ class AsDiscrete(Transform):
         logit_thresh: Optional[float] = None,
         rounding: Optional[str] = None,
         n_classes: Optional[int] = None,
-    ) -> torch.Tensor:
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: the input tensor data to convert, if no channel dimension when converting to `One-Hot`,
@@ -196,24 +197,27 @@ class AsDiscrete(Transform):
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes is None:
             num_classes = n_classes
+        img_: torch.Tensor
+        img_, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         if argmax or self.argmax:
-            img = torch.argmax(img, dim=0, keepdim=True)
+            img_ = torch.argmax(img_, dim=0, keepdim=True)
 
         if to_onehot or self.to_onehot:
             _nclasses = self.num_classes if num_classes is None else num_classes
             if not isinstance(_nclasses, int):
                 raise AssertionError("One of self.num_classes or num_classes must be an integer")
-            img = one_hot(img, num_classes=_nclasses, dim=0)
+            img_ = one_hot(img_, num_classes=_nclasses, dim=0)
 
         if threshold_values or self.threshold_values:
-            img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+            img_ = img_ >= (self.logit_thresh if logit_thresh is None else logit_thresh)
 
         rounding = self.rounding if rounding is None else rounding
         if rounding is not None:
             look_up_option(rounding, ["torchrounding"])
-            img = torch.round(img)
+            img_ = torch.round(img_)
 
-        return img.float()
+        img, *_ = convert_to_dst_type(img_, img, dtype=torch.float)
+        return img
 
 
 class KeepLargestConnectedComponent(Transform):
@@ -367,7 +371,7 @@ class LabelFilter:
         if isinstance(img, torch.Tensor):
             if hasattr(torch, "isin"):
                 appl_lbls = torch.as_tensor(self.applied_labels, device=img.device)
-                return torch.where(torch.isin(img, appl_lbls), img, 0)
+                return torch.where(torch.isin(img, appl_lbls), img, torch.tensor(0.0).to(img))
             else:
                 out = self(img.detach().cpu().numpy())
                 out, *_ = convert_to_dst_type(out, img)

@@ -116,7 +116,7 @@ class Activationsd(MapTransform):
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, sigmoid, softmax, other in self.key_iterator(d, self.sigmoid, self.softmax, self.other):
             d[key] = self.converter(d[key], sigmoid, softmax, other)
@@ -178,7 +178,7 @@ class AsDiscreted(MapTransform):
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
             d, self.argmax, self.to_onehot, self.num_classes, self.threshold_values, self.logit_thresh, self.rounding
