@@ -91,7 +91,7 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
 
 
 @skipUnless(has_cucim or has_osl, "Requires cucim or openslide!")
-def setUpModule():
+def setUpModule():  # noqa: N802
     download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
 
