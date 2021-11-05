@@ -130,7 +130,7 @@ def convert_to_tensor(
     return data
 
 
-def convert_to_numpy(data, dtype: Optional[DtypeLike] = None, wrap_sequence: bool = False):
+def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False):
     """
     Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to numpy array.

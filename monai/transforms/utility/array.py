@@ -403,7 +403,7 @@ class ToNumpy(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype: Optional[DtypeLike] = None) -> None:
+    def __init__(self, dtype: DtypeLike = None) -> None:
         super().__init__()
         self.dtype = dtype
 

@@ -138,6 +138,7 @@ def run_testsuit():
         "test_unetr",
         "test_unetr_block",
         "test_vit",
+        "test_vitautoenc",
         "test_write_metrics_reports",
         "test_zoom",
         "test_zoom_affine",
@@ -146,6 +147,7 @@ def run_testsuit():
         "test_handler_mlflow",
         "test_prepare_batch_extra_input",
         "test_prepare_batch_default",
+        "test_check_missing_files",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

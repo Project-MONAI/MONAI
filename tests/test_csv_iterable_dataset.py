@@ -63,9 +63,11 @@ class TestCSVIterableDataset(unittest.TestCase):
             prepare_csv_file(test_data3, filepath3)
 
             # test single CSV file
-            dataset = CSVIterableDataset(filepath1)
-            for i, item in enumerate(dataset):
-                if i == 2:
+            dataset = CSVIterableDataset(filepath1, shuffle=False)
+            count = 0
+            for item in dataset:
+                count += 1
+                if count == 3:
                     self.assertDictEqual(
                         {k: round(v, 4) if not isinstance(v, str) else v for k, v in item.items()},
                         {
@@ -78,16 +80,23 @@ class TestCSVIterableDataset(unittest.TestCase):
                         },
                     )
                     break
+            self.assertEqual(count, 3)
+
             # test reset iterables
             dataset.reset(filename=filepath3)
+            count = 0
             for i, item in enumerate(dataset):
-                if i == 3:
+                count += 1
+                if i == 4:
                     self.assertEqual(item["meta_0"], False)
+            self.assertEqual(count, 5)
 
             # test multiple CSV files, join tables with kwargs
-            dataset = CSVIterableDataset([filepath1, filepath2, filepath3], on="subject_id")
-            for i, item in enumerate(dataset):
-                if i == 3:
+            dataset = CSVIterableDataset([filepath1, filepath2, filepath3], on="subject_id", shuffle=False)
+            count = 0
+            for item in dataset:
+                count += 1
+                if count == 4:
                     self.assertDictEqual(
                         {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in item.items()},
                         {
@@ -110,15 +119,19 @@ class TestCSVIterableDataset(unittest.TestCase):
                             "meta_2": True,
                         },
                     )
+            self.assertEqual(count, 5)
 
             # test selected columns and chunk size
             dataset = CSVIterableDataset(
                 filename=[filepath1, filepath2, filepath3],
                 chunksize=2,
                 col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"],
+                shuffle=False,
             )
-            for i, item in enumerate(dataset):
-                if i == 3:
+            count = 0
+            for item in dataset:
+                count += 1
+                if count == 4:
                     self.assertDictEqual(
                         {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in item.items()},
                         {
@@ -129,20 +142,25 @@ class TestCSVIterableDataset(unittest.TestCase):
                             "meta_1": False,
                         },
                     )
+            self.assertEqual(count, 5)
 
             # test group columns
             dataset = CSVIterableDataset(
                 filename=[filepath1, filepath2, filepath3],
                 col_names=["subject_id", "image", *[f"ehr_{i}" for i in range(11)], "meta_0", "meta_1", "meta_2"],
                 col_groups={"ehr": [f"ehr_{i}" for i in range(11)], "meta12": ["meta_1", "meta_2"]},
+                shuffle=False,
             )
-            for i, item in enumerate(dataset):
-                if i == 3:
+            count = 0
+            for item in dataset:
+                count += 1
+                if count == 4:
                     np.testing.assert_allclose(
                         [round(i, 4) for i in item["ehr"]],
                         [3.3333, 3.2353, 3.4000, 3.1647, 3.0863, 3.7255, 3.6980, 3.6980, 3.7020, 3.3098, 3.7294],
                     )
                     np.testing.assert_allclose(item["meta12"], [False, True])
+            self.assertEqual(count, 5)
 
             # test transform
             dataset = CSVIterableDataset(
@@ -152,29 +170,36 @@ class TestCSVIterableDataset(unittest.TestCase):
                 col_groups={"ehr": [f"ehr_{i}" for i in range(5)]},
                 transform=ToNumpyd(keys="ehr"),
                 shuffle=True,
+                seed=123,
             )
-            dataset.set_random_state(123)
             expected = [
-                [3.7725, 4.2118, 4.6353, 5.298, 9.5451],
-                [2.0078, 2.2902, 2.0549, 3.0196, 3.8078],
-                [6.4275, 6.2549, 5.9765, 6.2627, 7.7176],
                 [6.8392, 6.4745, 5.8627, 5.1922, 5.2745],
+                [3.3333, 3.2353, 3.4000, 3.1647, 3.0863],
+                [3.7725, 4.2118, 4.6353, 5.298, 9.5451],
+                [6.4275, 6.2549, 5.9765, 6.2627, 7.7176],
+                [2.0078, 2.2902, 2.0549, 3.0196, 3.8078],
             ]
+            count = 0
             for item, exp in zip(dataset, expected):
+                count += 1
                 self.assertTrue(isinstance(item["ehr"], np.ndarray))
                 np.testing.assert_allclose(np.around(item["ehr"], 4), exp)
+            self.assertEqual(count, 5)
 
             # test multiple processes loading
-            dataset = CSVIterableDataset(filepath1, transform=ToNumpyd(keys="label"))
+            dataset = CSVIterableDataset(filepath1, transform=ToNumpyd(keys="label"), shuffle=False)
             # set num workers = 0 for mac / win
             num_workers = 2 if sys.platform == "linux" else 0
             dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=2)
+            count = 0
             for item in dataloader:
+                count += 1
                 # test the last item which only has 1 data
                 if len(item) == 1:
                     self.assertListEqual(item["subject_id"], ["s000002"])
                     np.testing.assert_allclose(item["label"], [4])
                     self.assertListEqual(item["image"], ["./imgs/s000002.png"])
+            self.assertEqual(count, 3)
 
 
 if __name__ == "__main__":
