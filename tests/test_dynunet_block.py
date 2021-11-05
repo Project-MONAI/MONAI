@@ -35,6 +35,7 @@ for spatial_dims in range(2, 4):
                             "out_channels": 16,
                             "kernel_size": kernel_size,
                             "norm_name": norm_name,
+                            "act_name": ("leakyrelu", {"inplace": True, "negative_slope": 0.1}),
                             "stride": stride,
                         },
                         (1, 16, *([in_size] * spatial_dims)),

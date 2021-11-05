@@ -98,6 +98,7 @@ class DynUNet(nn.Module):
             If not specified, the way which nnUNet used will be employed. Defaults to ``None``.
         dropout: dropout ratio. Defaults to no dropout.
         norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
+        act_name: activation layer type and arguments. Defaults to ``leakyrelu``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the last feature
             map, but also the previous feature maps that come from the intermediate up sample layers.
@@ -130,6 +131,7 @@ class DynUNet(nn.Module):
         filters: Optional[Sequence[int]] = None,
         dropout: Optional[Union[Tuple, str, float]] = None,
         norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,
@@ -143,6 +145,7 @@ class DynUNet(nn.Module):
         self.strides = strides
         self.upsample_kernel_size = upsample_kernel_size
         self.norm_name = norm_name
+        self.act_name = act_name
         self.dropout = dropout
         self.conv_block = UnetResBlock if res_block else UnetBasicBlock
         self.trans_bias = trans_bias
@@ -257,6 +260,7 @@ class DynUNet(nn.Module):
             self.kernel_size[0],
             self.strides[0],
             self.norm_name,
+            self.act_name,
             dropout=self.dropout,
         )
 
@@ -268,6 +272,7 @@ class DynUNet(nn.Module):
             self.kernel_size[-1],
             self.strides[-1],
             self.norm_name,
+            self.act_name,
             dropout=self.dropout,
         )
 
@@ -309,6 +314,7 @@ class DynUNet(nn.Module):
                     "kernel_size": kernel,
                     "stride": stride,
                     "norm_name": self.norm_name,
+                    "act_name": self.act_name,
                     "dropout": self.dropout,
                     "upsample_kernel_size": up_kernel,
                     "trans_bias": trans_bias,
@@ -324,6 +330,7 @@ class DynUNet(nn.Module):
                     "kernel_size": kernel,
                     "stride": stride,
                     "norm_name": self.norm_name,
+                    "act_name": self.act_name,
                     "dropout": self.dropout,
                 }
                 layer = conv_block(**params)

@@ -43,6 +43,7 @@ for kernel_size in [(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))]:
                         "strides": strides,
                         "upsample_kernel_size": strides[1:],
                         "norm_name": "batch",
+                        "act_name": ("leakyrelu", {"inplace": True, "negative_slope": 0.2}),
                         "deep_supervision": False,
                         "res_block": res_block,
                         "dropout": None,
