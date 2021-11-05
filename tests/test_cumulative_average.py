@@ -38,13 +38,13 @@ TEST_CASE_4 = [[torch.as_tensor(0.1), torch.as_tensor([0.2]), torch.as_tensor([[
 class TestCumulativeAverage(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, input_data, expected_value):
-        dice_metric = CumulativeAverage()
-        dice_metric(input_data[0])
-        dice_metric(input_data[1])
-        result = dice_metric.aggregate()
+        average = CumulativeAverage()
+        average.add(input_data[0])
+        average.add(input_data[1])
+        result = average.aggregate()
         # continue to update new data
-        dice_metric(input_data[2])
-        result = dice_metric.aggregate()
+        average.add(input_data[2])
+        result = average.aggregate()
         torch.testing.assert_allclose(result, expected_value)
 
 

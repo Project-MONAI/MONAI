@@ -9,17 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
-
 import torch
 
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
 
-from .metric import CumulativeIterationMetric
+from .metric import Cumulative
 
 
-class CumulativeAverage(CumulativeIterationMetric):
+class CumulativeAverage(Cumulative):
     """
     Cumulatively record data value and aggregate for the average value.
     It supports single class or multi-class data, for example,
@@ -29,13 +27,13 @@ class CumulativeAverage(CumulativeIterationMetric):
 
     .. code-block:: python
 
-        metric = CumulativeAverage()
+        average = CumulativeAverage()
         for i, d in enumerate(dataloader):
             loss = ...
-            metric(loss)
+            average.add(loss)
             if i % 5 == 0:
-                print(f"cumulative average of loss: {metric.aggregate()}")
-        metric.reset()
+                print(f"cumulative average of loss: {average.aggregate()}")
+        average.reset()
 
     """
 
@@ -53,10 +51,15 @@ class CumulativeAverage(CumulativeIterationMetric):
         self.sum = None
         self.not_nans = None
 
-    def _compute_tensor(self, value: torch.Tensor, y: Optional[torch.Tensor] = None):
-        while value.ndim < 2:
-            value = value.unsqueeze(0)
-        return value
+    def add(self, data: torch.Tensor):  # type: ignore
+        """
+        Add an item to the buffer, it can support multi-class Tensor, like [0.3, 0.4] as metrics of 2 classes.
+
+        """
+        while data.ndim < 2:
+            data = data.unsqueeze(0)
+
+        super().add(data)
 
     def aggregate(self):  # type: ignore
         """

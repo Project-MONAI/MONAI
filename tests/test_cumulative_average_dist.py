@@ -34,16 +34,16 @@ class DistributedCumulativeAverage(DistTestCase):
             torch.as_tensor([0.2, 0.3]),
             torch.as_tensor([0.2]),
         ]
-        dice_metric = CumulativeAverage()
+        average = CumulativeAverage()
         for i, e in zip(input_data, expected):
             if rank == 0:
-                dice_metric(i[0])
-                dice_metric(i[1])
+                average.add(i[0])
+                average.add(i[1])
             else:
-                dice_metric(i[2])
-            result = dice_metric.aggregate()
+                average.add(i[2])
+            result = average.aggregate()
             torch.testing.assert_allclose(result, e)
-            dice_metric.reset()
+            average.reset()
 
 
 if __name__ == "__main__":
