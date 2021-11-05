@@ -49,22 +49,24 @@ for spatial_dims in range(2, 4):
         for stride in [1, 2]:
             for norm_name in ["batch", "instance"]:
                 for in_size in [15, 16]:
-                    out_size = in_size * stride
-                    test_case = [
-                        {
-                            "spatial_dims": spatial_dims,
-                            "in_channels": in_channels,
-                            "out_channels": out_channels,
-                            "kernel_size": kernel_size,
-                            "norm_name": norm_name,
-                            "stride": stride,
-                            "upsample_kernel_size": stride,
-                        },
-                        (1, in_channels, *([in_size] * spatial_dims)),
-                        (1, out_channels, *([out_size] * spatial_dims)),
-                        (1, out_channels, *([in_size * stride] * spatial_dims)),
-                    ]
-                    TEST_UP_BLOCK.append(test_case)
+                    for trans_bias in [True, False]:
+                        out_size = in_size * stride
+                        test_case = [
+                            {
+                                "spatial_dims": spatial_dims,
+                                "in_channels": in_channels,
+                                "out_channels": out_channels,
+                                "kernel_size": kernel_size,
+                                "norm_name": norm_name,
+                                "stride": stride,
+                                "upsample_kernel_size": stride,
+                                "trans_bias": trans_bias,
+                            },
+                            (1, in_channels, *([in_size] * spatial_dims)),
+                            (1, out_channels, *([out_size] * spatial_dims)),
+                            (1, out_channels, *([in_size * stride] * spatial_dims)),
+                        ]
+                        TEST_UP_BLOCK.append(test_case)
 
 
 class TestResBasicBlock(unittest.TestCase):

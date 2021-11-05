@@ -33,7 +33,7 @@ class UnetResBlock(nn.Module):
         kernel_size: convolution kernel size.
         stride: convolution stride.
         norm_name: feature normalization type and arguments.
-        dropout: dropout probability
+        dropout: dropout probability.
 
     """
 
@@ -100,7 +100,7 @@ class UnetBasicBlock(nn.Module):
         kernel_size: convolution kernel size.
         stride: convolution stride.
         norm_name: feature normalization type and arguments.
-        dropout: dropout probability
+        dropout: dropout probability.
 
     """
 
@@ -155,7 +155,8 @@ class UnetUpBlock(nn.Module):
         stride: convolution stride.
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
         norm_name: feature normalization type and arguments.
-        dropout: dropout probability
+        dropout: dropout probability.
+        trans_bias: transposed convolution bias.
 
     """
 
@@ -169,6 +170,7 @@ class UnetUpBlock(nn.Module):
         upsample_kernel_size: Union[Sequence[int], int],
         norm_name: Union[Tuple, str],
         dropout: Optional[Union[Tuple, str, float]] = None,
+        trans_bias: bool = False,
     ):
         super().__init__()
         upsample_stride = upsample_kernel_size
@@ -179,6 +181,7 @@ class UnetUpBlock(nn.Module):
             kernel_size=upsample_kernel_size,
             stride=upsample_stride,
             dropout=dropout,
+            bias=trans_bias,
             conv_only=True,
             is_transposed=True,
         )
