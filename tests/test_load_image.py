@@ -68,11 +68,7 @@ TEST_CASE_4_1 = [  # additional parameter
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_5 = [
-    {"reader": NibabelReader(mmap=False), "image_only": False},
-    ["test_image.nii.gz"],
-    (128, 128, 128),
-]
+TEST_CASE_5 = [{"reader": NibabelReader(mmap=False), "image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
 
 TEST_CASE_6 = [{"reader": ITKReader(), "image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
 
@@ -173,6 +169,21 @@ class TestLoadImage(unittest.TestCase):
             np.testing.assert_allclose(result[:, :, 0], test_image[:, :, 0].T)
             np.testing.assert_allclose(result[:, :, 1], test_image[:, :, 1].T)
             np.testing.assert_allclose(result[:, :, 2], test_image[:, :, 2].T)
+
+    def test_load_nifti_multichannel(self):
+        test_image = np.random.randint(0, 256, size=(31, 64, 16, 2)).astype(np.float32)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, "test_image.nii.gz")
+            itk_np_view = itk.image_view_from_array(test_image, is_vector=True)
+            itk.imwrite(itk_np_view, filename)
+
+            itk_img, itk_header = LoadImage(reader=ITKReader())(Path(filename))
+            self.assertTupleEqual(tuple(itk_header["spatial_shape"]), (16, 64, 31))
+            self.assertTupleEqual(tuple(itk_img.shape), (16, 64, 31, 2))
+
+            nib_image, nib_header = LoadImage(reader=NibabelReader(squeeze_non_spatial_dims=True))(Path(filename))
+            self.assertTupleEqual(tuple(nib_header["spatial_shape"]), (16, 64, 31))
+            self.assertTupleEqual(tuple(nib_image.shape), (16, 64, 31, 2))
 
     def test_load_png(self):
         spatial_size = (256, 224)

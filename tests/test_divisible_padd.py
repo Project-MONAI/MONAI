@@ -28,11 +28,7 @@ TEST_CASE_2 = [
     np.zeros((3, 14, 7)),
 ]
 
-TEST_CASE_3 = [
-    {"keys": ["img"], "k": 0, "mode": {"constant"}},
-    {"img": np.zeros((3, 8))},
-    np.zeros((3, 8)),
-]
+TEST_CASE_3 = [{"keys": ["img"], "k": 0, "mode": {"constant"}}, {"img": np.zeros((3, 8))}, np.zeros((3, 8))]
 
 
 class TestDivisiblePadd(unittest.TestCase):

@@ -24,13 +24,7 @@ from tests.utils import SkipIfBeforePyTorchVersion
 class TestHandlerSmartCache(unittest.TestCase):
     def test_content(self):
         data = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        expected = [
-            [0, 1, 2, 3, 4],
-            [1, 2, 3, 4, 5],
-            [2, 3, 4, 5, 6],
-            [3, 4, 5, 6, 7],
-            [4, 5, 6, 7, 8],
-        ]
+        expected = [[0, 1, 2, 3, 4], [1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [3, 4, 5, 6, 7], [4, 5, 6, 7, 8]]
 
         # set up engine
         def _train_func(engine, batch):

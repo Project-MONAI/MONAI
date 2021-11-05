@@ -23,10 +23,7 @@ class TestHandlerEarlyStop(unittest.TestCase):
 
         trainer = Engine(_train_func)
         EarlyStopHandler(
-            patience=5,
-            score_function=lambda x: x.state.output["loss"],
-            trainer=trainer,
-            epoch_level=False,
+            patience=5, score_function=lambda x: x.state.output["loss"], trainer=trainer, epoch_level=False
         ).attach(trainer)
 
         trainer.run(range(4), max_epochs=2)

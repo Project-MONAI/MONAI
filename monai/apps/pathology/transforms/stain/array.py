@@ -57,7 +57,7 @@ class ExtractHEStains(Transform):
         Return:
             he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
         """
-        # check image type and vlues
+        # check image type and values
         if not isinstance(image, np.ndarray):
             raise TypeError("Image must be of type numpy.ndarray.")
         if image.min() < 0:
@@ -162,7 +162,7 @@ class NormalizeHEStains(Transform):
         Return:
             image_norm: stain normalized image/patch
         """
-        # check image type and vlues
+        # check image type and values
         if not isinstance(image, np.ndarray):
             raise TypeError("Image must be of type numpy.ndarray.")
         if image.min() < 0:
