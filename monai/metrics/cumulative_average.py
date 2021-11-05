@@ -23,10 +23,11 @@ class CumulativeAverage(CumulativeIterationMetric):
     """
     Cumulatively record data value and aggregate for the average value.
     It supports single class or multi-class data, for example,
-    value can be `0.44`(like loss) or `[0.3, 0.4]`(like metrics of 2 classes).
-    It supports distributed data parallel, sync data when aggregating.
-    For example, recording loss value and compute the oveall average value
-    in every 5 iterations::
+    value can be 0.44 (like loss) or [0.3, 0.4] (like metrics of 2 classes).
+    It also supports distributed data parallel, sync data when aggregating.
+    For example, recording loss value and compute the oveall average value in every 5 iterations:
+
+    .. code-block:: python
 
         metric = CumulativeAverage()
         for i, d in enumerate(dataloader):
