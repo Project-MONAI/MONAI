@@ -26,7 +26,8 @@ has_cucim = has_cucim and hasattr(cucim, "CuImage")
 PILImage, has_pil = optional_import("PIL.Image")
 
 FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + os.path.basename(FILE_URL))
+base_name, extension = FILE_URL.split("id=")[1], ".tiff"
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 HEIGHT = 32914
 WIDTH = 46000
