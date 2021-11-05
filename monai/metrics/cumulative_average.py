@@ -9,28 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
+from typing import Optional
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background
+from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
 
 
 class CumulativeAverage(CumulativeIterationMetric):
-    def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
-    ) -> None:
+    def __init__(self, get_not_nans: bool = False) -> None:
         super().__init__()
-        self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.sum = None
-        self.avg = None
-        self.count = 0
+        self.not_nans = None
 
     def _compute_tensor(self, value: torch.Tensor, y: Optional[torch.Tensor] = None):
         return value
@@ -41,5 +35,8 @@ class CumulativeAverage(CumulativeIterationMetric):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
         # do metric reduction
-        f, not_nans = do_metric_reduction(data, self.reduction)
-        return (f, not_nans) if self.get_not_nans else f
+        f, not_nans = do_metric_reduction(data, reduction=MetricReduction.MEAN_BATCH)
+        self.sum = f if self.sum is None else (self.sum + f)
+        self.not_nans = not_nans if self.not_nans is None else (self.not_nans + not_nans)
+
+        return self.sum / self.not_nans
