@@ -40,3 +40,4 @@ requests
 einops
 transformers
 mlflow
+matplotlib

@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
+import numpy as np
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
 
@@ -29,8 +30,11 @@ class IterableDataset(_TorchIterableDataset):
     https://pytorch.org/docs/stable/data.html?highlight=iterabledataset#torch.utils.data.IterableDataset.
     For example, typical input data can be web data stream which can support multi-process access.
 
-    Note that when used with `DataLoader` and `num_workers > 0`, each worker process will have a
-    different copy of the dataset object, need to guarantee process-safe from data source or DataLoader.
+    To accelerate the loading process, it can support multi-processing based on PyTorch DataLoader workers,
+    every process executes transforms on part of every loaded data.
+    Note that the order of output data may not match data source in multi-processing mode.
+    And each worker process will have a different copy of the dataset object, need to guarantee
+    process-safe from data source or DataLoader.
 
     """
 
@@ -45,65 +49,77 @@ class IterableDataset(_TorchIterableDataset):
         self.source = None
 
     def __iter__(self):
+        info = get_worker_info()
+        num_workers = info.num_workers if info is not None else 1
+        id = info.id if info is not None else 0
+
         self.source = iter(self.data)
-        for data in self.source:
-            if self.transform is not None:
-                data = apply_transform(self.transform, data)
-            yield data
+        for i, item in enumerate(self.source):
+            if i % num_workers == id:
+                if self.transform is not None:
+                    item = apply_transform(self.transform, item)
+                yield item
 
 
-class IterableBuffer(Randomizable, IterableDataset):
+class ShuffleBuffer(Randomizable, IterableDataset):
     """
-    Extend the IterableDataset with a buffer and support to randomly pop items.
+    Extend the IterableDataset with a buffer and randomly pop items.
 
     Args:
         data: input data source to load and transform to generate dataset for model.
         transform: a callable data transform on input data.
         buffer_size: size of the buffer to store items and randomly pop, default to 512.
-        shuffle: if True, randomly pop a item from the list, otherwise, pop from the beginning,
-            default to False.
+        seed: random seed to initialize the random state of all workers, set `seed += 1` in
+            every iter() call, refer to the PyTorch idea:
+            https://github.com/pytorch/pytorch/blob/v1.10.0/torch/utils/data/distributed.py#L98.
 
     """
 
-    def __init__(self, data, transform=None, buffer_size: int = 512, shuffle: bool = True) -> None:
+    def __init__(self, data, transform=None, buffer_size: int = 512, seed: int = 0) -> None:
         super().__init__(data=data, transform=transform)
         self.size = buffer_size
-        self.shuffle = shuffle
+        self.seed = seed
         self._idx = 0
 
-    def _rand_pop(self, buffer: List, num_workers: int = 1, id: int = 0):
-        length = len(buffer)
-        for i in range(min(length, num_workers)):
-            if self.shuffle:
-                # randomly select an item for every worker and pop
-                self.randomize(length)
-            # switch random index data and the last index data
-            item, buffer[self._idx] = buffer[self._idx], buffer[-1]
-            buffer.pop()
-            if i == id:
-                if self.transform is not None:
-                    item = apply_transform(self.transform, item)
-                yield item
-
     def __iter__(self):
-        # pop items for multi-workers
-        info = get_worker_info()
-        num_workers = info.num_workers if info is not None else 1
-        id = info.id if info is not None else 0
+        """
+        Fetch data from the source, if buffer is not full, fill into buffer, otherwise,
+        randomly pop items from the buffer.
+        After loading all the data from source, randomly pop items from the buffer.
 
-        _buffer = []
-        for item in self.data:
-            if len(_buffer) >= self.size:
-                self._rand_pop(_buffer, num_workers=num_workers, id=id)
-            _buffer.append(item)
-        while _buffer:
-            return self._rand_pop(_buffer, num_workers=num_workers, id=id)
+        """
+        self.seed += 1
+        super().set_random_state(seed=self.seed)  # make all workers in sync
+        buffer = []
+        source = self.data
+
+        def _pop_item():
+            self.randomize(len(buffer))
+            # switch random index data and the last index data
+            ret, buffer[self._idx] = buffer[self._idx], buffer[-1]
+            buffer.pop()
+            return ret
+
+        def _get_item():
+            for item in source:
+                if len(buffer) >= self.size:
+                    yield _pop_item()
+                buffer.append(item)
+
+            while buffer:
+                yield _pop_item()
+
+        self.data = _get_item()
+        return super().__iter__()
 
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
 
+    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
+        raise NotImplementedError(f"`set_random_state` is not available in {self.__class__.__name__}.")
 
-class CSVIterableDataset(IterableDataset, Randomizable):
+
+class CSVIterableDataset(IterableDataset):
     """
     Iterable dataset to load CSV files and generate dictionary data.
     It is particularly useful when data come from a stream, inherits from PyTorch IterableDataset:
@@ -114,10 +130,10 @@ class CSVIterableDataset(IterableDataset, Randomizable):
     Note that as a stream input, it can't get the length of dataset.
 
     To effectively shuffle the data in the big dataset, users can set a big buffer to continuously store
-    the loaded chunks, then randomly pick data from the buffer for following tasks.
+    the loaded data, then randomly pick data from the buffer for following tasks.
 
     To accelerate the loading process, it can support multi-processing based on PyTorch DataLoader workers,
-    every process executes transforms on part of every loaded chunk.
+    every process executes transforms on part of every loaded data.
     Note: the order of output data may not match data source in multi-processing mode.
 
     It can load data from multiple CSV files and join the tables with additional `kwargs` arg.
@@ -156,6 +172,9 @@ class CSVIterableDataset(IterableDataset, Randomizable):
             `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
         transform: transform to apply on the loaded items of a dictionary data.
         shuffle: whether to shuffle all the data in the buffer every time a new chunk loaded.
+        seed: random seed to initialize the random state for all the workers if `shuffle` is True,
+            set `seed += 1` in every iter() call, refer to the PyTorch idea:
+            https://github.com/pytorch/pytorch/blob/v1.10.0/torch/utils/data/distributed.py#L98.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
     """
@@ -170,6 +189,7 @@ class CSVIterableDataset(IterableDataset, Randomizable):
         col_groups: Optional[Dict[str, Sequence[str]]] = None,
         transform: Optional[Callable] = None,
         shuffle: bool = False,
+        seed: int = 0,
         **kwargs,
     ):
         self.files = ensure_tuple(filename)
@@ -179,6 +199,7 @@ class CSVIterableDataset(IterableDataset, Randomizable):
         self.col_types = col_types
         self.col_groups = col_groups
         self.shuffle = shuffle
+        self.seed = seed
         self.kwargs = kwargs
         self.iters = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore
@@ -201,8 +222,10 @@ class CSVIterableDataset(IterableDataset, Randomizable):
             )
 
     def __iter__(self):
-        buffer = IterableBuffer(
-            data=self._flattened(), transform=self.transform, buffer_size=self.buffer_size, shuffle=self.shuffle
-        )
-        buffer.set_random_state(state=self.R)
-        yield from buffer
+        if self.shuffle:
+            self.seed += 1
+            buffer = ShuffleBuffer(
+                data=self._flattened(), transform=self.transform, buffer_size=self.buffer_size, seed=self.seed
+            )
+            yield from buffer
+        yield from IterableDataset(data=self._flattened(), transform=self.transform)

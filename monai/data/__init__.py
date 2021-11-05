@@ -24,11 +24,11 @@ from .dataset import (
     ZipDataset,
 )
 from .dataset_summary import DatasetSummary
-from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properties
+from .decathlon_datalist import check_missing_files, load_decathlon_datalist, load_decathlon_properties
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
-from .iterable_dataset import CSVIterableDataset, IterableBuffer, IterableDataset
+from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
 from .png_saver import PNGSaver

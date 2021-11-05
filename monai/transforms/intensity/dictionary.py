@@ -412,7 +412,7 @@ class StdShiftIntensityd(MapTransform):
             nonzero: whether only count non-zero values.
             channel_wise: if True, calculate on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
-            dtype: output data type, defaults to float32.
+            dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
@@ -451,7 +451,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
             prob: probability of std shift.
             nonzero: whether only count non-zero values.
             channel_wise: if True, calculate on each channel separately.
-            dtype: output data type, defaults to float32.
+            dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -509,7 +509,7 @@ class ScaleIntensityd(MapTransform):
                 this parameter, please set `minv` and `maxv` into None.
             channel_wise: if True, scale on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
-            dtype: output data type, defaults to float32.
+            dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -546,7 +546,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
-            dtype: output data type, defaults to float32.
+            dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -597,7 +597,7 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
             degree: degree of freedom of the polynomials. The value should be no less than 1.
                 Defaults to 3.
             coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
-            dtype: output data type, defaults to float32.
+            dtype: output data type, if None, same as input image. defaults to float32.
             prob: probability to do random bias field.
             allow_missing_keys: don't raise exception if key is missing.
 
@@ -641,7 +641,7 @@ class NormalizeIntensityd(MapTransform):
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
-        dtype: output data type, defaults to float32.
+        dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -712,6 +712,7 @@ class ScaleIntensityRanged(MapTransform):
         b_min: intensity target range min.
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
+        dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -725,10 +726,11 @@ class ScaleIntensityRanged(MapTransform):
         b_min: float,
         b_max: float,
         clip: bool = False,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
+        self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip, dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -826,6 +828,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
         relative: whether to scale to the corresponding percentiles of [b_min, b_max]
+        dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -840,10 +843,11 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: float,
         clip: bool = False,
         relative: bool = False,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative)
+        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative, dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1549,7 +1553,7 @@ class HistogramNormalized(MapTransform):
             only points at which `mask==True` are used for the equalization.
             can also provide the mask by `mask_key` at runtime.
         mask_key: if mask is None, will try to get the mask with `mask_key`.
-        dtype: data type of the output, default to `float32`.
+        dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: do not raise exception if key is missing.
 
     """

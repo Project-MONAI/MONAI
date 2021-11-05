@@ -83,4 +83,5 @@ from .unet import UNet, Unet
 from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
 from .vit import ViT
+from .vitautoenc import ViTAutoEnc
 from .vnet import VNet
