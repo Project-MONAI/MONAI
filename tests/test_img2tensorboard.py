@@ -29,9 +29,10 @@ class TestImg2Tensorboard(unittest.TestCase):
             image_axes=(1, 2),
             scale_factor=253.0,
         )
-        assert isinstance(
-            summary_object_np, tensorboard.compat.proto.summary_pb2.Summary
-        ), "make_animated_gif_summary must return a tensorboard.summary object from numpy array"
+        for s in summary_object_np:
+            assert isinstance(
+                s, tensorboard.compat.proto.summary_pb2.Summary
+            ), "make_animated_gif_summary must return a tensorboard.summary object from numpy array"
 
         tensorarr = torch.tensor(nparr)
         summary_object_tensor = make_animated_gif_summary(
@@ -42,9 +43,10 @@ class TestImg2Tensorboard(unittest.TestCase):
             image_axes=(1, 2),
             scale_factor=253.0,
         )
-        assert isinstance(
-            summary_object_tensor, tensorboard.compat.proto.summary_pb2.Summary
-        ), "make_animated_gif_summary must return a tensorboard.summary object from tensor input"
+        for s in summary_object_tensor:
+            assert isinstance(
+                s, tensorboard.compat.proto.summary_pb2.Summary
+            ), "make_animated_gif_summary must return a tensorboard.summary object from tensor input"
 
 
 if __name__ == "__main__":
