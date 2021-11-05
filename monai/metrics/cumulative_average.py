@@ -20,13 +20,19 @@ from .metric import CumulativeIterationMetric
 
 
 class CumulativeAverage(CumulativeIterationMetric):
-    def __init__(self, get_not_nans: bool = False) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.get_not_nans = get_not_nans
+        self.sum = None
+        self.not_nans = None
+
+    def reset(self):
+        super().reset()
         self.sum = None
         self.not_nans = None
 
     def _compute_tensor(self, value: torch.Tensor, y: Optional[torch.Tensor] = None):
+        while value.ndim < 2:
+            value = value.unsqueeze(0)
         return value
 
     def aggregate(self):  # type: ignore
@@ -35,7 +41,7 @@ class CumulativeAverage(CumulativeIterationMetric):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
         # do metric reduction
-        f, not_nans = do_metric_reduction(data, reduction=MetricReduction.MEAN_BATCH)
+        f, not_nans = do_metric_reduction(data, reduction=MetricReduction.SUM_BATCH)
         self.sum = f if self.sum is None else (self.sum + f)
         self.not_nans = not_nans if self.not_nans is None else (self.not_nans + not_nans)
 
