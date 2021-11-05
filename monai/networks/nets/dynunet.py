@@ -179,7 +179,7 @@ class DynUNet(nn.Module):
             """
 
             if len(downsamples) != len(upsamples):
-                raise AssertionError(f"{len(downsamples)} != {len(upsamples)}")
+                raise ValueError(f"{len(downsamples)} != {len(upsamples)}")
 
             if len(downsamples) == 0:  # bottom of the network, pass the bottleneck block
                 return bottleneck
@@ -214,31 +214,31 @@ class DynUNet(nn.Module):
         kernels, strides = self.kernel_size, self.strides
         error_msg = "length of kernel_size and strides should be the same, and no less than 3."
         if len(kernels) != len(strides) or len(kernels) < 3:
-            raise AssertionError(error_msg)
+            raise ValueError(error_msg)
 
         for idx, k_i in enumerate(kernels):
             kernel, stride = k_i, strides[idx]
             if not isinstance(kernel, int):
                 error_msg = f"length of kernel_size in block {idx} should be the same as spatial_dims."
                 if len(kernel) != self.spatial_dims:
-                    raise AssertionError(error_msg)
+                    raise ValueError(error_msg)
             if not isinstance(stride, int):
                 error_msg = f"length of stride in block {idx} should be the same as spatial_dims."
                 if len(stride) != self.spatial_dims:
-                    raise AssertionError(error_msg)
+                    raise ValueError(error_msg)
 
     def check_deep_supr_num(self):
         deep_supr_num, strides = self.deep_supr_num, self.strides
         num_up_layers = len(strides) - 1
         if deep_supr_num >= num_up_layers:
-            raise AssertionError("deep_supr_num should be less than the number of up sample layers.")
+            raise ValueError("deep_supr_num should be less than the number of up sample layers.")
         if deep_supr_num < 1:
-            raise AssertionError("deep_supr_num should be larger than 0.")
+            raise ValueError("deep_supr_num should be larger than 0.")
 
     def check_filters(self):
         filters = self.filters
         if len(filters) < len(self.strides):
-            raise AssertionError("length of filters should be no less than the length of strides.")
+            raise ValueError("length of filters should be no less than the length of strides.")
         else:
             self.filters = filters[: len(self.strides)]
 
