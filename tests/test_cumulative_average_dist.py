@@ -29,7 +29,10 @@ class DistributedCumulativeAverage(DistTestCase):
             [torch.as_tensor(0.1), torch.as_tensor([0.2]), torch.as_tensor([[0.3]])],
         ]
         expected = [
-            torch.as_tensor([0.2]), torch.as_tensor([0.15]), torch.as_tensor([0.2, 0.3]), torch.as_tensor([0.2]),
+            torch.as_tensor([0.2]),
+            torch.as_tensor([0.15]),
+            torch.as_tensor([0.2, 0.3]),
+            torch.as_tensor([0.2]),
         ]
         dice_metric = CumulativeAverage()
         for i, e in zip(input_data, expected):

@@ -20,12 +20,34 @@ from .metric import CumulativeIterationMetric
 
 
 class CumulativeAverage(CumulativeIterationMetric):
+    """
+    Cumulatively record data value and aggregate for the average value.
+    It supports single class or multi-class data, for example,
+    value can be `0.44`(like loss) or `[0.3, 0.4]`(like metrics of 2 classes).
+    It supports distributed data parallel, sync data when aggregating.
+    For example, recording loss value and compute the oveall average value
+    in every 5 iterations::
+
+        metric = CumulativeAverage()
+        for i, d in enumerate(dataloader):
+            loss = ...
+            metric(loss)
+            if i % 5 == 0:
+                print(f"cumulative average of loss: {metric.aggregate()}")
+        metric.reset()
+
+    """
+
     def __init__(self) -> None:
         super().__init__()
         self.sum = None
         self.not_nans = None
 
     def reset(self):
+        """
+        Reset all the running status, including buffers, sum, not nans count, etc.
+
+        """
         super().reset()
         self.sum = None
         self.not_nans = None
@@ -36,12 +58,18 @@ class CumulativeAverage(CumulativeIterationMetric):
         return value
 
     def aggregate(self):  # type: ignore
+        """
+        Sync data from all the ranks and compute the average value with previous sum value.
+
+        """
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
         # do metric reduction
         f, not_nans = do_metric_reduction(data, reduction=MetricReduction.SUM_BATCH)
+        # clear the buffer for next update
+        super().reset()
         self.sum = f if self.sum is None else (self.sum + f)
         self.not_nans = not_nans if self.not_nans is None else (self.not_nans + not_nans)
 

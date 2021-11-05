@@ -41,6 +41,8 @@ class TestCumulativeAverage(unittest.TestCase):
         dice_metric = CumulativeAverage()
         dice_metric(input_data[0])
         dice_metric(input_data[1])
+        result = dice_metric.aggregate()
+        # continue to update new data
         dice_metric(input_data[2])
         result = dice_metric.aggregate()
         torch.testing.assert_allclose(result, expected_value)
