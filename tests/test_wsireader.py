@@ -29,7 +29,8 @@ _, has_osl = optional_import("openslide")
 imsave, has_tiff = optional_import("tifffile", name="imsave")
 
 FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + os.path.basename(FILE_URL))
+base_name, extension = FILE_URL.split("id=")[1], ".tiff"
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 HEIGHT = 32914
 WIDTH = 46000
