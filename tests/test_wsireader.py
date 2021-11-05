@@ -97,73 +97,74 @@ def setUpModule():  # noqa: N802
 
 
 class WSIReaderTests:
-    backend = None
+    class Tests(unittest.TestCase):
+        backend = None
 
-    @parameterized.expand([TEST_CASE_0])
-    def test_read_whole_image(self, file_path, level, expected_shape):
-        reader = WSIReader(self.backend, level=level)
-        img_obj = reader.read(file_path)
-        img = reader.get_data(img_obj)[0]
-        self.assertTupleEqual(img.shape, expected_shape)
-
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_read_region(self, file_path, patch_info, expected_img):
-        reader = WSIReader(self.backend)
-        img_obj = reader.read(file_path)
-        img = reader.get_data(img_obj, **patch_info)[0]
-        self.assertTupleEqual(img.shape, expected_img.shape)
-        self.assertIsNone(assert_array_equal(img, expected_img))
-
-    @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
-    def test_read_patches(self, file_path, patch_info, expected_img):
-        reader = WSIReader(self.backend)
-        img_obj = reader.read(file_path)
-        img = reader.get_data(img_obj, **patch_info)[0]
-        self.assertTupleEqual(img.shape, expected_img.shape)
-        self.assertIsNone(assert_array_equal(img, expected_img))
-
-    @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
-    @skipUnless(has_tiff, "Requires tifffile.")
-    def test_read_rgba(self, img_expected):
-        # skip for OpenSlide since not working with images without tiles
-        if self.backend == "openslide":
-            return
-        image = {}
-        reader = WSIReader(self.backend)
-        for mode in ["RGB", "RGBA"]:
-            file_path = save_rgba_tiff(
-                img_expected,
-                os.path.join(os.path.dirname(__file__), "testing_data", f"temp_tiff_image_{mode}.tiff"),
-                mode=mode,
-            )
+        @parameterized.expand([TEST_CASE_0])
+        def test_read_whole_image(self, file_path, level, expected_shape):
+            reader = WSIReader(self.backend, level=level)
             img_obj = reader.read(file_path)
-            image[mode], _ = reader.get_data(img_obj)
+            img = reader.get_data(img_obj)[0]
+            self.assertTupleEqual(img.shape, expected_shape)
 
-        self.assertIsNone(assert_array_equal(image["RGB"], img_expected))
-        self.assertIsNone(assert_array_equal(image["RGBA"], img_expected))
+        @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+        def test_read_region(self, file_path, patch_info, expected_img):
+            reader = WSIReader(self.backend)
+            img_obj = reader.read(file_path)
+            img = reader.get_data(img_obj, **patch_info)[0]
+            self.assertTupleEqual(img.shape, expected_img.shape)
+            self.assertIsNone(assert_array_equal(img, expected_img))
 
-    @parameterized.expand([TEST_CASE_TRANSFORM_0])
-    def test_with_dataloader(self, file_path, level, expected_spatial_shape, expected_shape):
-        train_transform = Compose(
-            [LoadImaged(keys=["image"], reader=WSIReader, backend="cuCIM", level=level), ToTensord(keys=["image"])]
-        )
-        dataset = Dataset([{"image": file_path}], transform=train_transform)
-        data_loader = DataLoader(dataset)
-        data: dict = first(data_loader)
-        spatial_shape = tuple(d.item() for d in data["image_meta_dict"]["spatial_shape"])
-        self.assertTupleEqual(spatial_shape, expected_spatial_shape)
-        self.assertTupleEqual(data["image"].shape, expected_shape)
+        @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
+        def test_read_patches(self, file_path, patch_info, expected_img):
+            reader = WSIReader(self.backend)
+            img_obj = reader.read(file_path)
+            img = reader.get_data(img_obj, **patch_info)[0]
+            self.assertTupleEqual(img.shape, expected_img.shape)
+            self.assertIsNone(assert_array_equal(img, expected_img))
+
+        @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
+        @skipUnless(has_tiff, "Requires tifffile.")
+        def test_read_rgba(self, img_expected):
+            # skip for OpenSlide since not working with images without tiles
+            if self.backend == "openslide":
+                return
+            image = {}
+            reader = WSIReader(self.backend)
+            for mode in ["RGB", "RGBA"]:
+                file_path = save_rgba_tiff(
+                    img_expected,
+                    os.path.join(os.path.dirname(__file__), "testing_data", f"temp_tiff_image_{mode}.tiff"),
+                    mode=mode,
+                )
+                img_obj = reader.read(file_path)
+                image[mode], _ = reader.get_data(img_obj)
+
+            self.assertIsNone(assert_array_equal(image["RGB"], img_expected))
+            self.assertIsNone(assert_array_equal(image["RGBA"], img_expected))
+
+        @parameterized.expand([TEST_CASE_TRANSFORM_0])
+        def test_with_dataloader(self, file_path, level, expected_spatial_shape, expected_shape):
+            train_transform = Compose(
+                [LoadImaged(keys=["image"], reader=WSIReader, backend="cuCIM", level=level), ToTensord(keys=["image"])]
+            )
+            dataset = Dataset([{"image": file_path}], transform=train_transform)
+            data_loader = DataLoader(dataset)
+            data: dict = first(data_loader)
+            spatial_shape = tuple(d.item() for d in data["image_meta_dict"]["spatial_shape"])
+            self.assertTupleEqual(spatial_shape, expected_spatial_shape)
+            self.assertTupleEqual(data["image"].shape, expected_shape)
 
 
 @skipUnless(has_cucim, "Requires cucim")
-class TestCuCIM(unittest.TestCase, WSIReaderTests):
+class TestCuCIM(WSIReaderTests.Tests):
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
 
 
 @skipUnless(has_osl, "Requires OpenSlide")
-class TestOpenSlide(unittest.TestCase, WSIReaderTests):
+class TestOpenSlide(WSIReaderTests.Tests):
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"
