@@ -78,7 +78,7 @@ def make_animated_gif_summary(
         tag: Data identifier
         image: The image, expected to be in CHWD format
         writer: the tensorboard writer to plot image
-        max_out: maximum number of slices to animate through
+        max_out: maximum number of image channels to animate through
         animation_axes: axis to animate on (not currently used)
         image_axes: axes of image (not currently used)
         other_indices: (not currently used)
@@ -100,11 +100,12 @@ def make_animated_gif_summary(
             slicing.append(slice(other_ind, other_ind + 1))
     image = image[tuple(slicing)]
 
+    summary_op = []
     for it_i in range(min(max_out, list(image.shape)[0])):
         one_channel_img: Union[torch.Tensor, np.ndarray] = (
             image[it_i, :, :, :].squeeze(dim=0) if isinstance(image, torch.Tensor) else image[it_i, :, :, :]
         )
-        summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, writer, scale_factor)
+        summary_op.append(_image3_animated_gif(tag + suffix.format(it_i), one_channel_img, writer, scale_factor))
     return summary_op
 
 
@@ -112,8 +113,8 @@ def add_animated_gif(
     writer: SummaryWriter,
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
-    max_out: int,
-    scale_factor: float,
+    max_out: int = 3,
+    scale_factor: float = 1.0,
     global_step: Optional[int] = None,
 ) -> None:
     """Creates an animated gif out of an image tensor in 'CHWD' format and writes it with SummaryWriter.
@@ -122,31 +123,31 @@ def add_animated_gif(
         writer: Tensorboard SummaryWriter to write to
         tag: Data identifier
         image_tensor: tensor for the image to add, expected to be in CHWD format
-        max_out: maximum number of slices to animate through
+        max_out: maximum number of image channels to animate through
         scale_factor: amount to multiply values by. If the image data is between 0 and 1, using 255 for this value will
             scale it to displayable range
         global_step: Global step value to record
     """
-    writer._get_file_writer().add_summary(
-        make_animated_gif_summary(
-            tag=tag,
-            image=image_tensor,
-            writer=writer,
-            max_out=max_out,
-            animation_axes=[1],
-            image_axes=[2, 3],
-            scale_factor=scale_factor,
-        ),
-        global_step,
+    summary = make_animated_gif_summary(
+        tag=tag,
+        image=image_tensor,
+        writer=writer,
+        max_out=max_out,
+        animation_axes=[1],
+        image_axes=[2, 3],
+        scale_factor=scale_factor,
     )
+    for s in summary:
+        # add GIF for every channel separately
+        writer._get_file_writer().add_summary(s, global_step)
 
 
 def add_animated_gif_no_channels(
     writer: SummaryWriter,
     tag: str,
     image_tensor: Union[np.ndarray, torch.Tensor],
-    max_out: int,
-    scale_factor: float,
+    max_out: int = 3,
+    scale_factor: float = 1.0,
     global_step: Optional[int] = None,
 ) -> None:
     """Creates an animated gif out of an image tensor in 'HWD' format that does not have
@@ -157,7 +158,7 @@ def add_animated_gif_no_channels(
         writer: Tensorboard SummaryWriter to write to
         tag: Data identifier
         image_tensor: tensor for the image to add, expected to be in HWD format
-        max_out: maximum number of slices to animate through
+        max_out: maximum number of image channels to animate through
         scale_factor: amount to multiply values by. If the image data is between 0 and 1,
                               using 255 for this value will scale it to displayable range
         global_step: Global step value to record
@@ -171,7 +172,7 @@ def add_animated_gif_no_channels(
             animation_axes=[1],
             image_axes=[1, 2],
             scale_factor=scale_factor,
-        ),
+        )[0],
         global_step,
     )
 
@@ -182,14 +183,14 @@ def plot_2d_or_3d_image(
     writer: SummaryWriter,
     index: int = 0,
     max_channels: int = 1,
-    max_frames: int = 64,
+    max_frames: int = 24,
     tag: str = "output",
 ) -> None:
     """Plot 2D or 3D image on the TensorBoard, 3D image will be converted to GIF image.
 
     Note:
         Plot 3D or 2D image(with more than 3 channels) as separate images.
-        And if writer is from TensorBoardX, data has 3 channels and `max_channels=3`, will plot as RGB GIF image.
+        And if writer is from TensorBoardX, data has 3 channels and `max_channels=3`, will plot as RGB video.
 
     Args:
         data: target data to be plotted as image on the TensorBoard.
@@ -199,7 +200,7 @@ def plot_2d_or_3d_image(
         writer: specify TensorBoard or TensorBoardX SummaryWriter to plot the image.
         index: plot which element in the input data batch, default is the first element.
         max_channels: number of channels to plot.
-        max_frames: number of frames for 2D-t plot.
+        max_frames: if plot 3D RGB image as video in TensorBoardX, set the FPS to `max_frames`.
         tag: tag of the plotted image on TensorBoard.
     """
     data_index = data[index]
@@ -228,8 +229,9 @@ def plot_2d_or_3d_image(
         if d.shape[0] == 3 and max_channels == 3 and has_tensorboardx and isinstance(writer, SummaryWriterX):  # RGB
             writer.add_video(tag, d[None], step, fps=max_frames, dataformats="NCHWT")
             return
-
-        for j, d3 in enumerate(d[:max_channels]):
-            d3 = rescale_array(d3, 0, 255)
-            add_animated_gif(writer, f"{tag}_HWD_{j}", d3[None], max_frames, 1.0, step)
+        # scale data to 0 - 255 for visualization
+        max_channels = min(max_channels, d.shape[0])
+        d = np.stack([rescale_array(i, 0, 255) for i in d[:max_channels]], axis=0)
+        # will plot every channel as a separate GIF image
+        add_animated_gif(writer, f"{tag}_HWD", d, max_out=max_channels, global_step=step)
         return

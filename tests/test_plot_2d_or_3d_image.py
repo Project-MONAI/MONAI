@@ -39,7 +39,7 @@ class TestPlot2dOr3dImage(unittest.TestCase):
     def test_tb_image(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:
             writer = SummaryWriter(log_dir=tempdir)
-            plot_2d_or_3d_image(torch.zeros(shape), 0, writer)
+            plot_2d_or_3d_image(torch.zeros(shape), 0, writer, max_channels=20)
             writer.flush()
             writer.close()
             self.assertTrue(len(glob.glob(tempdir)) > 0)
@@ -49,7 +49,7 @@ class TestPlot2dOr3dImage(unittest.TestCase):
     def test_tbx_image(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:
             writer = SummaryWriterX(log_dir=tempdir)
-            plot_2d_or_3d_image(torch.zeros(shape), 0, writer)
+            plot_2d_or_3d_image(torch.zeros(shape), 0, writer, max_channels=2)
             writer.flush()
             writer.close()
             self.assertTrue(len(glob.glob(tempdir)) > 0)

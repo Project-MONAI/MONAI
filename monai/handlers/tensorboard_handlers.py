@@ -244,6 +244,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
     2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
     for 3D to ND output (shape in Batch, channel, H, W, D) input, each of ``self.max_channels`` number of images'
     last three dimensions will be shown as animated GIF along the last axis (typically Depth).
+    And if writer is from TensorBoardX, data has 3 channels and `max_channels=3`, will plot as RGB video.
 
     It can be used for any Ignite Engine (trainer, validator and evaluator).
     User can easily add it to engine for any expected Event, for example: ``EPOCH_COMPLETED``,
@@ -300,7 +301,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
             max_channels: number of channels to plot.
-            max_frames: number of frames for 2D-t plot.
+            max_frames: if plot 3D RGB image as video in TensorBoardX, set the FPS to `max_frames`.
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.interval = interval
