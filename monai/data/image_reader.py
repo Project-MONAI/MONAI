@@ -674,9 +674,10 @@ class WSIReader(ImageReader):
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided `get_data`.
 
-    Note: While ``cuCIM`` and ``OpenSlide`` both can load patches from large whole slide images
-        without loading the entire image into memory, ``TiffFile` needs to load the entire image into memory
-        before extracting any patch; thus, memory consideration is needed when using ``TiffFile` backend for
+    Note:
+        While "cucim" and "OpenSlide" backends both can load patches from large whole slide images
+        without loading the entire image into memory, "Tifffile" backend needs to load the entire image into memory
+        before extracting any patch; thus, memory consideration is needed when using "Tifffile" backend for
         patch extraction.
     """
 
