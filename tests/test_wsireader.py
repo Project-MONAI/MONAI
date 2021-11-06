@@ -170,5 +170,12 @@ class TestOpenSlide(WSIReaderTests.Tests):
         cls.backend = "openslide"
 
 
+@skipUnless(has_osl, "Requires OpenSlide")
+class TestTiffFile(WSIReaderTests.Tests):
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = "openslide"
+
+
 if __name__ == "__main__":
     unittest.main()
