@@ -734,7 +734,13 @@ class ScaleIntensityRange(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False, dtype: DtypeLike = np.float32
+        self,
+        a_min: float,
+        a_max: float,
+        b_min: Optional[float] = None,
+        b_max: Optional[float] = None,
+        clip: bool = False,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         self.a_min = a_min
         self.a_max = a_max
@@ -750,10 +756,13 @@ class ScaleIntensityRange(Transform):
         dtype = self.dtype or img.dtype
         if self.a_max - self.a_min == 0.0:
             warn("Divide by zero (a_min == a_max)", Warning)
+            if self.b_min is None:
+                return img - self.a_min
             return img - self.a_min + self.b_min
 
         img = (img - self.a_min) / (self.a_max - self.a_min)
-        img = img * (self.b_max - self.b_min) + self.b_min
+        if (self.b_min is not None) and (self.b_max is not None):
+            img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
             img = clip(img, self.b_min, self.b_max)
         ret, *_ = convert_data_type(img, dtype=dtype)
