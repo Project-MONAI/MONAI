@@ -14,6 +14,7 @@ import unittest
 from unittest import skipUnless
 
 import numpy as np
+import torch
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
@@ -151,8 +152,8 @@ class WSIReaderTests:
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
             data: dict = first(data_loader)
-            spatial_shape = tuple(d.item() for d in data["image_meta_dict"]["spatial_shape"])
-            self.assertTupleEqual(spatial_shape, expected_spatial_shape)
+            for s in data["image_meta_dict"]["spatial_shape"]:
+                torch.testing.assert_allclose(s, expected_spatial_shape)
             self.assertTupleEqual(data["image"].shape, expected_shape)
 
 
