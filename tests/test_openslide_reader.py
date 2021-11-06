@@ -24,8 +24,9 @@ from monai.utils import optional_import
 _, has_osl = optional_import("openslide")
 
 
-FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + os.path.basename(FILE_URL))
+FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
+base_name, extension = FILE_URL.split("id=")[1], ".tiff"
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 HEIGHT = 32914
 WIDTH = 46000
@@ -46,13 +47,7 @@ TEST_CASE_2 = [
 
 TEST_CASE_3 = [
     FILE_PATH,
-    {
-        "location": (0, 0),
-        "size": (8, 8),
-        "level": 2,
-        "grid_shape": (2, 1),
-        "patch_size": 2,
-    },
+    {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 2},
     np.array(
         [
             [[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[239, 239], [239, 239]]],
@@ -63,13 +58,7 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [
     FILE_PATH,
-    {
-        "location": (0, 0),
-        "size": (8, 8),
-        "level": 2,
-        "grid_shape": (2, 1),
-        "patch_size": 1,
-    },
+    {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
     np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
 ]
 

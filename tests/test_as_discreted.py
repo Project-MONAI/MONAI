@@ -11,69 +11,79 @@
 
 import unittest
 
-import torch
 from parameterized import parameterized
 
 from monai.transforms import AsDiscreted
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TEST_CASE_1 = [
-    {
-        "keys": ["pred", "label"],
-        "argmax": [True, False],
-        "to_onehot": True,
-        "n_classes": 2,
-        "threshold_values": False,
-        "logit_thresh": 0.5,
-    },
-    {"pred": torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]), "label": torch.tensor([[[0, 1]]])},
-    {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]]), "label": torch.tensor([[[1.0, 0.0]], [[0.0, 1.0]]])},
-    (2, 1, 2),
-]
+TEST_CASES = []
+for p in TEST_NDARRAYS:
+    TEST_CASES.append(
+        [
+            {
+                "keys": ["pred", "label"],
+                "argmax": [True, False],
+                "to_onehot": True,
+                "num_classes": 2,
+                "threshold_values": False,
+                "logit_thresh": 0.5,
+            },
+            {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]]), "label": p([[[0, 1]]])},
+            {"pred": p([[[0.0, 0.0]], [[1.0, 1.0]]]), "label": p([[[1.0, 0.0]], [[0.0, 1.0]]])},
+            (2, 1, 2),
+        ]
+    )
 
-TEST_CASE_2 = [
-    {
-        "keys": ["pred", "label"],
-        "argmax": False,
-        "to_onehot": False,
-        "n_classes": None,
-        "threshold_values": [True, False],
-        "logit_thresh": 0.6,
-    },
-    {"pred": torch.tensor([[[0.0, 1.0], [2.0, 3.0]]]), "label": torch.tensor([[[0, 1], [1, 1]]])},
-    {"pred": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]]), "label": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]])},
-    (1, 2, 2),
-]
+    TEST_CASES.append(
+        [
+            {
+                "keys": ["pred", "label"],
+                "argmax": False,
+                "to_onehot": False,
+                "num_classes": None,
+                "threshold_values": [True, False],
+                "logit_thresh": 0.6,
+            },
+            {"pred": p([[[0.0, 1.0], [2.0, 3.0]]]), "label": p([[[0, 1], [1, 1]]])},
+            {"pred": p([[[0.0, 1.0], [1.0, 1.0]]]), "label": p([[[0.0, 1.0], [1.0, 1.0]]])},
+            (1, 2, 2),
+        ]
+    )
 
-TEST_CASE_3 = [
-    {
-        "keys": ["pred"],
-        "argmax": True,
-        "to_onehot": True,
-        "n_classes": 2,
-        "threshold_values": False,
-        "logit_thresh": 0.5,
-    },
-    {"pred": torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]])},
-    {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]])},
-    (2, 1, 2),
-]
+    TEST_CASES.append(
+        [
+            {
+                "keys": ["pred"],
+                "argmax": True,
+                "to_onehot": True,
+                "num_classes": 2,
+                "threshold_values": False,
+                "logit_thresh": 0.5,
+            },
+            {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
+            {"pred": p([[[0.0, 0.0]], [[1.0, 1.0]]])},
+            (2, 1, 2),
+        ]
+    )
 
-TEST_CASE_4 = [
-    {"keys": "pred", "rounding": "torchrounding"},
-    {"pred": torch.tensor([[[0.123, 1.345], [2.567, 3.789]]])},
-    {"pred": torch.tensor([[[0.0, 1.0], [3.0, 4.0]]])},
-    (1, 2, 2),
-]
+    TEST_CASES.append(
+        [
+            {"keys": "pred", "rounding": "torchrounding"},
+            {"pred": p([[[0.123, 1.345], [2.567, 3.789]]])},
+            {"pred": p([[[0.0, 1.0], [3.0, 4.0]]])},
+            (1, 2, 2),
+        ]
+    )
 
 
 class TestAsDiscreted(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, test_input, output, expected_shape):
         result = AsDiscreted(**input_param)(test_input)
-        torch.testing.assert_allclose(result["pred"], output["pred"])
+        assert_allclose(result["pred"], output["pred"], rtol=1e-3)
         self.assertTupleEqual(result["pred"].shape, expected_shape)
         if "label" in result:
-            torch.testing.assert_allclose(result["label"], output["label"])
+            assert_allclose(result["label"], output["label"], rtol=1e-3)
             self.assertTupleEqual(result["label"].shape, expected_shape)
 
 

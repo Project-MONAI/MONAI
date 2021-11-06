@@ -34,7 +34,7 @@ def timeout(time, message):
     except KeyboardInterrupt as e:
         if timer is not None and timer.is_alive():
             raise e  # interrupt from user?
-        raise TimeoutError(message)
+        raise TimeoutError(message) from e
     finally:
         if timer is not None:
             try:
@@ -84,11 +84,7 @@ def load_module(
         # This will either run the build or return the existing .so object.
         name = module_name + platform_str.replace(".", "_")
         module = load(
-            name=name,
-            sources=source,
-            extra_cflags=define_args,
-            extra_cuda_cflags=define_args,
-            verbose=verbose_build,
+            name=name, sources=source, extra_cflags=define_args, extra_cuda_cflags=define_args, verbose=verbose_build
         )
 
     return module

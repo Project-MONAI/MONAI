@@ -18,7 +18,6 @@ from .dice import (
     GeneralizedDiceLoss,
     GeneralizedWassersteinDiceLoss,
     MaskedDiceLoss,
-    dice,
     dice_ce,
     dice_focal,
     generalized_dice,

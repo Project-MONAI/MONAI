@@ -42,6 +42,7 @@ class GarbageCollector:
     """
 
     def __init__(self, trigger_event: str = "epoch", log_level: int = 10):
+        self.trigger_event: Events
         if isinstance(trigger_event, Events):
             self.trigger_event = trigger_event
         elif trigger_event.lower() == "epoch":
@@ -69,7 +70,7 @@ class GarbageCollector:
         """
         # get count before garbage collection
         pre_count = gc.get_count()
-        # fits call to garbage collector
+        # first call to garbage collector
         gc.collect()
         # second call to garbage collector
         unreachable = gc.collect()

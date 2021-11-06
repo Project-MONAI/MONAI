@@ -93,9 +93,7 @@ class InvB(Inv):
         self.inv_fn = lambda x: x - 100
 
 
-TESTS = [
-    ((X(), Y(), X()), (1, 2, 1), (0.25, 0.5, 0.25)),
-]
+TESTS = [((X(), Y(), X()), (1, 2, 1), (0.25, 0.5, 0.25))]
 
 KEYS = ["x", "y"]
 TEST_INVERSES = [

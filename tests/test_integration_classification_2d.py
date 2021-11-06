@@ -80,7 +80,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
         [LoadImage(image_only=True), AddChannel(), Transpose(indices=[0, 2, 1]), ScaleIntensity(), ToTensor()]
     )
     y_pred_trans = Compose([ToTensor(), Activations(softmax=True)])
-    y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=True, n_classes=len(np.unique(train_y)))])
+    y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=True, num_classes=len(np.unique(train_y)))])
     auc_metric = ROCAUCMetric()
 
     # create train, val data loaders
@@ -197,7 +197,7 @@ class IntegrationClassification2D(DistTestCase):
 
         assert os.path.exists(data_dir)
 
-        class_names = sorted((x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x))))
+        class_names = sorted(x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x)))
         image_files = [
             [os.path.join(data_dir, class_name, x) for x in sorted(os.listdir(os.path.join(data_dir, class_name)))]
             for class_name in class_names

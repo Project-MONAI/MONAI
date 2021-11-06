@@ -34,9 +34,7 @@ class SplitOnGrid(Transform):
     """
 
     def __init__(
-        self,
-        grid_size: Union[int, Tuple[int, int]] = (2, 2),
-        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
+        self, grid_size: Union[int, Tuple[int, int]] = (2, 2), patch_size: Optional[Union[int, Tuple[int, int]]] = None
     ):
         # Grid size
         if isinstance(grid_size, int):
