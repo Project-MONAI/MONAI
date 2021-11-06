@@ -683,8 +683,10 @@ class WSIReader(ImageReader):
             self.wsi_reader, *_ = optional_import("openslide", name="OpenSlide")
         elif self.backend == "cucim":
             self.wsi_reader, *_ = optional_import("cucim", name="CuImage")
+        elif self.backend == "tifffile":
+            self.wsi_reader, *_ = optional_import("tifffile", name="TiffFile")
         else:
-            raise ValueError('`backend` should be either "cuCIM" or "OpenSlide"')
+            raise ValueError('`backend` should be "cuCIM", "OpenSlide", or "TiffFile')
         self.level = level
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
@@ -774,13 +776,22 @@ class WSIReader(ImageReader):
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
-        # reverse the order of dimensions for size and location to be compatible with image shape
-        location = location[::-1]
-        if size is None:
-            region = img_obj.read_region(location=location, level=level)
+        if self.backend == "tifffile":
+            region = img_obj.asarray(level=level)
+            img_obj.close()
+            if size is None:
+                region = region[location[0] :, location[1] :]
+            else:
+                region = region[location[0] : location[0] + size[0], location[1] : location[1] + size[1]]
+
         else:
-            size = size[::-1]
-            region = img_obj.read_region(location=location, size=size, level=level)
+            # reverse the order of dimensions for size and location to be compatible with image shape
+            location = location[::-1]
+            if size is None:
+                region = img_obj.read_region(location=location, level=level)
+            else:
+                size = size[::-1]
+                region = img_obj.read_region(location=location, size=size, level=level)
 
         region = self.convert_to_rgb_array(region, dtype)
         return region
@@ -790,15 +801,12 @@ class WSIReader(ImageReader):
         if self.backend == "openslide":
             # convert to RGB
             raw_region = raw_region.convert("RGB")
-            # convert to numpy
-            raw_region = np.asarray(raw_region, dtype=dtype)
-        else:
-            num_channels = len(raw_region.channel_names)
-            # convert to numpy
-            raw_region = np.asarray(raw_region, dtype=dtype)
-            # remove alpha channel if exist (RGBA)
-            if num_channels > 3:
-                raw_region = raw_region[:, :, :3]
+
+        # convert to numpy (if not already in numpy)
+        raw_region = np.asarray(raw_region, dtype=dtype)
+        # remove alpha channel if exist (RGBA)
+        if raw_region.shape[-1] > 3:
+            raw_region = raw_region[..., :3]
 
         return raw_region
 
