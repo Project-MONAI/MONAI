@@ -20,8 +20,7 @@ from tests.utils import NumpyImageTestCase2D
 class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
     def test_scaling(self):
         img = self.imt
-        data = {}
-        data["img"] = img
+        data = {"img": img}
         lower = 10
         upper = 99
         b_min = 0
@@ -55,7 +54,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
         expected_img = (img - expected_a_min) / (expected_a_max - expected_a_min)
         expected_img = (expected_img * (expected_b_max - expected_b_min)) + expected_b_min
 
-        self.assertTrue(np.allclose(expected_img, scaler(data)["img"]))
+        np.testing.assert_allclose(expected_img, scaler(data)["img"])
 
     def test_invalid_instantiation(self):
         self.assertRaises(
@@ -70,6 +69,9 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
         self.assertRaises(
             ValueError, ScaleIntensityRangePercentilesd, keys=["img"], lower=30, upper=1000, b_min=0, b_max=255
         )
+        with self.assertRaises(ValueError):
+            s = ScaleIntensityRangePercentilesd(keys=["img"], lower=30, upper=90, b_min=None, b_max=20, relative=True)
+            s(self.imt)
 
 
 if __name__ == "__main__":
