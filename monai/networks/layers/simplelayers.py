@@ -295,10 +295,11 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
     conv = [F.conv1d, F.conv2d, F.conv3d][n_spatial - 1]
     if "padding" not in kwargs:
         if pytorch_after(1, 10):
+            kwargs["padding"] = "same"
+        else:
             # even-sized kernels are not supported
             kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
-        else:
-            kwargs["padding"] = "same"
+
     if "stride" not in kwargs:
         kwargs["stride"] = 1
     output = conv(x, kernel, groups=kernel.shape[0], bias=None, **kwargs)

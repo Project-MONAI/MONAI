@@ -36,7 +36,6 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.networks import convert_to_torchscript
 from monai.utils import optional_import
-from monai.utils.misc import is_module_ver_at_least
 from monai.utils.module import pytorch_after, version_leq
 from monai.utils.type_conversion import convert_data_type
 

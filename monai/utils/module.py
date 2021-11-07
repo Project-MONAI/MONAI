@@ -8,7 +8,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import enum
+import os
+import re
 import sys
 import warnings
 from functools import wraps
@@ -453,6 +456,8 @@ def version_leq(lhs: str, rhs: str):
 def pytorch_after(major, minor, patch=0, current_ver_string=None) -> bool:
     """
     Compute whether the current pytorch version is after or equal to the specified version.
+    The current system pytorch version is determined by `torch.__version__` or
+    via system environment variable `PYTORCH_VER`.
 
     Args:
         major: major version number to be compared with
@@ -465,23 +470,30 @@ def pytorch_after(major, minor, patch=0, current_ver_string=None) -> bool:
     """
     try:
         if current_ver_string is None:
-            current_ver_string = torch.__version__
-        c_major, c_minor, c_patch = current_ver_string.split("+", 1)[0].split(".", 3)
+            _env_var = os.environ.get("PYTORCH_VER", "")
+            current_ver_string = _env_var if _env_var else torch.__version__
+        parts = f"{current_ver_string}".split("+", 1)[0].split(".", 3)
+        while len(parts) < 3:
+            parts += ["0"]
+        c_major, c_minor, c_patch = parts[:3]
     except (AttributeError, ValueError, TypeError):
         c_major, c_minor = get_torch_version_tuple()
-        c_patch = 0
+        c_patch = "0"
     c_mn = int(c_major), int(c_minor)
     mn = int(major), int(minor)
     if c_mn != mn:
         return c_mn > mn
-    is_prerelease = "a" in c_patch
+    is_prerelease = ("a" in f"{c_patch}".lower()) or ("rc" in f"{c_patch}".lower())
+    c_p = 0
     try:
-        c_patch = int(c_patch) if not is_prerelease else int(c_patch.split("a", 1)[0])
+        p_reg = re.search(r"\d+", f"{c_patch}")
+        if p_reg:
+            c_p = int(p_reg.group())
     except (AttributeError, TypeError, ValueError):
-        c_patch = 0
         is_prerelease = True
-    if c_patch != patch:
-        return c_patch > patch
+    patch = int(patch)
+    if c_p != patch:
+        return c_p > patch  # type: ignore
     if is_prerelease:
         return False
     return True
