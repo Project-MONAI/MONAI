@@ -37,7 +37,7 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.networks import convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.module import version_leq
+from monai.utils.module import pytorch_after, version_leq
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
@@ -193,7 +193,7 @@ class SkipIfBeforePyTorchVersion:
 
     def __init__(self, pytorch_version_tuple):
         self.min_version = pytorch_version_tuple
-        self.version_too_old = not is_module_ver_at_least(torch, pytorch_version_tuple)
+        self.version_too_old = not pytorch_after(*pytorch_version_tuple)
 
     def __call__(self, obj):
         return unittest.skipIf(
@@ -207,8 +207,7 @@ class SkipIfAtLeastPyTorchVersion:
 
     def __init__(self, pytorch_version_tuple):
         self.max_version = pytorch_version_tuple
-        test_ver = ".".join(map(str, self.max_version))
-        self.version_too_new = version_leq(test_ver, torch.__version__)
+        self.version_too_new = pytorch_after(*pytorch_version_tuple)
 
     def __call__(self, obj):
         return unittest.skipIf(

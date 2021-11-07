@@ -21,18 +21,17 @@ from torch.autograd import Function
 from monai.networks.layers.convutils import gaussian_1d
 from monai.networks.layers.factories import Conv
 from monai.utils import (
-    PT_BEFORE_1_7,
     ChannelMatching,
     InvalidPyTorchVersionError,
     SkipMode,
     look_up_option,
     optional_import,
-    version_leq,
+    pytorch_after,
 )
 from monai.utils.misc import issequenceiterable
 
 _C, _ = optional_import("monai._C")
-if not PT_BEFORE_1_7:
+if pytorch_after(1, 7):
     fft, _ = optional_import("torch.fft")
 
 __all__ = [
@@ -295,7 +294,7 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
     x = x.view(1, kernel.shape[0], *spatials)
     conv = [F.conv1d, F.conv2d, F.conv3d][n_spatial - 1]
     if "padding" not in kwargs:
-        if version_leq(torch.__version__, "1.10.0b"):
+        if pytorch_after(1, 10):
             # even-sized kernels are not supported
             kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
         else:
@@ -387,7 +386,7 @@ class HilbertTransform(nn.Module):
 
     def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:
 
-        if PT_BEFORE_1_7:
+        if not pytorch_after(1, 7):
             raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         super().__init__()
