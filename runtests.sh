@@ -570,5 +570,5 @@ if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
     ${cmdPrefix}${PY_EXE} -m coverage combine --append .coverage/
-    ${cmdPrefix}${PY_EXE} -m coverage report
+    ${cmdPrefix}${PY_EXE} -m coverage report -i
 fi
