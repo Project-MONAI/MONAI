@@ -678,7 +678,7 @@ class WSIReader(ImageReader):
     Args:
         backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "Tifffile".
         level: the whole slide image level at which the image is extracted. (default=0)
-            This is overridden if the level argument is provided `get_data`.
+            This is overridden if the level argument is provided in `get_data`.
 
     Note:
         While "cucim" and "OpenSlide" backends both can load patches from large whole slide images

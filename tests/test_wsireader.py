@@ -175,7 +175,7 @@ class TestOpenSlide(WSIReaderTests.Tests):
 class TestTiffFile(WSIReaderTests.Tests):
     @classmethod
     def setUpClass(cls):
-        cls.backend = "openslide"
+        cls.backend = "tifffile"
 
 
 if __name__ == "__main__":
