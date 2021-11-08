@@ -148,6 +148,7 @@ def run_testsuit():
         "test_prepare_batch_extra_input",
         "test_prepare_batch_default",
         "test_check_missing_files",
+        "test_cumulative_average_dist",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
