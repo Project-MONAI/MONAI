@@ -26,6 +26,8 @@ class TestTransformsWCacheDatasetAndPersistentWorkers(unittest.TestCase):
 
         # cachedataset and data loader w persistent_workers
         train_ds = CacheDataset(data, transform, cache_num=1)
+        # num_workers > 1 may fail randomly with 21.09 on A100 test node
+        # https://github.com/Project-MONAI/MONAI/issues/3283
         train_loader = DataLoader(train_ds, num_workers=1, persistent_workers=True)
 
         b1 = next(iter(train_loader))
