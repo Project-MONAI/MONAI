@@ -32,7 +32,7 @@ def get_conv_block(
 ) -> nn.Module:
     if padding is None:
         padding = same_padding(kernel_size)
-    conv_block = Convolution(
+    conv_block: nn.Module = Convolution(
         spatial_dims,
         in_channels,
         out_channels,
@@ -59,21 +59,13 @@ def get_conv_block(
 
 
 def get_conv_layer(
-    spatial_dims: int,
-    in_channels: int,
-    out_channels: int,
-    kernel_size: Union[Sequence[int], int] = 3,
+    spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int] = 3
 ) -> nn.Module:
     padding = same_padding(kernel_size)
-    return Convolution(
-        spatial_dims,
-        in_channels,
-        out_channels,
-        kernel_size=kernel_size,
-        bias=False,
-        conv_only=True,
-        padding=padding,
+    mod: nn.Module = Convolution(
+        spatial_dims, in_channels, out_channels, kernel_size=kernel_size, bias=False, conv_only=True, padding=padding
     )
+    return mod
 
 
 class RegistrationResidualConvBlock(nn.Module):
@@ -83,12 +75,7 @@ class RegistrationResidualConvBlock(nn.Module):
     """
 
     def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-        num_layers: int = 2,
-        kernel_size: int = 3,
+        self, spatial_dims: int, in_channels: int, out_channels: int, num_layers: int = 2, kernel_size: int = 3
     ):
         """
 
@@ -99,7 +86,7 @@ class RegistrationResidualConvBlock(nn.Module):
             num_layers: number of layers inside the block
             kernel_size: kernel_size
         """
-        super(RegistrationResidualConvBlock, self).__init__()
+        super().__init__()
         self.num_layers = num_layers
         self.layers = nn.ModuleList(
             [
@@ -145,19 +132,14 @@ class RegistrationDownSampleBlock(nn.Module):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
-    def __init__(
-        self,
-        spatial_dims: int,
-        channels: int,
-        pooling: bool,
-    ) -> None:
+    def __init__(self, spatial_dims: int, channels: int, pooling: bool) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions.
             channels: channels
             pooling: use MaxPool if True, strided conv if False
         """
-        super(RegistrationDownSampleBlock, self).__init__()
+        super().__init__()
         if pooling:
             self.layer = Pool[Pool.MAX, spatial_dims](kernel_size=2)
         else:
@@ -188,13 +170,9 @@ class RegistrationDownSampleBlock(nn.Module):
         return out
 
 
-def get_deconv_block(
-    spatial_dims: int,
-    in_channels: int,
-    out_channels: int,
-) -> nn.Module:
-    return Convolution(
-        dimensions=spatial_dims,
+def get_deconv_block(spatial_dims: int, in_channels: int, out_channels: int) -> nn.Module:
+    mod: nn.Module = Convolution(
+        spatial_dims=spatial_dims,
         in_channels=in_channels,
         out_channels=out_channels,
         strides=2,
@@ -205,6 +183,7 @@ def get_deconv_block(
         padding=1,
         output_padding=1,
     )
+    return mod
 
 
 class RegistrationExtractionBlock(nn.Module):
@@ -233,7 +212,7 @@ class RegistrationExtractionBlock(nn.Module):
             kernel_initializer: kernel initializer
             activation: kernel activation function
         """
-        super(RegistrationExtractionBlock, self).__init__()
+        super().__init__()
         self.extract_levels = extract_levels
         self.max_level = max(extract_levels)
         self.layers = nn.ModuleList(
@@ -261,10 +240,7 @@ class RegistrationExtractionBlock(nn.Module):
             Tensor of shape (batch, `out_channels`, size1, size2, size3), where (size1, size2, size3) = ``image_size``
         """
         feature_list = [
-            F.interpolate(
-                layer(x[self.max_level - level]),
-                size=image_size,
-            )
+            F.interpolate(layer(x[self.max_level - level]), size=image_size)
             for layer, level in zip(self.layers, self.extract_levels)
         ]
         out: torch.Tensor = torch.mean(torch.stack(feature_list, dim=0), dim=0)

@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -33,10 +33,16 @@ from monai.transforms.spatial.array import (
     Affine,
     AffineGrid,
     Flip,
+    GridDistortion,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
     RandAffine,
+    RandAxisFlip,
+    RandFlip,
+    RandGridDistortion,
+    RandRotate,
+    RandZoom,
     Resize,
     Rotate,
     Rotate90,
@@ -50,12 +56,15 @@ from monai.utils import (
     GridSamplePadMode,
     InterpolateMode,
     NumpyPadMode,
+    PytorchPadMode,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
 )
+from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import InverseKeys
 from monai.utils.module import optional_import
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 nib, _ = optional_import("nibabel")
 
@@ -71,6 +80,8 @@ __all__ = [
     "Rand3DElasticd",
     "Flipd",
     "RandFlipd",
+    "GridDistortiond",
+    "RandGridDistortiond",
     "RandAxisFlipd",
     "Rotated",
     "RandRotated",
@@ -98,6 +109,10 @@ __all__ = [
     "FlipDict",
     "RandFlipD",
     "RandFlipDict",
+    "GridDistortionD",
+    "GridDistortionDict",
+    "RandGridDistortionD",
+    "RandGridDistortionDict",
     "RandAxisFlipD",
     "RandAxisFlipDict",
     "RotateD",
@@ -108,6 +123,7 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
+    "AddCoordinateChannelsd",
     "AddCoordinateChannelsD",
     "AddCoordinateChannelsDict",
 ]
@@ -115,7 +131,7 @@ __all__ = [
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
 InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
-NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
+PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
 
 
 class Spacingd(MapTransform, InvertibleTransform):
@@ -131,6 +147,8 @@ class Spacingd(MapTransform, InvertibleTransform):
     see also:
         :py:class:`monai.transforms.Spacing`
     """
+
+    backend = Spacing.backend
 
     def __init__(
         self,
@@ -208,8 +226,8 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(
-        self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
-    ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
+        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
+    ) -> Dict[Hashable, NdarrayOrTensor]:
         d: Dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, meta_key, meta_key_postfix in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
@@ -223,7 +241,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             # using affine fetched from d[affine_key]
             original_spatial_shape = d[key].shape[1:]
             d[key], old_affine, new_affine = self.spacing_transform(
-                data_array=np.asarray(d[key]),
+                data_array=d[key],
                 affine=meta_data["affine"],
                 mode=mode,
                 padding_mode=padding_mode,
@@ -246,7 +264,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             meta_data["affine"] = new_affine
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
@@ -266,15 +284,15 @@ class Spacingd(MapTransform, InvertibleTransform):
             inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
             # Apply inverse
             d[key], _, new_affine = inverse_transform(
-                data_array=np.asarray(d[key]),
-                affine=meta_data["affine"],
+                data_array=d[key],
+                affine=meta_data["affine"],  # type: ignore
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=False if align_corners == "none" else align_corners,
                 dtype=dtype,
                 output_spatial_shape=orig_size,
             )
-            meta_data["affine"] = new_affine
+            meta_data["affine"] = new_affine  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -291,6 +309,8 @@ class Orientationd(MapTransform, InvertibleTransform):
     After reorienting the input array, this transform will write the new affine
     to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
     """
+
+    backend = Orientation.backend
 
     def __init__(
         self,
@@ -341,8 +361,8 @@ class Orientationd(MapTransform, InvertibleTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(
-        self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
-    ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
+        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
+    ) -> Dict[Hashable, NdarrayOrTensor]:
         d: Dict = dict(data)
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
@@ -355,18 +375,16 @@ class Orientationd(MapTransform, InvertibleTransform):
             d[meta_key]["affine"] = new_affine
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            meta_data = d[transform[InverseKeys.EXTRA_INFO]["meta_key"]]
+            meta_data: Dict = d[transform[InverseKeys.EXTRA_INFO]["meta_key"]]  # type: ignore
             orig_affine = transform[InverseKeys.EXTRA_INFO]["old_affine"]
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
             inverse_transform = Orientation(
-                axcodes=orig_axcodes,
-                as_closest_canonical=False,
-                labels=self.ornt_transform.labels,
+                axcodes=orig_axcodes, as_closest_canonical=False, labels=self.ornt_transform.labels
             )
             # Apply inverse
             d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
@@ -382,6 +400,8 @@ class Rotate90d(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
+    backend = Rotate90.backend
+
     def __init__(
         self, keys: KeysCollection, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1), allow_missing_keys: bool = False
     ) -> None:
@@ -395,14 +415,14 @@ class Rotate90d(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.rotator(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             _ = self.get_most_recent_transform(d, key)
@@ -411,9 +431,6 @@ class Rotate90d(MapTransform, InvertibleTransform):
             num_times_rotated = self.rotator.k
             num_times_to_rotate = 4 - num_times_rotated
             inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
-            # Might need to convert to numpy
-            if isinstance(d[key], torch.Tensor):
-                d[key] = torch.Tensor(d[key]).cpu().numpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -428,6 +445,8 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
     """
+
+    backend = Rotate90.backend
 
     def __init__(
         self,
@@ -461,10 +480,12 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
         d = dict(data)
 
+        # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
+        # to be compatible with the random status of some previous integration tests
         rotator = Rotate90(self._rand_k, self.spatial_axes)
         for key in self.key_iterator(d):
             if self._do_transform:
@@ -472,7 +493,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -482,9 +503,6 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
                 num_times_rotated = transform[InverseKeys.EXTRA_INFO]["rand_k"]
                 num_times_to_rotate = 4 - num_times_rotated
                 inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
-                # Might need to convert to numpy
-                if isinstance(d[key], torch.Tensor):
-                    d[key] = torch.Tensor(d[key]).cpu().numpy()
                 # Apply inverse
                 d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -520,6 +538,8 @@ class Resized(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = Resize.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -534,7 +554,7 @@ class Resized(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
             self.push_transform(
@@ -548,7 +568,7 @@ class Resized(MapTransform, InvertibleTransform):
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -557,9 +577,7 @@ class Resized(MapTransform, InvertibleTransform):
             align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
             # Create inverse transform
             inverse_transform = Resize(
-                spatial_size=orig_size,
-                mode=mode,
-                align_corners=None if align_corners == "none" else align_corners,
+                spatial_size=orig_size, mode=mode, align_corners=None if align_corners == "none" else align_corners
             )
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
@@ -574,6 +592,9 @@ class Affined(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Affine`.
     """
 
+    backend = Affine.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -584,7 +605,7 @@ class Affined(MapTransform, InvertibleTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
+        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -621,14 +642,16 @@ class Affined(MapTransform, InvertibleTransform):
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.affine = Affine(
@@ -637,15 +660,12 @@ class Affined(MapTransform, InvertibleTransform):
             translate_params=translate_params,
             scale_params=scale_params,
             spatial_size=spatial_size,
-            as_tensor_output=as_tensor_output,
             device=device,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             orig_size = d[key].shape[1:]
@@ -662,7 +682,7 @@ class Affined(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -678,10 +698,7 @@ class Affined(MapTransform, InvertibleTransform):
             grid, _ = affine_grid(orig_size)  # type: ignore
 
             # Apply inverse transform
-            out = self.affine.resampler(d[key], grid, mode, padding_mode)
-
-            # Convert to numpy
-            d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
+            d[key] = self.affine.resampler(d[key], grid, mode, padding_mode)
 
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -694,6 +711,9 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
 
+    backend = RandAffine.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -754,14 +774,16 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             cache_grid: whether to cache the identity sampling grid.
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -773,7 +795,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             scale_range=scale_range,
             spatial_size=spatial_size,
             cache_grid=cache_grid,
-            as_tensor_output=as_tensor_output,
             device=device,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -786,22 +807,19 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        self.randomize(None)
+        # all the keys share the same random Affine factor
         self.rand_affine.randomize()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
-        d = dict(data)
-        self.randomize()
+        device = self.rand_affine.resampler.device
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         # change image size or do random transform
         do_resampling = self._do_transform or (sp_size != ensure_tuple(data[self.keys[0]].shape[1:]))
-
-        # to be consistent with the self._do_transform case (dtype and device)
-        affine = torch.as_tensor(np.eye(len(sp_size) + 1), device=self.rand_affine.rand_affine_grid.device)
+        affine: torch.Tensor = torch.eye(len(sp_size) + 1, dtype=torch.float64, device=device)
+        # converting affine to tensor because the resampler currently only support torch backend
         grid = None
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
@@ -822,24 +840,16 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             # do the transform
             if do_resampling:
                 d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
-            # if not doing transform and and spatial size is unchanged, only need to do numpy/torch conversion
-            else:
-                if self.rand_affine.resampler.as_tensor_output and not isinstance(d[key], torch.Tensor):
-                    d[key] = torch.Tensor(d[key])
-                elif not self.rand_affine.resampler.as_tensor_output and isinstance(d[key], torch.Tensor):
-                    d[key] = d[key].detach().cpu().numpy()  # type: ignore[union-attr]
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # if transform was not performed and spatial size is None, nothing to do.
-            if not transform[InverseKeys.DO_TRANSFORM] and self.rand_affine.spatial_size is None:
-                out: Union[np.ndarray, torch.Tensor] = d[key]
-            else:
+            if transform[InverseKeys.DO_TRANSFORM] or self.rand_affine.spatial_size is not None:
                 orig_size = transform[InverseKeys.ORIG_SIZE]
                 # Create inverse transform
                 fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
@@ -851,10 +861,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 grid, _ = affine_grid(orig_size)  # type: ignore
 
                 # Apply inverse transform
-                out = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
-
-            # Convert to numpy
-            d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
+                d[key] = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
 
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -867,6 +874,9 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand2DElastic`.
     """
 
+    backend = Rand2DElastic.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -927,14 +937,16 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -947,7 +959,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            as_tensor_output=as_tensor_output,
             device=device,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -960,17 +971,13 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, spatial_size: Sequence[int]) -> None:
-        super().randomize(None)
-        self.rand_2d_elastic.randomize(spatial_size)
-
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
+        self.randomize(None)
 
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
-        self.randomize(spatial_size=sp_size)
+        # all the keys share the same random elastic factor
+        self.rand_2d_elastic.randomize(sp_size)
 
         if self._do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
@@ -984,7 +991,8 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             )
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
-            grid = create_grid(spatial_size=sp_size)
+            _device = self.rand_2d_elastic.deform_grid.device
+            grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
@@ -996,6 +1004,9 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand3DElastic`.
     """
 
+    backend = Rand3DElastic.backend
+
+    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -1058,14 +1069,16 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
+
+        .. deprecated:: 0.6.0
+            ``as_tensor_output`` is deprecated.
+
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -1078,7 +1091,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
-            as_tensor_output=as_tensor_output,
             device=device,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -1091,23 +1103,20 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def randomize(self, grid_size: Sequence[int]) -> None:
-        super().randomize(None)
-        self.rand_3d_elastic.randomize(grid_size)
-
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        self.randomize(None)
 
-        self.randomize(grid_size=sp_size)
-        grid = create_grid(spatial_size=sp_size)
+        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        # all the keys share the same random elastic factor
+        self.rand_3d_elastic.randomize(sp_size)
+
+        _device = self.rand_3d_elastic.device
+        grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         if self._do_transform:
             device = self.rand_3d_elastic.device
-            grid = torch.tensor(grid).to(device)
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
-            offset = torch.tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
+            offset = torch.as_tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
@@ -1173,7 +1182,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = Flip.backend
+    backend = RandFlip.backend
 
     def __init__(
         self,
@@ -1184,16 +1193,22 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.spatial_axis = spatial_axis
+        self.flipper = RandFlip(prob=1.0, spatial_axis=spatial_axis)
 
-        self.flipper = Flip(spatial_axis=spatial_axis)
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandFlipd":
+        super().set_random_state(seed, state)
+        self.flipper.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        self.randomize(None)
         d = dict(data)
+        self.randomize(None)
+
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = self.flipper(d[key])
+                d[key] = self.flipper(d[key], randomize=False)
             self.push_transform(d, key)
         return d
 
@@ -1204,7 +1219,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
             # Check if random transform was actually performed (based on `prob`)
             if transform[InverseKeys.DO_TRANSFORM]:
                 # Inverse is same as forward
-                d[key] = self.flipper(d[key])
+                d[key] = self.flipper(d[key], randomize=False)
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
@@ -1224,26 +1239,30 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     """
 
-    backend = Flip.backend
+    backend = RandAxisFlip.backend
 
     def __init__(self, keys: KeysCollection, prob: float = 0.1, allow_missing_keys: bool = False) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self._axis: Optional[int] = None
+        self.flipper = RandAxisFlip(prob=1.0)
 
-    def randomize(self, data: NdarrayOrTensor) -> None:
-        super().randomize(None)
-        self._axis = self.R.randint(data.ndim - 1)
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandAxisFlipd":
+        super().set_random_state(seed, state)
+        self.flipper.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        self.randomize(data=data[self.keys[0]])
-        flipper = Flip(spatial_axis=self._axis)
-
         d = dict(data)
+        self.randomize(None)
+
+        # all the keys share the same random selected axis
+        self.flipper.randomize(d[self.keys[0]])
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = flipper(d[key])
-            self.push_transform(d, key, extra_info={"axis": self._axis})
+                d[key] = self.flipper(d[key], randomize=False)
+            self.push_transform(d, key, extra_info={"axis": self.flipper._axis})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1288,6 +1307,8 @@ class Rotated(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = Rotate.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1296,7 +1317,7 @@ class Rotated(MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1307,18 +1328,14 @@ class Rotated(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             orig_size = d[key].shape[1:]
             d[key] = self.rotator(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-                dtype=dtype,
+                d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
             )
             rot_mat = self.rotator.get_rotation_matrix()
             self.push_transform(
@@ -1334,7 +1351,7 @@ class Rotated(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
@@ -1352,12 +1369,14 @@ class Rotated(MapTransform, InvertibleTransform):
                 align_corners=False if align_corners == "none" else align_corners,
                 reverse_indexing=True,
             )
-            output = xform(
-                torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
-                torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
-                spatial_size=transform[InverseKeys.ORIG_SIZE],
-            )
-            d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+            img_t: torch.Tensor
+            img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)  # type: ignore
+            transform_t: torch.Tensor
+            transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
+
+            out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[InverseKeys.ORIG_SIZE]).squeeze(0)
+            out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
+            d[key] = out
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1399,6 +1418,8 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = RandRotate.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1410,64 +1431,49 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.range_x = ensure_tuple(range_x)
-        if len(self.range_x) == 1:
-            self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
-        self.range_y = ensure_tuple(range_y)
-        if len(self.range_y) == 1:
-            self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
-        self.range_z = ensure_tuple(range_z)
-        if len(self.range_z) == 1:
-            self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
-
-        self.keep_size = keep_size
+        self.rand_rotate = RandRotate(range_x=range_x, range_y=range_y, range_z=range_z, prob=1.0, keep_size=keep_size)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-        self.x = 0.0
-        self.y = 0.0
-        self.z = 0.0
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandRotated":
+        super().set_random_state(seed, state)
+        self.rand_rotate.set_random_state(seed, state)
+        return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
-        self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
-        self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
-        self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
-
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        self.randomize()
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
-        rotator = Rotate(
-            angle=angle,
-            keep_size=self.keep_size,
-        )
+        self.randomize(None)
+
+        # all the keys share the same random rotate angle
+        self.rand_rotate.randomize()
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            orig_size = d[key].shape[1:]
             if self._do_transform:
-                d[key] = rotator(
+                d[key], rot_mat = self.rand_rotate(
                     d[key],
                     mode=mode,
                     padding_mode=padding_mode,
                     align_corners=align_corners,
                     dtype=dtype,
+                    randomize=False,
+                    get_matrix=True,
                 )
-                rot_mat = rotator.get_rotation_matrix()
             else:
                 rot_mat = np.eye(d[key].ndim)
             self.push_transform(
                 d,
                 key,
-                orig_size=orig_size,
+                orig_size=d[key].shape[1:],
                 extra_info={
                     "rot_mat": rot_mat,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
@@ -1477,7 +1483,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
@@ -1497,12 +1503,14 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=False if align_corners == "none" else align_corners,
                     reverse_indexing=True,
                 )
-                output = xform(
-                    torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
-                    torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
-                    spatial_size=transform[InverseKeys.ORIG_SIZE],
-                )
-                d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+                img_t: torch.Tensor
+                img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)  # type: ignore
+                transform_t: torch.Tensor
+                transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
+                output: torch.Tensor
+                out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[InverseKeys.ORIG_SIZE]).squeeze(0)
+                out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
+                d[key] = out
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1522,39 +1530,44 @@ class Zoomd(MapTransform, InvertibleTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
-            ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+        padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             The mode to pad data after zooming.
-            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
+
+    backend = Zoom.backend
 
     def __init__(
         self,
         keys: KeysCollection,
         zoom: Union[Sequence[float], float],
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        padding_mode: NumpyPadModeSequence = NumpyPadMode.EDGE,
+        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **np_kwargs)
+        self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
@@ -1568,15 +1581,10 @@ class Zoomd(MapTransform, InvertibleTransform):
                     "align_corners": align_corners if align_corners is not None else "none",
                 },
             )
-            d[key] = self.zoomer(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-            )
+            d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1594,7 +1602,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 align_corners=None if align_corners == "none" else align_corners,
             )
             # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])
+            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1622,20 +1630,25 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        padding_mode: {``"constant"``, ``"edge``", ``"linear_ramp``", ``"maximum``", ``"mean``", `"median``",
-            ``"minimum``", `"reflect``", ``"symmetric``", ``"wrap``", ``"empty``", ``"<function>``"}
+        padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             The mode to pad data after zooming.
-            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+        kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
             more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
+
+    backend = RandZoom.backend
 
     def __init__(
         self,
@@ -1644,67 +1657,52 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
         mode: InterpolateModeSequence = InterpolateMode.AREA,
-        padding_mode: NumpyPadModeSequence = NumpyPadMode.EDGE,
+        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
-        **np_kwargs,
+        **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.min_zoom = ensure_tuple(min_zoom)
-        self.max_zoom = ensure_tuple(max_zoom)
-        if len(self.min_zoom) != len(self.max_zoom):
-            raise AssertionError("min_zoom and max_zoom must have same length.")
-
+        self.rand_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, **kwargs)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.keep_size = keep_size
-        self.np_kwargs = np_kwargs
 
-        self._zoom: Sequence[float] = [1.0]
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandZoomd":
+        super().set_random_state(seed, state)
+        self.rand_zoom.set_random_state(seed, state)
+        return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
-        self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
-
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        # match the spatial dim of first item
-        self.randomize()
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
+        self.randomize(None)
 
-        img_dims = data[self.keys[0]].ndim
-        if len(self._zoom) == 1:
-            # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = ensure_tuple_rep(self._zoom[0], img_dims - 1)
-        elif len(self._zoom) == 2 and img_dims > 3:
-            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-            self._zoom = ensure_tuple_rep(self._zoom[0], img_dims - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(self._zoom, keep_size=self.keep_size, **self.np_kwargs)
+        # all the keys share the same random zoom factor
+        self.rand_zoom.randomize(d[self.keys[0]])
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
+            if self._do_transform:
+                d[key] = self.rand_zoom(
+                    d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
+                )
             self.push_transform(
                 d,
                 key,
                 extra_info={
-                    "zoom": self._zoom,
+                    "zoom": self.rand_zoom._zoom,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
                     "align_corners": align_corners if align_corners is not None else "none",
                 },
             )
-            if self._do_transform:
-                d[key] = zoomer(
-                    d[key],
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=align_corners,
-                )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1715,7 +1713,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 mode = transform[InverseKeys.EXTRA_INFO]["mode"]
                 padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
                 align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
-                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.keep_size)
+                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
                 # Apply inverse
                 d[key] = inverse_transform(
                     d[key],
@@ -1724,7 +1722,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == "none" else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])
+                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1735,6 +1733,8 @@ class AddCoordinateChannelsd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AddCoordinateChannels`.
     """
+
+    backend = AddCoordinateChannels.backend
 
     def __init__(self, keys: KeysCollection, spatial_channels: Sequence[int], allow_missing_keys: bool = False) -> None:
         """
@@ -1750,12 +1750,123 @@ class AddCoordinateChannelsd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.add_coordinate_channels = AddCoordinateChannels(spatial_channels)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.add_coordinate_channels(d[key])
+        return d
+
+
+class GridDistortiond(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.GridDistortion`.
+    """
+
+    backend = GridDistortion.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        num_cells: Union[Tuple[int], int],
+        distort_steps: List[Tuple],
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            num_cells: number of grid cells on each dimension.
+            distort_steps: This argument is a list of tuples, where each tuple contains the distort steps of the
+                corresponding dimensions (in the order of H, W[, D]). The length of each tuple equals to `num_cells + 1`.
+                Each value in the tuple represents the distort step of the related cell.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            device: device on which the tensor will be allocated.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.grid_distortion = GridDistortion(num_cells=num_cells, distort_steps=distort_steps, device=device)
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            d[key] = self.grid_distortion(d[key], mode=mode, padding_mode=padding_mode)
+        return d
+
+
+class RandGridDistortiond(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandGridDistortion`.
+    """
+
+    backend = RandGridDistortion.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        num_cells: Union[Tuple[int], int] = 5,
+        prob: float = 0.1,
+        distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            num_cells: number of grid cells on each dimension.
+            prob: probability of returning a randomized grid distortion transform. Defaults to 0.1.
+            distort_limit: range to randomly distort.
+                If single number, distort_limit is picked from (-distort_limit, distort_limit).
+                Defaults to (-0.03, 0.03).
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            device: device on which the tensor will be allocated.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.rand_grid_distortion = RandGridDistortion(
+            num_cells=num_cells, prob=1.0, distort_limit=distort_limit, device=device
+        )
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandGridDistortiond":
+        super().set_random_state(seed, state)
+        self.rand_grid_distortion.set_random_state(seed, state)
+        return self
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+
+        self.rand_grid_distortion.randomize(d[self.keys[0]].shape[1:])
+        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode, randomize=False)
         return d
 
 
@@ -1770,6 +1881,8 @@ Rand2DElasticD = Rand2DElasticDict = Rand2DElasticd
 Rand3DElasticD = Rand3DElasticDict = Rand3DElasticd
 FlipD = FlipDict = Flipd
 RandFlipD = RandFlipDict = RandFlipd
+GridDistortionD = GridDistortionDict = GridDistortiond
+RandGridDistortionD = RandGridDistortionDict = RandGridDistortiond
 RandAxisFlipD = RandAxisFlipDict = RandAxisFlipd
 RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated

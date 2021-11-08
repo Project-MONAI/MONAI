@@ -11,6 +11,7 @@
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -147,23 +148,14 @@ TEST_CASE_8 = [
 
 TEST_CASE_9 = [
     {"img": np.array([[0, 1], [1, 2]])},
-    "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)\n"
+    "test data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)\n"
     "Value: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
 
 class TestDataStatsd(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-            TEST_CASE_7,
-            TEST_CASE_8,
-        ]
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
     )
     def test_value(self, input_param, input_data, expected_print):
         transform = DataStatsd(**input_param)
@@ -192,9 +184,10 @@ class TestDataStatsd(unittest.TestCase):
                 h.close()
                 _logger.removeHandler(h)
             del handler
-            with open(filename, "r") as f:
+            with open(filename) as f:
                 content = f.read()
-            self.assertEqual(content, expected_print)
+            if sys.platform != "win32":
+                self.assertEqual(content, expected_print)
 
 
 if __name__ == "__main__":
