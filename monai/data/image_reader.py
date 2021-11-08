@@ -485,16 +485,18 @@ class NumpyReader(ImageReader):
     Args:
         npz_keys: if loading npz file, only load the specified keys, if None, load all the items.
             stack the loaded items together to construct a new first dimension.
+        channel_dim: if not None, explicitly specify the channel dim, otherwise, treat the array as no channel.
         kwargs: additional args for `numpy.load` API except `allow_pickle`. more details about available args:
             https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
     """
 
-    def __init__(self, npz_keys: Optional[KeysCollection] = None, **kwargs):
+    def __init__(self, npz_keys: Optional[KeysCollection] = None, channel_dim: Optional[int] = None, **kwargs):
         super().__init__()
         if npz_keys is not None:
             npz_keys = ensure_tuple(npz_keys)
         self.npz_keys = npz_keys
+        self.channel_dim = channel_dim
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
@@ -558,9 +560,13 @@ class NumpyReader(ImageReader):
         for i in ensure_tuple(img):
             header = {}
             if isinstance(i, np.ndarray):
-                # can not detect the channel dim of numpy array, use all the dims as spatial_shape
-                header["spatial_shape"] = i.shape
+                # if `channel_dim` is None, can not detect the channel dim, use all the dims as spatial_shape
+                spatial_shape = np.asarray(i.shape)
+                if isinstance(self.channel_dim, int):
+                    spatial_shape = np.delete(spatial_shape, self.channel_dim)
+                header["spatial_shape"] = spatial_shape
             img_array.append(i)
+            header["original_channel_dim"] = self.channel_dim if isinstance(self.channel_dim, int) else "no_channel"
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -753,7 +759,7 @@ class WSIReader(ImageReader):
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
         metadata: Dict = {}
-        metadata["spatial_shape"] = region.shape[:-1]
+        metadata["spatial_shape"] = np.asarray(region.shape[:-1])
         metadata["original_channel_dim"] = -1
         region = EnsureChannelFirst()(region, metadata)
         if patch_size is None:
