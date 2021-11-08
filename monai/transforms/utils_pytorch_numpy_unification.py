@@ -77,7 +77,7 @@ def clip(a: NdarrayOrTensor, a_min, a_max) -> NdarrayOrTensor:
     if isinstance(a, np.ndarray):
         result = np.clip(a, a_min, a_max)
     else:
-        result = torch.clip(a, a_min, a_max)
+        result = torch.clamp(a, a_min, a_max)
     return result
 
 

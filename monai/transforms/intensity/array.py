@@ -414,7 +414,7 @@ class ScaleIntensity(Transform):
             minv: minimum value of output data.
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
-                this parameter, please set `minv` and `maxv` into None.
+                this parameter, please set both `minv` and `maxv` into None.
             channel_wise: if True, scale on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
@@ -433,7 +433,7 @@ class ScaleIntensity(Transform):
             ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
 
         """
-        if self.minv is not None and self.maxv is not None:
+        if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
                 ret = torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
@@ -722,6 +722,9 @@ class ScaleIntensityRange(Transform):
     Apply specific intensity scaling to the whole numpy array.
     Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
 
+    When `b_min` or `b_max` are `None`, `scacled_array * (b_max - b_min) + b_min` will be skipped.
+    If `clip=True`, when `b_min`/`b_max` is None, the clipping is not performed on the corresponding edge.
+
     Args:
         a_min: intensity original range min.
         a_max: intensity original range max.
@@ -734,7 +737,13 @@ class ScaleIntensityRange(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False, dtype: DtypeLike = np.float32
+        self,
+        a_min: float,
+        a_max: float,
+        b_min: Optional[float] = None,
+        b_max: Optional[float] = None,
+        clip: bool = False,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         self.a_min = a_min
         self.a_max = a_max
@@ -750,10 +759,13 @@ class ScaleIntensityRange(Transform):
         dtype = self.dtype or img.dtype
         if self.a_max - self.a_min == 0.0:
             warn("Divide by zero (a_min == a_max)", Warning)
+            if self.b_min is None:
+                return img - self.a_min
             return img - self.a_min + self.b_min
 
         img = (img - self.a_min) / (self.a_max - self.a_min)
-        img = img * (self.b_max - self.b_min) + self.b_min
+        if (self.b_min is not None) and (self.b_max is not None):
+            img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
             img = clip(img, self.b_min, self.b_max)
         ret, *_ = convert_data_type(img, dtype=dtype)
@@ -844,11 +856,12 @@ class ScaleIntensityRangePercentiles(Transform):
     """
     Apply range scaling to a numpy array based on the intensity distribution of the input.
 
-    By default this transform will scale from [lower_intensity_percentile, upper_intensity_percentile] to [b_min, b_max], where
-    {lower,upper}_intensity_percentile are the intensity values at the corresponding percentiles of ``img``.
+    By default this transform will scale from [lower_intensity_percentile, upper_intensity_percentile] to
+    `[b_min, b_max]`, where {lower,upper}_intensity_percentile are the intensity values at the corresponding
+    percentiles of ``img``.
 
-    The ``relative`` parameter can also be set to scale from [lower_intensity_percentile, upper_intensity_percentile] to the
-    lower and upper percentiles of the output range [b_min, b_max]
+    The ``relative`` parameter can also be set to scale from [lower_intensity_percentile, upper_intensity_percentile]
+    to the lower and upper percentiles of the output range [b_min, b_max].
 
     For example:
 
@@ -885,6 +898,9 @@ class ScaleIntensityRangePercentiles(Transform):
           [20., 60., 100., 140., 180.],
           [20., 60., 100., 140., 180.]]]
 
+    See Also:
+
+        - :py:class:`monai.transforms.ScaleIntensityRange`
 
     Args:
         lower: lower intensity percentile.
@@ -902,8 +918,8 @@ class ScaleIntensityRangePercentiles(Transform):
         self,
         lower: float,
         upper: float,
-        b_min: float,
-        b_max: float,
+        b_min: Optional[float],
+        b_max: Optional[float],
         clip: bool = False,
         relative: bool = False,
         dtype: DtypeLike = np.float32,
@@ -930,15 +946,15 @@ class ScaleIntensityRangePercentiles(Transform):
         b_max = self.b_max
 
         if self.relative:
+            if (self.b_min is None) or (self.b_max is None):
+                raise ValueError("If it is relative, b_min and b_max should not be None.")
             b_min = ((self.b_max - self.b_min) * (self.lower / 100.0)) + self.b_min
             b_max = ((self.b_max - self.b_min) * (self.upper / 100.0)) + self.b_min
 
-        scalar = ScaleIntensityRange(a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=False, dtype=self.dtype)
+        scalar = ScaleIntensityRange(
+            a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=self.clip, dtype=self.dtype
+        )
         img = scalar(img)
-
-        if self.clip:
-            img = clip(img, self.b_min, self.b_max)
-
         return img
 
 
