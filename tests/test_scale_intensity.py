@@ -40,7 +40,7 @@ class TestScaleIntensity(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             scaler = ScaleIntensity(minv=0.0, maxv=None, factor=0.1)
             result = scaler(p(self.imt))
-            expected = rescale_array(p((self.imt)), minv=0.0, maxv=None)
+            expected = rescale_array(p(self.imt), minv=0.0, maxv=None)
             assert_allclose(result, expected, rtol=1e-3, atol=1e-3)
 
     def test_int(self):
