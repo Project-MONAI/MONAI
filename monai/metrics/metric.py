@@ -68,9 +68,7 @@ class IterationMetric(Metric):
             return self._compute_list(y_pred, y)
         # handling a single batch-first data
         if isinstance(y_pred, torch.Tensor):
-            y_ = None
-            if y is not None and isinstance(y, torch.Tensor):
-                y_ = y.detach()
+            y_ = y.detach() if isinstance(y, torch.Tensor) else None
             return self._compute_tensor(y_pred.detach(), y_)
         raise ValueError("y_pred or y must be a list/tuple of `channel-first` Tensors or a `batch-first` Tensor.")
 
@@ -79,9 +77,14 @@ class IterationMetric(Metric):
         Execute the metric computation for `y_pred` and `y` in a list of "channel-first" tensors.
 
         The return value is a "batch-first" tensor, or a list of "batch-first" tensors.
-        When it's a list of tensors, each item in the list can represent (batched) class-wise metrics.
+        When it's a list of tensors, each item in the list can represent a specific type of metric values.
 
-        Note: subclass may enhance the operation with multi-threads to accelerate.
+        For example, `self._compute_tensor` may be implemented as returning a list of `batch_size` items,
+        where each item is a tuple of three values `tp`, `fp`, `fn` for true positives, false positives,
+        and false negatives respectively. This function will return a list of three items,
+        (`tp_batched`, `fp_batched`, `fn_batched`), where each item is a `batch_size`-length tensor.
+
+        Note: subclass may enhance the operation to have multi-thread support.
         """
         if y is not None:
             ret = [self._compute_tensor(p.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p, y_ in zip(y_pred, y)]
@@ -188,6 +191,7 @@ class Cumulative:
         """
         Extend the local buffers with new ("batch-first") data.
         A buffer will be allocated for each `data` item.
+        Compared with `self.append`, this method adds a "batch" of data to the local buffers.
 
         Args:
             data: each item can be a "batch-first" tensor or a list of "channel-first" tensors.
@@ -212,6 +216,8 @@ class Cumulative:
         """
         Add samples to the local cumulative buffers.
         A buffer will be allocated for each `data` item.
+        Compared with `self.extend`, this method adds a single sample (instead
+        of a "batch") to the local buffers.
 
         Args:
             data: each item will be converted into a torch tensor.
