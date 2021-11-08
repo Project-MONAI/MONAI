@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 
 from monai.transforms import ScaleIntensity
+from monai.transforms.utils import rescale_array
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
@@ -34,6 +35,13 @@ class TestScaleIntensity(NumpyImageTestCase2D):
             result = scaler(p(self.imt))
             expected = p((self.imt * (1 + 0.1)).astype(np.float32))
             assert_allclose(result, p(expected), rtol=1e-7, atol=0)
+
+    def test_max_none(self):
+        for p in TEST_NDARRAYS:
+            scaler = ScaleIntensity(minv=0.0, maxv=None, factor=0.1)
+            result = scaler(p(self.imt))
+            expected = rescale_array(p(self.imt), minv=0.0, maxv=None)
+            assert_allclose(result, expected, rtol=1e-3, atol=1e-3)
 
     def test_int(self):
         """integers should be handled by converting them to floats first."""
