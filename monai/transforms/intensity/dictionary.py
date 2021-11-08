@@ -506,7 +506,7 @@ class ScaleIntensityd(MapTransform):
             minv: minimum value of output data.
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
-                this parameter, please set `minv` and `maxv` into None.
+                this parameter, please set both `minv` and `maxv` into None.
             channel_wise: if True, scale on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.

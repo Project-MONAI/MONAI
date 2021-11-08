@@ -414,7 +414,7 @@ class ScaleIntensity(Transform):
             minv: minimum value of output data.
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
-                this parameter, please set `minv` and `maxv` into None.
+                this parameter, please set both `minv` and `maxv` into None.
             channel_wise: if True, scale on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
@@ -433,7 +433,7 @@ class ScaleIntensity(Transform):
             ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
 
         """
-        if self.minv is not None and self.maxv is not None:
+        if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
                 ret = torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
