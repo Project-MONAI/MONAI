@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -34,6 +35,10 @@ else:
     tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 
 __all__ = ["TestTimeAugmentation"]
+
+
+def _identity(x):
+    return x
 
 
 class TestTimeAugmentation:
@@ -93,8 +98,8 @@ class TestTimeAugmentation:
         self,
         transform: InvertibleTransform,
         batch_size: int,
-        num_workers: int,
-        inferrer_fn: Callable,
+        num_workers: int = 0,
+        inferrer_fn: Callable = _identity,
         device: Union[str, torch.device] = "cpu",
         image_key=CommonKeys.IMAGE,
         orig_key=CommonKeys.LABEL,
@@ -133,8 +138,8 @@ class TestTimeAugmentation:
         # check that whenever randoms is True, invertibles is also true
         for r, i in zip(randoms, invertibles):
             if r and not i:
-                raise RuntimeError(
-                    f"All applied random transform(s) must be invertible. Problematic transform: {type(r).__name__}"
+                warnings.warn(
+                    f"Not all applied random transform(s) are invertible. Problematic transform: {type(r).__name__}"
                 )
 
     def __call__(
@@ -161,7 +166,7 @@ class TestTimeAugmentation:
         # generate batch of data of size == batch_size, dataset and dataloader
         data_in = [deepcopy(d) for _ in range(num_examples)]
         ds = Dataset(data_in, self.transform)
-        dl = DataLoader(ds, self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
+        dl = DataLoader(ds, num_workers=self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
         transform_key = self.orig_key + InverseKeys.KEY_SUFFIX
 
@@ -180,8 +185,10 @@ class TestTimeAugmentation:
                 batch_output = batch_output.detach().cpu()
             if isinstance(batch_output, np.ndarray):
                 batch_output = torch.Tensor(batch_output)
-
-            transform_info = batch_data[transform_key]
+            transform_info = batch_data.get(transform_key, None)
+            if transform_info is None:
+                # no invertible transforms, adding dummy info for identity invertible
+                transform_info = [[0.0] for _ in range(self.batch_size)]
             if self.nearest_interp:
                 transform_info = convert_inverse_interp_mode(
                     trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
