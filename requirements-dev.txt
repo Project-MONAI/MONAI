@@ -42,4 +42,3 @@ transformers
 mlflow
 matplotlib
 tensorboardX
-moviepy
