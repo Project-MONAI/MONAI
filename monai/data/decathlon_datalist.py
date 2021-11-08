@@ -14,6 +14,7 @@ import os
 from typing import Dict, List, Optional, Sequence, Union, overload
 
 from monai.config import KeysCollection
+from monai.data import partition_dataset, select_cross_validation_folds
 from monai.utils import ensure_tuple
 
 
@@ -186,3 +187,24 @@ def check_missing_files(
                     missing_files.append(f)
 
     return missing_files
+
+
+def create_cross_validation_datalist(
+    datalist: List[Dict],
+    nfolds: int,
+    train_folds: Union[Sequence[int], int],
+    val_folds: Union[Sequence[int], int],
+    train_key: str = "training",
+    val_key: str = "validation",
+    filename: Optional[str] = None,
+    shuffle: bool = True,
+    seed: int = 0,
+):
+    data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=shuffle, seed=seed)
+    train_list = select_cross_validation_folds(partitions=data, folds=train_folds)
+    val_list = select_cross_validation_folds(partitions=data, folds=val_folds)
+    ret = {train_key: train_list, val_key: val_list}
+    if isinstance(filename, str) and filename.endswith(".json"):
+        json.dump(ret, open(filename, "w"), indent=4)
+
+    return ret
