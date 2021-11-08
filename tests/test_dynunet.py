@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
-from tests.utils import test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -111,6 +111,7 @@ class TestDynUNet(unittest.TestCase):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
+    @SkipIfBeforePyTorchVersion((1, 6))
     def test_script(self):
         input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
         net = DynUNet(**input_param)
