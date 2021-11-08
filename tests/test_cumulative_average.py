@@ -32,18 +32,19 @@ TEST_CASE_3 = [
 ]
 
 # different input shape
-TEST_CASE_4 = [[torch.as_tensor(0.1), torch.as_tensor([0.2]), torch.as_tensor([[0.3]])], torch.as_tensor([0.2])]
+TEST_CASE_4 = [[torch.as_tensor(0.1), torch.as_tensor(0.2), torch.as_tensor(0.3)], torch.as_tensor(0.2)]
 
 
 class TestCumulativeAverage(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, input_data, expected_value):
         average = CumulativeAverage()
-        average.add(input_data[0])
-        average.add(input_data[1])
+        func = average.append if input_data[0].ndim < 2 else average.extend
+        func(input_data[0])
+        func(input_data[1])
         result = average.aggregate()
         # continue to update new data
-        average.add(input_data[2])
+        func(input_data[2])
         result = average.aggregate()
         torch.testing.assert_allclose(result, expected_value)
 

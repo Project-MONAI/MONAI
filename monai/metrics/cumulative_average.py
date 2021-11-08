@@ -30,7 +30,7 @@ class CumulativeAverage(Cumulative):
         average = CumulativeAverage()
         for i, d in enumerate(dataloader):
             loss = ...
-            average.add(loss)
+            average.append(loss)
             if i % 5 == 0:
                 print(f"cumulative average of loss: {average.aggregate()}")
         average.reset()
@@ -50,16 +50,6 @@ class CumulativeAverage(Cumulative):
         super().reset()
         self.sum = None
         self.not_nans = None
-
-    def add(self, data: torch.Tensor):  # type: ignore
-        """
-        Add an item to the buffer, it can support multi-class Tensor, like [0.3, 0.4] as metrics of 2 classes.
-
-        """
-        while data.ndim < 2:
-            data = data.unsqueeze(0)
-
-        super().add(data)
 
     def aggregate(self):  # type: ignore
         """

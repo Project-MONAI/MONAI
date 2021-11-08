@@ -26,21 +26,22 @@ class DistributedCumulativeAverage(DistTestCase):
             [torch.as_tensor([[0.1]]), torch.as_tensor([[0.2]]), torch.as_tensor([[0.3]])],
             [torch.as_tensor([[0.1]]), torch.as_tensor([[0.2]]), torch.as_tensor([[float("nan")]])],
             [torch.as_tensor([[0.1, 0.2]]), torch.as_tensor([[0.2, 0.3]]), torch.as_tensor([[0.3, 0.4]])],
-            [torch.as_tensor(0.1), torch.as_tensor([0.2]), torch.as_tensor([[0.3]])],
+            [torch.as_tensor(0.1), torch.as_tensor(0.2), torch.as_tensor(0.3)],
         ]
         expected = [
             torch.as_tensor([0.2]),
             torch.as_tensor([0.15]),
             torch.as_tensor([0.2, 0.3]),
-            torch.as_tensor([0.2]),
+            torch.as_tensor(0.2),
         ]
         average = CumulativeAverage()
+        func = average.append if input_data[0].ndim < 2 else average.extend
         for i, e in zip(input_data, expected):
             if rank == 0:
-                average.add(i[0])
-                average.add(i[1])
+                func(i[0])
+                func(i[1])
             else:
-                average.add(i[2])
+                func(i[2])
             result = average.aggregate()
             torch.testing.assert_allclose(result, e)
             average.reset()
