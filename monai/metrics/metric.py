@@ -59,7 +59,7 @@ class IterationMetric(Metric):
         Returns:
             The computed metric values at the iteration level.
             The output shape could be a `batch-first` tensor or a list of `batch-first` tensors.
-            When it's a list of tensors, each item in the list can represent (batched) class-wise metrics.
+            When it's a list of tensors, each item in the list can represent a specific type of metric.
 
         """
         ret: TensorOrList
