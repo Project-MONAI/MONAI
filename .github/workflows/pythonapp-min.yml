@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - torch-version-check
   pull_request:
 
 concurrency:
