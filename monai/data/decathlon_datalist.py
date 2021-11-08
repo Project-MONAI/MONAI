@@ -14,7 +14,7 @@ import os
 from typing import Dict, List, Optional, Sequence, Union, overload
 
 from monai.config import KeysCollection
-from monai.data import partition_dataset, select_cross_validation_folds
+from monai.data.utils import partition_dataset, select_cross_validation_folds
 from monai.utils import ensure_tuple
 
 
@@ -200,6 +200,21 @@ def create_cross_validation_datalist(
     shuffle: bool = True,
     seed: int = 0,
 ):
+    """
+    Utility to create new Decathlon style datalist based on cross validation partition.
+
+    Args:
+        datalist: loaded list of dictionaries for all the items to partition.
+        nfolds: number of the kfold split.
+        train_folds: indices of folds for training part.
+        val_folds: indices of folds for validation part.
+        train_key: the key of train part in the new datalist, defaults to "training".
+        val_key: the key of validation part in the new datalist, defaults to "validation".
+        filename: if not None and ends with ".json", save the new datalist into JSON file.
+        shuffle: whether to shuffle the datalist before partition, defaults to `True`.
+        seed: if `shuffle` is True, set the random seed, defaults to `0`.
+
+    """
     data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=shuffle, seed=seed)
     train_list = select_cross_validation_folds(partitions=data, folds=train_folds)
     val_list = select_cross_validation_folds(partitions=data, folds=val_folds)
