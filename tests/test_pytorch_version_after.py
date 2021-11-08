@@ -39,7 +39,7 @@ TEST_CASES = (
 class TestPytorchVersionCompare(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_compare(self, a, b, p, current, expected=True):
-        """Test version_leq with `a` and `b`"""
+        """Test pytorch_after with a and b"""
         self.assertEqual(pytorch_after(a, b, p, current), expected)
 
 
