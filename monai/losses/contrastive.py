@@ -9,17 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-from typing import Callable, List, Optional, Union
+from typing import Union
 
 import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
-from monai.networks import one_hot
 from monai.utils import LossReduction
 
-class ContrasiveLoss(_Loss):
+
+class ContrastiveLoss(_Loss):
 
     """
     Compute the Contrastive loss defined in:
@@ -33,26 +32,22 @@ class ContrasiveLoss(_Loss):
     """
 
     def __init__(
-        self,
-        normalize: bool = True,
-        temperature: float = 0.5,
-        batch_size: int = 1,
+        self, temperature: float = 0.5, batch_size: int = 1, reduction: Union[LossReduction, str] = LossReduction.SUM
     ) -> None:
         """
         Args:
-            normalize: If True, input feature vector is normalized along the vector (B, F). F will be normalized
             temperature: Can be scaled between 0 and 1 for learning from negative samples, ideally set to 0.5.
 
         Raises:
-            TypeError: When ``other_act`` is not an ``Optional[Callable]``.
-            ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
-                Incompatible values.
+            AssertionError: When an input of dimension length > 2 is passed
+            AssertionError: When input and target are of different shapes
 
         """
+        super().__init__(reduction=LossReduction(reduction).value)
+
         self.batch_size = batch_size
-        self.normalize = normalize
         self.temperature = temperature
-        self.negatives_mask = torch.eye(self.batch_size * 2, self.batch_size * 2, dtype=bool)
+        self.negatives_mask = torch.eye(self.batch_size * 2, self.batch_size * 2)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -63,16 +58,17 @@ class ContrasiveLoss(_Loss):
         Raises:
             ValueError: When ``self.reduction`` is not one of ["sum", "none"].
         """
+        if len(target.shape) > 2 or len(input.shape) > 2:
+            raise AssertionError(
+                f"Either target or input has dimensions greater than 2 where target "
+                f"shape is ({target.shape}) and input shape is ({input.shape})"
+            )
+
         if target.shape != input.shape:
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
-        if self.normalize:
-            norm_i = F.normalize(input, dim=1)
-            norm_j = F.normalize(target, dim=1)
-
-        else:
-            norm_i = input
-            norm_j = target
+        norm_i = F.normalize(input, dim=1)
+        norm_j = F.normalize(target, dim=1)
 
         repr = torch.cat([norm_i, norm_j], dim=0)
         sim_matrix = F.cosine_similarity(repr.unsqueeze(1), repr.unsqueeze(0), dim=2)
@@ -83,15 +79,10 @@ class ContrasiveLoss(_Loss):
         positives = torch.cat([sim_ij, sim_ji], dim=0)
 
         nominator = torch.exp(positives / self.temperature)
-        denominator = self.negatives_mask * torch.exp(similarity_matrix / self.temperature)
+        denominator = self.negatives_mask * torch.exp(sim_matrix / self.temperature)
 
         loss_partial = -torch.log(nominator / torch.sum(denominator, dim=1))
 
         if self.reduction == LossReduction.SUM.value:
             return torch.sum(loss_partial) / (2 * self.batch_size)
-        raise ValueError(f'Unsupported reduction: {self.reduction}, '
-                         f'available options are ["mean", "sum", "none"].')
-
-
-
-
+        raise ValueError(f"Unsupported reduction: {self.reduction}, " f'available options are ["mean", "sum", "none"].')

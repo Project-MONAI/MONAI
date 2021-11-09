@@ -33,6 +33,7 @@ def run_testsuit():
         "test_cachedataset_parallel",
         "test_cachedataset_persistent_workers",
         "test_cachentransdataset",
+        "test_contrastive_loss",
         "test_csv_dataset",
         "test_csv_iterable_dataset",
         "test_dataset",
