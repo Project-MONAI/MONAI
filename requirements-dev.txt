@@ -41,3 +41,4 @@ einops
 transformers
 mlflow
 matplotlib
+tensorboardX
