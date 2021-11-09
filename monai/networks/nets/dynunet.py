@@ -33,11 +33,11 @@ class DynUNetSkipLayer(nn.Module):
 
     heads: List[torch.Tensor]
 
-    def __init__(self, index, heads, downsample, upsample, next_layer, super_head=None):
+    def __init__(self, index, heads, downsample, upsample, super_head, next_layer):
         super().__init__()
         self.downsample = downsample
-        self.next_layer = next_layer
         self.upsample = upsample
+        self.next_layer = next_layer
         self.super_head = super_head
         self.heads = heads
         self.index = index
@@ -46,8 +46,8 @@ class DynUNetSkipLayer(nn.Module):
         downout = self.downsample(x)
         nextout = self.next_layer(downout)
         upout = self.upsample(nextout, downout)
-        if self.super_head is not None and self.index > 0:
-            self.heads[self.index - 1] = self.super_head(upout)
+
+        self.heads[self.index] = self.super_head(upout)
 
         return upout
 
@@ -160,14 +160,14 @@ class DynUNet(nn.Module):
         self.upsamples = self.get_upsamples()
         self.output_block = self.get_output_block(0)
         self.deep_supervision = deep_supervision
-        self.deep_supr_num = deep_supr_num
         self.deep_supervision_heads = self.get_deep_supervision_heads()
+        self.deep_supr_num = deep_supr_num
         self.apply(self.initialize_weights)
         self.check_kernel_stride()
         self.check_deep_supr_num()
 
         # initialize the typed list of supervision head outputs so that Torchscript can recognize what's going on
-        self.heads: List[torch.Tensor] = [torch.rand(1)] * self.deep_supr_num
+        self.heads: List[torch.Tensor] = [torch.rand(1)] * (len(self.deep_supervision_heads) + 1)
 
         def create_skips(index, downsamples, upsamples, superheads, bottleneck):
             """
@@ -180,27 +180,22 @@ class DynUNet(nn.Module):
 
             if len(downsamples) != len(upsamples):
                 raise ValueError(f"{len(downsamples)} != {len(upsamples)}")
+            if (len(downsamples) - len(superheads)) not in (1, 0):
+                raise ValueError(f"{len(downsamples)}-(0,1) != {len(superheads)}")
 
             if len(downsamples) == 0:  # bottom of the network, pass the bottleneck block
                 return bottleneck
-            super_head_flag = False
             if index == 0:  # don't associate a supervision head with self.input_block
-                rest_heads = superheads
+                current_head, rest_heads = nn.Identity(), superheads
             elif not self.deep_supervision:  # bypass supervision heads by passing nn.Identity in place of a real one
-                rest_heads = nn.ModuleList()
+                current_head, rest_heads = nn.Identity(), superheads[1:]
             else:
-                if len(superheads) > 0:
-                    super_head_flag = True
-                    rest_heads = superheads[1:]
-                else:
-                    rest_heads = nn.ModuleList()
+                current_head, rest_heads = superheads[0], superheads[1:]
 
             # create the next layer down, this will stop at the bottleneck layer
             next_layer = create_skips(1 + index, downsamples[1:], upsamples[1:], rest_heads, bottleneck)
-            if super_head_flag:
-                return DynUNetSkipLayer(index, self.heads, downsamples[0], upsamples[0], next_layer, superheads[0])
-            else:
-                return DynUNetSkipLayer(index, self.heads, downsamples[0], upsamples[0], next_layer)
+
+            return DynUNetSkipLayer(index, self.heads, downsamples[0], upsamples[0], current_head, next_layer)
 
         self.skip_layers = create_skips(
             0,
@@ -247,7 +242,8 @@ class DynUNet(nn.Module):
         out = self.output_block(out)
         if self.training and self.deep_supervision:
             out_all = [out]
-            for feature_map in self.heads:
+            feature_maps = self.heads[1 : self.deep_supr_num + 1]
+            for feature_map in feature_maps:
                 out_all.append(interpolate(feature_map, out.shape[2:]))
             return torch.stack(out_all, dim=1)
         return out
@@ -338,9 +334,7 @@ class DynUNet(nn.Module):
         return nn.ModuleList(layers)
 
     def get_deep_supervision_heads(self):
-        if not self.deep_supervision:
-            return nn.ModuleList()
-        return nn.ModuleList([self.get_output_block(i + 1) for i in range(self.deep_supr_num)])
+        return nn.ModuleList([self.get_output_block(i + 1) for i in range(len(self.upsamples) - 1)])
 
     @staticmethod
     def initialize_weights(module):
