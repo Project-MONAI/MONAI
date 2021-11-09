@@ -47,7 +47,6 @@ class ContrastiveLoss(_Loss):
 
         self.batch_size = batch_size
         self.temperature = temperature
-        self.negatives_mask = torch.eye(self.batch_size * 2, self.batch_size * 2)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -70,6 +69,9 @@ class ContrastiveLoss(_Loss):
         norm_i = F.normalize(input, dim=1)
         norm_j = F.normalize(target, dim=1)
 
+        negatives_mask = ~torch.eye(self.batch_size * 2, self.batch_size * 2, dtype=torch.bool)
+        negatives_mask = torch.tensor(negatives_mask, dtype=torch.float)
+
         repr = torch.cat([norm_i, norm_j], dim=0)
         sim_matrix = F.cosine_similarity(repr.unsqueeze(1), repr.unsqueeze(0), dim=2)
 
@@ -79,7 +81,7 @@ class ContrastiveLoss(_Loss):
         positives = torch.cat([sim_ij, sim_ji], dim=0)
 
         nominator = torch.exp(positives / self.temperature)
-        denominator = self.negatives_mask * torch.exp(sim_matrix / self.temperature)
+        denominator = negatives_mask * torch.exp(sim_matrix / self.temperature)
 
         loss_partial = -torch.log(nominator / torch.sum(denominator, dim=1))
 

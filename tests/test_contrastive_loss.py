@@ -29,17 +29,25 @@ TEST_CASES = [
             "input": torch.tensor([[1.0, 1.0, 0.0, 0.0], [1.0, 1.0, 0.0, 0.0]]),
             "target": torch.tensor([[1.0, 1.0, 0.0, 0.0], [1.0, 1.0, 0.0, 0.0]]),
         },
-        0.0,
+        1.0986,
+    ],
+    [  # shape: (1, 4), (1, 4)
+        {"temperature": 0.5, "batch_size": 2},
+        {
+            "input": torch.tensor([[1.0, 2.0, 3.0, 4.0], [1.0, 1.0, 0.0, 0.0]]),
+            "target": torch.tensor([[0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 0.0, 0.0]]),
+        },
+        0.8719,
     ],
     [  # shape: (1, 4), (1, 4)
         {"temperature": 0.5, "batch_size": 1},
         {"input": torch.tensor([[0.0, 0.0, 1.0, 1.0]]), "target": torch.tensor([[1.0, 1.0, 0.0, 0.0]])},
-        2.0,
+        0.0,
     ],
     [  # shape: (1, 4), (1, 4)
         {"temperature": 0.05, "batch_size": 1},
         {"input": torch.tensor([[0.0, 0.0, 1.0, 1.0]]), "target": torch.tensor([[1.0, 1.0, 0.0, 0.0]])},
-        20.0,
+        0.0,
     ],
 ]
 
@@ -49,7 +57,6 @@ class TestContrastiveLoss(unittest.TestCase):
     def test_result(self, input_param, input_data, expected_val):
         contrastiveloss = ContrastiveLoss(**input_param)
         result = contrastiveloss(**input_data)
-        print(result)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
     def test_ill_shape(self):
