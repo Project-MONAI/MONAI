@@ -475,7 +475,7 @@ def pytorch_after(major, minor, patch=0, current_ver_string=None) -> bool:
             current_ver_string = _env_var if _env_var else torch.__version__
         ver, has_ver = optional_import("pkg_resources", name="parse_version")
         if has_ver:
-            return ver(".".join((f"{major}", f"{minor}", f"{patch}"))) <= ver(f"{current_ver_string}")
+            return ver(".".join((f"{major}", f"{minor}", f"{patch}"))) <= ver(f"{current_ver_string}")  # type: ignore
         parts = f"{current_ver_string}".split("+", 1)[0].split(".", 3)
         while len(parts) < 3:
             parts += ["0"]
