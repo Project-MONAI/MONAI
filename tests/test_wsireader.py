@@ -112,6 +112,8 @@ class WSIReaderTests:
         def test_read_region(self, file_path, patch_info, expected_img):
             reader = WSIReader(self.backend)
             img_obj = reader.read(file_path)
+            # Read twice to check multiple calls
+            img = reader.get_data(img_obj, **patch_info)[0]
             img = reader.get_data(img_obj, **patch_info)[0]
             self.assertTupleEqual(img.shape, expected_img.shape)
             self.assertIsNone(assert_array_equal(img, expected_img))
