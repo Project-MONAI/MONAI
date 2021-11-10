@@ -256,7 +256,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                     "old_affine": old_affine,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
                 orig_size=original_spatial_shape,
             )
@@ -288,7 +288,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                 affine=meta_data["affine"],  # type: ignore
                 mode=mode,
                 padding_mode=padding_mode,
-                align_corners=False if align_corners == "none" else align_corners,
+                align_corners=False if align_corners == InverseKeys.NONE else align_corners,
                 dtype=dtype,
                 output_spatial_shape=orig_size,
             )
@@ -562,7 +562,7 @@ class Resized(MapTransform, InvertibleTransform):
                 key,
                 extra_info={
                     "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
@@ -577,7 +577,9 @@ class Resized(MapTransform, InvertibleTransform):
             align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
             # Create inverse transform
             inverse_transform = Resize(
-                spatial_size=orig_size, mode=mode, align_corners=None if align_corners == "none" else align_corners
+                spatial_size=orig_size,
+                mode=mode,
+                align_corners=None if align_corners == InverseKeys.NONE else align_corners,
             )
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
@@ -1346,7 +1348,7 @@ class Rotated(MapTransform, InvertibleTransform):
                     "rot_mat": rot_mat,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
         return d
@@ -1366,7 +1368,7 @@ class Rotated(MapTransform, InvertibleTransform):
                 normalized=False,
                 mode=mode,
                 padding_mode=padding_mode,
-                align_corners=False if align_corners == "none" else align_corners,
+                align_corners=False if align_corners == InverseKeys.NONE else align_corners,
                 reverse_indexing=True,
             )
             img_t: torch.Tensor
@@ -1478,7 +1480,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     "rot_mat": rot_mat,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
         return d
@@ -1500,7 +1502,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     normalized=False,
                     mode=mode,
                     padding_mode=padding_mode,
-                    align_corners=False if align_corners == "none" else align_corners,
+                    align_corners=False if align_corners == InverseKeys.NONE else align_corners,
                     reverse_indexing=True,
                 )
                 img_t: torch.Tensor
@@ -1578,7 +1580,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 extra_info={
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
             d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
@@ -1599,7 +1601,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 d[key],
                 mode=mode,
                 padding_mode=padding_mode,
-                align_corners=None if align_corners == "none" else align_corners,
+                align_corners=None if align_corners == InverseKeys.NONE else align_corners,
             )
             # Size might be out by 1 voxel so pad
             d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
@@ -1697,7 +1699,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     "zoom": self.rand_zoom._zoom,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
         return d
@@ -1719,7 +1721,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     d[key],
                     mode=mode,
                     padding_mode=padding_mode,
-                    align_corners=None if align_corners == "none" else align_corners,
+                    align_corners=None if align_corners == InverseKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
                 d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore

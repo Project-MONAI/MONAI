@@ -1207,7 +1207,7 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
     interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
 
     # set to string for DataLoader collation
-    align_corners_ = "none" if align_corners is None else align_corners
+    align_corners_ = InverseKeys.NONE if align_corners is None else align_corners
 
     for item in ensure_tuple(trans_info):
         if InverseKeys.EXTRA_INFO in item:

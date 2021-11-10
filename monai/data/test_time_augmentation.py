@@ -188,7 +188,7 @@ class TestTimeAugmentation:
             transform_info = batch_data.get(transform_key, None)
             if transform_info is None:
                 # no invertible transforms, adding dummy info for identity invertible
-                transform_info = [[0.0] for _ in range(self.batch_size)]
+                transform_info = [[InverseKeys.NONE] for _ in range(self.batch_size)]
             if self.nearest_interp:
                 transform_info = convert_inverse_interp_mode(
                     trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
