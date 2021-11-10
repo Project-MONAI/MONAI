@@ -11,8 +11,8 @@
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction
-from monai.utils import MetricReduction
+from monai.transforms import isnan
+from monai.utils import convert_data_type
 
 from .metric import Cumulative
 
@@ -57,11 +57,13 @@ class CumulativeAverage(Cumulative):
 
         """
         data = self.get_buffer()
-        if not isinstance(data, torch.Tensor):
-            raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
-        # do metric reduction
-        f, not_nans = do_metric_reduction(data, reduction=MetricReduction.SUM_BATCH)
+        # compute SUM across the batch dimension
+        nans = isnan(data)
+        not_nans = convert_data_type((~nans), dtype=torch.float32)[0].sum(0)
+        data[nans] = 0
+        f = data.sum(0)
+
         # clear the buffer for next update
         super().reset()
         self.sum = f if self.sum is None else (self.sum + f)

@@ -11,6 +11,7 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -47,6 +48,15 @@ class TestCumulativeAverage(unittest.TestCase):
         func(input_data[2])
         result = average.aggregate()
         torch.testing.assert_allclose(result, expected_value)
+
+    def test_numpy_array(self):
+        class TestCumulativeAverage(CumulativeAverage):
+            def get_buffer(self):
+                return np.array([[1, 2], [3, np.nan]])
+
+        average = TestCumulativeAverage()
+        result = average.aggregate()
+        np.testing.assert_allclose(result, np.array([2.0, 2.0]))
 
 
 if __name__ == "__main__":
