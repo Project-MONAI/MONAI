@@ -25,12 +25,30 @@ FILE_URL = "https://drive.google.com/uc?id=17tsDLvG_GZm7a4fCVMCv-KyDx0hqq1ji"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + "mri.nii")
 
 EXPECTED_VALUE = {
-    "xyz_translation": [-1.5860259532928467, -0.5957175493240356, -0.3855515122413635, -0.28728482127189636,
-                        -0.23416118323802948, -0.19534644484519958, -0.17001715302467346, -0.15043553709983826,
-                        -0.1366637945175171, -0.12534910440444946],
-    "xyz_rotation": [-1.5860259532928467, -0.29977330565452576, -0.18411292135715485, -0.1582011878490448,
-                     -0.16107326745986938, -0.165723517537117, -0.1970357596874237, -0.1755618453025818,
-                     -0.17100191116333008, -0.17264796793460846]
+    "xyz_translation": [
+        -1.5860259532928467,
+        -0.5957175493240356,
+        -0.3855515122413635,
+        -0.28728482127189636,
+        -0.23416118323802948,
+        -0.19534644484519958,
+        -0.17001715302467346,
+        -0.15043553709983826,
+        -0.1366637945175171,
+        -0.12534910440444946,
+    ],
+    "xyz_rotation": [
+        -1.5860259532928467,
+        -0.29977330565452576,
+        -0.18411292135715485,
+        -0.1582011878490448,
+        -0.16107326745986938,
+        -0.165723517537117,
+        -0.1970357596874237,
+        -0.1755618453025818,
+        -0.17100191116333008,
+        -0.17264796793460846,
+    ],
 }
 
 
@@ -40,21 +58,14 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
 
     @SkipIfBeforePyTorchVersion((1, 9))
     def test_bspline(self):
-        loss_fn = GlobalMutualInformationLoss(
-            kernel_type="b-spline",
-            num_bins=32,
-            sigma_ratio=0.015
-        )
+        loss_fn = GlobalMutualInformationLoss(kernel_type="b-spline", num_bins=32, sigma_ratio=0.015)
 
         transform_params_dict = {
             "xyz_translation": [(i, i, i) for i in range(10)],
-            "xyz_rotation": [(np.pi / 100 * i, np.pi / 100 * i, np.pi / 100 * i) for i in range(10)]
+            "xyz_rotation": [(np.pi / 100 * i, np.pi / 100 * i, np.pi / 100 * i) for i in range(10)],
         }
 
-        def transformation(
-                translate_params=(0., 0., 0.),
-                rotate_params=(0., 0., 0.),
-        ):
+        def transformation(translate_params=(0.0, 0.0, 0.0), rotate_params=(0.0, 0.0, 0.0)):
             """
             Read and transform Prostate_T2W_AX_1.nii
             Args:
@@ -68,12 +79,9 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
             transform_list = [
                 transforms.LoadImaged(keys="img"),
                 transforms.Affined(
-                    keys="img",
-                    translate_params=translate_params,
-                    rotate_params=rotate_params,
-                    device=None,
+                    keys="img", translate_params=translate_params, rotate_params=rotate_params, device=None
                 ),
-                transforms.NormalizeIntensityd(keys=["img"])
+                transforms.NormalizeIntensityd(keys=["img"]),
             ]
             transformation = transforms.Compose(transform_list)
             return transformation({"img": FILE_PATH})["img"]
@@ -86,8 +94,8 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
             expected_value_list = EXPECTED_VALUE[mode]
             for transform_params, expected_value in zip(transform_params_list, expected_value_list):
                 a2 = transformation(
-                    translate_params=transform_params if "translation" in mode else (0., 0., 0.),
-                    rotate_params=transform_params if "rotation" in mode else (0., 0., 0.)
+                    translate_params=transform_params if "translation" in mode else (0.0, 0.0, 0.0),
+                    rotate_params=transform_params if "rotation" in mode else (0.0, 0.0, 0.0),
                 )
                 a2 = torch.tensor(a2).unsqueeze(0).unsqueeze(0).to(device)
                 result = loss_fn(a2, a1).detach().cpu().numpy()
