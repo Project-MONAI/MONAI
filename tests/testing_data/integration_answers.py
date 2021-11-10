@@ -418,7 +418,7 @@ EXPECTED_ANSWERS = [
                 0.17794132232666016,
                 0.18584394454956055,
                 0.03577899932861328,
-            ],
+            ]
         },
         "integration_segmentation_3d": {  # for the mixed readers
             "losses": [

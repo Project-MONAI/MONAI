@@ -99,13 +99,7 @@ TEST_CASE_SINE_SMOOTH = [
 
 class TestSavitzkyGolayCPU(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_SINGLE_VALUE,
-            TEST_CASE_1D,
-            TEST_CASE_2D_AXIS_2,
-            TEST_CASE_2D_AXIS_3,
-            TEST_CASE_SINE_SMOOTH,
-        ]
+        [TEST_CASE_SINGLE_VALUE, TEST_CASE_1D, TEST_CASE_2D_AXIS_2, TEST_CASE_2D_AXIS_3, TEST_CASE_SINE_SMOOTH]
     )
     def test_value(self, arguments, image, expected_data, atol):
         result = SavitzkyGolayFilter(**arguments)(image)
@@ -124,13 +118,7 @@ class TestSavitzkyGolayCPUREP(unittest.TestCase):
 @skip_if_no_cuda
 class TestSavitzkyGolayGPU(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_SINGLE_VALUE,
-            TEST_CASE_1D,
-            TEST_CASE_2D_AXIS_2,
-            TEST_CASE_2D_AXIS_3,
-            TEST_CASE_SINE_SMOOTH,
-        ]
+        [TEST_CASE_SINGLE_VALUE, TEST_CASE_1D, TEST_CASE_2D_AXIS_2, TEST_CASE_2D_AXIS_3, TEST_CASE_SINE_SMOOTH]
     )
     def test_value(self, arguments, image, expected_data, atol):
         result = SavitzkyGolayFilter(**arguments)(image.to(device="cuda"))
@@ -140,12 +128,7 @@ class TestSavitzkyGolayGPU(unittest.TestCase):
 @skip_if_no_cuda
 class TestSavitzkyGolayGPUREP(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_SINGLE_VALUE_REP,
-            TEST_CASE_1D_REP,
-            TEST_CASE_2D_AXIS_2_REP,
-            TEST_CASE_2D_AXIS_3_REP,
-        ]
+        [TEST_CASE_SINGLE_VALUE_REP, TEST_CASE_1D_REP, TEST_CASE_2D_AXIS_2_REP, TEST_CASE_2D_AXIS_3_REP]
     )
     def test_value(self, arguments, image, expected_data, atol):
         result = SavitzkyGolayFilter(**arguments)(image.to(device="cuda"))

@@ -20,7 +20,7 @@ from torch.utils.data.distributed import DistributedSampler
 from monai.config import IgniteInfo
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
 from monai.transforms import Decollated, Transform
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils import ensure_tuple, is_scalar, min_version, optional_import
 
 from .utils import engine_apply_transform
 
@@ -152,15 +152,15 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.scaler: Optional[torch.cuda.amp.GradScaler] = None
 
         if event_names is None:
-            event_names = [IterationEvents]
+            event_names = [IterationEvents]  # type: ignore
         else:
             if not isinstance(event_names, list):
                 raise ValueError("event_names must be a list or string or EventEnum.")
-            event_names += [IterationEvents]
+            event_names += [IterationEvents]  # type: ignore
         for name in event_names:
             if isinstance(name, str):
                 self.register_events(name, event_to_attr=event_to_attr)
-            elif issubclass(name, EventEnum):
+            elif issubclass(name, EventEnum):  # type: ignore
                 self.register_events(*name, event_to_attr=event_to_attr)
             else:
                 raise ValueError("event_names must be a list or string or EventEnum.")
@@ -187,8 +187,10 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         def _decollate_data(engine: Engine) -> None:
             # replicate the scalar values to make sure all the items have batch dimension, then decollate
             transform = Decollated(keys=None, detach=True)
-            engine.state.batch = transform(engine.state.batch)
-            engine.state.output = transform(engine.state.output)
+            if isinstance(engine.state.batch, (list, dict)):
+                engine.state.batch = transform(engine.state.batch)
+            if isinstance(engine.state.output, (list, dict)):
+                engine.state.output = transform(engine.state.output)
 
     def _register_postprocessing(self, posttrans: Callable):
         """
@@ -200,9 +202,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         def _run_postprocessing(engine: Engine) -> None:
             if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
                 engine.state.batch, engine.state.output = engine_apply_transform(
-                    batch=engine.state.batch,
-                    output=engine.state.output,
-                    transform=posttrans,
+                    batch=engine.state.batch, output=engine.state.output, transform=posttrans
                 )
             else:
                 for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
@@ -226,12 +226,20 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         @self.on(Events.EPOCH_COMPLETED)
         def _compare_metrics(engine: Engine) -> None:
-            if engine.state.key_metric_name is not None:
-                current_val_metric = engine.state.metrics[engine.state.key_metric_name]
-                if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):
-                    self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
-                    engine.state.best_metric = current_val_metric
-                    engine.state.best_metric_epoch = engine.state.epoch
+            key_metric_name = engine.state.key_metric_name  # type: ignore
+            if key_metric_name is not None:
+                current_val_metric = engine.state.metrics[key_metric_name]
+                if not is_scalar(current_val_metric):
+                    warnings.warn(
+                        "key metric is not a scalar value, skip the metric comaprison with best metric."
+                        "please use other metrics as key metric, or change the `reduction` mode to 'mean'."
+                    )
+                    return
+
+                if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):  # type: ignore
+                    self.logger.info(f"Got new best metric of {key_metric_name}: {current_val_metric}")
+                    engine.state.best_metric = current_val_metric  # type: ignore
+                    engine.state.best_metric_epoch = engine.state.epoch  # type: ignore
 
     def _register_handlers(self, handlers: Sequence):
         """
