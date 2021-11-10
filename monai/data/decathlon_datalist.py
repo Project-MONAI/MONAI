@@ -11,6 +11,7 @@
 
 import json
 import os
+from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union, overload
 
 from monai.config import KeysCollection
@@ -196,9 +197,13 @@ def create_cross_validation_datalist(
     val_folds: Union[Sequence[int], int],
     train_key: str = "training",
     val_key: str = "validation",
-    filename: Optional[str] = None,
+    filename: Optional[Union[Path, str]] = None,
     shuffle: bool = True,
     seed: int = 0,
+    check_missing: bool = False,
+    keys: Optional[KeysCollection] = None,
+    root_dir: Optional[str] = None,
+    allow_missing_keys: bool = False,
 ):
     """
     Utility to create new Decathlon style datalist based on cross validation partition.
@@ -213,13 +218,23 @@ def create_cross_validation_datalist(
         filename: if not None and ends with ".json", save the new datalist into JSON file.
         shuffle: whether to shuffle the datalist before partition, defaults to `True`.
         seed: if `shuffle` is True, set the random seed, defaults to `0`.
+        check_missing: whether to check all the files specified by `keys` are existing.
+        keys: if not None and check_missing_files is True, the expected keys to check in the datalist.
+        root_dir: if not None, provides the root dir for the relative file paths in `datalist`.
+        allow_missing_keys: if check_missing_files is `True`, whether allow missing keys in the datalist items.
+            if False, raise exception if missing. default to False.
 
     """
+    if check_missing and keys is not None:
+        files = check_missing_files(datalist, keys, root_dir, allow_missing_keys)
+        if files:
+            raise ValueError(f"some files of the datalist are missing: {files}")
+
     data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=shuffle, seed=seed)
     train_list = select_cross_validation_folds(partitions=data, folds=train_folds)
     val_list = select_cross_validation_folds(partitions=data, folds=val_folds)
     ret = {train_key: train_list, val_key: val_list}
-    if isinstance(filename, str) and filename.endswith(".json"):
+    if isinstance(filename, (str, Path)):
         json.dump(ret, open(filename, "w"), indent=4)
 
     return ret
