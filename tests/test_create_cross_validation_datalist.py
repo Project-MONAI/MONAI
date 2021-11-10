@@ -47,6 +47,7 @@ class TestCreateCrossValidationDatalist(unittest.TestCase):
                 keys=["image", "label"],
                 root_dir=None,
                 allow_missing_keys=False,
+                raise_error=True,
             )
 
             loaded = load_decathlon_datalist(filename, data_list_key="test_train")

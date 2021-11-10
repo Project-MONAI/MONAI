@@ -11,6 +11,7 @@
 
 import json
 import os
+import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union, overload
 
@@ -154,7 +155,10 @@ def load_decathlon_properties(data_property_file_path: str, property_keys: Union
 
 
 def check_missing_files(
-    datalist: List[Dict], keys: KeysCollection, root_dir: Optional[str] = None, allow_missing_keys: bool = False
+    datalist: List[Dict],
+    keys: KeysCollection,
+    root_dir: Optional[Union[Path, str]] = None,
+    allow_missing_keys: bool = False,
 ):
     """Checks whether some files in the Decathlon datalist are missing.
     It would be helpful to check missing files before a heavy training run.
@@ -180,9 +184,9 @@ def check_missing_files(
                 continue
 
             for f in ensure_tuple(item[k]):
-                if not isinstance(f, str):
+                if not isinstance(f, (str, Path)):
                     raise ValueError(f"filepath of key `{k}` must be a string or a list of strings, but got: {f}.")
-                if isinstance(root_dir, str):
+                if isinstance(root_dir, (str, Path)):
                     f = os.path.join(root_dir, f)
                 if not os.path.exists(f):
                     missing_files.append(f)
@@ -204,6 +208,7 @@ def create_cross_validation_datalist(
     keys: Optional[KeysCollection] = None,
     root_dir: Optional[str] = None,
     allow_missing_keys: bool = False,
+    raise_error: bool = True,
 ):
     """
     Utility to create new Decathlon style datalist based on cross validation partition.
@@ -223,12 +228,16 @@ def create_cross_validation_datalist(
         root_dir: if not None, provides the root dir for the relative file paths in `datalist`.
         allow_missing_keys: if check_missing_files is `True`, whether allow missing keys in the datalist items.
             if False, raise exception if missing. default to False.
+        raise_error: when found missing files, if `True`, raise exception and stop, if `False`, print warining.
 
     """
     if check_missing and keys is not None:
         files = check_missing_files(datalist, keys, root_dir, allow_missing_keys)
         if files:
-            raise ValueError(f"some files of the datalist are missing: {files}")
+            msg = f"some files of the datalist are missing: {files}"
+            if raise_error:
+                raise ValueError(msg)
+            warnings.warn(msg)
 
     data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=shuffle, seed=seed)
     train_list = select_cross_validation_folds(partitions=data, folds=train_folds)
