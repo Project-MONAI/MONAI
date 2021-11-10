@@ -788,8 +788,8 @@ class WSIReader(ImageReader):
         dtype: DtypeLike = np.uint8,
     ):
         if self.backend == "tifffile":
-            region = img_obj.asarray(level=level)
-            img_obj.close()
+            with img_obj:
+                region = img_obj.asarray(level=level)
             if size is None:
                 region = region[location[0] :, location[1] :]
             else:
