@@ -19,7 +19,15 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import InterpolateMode, deprecated_arg, ensure_tuple, ensure_tuple_rep, min_version, optional_import
+from monai.utils import (
+    InterpolateMode,
+    deprecated_arg,
+    ensure_tuple,
+    ensure_tuple_rep,
+    first,
+    min_version,
+    optional_import,
+)
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
@@ -645,7 +653,7 @@ class SpatialCropGuidanced(MapTransform):
     def __call__(self, data):
         d: Dict = dict(data)
         guidance = d[self.guidance]
-        original_spatial_shape = d[self.keys[0]].shape[1:]
+        original_spatial_shape = d[first(self.key_iterator(d))].shape[1:]
         box_start, box_end = self.bounding_box(np.array(guidance[0] + guidance[1]), original_spatial_shape)
         center = list(np.mean([box_start, box_end], axis=0).astype(int))
         spatial_size = self.spatial_size

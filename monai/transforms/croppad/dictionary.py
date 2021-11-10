@@ -51,7 +51,7 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
-from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, first
 from monai.utils.enums import InverseKeys
 
 __all__ = [
@@ -481,7 +481,7 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         # use the spatial size of first image to scale, expect all images have the same spatial size
-        img_size = data[self.keys[0]].shape[1:]
+        img_size = d[first(self.key_iterator(d))].shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         cropper = CenterSpatialCrop(roi_size)
@@ -575,7 +575,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
+        self.randomize(d[first(self.key_iterator(d))].shape[1:])  # image shape from the first data key
         if self._size is None:
             raise RuntimeError("self._size not specified.")
         for key in self.key_iterator(d):
@@ -669,7 +669,7 @@ class RandScaleCropd(RandSpatialCropd):
         self.max_roi_scale = max_roi_scale
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        img_size = data[self.keys[0]].shape[1:]
+        img_size = data[first(self.key_iterator(data))].shape[1:]  # type: ignore
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         if self.max_roi_scale is not None:
