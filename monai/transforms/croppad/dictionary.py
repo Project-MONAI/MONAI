@@ -98,6 +98,9 @@ __all__ = [
     "ResizeWithPadOrCropDict",
     "BoundingRectD",
     "BoundingRectDict",
+    "RandCropByLabelClassesd",
+    "RandCropByLabelClassesD",
+    "RandCropByLabelClassesDict",
 ]
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]

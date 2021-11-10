@@ -171,6 +171,9 @@ __all__ = [
     "Transposed",
     "TransposeDict",
     "TransposeD",
+    "ClassesToIndicesd",
+    "ClassesToIndicesD",
+    "ClassesToIndicesDict",
 ]
 
 
@@ -549,9 +552,7 @@ class ToNumpyd(MapTransform):
 
     backend = ToNumpy.backend
 
-    def __init__(
-        self, keys: KeysCollection, dtype: Optional[DtypeLike] = None, allow_missing_keys: bool = False
-    ) -> None:
+    def __init__(self, keys: KeysCollection, dtype: DtypeLike = None, allow_missing_keys: bool = False) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.

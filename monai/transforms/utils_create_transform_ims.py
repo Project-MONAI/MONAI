@@ -240,9 +240,6 @@ def pre_process_data(data, ndim, is_map, is_post):
     if ndim == 2:
         for k in keys:
             data[k] = data[k][..., data[k].shape[-1] // 2]
-    if is_post:
-        for k in keys:
-            data[k] = torch.as_tensor(data[k])
 
     if is_map:
         return data
@@ -384,7 +381,7 @@ def get_images(data, is_label=False):
 
 
 def create_transform_im(
-    transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, out_dir=None, seed=0, is_post=False
+    transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, seed=0, is_post=False
 ):
     """Create an image with the before and after of the transform.
     Also update the transform's documentation to point to this image."""

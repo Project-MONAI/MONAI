@@ -24,11 +24,12 @@ class NetAdapter(torch.nn.Module):
     then replace the model's last two layers with an optional `pooling` and a `conv` or `linear` layer.
 
     Args:
-        model: a PyTorch model, support both 2D and 3D models. typically, it can be a pretrained model in Torchvision,
-            like: ``resnet18``, ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``, etc.
+        model: a PyTorch model, which can be both 2D and 3D models. typically, it can be a pretrained model
+            in Torchvision, like: ``resnet18``, ``resnet34``, ``resnet50``, ``resnet101``, ``resnet152``, etc.
             more details: https://pytorch.org/vision/stable/models.html.
         num_classes: number of classes for the last classification layer. Default to 1.
-        dim: number of spatial dimensions, default to 2.
+        dim: number of supported spatial dimensions in the specified model, depends on the model implementation.
+            default to 2 as most Torchvision models are for 2D image processing.
         in_channels: number of the input channels of last layer. if None, get it from `in_features` of last layer.
         use_conv: whether use convolutional layer to replace the last layer, default to False.
         pool: parameters for the pooling layer, it should be a tuple, the first item is name of the pooling layer,
@@ -70,13 +71,13 @@ class NetAdapter(torch.nn.Module):
             in_channels_ = in_channels
 
         if pool is None:
-            self.pool = None
             # remove the last layer
             self.features = torch.nn.Sequential(*layers[:-1])
+            self.pool = None
         else:
-            self.pool = get_pool_layer(name=pool, spatial_dims=dim)
             # remove the last 2 layers
             self.features = torch.nn.Sequential(*layers[:-2])
+            self.pool = get_pool_layer(name=pool, spatial_dims=dim)
 
         self.fc: Union[torch.nn.Linear, torch.nn.Conv2d, torch.nn.Conv3d]
         if use_conv:

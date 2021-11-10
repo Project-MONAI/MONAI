@@ -149,31 +149,43 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
 
 
 def rescale_array(
-    arr: NdarrayOrTensor, minv: float = 0.0, maxv: float = 1.0, dtype: Union[DtypeLike, torch.dtype] = np.float32
+    arr: NdarrayOrTensor,
+    minv: Optional[float] = 0.0,
+    maxv: Optional[float] = 1.0,
+    dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
 ) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
+    If either `minv` or `maxv` is None, it returns `(a - min_a) / (max_a - min_a)`.
+
+    Args:
+        arr: input array to rescale.
+        minv: minimum value of target rescaled array.
+        maxv: maxmum value of target rescaled array.
+        dtype: if not None, convert input array to dtype before computation.
+
     """
     if dtype is not None:
         arr, *_ = convert_data_type(arr, dtype=dtype)
-
     mina = arr.min()
     maxa = arr.max()
 
     if mina == maxa:
-        return arr * minv
+        return arr * minv if minv is not None else arr
 
     norm = (arr - mina) / (maxa - mina)  # normalize the array first
+    if (minv is None) or (maxv is None):
+        return norm
     return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
 def rescale_instance_array(
-    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32
+    arr: np.ndarray, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, dtype: DtypeLike = np.float32
 ) -> np.ndarray:
     """
     Rescale each array slice along the first dimension of `arr` independently.
     """
-    out: np.ndarray = np.zeros(arr.shape, dtype)
+    out: np.ndarray = np.zeros(arr.shape, dtype or arr.dtype)
     for i in range(arr.shape[0]):
         out[i] = rescale_array(arr[i], minv, maxv, dtype)
 
@@ -184,8 +196,8 @@ def rescale_array_int_max(arr: np.ndarray, dtype: DtypeLike = np.uint16) -> np.n
     """
     Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`.
     """
-    info: np.iinfo = np.iinfo(dtype)
-    return np.asarray(rescale_array(arr, info.min, info.max), dtype=dtype)
+    info: np.iinfo = np.iinfo(dtype or arr.dtype)
+    return np.asarray(rescale_array(arr, info.min, info.max), dtype=dtype or arr.dtype)
 
 
 def copypaste_arrays(
@@ -913,7 +925,7 @@ def generate_spatial_bounding_box(
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Optional[int] = None) -> torch.Tensor:
+def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Optional[int] = None) -> NdarrayOrTensor:
     """
     Gets the largest connected component mask of an image.
 
@@ -923,13 +935,13 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """
-    img_arr = img.detach().cpu().numpy()
-    largest_cc = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
+    img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
+    largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
     img_arr = measure.label(img_arr, connectivity=connectivity)
     if img_arr.max() != 0:
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
-
-    return torch.as_tensor(largest_cc, device=img.device)
+    largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
+    return largest_cc
 
 
 def fill_holes(
@@ -1195,7 +1207,7 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
     interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
 
     # set to string for DataLoader collation
-    align_corners_ = "none" if align_corners is None else align_corners
+    align_corners_ = InverseKeys.NONE if align_corners is None else align_corners
 
     for item in ensure_tuple(trans_info):
         if InverseKeys.EXTRA_INFO in item:
@@ -1234,12 +1246,7 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
 
 
 def equalize_hist(
-    img: NdarrayOrTensor,
-    mask: Optional[NdarrayOrTensor] = None,
-    num_bins: int = 256,
-    min: int = 0,
-    max: int = 255,
-    dtype: DtypeLike = np.float32,
+    img: np.ndarray, mask: Optional[np.ndarray] = None, num_bins: int = 256, min: int = 0, max: int = 255
 ) -> np.ndarray:
     """
     Utility to equalize input image based on the histogram.
@@ -1254,17 +1261,11 @@ def equalize_hist(
             https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
         min: the min value to normalize input image, default to `0`.
         max: the max value to normalize input image, default to `255`.
-        dtype: data type of the output, default to `float32`.
 
     """
-    img_np: np.ndarray
-    img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-    mask_np: Optional[np.ndarray] = None
-    if mask is not None:
-        mask_np, *_ = convert_data_type(mask, np.ndarray)  # type: ignore
 
-    orig_shape = img_np.shape
-    hist_img = img_np[np.array(mask_np, dtype=bool)] if mask_np is not None else img_np
+    orig_shape = img.shape
+    hist_img = img[np.array(mask, dtype=bool)] if mask is not None else img
     if has_skimage:
         hist, bins = exposure.histogram(hist_img.flatten(), num_bins)
     else:
@@ -1276,9 +1277,8 @@ def equalize_hist(
     cum = rescale_array(arr=cum, minv=min, maxv=max)
 
     # apply linear interpolation
-    img_np = np.interp(img_np.flatten(), bins, cum)
-
-    return img_np.reshape(orig_shape).astype(dtype)
+    img = np.interp(img.flatten(), bins, cum)
+    return img.reshape(orig_shape)
 
 
 class Fourier:

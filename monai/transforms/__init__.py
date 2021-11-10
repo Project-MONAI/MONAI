@@ -548,11 +548,13 @@ from .utils_pytorch_numpy_unification import (
     floor_divide,
     in1d,
     isfinite,
+    isnan,
     maximum,
     moveaxis,
     nonzero,
     percentile,
     ravel,
+    repeat,
     unravel_index,
     where,
 )

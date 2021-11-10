@@ -20,6 +20,7 @@ from monai.utils import is_scalar, min_version, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from torch.utils.tensorboard import SummaryWriter
@@ -35,8 +36,8 @@ class TensorBoardHandler:
     Base class for the handlers to write data into TensorBoard.
 
     Args:
-        summary_writer: user can specify TensorBoard SummaryWriter,
-            default to create a new writer.
+        summary_writer: user can specify TensorBoard or TensorBoardX SummaryWriter,
+            default to create a new TensorBoard writer.
         log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
 
     """
@@ -94,8 +95,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
     ) -> None:
         """
         Args:
-            summary_writer: user can specify TensorBoard SummaryWriter,
-                default to create a new writer.
+            summary_writer: user can specify TensorBoard or TensorBoardX SummaryWriter,
+                default to create a new TensorBoard writer.
             log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
@@ -180,13 +181,14 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
-            writer: TensorBoard writer, created in TensorBoardHandler.
+            writer: TensorBoard or TensorBoardX writer, passed or created in TensorBoardHandler.
 
         """
         current_epoch = self.global_epoch_transform(engine.state.epoch)
         summary_dict = engine.state.metrics
         for name, value in summary_dict.items():
-            writer.add_scalar(name, value, current_epoch)
+            if is_scalar(value):
+                writer.add_scalar(name, value, current_epoch)
 
         if self.state_attributes is not None:
             for attr in self.state_attributes:
@@ -202,7 +204,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
-            writer: TensorBoard writer, created in TensorBoardHandler.
+            writer: TensorBoard  or TensorBoardX writer, passed or created in TensorBoardHandler.
 
         """
         loss = self.output_transform(engine.state.output)
@@ -242,6 +244,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
     2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
     for 3D to ND output (shape in Batch, channel, H, W, D) input, each of ``self.max_channels`` number of images'
     last three dimensions will be shown as animated GIF along the last axis (typically Depth).
+    And if writer is from TensorBoardX, data has 3 channels and `max_channels=3`, will plot as RGB video.
 
     It can be used for any Ignite Engine (trainer, validator and evaluator).
     User can easily add it to engine for any expected Event, for example: ``EPOCH_COMPLETED``,
@@ -276,8 +279,8 @@ class TensorBoardImageHandler(TensorBoardHandler):
     ) -> None:
         """
         Args:
-            summary_writer: user can specify TensorBoard SummaryWriter,
-                default to create a new writer.
+            summary_writer: user can specify TensorBoard or TensorBoardX SummaryWriter,
+                default to create a new TensorBoard writer.
             log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             interval: plot content from engine.state every N epochs or every N iterations, default is 1.
             epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
@@ -298,7 +301,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
             max_channels: number of channels to plot.
-            max_frames: number of frames for 2D-t plot.
+            max_frames: if plot 3D RGB image as video in TensorBoardX, set the FPS to `max_frames`.
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.interval = interval

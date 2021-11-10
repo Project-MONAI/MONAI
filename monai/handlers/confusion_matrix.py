@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Callable, Union
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import ConfusionMatrixMetric
@@ -25,6 +25,8 @@ class ConfusionMatrix(IgniteMetric):
         self,
         include_background: bool = True,
         metric_name: str = "hit_rate",
+        compute_sample: bool = False,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -40,6 +42,10 @@ class ConfusionMatrix(IgniteMetric):
                 ``"informedness"``, ``"markedness"``]
                 Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
                 and you can also input those names instead.
+            compute_sample: when reducing, if ``True``, each sample's metric will be computed based on each confusion matrix first.
+                if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -55,8 +61,8 @@ class ConfusionMatrix(IgniteMetric):
         metric_fn = ConfusionMatrixMetric(
             include_background=include_background,
             metric_name=metric_name,
-            compute_sample=False,
-            reduction=MetricReduction.MEAN,
+            compute_sample=compute_sample,
+            reduction=reduction,
         )
         self.metric_name = metric_name
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

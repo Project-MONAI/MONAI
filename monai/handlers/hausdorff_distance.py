@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import HausdorffDistanceMetric
@@ -27,6 +27,7 @@ class HausdorffDistance(IgniteMetric):
         distance_metric: str = "euclidean",
         percentile: Optional[float] = None,
         directed: bool = False,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -41,6 +42,9 @@ class HausdorffDistance(IgniteMetric):
                 percentile of the Hausdorff Distance rather than the maximum result will be achieved.
                 Defaults to ``None``.
             directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -56,6 +60,6 @@ class HausdorffDistance(IgniteMetric):
             distance_metric=distance_metric,
             percentile=percentile,
             directed=directed,
-            reduction=MetricReduction.MEAN,
+            reduction=reduction,
         )
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

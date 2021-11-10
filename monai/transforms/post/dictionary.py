@@ -19,10 +19,9 @@ import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
-import numpy as np
 import torch
 
-from monai.config import KeysCollection, NdarrayTensor
+from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
@@ -117,7 +116,7 @@ class Activationsd(MapTransform):
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, sigmoid, softmax, other in self.key_iterator(d, self.sigmoid, self.softmax, self.other):
             d[key] = self.converter(d[key], sigmoid, softmax, other)
@@ -179,7 +178,7 @@ class AsDiscreted(MapTransform):
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
             d, self.argmax, self.to_onehot, self.num_classes, self.threshold_values, self.logit_thresh, self.rounding
@@ -192,6 +191,8 @@ class KeepLargestConnectedComponentd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.KeepLargestConnectedComponent`.
     """
+
+    backend = KeepLargestConnectedComponent.backend
 
     def __init__(
         self,
@@ -208,9 +209,11 @@ class KeepLargestConnectedComponentd(MapTransform):
             applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
                 If the data is in one-hot format, this is the channel indices to apply transform.
-            independent: consider several labels as a whole or independent, default is `True`.
-                Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
-                you want this "independent" to be specified as False.
+            independent: whether to treat ``applied_labels`` as a union of foreground labels.
+                If ``True``, the connected component analysis will be performed on each foreground label independently
+                and return the intersection of the largest components.
+                If ``False``, the analysis will be performed on the union of foreground labels.
+                default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
@@ -220,7 +223,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -231,6 +234,8 @@ class LabelFilterd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelFilter`.
     """
+
+    backend = LabelFilter.backend
 
     def __init__(
         self, keys: KeysCollection, applied_labels: Union[Sequence[int], int], allow_missing_keys: bool = False
@@ -246,7 +251,7 @@ class LabelFilterd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelFilter(applied_labels)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -295,6 +300,8 @@ class LabelToContourd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelToContour`.
     """
 
+    backend = LabelToContour.backend
+
     def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace", allow_missing_keys: bool = False) -> None:
         """
         Args:
@@ -307,7 +314,7 @@ class LabelToContourd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelToContour(kernel_type=kernel_type)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -319,6 +326,8 @@ class Ensembled(MapTransform):
     Base class of dictionary-based ensemble transforms.
 
     """
+
+    backend = list(set(VoteEnsemble.backend) & set(MeanEnsemble.backend))
 
     def __init__(
         self,
@@ -365,6 +374,8 @@ class MeanEnsembled(Ensembled):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.MeanEnsemble`.
     """
+
+    backend = MeanEnsemble.backend
 
     def __init__(
         self,
@@ -449,6 +460,8 @@ class ProbNMSd(MapTransform):
 
     """
 
+    backend = ProbNMS.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -463,7 +476,7 @@ class ProbNMSd(MapTransform):
             spatial_dims=spatial_dims, sigma=sigma, prob_threshold=prob_threshold, box_size=box_size
         )
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.prob_nms(d[key])

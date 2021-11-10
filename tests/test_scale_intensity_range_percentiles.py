@@ -27,9 +27,8 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
 
         a_min = np.percentile(img, lower)
         a_max = np.percentile(img, upper)
-        expected = (img - a_min) / (a_max - a_min)
-        expected = (expected * (b_max - b_min)) + b_min
-        scaler = ScaleIntensityRangePercentiles(lower=lower, upper=upper, b_min=b_min, b_max=b_max)
+        expected = (((img - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min).astype(np.uint8)
+        scaler = ScaleIntensityRangePercentiles(lower=lower, upper=upper, b_min=b_min, b_max=b_max, dtype=np.uint8)
         for p in TEST_NDARRAYS:
             result = scaler(p(img))
             assert_allclose(result, p(expected), rtol=1e-4)
@@ -52,6 +51,13 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             result = scaler(p(img))
             assert_allclose(result, p(expected_img), rtol=1e-4)
+
+        scaler = ScaleIntensityRangePercentiles(
+            lower=lower, upper=upper, b_min=b_min, b_max=b_max, relative=True, clip=True
+        )
+        for p in TEST_NDARRAYS:
+            result = scaler(p(img))
+            assert_allclose(result, p(np.clip(expected_img, expected_b_min, expected_b_max)), rtol=1e-4)
 
     def test_invalid_instantiation(self):
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=-10, upper=99, b_min=0, b_max=255)

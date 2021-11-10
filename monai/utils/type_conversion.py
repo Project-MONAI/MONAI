@@ -1,3 +1,14 @@
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import re
 from typing import Any, Optional, Sequence, Tuple, Union
 
@@ -130,7 +141,7 @@ def convert_to_tensor(
     return data
 
 
-def convert_to_numpy(data, dtype: Optional[DtypeLike] = None, wrap_sequence: bool = False):
+def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False):
     """
     Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to numpy array.
@@ -267,7 +278,7 @@ def convert_to_dst_type(
     otherwise, convert to the type of `dst` directly.
 
     Args:
-        src: sourse data to convert type.
+        src: source data to convert type.
         dst: destination data that convert to the same data type as it.
         dtype: an optional argument if the target `dtype` is different from the original `dst`'s data type.
         wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.

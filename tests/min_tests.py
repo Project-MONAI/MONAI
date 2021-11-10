@@ -104,7 +104,6 @@ def run_testsuit():
         "test_nifti_rw",
         "test_nifti_saver",
         "test_occlusion_sensitivity",
-        "test_openslide_reader",
         "test_orientation",
         "test_orientationd",
         "test_parallel_execution",
@@ -138,7 +137,9 @@ def run_testsuit():
         "test_unetr",
         "test_unetr_block",
         "test_vit",
+        "test_vitautoenc",
         "test_write_metrics_reports",
+        "test_wsireader",
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
@@ -146,6 +147,8 @@ def run_testsuit():
         "test_handler_mlflow",
         "test_prepare_batch_extra_input",
         "test_prepare_batch_default",
+        "test_check_missing_files",
+        "test_cumulative_average_dist",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

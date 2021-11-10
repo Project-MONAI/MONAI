@@ -17,4 +17,5 @@ from .img2tensorboard import (
     plot_2d_or_3d_image,
 )
 from .occlusion_sensitivity import OcclusionSensitivity
+from .utils import blend_images, matshow3d
 from .visualizer import default_upsampler
