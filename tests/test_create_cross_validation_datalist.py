@@ -14,9 +14,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import nibabel as nib
-import numpy as np
-
 from monai.data import create_cross_validation_datalist, load_decathlon_datalist
 
 
@@ -24,12 +21,11 @@ class TestCreateCrossValidationDatalist(unittest.TestCase):
     def test_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             datalist = []
-            test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
             for i in range(5):
                 image = os.path.join(tempdir, f"test_image{i}.nii.gz")
                 label = os.path.join(tempdir, f"test_label{i}.nii.gz")
-                nib.save(test_image, image)
-                nib.save(test_image, label)
+                Path(image).touch()
+                Path(label).touch()
                 datalist.append({"image": image, "label": label})
 
             filename = os.path.join(tempdir, "test_datalist.json")
