@@ -60,6 +60,7 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
+    first,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import InverseKeys
@@ -815,9 +816,10 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         device = self.rand_affine.resampler.device
 
-        sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
+        spatial_size = d[first(self.key_iterator(d))].shape[1:]
+        sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
-        do_resampling = self._do_transform or (sp_size != ensure_tuple(data[self.keys[0]].shape[1:]))
+        do_resampling = self._do_transform or (sp_size != ensure_tuple(spatial_size))
         affine: torch.Tensor = torch.eye(len(sp_size) + 1, dtype=torch.float64, device=device)
         # converting affine to tensor because the resampler currently only support torch backend
         grid = None
@@ -975,7 +977,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
 
-        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, d[first(self.key_iterator(d))].shape[1:])
         # all the keys share the same random elastic factor
         self.rand_2d_elastic.randomize(sp_size)
 
@@ -1107,7 +1109,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
 
-        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, d[first(self.key_iterator(d))].shape[1:])
         # all the keys share the same random elastic factor
         self.rand_3d_elastic.randomize(sp_size)
 
@@ -1258,7 +1260,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.randomize(None)
 
         # all the keys share the same random selected axis
-        self.flipper.randomize(d[self.keys[0]])
+        self.flipper.randomize(d[first(self.key_iterator(d))])
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key], randomize=False)
@@ -1682,7 +1684,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.randomize(None)
 
         # all the keys share the same random zoom factor
-        self.rand_zoom.randomize(d[self.keys[0]])
+        self.rand_zoom.randomize(d[first(self.key_iterator(d))])
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
@@ -1864,7 +1866,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
 
-        self.rand_grid_distortion.randomize(d[self.keys[0]].shape[1:])
+        self.rand_grid_distortion.randomize(d[first(self.key_iterator(d))].shape[1:])
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode, randomize=False)
         return d
