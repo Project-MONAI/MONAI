@@ -60,6 +60,7 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
+    first,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import InverseKeys
@@ -256,7 +257,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                     "old_affine": old_affine,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
                 orig_size=original_spatial_shape,
             )
@@ -288,7 +289,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                 affine=meta_data["affine"],  # type: ignore
                 mode=mode,
                 padding_mode=padding_mode,
-                align_corners=False if align_corners == "none" else align_corners,
+                align_corners=False if align_corners == InverseKeys.NONE else align_corners,
                 dtype=dtype,
                 output_spatial_shape=orig_size,
             )
@@ -562,7 +563,7 @@ class Resized(MapTransform, InvertibleTransform):
                 key,
                 extra_info={
                     "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
@@ -577,7 +578,9 @@ class Resized(MapTransform, InvertibleTransform):
             align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
             # Create inverse transform
             inverse_transform = Resize(
-                spatial_size=orig_size, mode=mode, align_corners=None if align_corners == "none" else align_corners
+                spatial_size=orig_size,
+                mode=mode,
+                align_corners=None if align_corners == InverseKeys.NONE else align_corners,
             )
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
@@ -815,9 +818,10 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         device = self.rand_affine.resampler.device
 
-        sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
+        spatial_size = d[first(self.key_iterator(d))].shape[1:]
+        sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
-        do_resampling = self._do_transform or (sp_size != ensure_tuple(data[self.keys[0]].shape[1:]))
+        do_resampling = self._do_transform or (sp_size != ensure_tuple(spatial_size))
         affine: torch.Tensor = torch.eye(len(sp_size) + 1, dtype=torch.float64, device=device)
         # converting affine to tensor because the resampler currently only support torch backend
         grid = None
@@ -975,7 +979,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
 
-        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, d[first(self.key_iterator(d))].shape[1:])
         # all the keys share the same random elastic factor
         self.rand_2d_elastic.randomize(sp_size)
 
@@ -1107,7 +1111,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
 
-        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, d[first(self.key_iterator(d))].shape[1:])
         # all the keys share the same random elastic factor
         self.rand_3d_elastic.randomize(sp_size)
 
@@ -1258,7 +1262,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.randomize(None)
 
         # all the keys share the same random selected axis
-        self.flipper.randomize(d[self.keys[0]])
+        self.flipper.randomize(d[first(self.key_iterator(d))])
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key], randomize=False)
@@ -1346,7 +1350,7 @@ class Rotated(MapTransform, InvertibleTransform):
                     "rot_mat": rot_mat,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
         return d
@@ -1366,7 +1370,7 @@ class Rotated(MapTransform, InvertibleTransform):
                 normalized=False,
                 mode=mode,
                 padding_mode=padding_mode,
-                align_corners=False if align_corners == "none" else align_corners,
+                align_corners=False if align_corners == InverseKeys.NONE else align_corners,
                 reverse_indexing=True,
             )
             img_t: torch.Tensor
@@ -1478,7 +1482,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     "rot_mat": rot_mat,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
         return d
@@ -1500,7 +1504,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     normalized=False,
                     mode=mode,
                     padding_mode=padding_mode,
-                    align_corners=False if align_corners == "none" else align_corners,
+                    align_corners=False if align_corners == InverseKeys.NONE else align_corners,
                     reverse_indexing=True,
                 )
                 img_t: torch.Tensor
@@ -1578,7 +1582,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 extra_info={
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
             d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
@@ -1599,7 +1603,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 d[key],
                 mode=mode,
                 padding_mode=padding_mode,
-                align_corners=None if align_corners == "none" else align_corners,
+                align_corners=None if align_corners == InverseKeys.NONE else align_corners,
             )
             # Size might be out by 1 voxel so pad
             d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
@@ -1682,7 +1686,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.randomize(None)
 
         # all the keys share the same random zoom factor
-        self.rand_zoom.randomize(d[self.keys[0]])
+        self.rand_zoom.randomize(d[first(self.key_iterator(d))])
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
@@ -1697,7 +1701,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     "zoom": self.rand_zoom._zoom,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else InverseKeys.NONE,
                 },
             )
         return d
@@ -1719,7 +1723,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     d[key],
                     mode=mode,
                     padding_mode=padding_mode,
-                    align_corners=None if align_corners == "none" else align_corners,
+                    align_corners=None if align_corners == InverseKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
                 d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
@@ -1864,7 +1868,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
 
-        self.rand_grid_distortion.randomize(d[self.keys[0]].shape[1:])
+        self.rand_grid_distortion.randomize(d[first(self.key_iterator(d))].shape[1:])
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode, randomize=False)
         return d
