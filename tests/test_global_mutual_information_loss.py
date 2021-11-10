@@ -38,7 +38,7 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
     def setUp(self):
         download_url(FILE_URL, FILE_PATH)
 
-    # @SkipIfBeforePyTorchVersion((1, 9))
+    @SkipIfBeforePyTorchVersion((1, 9))
     def test_bspline(self):
         loss_fn = GlobalMutualInformationLoss(
             kernel_type="b-spline",
