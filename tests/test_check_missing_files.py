@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import nibabel as nib
 import numpy as np
@@ -34,14 +35,14 @@ class TestCheckMissingFiles(unittest.TestCase):
                     "label": [os.path.join(tempdir, "test_label1.nii.gz"), os.path.join(tempdir, "test_extra1.nii.gz")],
                 },
                 {
-                    "image": os.path.join(tempdir, "test_image2.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label_missing.nii.gz"),
+                    "image": Path(os.path.join(tempdir, "test_image2.nii.gz")),
+                    "label": Path(os.path.join(tempdir, "test_label_missing.nii.gz")),
                 },
             ]
 
             missings = check_missing_files(datalist=datalist, keys=["image", "label"])
             self.assertEqual(len(missings), 1)
-            self.assertEqual(missings[0], os.path.join(tempdir, "test_label_missing.nii.gz"))
+            self.assertEqual(str(missings[0]), os.path.join(tempdir, "test_label_missing.nii.gz"))
 
             # test with missing key and relative path
             datalist = [{"image": "test_image1.nii.gz", "label": "test_label_missing.nii.gz"}]

@@ -36,6 +36,7 @@ __all__ = [
     "isfinite",
     "searchsorted",
     "repeat",
+    "isnan",
 ]
 
 
@@ -309,3 +310,15 @@ def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None):
     if isinstance(a, np.ndarray):
         return np.repeat(a, repeats, axis)
     return torch.repeat_interleave(a, repeats, dim=axis)
+
+
+def isnan(x: NdarrayOrTensor):
+    """`np.isnan` with equivalent implementation for torch.
+
+    Args:
+        x: array/tensor
+
+    """
+    if isinstance(x, np.ndarray):
+        return np.isnan(x)
+    return torch.isnan(x)
