@@ -24,7 +24,7 @@ import torch
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.csv_saver import CSVSaver
-from monai.transforms.inverse import InvertibleTransform, TraceableTransform
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
@@ -599,7 +599,7 @@ class Invertd(MapTransform):
             self.device,
             self.post_func,
         ):
-            transform_key = TraceableTransform.transform_key(orig_key)
+            transform_key = InvertibleTransform.trace_key(orig_key)
             if transform_key not in d:
                 warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
                 continue

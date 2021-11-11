@@ -148,7 +148,7 @@ class TestOneOf(unittest.TestCase):
             return
 
         for k in KEYS:
-            t = fwd_data[TraceableTransform.transform_key(k)][-1]
+            t = fwd_data[TraceableTransform.trace_key(k)][-1]
             # make sure the OneOf index was stored
             self.assertEqual(t[TraceKeys.CLASS_NAME], OneOf.__name__)
             # make sure index exists and is in bounds
@@ -160,8 +160,7 @@ class TestOneOf(unittest.TestCase):
         for k in KEYS:
             # check transform was removed
             self.assertTrue(
-                len(fwd_inv_data[TraceableTransform.transform_key(k)])
-                < len(fwd_data[TraceableTransform.transform_key(k)])
+                len(fwd_inv_data[TraceableTransform.trace_key(k)]) < len(fwd_data[TraceableTransform.trace_key(k)])
             )
             # check data is same as original (and different from forward)
             self.assertEqual(fwd_inv_data[k], data[k])

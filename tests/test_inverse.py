@@ -466,7 +466,7 @@ class TestInverse(unittest.TestCase):
 
         labels = data["label"].to(device)
         segs = model(labels).detach().cpu()
-        label_transform_key = TraceableTransform.transform_key("label")
+        label_transform_key = TraceableTransform.trace_key("label")
         segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
 
         segs_dict_decollated = decollate_batch(segs_dict)

@@ -21,7 +21,7 @@ import torch
 
 from monai.data.utils import list_data_collate
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
-from monai.transforms.inverse import InvertibleTransform, TraceableTransform
+from monai.transforms.inverse import InvertibleTransform
 from monai.utils.enums import Method, NumpyPadMode, TraceKeys
 
 __all__ = ["PadListDataCollate"]
@@ -115,7 +115,7 @@ class PadListDataCollate(InvertibleTransform):
 
         d = deepcopy(data)
         for key in d:
-            transform_key = TraceableTransform.transform_key(key)
+            transform_key = InvertibleTransform.trace_key(key)
             if transform_key in d:
                 transform = d[transform_key][-1]
                 if not isinstance(transform, Dict):

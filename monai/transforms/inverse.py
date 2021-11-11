@@ -22,7 +22,7 @@ __all__ = ["TraceableTransform", "InvertibleTransform"]
 class TraceableTransform(Transform):
     """
     Maintains a stack of applied transforms. The stack is inserted as pairs of
-    `transform_key: list of transforms` to each data dictionary.
+    `trace_key: list of transforms` to each data dictionary.
 
     The ``__call__`` method of this transform class must be implemented so
     that the transformation information for each key is stored when
@@ -45,7 +45,7 @@ class TraceableTransform(Transform):
         self.tracing = tracing
 
     @staticmethod
-    def transform_key(key: Hashable = None):
+    def trace_key(key: Hashable = None):
         """The key to store the stack of applied transforms."""
         if key is None:
             return TraceKeys.KEY_SUFFIX
@@ -68,17 +68,17 @@ class TraceableTransform(Transform):
         if hasattr(self, "_do_transform"):  # RandomizableTransform
             info[TraceKeys.DO_TRANSFORM] = self._do_transform  # type: ignore
         # If this is the first, create list
-        if self.transform_key(key) not in data:
+        if self.trace_key(key) not in data:
             if not isinstance(data, dict):
                 data = dict(data)
-            data[self.transform_key(key)] = []
-        data[self.transform_key(key)].append(info)
+            data[self.trace_key(key)] = []
+        data[self.trace_key(key)].append(info)
 
     def pop_transform(self, data: Mapping, key: Hashable = None):
         """Remove the most recent applied transform."""
         if not self.tracing:
             return
-        return data.get(self.transform_key(key), []).pop()
+        return data.get(self.trace_key(key), []).pop()
 
 
 class InvertibleTransform(TraceableTransform):
@@ -133,7 +133,7 @@ class InvertibleTransform(TraceableTransform):
         """Get most recent transform."""
         if not self.tracing:
             raise RuntimeError("Transform Tracing must be enabled to get the most recent transform.")
-        transform = data[self.transform_key(key)][-1]
+        transform = data[self.trace_key(key)][-1]
         self.check_transforms_match(transform)
         return transform
 

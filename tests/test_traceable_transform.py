@@ -28,7 +28,7 @@ class TestTraceable(unittest.TestCase):
     def test_default(self):
         expected_key = "_transforms"
         a = _TraceTest()
-        self.assertEqual(a.transform_key(), expected_key)
+        self.assertEqual(a.trace_key(), expected_key)
 
         data = {"image": "test"}
         data = a(data)  # adds to the stack
