@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.transforms import InvertibleTransform, OneOf, TraceableTransform, Transform
 from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import TraceKeys
 
 
 class X(Transform):
@@ -150,9 +150,9 @@ class TestOneOf(unittest.TestCase):
         for k in KEYS:
             t = fwd_data[TraceableTransform.transform_key(k)][-1]
             # make sure the OneOf index was stored
-            self.assertEqual(t[InverseKeys.CLASS_NAME], OneOf.__name__)
+            self.assertEqual(t[TraceKeys.CLASS_NAME], OneOf.__name__)
             # make sure index exists and is in bounds
-            self.assertTrue(0 <= t[InverseKeys.EXTRA_INFO]["index"] < len(transform))
+            self.assertTrue(0 <= t[TraceKeys.EXTRA_INFO]["index"] < len(transform))
 
         # call the inverse
         fwd_inv_data = transform.inverse(fwd_data)

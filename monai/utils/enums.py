@@ -223,13 +223,13 @@ class TraceKeys:
     NONE = "none"
 
 
-@deprecated(since="0.7.0", msg_suffix="use monai.utils.TraceKeys instead.")
+@deprecated(since="0.7.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
 class InverseKeys:
     """
     Extra meta data keys used for inverse transforms.
 
     .. deprecated:: 0.7.0
-        Use :class:`monai.utils.TraceKeys` instead.
+        Use :class:`monai.utils.enums.TraceKeys` instead.
 
     """
 
@@ -240,7 +240,6 @@ class InverseKeys:
     DO_TRANSFORM = "do_transforms"
     KEY_SUFFIX = "_transforms"
     NONE = "none"
-
 
 
 class CommonKeys:
@@ -267,4 +266,3 @@ class TransformBackends(Enum):
 
     TORCH = "torch"
     NUMPY = "numpy"
-

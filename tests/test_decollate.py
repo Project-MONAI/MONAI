@@ -38,7 +38,7 @@ from monai.transforms import (
 from monai.transforms.inverse_batch_transform import Decollated
 from monai.transforms.spatial.dictionary import RandAffined, RandRotate90d
 from monai.utils import optional_import, set_determinism
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import TraceKeys
 from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
@@ -105,7 +105,7 @@ class TestDeCollate(unittest.TestCase):
                     k1, k2 = k1.value, k2.value
                 self.check_match(k1, k2)
                 # Transform ids won't match for windows with multiprocessing, so don't check values
-                if k1 == InverseKeys.ID and sys.platform in ["darwin", "win32"]:
+                if k1 == TraceKeys.ID and sys.platform in ["darwin", "win32"]:
                     continue
                 self.check_match(v1, v2)
         elif isinstance(in1, (list, tuple)):
