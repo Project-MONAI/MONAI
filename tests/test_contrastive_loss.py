@@ -64,6 +64,16 @@ class TestContrastiveLoss(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, ""):
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
+    def test_with_cuda(self):
+        loss = ContrastiveLoss(temperature=0.5, batch_size=1)
+        i = torch.ones((1, 10))
+        j = torch.ones((1, 10))
+        if torch.cuda.is_available():
+            i = i.cuda()
+            j = j.cuda()
+        output = loss(i, j)
+        np.testing.assert_allclose(output.detach().cpu().numpy(), 0.0, atol=1e-4, rtol=1e-4)
+
 
 if __name__ == "__main__":
     unittest.main()
