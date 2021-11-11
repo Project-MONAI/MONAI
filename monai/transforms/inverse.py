@@ -130,10 +130,6 @@ class InvertibleTransform(TraceableTransform):
         raise RuntimeError(f"Error inverting the most recently applied invertible transform {xform_name} {xform_id}.")
 
     def get_most_recent_transform(self, data: Mapping, key: Hashable = None):
-        """alias of self.peek_transform"""
-        return self.peek_transform(data, key)
-
-    def peek_transform(self, data: Mapping, key: Hashable = None):
         """Get most recent transform."""
         if not self.tracing:
             raise RuntimeError("Transform Tracing must be enabled to get the most recent transform.")
