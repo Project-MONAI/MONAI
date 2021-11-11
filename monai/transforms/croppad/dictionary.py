@@ -39,7 +39,7 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
-from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
     allow_missing_keys_mode,
@@ -776,8 +776,8 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
             cropped = self.cropper(d)
             # self.cropper will have added RandSpatialCropd to the list. Change to RandSpatialCropSamplesd
             for key in self.key_iterator(cropped):
-                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.CLASS_NAME] = self.__class__.__name__  # type: ignore
-                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.ID] = id(self)  # type: ignore
+                cropped[TraceableTransform.transform_key(key)][-1][InverseKeys.CLASS_NAME] = self.__class__.__name__  # type: ignore
+                cropped[TraceableTransform.transform_key(key)][-1][InverseKeys.ID] = id(self)  # type: ignore
             # add `patch_index` to the meta data
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
@@ -792,8 +792,8 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
         # We changed the transform name from RandSpatialCropd to RandSpatialCropSamplesd
         # Need to revert that since we're calling RandSpatialCropd's inverse
         for key in self.key_iterator(d):
-            d[key + InverseKeys.KEY_SUFFIX][-1][InverseKeys.CLASS_NAME] = self.cropper.__class__.__name__
-            d[key + InverseKeys.KEY_SUFFIX][-1][InverseKeys.ID] = id(self.cropper)
+            d[TraceableTransform.transform_key(key)][-1][InverseKeys.CLASS_NAME] = self.cropper.__class__.__name__
+            d[TraceableTransform.transform_key(key)][-1][InverseKeys.ID] = id(self.cropper)
         context_manager = allow_missing_keys_mode if self.allow_missing_keys else _nullcontext
         with context_manager(self.cropper):
             return self.cropper.inverse(d)

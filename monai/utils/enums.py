@@ -11,6 +11,8 @@
 
 from enum import Enum
 
+from monai.utils.aliases import alias
+
 __all__ = [
     "NumpyPadMode",
     "GridSampleMode",
@@ -26,6 +28,7 @@ __all__ = [
     "ChannelMatching",
     "SkipMode",
     "Method",
+    "TraceKeys",
     "InverseKeys",
     "CommonKeys",
     "ForwardMode",
@@ -208,7 +211,8 @@ class ForwardMode(Enum):
     EVAL = "eval"
 
 
-class InverseKeys:
+@alias("InverseKeys")
+class TraceKeys:
     """Extra meta data keys used for inverse transforms."""
 
     CLASS_NAME = "class"
@@ -244,3 +248,6 @@ class TransformBackends(Enum):
 
     TORCH = "torch"
     NUMPY = "numpy"
+
+
+InverseKeys = TraceKeys

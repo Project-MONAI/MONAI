@@ -20,7 +20,7 @@ from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.data.utils import list_data_collate, pad_list_data_collate
 from monai.transforms.compose import Compose
-from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.transform import Randomizable
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
@@ -168,7 +168,7 @@ class TestTimeAugmentation:
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, num_workers=self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
-        transform_key = self.orig_key + InverseKeys.KEY_SUFFIX
+        transform_key = TraceableTransform.transform_key(self.orig_key)
 
         # create inverter
         inverter = BatchInverseTransform(self.transform, dl, collate_fn=list_data_collate)
