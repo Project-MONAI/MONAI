@@ -701,7 +701,7 @@ class WSIReader(ImageReader):
                 return OpenSlide
             if backend == "cucim":
                 return CuImage
-            if backend = "tifffile":
+            if backend == "tifffile":
                 return TiffFile
             raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
 
