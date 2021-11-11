@@ -29,8 +29,9 @@ class DiceLoss(_Loss):
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
     The data `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).
 
-    Note that axis N of `input` is expected to be logits or probabilities for each class, must set `sigmoid=True`
-    or `softmax=True` if passing logits as input. And the same axis of `target` can be 1 or N (one-hot format).
+    Note that axis N of `input` is expected to be logits or probabilities for each class, if passing logits as input,
+    must set `sigmoid=True` or `softmax=True`, or specifying `other_act`. And the same axis of `target`
+    can be 1 or N (one-hot format).
 
     The `smooth_nr` and `smooth_dr` parameters are values added to the intersection and union components of
     the inter-over-union calculation to smooth results respectively, these values should be small.
