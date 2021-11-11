@@ -37,6 +37,9 @@ else:
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
 
+OpenSlide, _ = optional_import("openslide", name="OpenSlide")
+CuImage, _ = optional_import("cucim", name="CuImage")
+
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
 
 
@@ -685,12 +688,16 @@ class WSIReader(ImageReader):
     def __init__(self, backend: str = "OpenSlide", level: int = 0):
         super().__init__()
         self.backend = backend.lower()
-        if self.backend == "openslide":
-            self.wsi_reader, *_ = optional_import("openslide", name="OpenSlide")
-        elif self.backend == "cucim":
-            self.wsi_reader, *_ = optional_import("cucim", name="CuImage")
-        else:
+
+        @require_pkg(pkg_name=self.backend)
+        def _set_reader(backend: str):
+            if backend == "openslide":
+                return OpenSlide
+            if backend == "cucim":
+                return CuImage
             raise ValueError('`backend` should be either "cuCIM" or "OpenSlide"')
+
+        self.wsi_reader = _set_reader(self.backend)
         self.level = level
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
