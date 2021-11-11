@@ -11,7 +11,7 @@
 
 from enum import Enum
 
-from monai.utils.aliases import alias
+from monai.utils.deprecate_utils import deprecated
 
 __all__ = [
     "NumpyPadMode",
@@ -211,9 +211,8 @@ class ForwardMode(Enum):
     EVAL = "eval"
 
 
-@alias("InverseKeys")
 class TraceKeys:
-    """Extra meta data keys used for inverse transforms."""
+    """Extra meta data keys used for traceable transforms."""
 
     CLASS_NAME = "class"
     ID = "id"
@@ -222,6 +221,26 @@ class TraceKeys:
     DO_TRANSFORM = "do_transforms"
     KEY_SUFFIX = "_transforms"
     NONE = "none"
+
+
+@deprecated(since="0.7.0", msg_suffix="use monai.utils.TraceKeys instead.")
+class InverseKeys:
+    """
+    Extra meta data keys used for inverse transforms.
+
+    .. deprecated:: 0.7.0
+        Use :class:`monai.utils.TraceKeys` instead.
+
+    """
+
+    CLASS_NAME = "class"
+    ID = "id"
+    ORIG_SIZE = "orig_size"
+    EXTRA_INFO = "extra_info"
+    DO_TRANSFORM = "do_transforms"
+    KEY_SUFFIX = "_transforms"
+    NONE = "none"
+
 
 
 class CommonKeys:
@@ -249,5 +268,3 @@ class TransformBackends(Enum):
     TORCH = "torch"
     NUMPY = "numpy"
 
-
-InverseKeys = TraceKeys
