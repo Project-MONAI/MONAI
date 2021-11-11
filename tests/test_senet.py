@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import unittest
 from typing import TYPE_CHECKING
 from unittest import skipUnless
@@ -16,10 +17,11 @@ from unittest import skipUnless
 import torch
 from parameterized import parameterized
 
+import monai.networks.nets.senet as se_mod
 from monai.networks import eval_mode
 from monai.networks.nets import SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
 from monai.utils import optional_import
-from tests.utils import test_pretrained_networks, test_script_save
+from tests.utils import test_is_quick, test_pretrained_networks, test_script_save
 
 if TYPE_CHECKING:
     import pretrainedmodels
@@ -30,6 +32,7 @@ else:
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 NET_ARGS = {"spatial_dims": 3, "in_channels": 2, "num_classes": 2}
 TEST_CASE_1 = [SENet154, NET_ARGS]
@@ -60,6 +63,43 @@ class TestSENET(unittest.TestCase):
 
 
 class TestPretrainedSENET(unittest.TestCase):
+    def setUp(self):
+        self.original_urls = se_mod.SE_NET_MODELS.copy()
+        if test_is_quick():
+            testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+            testing_data_urls = {
+                "senet154": {
+                    "url": "https://drive.google.com/uc?id=1e10LFGVIV9L8_Q5Fhwi3X5nU6mDRrCDh",
+                    "filename": "senet154-c7b49a05.pth",
+                },
+                "se_resnet50": {
+                    "url": "https://drive.google.com/uc?id=1WCeveS0tvjta4Wcp1wAGRi_uyXRfXAGA",
+                    "filename": "se_resnet50-ce0d4300.pth",
+                },
+                "se_resnet101": {
+                    "url": "https://drive.google.com/uc?id=1Bh0PmLISUltsY8FevtlTbt6vT35clzWg",
+                    "filename": "se_resnet101-7e38fcc6.pth",
+                },
+                "se_resnet152": {
+                    "url": "https://drive.google.com/uc?id=1fcqpP0ITOcALy_TZAcBdkyf7HcH687J-",
+                    "filename": "se_resnet152-d17c99b7.pth",
+                },
+                "se_resnext50_32x4d": {
+                    "url": "https://drive.google.com/uc?id=1kRKW8YjGaEwYdQUyhoCIDg1H9ZAoJ-jI",
+                    "filename": "se_resnext50_32x4d-a260b3a4.pth",
+                },
+                "se_resnext101_32x4d": {
+                    "url": "https://drive.google.com/uc?id=1Tg6Zim1lXgmYgH7FyTXAgihbkq5Jegni",
+                    "filename": "se_resnext101_32x4d-3b2fe3d8.pth",
+                },
+            }
+            for item in testing_data_urls:
+                testing_data_urls[item]["filename"] = os.path.join(testing_dir, testing_data_urls[item]["filename"])
+            se_mod.SE_NET_MODELS = testing_data_urls
+
+    def tearDown(self):
+        se_mod.SE_NET_MODELS = self.original_urls.copy()
+
     @parameterized.expand([TEST_CASE_PRETRAINED_1])
     def test_senet_shape(self, model, input_param):
         net = test_pretrained_networks(model, input_param, device)

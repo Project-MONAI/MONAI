@@ -241,16 +241,8 @@ class TestGaussian1d(unittest.TestCase):
             rtol=1e-4,
         )
 
-        np.testing.assert_allclose(
-            gaussian_1d(1, 1),
-            torch.tensor([0.24173, 0.382925, 0.24173]),
-            rtol=1e-4,
-        )
-        np.testing.assert_allclose(
-            gaussian_1d(1, 1, normalize=True),
-            torch.tensor([0.2790, 0.4420, 0.2790]),
-            rtol=1e-4,
-        )
+        np.testing.assert_allclose(gaussian_1d(1, 1), torch.tensor([0.24173, 0.382925, 0.24173]), rtol=1e-4)
+        np.testing.assert_allclose(gaussian_1d(1, 1, normalize=True), torch.tensor([0.2790, 0.4420, 0.2790]), rtol=1e-4)
 
     def test_scalespace_gaussian(self):
         np.testing.assert_allclose(
@@ -272,15 +264,11 @@ class TestGaussian1d(unittest.TestCase):
         )
 
         np.testing.assert_allclose(
-            gaussian_1d(1, 1, "scalespace"),
-            torch.tensor([0.20791, 0.46576, 0.20791]),
-            rtol=1e-3,
+            gaussian_1d(1, 1, "scalespace"), torch.tensor([0.20791, 0.46576, 0.20791]), rtol=1e-3
         )
 
         np.testing.assert_allclose(
-            gaussian_1d(1, 1, "scalespace", normalize=True),
-            torch.tensor([0.2358, 0.5283, 0.2358]),
-            rtol=1e-3,
+            gaussian_1d(1, 1, "scalespace", normalize=True), torch.tensor([0.2358, 0.5283, 0.2358]), rtol=1e-3
         )
 
         np.testing.assert_allclose(

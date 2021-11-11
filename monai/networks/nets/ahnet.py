@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from monai.networks.blocks.fcn import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
 
-__all__ = ["AHnet", "Ahnet", "ahnet", "AHNet"]
+__all__ = ["AHnet", "Ahnet", "AHNet"]
 
 
 class Bottleneck3x3x1(nn.Module):
@@ -35,7 +35,7 @@ class Bottleneck3x3x1(nn.Module):
         downsample: Optional[nn.Sequential] = None,
     ) -> None:
 
-        super(Bottleneck3x3x1, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -87,7 +87,7 @@ class Bottleneck3x3x1(nn.Module):
 
 class Projection(nn.Sequential):
     def __init__(self, spatial_dims: int, num_input_features: int, num_output_features: int):
-        super(Projection, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -108,7 +108,7 @@ class DenseBlock(nn.Sequential):
         growth_rate: int,
         dropout_prob: float,
     ):
-        super(DenseBlock, self).__init__()
+        super().__init__()
         for i in range(num_layers):
             layer = Pseudo3DLayer(
                 spatial_dims, num_input_features + i * growth_rate, growth_rate, bn_size, dropout_prob
@@ -120,7 +120,7 @@ class UpTransition(nn.Sequential):
     def __init__(
         self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
-        super(UpTransition, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -145,7 +145,7 @@ class Final(nn.Sequential):
     def __init__(
         self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
-        super(Final, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -178,7 +178,7 @@ class Final(nn.Sequential):
 
 class Pseudo3DLayer(nn.Module):
     def __init__(self, spatial_dims: int, num_input_features: int, growth_rate: int, bn_size: int, dropout_prob: float):
-        super(Pseudo3DLayer, self).__init__()
+        super().__init__()
         # 1x1x1
 
         conv_type = Conv[Conv.CONV, spatial_dims]
@@ -244,7 +244,7 @@ class Pseudo3DLayer(nn.Module):
 
 class PSP(nn.Module):
     def __init__(self, spatial_dims: int, psp_block_num: int, in_ch: int, upsample_mode: str = "transpose"):
-        super(PSP, self).__init__()
+        super().__init__()
         self.up_modules = nn.ModuleList()
         conv_type = Conv[Conv.CONV, spatial_dims]
         pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
@@ -256,13 +256,7 @@ class PSP(nn.Module):
             size = (2 ** (i + 3), 2 ** (i + 3), 1)[-spatial_dims:]
             self.pool_modules.append(pool_type(kernel_size=size, stride=size))
             self.project_modules.append(
-                conv_type(
-                    in_ch,
-                    1,
-                    kernel_size=(1, 1, 1)[-spatial_dims:],
-                    stride=1,
-                    padding=(1, 1, 0)[-spatial_dims:],
-                )
+                conv_type(in_ch, 1, kernel_size=(1, 1, 1)[-spatial_dims:], stride=1, padding=(1, 1, 0)[-spatial_dims:])
             )
 
         self.spatial_dims = spatial_dims
@@ -274,15 +268,7 @@ class PSP(nn.Module):
             for i in range(psp_block_num):
                 size = (2 ** (i + 3), 2 ** (i + 3), 1)[-spatial_dims:]
                 pad_size = (2 ** (i + 3), 2 ** (i + 3), 0)[-spatial_dims:]
-                self.up_modules.append(
-                    conv_trans_type(
-                        1,
-                        1,
-                        kernel_size=size,
-                        stride=size,
-                        padding=pad_size,
-                    )
-                )
+                self.up_modules.append(conv_trans_type(1, 1, kernel_size=size, stride=size, padding=pad_size))
 
     def forward(self, x):
         outputs = []
@@ -356,7 +342,7 @@ class AHNet(nn.Module):
         progress: bool = True,
     ):
         self.inplanes = 64
-        super(AHNet, self).__init__()
+        super().__init__()
 
         conv_type = Conv[Conv.CONV, spatial_dims]
         conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
@@ -451,13 +437,7 @@ class AHNet(nn.Module):
             net2d = FCN(pretrained=True, progress=progress)
             self.copy_from(net2d)
 
-    def _make_layer(
-        self,
-        block: Type[Bottleneck3x3x1],
-        planes: int,
-        blocks: int,
-        stride: int = 1,
-    ) -> nn.Sequential:
+    def _make_layer(self, block: Type[Bottleneck3x3x1], planes: int, blocks: int, stride: int = 1) -> nn.Sequential:
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
@@ -559,4 +539,4 @@ def copy_bn_param(module2d, module3d):
         p3d.data[:] = p2d.data[:]  # Two parameter gamma and beta
 
 
-AHnet = Ahnet = ahnet = AHNet
+AHnet = Ahnet = AHNet
