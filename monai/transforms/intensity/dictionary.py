@@ -53,7 +53,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep, first
 from monai.utils.deprecate_utils import deprecated_arg
 
 __all__ = [
@@ -187,7 +187,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random noise
-        self.rand_gaussian_noise.randomize(d[self.keys[0]])
+        self.rand_gaussian_noise.randomize(d[first(self.key_iterator(d))])
         for key in self.key_iterator(d):
             d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
         return d
@@ -506,7 +506,7 @@ class ScaleIntensityd(MapTransform):
             minv: minimum value of output data.
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
-                this parameter, please set `minv` and `maxv` into None.
+                this parameter, please set both `minv` and `maxv` into None.
             channel_wise: if True, scale on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
@@ -621,7 +621,7 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random bias factor
-        self.rand_bias_field.randomize(img_size=d[self.keys[0]].shape[1:])
+        self.rand_bias_field.randomize(img_size=d[first(self.key_iterator(d))].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.rand_bias_field(d[key], randomize=False)
         return d
@@ -723,8 +723,8 @@ class ScaleIntensityRanged(MapTransform):
         keys: KeysCollection,
         a_min: float,
         a_max: float,
-        b_min: float,
-        b_max: float,
+        b_min: Optional[float] = None,
+        b_max: Optional[float] = None,
         clip: bool = False,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
@@ -839,8 +839,8 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         keys: KeysCollection,
         lower: float,
         upper: float,
-        b_min: float,
-        b_max: float,
+        b_min: Optional[float],
+        b_max: Optional[float],
         clip: bool = False,
         relative: bool = False,
         dtype: DtypeLike = np.float32,
@@ -1466,7 +1466,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        self.dropper.randomize(d[self.keys[0]].shape[1:])
+        self.dropper.randomize(d[first(self.key_iterator(d))].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.dropper(img=d[key], randomize=False)
 
@@ -1531,7 +1531,7 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        self.shuffle.randomize(d[self.keys[0]].shape[1:])
+        self.shuffle.randomize(d[first(self.key_iterator(d))].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.shuffle(img=d[key], randomize=False)
 

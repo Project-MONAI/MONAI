@@ -150,12 +150,13 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
 
 def rescale_array(
     arr: NdarrayOrTensor,
-    minv: float = 0.0,
-    maxv: float = 1.0,
+    minv: Optional[float] = 0.0,
+    maxv: Optional[float] = 1.0,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
 ) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
+    If either `minv` or `maxv` is None, it returns `(a - min_a) / (max_a - min_a)`.
 
     Args:
         arr: input array to rescale.
@@ -170,14 +171,16 @@ def rescale_array(
     maxa = arr.max()
 
     if mina == maxa:
-        return arr * minv
+        return arr * minv if minv is not None else arr
 
     norm = (arr - mina) / (maxa - mina)  # normalize the array first
+    if (minv is None) or (maxv is None):
+        return norm
     return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
 def rescale_instance_array(
-    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32
+    arr: np.ndarray, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, dtype: DtypeLike = np.float32
 ) -> np.ndarray:
     """
     Rescale each array slice along the first dimension of `arr` independently.
@@ -1204,7 +1207,7 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
     interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
 
     # set to string for DataLoader collation
-    align_corners_ = "none" if align_corners is None else align_corners
+    align_corners_ = InverseKeys.NONE if align_corners is None else align_corners
 
     for item in ensure_tuple(trans_info):
         if InverseKeys.EXTRA_INFO in item:
