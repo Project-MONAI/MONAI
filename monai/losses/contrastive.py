@@ -32,7 +32,11 @@ class ContrastiveLoss(_Loss):
     """
 
     def __init__(
-        self, temperature: float = 0.5, batch_size: int = 1, reduction: Union[LossReduction, str] = LossReduction.SUM
+        self,
+        temperature: float = 0.5,
+        batch_size: int = 1,
+        device: str = "cpu",
+        reduction: Union[LossReduction, str] = LossReduction.SUM,
     ) -> None:
         """
         Args:
@@ -47,6 +51,7 @@ class ContrastiveLoss(_Loss):
 
         self.batch_size = batch_size
         self.temperature = temperature
+        self.device = device
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -70,6 +75,7 @@ class ContrastiveLoss(_Loss):
         norm_j = F.normalize(target, dim=1)
 
         negatives_mask = ~torch.eye(self.batch_size * 2, self.batch_size * 2, dtype=torch.bool)
+        negatives_mask = negatives_mask.to(self.device)
         negatives_mask = torch.tensor(negatives_mask, dtype=torch.float)
 
         repr = torch.cat([norm_i, norm_j], dim=0)
