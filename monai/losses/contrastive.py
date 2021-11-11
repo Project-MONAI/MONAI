@@ -66,23 +66,23 @@ class ContrastiveLoss(_Loss):
         if target.shape != input.shape:
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
+        temperature_tensor = torch.tensor(self.temperature).to(input.device)
+        
         norm_i = F.normalize(input, dim=1)
         norm_j = F.normalize(target, dim=1)
 
         negatives_mask = ~torch.eye(self.batch_size * 2, self.batch_size * 2, dtype=torch.bool)
-        negatives_mask = torch.clone(torch.as_tensor(negatives_mask)).to(input.device)
         negatives_mask = torch.tensor(negatives_mask, dtype=torch.float)
+        negatives_mask = torch.clone(torch.as_tensor(negatives_mask)).to(input.device)
 
         repr = torch.cat([norm_i, norm_j], dim=0)
         sim_matrix = F.cosine_similarity(repr.unsqueeze(1), repr.unsqueeze(0), dim=2)
-
         sim_ij = torch.diag(sim_matrix, self.batch_size)
         sim_ji = torch.diag(sim_matrix, -self.batch_size)
 
         positives = torch.cat([sim_ij, sim_ji], dim=0)
-
-        nominator = torch.exp(positives / self.temperature)
-        denominator = negatives_mask * torch.exp(sim_matrix / self.temperature)
+        nominator = torch.exp(positives / temperature_tensor)
+        denominator = negatives_mask * torch.exp(sim_matrix / temperature_tensor)
 
         loss_partial = -torch.log(nominator / torch.sum(denominator, dim=1))
 
