@@ -39,6 +39,7 @@ else:
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
 CuImage, _ = optional_import("cucim", name="CuImage")
+TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
 
@@ -679,10 +680,15 @@ class WSIReader(ImageReader):
     Read whole slide images and extract patches.
 
     Args:
-        backend: backend library to load the images, available options: "OpenSlide" or "cuCIM".
+        backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "Tifffile".
         level: the whole slide image level at which the image is extracted. (default=0)
-            Note that this is overridden by the level argument in `get_data`.
+            This is overridden if the level argument is provided in `get_data`.
 
+    Note:
+        While "cucim" and "OpenSlide" backends both can load patches from large whole slide images
+        without loading the entire image into memory, "Tifffile" backend needs to load the entire image into memory
+        before extracting any patch; thus, memory consideration is needed when using "Tifffile" backend for
+        patch extraction.
     """
 
     def __init__(self, backend: str = "OpenSlide", level: int = 0):
@@ -695,7 +701,9 @@ class WSIReader(ImageReader):
                 return OpenSlide
             if backend == "cucim":
                 return CuImage
-            raise ValueError('`backend` should be either "cuCIM" or "OpenSlide"')
+            if backend = "tifffile":
+                return TiffFile
+            raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
 
         self.wsi_reader = _set_reader(self.backend)
         self.level = level
@@ -787,13 +795,22 @@ class WSIReader(ImageReader):
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
-        # reverse the order of dimensions for size and location to be compatible with image shape
-        location = location[::-1]
-        if size is None:
-            region = img_obj.read_region(location=location, level=level)
+        if self.backend == "tifffile":
+            with img_obj:
+                region = img_obj.asarray(level=level)
+            if size is None:
+                region = region[location[0] :, location[1] :]
+            else:
+                region = region[location[0] : location[0] + size[0], location[1] : location[1] + size[1]]
+
         else:
-            size = size[::-1]
-            region = img_obj.read_region(location=location, size=size, level=level)
+            # reverse the order of dimensions for size and location to be compatible with image shape
+            location = location[::-1]
+            if size is None:
+                region = img_obj.read_region(location=location, level=level)
+            else:
+                size = size[::-1]
+                region = img_obj.read_region(location=location, size=size, level=level)
 
         region = self.convert_to_rgb_array(region, dtype)
         return region
@@ -803,15 +820,12 @@ class WSIReader(ImageReader):
         if self.backend == "openslide":
             # convert to RGB
             raw_region = raw_region.convert("RGB")
-            # convert to numpy
-            raw_region = np.asarray(raw_region, dtype=dtype)
-        else:
-            num_channels = len(raw_region.channel_names)
-            # convert to numpy
-            raw_region = np.asarray(raw_region, dtype=dtype)
-            # remove alpha channel if exist (RGBA)
-            if num_channels > 3:
-                raw_region = raw_region[:, :, :3]
+
+        # convert to numpy (if not already in numpy)
+        raw_region = np.asarray(raw_region, dtype=dtype)
+        # remove alpha channel if exist (RGBA)
+        if raw_region.shape[-1] > 3:
+            raw_region = raw_region[..., :3]
 
         return raw_region
 
