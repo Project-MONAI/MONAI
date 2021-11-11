@@ -18,7 +18,7 @@ from monai.config import IndexSelection, KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
-from monai.transforms.utils import generate_spatial_bounding_box
+from monai.transforms.utils import generate_spatial_bounding_box, is_positive
 from monai.utils import (
     InterpolateMode,
     deprecated_arg,
@@ -395,7 +395,7 @@ class SpatialCropForegroundd(MapTransform):
         keys: KeysCollection,
         source_key: str,
         spatial_size: Union[Sequence[int], np.ndarray],
-        select_fn: Callable = lambda x: x > 0,
+        select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
         meta_keys: Optional[KeysCollection] = None,
