@@ -27,16 +27,16 @@ from monai.utils import LossReduction, Weight, look_up_option
 class DiceLoss(_Loss):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
-    Input logits `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).
-    Axis N of `input` is expected to have logit predictions for each class rather than being image channels,
-    while the same axis of `target` can be 1 or N (one-hot format). The `smooth_nr` and `smooth_dr` parameters are
-    values added to the intersection and union components of the inter-over-union calculation to smooth results
-    respectively, these values should be small. The `include_background` class attribute can be set to False for
-    an instance of DiceLoss to exclude the first category (channel index 0) which is by convention assumed to be
-    background. If the non-background segmentations are small compared to the total image size they can get
-    overwhelmed by the signal from the background so excluding it in such cases helps convergence.
+    The data `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).
 
-    Milletari, F. et. al. (2016) V-Net: Fully Convolutional Neural Networks forVolumetric Medical Image Segmentation, 3DV, 2016.
+    Note that axis N of `input` is expected to be logits or probabilities for each class, must set `sigmoid=True`
+    or `softmax=True` if passing logits as input. And the same axis of `target` can be 1 or N (one-hot format).
+
+    The `smooth_nr` and `smooth_dr` parameters are values added to the intersection and union components of
+    the inter-over-union calculation to smooth results respectively, these values should be small.
+
+    The original paper: Milletari, F. et. al. (2016) V-Net: Fully Convolutional Neural Networks forVolumetric
+    Medical Image Segmentation, 3DV, 2016.
 
     """
 
@@ -57,6 +57,8 @@ class DiceLoss(_Loss):
         """
         Args:
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
+                if the non-background segmentations are small compared to the total image size they can get overwhelmed
+                by the signal from the background so excluding it in such cases helps convergence.
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction.
             softmax: if True, apply a softmax function to the prediction.
