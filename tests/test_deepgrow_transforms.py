@@ -31,12 +31,7 @@ from monai.apps.deepgrow.transforms import (
 IMAGE = np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]])
 LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]])
 
-DATA_1 = {
-    "image": IMAGE,
-    "label": LABEL,
-    "image_meta_dict": {},
-    "label_meta_dict": {},
-}
+DATA_1 = {"image": IMAGE, "label": LABEL, "image_meta_dict": {}, "label_meta_dict": {}}
 
 DATA_2 = {
     "image": np.array(
@@ -141,23 +136,11 @@ DATA_11 = {
     "pred": np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]),
 }
 
-DATA_12 = {
-    "image": np.arange(27).reshape(3, 3, 3),
-    "image_meta_dict": {},
-    "guidance": [[0, 0, 0], [0, 1, 1], 1],
-}
+DATA_12 = {"image": np.arange(27).reshape(3, 3, 3), "image_meta_dict": {}, "guidance": [[0, 0, 0], [0, 1, 1], 1]}
 
-FIND_SLICE_TEST_CASE_1 = [
-    {"label": "label", "sids": "sids"},
-    DATA_1,
-    [0],
-]
+FIND_SLICE_TEST_CASE_1 = [{"label": "label", "sids": "sids"}, DATA_1, [0]]
 
-FIND_SLICE_TEST_CASE_2 = [
-    {"label": "label", "sids": "sids"},
-    DATA_2,
-    [0, 1],
-]
+FIND_SLICE_TEST_CASE_2 = [{"label": "label", "sids": "sids"}, DATA_2, [0, 1]]
 
 CROP_TEST_CASE_1 = [
     {
@@ -338,14 +321,10 @@ RESULT[4:8, 4:8, 4:8] = np.array(
         [[1.0, 1.0, 2.0, 2.0], [1.0, 1.0, 2.0, 2.0], [3.0, 3.0, 4.0, 4.0], [3.0, 3.0, 4.0, 4.0]],
         [[5.0, 5.0, 6.0, 6.0], [5.0, 5.0, 6.0, 6.0], [7.0, 7.0, 8.0, 8.0], [7.0, 7.0, 8.0, 8.0]],
         [[5.0, 5.0, 6.0, 6.0], [5.0, 5.0, 6.0, 6.0], [7.0, 7.0, 8.0, 8.0], [7.0, 7.0, 8.0, 8.0]],
-    ],
+    ]
 )
 
-RESTORE_LABEL_TEST_CASE_2 = [
-    {"keys": ["pred"], "ref_image": "image", "mode": "nearest"},
-    DATA_11,
-    RESULT,
-]
+RESTORE_LABEL_TEST_CASE_2 = [{"keys": ["pred"], "ref_image": "image", "mode": "nearest"}, DATA_11, RESULT]
 
 FETCH_2D_SLICE_TEST_CASE_1 = [
     {"keys": ["image"], "guidance": "guidance"},
