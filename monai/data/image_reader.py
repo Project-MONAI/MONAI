@@ -694,19 +694,19 @@ class WSIReader(ImageReader):
     def __init__(self, backend: str = "OpenSlide", level: int = 0):
         super().__init__()
         self.backend = backend.lower()
-
-        @require_pkg(pkg_name=self.backend)
-        def _set_reader(backend: str):
-            if backend == "openslide":
-                return OpenSlide
-            if backend == "cucim":
-                return CuImage
-            if backend == "tifffile":
-                return TiffFile
-            raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
-
-        self.wsi_reader = _set_reader(self.backend)
+        func = require_pkg(self.backend)(self._set_reader)
+        self.wsi_reader = func(self.backend)
         self.level = level
+
+    @staticmethod
+    def _set_reader(backend: str):
+        if backend == "openslide":
+            return OpenSlide
+        if backend == "cucim":
+            return CuImage
+        if backend == "tifffile":
+            return TiffFile
+        raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
