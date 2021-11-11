@@ -67,7 +67,7 @@ class ContrastiveLoss(_Loss):
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         temperature_tensor = torch.tensor(self.temperature).to(input.device)
-        
+
         norm_i = F.normalize(input, dim=1)
         norm_j = F.normalize(target, dim=1)
 
