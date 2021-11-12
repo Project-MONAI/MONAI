@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, cast
 
 import torch
 import torch.nn as nn
@@ -193,7 +193,8 @@ class MILModel(nn.Module):
             l3 = torch.mean(self.extra_outputs["layer3"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
             l4 = torch.mean(self.extra_outputs["layer4"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
 
-            transformer_list: List = self.transformer  # type: ignore
+            transformer_list = cast(nn.ModuleList, self.transformer)
+
             x = transformer_list[0](l1)
             x = transformer_list[1](torch.cat((x, l2), dim=2))
             x = transformer_list[2](torch.cat((x, l3), dim=2))
