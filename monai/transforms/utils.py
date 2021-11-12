@@ -38,9 +38,9 @@ from monai.transforms.utils_pytorch_numpy_unification import (
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
-    InverseKeys,
     NumpyPadMode,
     PytorchPadMode,
+    TraceKeys,
     deprecated_arg,
     ensure_tuple,
     ensure_tuple_rep,
@@ -1194,7 +1194,7 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
 def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_corners: Optional[bool] = None):
     """
     Change the interpolation mode when inverting spatial transforms, default to "nearest".
-    This function modifies trans_info's `InverseKeys.EXTRA_INFO`.
+    This function modifies trans_info's `TraceKeys.EXTRA_INFO`.
 
     See also: :py:class:`monai.transform.inverse.InvertibleTransform`
 
@@ -1207,21 +1207,21 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
     interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
 
     # set to string for DataLoader collation
-    align_corners_ = InverseKeys.NONE if align_corners is None else align_corners
+    align_corners_ = TraceKeys.NONE if align_corners is None else align_corners
 
     for item in ensure_tuple(trans_info):
-        if InverseKeys.EXTRA_INFO in item:
-            orig_mode = item[InverseKeys.EXTRA_INFO].get("mode", None)
+        if TraceKeys.EXTRA_INFO in item:
+            orig_mode = item[TraceKeys.EXTRA_INFO].get("mode", None)
             if orig_mode is not None:
                 if orig_mode[0] in interp_modes:
-                    item[InverseKeys.EXTRA_INFO]["mode"] = [mode for _ in range(len(mode))]
+                    item[TraceKeys.EXTRA_INFO]["mode"] = [mode for _ in range(len(mode))]
                 elif orig_mode in interp_modes:
-                    item[InverseKeys.EXTRA_INFO]["mode"] = mode
-            if "align_corners" in item[InverseKeys.EXTRA_INFO]:
-                if issequenceiterable(item[InverseKeys.EXTRA_INFO]["align_corners"]):
-                    item[InverseKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
+                    item[TraceKeys.EXTRA_INFO]["mode"] = mode
+            if "align_corners" in item[TraceKeys.EXTRA_INFO]:
+                if issequenceiterable(item[TraceKeys.EXTRA_INFO]["align_corners"]):
+                    item[TraceKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
                 else:
-                    item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners_
+                    item[TraceKeys.EXTRA_INFO]["align_corners"] = align_corners_
     return trans_info
 
 
