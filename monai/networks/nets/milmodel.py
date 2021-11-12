@@ -56,7 +56,7 @@ class MILModel(nn.Module):
         self.mil_mode = mil_mode
         print("MILModel with mode", mil_mode, "num_classes", num_classes)
         self.attention = nn.Sequential()
-        self.transformer = None
+        self.transformer = nn.Module()
 
         if backbone is None:
 
@@ -144,7 +144,7 @@ class MILModel(nn.Module):
                     ),
                 ]
             )
-            self.transformer = transformer_list  # type: ignore
+            self.transformer = transformer_list
             nfc = nfc + 256
             self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
 
