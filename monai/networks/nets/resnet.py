@@ -168,7 +168,7 @@ class ResNet(nn.Module):
             - 'B': kernel_size 1 conv + norm.
         widen_factor: widen output for each layer.
         num_classes: number of output (classifications).
-        feed_forward: whether to add FC layer for the output, default to True.
+        feed_forward: whether to add the FC layer for the output, default to `True`.
 
     .. deprecated:: 0.6.0
         ``n_classes`` is deprecated, use ``num_classes`` instead.
