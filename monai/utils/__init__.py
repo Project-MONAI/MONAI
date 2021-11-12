@@ -58,7 +58,6 @@ from .misc import (
     zip_with,
 )
 from .module import (
-    PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
     OptionalImportError,
     damerau_levenshtein_distance,
@@ -71,6 +70,7 @@ from .module import (
     look_up_option,
     min_version,
     optional_import,
+    pytorch_after,
     require_pkg,
     version_leq,
 )

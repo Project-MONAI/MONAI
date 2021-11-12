@@ -30,7 +30,6 @@ from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
 from monai.utils import (
-    PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
     convert_data_type,
     convert_to_dst_type,
@@ -38,6 +37,7 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
@@ -1072,7 +1072,7 @@ class DetectEnvelope(Transform):
 
     def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
 
-        if PT_BEFORE_1_7:
+        if not pytorch_after(1, 7):
             raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         if axis < 0:

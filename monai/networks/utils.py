@@ -22,7 +22,7 @@ import torch.nn as nn
 
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.misc import ensure_tuple, set_determinism
-from monai.utils.module import PT_BEFORE_1_7
+from monai.utils.module import pytorch_after
 
 __all__ = [
     "one_hot",
@@ -464,7 +464,7 @@ def convert_to_torchscript(
     with torch.no_grad():
         script_module = torch.jit.script(model)
         if filename_or_obj is not None:
-            if PT_BEFORE_1_7:
+            if not pytorch_after(1, 7):
                 torch.jit.save(m=script_module, f=filename_or_obj)
             else:
                 torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
