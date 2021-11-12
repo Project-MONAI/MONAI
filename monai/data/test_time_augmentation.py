@@ -24,7 +24,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.transform import Randomizable
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils.enums import CommonKeys, InverseKeys
+from monai.utils.enums import CommonKeys, TraceKeys
 from monai.utils.module import optional_import
 
 if TYPE_CHECKING:
@@ -168,7 +168,7 @@ class TestTimeAugmentation:
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, num_workers=self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
-        transform_key = self.orig_key + InverseKeys.KEY_SUFFIX
+        transform_key = InvertibleTransform.trace_key(self.orig_key)
 
         # create inverter
         inverter = BatchInverseTransform(self.transform, dl, collate_fn=list_data_collate)
@@ -188,7 +188,7 @@ class TestTimeAugmentation:
             transform_info = batch_data.get(transform_key, None)
             if transform_info is None:
                 # no invertible transforms, adding dummy info for identity invertible
-                transform_info = [[InverseKeys.NONE] for _ in range(self.batch_size)]
+                transform_info = [[TraceKeys.NONE] for _ in range(self.batch_size)]
             if self.nearest_interp:
                 transform_info = convert_inverse_interp_mode(
                     trans_info=deepcopy(transform_info), mode="nearest", align_corners=None

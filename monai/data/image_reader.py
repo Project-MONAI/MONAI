@@ -37,6 +37,10 @@ else:
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
 
+OpenSlide, _ = optional_import("openslide", name="OpenSlide")
+CuImage, _ = optional_import("cucim", name="CuImage")
+TiffFile, _ = optional_import("tifffile", name="TiffFile")
+
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
 
 
@@ -690,15 +694,19 @@ class WSIReader(ImageReader):
     def __init__(self, backend: str = "OpenSlide", level: int = 0):
         super().__init__()
         self.backend = backend.lower()
-        if self.backend == "openslide":
-            self.wsi_reader, *_ = optional_import("openslide", name="OpenSlide")
-        elif self.backend == "cucim":
-            self.wsi_reader, *_ = optional_import("cucim", name="CuImage")
-        elif self.backend == "tifffile":
-            self.wsi_reader, *_ = optional_import("tifffile", name="TiffFile")
-        else:
-            raise ValueError('`backend` should be "cuCIM", "OpenSlide", or "TiffFile')
+        func = require_pkg(self.backend)(self._set_reader)
+        self.wsi_reader = func(self.backend)
         self.level = level
+
+    @staticmethod
+    def _set_reader(backend: str):
+        if backend == "openslide":
+            return OpenSlide
+        if backend == "cucim":
+            return CuImage
+        if backend == "tifffile":
+            return TiffFile
+        raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
