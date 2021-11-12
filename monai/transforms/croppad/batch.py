@@ -20,15 +20,11 @@ import numpy as np
 import torch
 
 from monai.data.utils import list_data_collate
-from monai.transforms.compose import Compose
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.utility.array import ToTensor
 from monai.utils.enums import InverseKeys, Method, NumpyPadMode
 
-__all__ = [
-    "PadListDataCollate",
-]
+__all__ = ["PadListDataCollate"]
 
 
 def replace_element(to_replace, batch, idx, key_or_idx):
@@ -97,20 +93,12 @@ class PadListDataCollate(InvertibleTransform):
             # If all same size, skip
             if np.all(np.array(max_shapes).min(axis=0) == max_shape):
                 continue
-            # Do we need to convert output to Tensor?
-            output_to_tensor = isinstance(batch[0][key_or_idx], torch.Tensor)
 
-            # Use `SpatialPadd` or `SpatialPad` to match sizes
-            # Default params are central padding, padding with 0's
-            # If input is dictionary, use the dictionary version so that the transformation is recorded
-
+            # Use `SpatialPad` to match sizes, Default params are central padding, padding with 0's
             padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.np_kwargs)
-            transform = padder if not output_to_tensor else Compose([padder, ToTensor()])
-
             for idx, batch_i in enumerate(batch):
-                im = batch_i[key_or_idx]
-                orig_size = im.shape[1:]
-                padded = transform(batch_i[key_or_idx])
+                orig_size = batch_i[key_or_idx].shape[1:]
+                padded = padder(batch_i[key_or_idx])
                 batch = replace_element(padded, batch, idx, key_or_idx)
 
                 # If we have a dictionary of data, append to list
@@ -130,8 +118,10 @@ class PadListDataCollate(InvertibleTransform):
             transform_key = str(key) + InverseKeys.KEY_SUFFIX
             if transform_key in d:
                 transform = d[transform_key][-1]
-                if transform[InverseKeys.CLASS_NAME] == PadListDataCollate.__name__:
-                    d[key] = CenterSpatialCrop(transform["orig_size"])(d[key])
+                if not isinstance(transform, Dict):
+                    continue
+                if transform.get(InverseKeys.CLASS_NAME) == PadListDataCollate.__name__:
+                    d[key] = CenterSpatialCrop(transform.get("orig_size", -1))(d[key])  # fallback to image size
                     # remove transform
                     d[transform_key].pop()
         return d

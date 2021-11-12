@@ -86,7 +86,7 @@ class SimpleASPP(nn.Module):
 
         out_channels = conv_out_channels * len(pads)  # final conv. output channels
         self.conv_k1 = Convolution(
-            dimensions=spatial_dims,
+            spatial_dims=spatial_dims,
             in_channels=out_channels,
             out_channels=out_channels,
             kernel_size=1,

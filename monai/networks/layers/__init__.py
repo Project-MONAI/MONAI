@@ -22,6 +22,7 @@ from .simplelayers import (
     Reshape,
     SavitzkyGolayFilter,
     SkipConnection,
+    apply_filter,
     separable_filtering,
 )
 from .spatial_transforms import AffineTransform, grid_count, grid_grad, grid_pull, grid_push
