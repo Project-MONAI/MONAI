@@ -187,7 +187,11 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random noise
-        self.rand_gaussian_noise.randomize(d[first(self.key_iterator(d))])
+        image_key = first(self.key_iterator(d))
+        if image_key is None:
+            return d
+
+        self.rand_gaussian_noise.randomize(d[image_key])
         for key in self.key_iterator(d):
             d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
         return d
@@ -621,7 +625,11 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random bias factor
-        self.rand_bias_field.randomize(img_size=d[first(self.key_iterator(d))].shape[1:])
+        image_key = first(self.key_iterator(d))
+        if image_key is None:
+            return d
+
+        self.rand_bias_field.randomize(img_size=d[image_key].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.rand_bias_field(d[key], randomize=False)
         return d
@@ -1466,7 +1474,11 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        self.dropper.randomize(d[first(self.key_iterator(d))].shape[1:])
+        image_key = first(self.key_iterator(d))
+        if image_key is None:
+            return d
+
+        self.dropper.randomize(d[image_key].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.dropper(img=d[key], randomize=False)
 
@@ -1531,7 +1543,11 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        self.shuffle.randomize(d[first(self.key_iterator(d))].shape[1:])
+        image_key = first(self.key_iterator(d))
+        if image_key is None:
+            return d
+
+        self.shuffle.randomize(d[image_key].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.shuffle(img=d[key], randomize=False)
 

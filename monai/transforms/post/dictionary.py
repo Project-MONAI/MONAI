@@ -361,11 +361,13 @@ class Ensembled(MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         items: Union[List[NdarrayOrTensor], NdarrayOrTensor]
-        if len(self.keys) == 1:
+        if len(self.keys) == 1 and self.keys[0] in d:
             items = d[self.keys[0]]
         else:
             items = [d[key] for key in self.key_iterator(d)]
-        d[self.output_key] = self.ensemble(items)
+
+        if len(items) > 0:
+            d[self.output_key] = self.ensemble(items)
 
         return d
 

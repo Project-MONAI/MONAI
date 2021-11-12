@@ -652,8 +652,12 @@ class SpatialCropGuidanced(MapTransform):
 
     def __call__(self, data):
         d: Dict = dict(data)
+        image_key = first(self.key_iterator(d))
+        if image_key is None:
+            return d
+
         guidance = d[self.guidance]
-        original_spatial_shape = d[first(self.key_iterator(d))].shape[1:]
+        original_spatial_shape = d[image_key].shape[1:]
         box_start, box_end = self.bounding_box(np.array(guidance[0] + guidance[1]), original_spatial_shape)
         center = list(np.mean([box_start, box_end], axis=0).astype(int))
         spatial_size = self.spatial_size
