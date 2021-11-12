@@ -95,8 +95,8 @@ class TileOnGrid(Randomizable, Transform):
             Defaults to ``False``.
         background_val: the background constant (e.g. 255 for white background)
             Defaults to ``255``.
-        filter_mode: mode must be in ["min", "max", "random", None]. If total number of tiles is more than tile_size,
-            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random or None) subset
+        filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is more than tile_size,
+            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset
             Defaults to ``min`` (which assumes background is high value)
 
     """
@@ -109,7 +109,7 @@ class TileOnGrid(Randomizable, Transform):
         random_offset: bool = False,
         pad_full: bool = False,
         background_val: int = 255,
-        filter_mode: Optional[str] = "min",
+        filter_mode: str = "min",
     ):
         self.tile_count = tile_count
         self.tile_size = tile_size
@@ -124,6 +124,9 @@ class TileOnGrid(Randomizable, Transform):
 
         self.offset = (0, 0)
         self.random_idxs = np.array((0,))
+
+        if self.filter_mode not in ["min", "max", "random"]:
+            raise ValueError("Unsupported filter_mode, must be [min, max or random]: " + str(self.filter_mode))
 
     def randomize(self, img_size: Sequence[int]) -> None:
 

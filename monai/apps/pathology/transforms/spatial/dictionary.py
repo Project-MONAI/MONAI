@@ -73,8 +73,8 @@ class TileOnGridd(Randomizable, MapTransform):
             Defaults to ``False``.
         background_val: the background constant (e.g. 255 for white background)
             Defaults to ``255``.
-        filter_mode: mode must be in ["min", "max", None]. If total number of tiles is more than tile_size,
-            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for None) subset
+        filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is more than tile_size,
+            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset
             Defaults to ``min`` (which assumes background is high value)
 
     """
@@ -88,7 +88,7 @@ class TileOnGridd(Randomizable, MapTransform):
         random_offset: bool = False,
         pad_full: bool = False,
         background_val: int = 255,
-        filter_mode: Optional[str] = "min",
+        filter_mode: str = "min",
         allow_missing_keys: bool = False,
         return_list_of_dicts: bool = False,
     ):

@@ -20,7 +20,7 @@ from monai.apps.pathology.transforms import TileOnGridDict
 TEST_CASES = []
 for tile_count in [16, 64]:
     for tile_size in [8, 32]:
-        for filter_mode in [None, "min", "max"]:
+        for filter_mode in ["min", "max", "random"]:
             for background_val in [255, 0]:
                 TEST_CASES.append(
                     [
@@ -37,7 +37,7 @@ for tile_count in [16, 64]:
 TEST_CASES2 = []
 for tile_count in [16, 64]:
     for tile_size in [8, 32]:
-        for filter_mode in [None, "min", "max"]:
+        for filter_mode in ["min", "max", "random"]:
             for background_val in [255, 0]:
                 TEST_CASES2.append(
                     [
