@@ -87,17 +87,12 @@ class ThreadDataLoader(DataLoader):
         dataset: input dataset.
         buffer_size: number of items to buffer from the data source.
         buffer_timeout: time to wait for an item from the buffer, or to wait while the buffer is full when adding items.
-        num_workers: number of the multi-prcessing workers in PyTorch DataLoader.
+        num_workers: number of the multi-processing workers in PyTorch DataLoader.
 
     """
 
     def __init__(
-        self,
-        dataset: Dataset,
-        buffer_size: int = 1,
-        buffer_timeout: float = 0.01,
-        num_workers: int = 0,
-        **kwargs,
+        self, dataset: Dataset, buffer_size: int = 1, buffer_timeout: float = 0.01, num_workers: int = 0, **kwargs
     ):
         super().__init__(dataset, num_workers, **kwargs)
         self.buffer_size = buffer_size

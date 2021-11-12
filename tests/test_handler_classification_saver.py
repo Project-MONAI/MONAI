@@ -45,7 +45,7 @@ class TestHandlerClassificationSaver(unittest.TestCase):
             def _test_file(filename):
                 filepath = os.path.join(tempdir, filename)
                 self.assertTrue(os.path.exists(filepath))
-                with open(filepath, "r") as f:
+                with open(filepath) as f:
                     reader = csv.reader(f)
                     i = 0
                     for row in reader:
