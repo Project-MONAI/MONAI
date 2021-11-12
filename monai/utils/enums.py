@@ -223,12 +223,12 @@ class TraceKeys:
     NONE = "none"
 
 
-@deprecated(since="0.7.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
+@deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
 class InverseKeys:
     """
     Extra meta data keys used for inverse transforms.
 
-    .. deprecated:: 0.7.0
+    .. deprecated:: 0.8.0
         Use :class:`monai.utils.enums.TraceKeys` instead.
 
     """
