@@ -66,14 +66,14 @@ class TileOnGridd(Randomizable, MapTransform):
         tile_size: size of the square tile
             Defaults to ``256``.
         step: step size
-            Defaults to None (same as tile_size)
+            Defaults to ``None`` (same as tile_size)
         random_offset: Randomize position of the grid, instead of starting from the top-left corner
             Defaults to ``False``.
         pad_full: pad image to the size evenly divisible by tile_size
             Defaults to ``False``.
         background_val: the background constant (e.g. 255 for white background)
             Defaults to ``255``.
-        filter_mode: mode must be in ["min", "max", None]. If total number of tiles is more then tile_size,
+        filter_mode: mode must be in ["min", "max", None]. If total number of tiles is more than tile_size,
             then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for None) subset
             Defaults to ``min`` (which assumes background is high value)
 

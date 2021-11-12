@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -88,15 +88,15 @@ class TileOnGrid(Randomizable, Transform):
         tile_size: size of the square tile
             Defaults to ``256``.
         step: step size
-            Defaults to None (same as tile_size)
+            Defaults to ``None`` (same as tile_size)
         random_offset: Randomize position of the grid, instead of starting from the top-left corner
             Defaults to ``False``.
         pad_full: pad image to the size evenly divisible by tile_size
             Defaults to ``False``.
         background_val: the background constant (e.g. 255 for white background)
             Defaults to ``255``.
-        filter_mode: mode must be in ["min", "max", None]. If total number of tiles is more then tile_size,
-            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for None) subset
+        filter_mode: mode must be in ["min", "max", "random", None]. If total number of tiles is more than tile_size,
+            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random or None) subset
             Defaults to ``min`` (which assumes background is high value)
 
     """
@@ -123,12 +123,12 @@ class TileOnGrid(Randomizable, Transform):
             self.step = self.tile_size  # non-overlapping grid
 
         self.offset = (0, 0)
-        self.random_idxs = [0]
+        self.random_idxs = np.array((0,))
 
     def randomize(self, img_size: Sequence[int]) -> None:
 
         c, h, w = img_size
-        tile_step: int = self.step  # type: ignore
+        tile_step = cast(int, self.step)
 
         if self.random_offset:
             pad_h = h % self.tile_size
@@ -151,17 +151,17 @@ class TileOnGrid(Randomizable, Transform):
         tile_total = h_n * w_n
 
         if self.tile_count is not None and tile_total > self.tile_count:
-            self.random_idxs = self.R.choice(range(tile_total), self.tile_count, replace=False)  # type: ignore
+            self.random_idxs = self.R.choice(range(tile_total), self.tile_count, replace=False)
         else:
-            self.random_idxs = [0]  # type: ignore
+            self.random_idxs = np.array((0,))
 
     def __call__(self, image: np.ndarray) -> np.ndarray:
 
         # add random offset
         self.randomize(img_size=image.shape)
-        tile_step: int = self.step  # type: ignore
+        tile_step = cast(int, self.step)
 
-        if self.random_offset and self.offset is not None:
+        if self.random_offset and self.offset[0] > 0 and self.offset[1] > 0:
             image = image[:, self.offset[0] :, self.offset[1] :]
 
         # pad to full size, divisible by tile_size
