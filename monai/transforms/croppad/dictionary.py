@@ -51,7 +51,7 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
-from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, first
+from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import InverseKeys
 
 __all__ = [
@@ -480,12 +480,12 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        image_key = first(self.key_iterator(d))
-        if image_key is None:
+        exist_keys = list(self.key_iterator(d))
+        if not exist_keys:
             return d
 
         # use the spatial size of first image to scale, expect all images have the same spatial size
-        img_size = d[image_key].shape[1:]
+        img_size = d[exist_keys[0]].shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         cropper = CenterSpatialCrop(roi_size)
@@ -579,11 +579,11 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        image_key = first(self.key_iterator(d))
-        if image_key is None:
+        exist_keys = list(self.key_iterator(d))
+        if not exist_keys:
             return d
 
-        self.randomize(d[image_key].shape[1:])  # image shape from the first data key
+        self.randomize(d[exist_keys[0]].shape[1:])  # image shape from the first data key
         if self._size is None:
             raise RuntimeError("self._size not specified.")
         for key in self.key_iterator(d):
@@ -677,11 +677,11 @@ class RandScaleCropd(RandSpatialCropd):
         self.max_roi_scale = max_roi_scale
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        image_key = first(self.key_iterator(data))  # type: ignore
-        if image_key is None:
-            return dict(data)
+        exist_keys = list(self.key_iterator(data))  # type: ignore
+        if not exist_keys:
+            return data  # type: ignore
 
-        img_size = data[image_key].shape[1:]
+        img_size = data[exist_keys[0]].shape[1:]
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         if self.max_roi_scale is not None:

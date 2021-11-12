@@ -53,7 +53,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import ensure_tuple, ensure_tuple_rep, first
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
 
 __all__ = [
@@ -187,11 +187,11 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random noise
-        image_key = first(self.key_iterator(d))
-        if image_key is None:
+        exist_keys = list(self.key_iterator(d))
+        if not exist_keys:
             return d
 
-        self.rand_gaussian_noise.randomize(d[image_key])
+        self.rand_gaussian_noise.randomize(d[exist_keys[0]])
         for key in self.key_iterator(d):
             d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
         return d
@@ -625,11 +625,11 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random bias factor
-        image_key = first(self.key_iterator(d))
-        if image_key is None:
+        exist_keys = list(self.key_iterator(d))
+        if not exist_keys:
             return d
 
-        self.rand_bias_field.randomize(img_size=d[image_key].shape[1:])
+        self.rand_bias_field.randomize(img_size=d[exist_keys[0]].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.rand_bias_field(d[key], randomize=False)
         return d
@@ -1474,11 +1474,11 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        image_key = first(self.key_iterator(d))
-        if image_key is None:
+        exist_keys = list(self.key_iterator(d))
+        if not exist_keys:
             return d
 
-        self.dropper.randomize(d[image_key].shape[1:])
+        self.dropper.randomize(d[exist_keys[0]].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.dropper(img=d[key], randomize=False)
 
@@ -1543,11 +1543,11 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        image_key = first(self.key_iterator(d))
-        if image_key is None:
+        exist_keys = list(self.key_iterator(d))
+        if not exist_keys:
             return d
 
-        self.shuffle.randomize(d[image_key].shape[1:])
+        self.shuffle.randomize(d[exist_keys[0]].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.shuffle(img=d[key], randomize=False)
 
