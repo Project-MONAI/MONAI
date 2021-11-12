@@ -60,6 +60,12 @@ TEST_CASE_3_A = [  # 1D, batch 1, 2 input channels
     (1, 3),
 ]
 
+TEST_CASE_4 = [  # 2D, batch 2, 1 input channel
+    {"pretrained": False, "spatial_dims": 2, "n_input_channels": 1, "num_classes": 3, "feed_forward": False},
+    (2, 1, 32, 64),
+    ((2, 512), (2, 2048)),
+]
+
 TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
@@ -76,7 +82,10 @@ class TestResNet(unittest.TestCase):
         net = model(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
-            self.assertEqual(result.shape, expected_shape)
+            if input_param.get("feed_forward", True):
+                self.assertEqual(result.shape, expected_shape)
+            else:
+                self.assertTrue(result.shape in expected_shape)
 
     @parameterized.expand(TEST_SCRIPT_CASES)
     def test_script(self, model, input_param, input_shape, expected_shape):
