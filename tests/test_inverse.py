@@ -59,13 +59,13 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
+    TraceableTransform,
     Transposed,
     Zoomd,
     allow_missing_keys_mode,
     convert_inverse_interp_mode,
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
-from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
@@ -466,7 +466,7 @@ class TestInverse(unittest.TestCase):
 
         labels = data["label"].to(device)
         segs = model(labels).detach().cpu()
-        label_transform_key = "label" + InverseKeys.KEY_SUFFIX
+        label_transform_key = TraceableTransform.trace_key("label")
         segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
 
         segs_dict_decollated = decollate_batch(segs_dict)
