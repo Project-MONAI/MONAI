@@ -217,6 +217,7 @@ class InverseKeys:
     EXTRA_INFO = "extra_info"
     DO_TRANSFORM = "do_transforms"
     KEY_SUFFIX = "_transforms"
+    NONE = "none"
 
 
 class CommonKeys:
