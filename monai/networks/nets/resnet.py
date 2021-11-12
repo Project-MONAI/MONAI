@@ -167,7 +167,8 @@ class ResNet(nn.Module):
             - 'A': using `self._downsample_basic_block`.
             - 'B': kernel_size 1 conv + norm.
         widen_factor: widen output for each layer.
-        num_classes: number of output (classifications)
+        num_classes: number of output (classifications).
+        feed_forward: whether to add the FC layer for the output, default to `True`.
 
     .. deprecated:: 0.6.0
         ``n_classes`` is deprecated, use ``num_classes`` instead.
@@ -227,9 +228,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=2)
         self.layer4 = self._make_layer(block, block_inplanes[3], layers[3], spatial_dims, shortcut_type, stride=2)
         self.avgpool = avgp_type(block_avgpool[spatial_dims])
-
-        if feed_forward:
-            self.fc = nn.Linear(block_inplanes[3] * block.expansion, num_classes)
+        self.fc = nn.Linear(block_inplanes[3] * block.expansion, num_classes) if feed_forward else None
 
         for m in self.modules():
             if isinstance(m, conv_type):
@@ -301,7 +300,8 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
 
         x = x.view(x.size(0), -1)
-        x = self.fc(x)
+        if self.fc is not None:
+            x = self.fc(x)
 
         return x
 
