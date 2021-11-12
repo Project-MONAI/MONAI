@@ -22,7 +22,7 @@ import torch
 from monai.data.utils import list_data_collate
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
-from monai.utils.enums import InverseKeys, Method, NumpyPadMode
+from monai.utils.enums import Method, NumpyPadMode, TraceKeys
 
 __all__ = ["PadListDataCollate"]
 
@@ -115,12 +115,12 @@ class PadListDataCollate(InvertibleTransform):
 
         d = deepcopy(data)
         for key in d:
-            transform_key = str(key) + InverseKeys.KEY_SUFFIX
+            transform_key = InvertibleTransform.trace_key(key)
             if transform_key in d:
                 transform = d[transform_key][-1]
                 if not isinstance(transform, Dict):
                     continue
-                if transform.get(InverseKeys.CLASS_NAME) == PadListDataCollate.__name__:
+                if transform.get(TraceKeys.CLASS_NAME) == PadListDataCollate.__name__:
                     d[key] = CenterSpatialCrop(transform.get("orig_size", -1))(d[key])  # fallback to image size
                     # remove transform
                     d[transform_key].pop()
