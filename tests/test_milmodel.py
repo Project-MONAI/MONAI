@@ -63,7 +63,7 @@ TEST_CASE_MILMODEL.append(
 )
 
 
-class TestResNet(unittest.TestCase):
+class TestMilModel(unittest.TestCase):
     @parameterized.expand(TEST_CASE_MILMODEL)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = MILModel(**input_param).to(device)

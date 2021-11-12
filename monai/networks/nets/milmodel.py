@@ -56,7 +56,7 @@ class MILModel(nn.Module):
         self.mil_mode = mil_mode
         print("MILModel with mode", mil_mode, "num_classes", num_classes)
         self.attention = nn.Sequential()
-        self.transformer = nn.Module()
+        self.transformer = None  # type: Optional[nn.Module]
 
         if backbone is None:
 
