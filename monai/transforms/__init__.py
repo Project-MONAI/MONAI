@@ -197,7 +197,7 @@ from .intensity.dictionary import (
     ThresholdIntensityD,
     ThresholdIntensityDict,
 )
-from .inverse import InvertibleTransform
+from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict

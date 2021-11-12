@@ -14,10 +14,10 @@ from copy import deepcopy
 
 from parameterized import parameterized
 
-from monai.transforms import InvertibleTransform, OneOf, Transform
+from monai.transforms import InvertibleTransform, OneOf, TraceableTransform, Transform
 from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import TraceKeys
 
 
 class X(Transform):
@@ -148,18 +148,20 @@ class TestOneOf(unittest.TestCase):
             return
 
         for k in KEYS:
-            t = fwd_data[k + InverseKeys.KEY_SUFFIX][-1]
+            t = fwd_data[TraceableTransform.trace_key(k)][-1]
             # make sure the OneOf index was stored
-            self.assertEqual(t[InverseKeys.CLASS_NAME], OneOf.__name__)
+            self.assertEqual(t[TraceKeys.CLASS_NAME], OneOf.__name__)
             # make sure index exists and is in bounds
-            self.assertTrue(0 <= t[InverseKeys.EXTRA_INFO]["index"] < len(transform))
+            self.assertTrue(0 <= t[TraceKeys.EXTRA_INFO]["index"] < len(transform))
 
         # call the inverse
         fwd_inv_data = transform.inverse(fwd_data)
 
         for k in KEYS:
             # check transform was removed
-            self.assertTrue(len(fwd_inv_data[k + InverseKeys.KEY_SUFFIX]) < len(fwd_data[k + InverseKeys.KEY_SUFFIX]))
+            self.assertTrue(
+                len(fwd_inv_data[TraceableTransform.trace_key(k)]) < len(fwd_data[TraceableTransform.trace_key(k)])
+            )
             # check data is same as original (and different from forward)
             self.assertEqual(fwd_inv_data[k], data[k])
             self.assertNotEqual(fwd_inv_data[k], fwd_data[k])
