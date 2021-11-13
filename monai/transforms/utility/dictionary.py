@@ -62,7 +62,7 @@ from monai.transforms.utility.array import (
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import InverseKeys, TransformBackends
+from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -645,7 +645,7 @@ class Transposed(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            fwd_indices = np.array(transform[InverseKeys.EXTRA_INFO]["indices"])
+            fwd_indices = np.array(transform[TraceKeys.EXTRA_INFO]["indices"])
             inv_indices = np.argsort(fwd_indices)
             inverse_transform = Transpose(inv_indices.tolist())
             # Apply inverse
@@ -1051,7 +1051,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         return super().__call__(data)
 
     def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
-        return self._lambd(data, func=func) if transform_info[InverseKeys.DO_TRANSFORM] else data
+        return self._lambd(data, func=func) if transform_info[TraceKeys.DO_TRANSFORM] else data
 
 
 class LabelToMaskd(MapTransform):
