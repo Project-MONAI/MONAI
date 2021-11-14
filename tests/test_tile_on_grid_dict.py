@@ -67,9 +67,10 @@ def make_image(
     random_state = np.random.RandomState(seed)
 
     if random_offset:
-        image = image[
-            :, random_state.randint(image.shape[1] % tile_size) :, random_state.randint(image.shape[2] % tile_size) :
-        ]
+        pad_h = image.shape[1] % tile_size
+        pad_w = image.shape[2] % tile_size
+        offset = (random_state.randint(pad_h) if pad_h > 0 else 0, random_state.randint(pad_w) if pad_w > 0 else 0)
+        image = image[:, offset[0] :, offset[1] :]
 
     tiles_list = []
     for x in range(tile_count):
@@ -78,7 +79,7 @@ def make_image(
 
     tiles = np.stack(tiles_list, axis=0)  # type: ignore
 
-    if filter_mode == "min" or filter_mode == "max":
+    if (filter_mode == "min" or filter_mode == "max") and len(tiles) > tile_count ** 2:
         tiles = tiles[np.argsort(tiles.sum(axis=(1, 2, 3)))]
 
     return imlarge, tiles

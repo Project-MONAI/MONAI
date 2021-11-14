@@ -133,15 +133,13 @@ class TileOnGrid(Randomizable, Transform):
         c, h, w = img_size
         tile_step = cast(int, self.step)
 
+        self.offset = (0, 0)
         if self.random_offset:
             pad_h = h % self.tile_size
             pad_w = w % self.tile_size
-            if pad_h > 0 and pad_w > 0:
-                self.offset = (self.R.randint(pad_h), self.R.randint(pad_w))
-                h = h - self.offset[0]
-                w = w - self.offset[1]
-            else:
-                self.offset = (0, 0)
+            self.offset = (self.R.randint(pad_h) if pad_h > 0 else 0, self.R.randint(pad_w) if pad_w > 0 else 0)
+            h = h - self.offset[0]
+            w = w - self.offset[1]
 
         if self.pad_full:
             pad_h = (self.tile_size - h % self.tile_size) % self.tile_size
@@ -164,7 +162,7 @@ class TileOnGrid(Randomizable, Transform):
         self.randomize(img_size=image.shape)
         tile_step = cast(int, self.step)
 
-        if self.random_offset and self.offset[0] > 0 and self.offset[1] > 0:
+        if self.random_offset and (self.offset[0] > 0 or self.offset[1] > 0):
             image = image[:, self.offset[0] :, self.offset[1] :]
 
         # pad to full size, divisible by tile_size
@@ -205,7 +203,7 @@ class TileOnGrid(Randomizable, Transform):
                 image = image[idxs.reshape(-1)]
 
         else:
-            if len(image) >= self.tile_count:
+            if len(image) > self.tile_count:
 
                 if self.filter_mode == "min":
                     # default, keep non-background tiles (smallest values)
@@ -214,12 +212,12 @@ class TileOnGrid(Randomizable, Transform):
                 elif self.filter_mode == "max":
                     idxs = np.argsort(image.sum(axis=(1, 2, 3)))[-self.tile_count :]
                     image = image[idxs]
-                elif len(image) > self.tile_count:
+                else:
                     # random subset (more appropriate for WSIs without distinct background)
                     if self.random_idxs is not None:
                         image = image[self.random_idxs]
 
-            else:
+            elif len(image) < self.tile_count:
                 image = np.pad(
                     image,
                     [[0, self.tile_count - len(image)], [0, 0], [0, 0], [0, 0]],
