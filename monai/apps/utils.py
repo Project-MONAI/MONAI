@@ -18,10 +18,12 @@ import tarfile
 import tempfile
 import warnings
 import zipfile
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import urlretrieve
 
+from monai.config.type_definitions import PathLike
 from monai.utils import min_version, optional_import
 
 gdown, has_gdown = optional_import("gdown", "3.6")
@@ -69,10 +71,10 @@ logger = get_logger("monai.apps")
 __all__.append("logger")
 
 
-def _basename(p):
+def _basename(p: PathLike) -> str:
     """get the last part of the path (removing the trailing slash if it exists)"""
     sep = os.path.sep + (os.path.altsep or "") + "/ "
-    return os.path.basename(p.rstrip(sep))
+    return Path(f"{p}".rstrip(sep)).name
 
 
 def _download_with_progress(url, filepath, progress: bool = True):
@@ -110,7 +112,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
         raise e
 
 
-def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5") -> bool:
+def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "md5") -> bool:
     """
     Verify hash signature of specified file.
 
@@ -145,7 +147,7 @@ def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5")
 
 
 def download_url(
-    url: str, filepath: str = "", hash_val: Optional[str] = None, hash_type: str = "md5", progress: bool = True
+    url: str, filepath: PathLike = "", hash_val: Optional[str] = None, hash_type: str = "md5", progress: bool = True
 ) -> None:
     """
     Download file from specified URL link, support process bar and hash check.
@@ -171,9 +173,10 @@ def download_url(
 
     """
     if not filepath:
-        filepath = os.path.abspath(os.path.join(".", _basename(url)))
+        filepath = Path(".", _basename(url)).resolve()
         logger.info(f"Default downloading to '{filepath}'")
-    if os.path.exists(filepath):
+    filepath = Path(filepath)
+    if filepath.exists():
         if not check_hash(filepath, hash_val, hash_type):
             raise RuntimeError(
                 f"{hash_type} check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
@@ -182,21 +185,21 @@ def download_url(
         return
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_name = os.path.join(tmp_dir, f"{_basename(filepath)}")
+        tmp_name = Path(tmp_dir, _basename(filepath))
         if url.startswith("https://drive.google.com"):
             if not has_gdown:
                 raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
-            gdown.download(url, tmp_name, quiet=not progress)
+            gdown.download(url, f"{tmp_name}", quiet=not progress)
         else:
             _download_with_progress(url, tmp_name, progress=progress)
-        if not os.path.exists(tmp_name):
+        if not tmp_name.exists():
             raise RuntimeError(
                 f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
             )
-        file_dir = os.path.dirname(filepath)
+        file_dir = filepath.parent
         if file_dir:
             os.makedirs(file_dir, exist_ok=True)
-        shutil.move(tmp_name, filepath)  # copy the downloaded to a user-specified cache.
+        shutil.move(f"{tmp_name}", f"{filepath}")  # copy the downloaded to a user-specified cache.
         logger.info(f"Downloaded: {filepath}")
     if not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
@@ -206,8 +209,8 @@ def download_url(
 
 
 def extractall(
-    filepath: str,
-    output_dir: str = ".",
+    filepath: PathLike,
+    output_dir: PathLike = ".",
     hash_val: Optional[str] = None,
     hash_type: str = "md5",
     file_type: str = "",
@@ -236,24 +239,25 @@ def extractall(
     """
     if has_base:
         # the extracted files will be in this folder
-        cache_dir = os.path.join(output_dir, _basename(filepath).split(".")[0])
+        cache_dir = Path(output_dir, _basename(filepath).split(".")[0])
     else:
-        cache_dir = output_dir
-    if os.path.exists(cache_dir) and len(os.listdir(cache_dir)) > 0:
+        cache_dir = Path(output_dir)
+    if cache_dir.exists() and len(list(cache_dir.iterdir())) > 0:
         logger.info(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
         return
+    filepath = Path(filepath)
     if hash_val and not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
         )
     logger.info(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
-    if filepath.endswith("zip") or _file_type == "zip":
+    if filepath.name.endswith("zip") or _file_type == "zip":
         zip_file = zipfile.ZipFile(filepath)
         zip_file.extractall(output_dir)
         zip_file.close()
         return
-    if filepath.endswith("tar") or filepath.endswith("tar.gz") or "tar" in _file_type:
+    if filepath.name.endswith("tar") or filepath.name.endswith("tar.gz") or "tar" in _file_type:
         tar_file = tarfile.open(filepath)
         tar_file.extractall(output_dir)
         tar_file.close()
@@ -265,8 +269,8 @@ def extractall(
 
 def download_and_extract(
     url: str,
-    filepath: str = "",
-    output_dir: str = ".",
+    filepath: PathLike = "",
+    output_dir: PathLike = ".",
     hash_val: Optional[str] = None,
     hash_type: str = "md5",
     file_type: str = "",
@@ -293,6 +297,6 @@ def download_and_extract(
         progress: whether to display progress bar.
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
-        filename = filepath or os.path.join(tmp_dir, f"{_basename(url)}")
+        filename = filepath or Path(tmp_dir, _basename(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
