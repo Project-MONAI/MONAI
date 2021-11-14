@@ -15,19 +15,18 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import MilMode, MILModel
+from monai.networks.nets import MILModel
 from monai.utils.module import optional_import
 from tests.utils import test_script_save
 
 models, _ = optional_import("torchvision.models")
-
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 TEST_CASE_MILMODEL = []
 for num_classes in [1, 5]:
-    for mil_mode in [MilMode.MEAN, MilMode.MAX, MilMode.ATT, MilMode.ATT_TRANS, MilMode.ATT_TRANS_PYRAMID]:
+    for mil_mode in ["mean", "max", "att", "att_trans", "att_trans_pyramid"]:
         test_case = [
             {"num_classes": num_classes, "mil_mode": mil_mode, "pretrained": False},
             (1, 2, 3, 512, 512),
@@ -56,7 +55,7 @@ backbone_nfeatures = backbone.classifier.in_features
 backbone.classifier = torch.nn.Identity()
 TEST_CASE_MILMODEL.append(
     [
-        {"num_classes": 5, "backbone": backbone, "backbone_nfeatures": backbone_nfeatures, "pretrained": False},
+        {"num_classes": 5, "backbone": backbone, "backbone_num_features": backbone_nfeatures, "pretrained": False},
         (2, 2, 3, 512, 512),
         (2, 5),
     ]
@@ -77,8 +76,8 @@ class TestMilModel(unittest.TestCase):
                 num_classes=5,
                 pretrained=False,
                 backbone="resnet50",
-                backbone_nfeatures=2048,
-                mil_mode=MilMode.ATT_TRANS_PYRAMID,
+                backbone_num_features=2048,
+                mil_mode="att_trans_pyramid",
             )
 
     def test_script(self):

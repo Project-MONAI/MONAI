@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Dict, Optional, Union, cast
 
 import torch
@@ -9,41 +8,38 @@ from monai.utils.module import optional_import
 models, _ = optional_import("torchvision.models")
 
 
-class MilMode(Enum):
-    MEAN = "mean"
-    MAX = "max"
-    ATT = "att"
-    ATT_TRANS = "att_trans"
-    ATT_TRANS_PYRAMID = "att_trans_pyramid"
-
-
 class MILModel(nn.Module):
     """
-    A wrapper around backbone classification model suitable for MIL
+    Multiple Instance Learning (MIL) model, with a backbone classification model.
 
     Args:
         num_classes: number of output classes
-        mil_mode: MIL variant (supported max, mean, att, att_trans, att_trans_pyramid
-        pretrained: init backbone with pretrained weights. Defaults to True.
-        backbone: Backbone classifier CNN. Defaults to None, it which case ResNet50 will be used.
-        backbone_nfeatures: Number of output featues of the backbone CNN (necessary only when using custom backbone)
+        mil_mode: MIL algorithm (either mean, max, att, att_trans, att_trans_pyramid)
+            Defaults to ``att``.
+        pretrained: init backbone with pretrained weights.
+            Defaults to ``True``.
+        backbone: Backbone classifier CNN. (either None, nn.Module that returns features,
+                  or a string name of a torchvision model)
+            Defaults to ``None``, in which case ResNet50 is used.
+        backbone_num_features: Number of output features of the backbone CNN
+            Defaults to ``None`` (necessary only when using a custom backbone)
 
     mil_mode:
-        MilMode.MEAN - average features from all instances, equivalent to pure CNN (non MIL)
-        MilMode.MAX - retain only the instance with the max probability for loss calculation
-        MilMode.ATT - attention based MIL https://arxiv.org/abs/1802.04712
-        MilMode.ATT_TRANS - transformer MIL https://arxiv.org/abs/2111.01556
-        MilMode.ATT_TRANS_PYRAMID - transformer pyramid MIL https://arxiv.org/abs/2111.01556
+        "mean" - average features from all instances, equivalent to pure CNN (non MIL)
+        "max - retain only the instance with the max probability for loss calculation
+        "att" - attention based MIL https://arxiv.org/abs/1802.04712
+        "att_trans" - transformer MIL https://arxiv.org/abs/2111.01556
+        "att_trans_pyramid" - transformer pyramid MIL https://arxiv.org/abs/2111.01556
 
     """
 
     def __init__(
         self,
         num_classes: int,
-        mil_mode: MilMode = MilMode.ATT,
+        mil_mode: str = "att",
         pretrained: bool = True,
         backbone: Optional[Union[str, nn.Module]] = None,
-        backbone_nfeatures: Optional[int] = None,
+        backbone_num_features: Optional[int] = None,
         trans_blocks: int = 4,
         trans_dropout: float = 0.0,
     ) -> None:
@@ -53,7 +49,10 @@ class MILModel(nn.Module):
         if num_classes <= 0:
             raise ValueError("Number of classes must be positive: " + str(num_classes))
 
-        self.mil_mode = mil_mode
+        if mil_mode.lower() not in ["mean", "max", "att", "att_trans", "att_trans_pyramid"]:
+            raise ValueError("Unsupported mil_mode: " + str(mil_mode))
+
+        self.mil_mode = mil_mode.lower()
         print("MILModel with mode", mil_mode, "num_classes", num_classes)
         self.attention = nn.Sequential()
         self.transformer = None  # type: Optional[nn.Module]
@@ -66,7 +65,7 @@ class MILModel(nn.Module):
 
             self.extra_outputs = {}  # type: Dict[str, torch.Tensor]
 
-            if mil_mode == MilMode.ATT_TRANS_PYRAMID:
+            if mil_mode == "att_trans_pyramid":
                 # register hooks to capture outputs of intermediate layers
                 def forward_hook(layer_name):
                     def hook(module, input, output):
@@ -82,42 +81,45 @@ class MILModel(nn.Module):
         elif isinstance(backbone, str):
 
             # assume torchvision model string is provided
-            trch_model = getattr(models, backbone, None)
-            if trch_model is None:
+            torch_model = getattr(models, backbone, None)
+            if torch_model is None:
                 raise ValueError("Unknown torch vision model" + str(backbone))
-            net = trch_model(pretrained=pretrained)
+            net = torch_model(pretrained=pretrained)
 
             if getattr(net, "fc", None) is not None:
                 nfc = net.fc.in_features  # save the number of final features
                 net.fc = torch.nn.Identity()  # remove final linear layer
             else:
                 raise ValueError(
-                    "Unable to detect FC layer for torch vision model " + str(backbone),
+                    "Unable to detect FC layer for the torchvision model " + str(backbone),
                     ". Please initialize the backbone model manually.",
                 )
 
-        else:
-            # use a custom backbone (untested)
+        elif isinstance(backbone, nn.Module):
+            # use a custom backbone
             net = backbone
-            nfc = backbone_nfeatures
+            nfc = backbone_num_features
 
-            if backbone_nfeatures is None:
+            if backbone_num_features is None:
                 raise ValueError("Number of endencoder features must be provided for a custom backbone model")
 
-        if backbone is not None and mil_mode not in [MilMode.MEAN, MilMode.MAX, MilMode.ATT, MilMode.ATT_TRANS]:
+        else:
+            raise ValueError("Unsupported backbone")
+
+        if backbone is not None and mil_mode not in ["mean", "max", "att", "att_trans"]:
             raise ValueError("Custom backbone is not supported for the mode:" + str(mil_mode))
 
-        if self.mil_mode in [MilMode.MEAN, MilMode.MAX]:
+        if self.mil_mode in ["mean", "max"]:
             pass
-        elif self.mil_mode == MilMode.ATT:
+        elif self.mil_mode == "att":
             self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
 
-        elif self.mil_mode == MilMode.ATT_TRANS:
+        elif self.mil_mode == "att_trans":
             transformer = nn.TransformerEncoderLayer(d_model=nfc, nhead=8, dropout=trans_dropout)
             self.transformer = nn.TransformerEncoder(transformer, num_layers=trans_blocks)
             self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
 
-        elif self.mil_mode == MilMode.ATT_TRANS_PYRAMID:
+        elif self.mil_mode == "att_trans_pyramid":
 
             transformer_list = nn.ModuleList(
                 [
@@ -158,15 +160,15 @@ class MILModel(nn.Module):
 
         sh = x.shape
 
-        if self.mil_mode == MilMode.MEAN:
+        if self.mil_mode == "mean":
             x = self.myfc(x)
             x = torch.mean(x, dim=1)
 
-        elif self.mil_mode == MilMode.MAX:
+        elif self.mil_mode == "max":
             x = self.myfc(x)
             x, _ = torch.max(x, dim=1)
 
-        elif self.mil_mode == MilMode.ATT:
+        elif self.mil_mode == "att":
 
             a = self.attention(x)
             a = torch.softmax(a, dim=1)
@@ -174,7 +176,7 @@ class MILModel(nn.Module):
 
             x = self.myfc(x)
 
-        elif self.mil_mode == MilMode.ATT_TRANS and self.transformer is not None:
+        elif self.mil_mode == "att_trans" and self.transformer is not None:
 
             x = x.permute(1, 0, 2)
             x = self.transformer(x)
@@ -186,7 +188,7 @@ class MILModel(nn.Module):
 
             x = self.myfc(x)
 
-        elif self.mil_mode == MilMode.ATT_TRANS_PYRAMID and self.transformer is not None:
+        elif self.mil_mode == "att_trans_pyramid" and self.transformer is not None:
 
             l1 = torch.mean(self.extra_outputs["layer1"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
             l2 = torch.mean(self.extra_outputs["layer2"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
