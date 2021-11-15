@@ -88,7 +88,7 @@ def make_image(
 
 class TestTileOnGrid(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_tile_pathce_single_call(self, input_parameters):
+    def test_tile_patch_single_call(self, input_parameters):
 
         img, tiles = make_image(**input_parameters)
 
@@ -96,16 +96,16 @@ class TestTileOnGrid(unittest.TestCase):
         output = tiler(img)
         np.testing.assert_equal(output, tiles)
 
-    # @parameterized.expand(TEST_CASES2)
-    # def test_tile_pathce_random_call(self, input_parameters):
-    #
-    #     img, tiles = make_image(**input_parameters, seed=123)
-    #
-    #     tiler = TileOnGrid(**input_parameters)
-    #     tiler.set_random_state(seed=123)
-    #
-    #     output = tiler(img)
-    #     np.testing.assert_equal(output, tiles)
+    @parameterized.expand(TEST_CASES2)
+    def test_tile_patch_random_call(self, input_parameters):
+
+        img, tiles = make_image(**input_parameters, seed=123)
+
+        tiler = TileOnGrid(**input_parameters)
+        tiler.set_random_state(seed=123)
+
+        output = tiler(img)
+        np.testing.assert_equal(output, tiles)
 
 
 if __name__ == "__main__":

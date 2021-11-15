@@ -22,34 +22,39 @@ for tile_count in [16, 64]:
     for tile_size in [8, 32]:
         for filter_mode in ["min", "max", "random"]:
             for background_val in [255, 0]:
-                TEST_CASES.append(
-                    [
-                        {
-                            "tile_count": tile_count,
-                            "tile_size": tile_size,
-                            "filter_mode": filter_mode,
-                            "random_offset": False,
-                            "background_val": background_val,
-                        }
-                    ]
-                )
+                for return_list_of_dicts in [False, True]:
+                    TEST_CASES.append(
+                        [
+                            {
+                                "tile_count": tile_count,
+                                "tile_size": tile_size,
+                                "filter_mode": filter_mode,
+                                "random_offset": False,
+                                "background_val": background_val,
+                                "return_list_of_dicts": return_list_of_dicts,
+                            }
+                        ]
+                    )
+
 
 TEST_CASES2 = []
 for tile_count in [16, 64]:
     for tile_size in [8, 32]:
         for filter_mode in ["min", "max", "random"]:
             for background_val in [255, 0]:
-                TEST_CASES2.append(
-                    [
-                        {
-                            "tile_count": tile_count,
-                            "tile_size": tile_size,
-                            "filter_mode": filter_mode,
-                            "random_offset": True,
-                            "background_val": background_val,
-                        }
-                    ]
-                )
+                for return_list_of_dicts in [False, True]:
+                    TEST_CASES2.append(
+                        [
+                            {
+                                "tile_count": tile_count,
+                                "tile_size": tile_size,
+                                "filter_mode": filter_mode,
+                                "random_offset": True,
+                                "background_val": background_val,
+                                "return_list_of_dicts": return_list_of_dicts,
+                            }
+                        ]
+                    )
 
 
 def make_image(
@@ -87,7 +92,7 @@ def make_image(
 
 class TestTileOnGridDict(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_tile_pathce_single_call(self, input_parameters):
+    def test_tile_patch_single_call(self, input_parameters):
 
         key = "image"
         input_parameters["keys"] = key
@@ -97,12 +102,16 @@ class TestTileOnGridDict(unittest.TestCase):
         splitter = TileOnGridDict(**input_parameters)
 
         output = splitter({key: img})
-        output = output[key]
+
+        if input_parameters.get("return_list_of_dicts", False):
+            output = np.stack([ix[key] for ix in output], axis=0)
+        else:
+            output = output[key]
 
         np.testing.assert_equal(tiles, output)
 
     @parameterized.expand(TEST_CASES2)
-    def test_tile_pathce_random_call(self, input_parameters):
+    def test_tile_patch_random_call(self, input_parameters):
 
         key = "image"
         input_parameters["keys"] = key
@@ -115,7 +124,11 @@ class TestTileOnGridDict(unittest.TestCase):
         splitter.set_random_state(seed=123)
 
         output = splitter({key: img})
-        output = output[key]
+
+        if input_parameters.get("return_list_of_dicts", False):
+            output = np.stack([ix[key] for ix in output], axis=0)
+        else:
+            output = output[key]
 
         np.testing.assert_equal(tiles, output)
 
