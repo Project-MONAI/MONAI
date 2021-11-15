@@ -216,7 +216,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         if not isinstance(k_metric, dict):
             raise TypeError(f"key_metric must be None or a dict but is {type(k_metric).__name__}.")
         self.state.key_metric_name = list(k_metric.keys())[0]
-        metrics = k_metric
+        metrics = dict(k_metric)
         if add_metrics is not None and len(add_metrics) > 0:
             if not isinstance(add_metrics, dict):
                 raise TypeError(f"additional metrics must be None or a dict but is {type(add_metrics).__name__}.")
