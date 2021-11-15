@@ -9,5 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .array import SplitOnGrid
-from .dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict
+from .array import SplitOnGrid, TileOnGrid
+from .dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
