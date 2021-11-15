@@ -535,7 +535,7 @@ class NumpyReader(ImageReader):
         kwargs_.update(kwargs)
         for name in filenames:
             img = np.load(name, allow_pickle=True, **kwargs_)
-            if name.endswith(".npz"):
+            if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
                 npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
                 for k in npz_keys:

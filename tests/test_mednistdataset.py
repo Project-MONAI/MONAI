@@ -12,8 +12,8 @@
 import os
 import shutil
 import unittest
-from urllib.error import ContentTooShortError, HTTPError
 from pathlib import Path
+from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import MedNISTDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord

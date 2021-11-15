@@ -21,12 +21,12 @@ from monai.utils import ensure_tuple
 
 
 @overload
-def _compute_path(base_dir: str, element: str, check_path: bool = False) -> str:
+def _compute_path(base_dir: PathLike, element: PathLike, check_path: bool = False) -> str:
     ...
 
 
 @overload
-def _compute_path(base_dir: str, element: List[str], check_path: bool = False) -> List[str]:
+def _compute_path(base_dir: PathLike, element: List[PathLike], check_path: bool = False) -> List[str]:
     ...
 
 
@@ -43,24 +43,24 @@ def _compute_path(base_dir, element, check_path=False):
 
     """
 
-    def _join_path(base_dir: str, item: str):
+    def _join_path(base_dir: PathLike, item: PathLike):
         result = os.path.normpath(os.path.join(base_dir, item))
         if check_path and not os.path.exists(result):
             # if not an existing path, don't join with base dir
             return item
         return result
 
-    if isinstance(element, str):
+    if isinstance(element, (str, os.PathLike)):
         return _join_path(base_dir, element)
     if isinstance(element, list):
         for e in element:
-            if not isinstance(e, str):
+            if not isinstance(e, (str, os.PathLike)):
                 return element
         return [_join_path(base_dir, e) for e in element]
     return element
 
 
-def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
+def _append_paths(base_dir: PathLike, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
     """
     Args:
         base_dir: the base directory of the dataset.
@@ -87,7 +87,7 @@ def load_decathlon_datalist(
     data_list_file_path: PathLike,
     is_segmentation: bool = True,
     data_list_key: str = "training",
-    base_dir: Optional[str] = None,
+    base_dir: Optional[PathLike] = None,
 ) -> List[Dict]:
     """Load image/label paths of decathlon challenge from JSON file
 
