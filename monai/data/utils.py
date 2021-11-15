@@ -19,13 +19,14 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap
-from pathlib import Path, PurePath
+from pathlib import PurePath
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
+from monai.config.type_definitions import PathLike
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
@@ -678,9 +679,9 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
 
 def create_file_basename(
     postfix: str,
-    input_file_name: str,
-    folder_path: Union[Path, str],
-    data_root_dir: str = "",
+    input_file_name: PathLike,
+    folder_path: PathLike,
+    data_root_dir: PathLike = "",
     separate_folder: bool = True,
     patch_index: Optional[int] = None,
 ) -> str:
@@ -795,7 +796,7 @@ def compute_importance_map(
     return importance_map
 
 
-def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[str]) -> bool:
+def is_supported_format(filename: Union[Sequence[PathLike], PathLike], suffixes: Sequence[str]) -> bool:
     """
     Verify whether the specified file or files format match supported suffixes.
     If supported suffixes is None, skip the verification and return True.
@@ -806,7 +807,7 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
         suffixes: all the supported image suffixes of current reader, must be a list of lower case suffixes.
 
     """
-    filenames: Sequence[str] = ensure_tuple(filename)
+    filenames: Sequence[PathLike] = ensure_tuple(filename)
     for name in filenames:
         tokens: Sequence[str] = PurePath(name).suffixes
         if len(tokens) == 0 or all("." + s.lower() not in "".join(tokens) for s in suffixes):

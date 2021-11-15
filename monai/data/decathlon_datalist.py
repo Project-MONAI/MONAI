@@ -15,7 +15,7 @@ import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union, overload
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, PathLike
 from monai.data.utils import partition_dataset, select_cross_validation_folds
 from monai.utils import ensure_tuple
 
@@ -84,7 +84,7 @@ def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> Li
 
 
 def load_decathlon_datalist(
-    data_list_file_path: str,
+    data_list_file_path: PathLike,
     is_segmentation: bool = True,
     data_list_key: str = "training",
     base_dir: Optional[str] = None,
@@ -114,7 +114,8 @@ def load_decathlon_datalist(
         ]
 
     """
-    if not os.path.isfile(data_list_file_path):
+    data_list_file_path = Path(data_list_file_path)
+    if not data_list_file_path.is_file():
         raise ValueError(f"Data list file {data_list_file_path} does not exist.")
     with open(data_list_file_path) as json_file:
         json_data = json.load(json_file)
@@ -125,12 +126,12 @@ def load_decathlon_datalist(
         expected_data = [{"image": i} for i in expected_data]
 
     if base_dir is None:
-        base_dir = os.path.dirname(data_list_file_path)
+        base_dir = data_list_file_path.parent
 
     return _append_paths(base_dir, is_segmentation, expected_data)
 
 
-def load_decathlon_properties(data_property_file_path: str, property_keys: Union[Sequence[str], str]) -> Dict:
+def load_decathlon_properties(data_property_file_path: PathLike, property_keys: Union[Sequence[str], str]) -> Dict:
     """Load the properties from the JSON file contains data property with specified `property_keys`.
 
     Args:
@@ -141,7 +142,8 @@ def load_decathlon_properties(data_property_file_path: str, property_keys: Union
             `modality`, `labels`, `numTraining`, `numTest`, etc.
 
     """
-    if not os.path.isfile(data_property_file_path):
+    data_property_file_path = Path(data_property_file_path)
+    if not data_property_file_path.is_file():
         raise ValueError(f"Data property file {data_property_file_path} does not exist.")
     with open(data_property_file_path) as json_file:
         json_data = json.load(json_file)
@@ -187,8 +189,8 @@ def check_missing_files(
                 if not isinstance(f, (str, Path)):
                     raise ValueError(f"filepath of key `{k}` must be a string or a list of strings, but got: {f}.")
                 if isinstance(root_dir, (str, Path)):
-                    f = os.path.join(root_dir, f)
-                if not os.path.exists(f):
+                    f = Path(root_dir).joinpath(f)
+                if not f.exists():
                     missing_files.append(f)
 
     return missing_files
