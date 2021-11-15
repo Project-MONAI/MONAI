@@ -34,8 +34,8 @@ PLATFORM_TO_CF_URL = {
 # This dictionary maps each platform to a relative path to a file containing its reference hash.
 # github/pytorch/pytorch/tree/63d62d3e44a0a4ec09d94f30381d49b78cc5b095/tools/clang_format_hash
 PLATFORM_TO_HASH = {
-    "Darwin": "b24cc8972344c4e01afbbae78d6a414f7638ff6f",
-    "Linux": "9073602de1c4e1748f2feea5a0782417b20e3043",
+    "Darwin": "acfda23b360824017c86528f6d59769bd4cf5587",
+    "Linux": "938869fb71b05f5ba345ab36dfbbc4388f53a550",
 }
 
 # Directory and file paths for the clang-format binary.
