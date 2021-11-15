@@ -41,7 +41,7 @@ class TestCheckMD5(unittest.TestCase):
             self.assertTrue(result == expected_result)
 
     def test_hash_type_error(self):
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             with tempfile.TemporaryDirectory() as tempdir:
                 check_hash(tempdir, "test_hash", "test_type")
 
