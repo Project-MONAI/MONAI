@@ -60,9 +60,10 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
+    first,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import TraceKeys
 from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
@@ -123,6 +124,7 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
+    "AddCoordinateChannelsd",
     "AddCoordinateChannelsD",
     "AddCoordinateChannelsDict",
 ]
@@ -226,7 +228,7 @@ class Spacingd(MapTransform, InvertibleTransform):
 
     def __call__(
         self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
-    ) -> Dict[Union[Hashable, str], Union[NdarrayOrTensor, Dict[str, NdarrayOrTensor]]]:
+    ) -> Dict[Hashable, NdarrayOrTensor]:
         d: Dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, meta_key, meta_key_postfix in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
@@ -255,7 +257,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                     "old_affine": old_affine,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
                 },
                 orig_size=original_spatial_shape,
             )
@@ -273,12 +275,12 @@ class Spacingd(MapTransform, InvertibleTransform):
                     + "Please raise a github issue if you need this feature"
                 )
             # Create inverse transform
-            meta_data = d[transform[InverseKeys.EXTRA_INFO]["meta_key"]]
-            old_affine = np.array(transform[InverseKeys.EXTRA_INFO]["old_affine"])
-            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
-            orig_size = transform[InverseKeys.ORIG_SIZE]
+            meta_data = d[transform[TraceKeys.EXTRA_INFO]["meta_key"]]
+            old_affine = np.array(transform[TraceKeys.EXTRA_INFO]["old_affine"])
+            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+            orig_size = transform[TraceKeys.ORIG_SIZE]
             orig_pixdim = np.sqrt(np.sum(np.square(old_affine), 0))[:-1]
             inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
             # Apply inverse
@@ -287,7 +289,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                 affine=meta_data["affine"],  # type: ignore
                 mode=mode,
                 padding_mode=padding_mode,
-                align_corners=False if align_corners == "none" else align_corners,
+                align_corners=False if align_corners == TraceKeys.NONE else align_corners,
                 dtype=dtype,
                 output_spatial_shape=orig_size,
             )
@@ -308,6 +310,8 @@ class Orientationd(MapTransform, InvertibleTransform):
     After reorienting the input array, this transform will write the new affine
     to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
     """
+
+    backend = Orientation.backend
 
     def __init__(
         self,
@@ -358,8 +362,8 @@ class Orientationd(MapTransform, InvertibleTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(
-        self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
-    ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
+        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
+    ) -> Dict[Hashable, NdarrayOrTensor]:
         d: Dict = dict(data)
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
@@ -372,18 +376,16 @@ class Orientationd(MapTransform, InvertibleTransform):
             d[meta_key]["affine"] = new_affine
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            meta_data = d[transform[InverseKeys.EXTRA_INFO]["meta_key"]]
-            orig_affine = transform[InverseKeys.EXTRA_INFO]["old_affine"]
+            meta_data: Dict = d[transform[TraceKeys.EXTRA_INFO]["meta_key"]]  # type: ignore
+            orig_affine = transform[TraceKeys.EXTRA_INFO]["old_affine"]
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
             inverse_transform = Orientation(
-                axcodes=orig_axcodes,
-                as_closest_canonical=False,
-                labels=self.ornt_transform.labels,
+                axcodes=orig_axcodes, as_closest_canonical=False, labels=self.ornt_transform.labels
             )
             # Apply inverse
             d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
@@ -497,9 +499,9 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
-            if transform[InverseKeys.DO_TRANSFORM]:
+            if transform[TraceKeys.DO_TRANSFORM]:
                 # Create inverse transform
-                num_times_rotated = transform[InverseKeys.EXTRA_INFO]["rand_k"]
+                num_times_rotated = transform[TraceKeys.EXTRA_INFO]["rand_k"]
                 num_times_to_rotate = 4 - num_times_rotated
                 inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
                 # Apply inverse
@@ -561,7 +563,7 @@ class Resized(MapTransform, InvertibleTransform):
                 key,
                 extra_info={
                     "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
                 },
             )
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
@@ -571,14 +573,14 @@ class Resized(MapTransform, InvertibleTransform):
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
-            orig_size = transform[InverseKeys.ORIG_SIZE]
-            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-            align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
+            orig_size = transform[TraceKeys.ORIG_SIZE]
+            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
             # Create inverse transform
             inverse_transform = Resize(
                 spatial_size=orig_size,
                 mode=mode,
-                align_corners=None if align_corners == "none" else align_corners,
+                align_corners=None if align_corners == TraceKeys.NONE else align_corners,
             )
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
@@ -603,6 +605,7 @@ class Affined(MapTransform, InvertibleTransform):
         shear_params: Optional[Union[Sequence[float], float]] = None,
         translate_params: Optional[Union[Sequence[float], float]] = None,
         scale_params: Optional[Union[Sequence[float], float]] = None,
+        affine: Optional[NdarrayOrTensor] = None,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
@@ -629,6 +632,9 @@ class Affined(MapTransform, InvertibleTransform):
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
             scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
                 a tuple of 3 floats for 3D. Defaults to `1.0`.
+            affine: if applied, ignore the params (`rotate_params`, etc.) and use the
+                supplied matrix. Should be square with each side = num of image spatial
+                dimensions + 1.
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
@@ -660,6 +666,7 @@ class Affined(MapTransform, InvertibleTransform):
             shear_params=shear_params,
             translate_params=translate_params,
             scale_params=scale_params,
+            affine=affine,
             spatial_size=spatial_size,
             device=device,
         )
@@ -688,11 +695,11 @@ class Affined(MapTransform, InvertibleTransform):
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
-            orig_size = transform[InverseKeys.ORIG_SIZE]
+            orig_size = transform[TraceKeys.ORIG_SIZE]
             # Create inverse transform
-            fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
-            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
+            fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
+            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
             inv_affine = np.linalg.inv(fwd_affine)
 
             affine_grid = AffineGrid(affine=inv_affine)
@@ -712,7 +719,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
 
-    backend = Affine.backend
+    backend = RandAffine.backend
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
@@ -816,9 +823,10 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         device = self.rand_affine.resampler.device
 
-        sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
+        spatial_size = d[first(self.key_iterator(d))].shape[1:]
+        sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
-        do_resampling = self._do_transform or (sp_size != ensure_tuple(data[self.keys[0]].shape[1:]))
+        do_resampling = self._do_transform or (sp_size != ensure_tuple(spatial_size))
         affine: torch.Tensor = torch.eye(len(sp_size) + 1, dtype=torch.float64, device=device)
         # converting affine to tensor because the resampler currently only support torch backend
         grid = None
@@ -850,12 +858,12 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # if transform was not performed and spatial size is None, nothing to do.
-            if transform[InverseKeys.DO_TRANSFORM] or self.rand_affine.spatial_size is not None:
-                orig_size = transform[InverseKeys.ORIG_SIZE]
+            if transform[TraceKeys.DO_TRANSFORM] or self.rand_affine.spatial_size is not None:
+                orig_size = transform[TraceKeys.ORIG_SIZE]
                 # Create inverse transform
-                fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
-                mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
+                fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
+                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
                 inv_affine = np.linalg.inv(fwd_affine)
 
                 affine_grid = AffineGrid(affine=inv_affine)
@@ -976,7 +984,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
 
-        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, d[first(self.key_iterator(d))].shape[1:])
         # all the keys share the same random elastic factor
         self.rand_2d_elastic.randomize(sp_size)
 
@@ -1108,7 +1116,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
 
-        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
+        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, d[first(self.key_iterator(d))].shape[1:])
         # all the keys share the same random elastic factor
         self.rand_3d_elastic.randomize(sp_size)
 
@@ -1218,7 +1226,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
-            if transform[InverseKeys.DO_TRANSFORM]:
+            if transform[TraceKeys.DO_TRANSFORM]:
                 # Inverse is same as forward
                 d[key] = self.flipper(d[key], randomize=False)
             # Remove the applied transform
@@ -1259,7 +1267,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.randomize(None)
 
         # all the keys share the same random selected axis
-        self.flipper.randomize(d[self.keys[0]])
+        self.flipper.randomize(d[first(self.key_iterator(d))])
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key], randomize=False)
@@ -1271,8 +1279,8 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
-            if transform[InverseKeys.DO_TRANSFORM]:
-                flipper = Flip(spatial_axis=transform[InverseKeys.EXTRA_INFO]["axis"])
+            if transform[TraceKeys.DO_TRANSFORM]:
+                flipper = Flip(spatial_axis=transform[TraceKeys.EXTRA_INFO]["axis"])
                 # Inverse is same as forward
                 d[key] = flipper(d[key])
             # Remove the applied transform
@@ -1336,11 +1344,7 @@ class Rotated(MapTransform, InvertibleTransform):
         ):
             orig_size = d[key].shape[1:]
             d[key] = self.rotator(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-                dtype=dtype,
+                d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
             )
             rot_mat = self.rotator.get_rotation_matrix()
             self.push_transform(
@@ -1351,7 +1355,7 @@ class Rotated(MapTransform, InvertibleTransform):
                     "rot_mat": rot_mat,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
                 },
             )
         return d
@@ -1361,17 +1365,17 @@ class Rotated(MapTransform, InvertibleTransform):
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            fwd_rot_mat = transform[InverseKeys.EXTRA_INFO]["rot_mat"]
-            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
+            fwd_rot_mat = transform[TraceKeys.EXTRA_INFO]["rot_mat"]
+            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
             inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
             xform = AffineTransform(
                 normalized=False,
                 mode=mode,
                 padding_mode=padding_mode,
-                align_corners=False if align_corners == "none" else align_corners,
+                align_corners=False if align_corners == TraceKeys.NONE else align_corners,
                 reverse_indexing=True,
             )
             img_t: torch.Tensor
@@ -1379,12 +1383,9 @@ class Rotated(MapTransform, InvertibleTransform):
             transform_t: torch.Tensor
             transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
 
-            output = xform(
-                img_t.unsqueeze(0),
-                transform_t,
-                spatial_size=transform[InverseKeys.ORIG_SIZE],
-            )
-            d[key] = output.squeeze(0).detach().float()
+            out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
+            out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
+            d[key] = out
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1486,7 +1487,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     "rot_mat": rot_mat,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
                 },
             )
         return d
@@ -1496,19 +1497,19 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
-            if transform[InverseKeys.DO_TRANSFORM]:
+            if transform[TraceKeys.DO_TRANSFORM]:
                 # Create inverse transform
-                fwd_rot_mat = transform[InverseKeys.EXTRA_INFO]["rot_mat"]
-                mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
-                align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
+                fwd_rot_mat = transform[TraceKeys.EXTRA_INFO]["rot_mat"]
+                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+                align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
                 inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
                 xform = AffineTransform(
                     normalized=False,
                     mode=mode,
                     padding_mode=padding_mode,
-                    align_corners=False if align_corners == "none" else align_corners,
+                    align_corners=False if align_corners == TraceKeys.NONE else align_corners,
                     reverse_indexing=True,
                 )
                 img_t: torch.Tensor
@@ -1516,12 +1517,9 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 transform_t: torch.Tensor
                 transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
                 output: torch.Tensor
-                output = xform(
-                    img_t.unsqueeze(0),
-                    transform_t,
-                    spatial_size=transform[InverseKeys.ORIG_SIZE],
-                )
-                d[key] = output.squeeze(0).detach().float()
+                out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
+                out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
+                d[key] = out
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1589,15 +1587,10 @@ class Zoomd(MapTransform, InvertibleTransform):
                 extra_info={
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
                 },
             )
-            d[key] = self.zoomer(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-            )
+            d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1607,18 +1600,18 @@ class Zoomd(MapTransform, InvertibleTransform):
             # Create inverse transform
             zoom = np.array(self.zoomer.zoom)
             inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
-            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
+            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
             # Apply inverse
             d[key] = inverse_transform(
                 d[key],
                 mode=mode,
                 padding_mode=padding_mode,
-                align_corners=None if align_corners == "none" else align_corners,
+                align_corners=None if align_corners == TraceKeys.NONE else align_corners,
             )
             # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
+            d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1698,17 +1691,13 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.randomize(None)
 
         # all the keys share the same random zoom factor
-        self.rand_zoom.randomize(d[self.keys[0]])
+        self.rand_zoom.randomize(d[first(self.key_iterator(d))])
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
             if self._do_transform:
                 d[key] = self.rand_zoom(
-                    d[key],
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=align_corners,
-                    randomize=False,
+                    d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
                 )
             self.push_transform(
                 d,
@@ -1717,7 +1706,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     "zoom": self.rand_zoom._zoom,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
                 },
             )
         return d
@@ -1727,22 +1716,22 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
-            if transform[InverseKeys.DO_TRANSFORM]:
+            if transform[TraceKeys.DO_TRANSFORM]:
                 # Create inverse transform
-                zoom = np.array(transform[InverseKeys.EXTRA_INFO]["zoom"])
-                mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
-                align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
+                zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
+                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+                align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
                 inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
                 # Apply inverse
                 d[key] = inverse_transform(
                     d[key],
                     mode=mode,
                     padding_mode=padding_mode,
-                    align_corners=None if align_corners == "none" else align_corners,
+                    align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
+                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1787,7 +1776,7 @@ class GridDistortiond(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        num_cells: int,
+        num_cells: Union[Tuple[int], int],
         distort_steps: List[Tuple],
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
@@ -1814,11 +1803,7 @@ class GridDistortiond(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.grid_distortion = GridDistortion(
-            num_cells=num_cells,
-            distort_steps=distort_steps,
-            device=device,
-        )
+        self.grid_distortion = GridDistortion(num_cells=num_cells, distort_steps=distort_steps, device=device)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
@@ -1839,9 +1824,8 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        num_cells: int = 5,
+        num_cells: Union[Tuple[int], int] = 5,
         prob: float = 0.1,
-        spatial_dims: int = 2,
         distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
@@ -1853,7 +1837,6 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
             keys: keys of the corresponding items to be transformed.
             num_cells: number of grid cells on each dimension.
             prob: probability of returning a randomized grid distortion transform. Defaults to 0.1.
-            spatial_dims: spatial dimension of input data. Defaults to 2.
             distort_limit: range to randomly distort.
                 If single number, distort_limit is picked from (-distort_limit, distort_limit).
                 Defaults to (-0.03, 0.03).
@@ -1872,11 +1855,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.rand_grid_distortion = RandGridDistortion(
-            num_cells=num_cells,
-            prob=1.0,
-            spatial_dims=spatial_dims,
-            distort_limit=distort_limit,
-            device=device,
+            num_cells=num_cells, prob=1.0, distort_limit=distort_limit, device=device
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -1894,9 +1873,9 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
 
-        self.rand_grid_distortion.randomize(None)
+        self.rand_grid_distortion.randomize(d[first(self.key_iterator(d))].shape[1:])
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode)
+            d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode, randomize=False)
         return d
 
 

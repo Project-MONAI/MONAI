@@ -15,12 +15,14 @@ import re
 import warnings
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Callable, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
 
 from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.misc import ensure_tuple, set_determinism
+from monai.utils.module import pytorch_after
 
 __all__ = [
     "one_hot",
@@ -34,6 +36,7 @@ __all__ = [
     "eval_mode",
     "train_mode",
     "copy_model_state",
+    "convert_to_torchscript",
 ]
 
 
@@ -424,3 +427,68 @@ def copy_model_state(
     if inplace and isinstance(dst, torch.nn.Module):
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
+
+
+def convert_to_torchscript(
+    model: nn.Module,
+    filename_or_obj: Optional[Any] = None,
+    extra_files: Optional[Dict] = None,
+    verify: bool = False,
+    inputs: Optional[Sequence[Any]] = None,
+    device: Optional[torch.device] = None,
+    rtol: float = 1e-4,
+    atol: float = 0.0,
+    **kwargs,
+):
+    """
+    Utility to convert a model into TorchScript model and save to file,
+    with optional input / output data verification.
+
+    Args:
+        model: source PyTorch model to save.
+        filename_or_obj: if not None, specify a file-like object (has to implement write and flush)
+            or a string containing a file path name to save the TorchScript model.
+        extra_files: map from filename to contents which will be stored as part of the save model file.
+            works for PyTorch 1.7 or later.
+            for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
+        verify: whether to verify the input and output of TorchScript model.
+            if `filename_or_obj` is not None, load the saved TorchScript model and verify.
+        inputs: input test data to verify model, should be a sequence of data, every item maps to a argument
+            of `model()` function.
+        device: target device to verify the model, if None, use CUDA if available.
+        rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+
+    """
+    model.eval()
+    with torch.no_grad():
+        script_module = torch.jit.script(model)
+        if filename_or_obj is not None:
+            if not pytorch_after(1, 7):
+                torch.jit.save(m=script_module, f=filename_or_obj)
+            else:
+                torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
+
+    if verify:
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if inputs is None:
+            raise ValueError("missing input data for verification.")
+
+        inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
+        ts_model = torch.jit.load(filename_or_obj) if filename_or_obj is not None else script_module
+        ts_model.eval().to(device)
+        model = model.to(device)
+
+        with torch.no_grad():
+            set_determinism(seed=0)
+            torch_out = ensure_tuple(model(*inputs))
+            set_determinism(seed=0)
+            torchscript_out = ensure_tuple(ts_model(*inputs))
+            set_determinism(seed=None)
+        # compare TorchScript and PyTorch results
+        for r1, r2 in zip(torch_out, torchscript_out):
+            if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
+                torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
+
+    return script_module

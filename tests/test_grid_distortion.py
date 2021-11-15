@@ -19,16 +19,9 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    num_cells = 3
-    distort_steps = [(1.5,) * (1 + num_cells)] * 2
     TESTS.append(
         [
-            dict(
-                num_cells=num_cells,
-                distort_steps=distort_steps,
-                mode="nearest",
-                padding_mode="zeros",
-            ),
+            dict(num_cells=3, distort_steps=[(1.5,) * 4] * 2, mode="nearest", padding_mode="zeros"),
             p(np.indices([6, 6]).astype(np.float32)),
             p(
                 np.array(
@@ -54,16 +47,11 @@ for p in TEST_NDARRAYS:
             ),
         ]
     )
-    num_cells = 2
-    distort_steps = [(1.5,) * (1 + num_cells), (1.0,) * (1 + num_cells)]
+    num_cells = (2, 2)
+    distort_steps = [(1.5,) * (1 + num_cells[0]), (1.0,) * (1 + num_cells[1])]
     TESTS.append(
         [
-            dict(
-                num_cells=num_cells,
-                distort_steps=distort_steps,
-                mode="bilinear",
-                padding_mode="reflection",
-            ),
+            dict(num_cells=num_cells, distort_steps=distort_steps, mode="bilinear", padding_mode="reflection"),
             p(np.indices([6, 6]).astype(np.float32)),
             p(
                 np.array(
@@ -89,16 +77,9 @@ for p in TEST_NDARRAYS:
             ),
         ]
     )
-    num_cells = 2
-    distort_steps = [(1.25,) * (1 + num_cells)] * 3
     TESTS.append(
         [
-            dict(
-                num_cells=num_cells,
-                distort_steps=distort_steps,
-                mode="nearest",
-                padding_mode="zeros",
-            ),
+            dict(num_cells=2, distort_steps=[(1.25,) * 3] * 3, mode="nearest", padding_mode="zeros"),
             p(np.indices([3, 3, 3])[:1].astype(np.float32)),
             p(
                 np.array(

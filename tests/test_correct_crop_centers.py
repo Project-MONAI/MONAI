@@ -17,13 +17,7 @@ from parameterized import parameterized
 from monai.transforms.utils import correct_crop_centers
 from tests.utils import assert_allclose
 
-TESTS = [
-    [
-        [1, 5, 0],
-        [2, 2, 2],
-        [10, 10, 10],
-    ],
-]
+TESTS = [[[1, 5, 0], [2, 2, 2], [10, 10, 10]]]
 
 
 class TestCorrectCropCenters(unittest.TestCase):

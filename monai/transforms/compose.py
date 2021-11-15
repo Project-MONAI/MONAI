@@ -28,7 +28,7 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import TraceKeys
 
 __all__ = ["Compose", "OneOf"]
 
@@ -173,8 +173,8 @@ class Compose(Randomizable, InvertibleTransform):
 
 class OneOf(Compose):
     """
-    ``OneOf`` provides the ability to radomly choose one transform out of a
-    list of callables with predfined probabilities for each.
+    ``OneOf`` provides the ability to randomly choose one transform out of a
+    list of callables with pre-defined probabilities for each.
 
     Args:
         transforms: sequence of callables.
@@ -237,7 +237,7 @@ class OneOf(Compose):
         # if the data is a mapping (dictionary), append the OneOf transform to the end
         if isinstance(data, Mapping):
             for key in data.keys():
-                if key + InverseKeys.KEY_SUFFIX in data:
+                if self.trace_key(key) in data:
                     self.push_transform(data, key, extra_info={"index": index})
         return data
 
@@ -250,9 +250,9 @@ class OneOf(Compose):
         # loop until we get an index and then break (since they'll all be the same)
         index = None
         for key in data.keys():
-            if key + InverseKeys.KEY_SUFFIX in data:
+            if self.trace_key(key) in data:
                 # get the index of the applied OneOf transform
-                index = self.get_most_recent_transform(data, key)[InverseKeys.EXTRA_INFO]["index"]
+                index = self.get_most_recent_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
                 # and then remove the OneOf transform
                 self.pop_transform(data, key)
         if index is None:

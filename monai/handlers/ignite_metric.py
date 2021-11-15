@@ -41,18 +41,16 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
         output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
             construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
             lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-            for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
-            output_transform can be `lambda x: (x["pred"], x["label"])`.
+            `engine.state` and `output_transform` inherit from the ignite concept:
+            https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
         save_details: whether to save metric computation details per image, for example: mean_dice of every image.
             default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
     """
 
     def __init__(
-        self,
-        metric_fn: CumulativeIterationMetric,
-        output_transform: Callable = lambda x: x,
-        save_details: bool = True,
+        self, metric_fn: CumulativeIterationMetric, output_transform: Callable = lambda x: x, save_details: bool = True
     ) -> None:
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
@@ -103,7 +101,11 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
                 raise RuntimeError("please call the attach() function to connect expected engine first.")
             self._engine.state.metric_details[self._name] = self.metric_fn.get_buffer()  # type: ignore
 
-        return result.item() if isinstance(result, torch.Tensor) else result
+        if isinstance(result, torch.Tensor):
+            result = result.squeeze()
+            if result.ndim == 0:
+                result = result.item()
+        return result
 
     def attach(self, engine: Engine, name: str) -> None:
         """

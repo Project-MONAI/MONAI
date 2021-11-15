@@ -25,7 +25,8 @@ _cucim, has_cim = optional_import("cucim")
 has_cim = has_cim and hasattr(_cucim, "CuImage")
 
 FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + os.path.basename(FILE_URL))
+base_name, extension = FILE_URL.split("id=")[1], ".tiff"
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 TEST_CASE_0 = [
     {
@@ -134,13 +135,7 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
     def setUp(self):
         download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     @skipUnless(has_cim, "Requires CuCIM")
     def test_read_patches(self, input_parameters, expected):
         dataset = SmartCachePatchWSIDataset(**input_parameters)

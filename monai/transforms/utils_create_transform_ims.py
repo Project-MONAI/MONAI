@@ -141,11 +141,20 @@ from monai.transforms.intensity.dictionary import (
 )
 from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour
 from monai.transforms.post.dictionary import AsDiscreted, KeepLargestConnectedComponentd, LabelFilterd, LabelToContourd
-from monai.transforms.spatial.array import Rand2DElastic, RandAffine, RandAxisFlip, RandRotate90, Resize, Spacing
+from monai.transforms.spatial.array import (
+    Rand2DElastic,
+    RandAffine,
+    RandAxisFlip,
+    RandGridDistortion,
+    RandRotate90,
+    Resize,
+    Spacing,
+)
 from monai.transforms.spatial.dictionary import (
     Rand2DElasticd,
     RandAffined,
     RandAxisFlipd,
+    RandGridDistortiond,
     RandRotate90d,
     Resized,
     Spacingd,
@@ -181,12 +190,7 @@ def get_data(keys):
     data = {CommonKeys.IMAGE: image, CommonKeys.LABEL: label}
 
     transforms = Compose(
-        [
-            LoadImaged(keys),
-            AddChanneld(keys),
-            ScaleIntensityd(CommonKeys.IMAGE),
-            Rotate90d(keys, spatial_axes=[0, 2]),
-        ]
+        [LoadImaged(keys), AddChanneld(keys), ScaleIntensityd(CommonKeys.IMAGE), Rotate90d(keys, spatial_axes=[0, 2])]
     )
     data = transforms(data)
     max_size = max(data[keys[0]].shape)
@@ -236,9 +240,6 @@ def pre_process_data(data, ndim, is_map, is_post):
     if ndim == 2:
         for k in keys:
             data[k] = data[k][..., data[k].shape[-1] // 2]
-    if is_post:
-        for k in keys:
-            data[k] = torch.as_tensor(data[k])
 
     if is_map:
         return data
@@ -380,7 +381,7 @@ def get_images(data, is_label=False):
 
 
 def create_transform_im(
-    transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, out_dir=None, seed=0, is_post=False
+    transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, seed=0, is_post=False
 ):
     """Create an image with the before and after of the transform.
     Also update the transform's documentation to point to this image."""
@@ -516,13 +517,7 @@ if __name__ == "__main__":
     create_transform_im(RandKSpaceSpikeNoise, dict(prob=1, intensity_range=(10, 13)), data)
     create_transform_im(
         RandKSpaceSpikeNoised,
-        dict(
-            keys=CommonKeys.IMAGE,
-            global_prob=1,
-            prob=1,
-            common_sampling=True,
-            intensity_ranges={CommonKeys.IMAGE: (13, 15)},
-        ),
+        dict(keys=CommonKeys.IMAGE, global_prob=1, prob=1, common_sampling=True, intensity_range=(13, 15)),
         data,
     )
     create_transform_im(GibbsNoise, dict(alpha=0.8), data)
@@ -671,4 +666,10 @@ if __name__ == "__main__":
     create_transform_im(KeepLargestConnectedComponent, dict(applied_labels=1), data_binary, is_post=True, ndim=2)
     create_transform_im(
         KeepLargestConnectedComponentd, dict(keys=CommonKeys.LABEL, applied_labels=1), data_binary, is_post=True, ndim=2
+    )
+    create_transform_im(RandGridDistortion, dict(num_cells=3, prob=1.0, distort_limit=(-0.1, 0.1)), data)
+    create_transform_im(
+        RandGridDistortiond,
+        dict(keys=keys, num_cells=4, prob=1.0, distort_limit=(-0.2, 0.2), mode=["bilinear", "nearest"]),
+        data,
     )

@@ -48,19 +48,11 @@ TESTS_3D = [
     for t in [
         RandFlipd(keys=KEYS, prob=0.5, spatial_axis=[1, 2]),
         RandAxisFlipd(keys=KEYS, prob=0.5),
-        Compose(
-            [
-                RandRotate90d(keys=KEYS, spatial_axes=(1, 2)),
-                ToTensord(keys=KEYS),
-            ]
-        ),
+        Compose([RandRotate90d(keys=KEYS, spatial_axes=(1, 2)), ToTensord(keys=KEYS)]),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
         RandAffined(
-            keys=KEYS,
-            prob=0.5,
-            rotate_range=np.pi,
-            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         ),
     ]
 ]
@@ -71,19 +63,11 @@ TESTS_2D = [
     for t in [
         RandFlipd(keys=KEYS, prob=0.5, spatial_axis=[1]),
         RandAxisFlipd(keys=KEYS, prob=0.5),
-        Compose(
-            [
-                RandRotate90d(keys=KEYS, prob=0.5, spatial_axes=(0, 1)),
-                ToTensord(keys=KEYS),
-            ]
-        ),
+        Compose([RandRotate90d(keys=KEYS, prob=0.5, spatial_axes=(0, 1)), ToTensord(keys=KEYS)]),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
         RandAffined(
-            keys=KEYS,
-            prob=0.5,
-            rotate_range=np.pi,
-            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         ),
     ]
 ]
@@ -122,7 +106,7 @@ class TestInverseCollation(unittest.TestCase):
             modified_transform = Compose([transform, ResizeWithPadOrCropd(KEYS, 100), ToTensord(KEYS)])
 
         # num workers = 0 for mac or gpu transforms
-        num_workers = 0 if sys.platform == "darwin" or torch.cuda.is_available() else 2
+        num_workers = 0 if sys.platform != "linux" or torch.cuda.is_available() else 2
 
         dataset = CacheDataset(data, transform=modified_transform, progress=False)
         loader = DataLoader(dataset, num_workers, batch_size=self.batch_size, collate_fn=collate_fn)

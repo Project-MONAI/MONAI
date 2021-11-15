@@ -31,13 +31,16 @@ DEFAULT_TAG = "Loss"
 class StatsHandler:
     """
     StatsHandler defines a set of Ignite Event-handlers for all the log printing logics.
-    It's can be used for any Ignite Engine(trainer, validator and evaluator).
+    It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support logging for epoch level and iteration level with pre-defined loggers.
 
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
         - When ITERATION_COMPLETED, logs
           ``self.output_transform(engine.state.output)`` using ``self.logger``.
+
+    Usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
 
     """
 
@@ -66,6 +69,9 @@ class StatsHandler:
                 By default this value logging happens when every iteration completed.
                 The default behavior is to print loss from output[0] as output is a decollated list
                 and we replicated loss value for every item of the decollated list.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to print synced epoch number
                 with the trainer engine.
@@ -168,7 +174,7 @@ class StatsHandler:
             out_str = f"Epoch[{current_epoch}] Metrics -- "
             for name in sorted(prints_dict):
                 value = prints_dict[name]
-                out_str += self.key_var_format.format(name, value)
+                out_str += self.key_var_format.format(name, value) if is_scalar(value) else f"{name}: {str(value)}"
             self.logger.info(out_str)
 
         if (
@@ -231,9 +237,9 @@ class StatsHandler:
             return  # no value to print
 
         num_iterations = engine.state.epoch_length
-        current_iteration = engine.state.iteration - 1
+        current_iteration = engine.state.iteration
         if num_iterations is not None:
-            current_iteration %= num_iterations + 1
+            current_iteration = (current_iteration - 1) % num_iterations + 1
         current_epoch = engine.state.epoch
         num_epochs = engine.state.max_epochs
 

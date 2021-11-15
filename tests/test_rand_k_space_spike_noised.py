@@ -49,12 +49,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
 
         data = self.get_data(im_shape, im_type)
 
-        t = RandKSpaceSpikeNoised(
-            KEYS,
-            prob=1.0,
-            intensity_range=(13, 15),
-            channel_wise=True,
-        )
+        t = RandKSpaceSpikeNoised(KEYS, prob=1.0, intensity_range=(13, 15), channel_wise=True)
         t.set_random_state(42)
         out1 = t(deepcopy(data))
 
@@ -73,19 +68,9 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
     def test_0_prob(self, im_shape, im_type):
         data = self.get_data(im_shape, im_type)
 
-        t1 = RandKSpaceSpikeNoised(
-            KEYS,
-            prob=0.0,
-            intensity_range=(13, 15),
-            channel_wise=True,
-        )
+        t1 = RandKSpaceSpikeNoised(KEYS, prob=0.0, intensity_range=(13, 15), channel_wise=True)
 
-        t2 = RandKSpaceSpikeNoised(
-            KEYS,
-            prob=0.0,
-            intensity_range=(13, 15),
-            channel_wise=True,
-        )
+        t2 = RandKSpaceSpikeNoised(KEYS, prob=0.0, intensity_range=(13, 15), channel_wise=True)
         out1 = t1(data)
         out2 = t2(data)
 

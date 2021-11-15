@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import hashlib
+import logging
 import os
 import shutil
+import sys
 import tarfile
 import tempfile
 import warnings
@@ -20,7 +22,7 @@ from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import urlretrieve
 
-from monai.utils import min_version, optional_import
+from monai.utils import look_up_option, min_version, optional_import
 
 gdown, has_gdown = optional_import("gdown", "3.6")
 
@@ -31,12 +33,41 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = [
-    "check_hash",
-    "download_url",
-    "extractall",
-    "download_and_extract",
-]
+__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger", "SUPPORTED_HASH_TYPES"]
+
+DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
+SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
+
+
+def get_logger(
+    module_name: str = "monai.apps",
+    fmt: str = DEFAULT_FMT,
+    datefmt: Optional[str] = None,
+    logger_handler: Optional[logging.Handler] = None,
+):
+    """
+    Get a `module_name` logger with the specified format and date format.
+    By default, the logger will print to `stdout` at the INFO level.
+    If `module_name` is `None`, return the root logger.
+    `fmt` and `datafmt` are passed to a `logging.Formatter` object
+    (https://docs.python.org/3/library/logging.html#formatter-objects).
+    `logger_handler` can be used to add an additional handler.
+    """
+    logger = logging.getLogger(module_name)
+    logger.propagate = False
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    if logger_handler is not None:
+        logger.addHandler(logger_handler)
+    return logger
+
+
+# apps module-level default logger
+logger = get_logger("monai.apps")
+__all__.append("logger")
 
 
 def _basename(p):
@@ -69,20 +100,14 @@ def _download_with_progress(url, filepath, progress: bool = True):
                         self.total = tsize
                     self.update(b * bsize - self.n)  # will also set self.n = b * bsize
 
-            with TqdmUpTo(
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-                miniters=1,
-                desc=_basename(filepath),
-            ) as t:
+            with TqdmUpTo(unit="B", unit_scale=True, unit_divisor=1024, miniters=1, desc=_basename(filepath)) as t:
                 urlretrieve(url, filepath, reporthook=t.update_to)
         else:
             if not has_tqdm and progress:
                 warnings.warn("tqdm is not installed, will not show the downloading progress bar.")
             urlretrieve(url, filepath)
     except (URLError, HTTPError, ContentTooShortError, OSError) as e:
-        print(f"Download failed from {url} to {filepath}.")
+        logger.error(f"Download failed from {url} to {filepath}.")
         raise e
 
 
@@ -93,30 +118,28 @@ def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5")
     Args:
         filepath: path of source file to verify hash value.
         val: expected hash value of the file.
-        hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        hash_type: type of hash algorithm to use, default is `"md5"`.
+            The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
+            See also: :py:data:`monai.apps.utils.SUPPORTED_HASH_TYPES`.
 
     """
     if val is None:
-        print(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
+        logger.info(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
         return True
-    if hash_type.lower() == "md5":
-        actual_hash = hashlib.md5()
-    elif hash_type.lower() == "sha1":
-        actual_hash = hashlib.sha1()
-    else:
-        raise NotImplementedError(f"Unknown 'hash_type' {hash_type}.")
+    actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH_TYPES)
+    actual_hash = actual_hash_func()
     try:
         with open(filepath, "rb") as f:
             for chunk in iter(lambda: f.read(1024 * 1024), b""):
                 actual_hash.update(chunk)
     except Exception as e:
-        print(f"Exception in check_hash: {e}")
+        logger.error(f"Exception in check_hash: {e}")
         return False
     if val != actual_hash.hexdigest():
-        print(f"check_hash failed {actual_hash.hexdigest()}.")
+        logger.error(f"check_hash failed {actual_hash.hexdigest()}.")
         return False
 
-    print(f"Verified '{_basename(filepath)}', {hash_type}: {val}.")
+    logger.info(f"Verified '{_basename(filepath)}', {hash_type}: {val}.")
     return True
 
 
@@ -148,13 +171,13 @@ def download_url(
     """
     if not filepath:
         filepath = os.path.abspath(os.path.join(".", _basename(url)))
-        print(f"Default downloading to '{filepath}'")
+        logger.info(f"Default downloading to '{filepath}'")
     if os.path.exists(filepath):
         if not check_hash(filepath, hash_val, hash_type):
             raise RuntimeError(
                 f"{hash_type} check of existing file failed: filepath={filepath}, expected {hash_type}={hash_val}."
             )
-        print(f"File exists: {filepath}, skipped downloading.")
+        logger.info(f"File exists: {filepath}, skipped downloading.")
         return
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -173,7 +196,7 @@ def download_url(
         if file_dir:
             os.makedirs(file_dir, exist_ok=True)
         shutil.move(tmp_name, filepath)  # copy the downloaded to a user-specified cache.
-        print(f"Downloaded: {filepath}")
+        logger.info(f"Downloaded: {filepath}")
     if not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of downloaded file failed: URL={url}, "
@@ -216,13 +239,13 @@ def extractall(
     else:
         cache_dir = output_dir
     if os.path.exists(cache_dir) and len(os.listdir(cache_dir)) > 0:
-        print(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
+        logger.info(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
         return
     if hash_val and not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
         )
-    print(f"Writing into directory: {output_dir}.")
+    logger.info(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
     if filepath.endswith("zip") or _file_type == "zip":
         zip_file = zipfile.ZipFile(filepath)

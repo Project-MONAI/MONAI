@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -34,6 +34,9 @@ __all__ = [
     "concatenate",
     "cumsum",
     "isfinite",
+    "searchsorted",
+    "repeat",
+    "isnan",
 ]
 
 
@@ -75,7 +78,7 @@ def clip(a: NdarrayOrTensor, a_min, a_max) -> NdarrayOrTensor:
     if isinstance(a, np.ndarray):
         result = np.clip(a, a_min, a_max)
     else:
-        result = torch.clip(a, a_min, a_max)
+        result = torch.clamp(a, a_min, a_max)
     return result
 
 
@@ -142,7 +145,7 @@ def nonzero(x: NdarrayOrTensor):
     """`np.nonzero` with equivalent implementation for torch.
 
     Args:
-        idx: array/tensor
+        x: array/tensor
 
     Returns:
         Index unravelled for given shape
@@ -192,7 +195,7 @@ def unravel_index(idx, shape):
 
 
 def unravel_indices(idx, shape):
-    """Computing unravel cooridnates from indices.
+    """Computing unravel coordinates from indices.
 
     Args:
         idx: a sequence of indices to unravel
@@ -271,38 +274,51 @@ def concatenate(to_cat: Sequence[NdarrayOrTensor], axis: int = 0, out=None) -> N
     """`np.concatenate` with equivalent implementation for torch (`torch.cat`)."""
     if isinstance(to_cat[0], np.ndarray):
         return np.concatenate(to_cat, axis, out)  # type: ignore
-    else:
-        return torch.cat(to_cat, dim=axis, out=out)  # type: ignore
+    return torch.cat(to_cat, dim=axis, out=out)  # type: ignore
 
 
 def cumsum(a: NdarrayOrTensor, axis=None):
     """`np.cumsum` with equivalent implementation for torch."""
     if isinstance(a, np.ndarray):
         return np.cumsum(a, axis)
-    else:
-        if axis is None:
-            return torch.cumsum(a[:], 0)
-        else:
-            return torch.cumsum(a, dim=axis)
+    if axis is None:
+        return torch.cumsum(a[:], 0)
+    return torch.cumsum(a, dim=axis)
 
 
 def isfinite(x):
     """`np.isfinite` with equivalent implementation for torch."""
     if not isinstance(x, torch.Tensor):
         return np.isfinite(x)
-    else:
-        return torch.isfinite(x)
+    return torch.isfinite(x)
 
 
 def searchsorted(a: NdarrayOrTensor, v: NdarrayOrTensor, right=False, sorter=None):
     side = "right" if right else "left"
     if isinstance(a, np.ndarray):
         return np.searchsorted(a, v, side, sorter)  # type: ignore
-    else:
-        if hasattr(torch, "searchsorted"):
-            return torch.searchsorted(a, v, right=right)  # type: ignore
-        else:
-            # if using old PyTorch, will convert to numpy array then compute
-            ret = np.searchsorted(a.cpu().numpy(), v.cpu().numpy(), side, sorter)  # type: ignore
-            ret, *_ = convert_to_dst_type(ret, a)
-            return ret
+    if hasattr(torch, "searchsorted"):
+        return torch.searchsorted(a, v, right=right)  # type: ignore
+    # if using old PyTorch, will convert to numpy array then compute
+    ret = np.searchsorted(a.cpu().numpy(), v.cpu().numpy(), side, sorter)  # type: ignore
+    ret, *_ = convert_to_dst_type(ret, a)
+    return ret
+
+
+def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None):
+    """`np.repeat` with equivalent implementation for torch (`repeat_interleave`)."""
+    if isinstance(a, np.ndarray):
+        return np.repeat(a, repeats, axis)
+    return torch.repeat_interleave(a, repeats, dim=axis)
+
+
+def isnan(x: NdarrayOrTensor):
+    """`np.isnan` with equivalent implementation for torch.
+
+    Args:
+        x: array/tensor
+
+    """
+    if isinstance(x, np.ndarray):
+        return np.isnan(x)
+    return torch.isnan(x)

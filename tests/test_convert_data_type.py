@@ -24,6 +24,20 @@ for in_type in TEST_NDARRAYS + (int, float):
     for out_type in TEST_NDARRAYS:
         TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0))))  # type: ignore
 
+TESTS_LIST: List[Tuple] = []
+for in_type in TEST_NDARRAYS + (int, float):
+    for out_type in TEST_NDARRAYS:
+        TESTS_LIST.append(
+            ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True)  # type: ignore
+        )
+        TESTS_LIST.append(
+            (
+                [in_type(np.array(1.0)), in_type(np.array(1.0))],  # type: ignore
+                [out_type(np.array(1.0)), out_type(np.array(1.0))],
+                False,
+            )
+        )
+
 
 class TestTensor(torch.Tensor):
     pass
@@ -46,10 +60,18 @@ class TestConvertDataType(unittest.TestCase):
     def test_neg_stride(self):
         _ = convert_data_type(np.array((1, 2))[::-1], torch.Tensor)
 
-    def test_ill_arg(self):
-        with self.assertRaises(ValueError):
-            convert_data_type(None, torch.Tensor)
-        convert_data_type(None, np.ndarray)
+    @parameterized.expand(TESTS_LIST)
+    def test_convert_list(self, in_image, im_out, wrap):
+        output_type = type(im_out) if wrap else type(im_out[0])
+        converted_im, *_ = convert_data_type(in_image, output_type, wrap_sequence=wrap)
+        # check output is desired type
+        if not wrap:
+            converted_im = converted_im[0]
+            im_out = im_out[0]
+        self.assertEqual(type(converted_im), type(im_out))
+        # check dtype is unchanged
+        if isinstance(in_type, (np.ndarray, torch.Tensor)):
+            self.assertEqual(converted_im.dtype, im_out.dtype)
 
 
 class TestConvertDataSame(unittest.TestCase):

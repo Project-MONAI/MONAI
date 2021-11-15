@@ -20,20 +20,10 @@ from tests.utils import test_script_save
 
 CASES_1D = []
 for mode in ["pixelshuffle", "nontrainable", "deconv", None]:
-    kwargs = {
-        "dimensions": 1,
-        "in_channels": 5,
-        "out_channels": 8,
-    }
+    kwargs = {"spatial_dims": 1, "in_channels": 5, "out_channels": 8}
     if mode is not None:
         kwargs["upsample"] = mode  # type: ignore
-    CASES_1D.append(
-        [
-            kwargs,
-            (10, 5, 33),
-            (10, 8, 33),
-        ]
-    )
+    CASES_1D.append([kwargs, (10, 5, 33), (10, 8, 33)])
 
 CASES_2D = []
 for mode in ["pixelshuffle", "nontrainable", "deconv"]:
@@ -43,7 +33,7 @@ for mode in ["pixelshuffle", "nontrainable", "deconv"]:
             CASES_2D.append(
                 [
                     {
-                        "dimensions": 2,
+                        "spatial_dims": 2,
                         "in_channels": in_channels,
                         "out_channels": out_channels,
                         "features": (12, 12, 13, 14, 15, 16),
@@ -56,7 +46,7 @@ for mode in ["pixelshuffle", "nontrainable", "deconv"]:
 CASES_3D = [
     [  # single channel 3D, batch 2
         {
-            "dimensions": 3,
+            "spatial_dims": 3,
             "in_channels": 1,
             "out_channels": 2,
             "features": (16, 20, 21, 22, 23, 11),
@@ -67,7 +57,7 @@ CASES_3D = [
     ],
     [  # 2-channel 3D, batch 3
         {
-            "dimensions": 3,
+            "spatial_dims": 3,
             "in_channels": 2,
             "out_channels": 7,
             "features": (14, 15, 16, 17, 18, 11),
@@ -78,7 +68,7 @@ CASES_3D = [
     ],
     [  # 4-channel 3D, batch 5
         {
-            "dimensions": 3,
+            "spatial_dims": 3,
             "in_channels": 4,
             "out_channels": 2,
             "features": (14, 15, 16, 17, 18, 10),

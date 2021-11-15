@@ -47,12 +47,7 @@ class TestResize(NumpyImageTestCase2D):
             spatial_size = (32, 64)
         expected = [
             skimage.transform.resize(
-                channel,
-                spatial_size,
-                order=_order,
-                clip=False,
-                preserve_range=False,
-                anti_aliasing=False,
+                channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=False
             )
             for channel in self.imt[0]
         ]

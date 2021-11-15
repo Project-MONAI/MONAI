@@ -39,9 +39,7 @@ class RegressionMetric(CumulativeIterationMetric):
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__()
         self.reduction = reduction
@@ -94,9 +92,7 @@ class MSEMetric(RegressionMetric):
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)
@@ -128,9 +124,7 @@ class MAEMetric(RegressionMetric):
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.abs_func = torch.abs
@@ -163,9 +157,7 @@ class RMSEMetric(RegressionMetric):
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)

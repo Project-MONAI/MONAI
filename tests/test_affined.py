@@ -44,9 +44,16 @@ for p in TEST_NDARRAYS:
         )
         TESTS.append(
             [
+                dict(keys="img", rotate_params=[np.pi / 2], padding_mode="zeros", spatial_size=(4, 4), device=device),
+                {"img": p(np.arange(4).reshape((1, 2, 2)))},
+                p(np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 3.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]]])),
+            ]
+        )
+        TESTS.append(
+            [
                 dict(
                     keys="img",
-                    rotate_params=[np.pi / 2],
+                    affine=p(torch.tensor([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])),
                     padding_mode="zeros",
                     spatial_size=(4, 4),
                     device=device,
@@ -103,11 +110,7 @@ for p in TEST_NDARRAYS:
         TESTS.append(
             [
                 dict(
-                    keys="img",
-                    rotate_params=[np.pi / 2],
-                    padding_mode="zeros",
-                    spatial_size=(4, 4, 4),
-                    device=device,
+                    keys="img", rotate_params=[np.pi / 2], padding_mode="zeros", spatial_size=(4, 4, 4), device=device
                 ),
                 {"img": p(np.arange(8).reshape((1, 2, 2, 2)))},
                 p(

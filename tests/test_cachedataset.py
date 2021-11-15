@@ -84,12 +84,7 @@ class TestCacheDataset(unittest.TestCase):
     def test_set_data(self):
         data_list1 = list(range(10))
 
-        transform = Compose(
-            [
-                Lambda(func=lambda x: np.array([x * 10])),
-                RandLambda(func=lambda x: x + 1),
-            ]
-        )
+        transform = Compose([Lambda(func=lambda x: np.array([x * 10])), RandLambda(func=lambda x: x + 1)])
 
         dataset = CacheDataset(
             data=data_list1,
@@ -142,11 +137,7 @@ class TestCacheThread(unittest.TestCase):
         _kwg = {"persistent_workers": persistent_workers} if get_torch_version_tuple() > (1, 7) else {}
         data_list = list(range(1, 11))
         dataset = CacheDataset(
-            data=data_list,
-            transform=_StatefulTransform(),
-            cache_rate=1.0,
-            num_workers=cache_workers,
-            progress=False,
+            data=data_list, transform=_StatefulTransform(), cache_rate=1.0, num_workers=cache_workers, progress=False
         )
         self.assertListEqual(expected, list(dataset))
         loader = DataLoader(

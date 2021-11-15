@@ -66,6 +66,7 @@ __all__ = [
     "is_supported_format",
     "partition_dataset",
     "partition_dataset_classes",
+    "resample_datalist",
     "select_cross_validation_folds",
     "json_hashing",
     "pickle_hashing",
@@ -134,9 +135,7 @@ def iter_patch_slices(
 
 
 def dense_patch_slices(
-    image_size: Sequence[int],
-    patch_size: Sequence[int],
-    scan_interval: Sequence[int],
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
 ) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
@@ -470,6 +469,7 @@ def set_rnd(obj, seed: int) -> int:
     Set seed or random state for all randomisable properties of obj.
 
     Args:
+        obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
     """
     if not hasattr(obj, "__dict__"):
@@ -991,6 +991,31 @@ def partition_dataset_classes(
         datasets.append([data[j] for j in indices])
 
     return datasets
+
+
+def resample_datalist(data: Sequence, factor: float, random_pick: bool = False, seed: int = 0):
+    """
+    Utility function to resample the loaded datalist for training, for example:
+    If factor < 1.0, randomly pick part of the datalist and set to Dataset, useful to quickly test the program.
+    If factor > 1.0, repeat the datalist to enhance the Dataset.
+
+    Args:
+        data: original datalist to scale.
+        factor: scale factor for the datalist, for example, factor=4.5, repeat the datalist 4 times and plus
+            50% of the original datalist.
+        random_pick: whether to randomly pick data if scale factor has decimal part.
+        seed: random seed to randomly pick data.
+
+    """
+    scale, repeats = math.modf(factor)
+    ret: List = list()
+
+    for _ in range(int(repeats)):
+        ret.extend(list(deepcopy(data)))
+    if scale > 1e-6:
+        ret.extend(partition_dataset(data=data, ratios=[scale, 1 - scale], shuffle=random_pick, seed=seed)[0])
+
+    return ret
 
 
 def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[Sequence[int], int]) -> List:

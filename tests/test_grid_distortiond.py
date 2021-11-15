@@ -18,9 +18,9 @@ from monai.transforms import GridDistortiond
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
+num_cells = (2, 2)
+distort_steps = [(1.5,) * (1 + n_c) for n_c in num_cells]
 for p in TEST_NDARRAYS:
-    num_cells = 2
-    distort_steps = [(1.5,) * (1 + num_cells)] * 2
     img = np.indices([6, 6]).astype(np.float32)
     TESTS.append(
         [

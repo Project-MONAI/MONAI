@@ -33,11 +33,7 @@ for p in TEST_NDARRAYS:
         TESTS.append([{"device": device}, {"grid": p(torch.ones((3, 3, 3)))}, p(np.ones((3, 3, 3)))])
         TESTS.append(
             [
-                {
-                    "rotate_params": (1.0, 1.0),
-                    "scale_params": (-20, 10),
-                    "device": device,
-                },
+                {"rotate_params": (1.0, 1.0), "scale_params": (-20, 10), "device": device},
                 {"grid": p(torch.ones((3, 3, 3)))},
                 p(
                     torch.tensor(
@@ -61,10 +57,35 @@ for p in TEST_NDARRAYS:
         TESTS.append(
             [
                 {
-                    "rotate_params": (1.0, 1.0, 1.0),
-                    "scale_params": (-20, 10),
-                    "device": device,
+                    "affine": p(
+                        torch.tensor(
+                            [[-10.8060, -8.4147, 0.0000], [-16.8294, 5.4030, 0.0000], [0.0000, 0.0000, 1.0000]]
+                        )
+                    )
                 },
+                {"grid": p(torch.ones((3, 3, 3)))},
+                p(
+                    torch.tensor(
+                        [
+                            [
+                                [-19.2208, -19.2208, -19.2208],
+                                [-19.2208, -19.2208, -19.2208],
+                                [-19.2208, -19.2208, -19.2208],
+                            ],
+                            [
+                                [-11.4264, -11.4264, -11.4264],
+                                [-11.4264, -11.4264, -11.4264],
+                                [-11.4264, -11.4264, -11.4264],
+                            ],
+                            [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+                        ]
+                    )
+                ),
+            ]
+        )
+        TESTS.append(
+            [
+                {"rotate_params": (1.0, 1.0, 1.0), "scale_params": (-20, 10), "device": device},
                 {"grid": p(torch.ones((4, 3, 3, 3)))},
                 p(
                     torch.tensor(
@@ -106,6 +127,7 @@ for p in TEST_NDARRAYS:
                 ),
             ]
         )
+
 
 _rtol = 5e-2 if is_tf32_env() else 1e-4
 

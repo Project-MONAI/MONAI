@@ -26,7 +26,7 @@ from monai.engines.utils import (
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import PT_BEFORE_1_7, min_version, optional_import
+from monai.utils import min_version, optional_import, pytorch_after
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
@@ -190,7 +190,7 @@ class SupervisedTrainer(Trainer):
 
         self.network.train()
         # `set_to_none` only work from PyTorch 1.7.0
-        if PT_BEFORE_1_7:
+        if not pytorch_after(1, 7):
             self.optimizer.zero_grad()
         else:
             self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
@@ -356,12 +356,10 @@ class GanTrainer(Trainer):
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
-        d_total_loss = torch.zeros(
-            1,
-        )
+        d_total_loss = torch.zeros(1)
         for _ in range(self.d_train_steps):
             # `set_to_none` only work from PyTorch 1.7.0
-            if PT_BEFORE_1_7:
+            if not pytorch_after(1, 7):
                 self.d_optimizer.zero_grad()
             else:
                 self.d_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
@@ -379,7 +377,7 @@ class GanTrainer(Trainer):
                 non_blocking=engine.non_blocking,  # type: ignore
             )
         g_output = self.g_inferer(g_input, self.g_network)
-        if PT_BEFORE_1_7:
+        if not pytorch_after(1, 7):
             self.g_optimizer.zero_grad()
         else:
             self.g_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
