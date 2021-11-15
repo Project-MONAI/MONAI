@@ -33,10 +33,10 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger"]
+__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger", "SUPPORTED_HASH_TYPES"]
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
-SUPPORTED_HASH = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
+SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
 
 
 def get_logger(
@@ -119,12 +119,14 @@ def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5")
         filepath: path of source file to verify hash value.
         val: expected hash value of the file.
         hash_type: type of hash algorithm to use, default is `"md5"`.
+            The supported hash types are `"md5"`, `"sha1"`, `"sha256"`, `"sha512"`.
+            See also: :py:data:`monai.apps.utils.SUPPORTED_HASH_TYPES`.
 
     """
     if val is None:
         logger.info(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
         return True
-    actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH)
+    actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH_TYPES)
     actual_hash = actual_hash_func()
     try:
         with open(filepath, "rb") as f:
