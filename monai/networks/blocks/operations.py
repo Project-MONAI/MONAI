@@ -32,7 +32,7 @@ class ReLUConvBN(nn.Module):
         kernel_size: int,
         padding: int
     ):
-        super(ReLUConvBN, self).__init__()
+        super().__init__()
         self.op = nn.Sequential(
             nn.ReLU(),
             nn.Conv3d(C_in, C_out, kernel_size, padding=padding, bias=False),
@@ -53,7 +53,7 @@ class P3DReLUConvBN(nn.Module):
         padding: int,
         P3Dmode: int = 0
     ):
-        super(P3DReLUConvBN, self).__init__()
+        super().__init__()
         self.P3Dmode = P3Dmode
         if P3Dmode == 0: #331
             kernel_size0 = (kernel_size, kernel_size, 1)
@@ -75,7 +75,7 @@ class P3DReLUConvBN(nn.Module):
             nn.ReLU(),
             nn.Conv3d(C_in, C_in, kernel_size0,
                         padding=padding0, bias=False),
-            nn.Conv3d(C_in, C_out, kernel_size1, 
+            nn.Conv3d(C_in, C_out, kernel_size1,
                         padding=padding1, bias=False),
             nn.InstanceNorm3d(C_out)
         )
@@ -87,7 +87,7 @@ class P3DReLUConvBN(nn.Module):
 
 class Identity(nn.Module):
     def __init__(self):
-        super(Identity, self).__init__()
+        super().__init__()
         self.memory = 0
 
     def forward(self, x):
@@ -96,20 +96,20 @@ class Identity(nn.Module):
 
 class FactorizedReduce(nn.Module):
     """
-    Downsample the feature by 2 using stride. 
+    Downsample the feature by 2 using stride.
     """
     def __init__(
         self,
         C_in: int,
         C_out: int,
     ):
-        super(FactorizedReduce, self).__init__()
+        super().__init__()
         assert C_out % 2 == 0
         self.relu = nn.ReLU()
         self.conv_1 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
         self.conv_2 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
         self.bn = nn.InstanceNorm3d(C_out)
-        # multiply by 8 to comply with cell output size (see net.get_memory_usage) 
+        # multiply by 8 to comply with cell output size (see net.get_memory_usage)
         self.memory = (1 + C_out/C_in/8 * 3) * 8 * C_in/C_out
 
     def forward(self, x):
@@ -125,7 +125,7 @@ class FactorizedIncrease(nn.Module):
         in_channel: int,
         out_channel: int,
     ):
-        super(FactorizedIncrease, self).__init__()
+        super().__init__()
         self._in_channel = in_channel
         self.op = nn.Sequential(
             nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
@@ -146,7 +146,7 @@ class MixedOp(nn.Module):
         C,
         code_c = None,
     ):
-        super(MixedOp, self).__init__()
+        super().__init__()
         self._ops = nn.ModuleList()
         if code_c is None:
             code_c = np.ones(len(OPS))
@@ -168,7 +168,7 @@ class MixedOp(nn.Module):
         result = 0
         for _ in pos:
             result += self._ops[_.item()](x)*ops[_.item()]*weight[_.item()]
-        return result 
+        return result
 
 
 class Cell(nn.Module):
@@ -188,7 +188,7 @@ class Cell(nn.Module):
         rate: int,
         code_c: bool = None,
     ):
-        super(Cell, self).__init__()
+        super().__init__()
         self.C_out = C
         if rate == -1: # downsample
             self.preprocess = FactorizedReduce(C_prev, C)

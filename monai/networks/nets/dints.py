@@ -36,7 +36,7 @@ class DiNTS(nn.Module):
     ):
         """
         Initialize NAS network search space
-        
+
         Args:
             in_channels: input image channel
             num_classes: number of segmentation classes
@@ -46,29 +46,29 @@ class DiNTS(nn.Module):
             cell_ops: cell operation numbers
             channel_mul: adjust intermediate channel number, default 1.
             code: [node_a, code_a, code_c] decoded using self.decode(). Remove unused cells in retraining
-        
+
         Predefined variables:
-            filter_nums: default init 64. Double channel number after downsample            
+            filter_nums: default init 64. Double channel number after downsample
             topology related varaibles from gen_mtx():
                 trans_mtx: feasible path activation given node activation key
                 code2in: path activation to its incoming node index
                 code2ops: path activation to operations of upsample 1, keep 0, downsample -1
                 code2out: path activation to its output node index
                 node_act_list: all node activation codes [2^num_depths-1, res_num]
-                node_act_dict: node activation code to its index 
+                node_act_dict: node activation code to its index
                 tidx: index used to convert path activation matrix (depth,depth) in trans_mtx to path activation code (1,3*depth-2)
         """
-        super(DiNTS, self).__init__()
+        super().__init__()
 
         # if searching architecture
         self.is_search = True
 
         # predefined variables
-        filter_nums = [int(32 * channel_mul), int(64 * channel_mul), int(128 * channel_mul), int(256 * channel_mul), int(512 * channel_mul)]  
+        filter_nums = [int(32 * channel_mul), int(64 * channel_mul), int(128 * channel_mul), int(256 * channel_mul), int(512 * channel_mul)]
 
         # path activation and node activations
         trans_mtx, node_act_list, tidx, code2in, code2ops, code2out, child_list = self._gen_mtx(num_depths)
-        node_act_list = np.array(node_act_list)  
+        node_act_list = np.array(node_act_list)
         node_act_dict = {str(node_act_list[i]):i for i in range(len(node_act_list))}
 
         self.num_depths = num_depths
@@ -88,12 +88,12 @@ class DiNTS(nn.Module):
         self.use_stem = use_stem
 
         # define stem operations for every block
-        self.stem_down = nn.ModuleDict() 
+        self.stem_down = nn.ModuleDict()
         self.stem_up = nn.ModuleDict()
         self.stem_finals = nn.Sequential(nn.ReLU(),
                                          nn.Conv3d(filter_nums[0],filter_nums[0], 3, stride=1, padding=1, bias=False),
                                          nn.InstanceNorm3d(filter_nums[0]),
-                                         nn.Conv3d(filter_nums[0],num_classes, 1, stride=1, padding=0, bias=True)) 
+                                         nn.Conv3d(filter_nums[0],num_classes, 1, stride=1, padding=0, bias=True))
         for res_idx in range(num_depths):
             if use_stem:
                 self.stem_down[str(res_idx)] = nn.Sequential(
@@ -103,26 +103,26 @@ class DiNTS(nn.Module):
                     nn.ReLU(),
                     nn.Conv3d(filter_nums[res_idx],filter_nums[res_idx+1], 3, stride=2, padding=1, bias=False),
                     nn.InstanceNorm3d(filter_nums[res_idx+1])
-                )       
+                )
                 self.stem_up[str(res_idx)] = nn.Sequential(\
                                                     nn.ReLU(),
                                                     nn.Conv3d(filter_nums[res_idx+1],filter_nums[res_idx], 3, stride=1, padding=1, bias=False),
                                                     nn.InstanceNorm3d(filter_nums[res_idx]),
-                                                    nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))    
-                
+                                                    nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
+
             else:
                 self.stem_down[str(res_idx)] = nn.Sequential(
                     nn.Upsample(scale_factor=1/(2**res_idx), mode="trilinear", align_corners=True),
                     nn.Conv3d(in_channels, filter_nums[res_idx], 3, stride=1, padding=1, bias=False),
                     nn.InstanceNorm3d(filter_nums[res_idx])
-                )                
+                )
                 self.stem_up[str(res_idx)] = nn.Sequential(\
                                                     nn.ReLU(),
                                                     nn.Conv3d(filter_nums[res_idx],filter_nums[res_idx], 3, stride=1, padding=1, bias=False),
                                                     nn.InstanceNorm3d(filter_nums[res_idx]),
                                                     nn.Conv3d(filter_nums[res_idx],num_classes, 1),
-                                                    nn.Upsample(scale_factor=2**res_idx, mode="trilinear", align_corners=True))  
-                                       
+                                                    nn.Upsample(scale_factor=2**res_idx, mode="trilinear", align_corners=True))
+
         # define NAS search space
         if code is None:
             code_a = np.ones((num_blocks, len(code2out)))
@@ -138,14 +138,14 @@ class DiNTS(nn.Module):
                     self.cell_tree[str((blk_idx,res_idx))] = \
                         cell(
                             filter_nums[code2in[res_idx] + int(use_stem)],
-                            filter_nums[code2out[res_idx] + int(use_stem)], 
+                            filter_nums[code2out[res_idx] + int(use_stem)],
                             code2ops[res_idx],
                             code_c[blk_idx, res_idx]
                         )
                     self.memory[blk_idx, res_idx] = np.array([_.memory + self.cell_tree[str((blk_idx,res_idx))].preprocess.memory
                                                              if _ is not None else 0 for _ in self.cell_tree[str((blk_idx,res_idx))].op._ops[:cell_ops]])
 
-        # define cell and macro arhitecture probabilities    
+        # define cell and macro arhitecture probabilities
         self.log_alpha_c = torch.nn.Parameter(torch.zeros(num_blocks, len(code2out), cell_ops)\
                                             .normal_(1, 0.01).cuda().requires_grad_())
         self.log_alpha_a = torch.nn.Parameter(torch.zeros(num_blocks, len(code2out))\
@@ -153,7 +153,7 @@ class DiNTS(nn.Module):
         self._arch_param_names = ["log_alpha_a", "log_alpha_c"]
 
     def weight_parameters(self):
-        return [param for name, param in self.named_parameters() if name not in self._arch_param_names]        
+        return [param for name, param in self.named_parameters() if name not in self._arch_param_names]
 
     def get_prob_a(
         self,
@@ -166,7 +166,7 @@ class DiNTS(nn.Module):
             child: return child probability as well (used in decode)
         """
         log_alpha = self.log_alpha_a
-        _code_prob_a  = torch.sigmoid(log_alpha) 
+        _code_prob_a  = torch.sigmoid(log_alpha)
         norm = 1-(1-_code_prob_a).prod(-1) # normalizing factor
         code_prob_a = _code_prob_a/norm.unsqueeze(1)
         if child:
@@ -211,14 +211,14 @@ class DiNTS(nn.Module):
         memory = torch.from_numpy(self.memory).to(torch.float32).cuda()
         usage = 0
         for blk_idx in range(self.num_blocks):
-            # node activation for input 
-            # cell operation 
+            # node activation for input
+            # cell operation
             for path_idx in range(len(self.code2out)):
                 if code is not None:
-                    usage += code[0][blk_idx, path_idx] * (1 + (memory[blk_idx, path_idx] * 
+                    usage += code[0][blk_idx, path_idx] * (1 + (memory[blk_idx, path_idx] *
                              code[1][blk_idx, path_idx]).sum()) * sizes[self.code2out[path_idx]]
                 else:
-                    usage += code_prob_a[blk_idx, path_idx] * (1 + (memory[blk_idx, path_idx] * 
+                    usage += code_prob_a[blk_idx, path_idx] * (1 + (memory[blk_idx, path_idx] *
                              cell_prob[blk_idx, path_idx]).sum()) * sizes[self.code2out[path_idx]]
         return usage * 32 / 8 / 1024**2
 
@@ -234,7 +234,7 @@ class DiNTS(nn.Module):
             node2out = self.node2out
         else:
             # node activation index to feasible input child_idx
-            node2in = [[] for i in range(len(self.node_act_list))] 
+            node2in = [[] for i in range(len(self.node_act_list))]
             # node activation index to feasible output child_idx
             node2out = [[] for i in range(len(self.node_act_list))]
             for child_idx in range(len(self.child_list)):
@@ -254,10 +254,10 @@ class DiNTS(nn.Module):
             blk_ent = 0
             # node activation probability
             for node_idx in range(len(self.node_act_list)):
-                _node_p = probs[blk_idx, node2in[node_idx]].sum()        
+                _node_p = probs[blk_idx, node2in[node_idx]].sum()
                 _out_probs = probs[blk_idx+1, node2out[node_idx]].sum()
                 blk_ent += -(_node_p * torch.log(_out_probs + 1e-5)\
-                            + (1-_node_p) * torch.log(1-_out_probs + 1e-5))            
+                            + (1-_node_p) * torch.log(1-_out_probs + 1e-5))
             ent += blk_ent
         return ent
 
@@ -281,7 +281,7 @@ class DiNTS(nn.Module):
 
         # build a submodel to submodel index
         sub_amtx = np.zeros((len(self.child_list),len(self.child_list)))
-        for child_idx in range(len(self.child_list)):  
+        for child_idx in range(len(self.child_list)):
             _node_act = np.zeros(self.num_depths).astype(int)
             for path_idx in range(len(self.child_list[child_idx])):
                 _node_act[self.code2out[path_idx]] += self.child_list[child_idx][path_idx]
@@ -322,7 +322,7 @@ class DiNTS(nn.Module):
                 node_a[a_idx,self.code2out[res_idx]] += code_a[a_idx,res_idx]
             a_idx -= 1
         for res_idx in range(len(self.code2out)):
-            node_a[a_idx,self.code2in[res_idx]] += code_a[0,res_idx]       
+            node_a[a_idx,self.code2in[res_idx]] += code_a[0,res_idx]
         node_a = (node_a >= 1).astype(int)
         return node_a, code_a, code_c, code_a_max
 
@@ -352,18 +352,18 @@ class DiNTS(nn.Module):
             ma = np.zeros((depth,depth))
             for i in range(paths):
                 ma[(i+1)//3, (i+1)//3-1 + (i+1)%3] = _[i]
-            mtx.append(ma)    
-        
+            mtx.append(ma)
+
         # Calculate path activation to node activation params
         tidx, code2in, code2out =  [], [], []
         for i in range(paths):
-            tidx.append((i+1)//3 * depth + (i+1)//3-1 + (i+1)%3) 
+            tidx.append((i+1)//3 * depth + (i+1)//3-1 + (i+1)%3)
             code2in.append((i+1)//3-1 + (i+1)%3)
         code2ops = ([-1,0,1]*depth)[1:-1]
-        for _ in range(depth):    
+        for _ in range(depth):
             code2out.extend([_,_,_])
         code2out = code2out[1:-1]
-        
+
         # define all possible node activativation
         node_act_list = dfs(0,depth-1)[1:]
         transfer_mtx = {}
@@ -415,7 +415,7 @@ class DiNTS(nn.Module):
                     else:
                         outputs[self.code2out[res_idx]] += self.cell_tree[str((blk_idx,res_idx))]\
                                                                 (inputs[self.code2in[res_idx]], ops=code_c[blk_idx,res_idx],
-                                                                weight= torch.ones_like(code_c[blk_idx,res_idx],requires_grad=False))  
+                                                                weight= torch.ones_like(code_c[blk_idx,res_idx],requires_grad=False))
             inputs = outputs
             if blk_idx in out_pos:
                 start = False
@@ -424,7 +424,7 @@ class DiNTS(nn.Module):
                         _temp = self.stem_up[str(res_idx)](inputs[res_idx]+_temp)
                     elif node_a[blk_idx+1][res_idx]:
                         start = True
-                        _temp = self.stem_up[str(res_idx)](inputs[res_idx])         
+                        _temp = self.stem_up[str(res_idx)](inputs[res_idx])
                 prediction = self.stem_finals(_temp)
                 predict_all.append(prediction)
         return predict_all
