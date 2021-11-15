@@ -134,11 +134,7 @@ class PNGSaver:
             raise ValueError(f"Unsupported number of channels: {data.shape[0]}, available options are [1, 3, 4]")
 
         write_png(
-            np.asarray(data),
-            file_name=path,
-            output_spatial_shape=spatial_shape,
-            mode=self.mode,
-            scale=self.scale,
+            np.asarray(data), file_name=path, output_spatial_shape=spatial_shape, mode=self.mode, scale=self.scale
         )
 
         if self.print_log:
