@@ -10,7 +10,7 @@
 # limitations under the License.
 
 # this file is adapted from
-# github/pytorch/pytorch/blob/63d62d3e44a0a4ec09d94f30381d49b78cc5b095/tools/clang_format_utils.py
+# https://github.com/pytorch/pytorch/blob/v1.9.1/tools/clang_format_utils.py.
 
 import os
 import platform
@@ -32,7 +32,7 @@ PLATFORM_TO_CF_URL = {
 }
 
 # This dictionary maps each platform to a relative path to a file containing its reference hash.
-# github/pytorch/pytorch/tree/63d62d3e44a0a4ec09d94f30381d49b78cc5b095/tools/clang_format_hash
+# https://github.com/pytorch/pytorch/tree/master/tools/clang_format_hash.
 PLATFORM_TO_HASH = {
     "Darwin": "acfda23b360824017c86528f6d59769bd4cf5587",
     "Linux": "938869fb71b05f5ba345ab36dfbbc4388f53a550",
