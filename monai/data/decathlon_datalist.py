@@ -47,8 +47,8 @@ def _compute_path(base_dir, element, check_path=False):
         result = os.path.normpath(os.path.join(base_dir, item))
         if check_path and not os.path.exists(result):
             # if not an existing path, don't join with base dir
-            return item
-        return result
+            return f"{item}"
+        return f"{result}"
 
     if isinstance(element, (str, os.PathLike)):
         return _join_path(base_dir, element)
@@ -183,10 +183,10 @@ def check_missing_files(
                 continue
 
             for f in ensure_tuple(item[k]):
-                if not isinstance(f, (str, Path)):
+                if not isinstance(f, (str, os.PathLike)):
                     raise ValueError(f"filepath of key `{k}` must be a string or a list of strings, but got: {f}.")
                 f = Path(f)
-                if isinstance(root_dir, (str, Path)):
+                if isinstance(root_dir, (str, os.PathLike)):
                     f = Path(root_dir).joinpath(f)
                 if not f.exists():
                     missing_files.append(f)

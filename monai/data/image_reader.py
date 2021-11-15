@@ -197,7 +197,7 @@ class ITKReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            name = Path(name)
+            name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
                 # https://itk.org/ITKExamples/src/IO/GDCM/ReadDICOMSeriesAndWrite3DImage
