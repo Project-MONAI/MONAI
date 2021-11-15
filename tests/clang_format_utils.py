@@ -32,7 +32,8 @@ PLATFORM_TO_CF_URL = {
 }
 
 # This dictionary maps each platform to a relative path to a file containing its reference hash.
-# https://github.com/pytorch/pytorch/tree/master/tools/clang_format_hash.
+# Refer to: https://github.com/pytorch/pytorch/tree/master/tools/clang_format_hash.
+# Note: the hash value may need update when the `clang-format` package is updated in Amazon S3.
 PLATFORM_TO_HASH = {
     "Darwin": "acfda23b360824017c86528f6d59769bd4cf5587",
     "Linux": "938869fb71b05f5ba345ab36dfbbc4388f53a550",
