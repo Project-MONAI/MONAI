@@ -158,7 +158,7 @@ class ClickRatioAddRandomGuidanced(Randomizable, Transform):
             guidance[0].append([-1] * len(neg))
             guidance[1].append(neg)
 
-        return json.dumps(np.asarray(guidance).astype(int).tolist())
+        return json.dumps(np.asarray(guidance, dtype=int).tolist())
 
     def __call__(self, data):
         d = dict(data)
