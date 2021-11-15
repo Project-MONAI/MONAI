@@ -35,29 +35,14 @@ from monai.utils import optional_import
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
 
-TEST_CASE_ARRAY_0 = [
-    np.random.randn(3, 3),
-]
-TEST_CASE_ARRAY_1 = [
-    np.random.randn(3, 10, 10),
-]
-TEST_CASE_DICT_0 = [
-    {"image": np.random.randn(3, 3)},
-]
-TEST_CASE_DICT_1 = [
-    {"image": np.random.randn(3, 10, 10)},
-]
+TEST_CASE_ARRAY_0 = [np.random.randn(3, 3)]
+TEST_CASE_ARRAY_1 = [np.random.randn(3, 10, 10)]
+TEST_CASE_DICT_0 = [{"image": np.random.randn(3, 3)}]
+TEST_CASE_DICT_1 = [{"image": np.random.randn(3, 10, 10)}]
 
 
 class TestNVTXTransforms(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_ARRAY_0,
-            TEST_CASE_ARRAY_1,
-            TEST_CASE_DICT_0,
-            TEST_CASE_DICT_1,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_ARRAY_0, TEST_CASE_ARRAY_1, TEST_CASE_DICT_0, TEST_CASE_DICT_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_nvtx_transfroms_alone(self, input):
         transforms = Compose(

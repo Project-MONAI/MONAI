@@ -42,13 +42,7 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(
-        self,
-        inputs: torch.Tensor,
-        network: Callable[..., torch.Tensor],
-        *args: Any,
-        **kwargs: Any,
-    ):
+    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
         """
         Run inference on `inputs` with the `network` model.
 
@@ -75,13 +69,7 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(
-        self,
-        inputs: torch.Tensor,
-        network: Callable[..., torch.Tensor],
-        *args: Any,
-        **kwargs: Any,
-    ):
+    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
         """Unified callable function API of Inferers.
 
         Args:
@@ -161,11 +149,7 @@ class SlidingWindowInferer(Inferer):
         self.device = device
 
     def __call__(
-        self,
-        inputs: torch.Tensor,
-        network: Callable[..., torch.Tensor],
-        *args: Any,
-        **kwargs: Any,
+        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
     ) -> torch.Tensor:
         """
 
@@ -217,13 +201,7 @@ class SaliencyInferer(Inferer):
         self.args = args
         self.kwargs = kwargs
 
-    def __call__(  # type: ignore
-        self,
-        inputs: torch.Tensor,
-        network: nn.Module,
-        *args: Any,
-        **kwargs: Any,
-    ):
+    def __call__(self, inputs: torch.Tensor, network: nn.Module, *args: Any, **kwargs: Any):  # type: ignore
         """Unified callable function API of Inferers.
 
         Args:

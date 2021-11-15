@@ -18,7 +18,7 @@ from torch.nn.functional import interpolate
 
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
 
-__all__ = ["DynUNet", "DynUnet", "Dynunet", "dynunet"]
+__all__ = ["DynUNet", "DynUnet", "Dynunet"]
 
 
 class DynUNetSkipLayer(nn.Module):
@@ -57,6 +57,7 @@ class DynUNet(nn.Module):
     This reimplementation of a dynamic UNet (DynUNet) is based on:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
     `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
+    `Optimized U-Net for Brain Tumor Segmentation <https://arxiv.org/pdf/2110.03352.pdf>`_.
 
     This model is more flexible compared with ``monai.networks.nets.UNet`` in three
     places:
@@ -78,6 +79,9 @@ class DynUNet(nn.Module):
     For example, if `strides=((1, 2, 4), 2, 1, 1)`, the minimal spatial size of the input is `(8, 16, 32)`, and
     the spatial size of the output is `(8, 8, 8)`.
 
+    Usage example with medical segmentation decathlon dataset is available at:
+    https://github.com/Project-MONAI/tutorials/tree/master/modules/dynunet_pipeline.
+
     Args:
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
@@ -86,7 +90,15 @@ class DynUNet(nn.Module):
         strides: convolution strides for each blocks.
         upsample_kernel_size: convolution kernel size for transposed convolution layers. The values should
             equal to strides[1:].
+        filters: number of output channels for each blocks. Different from nnU-Net, in this implementation we add
+            this argument to make the network more flexible. As shown in the third reference, one way to determine
+            this argument is like:
+            ``[64, 96, 128, 192, 256, 384, 512, 768, 1024][: len(strides)]``.
+            The above way is used in the network that wins task 1 in the BraTS21 Challenge.
+            If not specified, the way which nnUNet used will be employed. Defaults to ``None``.
+        dropout: dropout ratio. Defaults to no dropout.
         norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
+        act_name: activation layer type and arguments. Defaults to ``leakyrelu``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the last feature
             map, but also the previous feature maps that come from the intermediate up sample layers.
@@ -105,6 +117,7 @@ class DynUNet(nn.Module):
             Defaults to 1.
         res_block: whether to use residual connection based convolution blocks during the network.
             Defaults to ``False``.
+        trans_bias: whether to set the bias parameter in transposed convolution layers. Defaults to ``False``.
     """
 
     def __init__(
@@ -115,12 +128,16 @@ class DynUNet(nn.Module):
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
         upsample_kernel_size: Sequence[Union[Sequence[int], int]],
+        filters: Optional[Sequence[int]] = None,
+        dropout: Optional[Union[Tuple, str, float]] = None,
         norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,
+        trans_bias: bool = False,
     ):
-        super(DynUNet, self).__init__()
+        super().__init__()
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -128,8 +145,15 @@ class DynUNet(nn.Module):
         self.strides = strides
         self.upsample_kernel_size = upsample_kernel_size
         self.norm_name = norm_name
+        self.act_name = act_name
+        self.dropout = dropout
         self.conv_block = UnetResBlock if res_block else UnetBasicBlock
-        self.filters = [min(2 ** (5 + i), 320 if spatial_dims == 3 else 512) for i in range(len(strides))]
+        self.trans_bias = trans_bias
+        if filters is not None:
+            self.filters = filters
+            self.check_filters()
+        else:
+            self.filters = [min(2 ** (5 + i), 320 if spatial_dims == 3 else 512) for i in range(len(strides))]
         self.input_block = self.get_input_block()
         self.downsamples = self.get_downsamples()
         self.bottleneck = self.get_bottleneck()
@@ -155,9 +179,9 @@ class DynUNet(nn.Module):
             """
 
             if len(downsamples) != len(upsamples):
-                raise AssertionError(f"{len(downsamples)} != {len(upsamples)}")
+                raise ValueError(f"{len(downsamples)} != {len(upsamples)}")
             if (len(downsamples) - len(superheads)) not in (1, 0):
-                raise AssertionError(f"{len(downsamples)}-(0,1) != {len(superheads)}")
+                raise ValueError(f"{len(downsamples)}-(0,1) != {len(superheads)}")
 
             if len(downsamples) == 0:  # bottom of the network, pass the bottleneck block
                 return bottleneck
@@ -184,27 +208,34 @@ class DynUNet(nn.Module):
     def check_kernel_stride(self):
         kernels, strides = self.kernel_size, self.strides
         error_msg = "length of kernel_size and strides should be the same, and no less than 3."
-        if not (len(kernels) == len(strides) and len(kernels) >= 3):
-            raise AssertionError(error_msg)
+        if len(kernels) != len(strides) or len(kernels) < 3:
+            raise ValueError(error_msg)
 
         for idx, k_i in enumerate(kernels):
             kernel, stride = k_i, strides[idx]
             if not isinstance(kernel, int):
-                error_msg = "length of kernel_size in block {} should be the same as spatial_dims.".format(idx)
+                error_msg = f"length of kernel_size in block {idx} should be the same as spatial_dims."
                 if len(kernel) != self.spatial_dims:
-                    raise AssertionError(error_msg)
+                    raise ValueError(error_msg)
             if not isinstance(stride, int):
-                error_msg = "length of stride in block {} should be the same as spatial_dims.".format(idx)
+                error_msg = f"length of stride in block {idx} should be the same as spatial_dims."
                 if len(stride) != self.spatial_dims:
-                    raise AssertionError(error_msg)
+                    raise ValueError(error_msg)
 
     def check_deep_supr_num(self):
         deep_supr_num, strides = self.deep_supr_num, self.strides
         num_up_layers = len(strides) - 1
         if deep_supr_num >= num_up_layers:
-            raise AssertionError("deep_supr_num should be less than the number of up sample layers.")
+            raise ValueError("deep_supr_num should be less than the number of up sample layers.")
         if deep_supr_num < 1:
-            raise AssertionError("deep_supr_num should be larger than 0.")
+            raise ValueError("deep_supr_num should be larger than 0.")
+
+    def check_filters(self):
+        filters = self.filters
+        if len(filters) < len(self.strides):
+            raise ValueError("length of filters should be no less than the length of strides.")
+        else:
+            self.filters = filters[: len(self.strides)]
 
     def forward(self, x):
         out = self.skip_layers(x)
@@ -225,6 +256,8 @@ class DynUNet(nn.Module):
             self.kernel_size[0],
             self.strides[0],
             self.norm_name,
+            self.act_name,
+            dropout=self.dropout,
         )
 
     def get_bottleneck(self):
@@ -235,14 +268,12 @@ class DynUNet(nn.Module):
             self.kernel_size[-1],
             self.strides[-1],
             self.norm_name,
+            self.act_name,
+            dropout=self.dropout,
         )
 
     def get_output_block(self, idx: int):
-        return UnetOutBlock(
-            self.spatial_dims,
-            self.filters[idx],
-            self.out_channels,
-        )
+        return UnetOutBlock(self.spatial_dims, self.filters[idx], self.out_channels, dropout=self.dropout)
 
     def get_downsamples(self):
         inp, out = self.filters[:-2], self.filters[1:-1]
@@ -253,7 +284,9 @@ class DynUNet(nn.Module):
         inp, out = self.filters[1:][::-1], self.filters[:-1][::-1]
         strides, kernel_size = self.strides[1:][::-1], self.kernel_size[1:][::-1]
         upsample_kernel_size = self.upsample_kernel_size[::-1]
-        return self.get_module_list(inp, out, kernel_size, strides, UnetUpBlock, upsample_kernel_size)
+        return self.get_module_list(
+            inp, out, kernel_size, strides, UnetUpBlock, upsample_kernel_size, trans_bias=self.trans_bias
+        )
 
     def get_module_list(
         self,
@@ -263,6 +296,7 @@ class DynUNet(nn.Module):
         strides: Sequence[Union[Sequence[int], int]],
         conv_block: nn.Module,
         upsample_kernel_size: Optional[Sequence[Union[Sequence[int], int]]] = None,
+        trans_bias: bool = False,
     ):
         layers = []
         if upsample_kernel_size is not None:
@@ -276,7 +310,10 @@ class DynUNet(nn.Module):
                     "kernel_size": kernel,
                     "stride": stride,
                     "norm_name": self.norm_name,
+                    "act_name": self.act_name,
+                    "dropout": self.dropout,
                     "upsample_kernel_size": up_kernel,
+                    "trans_bias": trans_bias,
                 }
                 layer = conv_block(**params)
                 layers.append(layer)
@@ -289,6 +326,8 @@ class DynUNet(nn.Module):
                     "kernel_size": kernel,
                     "stride": stride,
                     "norm_name": self.norm_name,
+                    "act_name": self.act_name,
+                    "dropout": self.dropout,
                 }
                 layer = conv_block(**params)
                 layers.append(layer)
@@ -305,4 +344,4 @@ class DynUNet(nn.Module):
                 module.bias = nn.init.constant_(module.bias, 0)
 
 
-DynUnet = Dynunet = dynunet = DynUNet
+DynUnet = Dynunet = DynUNet
