@@ -24,7 +24,6 @@ from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import urlretrieve
 
 from monai.config.type_definitions import PathLike
-from monai.utils import min_version, optional_import
 from monai.utils import look_up_option, min_version, optional_import
 
 gdown, has_gdown = optional_import("gdown", "3.6")

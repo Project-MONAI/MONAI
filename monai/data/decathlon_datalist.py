@@ -157,10 +157,7 @@ def load_decathlon_properties(data_property_file_path: PathLike, property_keys: 
 
 
 def check_missing_files(
-    datalist: List[Dict],
-    keys: KeysCollection,
-    root_dir: Optional[PathLike] = None,
-    allow_missing_keys: bool = False,
+    datalist: List[Dict], keys: KeysCollection, root_dir: Optional[PathLike] = None, allow_missing_keys: bool = False
 ):
     """Checks whether some files in the Decathlon datalist are missing.
     It would be helpful to check missing files before a heavy training run.
