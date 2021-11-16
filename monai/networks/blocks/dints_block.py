@@ -23,7 +23,7 @@ class FactorizedIncreaseBlock(nn.Module):
         in_channel: int,
         out_channel: int,
     ):
-        super(FactorizedIncreaseBlock, self).__init__()
+        super().__init__()
         self._in_channel = in_channel
         self.op = nn.Sequential(
             nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
@@ -48,7 +48,7 @@ class FactorizedReduceBlock(nn.Module):
         C_in: int,
         C_out: int,
     ):
-        super(FactorizedReduceBlock, self).__init__()
+        super().__init__()
         assert C_out % 2 == 0
         self.relu = nn.ReLU()
         self.conv_1 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
@@ -115,7 +115,7 @@ class ReLUConvBNBlock(nn.Module):
         kernel_size: int,
         padding: int
     ):
-        super(ReLUConvBNBlock, self).__init__()
+        super().__init__()
         self.op = nn.Sequential(
             nn.ReLU(),
             nn.Conv3d(C_in, C_out, kernel_size, padding=padding, bias=False),
