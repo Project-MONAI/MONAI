@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import copy
 import random
 
 import numpy as np
@@ -34,15 +33,15 @@ class _IdentityWithMemory(nn.Identity):
 
 
 class _ReLUConvBNBlockWithMemory(ReLUConvBNBlock):
-    def __init__(self, C_in: int, C_out: int, kernel_size: int, padding: int):
-        super().__init__(C_in, C_out, kernel_size, padding)
-        self.memory = 1 + C_out / C_in * 2
+    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int):
+        super().__init__(c_in, c_out, kernel_size, padding)
+        self.memory = 1 + c_out / c_in * 2
 
 
 class _P3DReLUConvBNBlockWithMemory(P3DReLUConvBNBlock):
-    def __init__(self, C_in: int, C_out: int, kernel_size: int, padding: int, P3Dmode: int = 0):
-        super().__init__(C_in, C_out, kernel_size, padding, P3Dmode)
-        self.memory = 1 + 1 + C_out / C_in * 2
+    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int, p3dmode: int = 0):
+        super().__init__(c_in, c_out, kernel_size, padding, p3dmode)
+        self.memory = 1 + 1 + c_out / c_in * 2
 
 
 class _FactorizedIncreaseBlockWithMemory(FactorizedIncreaseBlock):
@@ -58,31 +57,31 @@ class _FactorizedReduceBlockWithMemory(FactorizedReduceBlock):
     Down-sampling the feature by 2 using stride.
     """
 
-    def __init__(self, C_in: int, C_out: int):
-        super().__init__(C_in, C_out)
+    def __init__(self, c_in: int, c_out: int):
+        super().__init__(c_in, c_out)
 
         # multiply by 8 to comply with cell output size (see net.get_memory_usage)
-        self.memory = (1 + C_out / C_in / 8 * 3) * 8 * C_in / C_out
+        self.memory = (1 + c_out / c_in / 8 * 3) * 8 * c_in / c_out
 
 
 # Define Operation Set
 OPS = {
-    "skip_connect": lambda C: _IdentityWithMemory(),
-    "conv_3x3x3": lambda C: _ReLUConvBNBlockWithMemory(C, C, 3, padding=1),
-    "conv_3x3x1": lambda C: _P3DReLUConvBNBlockWithMemory(C, C, 3, padding=1, P3Dmode=0),
-    "conv_3x1x3": lambda C: _P3DReLUConvBNBlockWithMemory(C, C, 3, padding=1, P3Dmode=1),
-    "conv_1x3x3": lambda C: _P3DReLUConvBNBlockWithMemory(C, C, 3, padding=1, P3Dmode=2),
+    "skip_connect": lambda c: _IdentityWithMemory(),
+    "conv_3x3x3": lambda c: _ReLUConvBNBlockWithMemory(c, c, 3, padding=1),
+    "conv_3x3x1": lambda c: _P3DReLUConvBNBlockWithMemory(c, c, 3, padding=1, p3dmode=0),
+    "conv_3x1x3": lambda c: _P3DReLUConvBNBlockWithMemory(c, c, 3, padding=1, p3dmode=1),
+    "conv_1x3x3": lambda c: _P3DReLUConvBNBlockWithMemory(c, c, 3, padding=1, p3dmode=2),
 }
 
 # Define Operation Set
 # OPS_2D = {
-#     "skip_connect": lambda C: Identity(),
-#     "conv_3x3"  : lambda C: ReLUConvBN(C, C, 3, padding=1),
+#     "skip_connect": lambda c: Identity(),
+#     "conv_3x3"  : lambda c: ReLUConvBN(c, c, 3, padding=1),
 # }
 
 
 class MixedOp(nn.Module):
-    def __init__(self, C, code_c=None):
+    def __init__(self, c, code_c=None):
         super().__init__()
         self._ops = nn.ModuleList()
         if code_c is None:
@@ -92,7 +91,7 @@ class MixedOp(nn.Module):
                 if code_c[idx] == 0:
                     op = None
                 else:
-                    op = OPS[_](C)
+                    op = OPS[_](c)
                 self._ops.append(op)
 
     def forward(self, x, ops=None, weight: bool = None):
@@ -107,26 +106,26 @@ class Cell(nn.Module):
     """
     The basic class for cell operation
     Args:
-        C_prev: input channel number
+        c_prev: input channel number
         C: output channel number
         rate: resolution change rate. -1 for 2x downsample, 1 for 2x upsample
               0 for no change of resolution
         code_c: cell operation code
     """
 
-    def __init__(self, C_prev, C, rate: int, code_c: bool = None):
+    def __init__(self, c_prev, c, rate: int, code_c: bool = None):
         super().__init__()
-        self.C_out = C
+        self.c_out = c
         if rate == -1:  # downsample
-            self.preprocess = _FactorizedReduceBlockWithMemory(C_prev, C)
+            self.preprocess = _FactorizedReduceBlockWithMemory(c_prev, c)
         elif rate == 1:  # upsample
-            self.preprocess = _FactorizedIncreaseBlockWithMemory(C_prev, C)
+            self.preprocess = _FactorizedIncreaseBlockWithMemory(c_prev, c)
         else:
-            if C_prev == C:
+            if c_prev == c:
                 self.preprocess = _IdentityWithMemory()
             else:
-                self.preprocess = _ReLUConvBNBlockWithMemory(C_prev, C, 1, 0)
-        self.op = MixedOp(C, code_c)
+                self.preprocess = _ReLUConvBNBlockWithMemory(c_prev, c, 1, 0)
+        self.op = MixedOp(c, code_c)
 
     def forward(self, s, ops, weight):
         s = self.preprocess(s)

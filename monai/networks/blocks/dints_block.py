@@ -55,20 +55,20 @@ class FactorizedReduceBlock(nn.Module):
 
 
 class P3DReLUConvBNBlock(nn.Module):
-    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int, P3Dmode: int = 0):
+    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int, p3dmode: int = 0):
         super().__init__()
-        self.P3Dmode = P3Dmode
-        if P3Dmode == 0:  # 3 x 3 x 1
+        self.p3dmode = p3dmode
+        if p3dmode == 0:  # 3 x 3 x 1
             kernel_size0 = (kernel_size, kernel_size, 1)
             kernel_size1 = (1, 1, kernel_size)
             padding0 = (padding, padding, 0)
             padding1 = (0, 0, padding)
-        elif P3Dmode == 1:  # 3 x 1 x 3
+        elif p3dmode == 1:  # 3 x 1 x 3
             kernel_size0 = (kernel_size, 1, kernel_size)
             kernel_size1 = (1, kernel_size, 1)
             padding0 = (padding, 0, padding)
             padding1 = (0, padding, 0)
-        elif P3Dmode == 2:  # 1 x 3 x 3
+        elif p3dmode == 2:  # 1 x 3 x 3
             kernel_size0 = (1, kernel_size, kernel_size)
             kernel_size1 = (kernel_size, 1, 1)
             padding0 = (0, padding, padding)
