@@ -9,13 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pathlib import Path
 from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
 
-from monai.config import DtypeLike
+from monai.config import DtypeLike, PathLike
 from monai.data.nifti_writer import write_nifti
 from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
@@ -37,7 +36,7 @@ class NiftiSaver:
 
     def __init__(
         self,
-        output_dir: Union[Path, str] = "./",
+        output_dir: PathLike = "./",
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
@@ -47,7 +46,7 @@ class NiftiSaver:
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
-        data_root_dir: str = "",
+        data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:

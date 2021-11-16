@@ -21,8 +21,7 @@ from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optio
 
 import torch
 
-from monai.config import KeysCollection
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
@@ -646,7 +645,7 @@ class SaveClassificationd(MapTransform):
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         saver: Optional[CSVSaver] = None,
-        output_dir: str = "./",
+        output_dir: PathLike = "./",
         filename: str = "predictions.csv",
         overwrite: bool = True,
         flush: bool = True,

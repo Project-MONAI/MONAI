@@ -12,6 +12,7 @@
 import os
 import shutil
 import unittest
+from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import MedNISTDataset
@@ -53,7 +54,7 @@ class TestMedNISTDataset(unittest.TestCase):
         _test_dataset(data)
 
         # testing from
-        data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
+        data = MedNISTDataset(root_dir=Path(testing_dir), transform=transform, section="test", download=False)
         data.get_num_classes()
         _test_dataset(data)
         data = MedNISTDataset(root_dir=testing_dir, section="test", download=False)

@@ -104,6 +104,7 @@ def run_testsuit():
         "test_load_imaged",
         "test_load_spacing_orientation",
         "test_mednistdataset",
+        "test_milmodel",
         "test_mlp",
         "test_nifti_header_revise",
         "test_nifti_rw",
