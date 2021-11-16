@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -72,12 +70,6 @@ OPS = {
     "conv_3x1x3": lambda c: _P3DReLUConvBNBlockWithMemory(c, c, 3, padding=1, p3dmode=1),
     "conv_1x3x3": lambda c: _P3DReLUConvBNBlockWithMemory(c, c, 3, padding=1, p3dmode=2),
 }
-
-# Define Operation Set
-# OPS_2D = {
-#     "skip_connect": lambda c: Identity(),
-#     "conv_3x3"  : lambda c: ReLUConvBN(c, c, 3, padding=1),
-# }
 
 
 class MixedOp(nn.Module):
@@ -153,7 +145,8 @@ class DiNTS(nn.Module):
             in_channels: input image channel
             num_classes: number of segmentation classes
             num_blocks: number of blocks (depth in the horizontal direction)
-            num_depths: number of image resolutions: 1, 1/2, 1/4 ... in each dimention, each resolution feature is a node at each block
+            num_depths: number of image resolutions: 1, 1/2, 1/4 ... in each dimention, each resolution feature
+                is a node at each block
             cell: operatoin of each node
             cell_ops: cell operation numbers
             channel_mul: adjust intermediate channel number, default 1.
@@ -168,7 +161,8 @@ class DiNTS(nn.Module):
                 code2out: path activation to its output node index
                 node_act_list: all node activation codes [2^num_depths-1, res_num]
                 node_act_dict: node activation code to its index
-                tidx: index used to convert path activation matrix (depth,depth) in trans_mtx to path activation code (1,3*depth-2)
+                tidx: index used to convert path activation matrix (depth,depth) in trans_mtx to path activation
+                    code (1,3*depth-2)
         """
         super().__init__()
 
