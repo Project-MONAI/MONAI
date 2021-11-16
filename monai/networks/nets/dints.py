@@ -31,6 +31,15 @@ OPS = {
 }
 
 
+# class Identity(nn.Module):
+#     def __init__(self):
+#         super(Identity, self).__init__()
+#         self.memory = 0
+
+#     def forward(self, x):
+#         return x
+
+
 class MixedOp(nn.Module):
     def __init__(
         self,

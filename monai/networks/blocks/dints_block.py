@@ -14,19 +14,9 @@ import torch
 import torch.nn as nn
 
 
-# # Define Operation Set
-# OPS = {
-#     "skip_connect": lambda C: Identity(),
-#     "conv_3x3x3"  : lambda C: ReLUConvBN(C, C, 3, padding=1),
-#     "conv_3x3x1"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=0),
-#     "conv_3x1x3"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=1),
-#     "conv_1x3x3"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=2),
-# }
-
-
 class FactorizedReduce(nn.Module):
     """
-    Downsample the feature by 2 using stride.
+    Down-sampling the feature by 2 using stride.
     """
     def __init__(
         self,
@@ -39,8 +29,9 @@ class FactorizedReduce(nn.Module):
         self.conv_1 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
         self.conv_2 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
         self.bn = nn.InstanceNorm3d(C_out)
+
         # multiply by 8 to comply with cell output size (see net.get_memory_usage)
-        self.memory = (1 + C_out/C_in/8 * 3) * 8 * C_in/C_out
+        # self.memory = (1 + C_out/C_in/8 * 3) * 8 * C_in/C_out
 
     def forward(self, x):
         x = self.relu(x)
@@ -50,6 +41,9 @@ class FactorizedReduce(nn.Module):
 
 
 class FactorizedIncrease(nn.Module):
+    """
+    Up-sampling the feature by 2 using stride.
+    """
     def __init__ (
         self,
         in_channel: int,
@@ -63,8 +57,9 @@ class FactorizedIncrease(nn.Module):
             nn.Conv3d(self._in_channel, out_channel, 1, stride=1, padding=0, bias=False),
             nn.InstanceNorm3d(out_channel)
         )
+
         # devide by 8 to comply with cell output size
-        self.memory = 8*(1+1+out_channel/in_channel*2)/8 * in_channel/out_channel
+        # self.memory = 8*(1+1+out_channel/in_channel*2)/8 * in_channel/out_channel
 
     def forward (self, x):
         return self.op(x)
@@ -125,16 +120,7 @@ class ReLUConvBN(nn.Module):
             nn.Conv3d(C_in, C_out, kernel_size, padding=padding, bias=False),
             nn.InstanceNorm3d(C_out)
         )
-        self.memory = 1 + C_out/C_in * 2
+        # self.memory = 1 + C_out/C_in * 2
 
     def forward(self, x):
         return self.op(x)
-
-
-# class Identity(nn.Module):
-#     def __init__(self):
-#         super(Identity, self).__init__()
-#         self.memory = 0
-
-#     def forward(self, x):
-#         return x
