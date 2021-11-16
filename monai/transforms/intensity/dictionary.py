@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -53,7 +53,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import ensure_tuple, ensure_tuple_rep, first
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
 
 __all__ = [
@@ -187,7 +187,11 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random noise
-        self.rand_gaussian_noise.randomize(d[first(self.key_iterator(d))])
+        first_key: Union[Hashable, List] = self.first_key(d)
+        if first_key == []:
+            return d
+
+        self.rand_gaussian_noise.randomize(d[first_key])  # type: ignore
         for key in self.key_iterator(d):
             d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
         return d
@@ -621,7 +625,11 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random bias factor
-        self.rand_bias_field.randomize(img_size=d[first(self.key_iterator(d))].shape[1:])
+        first_key: Union[Hashable, List] = self.first_key(d)
+        if first_key == []:
+            return d
+
+        self.rand_bias_field.randomize(img_size=d[first_key].shape[1:])  # type: ignore
         for key in self.key_iterator(d):
             d[key] = self.rand_bias_field(d[key], randomize=False)
         return d
@@ -1466,7 +1474,11 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        self.dropper.randomize(d[first(self.key_iterator(d))].shape[1:])
+        first_key: Union[Hashable, List] = self.first_key(d)
+        if first_key == []:
+            return d
+
+        self.dropper.randomize(d[first_key].shape[1:])  # type: ignore
         for key in self.key_iterator(d):
             d[key] = self.dropper(img=d[key], randomize=False)
 
@@ -1531,7 +1543,11 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        self.shuffle.randomize(d[first(self.key_iterator(d))].shape[1:])
+        first_key: Union[Hashable, List] = self.first_key(d)
+        if first_key == []:
+            return d
+
+        self.shuffle.randomize(d[first_key].shape[1:])  # type: ignore
         for key in self.key_iterator(d):
             d[key] = self.shuffle(img=d[key], randomize=False)
 
