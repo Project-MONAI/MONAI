@@ -12,7 +12,7 @@
 import torch
 import torch.nn as nn
 
-
+__all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DReLUConvBNBlock", "ReLUConvBNBlock"]
 
 
 class FactorizedIncreaseBlock(nn.Module):
@@ -30,9 +30,6 @@ class FactorizedIncreaseBlock(nn.Module):
             nn.InstanceNorm3d(out_channel),
         )
 
-        # devide by 8 to comply with cell output size
-        # self.memory = 8*(1+1+out_channel/in_channel*2)/8 * in_channel/out_channel
-
     def forward(self, x):
         return self.op(x)
 
@@ -49,9 +46,6 @@ class FactorizedReduceBlock(nn.Module):
         self.conv_1 = nn.Conv3d(c_in, c_out // 2, 1, stride=2, padding=0, bias=False)
         self.conv_2 = nn.Conv3d(c_in, c_out // 2, 1, stride=2, padding=0, bias=False)
         self.bn = nn.InstanceNorm3d(c_out)
-
-        # # multiply by 8 to comply with cell output size (see net.get_memory_usage)
-        # self.memory = (1 + c_out/c_in/8 * 3) * 8 * c_in/c_out
 
     def forward(self, x):
         x = self.relu(x)
@@ -87,8 +81,6 @@ class P3DReLUConvBNBlock(nn.Module):
             nn.InstanceNorm3d(c_out),
         )
 
-        # self.memory = 1 + 1 + c_out/c_in * 2
-
     def forward(self, x):
         return self.op(x)
 
@@ -99,8 +91,6 @@ class ReLUConvBNBlock(nn.Module):
         self.op = nn.Sequential(
             nn.ReLU(), nn.Conv3d(c_in, c_out, kernel_size, padding=padding, bias=False), nn.InstanceNorm3d(c_out)
         )
-
-        # self.memory = 1 + c_out/c_in * 2
 
     def forward(self, x):
         return self.op(x)
