@@ -16,7 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from operations import Cell
+# from operations import Cell
 
 __all__ = ["DiNTS"]
 
