@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import torch
 import torch.nn as nn
+
+
 
 
 class FactorizedIncreaseBlock(nn.Module):
@@ -41,16 +42,16 @@ class FactorizedReduceBlock(nn.Module):
     Down-sampling the feature by 2 using stride.
     """
 
-    def __init__(self, C_in: int, C_out: int):
+    def __init__(self, c_in: int, c_out: int):
         super().__init__()
-        assert C_out % 2 == 0
+        assert c_out % 2 == 0
         self.relu = nn.ReLU()
-        self.conv_1 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-        self.conv_2 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-        self.bn = nn.InstanceNorm3d(C_out)
+        self.conv_1 = nn.Conv3d(c_in, c_out // 2, 1, stride=2, padding=0, bias=False)
+        self.conv_2 = nn.Conv3d(c_in, c_out // 2, 1, stride=2, padding=0, bias=False)
+        self.bn = nn.InstanceNorm3d(c_out)
 
         # # multiply by 8 to comply with cell output size (see net.get_memory_usage)
-        # self.memory = (1 + C_out/C_in/8 * 3) * 8 * C_in/C_out
+        # self.memory = (1 + c_out/c_in/8 * 3) * 8 * c_in/c_out
 
     def forward(self, x):
         x = self.relu(x)
@@ -60,7 +61,7 @@ class FactorizedReduceBlock(nn.Module):
 
 
 class P3DReLUConvBNBlock(nn.Module):
-    def __init__(self, C_in: int, C_out: int, kernel_size: int, padding: int, P3Dmode: int = 0):
+    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int, P3Dmode: int = 0):
         super().__init__()
         self.P3Dmode = P3Dmode
         if P3Dmode == 0:  # 3 x 3 x 1
@@ -81,25 +82,25 @@ class P3DReLUConvBNBlock(nn.Module):
 
         self.op = nn.Sequential(
             nn.ReLU(),
-            nn.Conv3d(C_in, C_in, kernel_size0, padding=padding0, bias=False),
-            nn.Conv3d(C_in, C_out, kernel_size1, padding=padding1, bias=False),
-            nn.InstanceNorm3d(C_out),
+            nn.Conv3d(c_in, c_in, kernel_size0, padding=padding0, bias=False),
+            nn.Conv3d(c_in, c_out, kernel_size1, padding=padding1, bias=False),
+            nn.InstanceNorm3d(c_out),
         )
 
-        # self.memory = 1 + 1 + C_out/C_in * 2
+        # self.memory = 1 + 1 + c_out/c_in * 2
 
     def forward(self, x):
         return self.op(x)
 
 
 class ReLUConvBNBlock(nn.Module):
-    def __init__(self, C_in: int, C_out: int, kernel_size: int, padding: int):
+    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int):
         super().__init__()
         self.op = nn.Sequential(
-            nn.ReLU(), nn.Conv3d(C_in, C_out, kernel_size, padding=padding, bias=False), nn.InstanceNorm3d(C_out)
+            nn.ReLU(), nn.Conv3d(c_in, c_out, kernel_size, padding=padding, bias=False), nn.InstanceNorm3d(c_out)
         )
 
-        # self.memory = 1 + C_out/C_in * 2
+        # self.memory = 1 + c_out/c_in * 2
 
     def forward(self, x):
         return self.op(x)
