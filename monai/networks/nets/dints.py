@@ -37,7 +37,7 @@ class MixedOp(nn.Module):
         C,
         code_c = None,
     ):
-        super(MixedOp, self).__init__()
+        super().__init__()
         self._ops = nn.ModuleList()
         if code_c is None:
             code_c = np.ones(len(OPS))
@@ -59,7 +59,7 @@ class MixedOp(nn.Module):
         result = 0
         for _ in pos:
             result += self._ops[_.item()](x)*ops[_.item()]*weight[_.item()]
-        return result 
+        return result
 
 
 class Cell(nn.Module):
@@ -79,7 +79,7 @@ class Cell(nn.Module):
         rate: int,
         code_c: bool = None,
     ):
-        super(Cell, self).__init__()
+        super().__init__()
         self.C_out = C
         if rate == -1: # downsample
             self.preprocess = FactorizedReduce(C_prev, C)

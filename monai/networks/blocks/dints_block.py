@@ -26,7 +26,7 @@ import torch.nn as nn
 
 class FactorizedReduce(nn.Module):
     """
-    Downsample the feature by 2 using stride. 
+    Downsample the feature by 2 using stride.
     """
     def __init__(
         self,
@@ -40,7 +40,7 @@ class FactorizedReduce(nn.Module):
         self.conv_1 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
         self.conv_2 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
         self.bn = nn.InstanceNorm3d(C_out)
-        # multiply by 8 to comply with cell output size (see net.get_memory_usage) 
+        # multiply by 8 to comply with cell output size (see net.get_memory_usage)
         self.memory = (1 + C_out/C_in/8 * 3) * 8 * C_in/C_out
 
     def forward(self, x):
