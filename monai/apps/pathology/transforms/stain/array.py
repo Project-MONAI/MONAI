@@ -213,8 +213,7 @@ class NormalizeHEStains(Transform):
 
         # normalize stain concentrations
         max_conc = self.npcp.array(
-            [self.npcp.percentile(conc[0, :], 99), self.npcp.percentile(conc[1, :], 99)],
-            dtype=self.npcp.float32,
+            [self.npcp.percentile(conc[0, :], 99), self.npcp.percentile(conc[1, :], 99)], dtype=self.npcp.float32
         )
         tmp = self.npcp.divide(max_conc, self.max_cref, dtype=self.npcp.float32)
         image_c = self.npcp.divide(conc, tmp[:, self.npcp.newaxis], dtype=self.npcp.float32)

@@ -145,13 +145,7 @@ class TestExtractHEStainsD(unittest.TestCase):
             result = ExtractHEStainsD([key], cuda=True)({key: image})
             cp.testing.assert_array_equal(result[key][:, 0], result[key][:, 1])
 
-    @parameterized.expand(
-        [
-            EXTRACT_STAINS_TEST_CASE_00,
-            EXTRACT_STAINS_TEST_CASE_4,
-            EXTRACT_STAINS_TEST_CASE_5,
-        ]
-    )
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_00, EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
     def test_result_value(self, image, expected_data):
         """
         Test that an input image returns an expected stain matrix.
@@ -187,13 +181,7 @@ class TestExtractHEStainsD(unittest.TestCase):
             result = ExtractHEStainsD([key])({key: image})
             np.testing.assert_allclose(result[key], expected_data)
 
-    @parameterized.expand(
-        [
-            EXTRACT_STAINS_TEST_CASE_00,
-            EXTRACT_STAINS_TEST_CASE_4,
-            EXTRACT_STAINS_TEST_CASE_5,
-        ]
-    )
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_00, EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
     @skipUnless(has_cp, "CuPy is required.")
     def test_result_value_cupy(self, image, expected_data):
         """

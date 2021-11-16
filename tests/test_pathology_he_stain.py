@@ -95,12 +95,7 @@ class TestExtractHEStains(unittest.TestCase):
                 ExtractHEStains()(image)
 
     @parameterized.expand(
-        [
-            NEGATIVE_VALUE_TEST_CASE,
-            INVALID_VALUE_TEST_CASE,
-            EXTRACT_STAINS_TEST_CASE_0,
-            EXTRACT_STAINS_TEST_CASE_1,
-        ]
+        [NEGATIVE_VALUE_TEST_CASE, INVALID_VALUE_TEST_CASE, EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_1]
     )
     @skipUnless(has_cp, "CuPy is required.")
     def test_transparent_image_cupy(self, image):
@@ -120,13 +115,7 @@ class TestExtractHEStains(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ExtractHEStains(cuda=True)(image)
 
-    @parameterized.expand(
-        [
-            EXTRACT_STAINS_TEST_CASE_0,
-            EXTRACT_STAINS_TEST_CASE_2,
-            EXTRACT_STAINS_TEST_CASE_3,
-        ]
-    )
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
     def test_identical_result_vectors(self, image):
         """
         Test HE stain extraction on input images that are
@@ -143,13 +132,7 @@ class TestExtractHEStains(unittest.TestCase):
             result = ExtractHEStains()(image)
             np.testing.assert_array_equal(result[:, 0], result[:, 1])
 
-    @parameterized.expand(
-        [
-            EXTRACT_STAINS_TEST_CASE_0,
-            EXTRACT_STAINS_TEST_CASE_2,
-            EXTRACT_STAINS_TEST_CASE_3,
-        ]
-    )
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
     @skipUnless(has_cp, "CuPy is required.")
     def test_identical_result_vectors_cupy(self, image):
         """
@@ -169,13 +152,7 @@ class TestExtractHEStains(unittest.TestCase):
             result = ExtractHEStains(cuda=True)(image)
             cp.testing.assert_array_equal(result[:, 0], result[:, 1])
 
-    @parameterized.expand(
-        [
-            EXTRACT_STAINS_TEST_CASE_00,
-            EXTRACT_STAINS_TEST_CASE_4,
-            EXTRACT_STAINS_TEST_CASE_5,
-        ]
-    )
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_00, EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
     def test_result_value(self, image, expected_data):
         """
         Test that an input image returns an expected stain matrix.
@@ -210,13 +187,7 @@ class TestExtractHEStains(unittest.TestCase):
             result = ExtractHEStains()(image)
             np.testing.assert_allclose(result, expected_data)
 
-    @parameterized.expand(
-        [
-            EXTRACT_STAINS_TEST_CASE_00,
-            EXTRACT_STAINS_TEST_CASE_4,
-            EXTRACT_STAINS_TEST_CASE_5,
-        ]
-    )
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_00, EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
     @skipUnless(has_cp, "CuPy is required.")
     def test_result_value_cupy(self, image, expected_data):
         """
@@ -276,12 +247,7 @@ class TestNormalizeHEStains(unittest.TestCase):
                 NormalizeHEStains()(image)
 
     @parameterized.expand(
-        [
-            NEGATIVE_VALUE_TEST_CASE,
-            INVALID_VALUE_TEST_CASE,
-            NORMALIZE_STAINS_TEST_CASE_0,
-            NORMALIZE_STAINS_TEST_CASE_1,
-        ]
+        [NEGATIVE_VALUE_TEST_CASE, INVALID_VALUE_TEST_CASE, NORMALIZE_STAINS_TEST_CASE_0, NORMALIZE_STAINS_TEST_CASE_1]
     )
     @skipUnless(has_cp, "CuPy is required.")
     def test_transparent_image_cupy(self, image):
