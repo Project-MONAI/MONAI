@@ -22,7 +22,7 @@ __all__ = ["DiNTS"]
 
 
 # Define Operation Set
-OPS = {
+OPS_3D = {
     "skip_connect": lambda C: Identity(),
     "conv_3x3x3"  : lambda C: ReLUConvBN(C, C, 3, padding=1),
     "conv_3x3x1"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=0),
@@ -30,6 +30,11 @@ OPS = {
     "conv_1x3x3"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=2),
 }
 
+# Define Operation Set
+# OPS_2D = {
+#     "skip_connect": lambda C: Identity(),
+#     "conv_3x3"  : lambda C: ReLUConvBN(C, C, 3, padding=1),
+# }
 
 # class Identity(nn.Module):
 #     def __init__(self):
@@ -38,7 +43,6 @@ OPS = {
 
 #     def forward(self, x):
 #         return x
-
 
 class MixedOp(nn.Module):
     def __init__(

@@ -14,33 +14,7 @@ import torch
 import torch.nn as nn
 
 
-class FactorizedReduce(nn.Module):
-    """
-    Down-sampling the feature by 2 using stride.
-    """
-    def __init__(
-        self,
-        C_in: int,
-        C_out: int,
-    ):
-        super().__init__()
-        assert C_out % 2 == 0
-        self.relu = nn.ReLU()
-        self.conv_1 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-        self.conv_2 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-        self.bn = nn.InstanceNorm3d(C_out)
-
-        # multiply by 8 to comply with cell output size (see net.get_memory_usage)
-        # self.memory = (1 + C_out/C_in/8 * 3) * 8 * C_in/C_out
-
-    def forward(self, x):
-        x = self.relu(x)
-        out = torch.cat([self.conv_1(x), self.conv_2(x[:,:,1:,1:,1:])], dim=1)
-        out = self.bn(out)
-        return out
-
-
-class FactorizedIncrease(nn.Module):
+class FactorizedIncreaseBlock(nn.Module):
     """
     Up-sampling the feature by 2 using stride.
     """
@@ -49,7 +23,7 @@ class FactorizedIncrease(nn.Module):
         in_channel: int,
         out_channel: int,
     ):
-        super().__init__()
+        super(FactorizedIncreaseBlock, self).__init__()
         self._in_channel = in_channel
         self.op = nn.Sequential(
             nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
@@ -65,7 +39,33 @@ class FactorizedIncrease(nn.Module):
         return self.op(x)
 
 
-class P3DReLUConvBN(nn.Module):
+class FactorizedReduceBlock(nn.Module):
+    """
+    Down-sampling the feature by 2 using stride.
+    """
+    def __init__(
+        self,
+        C_in: int,
+        C_out: int,
+    ):
+        super(FactorizedReduceBlock, self).__init__()
+        assert C_out % 2 == 0
+        self.relu = nn.ReLU()
+        self.conv_1 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
+        self.conv_2 = nn.Conv3d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
+        self.bn = nn.InstanceNorm3d(C_out)
+
+        # # multiply by 8 to comply with cell output size (see net.get_memory_usage)
+        # self.memory = (1 + C_out/C_in/8 * 3) * 8 * C_in/C_out
+
+    def forward(self, x):
+        x = self.relu(x)
+        out = torch.cat([self.conv_1(x), self.conv_2(x[:,:,1:,1:,1:])], dim=1)
+        out = self.bn(out)
+        return out
+
+
+class P3DReLUConvBNBlock(nn.Module):
     def __init__(
         self,
         C_in: int,
@@ -76,17 +76,17 @@ class P3DReLUConvBN(nn.Module):
     ):
         super().__init__()
         self.P3Dmode = P3Dmode
-        if P3Dmode == 0: #331
+        if P3Dmode == 0: # 3 x 3 x 1
             kernel_size0 = (kernel_size, kernel_size, 1)
             kernel_size1 = (1, 1, kernel_size)
             padding0 = (padding, padding, 0)
             padding1 = (0, 0, padding)
-        elif P3Dmode == 1: #313
+        elif P3Dmode == 1: # 3 x 1 x 3
             kernel_size0 = (kernel_size, 1, kernel_size)
             kernel_size1 = (1, kernel_size, 1)
             padding0 = (padding, 0, padding)
             padding1 = (0, padding, 0)
-        elif P3Dmode == 2:
+        elif P3Dmode == 2: # 1 x 3 x 3
             kernel_size0 = (1, kernel_size, kernel_size)
             kernel_size1 = (kernel_size, 1, 1)
             padding0 = (0, padding, padding)
@@ -100,13 +100,14 @@ class P3DReLUConvBN(nn.Module):
                         padding=padding1, bias=False),
             nn.InstanceNorm3d(C_out)
         )
-        self.memory = 1 + 1 + C_out/C_in * 2
+
+        # self.memory = 1 + 1 + C_out/C_in * 2
 
     def forward(self, x):
         return self.op(x)
 
 
-class ReLUConvBN(nn.Module):
+class ReLUConvBNBlock(nn.Module):
     def __init__(
         self,
         C_in: int,
@@ -114,12 +115,13 @@ class ReLUConvBN(nn.Module):
         kernel_size: int,
         padding: int
     ):
-        super().__init__()
+        super(ReLUConvBNBlock, self).__init__()
         self.op = nn.Sequential(
             nn.ReLU(),
             nn.Conv3d(C_in, C_out, kernel_size, padding=padding, bias=False),
             nn.InstanceNorm3d(C_out)
         )
+
         # self.memory = 1 + C_out/C_in * 2
 
     def forward(self, x):
