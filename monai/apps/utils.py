@@ -241,7 +241,7 @@ def extractall(
         cache_dir = Path(output_dir, _basename(filepath).split(".")[0])
     else:
         cache_dir = Path(output_dir)
-    if cache_dir.exists() and len(list(cache_dir.iterdir())) > 0:
+    if cache_dir.exists() and next(cache_dir.iterdir(), None) is not None:
         logger.info(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
         return
     filepath = Path(filepath)
