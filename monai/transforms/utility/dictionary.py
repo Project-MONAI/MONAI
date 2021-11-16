@@ -917,6 +917,10 @@ class ConcatItemsd(MapTransform):
             elif not isinstance(d[key], data_type):
                 raise TypeError("All items in data must have the same type.")
             output.append(d[key])
+
+        if len(output) == 0:
+            return d
+
         if data_type is np.ndarray:
             d[self.name] = np.concatenate(output, axis=self.dim)
         elif data_type is torch.Tensor:
