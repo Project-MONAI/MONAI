@@ -16,18 +16,82 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# from operations import Cell
+from monai.networks.blocks.dints_block import (
+    FactorizedIncreaseBlock,
+    FactorizedReduceBlock,
+    P3DReLUConvBNBlock,
+    ReLUConvBNBlock,
+)
+
 
 __all__ = ["DiNTS"]
 
 
+class _IdentityWithMemory(nn.Identity):
+    def __init__(self):
+        super().__init__()
+        self.memory = 0
+
+
+class _ReLUConvBNBlockWithMemory(ReLUConvBNBlock):
+    def __init__(
+        self,
+        C_in: int,
+        C_out: int,
+        kernel_size: int,
+        padding: int
+    ):
+        super().__init__(C_in, C_out, kernel_size, padding)
+        self.memory = 1 + C_out/C_in * 2
+
+
+class _P3DReLUConvBNBlockWithMemory(P3DReLUConvBNBlock):
+    def __init__(
+        self,
+        C_in: int,
+        C_out: int,
+        kernel_size: int,
+        padding: int,
+        P3Dmode: int = 0
+    ):
+    super().__init__(C_in, C_out, kernel_size, padding, P3Dmode)
+    self.memory = 1 + 1 + C_out/C_in * 2
+
+
+class _FactorizedIncreaseBlockWithMemory(FactorizedIncreaseBlock):
+    def __init__ (
+        self,
+        in_channel: int,
+        out_channel: int,
+    ):
+    super().__init__(in_channel, out_channel)
+
+    # devide by 8 to comply with cell output size
+    self.memory = 8*(1+1+out_channel/in_channel*2)/8 * in_channel/out_channel
+
+
+class _FactorizedReduceBlockWithMemory(FactorizedReduceBlock):
+    """
+    Down-sampling the feature by 2 using stride.
+    """
+    def __init__(
+        self,
+        C_in: int,
+        C_out: int,
+    ):
+    super().__init__(C_in, C_out)
+
+    # multiply by 8 to comply with cell output size (see net.get_memory_usage)
+    self.memory = (1 + C_out/C_in/8 * 3) * 8 * C_in/C_out
+
+
 # Define Operation Set
 OPS_3D = {
-    "skip_connect": lambda C: Identity(),
-    "conv_3x3x3"  : lambda C: ReLUConvBN(C, C, 3, padding=1),
-    "conv_3x3x1"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=0),
-    "conv_3x1x3"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=1),
-    "conv_1x3x3"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=2),
+    "skip_connect": lambda C: _IdentityWithMemory(),
+    "conv_3x3x3"  : lambda C: _ReLUConvBNBlockWithMemory(C, C, 3, padding=1),
+    "conv_3x3x1"  : lambda C: _P3DReLUConvBNBlockWithMemory(C, C, 3, padding=1, P3Dmode=0),
+    "conv_3x1x3"  : lambda C: _P3DReLUConvBNBlockWithMemory(C, C, 3, padding=1, P3Dmode=1),
+    "conv_1x3x3"  : lambda C: _P3DReLUConvBNBlockWithMemory(C, C, 3, padding=1, P3Dmode=2),
 }
 
 # Define Operation Set
@@ -35,14 +99,6 @@ OPS_3D = {
 #     "skip_connect": lambda C: Identity(),
 #     "conv_3x3"  : lambda C: ReLUConvBN(C, C, 3, padding=1),
 # }
-
-# class Identity(nn.Module):
-#     def __init__(self):
-#         super(Identity, self).__init__()
-#         self.memory = 0
-
-#     def forward(self, x):
-#         return x
 
 class MixedOp(nn.Module):
     def __init__(
@@ -95,9 +151,9 @@ class Cell(nn.Module):
         super().__init__()
         self.C_out = C
         if rate == -1: # downsample
-            self.preprocess = FactorizedReduce(C_prev, C)
+            self.preprocess = _FactorizedReduceBlockWithMemory(C_prev, C)
         elif rate == 1: # upsample
-            self.preprocess = FactorizedIncrease(C_prev, C)
+            self.preprocess = _FactorizedIncreaseBlockWithMemory(C_prev, C)
         else:
             if C_prev == C:
                 self.preprocess = Identity()
