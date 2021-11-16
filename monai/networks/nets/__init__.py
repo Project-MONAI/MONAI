@@ -41,6 +41,7 @@ from .efficientnet import (
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
+from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
