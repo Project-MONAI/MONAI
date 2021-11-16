@@ -21,6 +21,83 @@ from operations import Cell
 __all__ = ["DiNTS"]
 
 
+# Define Operation Set
+OPS = {
+    "skip_connect": lambda C: Identity(),
+    "conv_3x3x3"  : lambda C: ReLUConvBN(C, C, 3, padding=1),
+    "conv_3x3x1"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=0),
+    "conv_3x1x3"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=1),
+    "conv_1x3x3"  : lambda C: P3DReLUConvBN(C, C, 3, padding=1, P3Dmode=2),
+}
+
+
+class MixedOp(nn.Module):
+    def __init__(
+        self,
+        C,
+        code_c = None,
+    ):
+        super(MixedOp, self).__init__()
+        self._ops = nn.ModuleList()
+        if code_c is None:
+            code_c = np.ones(len(OPS))
+        for idx, _ in enumerate(OPS.keys()):
+            if idx < len(code_c):
+                if code_c[idx] == 0:
+                    op = None
+                else:
+                    op = OPS[_](C)
+                self._ops.append(op)
+
+    def forward(
+        self,
+        x,
+        ops = None,
+        weight: bool = None
+    ):
+        pos = (ops == 1).nonzero()
+        result = 0
+        for _ in pos:
+            result += self._ops[_.item()](x)*ops[_.item()]*weight[_.item()]
+        return result 
+
+
+class Cell(nn.Module):
+    """
+    The basic class for cell operation
+    Args:
+        C_prev: input channel number
+        C: output channel number
+        rate: resolution change rate. -1 for 2x downsample, 1 for 2x upsample
+              0 for no change of resolution
+        code_c: cell operation code
+    """
+    def __init__(
+        self,
+        C_prev,
+        C,
+        rate: int,
+        code_c: bool = None,
+    ):
+        super(Cell, self).__init__()
+        self.C_out = C
+        if rate == -1: # downsample
+            self.preprocess = FactorizedReduce(C_prev, C)
+        elif rate == 1: # upsample
+            self.preprocess = FactorizedIncrease(C_prev, C)
+        else:
+            if C_prev == C:
+                self.preprocess = Identity()
+            else:
+                self.preprocess = ReLUConvBN(C_prev, C, 1, 0)
+        self.op = MixedOp(C, code_c)
+
+    def forward(self, s, ops, weight):
+        s  = self.preprocess(s)
+        s = self.op(s, ops, weight)
+        return s
+
+
 class DiNTS(nn.Module):
     def __init__(
         self,
