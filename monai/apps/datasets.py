@@ -146,6 +146,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
                 f'Unsupported section: {self.section}, available options are ["training", "validation", "test"].'
             )
 
+        # the types of label and class name should be compatible with the pytorch dataloader
         return [
             {"image": image_files_list[i], "label": image_class[i], "class_name": class_name[i]}
             for i in section_indices
@@ -306,6 +307,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         return {}
 
     def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
+        # the types of the item in data list should be compatible with the dataloader
         dataset_dir = Path(dataset_dir)
         section = "training" if self.section in ["training", "validation"] else "test"
         datalist = load_decathlon_datalist(dataset_dir / "dataset.json", True, section)
