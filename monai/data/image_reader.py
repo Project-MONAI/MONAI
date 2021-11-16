@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import warnings
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
-from monai.config import DtypeLike, KeysCollection
+from monai.config import DtypeLike, KeysCollection, PathLike
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
@@ -64,7 +64,7 @@ class ImageReader(ABC):
     """
 
     @abstractmethod
-    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
         Verify whether the specified `filename` is supported by the current reader.
         This method should return True if the reader is able to read the format suggested by the
@@ -78,7 +78,7 @@ class ImageReader(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def read(self, data: Union[Sequence[str], str], **kwargs) -> Union[Sequence[Any], Any]:
+    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs) -> Union[Sequence[Any], Any]:
         """
         Read image data from specified file or files.
         Note that it returns a data object or a sequence of data objects.
@@ -166,7 +166,7 @@ class ITKReader(ImageReader):
         self.channel_dim = channel_dim
         self.series_name = series_name
 
-    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
         Verify whether the specified file or files format is supported by ITK reader.
 
@@ -177,7 +177,7 @@ class ITKReader(ImageReader):
         """
         return has_itk
 
-    def read(self, data: Union[Sequence[str], str], **kwargs):
+    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
         Read image data from specified file or files, it can read a list of `no-channel` images
         and stack them together as multi-channels data in `get_data()`.
@@ -193,11 +193,12 @@ class ITKReader(ImageReader):
         """
         img_ = []
 
-        filenames: Sequence[str] = ensure_tuple(data)
+        filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            if os.path.isdir(name):
+            name = f"{name}"
+            if Path(name).is_dir():
                 # read DICOM series
                 # https://itk.org/ITKExamples/src/IO/GDCM/ReadDICOMSeriesAndWrite3DImage
                 names_generator = itk.GDCMSeriesFileNames.New()
@@ -348,7 +349,7 @@ class NibabelReader(ImageReader):
         self.dtype = dtype
         self.kwargs = kwargs
 
-    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
         Verify whether the specified file or files format is supported by Nibabel reader.
 
@@ -360,7 +361,7 @@ class NibabelReader(ImageReader):
         suffixes: Sequence[str] = ["nii", "nii.gz"]
         return has_nib and is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str], **kwargs):
+    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
         Read image data from specified file or files, it can read a list of `no-channel` images
         and stack them together as multi-channels data in `get_data()`.
@@ -375,7 +376,7 @@ class NibabelReader(ImageReader):
         """
         img_: List[Nifti1Image] = []
 
-        filenames: Sequence[str] = ensure_tuple(data)
+        filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -503,7 +504,7 @@ class NumpyReader(ImageReader):
         self.channel_dim = channel_dim
         self.kwargs = kwargs
 
-    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
         Verify whether the specified file or files format is supported by Numpy reader.
 
@@ -514,7 +515,7 @@ class NumpyReader(ImageReader):
         suffixes: Sequence[str] = ["npz", "npy"]
         return is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str], **kwargs):
+    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
         Read image data from specified file or files, it can read a list of `no-channel` data files
         and stack them together as multi-channels data in `get_data()`.
@@ -529,12 +530,12 @@ class NumpyReader(ImageReader):
         """
         img_: List[Nifti1Image] = []
 
-        filenames: Sequence[str] = ensure_tuple(data)
+        filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
             img = np.load(name, allow_pickle=True, **kwargs_)
-            if name.endswith(".npz"):
+            if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
                 npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
                 for k in npz_keys:
@@ -593,7 +594,7 @@ class PILReader(ImageReader):
         self.converter = converter
         self.kwargs = kwargs
 
-    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
         Verify whether the specified file or files format is supported by PIL reader.
 
@@ -604,7 +605,7 @@ class PILReader(ImageReader):
         suffixes: Sequence[str] = ["png", "jpg", "jpeg", "bmp"]
         return has_pil and is_supported_format(filename, suffixes)
 
-    def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
+    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
         Read image data from specified file or files, it can read a list of `no-channel` images
         and stack them together as multi-channels data in `get_data()`.
@@ -619,7 +620,7 @@ class PILReader(ImageReader):
         """
         img_: List[PILImage.Image] = []
 
-        filenames: Sequence[str] = ensure_tuple(data)
+        filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -708,7 +709,7 @@ class WSIReader(ImageReader):
             return TiffFile
         raise ValueError("`backend` should be 'cuCIM', 'OpenSlide' or 'TiffFile'.")
 
-    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
         Verify whether the specified file or files format is supported by WSI reader.
 
@@ -718,7 +719,7 @@ class WSIReader(ImageReader):
         """
         return is_supported_format(filename, ["tif", "tiff"])
 
-    def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
+    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
         Read image data from given file or list of files.
 
@@ -731,7 +732,7 @@ class WSIReader(ImageReader):
         """
         img_: List = []
 
-        filenames: Sequence[str] = ensure_tuple(data)
+        filenames: Sequence[PathLike] = ensure_tuple(data)
         for name in filenames:
             img = self.wsi_reader(name)
             if self.backend == "openslide":

@@ -49,7 +49,7 @@ class TestCheckMissingFiles(unittest.TestCase):
             missings = check_missing_files(
                 datalist=datalist, keys=["image", "label", "test"], root_dir=tempdir, allow_missing_keys=True
             )
-            self.assertEqual(missings[0], os.path.join(tempdir, "test_label_missing.nii.gz"))
+            self.assertEqual(f"{missings[0]}", os.path.join(tempdir, "test_label_missing.nii.gz"))
 
 
 if __name__ == "__main__":

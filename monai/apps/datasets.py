@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import sys
+from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 
 from monai.apps.utils import download_and_extract
+from monai.config.type_definitions import PathLike
 from monai.data import (
     CacheDataset,
     load_decathlon_datalist,
@@ -64,7 +65,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
     def __init__(
         self,
-        root_dir: str,
+        root_dir: PathLike,
         section: str,
         transform: Union[Sequence[Callable], Callable] = (),
         download: bool = False,
@@ -75,19 +76,20 @@ class MedNISTDataset(Randomizable, CacheDataset):
         cache_rate: float = 1.0,
         num_workers: int = 0,
     ) -> None:
-        if not os.path.isdir(root_dir):
+        root_dir = Path(root_dir)
+        if not root_dir.is_dir():
             raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
         self.val_frac = val_frac
         self.test_frac = test_frac
         self.set_random_state(seed=seed)
-        tarfile_name = os.path.join(root_dir, self.compressed_file_name)
-        dataset_dir = os.path.join(root_dir, self.dataset_folder_name)
+        tarfile_name = root_dir / self.compressed_file_name
+        dataset_dir = root_dir / self.dataset_folder_name
         self.num_class = 0
         if download:
             download_and_extract(self.resource, tarfile_name, root_dir, self.md5)
 
-        if not os.path.exists(dataset_dir):
+        if not dataset_dir.is_dir():
             raise RuntimeError(
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
@@ -105,19 +107,17 @@ class MedNISTDataset(Randomizable, CacheDataset):
         """Get number of classes."""
         return self.num_class
 
-    def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
         """
         Raises:
             ValueError: When ``section`` is not one of ["training", "validation", "test"].
 
         """
-        class_names = sorted(x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x)))
+        dataset_dir = Path(dataset_dir)
+        class_names = sorted(f"{x}" for x in dataset_dir.iterdir() if (dataset_dir / x).is_dir())
         self.num_class = len(class_names)
         image_files = [
-            [
-                os.path.join(dataset_dir, class_names[i], x)
-                for x in os.listdir(os.path.join(dataset_dir, class_names[i]))
-            ]
+            [f"{dataset_dir.joinpath(class_names[i], x)}" for x in (dataset_dir / class_names[i]).iterdir()]
             for i in range(self.num_class)
         ]
         num_each = [len(image_files[i]) for i in range(self.num_class)]
@@ -146,6 +146,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
                 f'Unsupported section: {self.section}, available options are ["training", "validation", "test"].'
             )
 
+        # the types of label and class name should be compatible with the pytorch dataloader
         return [
             {"image": image_files_list[i], "label": image_class[i], "class_name": class_name[i]}
             for i in section_indices
@@ -234,7 +235,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
     def __init__(
         self,
-        root_dir: str,
+        root_dir: PathLike,
         task: str,
         section: str,
         transform: Union[Sequence[Callable], Callable] = (),
@@ -245,19 +246,20 @@ class DecathlonDataset(Randomizable, CacheDataset):
         cache_rate: float = 1.0,
         num_workers: int = 0,
     ) -> None:
-        if not os.path.isdir(root_dir):
+        root_dir = Path(root_dir)
+        if not root_dir.is_dir():
             raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
         self.val_frac = val_frac
         self.set_random_state(seed=seed)
         if task not in self.resource:
             raise ValueError(f"Unsupported task: {task}, available options are: {list(self.resource.keys())}.")
-        dataset_dir = os.path.join(root_dir, task)
+        dataset_dir = root_dir / task
         tarfile_name = f"{dataset_dir}.tar"
         if download:
             download_and_extract(self.resource[task], tarfile_name, root_dir, self.md5[task])
 
-        if not os.path.exists(dataset_dir):
+        if not dataset_dir.exists():
             raise RuntimeError(
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
@@ -275,7 +277,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "numTraining",
             "numTest",
         ]
-        self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
+        self._properties = load_decathlon_properties(dataset_dir / "dataset.json", property_keys)
         if transform == ():
             transform = LoadImaged(["image", "label"])
         CacheDataset.__init__(
@@ -304,9 +306,11 @@ class DecathlonDataset(Randomizable, CacheDataset):
             return {key: self._properties[key] for key in ensure_tuple(keys)}
         return {}
 
-    def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
+        # the types of the item in data list should be compatible with the dataloader
+        dataset_dir = Path(dataset_dir)
         section = "training" if self.section in ["training", "validation"] else "test"
-        datalist = load_decathlon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
+        datalist = load_decathlon_datalist(dataset_dir / "dataset.json", True, section)
         return self._split_datalist(datalist)
 
     def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:

@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -114,7 +115,7 @@ class TestMMMARDownload(unittest.TestCase):
             download_mmar(idx, progress=False)  # repeated to check caching
             with tempfile.TemporaryDirectory() as tmp_dir:
                 download_mmar(idx, mmar_dir=tmp_dir, progress=False)
-                download_mmar(idx, mmar_dir=tmp_dir, progress=False, version=1)  # repeated to check caching
+                download_mmar(idx, mmar_dir=Path(tmp_dir), progress=False, version=1)  # repeated to check caching
                 self.assertTrue(os.path.exists(os.path.join(tmp_dir, idx)))
         except (ContentTooShortError, HTTPError, RuntimeError) as e:
             print(str(e))
