@@ -816,7 +816,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -984,7 +984,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -1120,7 +1120,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -1274,7 +1274,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -1702,7 +1702,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -1891,7 +1891,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
 
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 

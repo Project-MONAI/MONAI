@@ -187,7 +187,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random noise
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -625,7 +625,7 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random bias factor
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -1474,7 +1474,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -1543,7 +1543,7 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 

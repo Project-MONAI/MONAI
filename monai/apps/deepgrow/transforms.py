@@ -644,7 +644,7 @@ class SpatialCropGuidanced(MapTransform):
 
     def __call__(self, data):
         d: Dict = dict(data)
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 

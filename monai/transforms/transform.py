@@ -21,7 +21,7 @@ import torch
 
 from monai import transforms
 from monai.config import KeysCollection
-from monai.utils import MAX_SEED, ensure_tuple
+from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 
 __all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
@@ -361,3 +361,14 @@ class MapTransform(Transform):
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
                 raise KeyError(f"Key was missing ({key}) and allow_missing_keys==False")
+
+    def first_key(self, data: Dict[Hashable, Any]):
+        """
+        Get the first available key of `self.keys` in the input `data` dictionary.
+        If no available key, return an empty list `[]`.
+
+        Args:
+            data: data that the transform will be applied to.
+
+        """
+        return first(self.key_iterator(data), [])

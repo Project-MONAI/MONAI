@@ -480,7 +480,7 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -579,7 +579,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = next(self.key_iterator(d), [])
+        first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
             return d
 
@@ -677,7 +677,7 @@ class RandScaleCropd(RandSpatialCropd):
         self.max_roi_scale = max_roi_scale
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        first_key: Union[Hashable, List] = next(self.key_iterator(data), [])  # type: ignore
+        first_key: Union[Hashable, List] = self.first_key(data)  # type: ignore
         if first_key == []:
             return data  # type: ignore
 
