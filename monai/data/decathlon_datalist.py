@@ -244,6 +244,7 @@ def create_cross_validation_datalist(
     val_list = select_cross_validation_folds(partitions=data, folds=val_folds)
     ret = {train_key: train_list, val_key: val_list}
     if isinstance(filename, (str, Path)):
-        json.dump(ret, open(filename, "w"), indent=4)
+        with open(filename, "w") as f:
+            json.dump(ret, f, indent=4)
 
     return ret
