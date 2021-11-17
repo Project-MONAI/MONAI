@@ -20,18 +20,8 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TESTS.append(
-        [
-            p(np.arange(5 * 4).reshape(5, 4)),
-            None,
-        ]
-    )
-    TESTS.append(
-        [
-            p(np.arange(5 * 4 * 3).reshape(5, 4, 3)),
-            [2, 0, 1],
-        ]
-    )
+    TESTS.append([p(np.arange(5 * 4).reshape(5, 4)), None])
+    TESTS.append([p(np.arange(5 * 4 * 3).reshape(5, 4, 3)), [2, 0, 1]])
 
 
 class TestTranspose(unittest.TestCase):
@@ -42,7 +32,7 @@ class TestTranspose(unittest.TestCase):
         if isinstance(im, torch.Tensor):
             im = im.cpu().numpy()
         out2 = np.transpose(im, indices)
-        assert_allclose(out1, out2)
+        assert_allclose(out1, out2, type_test=False)
 
 
 if __name__ == "__main__":

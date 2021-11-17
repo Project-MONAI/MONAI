@@ -256,6 +256,19 @@ Layers
 .. autoclass:: Flatten
     :members:
 
+`Reshape`
+~~~~~~~~~
+.. autoclass:: Reshape
+    :members:
+
+`separable_filtering`
+~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: separable_filtering
+
+`apply_filter`
+~~~~~~~~~~~~~~
+.. autofunction:: apply_filter
+
 `GaussianFilter`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: GaussianFilter
@@ -470,6 +483,11 @@ Nets
 .. autoclass:: ViT
   :members:
 
+`ViTAutoEnc`
+~~~~~~~~~~~~
+.. autoclass:: ViTAutoEnc
+  :members:
+
 `FullyConnectedNet`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: FullyConnectedNet
@@ -500,6 +518,11 @@ Nets
 .. autoclass:: Critic
   :members:
 
+`Transchex`
+~~~~~~~~~~~~~~~~
+.. autoclass:: Transchex
+  :members:
+
 `NetAdapter`
 ~~~~~~~~~~~~
 .. autoclass:: NetAdapter
@@ -513,6 +536,11 @@ Nets
 `TorchVisionFullyConvModel`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TorchVisionFullyConvModel
+  :members:
+
+`MILModel`
+~~~~~~~~~~
+.. autoclass:: MILModel
   :members:
 
 Utilities

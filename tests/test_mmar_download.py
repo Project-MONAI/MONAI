@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -109,11 +110,12 @@ class TestMMMARDownload(unittest.TestCase):
             # test model specification
             cand = get_model_spec(idx)
             self.assertEqual(cand[RemoteMMARKeys.ID], idx)
-            download_mmar(idx)
+            with self.assertLogs(level="INFO", logger="monai.apps"):
+                download_mmar(idx)
             download_mmar(idx, progress=False)  # repeated to check caching
             with tempfile.TemporaryDirectory() as tmp_dir:
                 download_mmar(idx, mmar_dir=tmp_dir, progress=False)
-                download_mmar(idx, mmar_dir=tmp_dir, progress=False, version=1)  # repeated to check caching
+                download_mmar(idx, mmar_dir=Path(tmp_dir), progress=False, version=1)  # repeated to check caching
                 self.assertTrue(os.path.exists(os.path.join(tmp_dir, idx)))
         except (ContentTooShortError, HTTPError, RuntimeError) as e:
             print(str(e))
@@ -138,7 +140,7 @@ class TestMMMARDownload(unittest.TestCase):
 
     def test_unique(self):
         # model ids are unique
-        keys = sorted([m["id"] for m in MODEL_DESC])
+        keys = sorted(m["id"] for m in MODEL_DESC)
         self.assertTrue(keys == sorted(set(keys)))
 
     @SkipIfAtLeastPyTorchVersion((1, 6))
