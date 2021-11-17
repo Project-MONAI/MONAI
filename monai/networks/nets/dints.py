@@ -31,15 +31,15 @@ class _IdentityWithMemory(nn.Identity):
 
 
 class _ReLUConvBNBlockWithMemory(ReLUConvBNBlock):
-    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int):
-        super().__init__(c_in, c_out, kernel_size, padding)
-        self.memory = 1 + c_out / c_in * 2
+    def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int):
+        super().__init__(in_channel, out_channel, kernel_size, padding)
+        self.memory = 1 + out_channel / in_channel * 2
 
 
 class _P3DReLUConvBNBlockWithMemory(P3DReLUConvBNBlock):
-    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int, p3dmode: int = 0):
-        super().__init__(c_in, c_out, kernel_size, padding, p3dmode)
-        self.memory = 1 + 1 + c_out / c_in * 2
+    def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, p3dmode: int = 0):
+        super().__init__(in_channel, out_channel, kernel_size, padding, p3dmode)
+        self.memory = 1 + 1 + out_channel / in_channel * 2
 
 
 class _FactorizedIncreaseBlockWithMemory(FactorizedIncreaseBlock):
@@ -55,11 +55,11 @@ class _FactorizedReduceBlockWithMemory(FactorizedReduceBlock):
     Down-sampling the feature by 2 using stride.
     """
 
-    def __init__(self, c_in: int, c_out: int):
-        super().__init__(c_in, c_out)
+    def __init__(self, in_channel: int, out_channel: int):
+        super().__init__(in_channel, out_channel)
 
         # multiply by 8 to comply with cell output size (see net.get_memory_usage)
-        self.memory = (1 + c_out / c_in / 8 * 3) * 8 * c_in / c_out
+        self.memory = (1 + out_channel / in_channel / 8 * 3) * 8 * in_channel / out_channel
 
 
 # Define Operation Set

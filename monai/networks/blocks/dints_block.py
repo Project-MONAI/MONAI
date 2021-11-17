@@ -23,11 +23,12 @@ class FactorizedIncreaseBlock(nn.Module):
     def __init__(self, in_channel: int, out_channel: int):
         super().__init__()
         self._in_channel = in_channel
+        self._out_channel = out_channel
         self.op = nn.Sequential(
             nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
             nn.ReLU(),
-            nn.Conv3d(self._in_channel, out_channel, 1, stride=1, padding=0, bias=False),
-            nn.InstanceNorm3d(out_channel),
+            nn.Conv3d(self._in_channel, self._out_channel, 1, stride=1, padding=0, bias=False),
+            nn.InstanceNorm3d(self._out_channel),
         )
 
     def forward(self, x):
@@ -39,13 +40,16 @@ class FactorizedReduceBlock(nn.Module):
     Down-sampling the feature by 2 using stride.
     """
 
-    def __init__(self, c_in: int, c_out: int):
+    def __init__(self, in_channel: int, out_channel: int):
         super().__init__()
-        assert c_out % 2 == 0
+        self._in_channel = in_channel
+        self._out_channel = out_channel
+
+        assert self._out_channel % 2 == 0
         self.relu = nn.ReLU()
-        self.conv_1 = nn.Conv3d(c_in, c_out // 2, 1, stride=2, padding=0, bias=False)
-        self.conv_2 = nn.Conv3d(c_in, c_out // 2, 1, stride=2, padding=0, bias=False)
-        self.bn = nn.InstanceNorm3d(c_out)
+        self.conv_1 = nn.Conv3d(self._in_channel, self._out_channel // 2, 1, stride=2, padding=0, bias=False)
+        self.conv_2 = nn.Conv3d(self._in_channel, self._out_channel // 2, 1, stride=2, padding=0, bias=False)
+        self.bn = nn.InstanceNorm3d(self._out_channel)
 
     def forward(self, x):
         x = self.relu(x)
@@ -55,20 +59,23 @@ class FactorizedReduceBlock(nn.Module):
 
 
 class P3DReLUConvBNBlock(nn.Module):
-    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int, p3dmode: int = 0):
+    def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, p3dmode: int = 0):
         super().__init__()
-        self.p3dmode = p3dmode
-        if p3dmode == 0:  # 3 x 3 x 1
+        self._in_channel = in_channel
+        self._out_channel = out_channel
+        self._p3dmode = p3dmode
+
+        if self._p3dmode == 0:  # 3 x 3 x 1
             kernel_size0 = (kernel_size, kernel_size, 1)
             kernel_size1 = (1, 1, kernel_size)
             padding0 = (padding, padding, 0)
             padding1 = (0, 0, padding)
-        elif p3dmode == 1:  # 3 x 1 x 3
+        elif self._p3dmode == 1:  # 3 x 1 x 3
             kernel_size0 = (kernel_size, 1, kernel_size)
             kernel_size1 = (1, kernel_size, 1)
             padding0 = (padding, 0, padding)
             padding1 = (0, padding, 0)
-        elif p3dmode == 2:  # 1 x 3 x 3
+        elif self._p3dmode == 2:  # 1 x 3 x 3
             kernel_size0 = (1, kernel_size, kernel_size)
             kernel_size1 = (kernel_size, 1, 1)
             padding0 = (0, padding, padding)
@@ -76,9 +83,9 @@ class P3DReLUConvBNBlock(nn.Module):
 
         self.op = nn.Sequential(
             nn.ReLU(),
-            nn.Conv3d(c_in, c_in, kernel_size0, padding=padding0, bias=False),
-            nn.Conv3d(c_in, c_out, kernel_size1, padding=padding1, bias=False),
-            nn.InstanceNorm3d(c_out),
+            nn.Conv3d(self._in_channel, self._in_channel, kernel_size0, padding=padding0, bias=False),
+            nn.Conv3d(self._in_channel, self._out_channel, kernel_size1, padding=padding1, bias=False),
+            nn.InstanceNorm3d(self._out_channel),
         )
 
     def forward(self, x):
@@ -86,10 +93,14 @@ class P3DReLUConvBNBlock(nn.Module):
 
 
 class ReLUConvBNBlock(nn.Module):
-    def __init__(self, c_in: int, c_out: int, kernel_size: int, padding: int):
+    def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int):
         super().__init__()
+        self._in_channel = in_channel
+        self._out_channel = out_channel
         self.op = nn.Sequential(
-            nn.ReLU(), nn.Conv3d(c_in, c_out, kernel_size, padding=padding, bias=False), nn.InstanceNorm3d(c_out)
+            nn.ReLU(),
+            nn.Conv3d(self._in_channel, self._out_channel, kernel_size, padding=padding, bias=False),
+            nn.InstanceNorm3d(self._out_channel),
         )
 
     def forward(self, x):
