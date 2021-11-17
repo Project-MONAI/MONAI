@@ -21,8 +21,7 @@ from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optio
 
 import torch
 
-from monai.config import KeysCollection
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
@@ -360,11 +359,13 @@ class Ensembled(MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         items: Union[List[NdarrayOrTensor], NdarrayOrTensor]
-        if len(self.keys) == 1:
+        if len(self.keys) == 1 and self.keys[0] in d:
             items = d[self.keys[0]]
         else:
             items = [d[key] for key in self.key_iterator(d)]
-        d[self.output_key] = self.ensemble(items)
+
+        if len(items) > 0:
+            d[self.output_key] = self.ensemble(items)
 
         return d
 
@@ -644,7 +645,7 @@ class SaveClassificationd(MapTransform):
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         saver: Optional[CSVSaver] = None,
-        output_dir: str = "./",
+        output_dir: PathLike = "./",
         filename: str = "predictions.csv",
         overwrite: bool = True,
         flush: bool = True,

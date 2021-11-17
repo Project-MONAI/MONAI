@@ -142,7 +142,7 @@ class TestLoadImage(unittest.TestCase):
     def test_itk_dicom_series_reader(self, input_param, filenames, expected_shape):
         result, header = LoadImage(**input_param)(filenames)
         self.assertTrue("affine" in header)
-        self.assertEqual(header["filename_or_obj"], filenames)
+        self.assertEqual(header["filename_or_obj"], f"{Path(filenames)}")
         np.testing.assert_allclose(
             header["affine"],
             np.array(

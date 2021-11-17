@@ -235,6 +235,7 @@ class SegResNetVAE(SegResNet):
             in_channels=in_channels,
             out_channels=out_channels,
             dropout_prob=dropout_prob,
+            act=act,
             norm=norm,
             use_conv_final=use_conv_final,
             blocks_down=blocks_down,
@@ -318,25 +319,11 @@ class SegResNetVAE(SegResNet):
 
     def forward(self, x):
         net_input = x
-        x = self.convInit(x)
-        if self.dropout_prob is not None:
-            x = self.dropout(x)
-
-        down_x = []
-        for down in self.down_layers:
-            x = down(x)
-            down_x.append(x)
-
+        x, down_x = self.encode(x)
         down_x.reverse()
 
         vae_input = x
-
-        for i, (up, upl) in enumerate(zip(self.up_samples, self.up_layers)):
-            x = up(x) + down_x[i + 1]
-            x = upl(x)
-
-        if self.use_conv_final:
-            x = self.conv_final(x)
+        x = self.decode(x, down_x)
 
         if self.training:
             vae_loss = self._get_vae_loss(net_input, vae_input)

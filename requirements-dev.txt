@@ -40,5 +40,5 @@ requests
 einops
 transformers
 mlflow
-matplotlib
+matplotlib!=3.5.0
 tensorboardX

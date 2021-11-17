@@ -12,6 +12,7 @@
 import os
 import shutil
 import unittest
+from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import MedNISTDataset
@@ -53,17 +54,19 @@ class TestMedNISTDataset(unittest.TestCase):
         _test_dataset(data)
 
         # testing from
-        data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
-        data.get_num_classes()
+        data = MedNISTDataset(root_dir=Path(testing_dir), transform=transform, section="test", download=False)
+        self.assertEqual(data.get_num_classes(), 6)
         _test_dataset(data)
         data = MedNISTDataset(root_dir=testing_dir, section="test", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (64, 64))
         # test same dataset length with different random seed
         data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False, seed=42)
         _test_dataset(data)
+        self.assertEqual(data[0]["class_name"], "AbdomenCT")
+        self.assertEqual(data[0]["label"].cpu().item(), 0)
         shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
         try:
-            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
+            MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
         except RuntimeError as e:
             print(str(e))
             self.assertTrue(str(e).startswith("Cannot find dataset directory"))
