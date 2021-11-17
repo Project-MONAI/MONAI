@@ -23,15 +23,14 @@ from typing import Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import DtypeLike
+from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
 from monai.transforms.transform import Transform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, ensure_tuple, optional_import
-from monai.utils.module import look_up_option
+from monai.utils import InterpolateMode, OptionalImportError, ensure_tuple, look_up_option, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -126,6 +125,10 @@ class LoadImage(Transform):
         for r in SUPPORTED_READERS:  # set predefined readers as default
             try:
                 self.register(SUPPORTED_READERS[r](*args, **kwargs))
+            except OptionalImportError:
+                logging.getLogger(self.__class__.__name__).debug(
+                    f"required package for reader {r} is not installed, or the version doesn't match requirement."
+                )
             except TypeError:  # the reader doesn't have the corresponding args/kwargs
                 logging.getLogger(self.__class__.__name__).debug(
                     f"{r} is not supported with the given parameters {args} {kwargs}."
@@ -139,6 +142,10 @@ class LoadImage(Transform):
                 the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
                 try:
                     self.register(the_reader(*args, **kwargs))
+                except OptionalImportError:
+                    warnings.warn(
+                        f"required package for reader {r} is not installed, or the version doesn't match requirement."
+                    )
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
                     warnings.warn(f"{r} is not supported with the given parameters {args} {kwargs}.")
                     self.register(the_reader())
@@ -160,7 +167,7 @@ class LoadImage(Transform):
             warnings.warn(f"Preferably the reader should inherit ImageReader, but got {type(reader)}.")
         self.readers.append(reader)
 
-    def __call__(self, filename: Union[Sequence[str], str, Path, Sequence[Path]], reader: Optional[ImageReader] = None):
+    def __call__(self, filename: Union[Sequence[PathLike], PathLike], reader: Optional[ImageReader] = None):
         """
         Load image file and meta data from the given filename(s).
         If `reader` is not specified, this class automatically chooses readers based on the
@@ -176,7 +183,7 @@ class LoadImage(Transform):
             reader: runtime reader to load image file and meta data.
 
         """
-        filename = tuple(str(s) for s in ensure_tuple(filename))  # allow Path objects
+        filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects
         img = None
         if reader is not None:
             img = reader.read(filename)  # runtime specified reader
@@ -209,7 +216,7 @@ class LoadImage(Transform):
 
         if self.image_only:
             return img_array
-        meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
+        meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 
@@ -285,7 +292,7 @@ class SaveImage(Transform):
 
     def __init__(
         self,
-        output_dir: Union[Path, str] = "./",
+        output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         resample: bool = True,
@@ -295,7 +302,7 @@ class SaveImage(Transform):
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
-        data_root_dir: str = "",
+        data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:

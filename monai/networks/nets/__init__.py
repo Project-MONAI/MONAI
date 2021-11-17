@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .ahnet import AHnet, Ahnet, AHNet, ahnet
+from .ahnet import AHnet, Ahnet, AHNet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .classifier import Classifier, Critic, Discriminator
@@ -24,13 +24,12 @@ from .densenet import (
     Densenet201,
     DenseNet264,
     Densenet264,
-    densenet,
     densenet121,
     densenet169,
     densenet201,
     densenet264,
 )
-from .dynunet import DynUNet, DynUnet, Dynunet, dynunet
+from .dynunet import DynUNet, DynUnet, Dynunet
 from .efficientnet import (
     BlockArgs,
     EfficientNet,
@@ -42,6 +41,7 @@ from .efficientnet import (
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
+from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
@@ -71,7 +71,6 @@ from .senet import (
     SEResNeXt101,
     SEresnext101,
     Seresnext101,
-    senet,
     senet154,
     seresnet50,
     seresnet101,
@@ -80,8 +79,10 @@ from .senet import (
     seresnext101,
 )
 from .torchvision_fc import TorchVisionFCModel, TorchVisionFullyConvModel
-from .unet import UNet, Unet, unet
+from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
+from .unet import UNet, Unet
 from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
 from .vit import ViT
+from .vitautoenc import ViTAutoEnc
 from .vnet import VNet
