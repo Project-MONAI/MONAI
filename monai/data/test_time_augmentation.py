@@ -86,7 +86,7 @@ class TestTimeAugmentation:
         .. code-block:: python
 
             transform = RandAffined(keys, ...)
-            post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+            post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=0.5)])
 
             tt_aug = TestTimeAugmentation(
                 transform, batch_size=5, num_workers=0, inferrer_fn=lambda x: post_trans(model(x)), device=device

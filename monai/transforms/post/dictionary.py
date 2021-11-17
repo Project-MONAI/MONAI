@@ -38,7 +38,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "ActivationsD",
@@ -128,18 +128,14 @@ class AsDiscreted(MapTransform):
 
     backend = AsDiscrete.backend
 
-    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
         argmax: Union[Sequence[bool], bool] = False,
-        to_onehot: Union[Sequence[bool], bool] = False,
-        num_classes: Optional[Union[Sequence[int], int]] = None,
-        threshold_values: Union[Sequence[bool], bool] = False,
-        logit_thresh: Union[Sequence[float], float] = 0.5,
+        to_onehot: Union[Sequence[Optional[int]], Optional[int]] = None,
+        threshold_values: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
-        n_classes: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -147,14 +143,10 @@ class AsDiscreted(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             argmax: whether to execute argmax function on input data before transform.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            to_onehot: whether to convert input data into the one-hot format. Defaults to False.
-                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            num_classes: the number of classes to convert to One-Hot format. it also can be a
-                sequence of int, each element corresponds to a key in ``keys``.
-            threshold_values: whether threshold the float value to int number 0 or 1, default is False.
-                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            logit_thresh: the threshold value for thresholding operation, default is 0.5.
-                it also can be a sequence of float, each element corresponds to a key in ``keys``.
+            to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
+                defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
+            threshold_values: if not None, threshold the float values to int number 0 or 1 with specified theashold.
+                defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
@@ -164,24 +156,19 @@ class AsDiscreted(MapTransform):
             ``n_classes`` is deprecated, use ``num_classes`` instead.
 
         """
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes is None:
-            num_classes = n_classes
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
-        self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
         self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
-        self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key, argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
-            d, self.argmax, self.to_onehot, self.num_classes, self.threshold_values, self.logit_thresh, self.rounding
+        for key, argmax, to_onehot, threshold_values, rounding in self.key_iterator(
+            d, self.argmax, self.to_onehot, self.threshold_values, self.rounding
         ):
-            d[key] = self.converter(d[key], argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding)
+            d[key] = self.converter(d[key], argmax, to_onehot, threshold_values, rounding)
         return d
 
 

@@ -20,14 +20,7 @@ TEST_CASES = []
 for p in TEST_NDARRAYS:
     TEST_CASES.append(
         [
-            {
-                "keys": ["pred", "label"],
-                "argmax": [True, False],
-                "to_onehot": True,
-                "num_classes": 2,
-                "threshold_values": False,
-                "logit_thresh": 0.5,
-            },
+            {"keys": ["pred", "label"], "argmax": [True, False], "to_onehot": 2, "threshold_values": 0.5},
             {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]]), "label": p([[[0, 1]]])},
             {"pred": p([[[0.0, 0.0]], [[1.0, 1.0]]]), "label": p([[[1.0, 0.0]], [[0.0, 1.0]]])},
             (2, 1, 2),
@@ -36,14 +29,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {
-                "keys": ["pred", "label"],
-                "argmax": False,
-                "to_onehot": False,
-                "num_classes": None,
-                "threshold_values": [True, False],
-                "logit_thresh": 0.6,
-            },
+            {"keys": ["pred", "label"], "argmax": False, "to_onehot": None, "threshold_values": [0.6, None]},
             {"pred": p([[[0.0, 1.0], [2.0, 3.0]]]), "label": p([[[0, 1], [1, 1]]])},
             {"pred": p([[[0.0, 1.0], [1.0, 1.0]]]), "label": p([[[0.0, 1.0], [1.0, 1.0]]])},
             (1, 2, 2),
@@ -52,14 +38,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {
-                "keys": ["pred"],
-                "argmax": True,
-                "to_onehot": True,
-                "num_classes": 2,
-                "threshold_values": False,
-                "logit_thresh": 0.5,
-            },
+            {"keys": ["pred"], "argmax": True, "to_onehot": 2, "threshold_values": 0.5},
             {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
             {"pred": p([[[0.0, 0.0]], [[1.0, 1.0]]])},
             (2, 1, 2),

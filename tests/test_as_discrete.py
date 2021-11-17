@@ -20,7 +20,7 @@ TEST_CASES = []
 for p in TEST_NDARRAYS:
     TEST_CASES.append(
         [
-            {"argmax": True, "to_onehot": False, "num_classes": None, "threshold_values": False, "logit_thresh": 0.5},
+            {"argmax": True, "to_onehot": None, "threshold_values": 0.5},
             p([[[0.0, 1.0]], [[2.0, 3.0]]]),
             p([[[1.0, 1.0]]]),
             (1, 1, 2),
@@ -29,7 +29,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"argmax": True, "to_onehot": True, "num_classes": 2, "threshold_values": False, "logit_thresh": 0.5},
+            {"argmax": True, "to_onehot": 2, "threshold_values": 0.5},
             p([[[0.0, 1.0]], [[2.0, 3.0]]]),
             p([[[0.0, 0.0]], [[1.0, 1.0]]]),
             (2, 1, 2),
@@ -38,14 +38,14 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"argmax": False, "to_onehot": False, "num_classes": None, "threshold_values": True, "logit_thresh": 0.6},
+            {"argmax": False, "to_onehot": None, "threshold_values": 0.6},
             p([[[0.0, 1.0], [2.0, 3.0]]]),
             p([[[0.0, 1.0], [1.0, 1.0]]]),
             (1, 2, 2),
         ]
     )
 
-    TEST_CASES.append([{"argmax": False, "to_onehot": True, "num_classes": 3}, p(1), p([0.0, 1.0, 0.0]), (3,)])
+    TEST_CASES.append([{"argmax": False, "to_onehot": 3}, p(1), p([0.0, 1.0, 0.0]), (3,)])
 
     TEST_CASES.append(
         [{"rounding": "torchrounding"}, p([[[0.123, 1.345], [2.567, 3.789]]]), p([[[0.0, 1.0], [3.0, 4.0]]]), (1, 2, 2)]

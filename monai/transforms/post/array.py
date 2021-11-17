@@ -25,7 +25,7 @@ from monai.networks.layers import GaussianFilter, apply_filter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import TransformBackends, convert_data_type, deprecated_arg, ensure_tuple, look_up_option
+from monai.utils import TransformBackends, convert_data_type, ensure_tuple, look_up_option
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
