@@ -60,6 +60,8 @@ class TestDecathlonDataset(unittest.TestCase):
             root_dir=testing_dir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
         )
         _test_dataset(data)
+        self.assertTrue(data[0]["image_meta_dict"]["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
+        self.assertTrue(data[0]["label_meta_dict"]["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
         # test validation without transforms
         data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (36, 47, 44))
@@ -77,7 +79,7 @@ class TestDecathlonDataset(unittest.TestCase):
 
         shutil.rmtree(os.path.join(testing_dir, "Task04_Hippocampus"))
         try:
-            data = DecathlonDataset(
+            DecathlonDataset(
                 root_dir=testing_dir,
                 task="Task04_Hippocampus",
                 transform=transform,
