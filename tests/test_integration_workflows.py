@@ -114,7 +114,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         [
             ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=0.5),
+            AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
@@ -155,7 +155,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         [
             ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=0.5),
+            AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
@@ -242,7 +242,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         [
             ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=0.5),
+            AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
             SaveImaged(keys="pred", meta_keys="image_meta_dict", output_dir=root_dir, output_postfix="seg_transform"),

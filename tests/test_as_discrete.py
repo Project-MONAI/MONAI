@@ -20,7 +20,7 @@ TEST_CASES = []
 for p in TEST_NDARRAYS:
     TEST_CASES.append(
         [
-            {"argmax": True, "to_onehot": None, "threshold_values": 0.5},
+            {"argmax": True, "to_onehot": None, "threshold": 0.5},
             p([[[0.0, 1.0]], [[2.0, 3.0]]]),
             p([[[1.0, 1.0]]]),
             (1, 1, 2),
@@ -29,7 +29,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"argmax": True, "to_onehot": 2, "threshold_values": 0.5},
+            {"argmax": True, "to_onehot": 2, "threshold": 0.5},
             p([[[0.0, 1.0]], [[2.0, 3.0]]]),
             p([[[0.0, 0.0]], [[1.0, 1.0]]]),
             (2, 1, 2),
@@ -38,7 +38,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"argmax": False, "to_onehot": None, "threshold_values": 0.6},
+            {"argmax": False, "to_onehot": None, "threshold": 0.6},
             p([[[0.0, 1.0], [2.0, 3.0]]]),
             p([[[0.0, 1.0], [1.0, 1.0]]]),
             (1, 2, 2),

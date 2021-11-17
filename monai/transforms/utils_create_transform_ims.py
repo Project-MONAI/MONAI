@@ -640,8 +640,8 @@ if __name__ == "__main__":
     create_transform_im(RandScaleCropd, dict(keys=keys, roi_scale=0.4), data)
     create_transform_im(CenterScaleCrop, dict(roi_scale=0.4), data)
     create_transform_im(CenterScaleCropd, dict(keys=keys, roi_scale=0.4), data)
-    create_transform_im(AsDiscrete, dict(to_onehot=2, threshold_values=10), data, is_post=True, colorbar=True)
-    create_transform_im(AsDiscreted, dict(keys=CommonKeys.LABEL, to_onehot=2, threshold_values=10), data, is_post=True)
+    create_transform_im(AsDiscrete, dict(to_onehot=2, threshold=10), data, is_post=True, colorbar=True)
+    create_transform_im(AsDiscreted, dict(keys=CommonKeys.LABEL, to_onehot=2, threshold=10), data, is_post=True)
     create_transform_im(LabelFilter, dict(applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True)
     create_transform_im(
         LabelFilterd, dict(keys=CommonKeys.LABEL, applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True

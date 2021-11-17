@@ -38,7 +38,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "ActivationsD",
@@ -128,12 +128,13 @@ class AsDiscreted(MapTransform):
 
     backend = AsDiscrete.backend
 
+    @deprecated_arg(name="threshold_values", new_name="threshold", since="0.7")
     def __init__(
         self,
         keys: KeysCollection,
         argmax: Union[Sequence[bool], bool] = False,
         to_onehot: Union[Sequence[Optional[int]], Optional[int]] = None,
-        threshold_values: Union[Sequence[Optional[float]], Optional[float]] = None,
+        threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -145,7 +146,7 @@ class AsDiscreted(MapTransform):
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
                 defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
-            threshold_values: if not None, threshold the float values to int number 0 or 1 with specified theashold.
+            threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold value.
                 defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
@@ -159,16 +160,16 @@ class AsDiscreted(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
-        self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
+        self.threshold = ensure_tuple_rep(threshold, len(self.keys))
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key, argmax, to_onehot, threshold_values, rounding in self.key_iterator(
-            d, self.argmax, self.to_onehot, self.threshold_values, self.rounding
+        for key, argmax, to_onehot, threshold, rounding in self.key_iterator(
+            d, self.argmax, self.to_onehot, self.threshold, self.rounding
         ):
-            d[key] = self.converter(d[key], argmax, to_onehot, threshold_values, rounding)
+            d[key] = self.converter(d[key], argmax, to_onehot, threshold, rounding)
         return d
 
 

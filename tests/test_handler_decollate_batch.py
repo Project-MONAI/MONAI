@@ -32,7 +32,7 @@ class TestHandlerDecollateBatch(unittest.TestCase):
                     [
                         Activationsd(keys="pred", sigmoid=True),
                         CopyItemsd(keys="filename", times=1, names="filename_bak"),
-                        AsDiscreted(keys="pred", threshold_values=0.5, to_onehot=2),
+                        AsDiscreted(keys="pred", threshold=0.5, to_onehot=2),
                     ]
                 )
             ),

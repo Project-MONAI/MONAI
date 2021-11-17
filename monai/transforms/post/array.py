@@ -25,7 +25,7 @@ from monai.networks.layers import GaussianFilter, apply_filter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import TransformBackends, convert_data_type, ensure_tuple, look_up_option
+from monai.utils import TransformBackends, convert_data_type, deprecated_arg, ensure_tuple, look_up_option
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -124,7 +124,7 @@ class AsDiscrete(Transform):
             Defaults to ``False``.
         to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
             Defaults to ``None``.
-        threshold_values: if not None, threshold the float values to int number 0 or 1 with specified theashold.
+        threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
             Defaults to ``None``.
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
@@ -133,16 +133,19 @@ class AsDiscrete(Transform):
 
     backend = [TransformBackends.TORCH]
 
+    @deprecated_arg(name="threshold_values", new_name="threshold", since="0.7")
     def __init__(
         self,
         argmax: bool = False,
         to_onehot: Optional[int] = None,
-        threshold_values: Optional[float] = None,
+        threshold: Optional[float] = None,
         rounding: Optional[str] = None,
     ) -> None:
         self.argmax = argmax
         self.to_onehot = to_onehot
-        self.threshold_values = threshold_values
+        if threshold is True:
+            raise ValueError("`threshold_values=True` is deprecated, please use `threashold=value` instead.")
+        self.threshold = threshold
         self.rounding = rounding
 
     def __call__(
@@ -150,7 +153,7 @@ class AsDiscrete(Transform):
         img: NdarrayOrTensor,
         argmax: Optional[bool] = None,
         to_onehot: Optional[int] = None,
-        threshold_values: Optional[float] = None,
+        threshold: Optional[float] = None,
         rounding: Optional[str] = None,
     ) -> NdarrayOrTensor:
         """
@@ -161,8 +164,8 @@ class AsDiscrete(Transform):
                 Defaults to ``self.argmax``.
             to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
                 Defaults to ``self.to_onehot``.
-            threshold_values: if not None, threshold the float values to int number 0 or 1 with specified theashold.
-                Defaults to ``self.threshold_values``.
+            threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold value.
+                Defaults to ``self.threshold``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
 
@@ -178,9 +181,9 @@ class AsDiscrete(Transform):
                 raise AssertionError("the number of classes for One-Hot must be an integer.")
             img_t = one_hot(img_t, num_classes=to_onehot, dim=0)
 
-        threshold_values = threshold_values or self.threshold_values
-        if threshold_values is not None:
-            img_t = img_t >= threshold_values
+        threshold = threshold or self.threshold
+        if threshold is not None:
+            img_t = img_t >= threshold
 
         rounding = self.rounding if rounding is None else rounding
         if rounding is not None:
