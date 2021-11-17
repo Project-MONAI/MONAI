@@ -122,56 +122,36 @@ class AsDiscrete(Transform):
     Args:
         argmax: whether to execute argmax function on input data before transform.
             Defaults to ``False``.
-        to_onehot: whether to convert input data into the one-hot format.
-            Defaults to ``False``.
-        num_classes: the number of classes to convert to One-Hot format.
+        to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
             Defaults to ``None``.
-        threshold_values: whether threshold the float value to int number 0 or 1.
-            Defaults to ``False``.
-        logit_thresh: the threshold value for thresholding operation..
-            Defaults to ``0.5``.
+        threshold_values: if not None, threshold the float values to int number 0 or 1 with specified theashold.
+            Defaults to ``None``.
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
-
-    .. deprecated:: 0.6.0
-        ``n_classes`` is deprecated, use ``num_classes`` instead.
 
     """
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         argmax: bool = False,
-        to_onehot: bool = False,
-        num_classes: Optional[int] = None,
-        threshold_values: bool = False,
-        logit_thresh: float = 0.5,
+        to_onehot: Optional[int] = None,
+        threshold_values: Optional[float] = None,
         rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,
     ) -> None:
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes is None:
-            num_classes = n_classes
         self.argmax = argmax
         self.to_onehot = to_onehot
-        self.num_classes = num_classes
         self.threshold_values = threshold_values
-        self.logit_thresh = logit_thresh
         self.rounding = rounding
 
-    @deprecated_arg("n_classes", since="0.6")
     def __call__(
         self,
         img: NdarrayOrTensor,
         argmax: Optional[bool] = None,
-        to_onehot: Optional[bool] = None,
-        num_classes: Optional[int] = None,
-        threshold_values: Optional[bool] = None,
-        logit_thresh: Optional[float] = None,
+        to_onehot: Optional[int] = None,
+        threshold_values: Optional[float] = None,
         rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -179,37 +159,28 @@ class AsDiscrete(Transform):
                 will automatically add it.
             argmax: whether to execute argmax function on input data before transform.
                 Defaults to ``self.argmax``.
-            to_onehot: whether to convert input data into the one-hot format.
+            to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
                 Defaults to ``self.to_onehot``.
-            num_classes: the number of classes to convert to One-Hot format.
-                Defaults to ``self.num_classes``.
-            threshold_values: whether threshold the float value to int number 0 or 1.
+            threshold_values: if not None, threshold the float values to int number 0 or 1 with specified theashold.
                 Defaults to ``self.threshold_values``.
-            logit_thresh: the threshold value for thresholding operation..
-                Defaults to ``self.logit_thresh``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
 
-        .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``num_classes`` instead.
-
         """
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes is None:
-            num_classes = n_classes
         img_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         if argmax or self.argmax:
             img_t = torch.argmax(img_t, dim=0, keepdim=True)
 
-        if to_onehot or self.to_onehot:
-            _nclasses = self.num_classes if num_classes is None else num_classes
-            if not isinstance(_nclasses, int):
-                raise AssertionError("One of self.num_classes or num_classes must be an integer")
-            img_t = one_hot(img_t, num_classes=_nclasses, dim=0)
+        to_onehot = to_onehot or self.to_onehot
+        if to_onehot is not None:
+            if not isinstance(to_onehot, int):
+                raise AssertionError("the number of classes for One-Hot must be an integer.")
+            img_t = one_hot(img_t, num_classes=to_onehot, dim=0)
 
-        if threshold_values or self.threshold_values:
-            img_t = img_t >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+        threshold_values = threshold_values or self.threshold_values
+        if threshold_values is not None:
+            img_t = img_t >= threshold_values
 
         rounding = self.rounding if rounding is None else rounding
         if rounding is not None:
