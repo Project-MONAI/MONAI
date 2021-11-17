@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import re
+from copy import copy
 from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -157,7 +158,7 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
     if isinstance(data, torch.Tensor):
         data = data.detach().to(dtype=get_equivalent_dtype(dtype, torch.Tensor), device="cpu").numpy()
     elif has_cp and isinstance(data, cp_ndarray):
-        data = cp.asnumpy(data).astype(dtype)
+        data = cp.asnumpy(data).astype(dtype, copy=False)
     elif isinstance(data, (np.ndarray, float, int, bool)):
         data = np.asarray(data, dtype=dtype)
     elif isinstance(data, list):

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from enum import Flag
 from typing import Optional, Sequence, Union
 
 import numpy as np
@@ -116,7 +117,7 @@ def write_nifti(
 
     if np.allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
@@ -128,7 +129,7 @@ def write_nifti(
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
     if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, _affine))  # type: ignore
+        results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, _affine))  # type: ignore
         nib.save(results_img, file_name)
         return
 
@@ -147,8 +148,8 @@ def write_nifti(
         data_np: np.ndarray = data.reshape(list(spatial_shape) + [-1])  # type: ignore
         data_np = np.moveaxis(data_np, -1, 0)  # channel first for pytorch
         data_torch = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data_np).astype(dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
+            torch.as_tensor(np.ascontiguousarray(data_np).astype(dtype, copy=False)).unsqueeze(0),
+            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype, copy=False)),
             spatial_size=output_spatial_shape_[:3],
         )
         data_np = data_torch.squeeze(0).detach().cpu().numpy()
@@ -158,12 +159,12 @@ def write_nifti(
         while len(output_spatial_shape_) < len(data.shape):
             output_spatial_shape_ = output_spatial_shape_ + [1]
         data_torch = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data).astype(dtype)[None, None]),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
+            torch.as_tensor(np.ascontiguousarray(data).astype(dtype, copy=False)[None, None]),
+            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype, copy=False)),
             spatial_size=output_spatial_shape_[: len(data.shape)],
         )
         data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
 
-    results_img = nib.Nifti1Image(data_np.astype(output_dtype), to_affine_nd(3, target_affine))
+    results_img = nib.Nifti1Image(data_np.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return

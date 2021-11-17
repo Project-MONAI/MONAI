@@ -26,6 +26,7 @@ from monai.transforms.transform import Randomizable
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils.enums import CommonKeys, TraceKeys
 from monai.utils.module import optional_import
+from monai.utils.type_conversion import convert_data_type
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -215,7 +216,8 @@ class TestTimeAugmentation:
             return output
 
         # calculate metrics
-        mode = np.array(torch.mode(torch.Tensor(output.astype(np.int64)), dim=0).values)
+        output_t, *_ = convert_data_type(output, output_type=torch.Tensor, dtype=np.int64)
+        mode = np.array(torch.mode(output_t, dim=0).values)
         mean: np.ndarray = np.mean(output, axis=0)  # type: ignore
         std: np.ndarray = np.std(output, axis=0)  # type: ignore
         vvc: float = (np.std(output) / np.mean(output)).item()

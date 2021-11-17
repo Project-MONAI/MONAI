@@ -1023,7 +1023,7 @@ class MapLabelValue:
         img_np, *_ = convert_data_type(img, np.ndarray)
         img_flat = img_np.flatten()
         try:
-            out_flat = np.copy(img_flat).astype(self.dtype)
+            out_flat = np.copy(img_flat).astype(self.dtype, copy=False)
         except ValueError:
             # can't copy unchanged labels as the expected dtype is not supported, must map all the label values
             out_flat = np.zeros(shape=img_flat.shape, dtype=self.dtype)

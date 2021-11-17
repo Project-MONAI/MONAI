@@ -631,7 +631,7 @@ def compute_shape_offset(
         # different orientation, the min is the origin
         corners = corners[:-1] / corners[-1]
         offset = np.min(corners, 1)
-    return out_shape.astype(int), offset
+    return out_shape.astype(int, copy=False), offset
 
 
 def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
@@ -1143,7 +1143,7 @@ def convert_tables_to_dicts(
         # convert data types
         types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
         if types:
-            data_ = data_.astype(dtype=types)
+            data_ = data_.astype(dtype=types, copy=False)
     data: List[Dict] = data_.to_dict(orient="records")
 
     # group columns to generate new column

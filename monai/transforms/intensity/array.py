@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from abc import abstractmethod
 from collections.abc import Iterable
+from copy import copy
 from functools import partial
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
@@ -168,8 +169,8 @@ class RandRicianNoise(RandomizableTransform):
         dtype_np = get_equivalent_dtype(img.dtype, np.ndarray)
         im_shape = img.shape
         _std = self.R.uniform(0, std) if self.sample_std else std
-        self._noise1 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np)
-        self._noise2 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np)
+        self._noise1 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np, copy=False)
+        self._noise2 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np, copy=False)
         if isinstance(img, torch.Tensor):
             n1 = torch.tensor(self._noise1, device=img.device)
             n2 = torch.tensor(self._noise2, device=img.device)
@@ -1942,7 +1943,7 @@ class RandCoarseDropout(RandCoarseTransform):
             ret = img
         else:
             if isinstance(fill_value, (tuple, list)):
-                ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype)
+                ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype, copy=False)
             else:
                 ret = np.full_like(img, fill_value)
             for h in self.hole_coords:
