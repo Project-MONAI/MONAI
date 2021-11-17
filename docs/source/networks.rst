@@ -538,6 +538,11 @@ Nets
 .. autoclass:: TorchVisionFullyConvModel
   :members:
 
+`MILModel`
+~~~~~~~~~~
+.. autoclass:: MILModel
+  :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils

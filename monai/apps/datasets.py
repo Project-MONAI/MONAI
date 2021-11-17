@@ -114,12 +114,9 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
         """
         dataset_dir = Path(dataset_dir)
-        class_names = sorted(f"{x}" for x in dataset_dir.iterdir() if (dataset_dir / x).is_dir())
+        class_names = sorted(f"{x.name}" for x in dataset_dir.iterdir() if x.is_dir())  # folder name as the class name
         self.num_class = len(class_names)
-        image_files = [
-            [f"{dataset_dir.joinpath(class_names[i], x)}" for x in (dataset_dir / class_names[i]).iterdir()]
-            for i in range(self.num_class)
-        ]
+        image_files = [[f"{x}" for x in (dataset_dir / class_names[i]).iterdir()] for i in range(self.num_class)]
         num_each = [len(image_files[i]) for i in range(self.num_class)]
         image_files_list = []
         image_class = []
@@ -145,7 +142,6 @@ class MedNISTDataset(Randomizable, CacheDataset):
             raise ValueError(
                 f'Unsupported section: {self.section}, available options are ["training", "validation", "test"].'
             )
-
         # the types of label and class name should be compatible with the pytorch dataloader
         return [
             {"image": image_files_list[i], "label": image_class[i], "class_name": class_name[i]}
