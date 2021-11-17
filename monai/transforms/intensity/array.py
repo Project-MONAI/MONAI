@@ -15,7 +15,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from abc import abstractmethod
 from collections.abc import Iterable
-from copy import copy
 from functools import partial
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn

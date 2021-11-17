@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import re
-from copy import copy
 from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np

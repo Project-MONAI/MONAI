@@ -217,7 +217,7 @@ class TestTimeAugmentation:
 
         # calculate metrics
         output_t, *_ = convert_data_type(output, output_type=torch.Tensor, dtype=np.int64)
-        mode = np.array(torch.mode(output_t, dim=0).values)
+        mode: np.ndarray = np.asarray(torch.mode(output_t, dim=0).values)  # type: ignore
         mean: np.ndarray = np.mean(output, axis=0)  # type: ignore
         std: np.ndarray = np.std(output, axis=0)  # type: ignore
         vvc: float = (np.std(output) / np.mean(output)).item()
