@@ -9,10 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+from typing import Optional, Sequence, Tuple, Union
+
 import torch
 import torch.nn as nn
 
-__all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DReLUConvBNBlock", "ReLUConvBNBlock"]
+from monai.networks.layers.factories import Conv
+from monai.networks.layers.utils import get_act_layer, get_norm_layer
+
+__all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DReLUConvNormBlock", "ReLUConvNormBlock"]
 
 
 class FactorizedIncreaseBlock(nn.Module):
@@ -20,15 +26,35 @@ class FactorizedIncreaseBlock(nn.Module):
     Up-sampling the feature by 2 using stride.
     """
 
-    def __init__(self, in_channel: int, out_channel: int):
+    def __init__(
+        self,
+        in_channel: int,
+        out_channel: int,
+        spatial_dims: int = 3,
+        act_name: Union[Tuple, str] = "RELU",
+        norm_name: Union[Tuple, str] = "INSTANCE",
+    ):
         super().__init__()
         self._in_channel = in_channel
         self._out_channel = out_channel
+        self._spatial_dims = spatial_dims
+
+        conv_type = Conv[Conv.CONV, self._spatial_dims]
+
         self.op = nn.Sequential(
             nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
-            nn.ReLU(),
-            nn.Conv3d(self._in_channel, self._out_channel, 1, stride=1, padding=0, bias=False),
-            nn.InstanceNorm3d(self._out_channel),
+            get_act_layer(name=act_name),
+            conv_type(
+                in_channels=self._in_channel,
+                out_channels=self._out_channel,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                groups=1,
+                bias=False,
+                dilation=1,
+            ),
+            get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel),
         )
 
     def forward(self, x):
@@ -40,30 +66,68 @@ class FactorizedReduceBlock(nn.Module):
     Down-sampling the feature by 2 using stride.
     """
 
-    def __init__(self, in_channel: int, out_channel: int):
+    def __init__(
+        self,
+        in_channel: int,
+        out_channel: int,
+        spatial_dims: int = 3,
+        act_name: Union[Tuple, str] = "RELU",
+        norm_name: Union[Tuple, str] = "INSTANCE",
+    ):
         super().__init__()
         self._in_channel = in_channel
         self._out_channel = out_channel
+        self._spatial_dims = spatial_dims
 
-        assert self._out_channel % 2 == 0
-        self.relu = nn.ReLU()
-        self.conv_1 = nn.Conv3d(self._in_channel, self._out_channel // 2, 1, stride=2, padding=0, bias=False)
-        self.conv_2 = nn.Conv3d(self._in_channel, self._out_channel // 2, 1, stride=2, padding=0, bias=False)
-        self.bn = nn.InstanceNorm3d(self._out_channel)
+        conv_type = Conv[Conv.CONV, self._spatial_dims]
+
+        self.act = get_act_layer(name=act_name)
+        self.conv_1 = conv_type(
+            in_channels=self._in_channel,
+            out_channels=self._out_channel // 2,
+            kernel_size=1,
+            stride=2,
+            padding=0,
+            groups=1,
+            bias=False,
+            dilation=1,
+        )
+        self.conv_2 = conv_type(
+            in_channels=self._in_channel,
+            out_channels=self._out_channel // 2,
+            kernel_size=1,
+            stride=2,
+            padding=0,
+            groups=1,
+            bias=False,
+            dilation=1,
+        )
+        self.norm = get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel)
 
     def forward(self, x):
-        x = self.relu(x)
+        x = self.act(x)
         out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:, 1:])], dim=1)
-        out = self.bn(out)
+        out = self.norm(out)
         return out
 
 
-class P3DReLUConvBNBlock(nn.Module):
-    def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, p3dmode: int = 0):
+class P3DReLUConvNormBlock(nn.Module):
+    def __init__(
+        self,
+        in_channel: int,
+        out_channel: int,
+        kernel_size: int,
+        padding: int,
+        p3dmode: int = 0,
+        act_name: Union[Tuple, str] = "RELU",
+        norm_name: Union[Tuple, str] = "INSTANCE",
+    ):
         super().__init__()
         self._in_channel = in_channel
         self._out_channel = out_channel
         self._p3dmode = p3dmode
+
+        conv_type = Conv[Conv.CONV, 3]
 
         if self._p3dmode == 0:  # 3 x 3 x 1
             kernel_size0 = (kernel_size, kernel_size, 1)
@@ -82,25 +146,65 @@ class P3DReLUConvBNBlock(nn.Module):
             padding1 = (padding, 0, 0)
 
         self.op = nn.Sequential(
-            nn.ReLU(),
-            nn.Conv3d(self._in_channel, self._in_channel, kernel_size0, padding=padding0, bias=False),
-            nn.Conv3d(self._in_channel, self._out_channel, kernel_size1, padding=padding1, bias=False),
-            nn.InstanceNorm3d(self._out_channel),
+            get_act_layer(name=act_name),
+            conv_type(
+                in_channels=self._in_channel,
+                out_channels=self._out_channel,
+                kernel_size=kernel_size0,
+                stride=1,
+                padding=padding0,
+                groups=1,
+                bias=False,
+                dilation=1,
+            ),
+            conv_type(
+                in_channels=self._in_channel,
+                out_channels=self._out_channel,
+                kernel_size=kernel_size1,
+                stride=1,
+                padding=padding1,
+                groups=1,
+                bias=False,
+                dilation=1,
+            ),
+            get_norm_layer(name=norm_name, spatial_dims=3, channels=self._out_channel),
         )
 
     def forward(self, x):
         return self.op(x)
 
 
-class ReLUConvBNBlock(nn.Module):
-    def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int):
+class ReLUConvNormBlock(nn.Module):
+    def __init__(
+        self,
+        in_channel: int,
+        out_channel: int,
+        kernel_size: int = 3,
+        padding: int = 1,
+        spatial_dims: int = 3,
+        act_name: Union[Tuple, str] = "RELU",
+        norm_name: Union[Tuple, str] = "INSTANCE",
+    ):
         super().__init__()
         self._in_channel = in_channel
         self._out_channel = out_channel
+        self._spatial_dims = spatial_dims
+
+        conv_type = Conv[Conv.CONV, self._spatial_dims]
+
         self.op = nn.Sequential(
-            nn.ReLU(),
-            nn.Conv3d(self._in_channel, self._out_channel, kernel_size, padding=padding, bias=False),
-            nn.InstanceNorm3d(self._out_channel),
+            get_act_layer(name=act_name),
+            conv_type(
+                in_channels=self._in_channel,
+                out_channels=self._out_channel,
+                kernel_size=kernel_size,
+                stride=1,
+                padding=padding,
+                groups=1,
+                bias=False,
+                dilation=1,
+            ),
+            get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel),
         )
 
     def forward(self, x):

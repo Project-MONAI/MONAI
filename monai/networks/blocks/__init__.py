@@ -14,7 +14,7 @@ from .activation import MemoryEfficientSwish, Mish, Swish
 from .aspp import SimpleASPP
 from .convolutions import Convolution, ResidualUnit
 from .crf import CRF
-from .dints_block import FactorizedIncreaseBlock, FactorizedReduceBlock, P3DReLUConvBNBlock, ReLUConvBNBlock
+from .dints_block import FactorizedIncreaseBlock, FactorizedReduceBlock, P3DReLUConvNormBlock, ReLUConvNormBlock
 from .downsample import MaxAvgPool
 from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock, get_output_padding, get_padding
 from .fcn import FCN, GCN, MCFCN, Refine

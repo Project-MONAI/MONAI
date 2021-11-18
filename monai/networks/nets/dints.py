@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Sequence, Tuple, Union
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -17,9 +19,11 @@ import torch.nn.functional as F
 from monai.networks.blocks.dints_block import (
     FactorizedIncreaseBlock,
     FactorizedReduceBlock,
-    P3DReLUConvBNBlock,
-    ReLUConvBNBlock,
+    P3DReLUConvNormBlock,
+    ReLUConvNormBlock,
 )
+from monai.networks.layers.factories import Conv
+from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
 __all__ = ["DiNTS"]
 
@@ -30,13 +34,13 @@ class _IdentityWithMemory(nn.Identity):
         self.memory = 0
 
 
-class _ReLUConvBNBlockWithMemory(ReLUConvBNBlock):
+class _ReLUConvNormBlockWithMemory(ReLUConvNormBlock):
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int):
         super().__init__(in_channel, out_channel, kernel_size, padding)
         self.memory = 1 + out_channel / in_channel * 2
 
 
-class _P3DReLUConvBNBlockWithMemory(P3DReLUConvBNBlock):
+class _P3DReLUConvNormBlockWithMemory(P3DReLUConvNormBlock):
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, p3dmode: int = 0):
         super().__init__(in_channel, out_channel, kernel_size, padding, p3dmode)
         self.memory = 1 + 1 + out_channel / in_channel * 2
@@ -65,10 +69,19 @@ class _FactorizedReduceBlockWithMemory(FactorizedReduceBlock):
 # Define Operation Set
 OPS = {
     "skip_connect": lambda c: _IdentityWithMemory(),
-    "conv_3x3x3": lambda c: _ReLUConvBNBlockWithMemory(c, c, 3, padding=1),
-    "conv_3x3x1": lambda c: _P3DReLUConvBNBlockWithMemory(c, c, 3, padding=1, p3dmode=0),
-    "conv_3x1x3": lambda c: _P3DReLUConvBNBlockWithMemory(c, c, 3, padding=1, p3dmode=1),
-    "conv_1x3x3": lambda c: _P3DReLUConvBNBlockWithMemory(c, c, 3, padding=1, p3dmode=2),
+    "conv_3x3x3": lambda c: _ReLUConvNormBlockWithMemory(c, c, 3, padding=1),
+    "conv_3x3x1": lambda c: _P3DReLUConvNormBlockWithMemory(c, c, 3, padding=1, p3dmode=0),
+    "conv_3x1x3": lambda c: _P3DReLUConvNormBlockWithMemory(c, c, 3, padding=1, p3dmode=1),
+    "conv_1x3x3": lambda c: _P3DReLUConvNormBlockWithMemory(c, c, 3, padding=1, p3dmode=2),
+}
+
+
+# connection operations
+ConnOPS = {
+    "up": _FactorizedIncreaseBlockWithMemory,
+    "down": _FactorizedReduceBlockWithMemory,
+    "identity": _IdentityWithMemory,
+    "align_channels": _ReLUConvNormBlockWithMemory,
 }
 
 
@@ -86,7 +99,7 @@ class MixedOp(nn.Module):
                     op = OPS[_](c)
                 self._ops.append(op)
 
-    def forward(self, x, ops=None, weight: bool = None):
+    def forward(self, x, ops=None, weight: float = None):
         pos = (ops == 1).nonzero()
         result = 0
         for _ in pos:
@@ -109,14 +122,14 @@ class Cell(nn.Module):
         super().__init__()
         self.c_out = c
         if rate == -1:  # downsample
-            self.preprocess = _FactorizedReduceBlockWithMemory(c_prev, c)
+            self.preprocess = ConnOPS["down"](c_prev, c)
         elif rate == 1:  # upsample
-            self.preprocess = _FactorizedIncreaseBlockWithMemory(c_prev, c)
+            self.preprocess = ConnOPS["up"](c_prev, c)
         else:
             if c_prev == c:
-                self.preprocess = _IdentityWithMemory()
+                self.preprocess = ConnOPS["identity"]()
             else:
-                self.preprocess = _ReLUConvBNBlockWithMemory(c_prev, c, 1, 0)
+                self.preprocess = ConnOPS["align_channels"](c_prev, c, 1, 0)
         self.op = MixedOp(c, code_c)
 
     def forward(self, s, ops, weight):
@@ -130,13 +143,16 @@ class DiNTS(nn.Module):
         self,
         in_channels: int,
         num_classes: int,
+        act_name: Union[Tuple, str] = "RELU",
+        channel_mul: float = 1.0,
         cell=Cell,
         cell_ops: int = 5,
-        channel_mul: float = 1.0,
+        code: list = None,
+        norm_name: Union[Tuple, str] = "INSTANCE",
         num_blocks: int = 6,
         num_depths: int = 3,
+        spatial_dims: int = 3,
         use_stem: bool = False,
-        code: list = None,
     ):
         """
         Initialize NAS network search space
@@ -199,44 +215,110 @@ class DiNTS(nn.Module):
         self.num_depths = num_depths
         self.use_stem = use_stem
 
+        self._spatial_dims = spatial_dims
+
+        conv_type = Conv[Conv.CONV, self._spatial_dims]
+
         # define stem operations for every block
         self.stem_down = nn.ModuleDict()
         self.stem_up = nn.ModuleDict()
         self.stem_finals = nn.Sequential(
-            nn.ReLU(),
-            nn.Conv3d(filter_nums[0], filter_nums[0], 3, stride=1, padding=1, bias=False),
-            nn.InstanceNorm3d(filter_nums[0]),
-            nn.Conv3d(filter_nums[0], num_classes, 1, stride=1, padding=0, bias=True),
+            get_act_layer(name=act_name),
+            conv_type(
+                in_channels=filter_nums[0],
+                out_channels=filter_nums[0],
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                groups=1,
+                bias=False,
+                dilation=1,
+            ),
+            get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[0]),
+            conv_type(
+                in_channels=filter_nums[0],
+                out_channels=num_classes,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                groups=1,
+                bias=True,
+                dilation=1,
+            ),
         )
         for res_idx in range(num_depths):
             if use_stem:
                 self.stem_down[str(res_idx)] = nn.Sequential(
                     nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
-                    nn.Conv3d(in_channels, filter_nums[res_idx], 3, stride=1, padding=1, bias=False),
-                    nn.InstanceNorm3d(filter_nums[res_idx]),
-                    nn.ReLU(),
-                    nn.Conv3d(filter_nums[res_idx], filter_nums[res_idx + 1], 3, stride=2, padding=1, bias=False),
-                    nn.InstanceNorm3d(filter_nums[res_idx + 1]),
+                    conv_type(
+                        in_channels=in_channels,
+                        out_channels=filter_nums[res_idx],
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx]),
+                    get_act_layer(name=act_name),
+                    conv_type(
+                        in_channels=filter_nums[res_idx],
+                        out_channels=filter_nums[res_idx + 1],
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx + 1]),
                 )
                 self.stem_up[str(res_idx)] = nn.Sequential(
-                    nn.ReLU(),
-                    nn.Conv3d(filter_nums[res_idx + 1], filter_nums[res_idx], 3, stride=1, padding=1, bias=False),
-                    nn.InstanceNorm3d(filter_nums[res_idx]),
+                    get_act_layer(name=act_name),
+                    conv_type(
+                        in_channels=filter_nums[res_idx + 1],
+                        out_channels=filter_nums[res_idx],
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx]),
                     nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
                 )
 
             else:
                 self.stem_down[str(res_idx)] = nn.Sequential(
                     nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
-                    nn.Conv3d(in_channels, filter_nums[res_idx], 3, stride=1, padding=1, bias=False),
-                    nn.InstanceNorm3d(filter_nums[res_idx]),
+                    conv_type(
+                        in_channels=in_channels,
+                        out_channels=filter_nums[res_idx],
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx]),
                 )
                 self.stem_up[str(res_idx)] = nn.Sequential(
-                    nn.ReLU(),
-                    nn.Conv3d(filter_nums[res_idx], filter_nums[res_idx], 3, stride=1, padding=1, bias=False),
-                    nn.InstanceNorm3d(filter_nums[res_idx]),
-                    nn.Conv3d(filter_nums[res_idx], num_classes, 1),
-                    nn.Upsample(scale_factor=2 ** res_idx, mode="trilinear", align_corners=True),
+                    get_act_layer(name=act_name),
+                    conv_type(
+                        in_channels=filter_nums[res_idx],
+                        out_channels=filter_nums[max(res_idx - 1, 0)],
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx - 1]),
+                    nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
                 )
 
         # define NAS search space
@@ -265,12 +347,10 @@ class DiNTS(nn.Module):
                     )
 
         # define cell and macro arhitecture probabilities
-        self.log_alpha_c = torch.nn.Parameter(
+        self.log_alpha_c = nn.Parameter(
             torch.zeros(num_blocks, len(code2out), cell_ops).normal_(1, 0.01).cuda().requires_grad_()
         )
-        self.log_alpha_a = torch.nn.Parameter(
-            torch.zeros(num_blocks, len(code2out)).normal_(0, 0.01).cuda().requires_grad_()
-        )
+        self.log_alpha_a = nn.Parameter(torch.zeros(num_blocks, len(code2out)).normal_(0, 0.01).cuda().requires_grad_())
         self._arch_param_names = ["log_alpha_a", "log_alpha_c"]
 
     def weight_parameters(self):
