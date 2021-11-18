@@ -67,8 +67,9 @@ class TestToNumpy(unittest.TestCase):
         result = ToNumpy()(test_data)
         assert_allclose(result, np.asarray(test_data), type_test=False)
         test_data = ((1, 2), (3, 4))
-        result = ToNumpy()(test_data)
-        assert_allclose(result, np.asarray(test_data), type_test=False)
+        result = ToNumpy(wrap_sequence=False)(test_data)
+        self.assertTrue(type(result), tuple)
+        assert_allclose(result, ((np.asarray(1), np.asarray(2)), (np.asarray(3), np.asarray(4))))
 
     def test_single_value(self):
         for test_data in [5, np.array(5), torch.tensor(5)]:
