@@ -16,7 +16,6 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "moveaxis",
