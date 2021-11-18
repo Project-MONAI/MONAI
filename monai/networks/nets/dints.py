@@ -461,7 +461,7 @@ class DiNTS(nn.Module):
             ent += blk_ent
         return ent
 
-    def _decode(self):
+    def decode(self):
         """
         Decode network log_alpha_a/log_alpha_c using dijkstra shortpath algorithm
 
@@ -532,7 +532,7 @@ class DiNTS(nn.Module):
         node_a = (node_a >= 1).astype(int)
         return node_a, code_a, code_c, code_a_max
 
-    def _gen_mtx(self, depth: int = 3):
+    def gen_mtx(self, depth: int = 3):
         """
         Generate elements needed in decoding, topology e.t.c
         """
