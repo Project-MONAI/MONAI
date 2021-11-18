@@ -277,6 +277,7 @@ class DiNTS(nn.Module):
         act_name: Union[Tuple, str] = "RELU",
         channel_mul: float = 1.0,
         cell=Cell,
+        stem=Stem,
         cell_ops: int = 5,
         arch_code: list = None,
         norm_name: Union[Tuple, str] = "INSTANCE",
@@ -349,8 +350,11 @@ class DiNTS(nn.Module):
         self.use_downsample = use_downsample
 
         # define stem operations for every block
-        self.stem = Stem(in_channels=in_channels, num_classes=num_classes, filter_nums=filter_nums, num_depths=num_depths,
+        stem = stem(in_channels=in_channels, num_classes=num_classes, filter_nums=filter_nums, num_depths=num_depths,
                          spatial_dims=spatial_dims, act_name=act_name, use_downsample=use_downsample, norm_name=norm_name)
+        self.stem_up = stem.stem_up
+        self.stem_down = stem.stem_down
+        self.stem_finals = stem.stem_finals
 
         # define NAS search space
         if arch_code is None:
@@ -635,7 +639,7 @@ class DiNTS(nn.Module):
         for _ in range(self.num_depths):
             # allow multi-resolution input
             if node_a[0][_]:
-                inputs.append(self.stem.stem_down[str(_)](x))
+                inputs.append(self.stem_down[str(_)](x))
             else:
                 inputs.append(None)
 
@@ -663,10 +667,10 @@ class DiNTS(nn.Module):
                 start = False
                 for res_idx in range(self.num_depths - 1, -1, -1):
                     if start:
-                        _temp = self.stem.stem_up[str(res_idx)](inputs[res_idx] + _temp)
+                        _temp = self.stem_up[str(res_idx)](inputs[res_idx] + _temp)
                     elif node_a[blk_idx + 1][res_idx]:
                         start = True
-                        _temp = self.stem.stem_up[str(res_idx)](inputs[res_idx])
-                prediction = self.stem.stem_finals(_temp)
+                        _temp = self.stem_up[str(res_idx)](inputs[res_idx])
+                prediction = self.stem_finals(_temp)
                 predict_all.append(prediction)
         return predict_all
