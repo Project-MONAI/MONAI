@@ -28,33 +28,33 @@ from monai.networks.layers.utils import get_act_layer, get_norm_layer
 __all__ = ["DiNTS"]
 
 
-class _IdentityWithMemory(nn.Identity):
+class _IdentityWithRAMCost(nn.Identity):
     def __init__(self):
         super().__init__()
-        self.memory = 0
+        self.ram_cost = 0
 
 
-class _ReLUConvNormBlockWithMemory(ReLUConvNormBlock):
+class _ReLUConvNormBlockWithRAMCost(ReLUConvNormBlock):
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int):
         super().__init__(in_channel, out_channel, kernel_size, padding)
-        self.memory = 1 + out_channel / in_channel * 2
+        self.ram_cost = 1 + out_channel / in_channel * 2
 
 
-class _P3DReLUConvNormBlockWithMemory(P3DReLUConvNormBlock):
+class _P3DReLUConvNormBlockWithRAMCost(P3DReLUConvNormBlock):
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, p3dmode: int = 0):
         super().__init__(in_channel, out_channel, kernel_size, padding, p3dmode)
-        self.memory = 1 + 1 + out_channel / in_channel * 2
+        self.ram_cost = 1 + 1 + out_channel / in_channel * 2
 
 
-class _FactorizedIncreaseBlockWithMemory(FactorizedIncreaseBlock):
+class _FactorizedIncreaseBlockWithRAMCost(FactorizedIncreaseBlock):
     def __init__(self, in_channel: int, out_channel: int):
         super().__init__(in_channel, out_channel)
 
         # devide by 8 to comply with cell output size
-        self.memory = 8 * (1 + 1 + out_channel / in_channel * 2) / 8 * in_channel / out_channel
+        self.ram_cost = 8 * (1 + 1 + out_channel / in_channel * 2) / 8 * in_channel / out_channel
 
 
-class _FactorizedReduceBlockWithMemory(FactorizedReduceBlock):
+class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
     """
     Down-sampling the feature by 2 using stride.
     """
@@ -62,38 +62,38 @@ class _FactorizedReduceBlockWithMemory(FactorizedReduceBlock):
     def __init__(self, in_channel: int, out_channel: int):
         super().__init__(in_channel, out_channel)
 
-        # multiply by 8 to comply with cell output size (see net.get_memory_usage)
-        self.memory = (1 + out_channel / in_channel / 8 * 3) * 8 * in_channel / out_channel
+        # multiply by 8 to comply with cell output size (see net.get_ram_cost_usage)
+        self.ram_cost = (1 + out_channel / in_channel / 8 * 3) * 8 * in_channel / out_channel
 
 
 # Define Operation Set
 OPS = {
-    "skip_connect": lambda c: _IdentityWithMemory(),
-    "conv_3x3x3": lambda c: _ReLUConvNormBlockWithMemory(c, c, 3, padding=1),
-    "conv_3x3x1": lambda c: _P3DReLUConvNormBlockWithMemory(c, c, 3, padding=1, p3dmode=0),
-    "conv_3x1x3": lambda c: _P3DReLUConvNormBlockWithMemory(c, c, 3, padding=1, p3dmode=1),
-    "conv_1x3x3": lambda c: _P3DReLUConvNormBlockWithMemory(c, c, 3, padding=1, p3dmode=2),
+    "skip_connect": lambda c: _IdentityWithRAMCost(),
+    "conv_3x3x3": lambda c: _ReLUConvNormBlockWithRAMCost(c, c, 3, padding=1),
+    "conv_3x3x1": lambda c: _P3DReLUConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=0),
+    "conv_3x1x3": lambda c: _P3DReLUConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=1),
+    "conv_1x3x3": lambda c: _P3DReLUConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=2),
 }
 
 
 # connection operations
 ConnOPS = {
-    "up": _FactorizedIncreaseBlockWithMemory,
-    "down": _FactorizedReduceBlockWithMemory,
-    "identity": _IdentityWithMemory,
-    "align_channels": _ReLUConvNormBlockWithMemory,
+    "up": _FactorizedIncreaseBlockWithRAMCost,
+    "down": _FactorizedReduceBlockWithRAMCost,
+    "identity": _IdentityWithRAMCost,
+    "align_channels": _ReLUConvNormBlockWithRAMCost,
 }
 
 
 class MixedOp(nn.Module):
-    def __init__(self, c, code_c=None):
+    def __init__(self, c, arch_arch_code_c=None):
         super().__init__()
         self._ops = nn.ModuleList()
-        if code_c is None:
-            code_c = np.ones(len(OPS))
+        if arch_arch_code_c is None:
+            arch_arch_code_c = np.ones(len(OPS))
         for idx, _ in enumerate(OPS.keys()):
-            if idx < len(code_c):
-                if code_c[idx] == 0:
+            if idx < len(arch_arch_code_c):
+                if arch_arch_code_c[idx] == 0:
                     op = None
                 else:
                     op = OPS[_](c)
@@ -115,10 +115,10 @@ class Cell(nn.Module):
         C: output channel number
         rate: resolution change rate. -1 for 2x downsample, 1 for 2x upsample
               0 for no change of resolution
-        code_c: cell operation code
+        arch_code_c: cell operation code
     """
 
-    def __init__(self, c_prev, c, rate: int, code_c: bool = None):
+    def __init__(self, c_prev, c, rate: int, arch_code_c: bool = None):
         super().__init__()
         self.c_out = c
         if rate == -1:  # downsample
@@ -130,7 +130,7 @@ class Cell(nn.Module):
                 self.preprocess = ConnOPS["identity"]()
             else:
                 self.preprocess = ConnOPS["align_channels"](c_prev, c, 1, 0)
-        self.op = MixedOp(c, code_c)
+        self.op = MixedOp(c, arch_code_c)
 
     def forward(self, s, ops, weight):
         s = self.preprocess(s)
@@ -147,7 +147,7 @@ class DiNTS(nn.Module):
         channel_mul: float = 1.0,
         cell=Cell,
         cell_ops: int = 5,
-        code: list = None,
+        arch_code: list = None,
         norm_name: Union[Tuple, str] = "INSTANCE",
         num_blocks: int = 6,
         num_depths: int = 3,
@@ -166,19 +166,19 @@ class DiNTS(nn.Module):
             cell: operatoin of each node
             cell_ops: cell operation numbers
             channel_mul: adjust intermediate channel number, default 1.
-            code: [node_a, code_a, code_c] decoded using self.decode(). Remove unused cells in retraining
+            arch_code: [node_a, arch_code_a, arch_code_c] decoded using self.decode(). Remove unused cells in retraining
 
         Predefined variables:
             filter_nums: default init 64. Double channel number after downsample
             topology related varaibles from gen_mtx():
                 trans_mtx: feasible path activation given node activation key
-                code2in: path activation to its incoming node index
-                code2ops: path activation to operations of upsample 1, keep 0, downsample -1
-                code2out: path activation to its output node index
-                node_act_list: all node activation codes [2^num_depths-1, res_num]
-                node_act_dict: node activation code to its index
+                arch_code2in: path activation to its incoming node index
+                arch_code2ops: path activation to operations of upsample 1, keep 0, downsample -1
+                arch_code2out: path activation to its output node index
+                node_act_list: all node activation arch_codes [2^num_depths-1, res_num]
+                node_act_dict: node activation arch_code to its index
                 tidx: index used to convert path activation matrix (depth,depth) in trans_mtx to path activation
-                    code (1,3*depth-2)
+                    arch_code (1,3*depth-2)
         """
         super().__init__()
 
@@ -195,16 +195,18 @@ class DiNTS(nn.Module):
         ]
 
         # path activation and node activations
-        trans_mtx, node_act_list, tidx, code2in, code2ops, code2out, child_list = self._gen_mtx(num_depths)
+        trans_mtx, node_act_list, tidx, arch_code2in, arch_code2ops, arch_code2out, child_list = self.gen_mtx(
+            num_depths
+        )
         node_act_list = np.array(node_act_list)
         node_act_dict = {str(node_act_list[i]): i for i in range(len(node_act_list))}
 
         self.num_depths = num_depths
         self.filter_nums = filter_nums
         self.cell_ops = cell_ops
-        self.code2in = code2in
-        self.code2ops = code2ops
-        self.code2out = code2out
+        self.arch_code2in = arch_code2in
+        self.arch_code2ops = arch_code2ops
+        self.arch_code2out = arch_code2out
         self.node_act_list = node_act_list
         self.node_act_dict = node_act_dict
         self.trans_mtx = trans_mtx
@@ -322,35 +324,39 @@ class DiNTS(nn.Module):
                 )
 
         # define NAS search space
-        if code is None:
-            code_a = np.ones((num_blocks, len(code2out)))
-            code_c = np.ones((num_blocks, len(code2out), cell_ops))
+        if arch_code is None:
+            arch_code_a = np.ones((num_blocks, len(arch_code2out)))
+            arch_code_c = np.ones((num_blocks, len(arch_code2out), cell_ops))
         else:
-            code_a = code[1]
-            code_c = F.one_hot(torch.from_numpy(code[2]), cell_ops).numpy()
+            arch_code_a = arch_code[1]
+            arch_code_c = F.one_hot(torch.from_numpy(arch_code[2]), cell_ops).numpy()
         self.cell_tree = nn.ModuleDict()
-        self.memory = np.zeros((num_blocks, len(code2out), cell_ops))
+        self.ram_cost = np.zeros((num_blocks, len(arch_code2out), cell_ops))
         for blk_idx in range(num_blocks):
-            for res_idx in range(len(code2out)):
-                if code_a[blk_idx, res_idx] == 1:
+            for res_idx in range(len(arch_code2out)):
+                if arch_code_a[blk_idx, res_idx] == 1:
                     self.cell_tree[str((blk_idx, res_idx))] = cell(
-                        filter_nums[code2in[res_idx] + int(use_stem)],
-                        filter_nums[code2out[res_idx] + int(use_stem)],
-                        code2ops[res_idx],
-                        code_c[blk_idx, res_idx],
+                        filter_nums[arch_code2in[res_idx] + int(use_stem)],
+                        filter_nums[arch_code2out[res_idx] + int(use_stem)],
+                        arch_code2ops[res_idx],
+                        arch_code_c[blk_idx, res_idx],
                     )
-                    self.memory[blk_idx, res_idx] = np.array(
+                    self.ram_cost[blk_idx, res_idx] = np.array(
                         [
-                            _.memory + self.cell_tree[str((blk_idx, res_idx))].preprocess.memory if _ is not None else 0
+                            _.ram_cost + self.cell_tree[str((blk_idx, res_idx))].preprocess.ram_cost
+                            if _ is not None
+                            else 0
                             for _ in self.cell_tree[str((blk_idx, res_idx))].op._ops[:cell_ops]
                         ]
                     )
 
         # define cell and macro arhitecture probabilities
         self.log_alpha_c = nn.Parameter(
-            torch.zeros(num_blocks, len(code2out), cell_ops).normal_(1, 0.01).cuda().requires_grad_()
+            torch.zeros(num_blocks, len(arch_code2out), cell_ops).normal_(1, 0.01).cuda().requires_grad_()
         )
-        self.log_alpha_a = nn.Parameter(torch.zeros(num_blocks, len(code2out)).normal_(0, 0.01).cuda().requires_grad_())
+        self.log_alpha_a = nn.Parameter(
+            torch.zeros(num_blocks, len(arch_code2out)).normal_(0, 0.01).cuda().requires_grad_()
+        )
         self._arch_param_names = ["log_alpha_a", "log_alpha_c"]
 
     def weight_parameters(self):
@@ -364,31 +370,32 @@ class DiNTS(nn.Module):
             child: return child probability as well (used in decode)
         """
         log_alpha = self.log_alpha_a
-        _code_prob_a = torch.sigmoid(log_alpha)
-        norm = 1 - (1 - _code_prob_a).prod(-1)  # normalizing factor
-        code_prob_a = _code_prob_a / norm.unsqueeze(1)
+        _arch_code_prob_a = torch.sigmoid(log_alpha)
+        norm = 1 - (1 - _arch_code_prob_a).prod(-1)  # normalizing factor
+        arch_code_prob_a = _arch_code_prob_a / norm.unsqueeze(1)
         if child:
             probs_a = []
             path_activation = torch.from_numpy(self.child_list).cuda()
             for blk_idx in range(self.num_blocks):
                 probs_a.append(
                     (
-                        path_activation * _code_prob_a[blk_idx] + (1 - path_activation) * (1 - _code_prob_a[blk_idx])
+                        path_activation * _arch_code_prob_a[blk_idx]
+                        + (1 - path_activation) * (1 - _arch_code_prob_a[blk_idx])
                     ).prod(-1)
                     / norm[blk_idx]
                 )
             probs_a = torch.stack(probs_a)
-            return probs_a, code_prob_a
+            return probs_a, arch_code_prob_a
         else:
-            return None, code_prob_a
+            return None, arch_code_prob_a
 
-    def get_memory_usage(self, in_size, cell_memory: bool = False, code: bool = None, full: bool = False):
+    def get_ram_cost_usage(self, in_size, cell_ram_cost: bool = False, arch_code: bool = None, full: bool = False):
         """
         Get estimated output tensor size
 
         Args:
             in_size: input image shape at the highest resolutoin level
-            full: full memory usage with all probability of 1
+            full: full ram cost usage with all probability of 1
         """
         # convert input image size to feature map size at each level
         b, c, h, w, s = in_size
@@ -398,31 +405,31 @@ class DiNTS(nn.Module):
                 b * self.filter_nums[res_idx] * h // (2 ** res_idx) * w // (2 ** res_idx) * s // (2 ** res_idx)
             )
         sizes = torch.tensor(sizes).to(torch.float32).cuda() // (2 ** (int(self.use_stem)))
-        probs_a, code_prob_a = self.get_prob_a(child=False)
+        probs_a, arch_code_prob_a = self.get_prob_a(child=False)
         cell_prob = F.softmax(self.log_alpha_c, dim=-1)
         if full:
-            code_prob_a = code_prob_a.detach()
-            code_prob_a.fill_(1)
-            if cell_memory:
+            arch_code_prob_a = arch_code_prob_a.detach()
+            arch_code_prob_a.fill_(1)
+            if cell_ram_cost:
                 cell_prob = cell_prob.detach()
                 cell_prob.fill_(1 / self.cell_ops)
-        memory = torch.from_numpy(self.memory).to(torch.float32).cuda()
+        ram_cost = torch.from_numpy(self.ram_cost).to(torch.float32).cuda()
         usage = 0
         for blk_idx in range(self.num_blocks):
             # node activation for input
             # cell operation
-            for path_idx in range(len(self.code2out)):
-                if code is not None:
+            for path_idx in range(len(self.arch_code2out)):
+                if arch_code is not None:
                     usage += (
-                        code[0][blk_idx, path_idx]
-                        * (1 + (memory[blk_idx, path_idx] * code[1][blk_idx, path_idx]).sum())
-                        * sizes[self.code2out[path_idx]]
+                        arch_code[0][blk_idx, path_idx]
+                        * (1 + (ram_cost[blk_idx, path_idx] * arch_code[1][blk_idx, path_idx]).sum())
+                        * sizes[self.arch_code2out[path_idx]]
                     )
                 else:
                     usage += (
-                        code_prob_a[blk_idx, path_idx]
-                        * (1 + (memory[blk_idx, path_idx] * cell_prob[blk_idx, path_idx]).sum())
-                        * sizes[self.code2out[path_idx]]
+                        arch_code_prob_a[blk_idx, path_idx]
+                        * (1 + (ram_cost[blk_idx, path_idx] * cell_prob[blk_idx, path_idx]).sum())
+                        * sizes[self.arch_code2out[path_idx]]
                     )
         return usage * 32 / 8 / 1024 ** 2
 
@@ -440,9 +447,9 @@ class DiNTS(nn.Module):
             node2out = [[] for i in range(len(self.node_act_list))]
             for child_idx in range(len(self.child_list)):
                 _node_in, _node_out = np.zeros(self.num_depths), np.zeros(self.num_depths)
-                for res_idx in range(len(self.code2out)):
-                    _node_out[self.code2out[res_idx]] += self.child_list[child_idx][res_idx]
-                    _node_in[self.code2in[res_idx]] += self.child_list[child_idx][res_idx]
+                for res_idx in range(len(self.arch_code2out)):
+                    _node_out[self.arch_code2out[res_idx]] += self.child_list[child_idx][res_idx]
+                    _node_in[self.arch_code2in[res_idx]] += self.child_list[child_idx][res_idx]
                 _node_in = (_node_in >= 1).astype(int)
                 _node_out = (_node_out >= 1).astype(int)
                 node2in[self.node_act_dict[str(_node_out)]].append(child_idx)
@@ -466,11 +473,11 @@ class DiNTS(nn.Module):
         Decode network log_alpha_a/log_alpha_c using dijkstra shortpath algorithm
 
         Return:
-            code with maximum probability
+            arch_code with maximum probability
         """
-        probs, code_prob_a = self.get_prob_a(child=True)
-        code_a_max = self.child_list[torch.argmax(probs, -1).data.cpu().numpy()]
-        code_c = torch.argmax(F.softmax(self.log_alpha_c, -1), -1).data.cpu().numpy()
+        probs, arch_code_prob_a = self.get_prob_a(child=True)
+        arch_code_a_max = self.child_list[torch.argmax(probs, -1).data.cpu().numpy()]
+        arch_code_c = torch.argmax(F.softmax(self.log_alpha_c, -1), -1).data.cpu().numpy()
         probs = probs.data.cpu().numpy()
 
         # define adacency matrix
@@ -486,7 +493,7 @@ class DiNTS(nn.Module):
         for child_idx in range(len(self.child_list)):
             _node_act = np.zeros(self.num_depths).astype(int)
             for path_idx in range(len(self.child_list[child_idx])):
-                _node_act[self.code2out[path_idx]] += self.child_list[child_idx][path_idx]
+                _node_act[self.arch_code2out[path_idx]] += self.child_list[child_idx][path_idx]
             _node_act = (_node_act >= 1).astype(int)
             for mtx in self.trans_mtx[str(_node_act)]:
                 connect_child_idx = path2child[str(mtx.flatten()[self.tidx].astype(int))]
@@ -514,7 +521,7 @@ class DiNTS(nn.Module):
             csgraph=graph, directed=True, indices=0, min_only=True, return_predecessors=True
         )
         index, a_idx = -1, -1
-        code_a = np.zeros((self.num_blocks, len(self.code2out)))
+        arch_code_a = np.zeros((self.num_blocks, len(self.arch_code2out)))
         node_a = np.zeros((self.num_blocks + 1, self.num_depths))
 
         # decoding to paths
@@ -523,14 +530,14 @@ class DiNTS(nn.Module):
             if index == 0:
                 break
             child_idx = (index - 1) % len(self.child_list)
-            code_a[a_idx, :] = self.child_list[child_idx]
-            for res_idx in range(len(self.code2out)):
-                node_a[a_idx, self.code2out[res_idx]] += code_a[a_idx, res_idx]
+            arch_code_a[a_idx, :] = self.child_list[child_idx]
+            for res_idx in range(len(self.arch_code2out)):
+                node_a[a_idx, self.arch_code2out[res_idx]] += arch_code_a[a_idx, res_idx]
             a_idx -= 1
-        for res_idx in range(len(self.code2out)):
-            node_a[a_idx, self.code2in[res_idx]] += code_a[0, res_idx]
+        for res_idx in range(len(self.arch_code2out)):
+            node_a[a_idx, self.arch_code2in[res_idx]] += arch_code_a[0, res_idx]
         node_a = (node_a >= 1).astype(int)
-        return node_a, code_a, code_c, code_a_max
+        return node_a, arch_code_a, arch_code_c, arch_code_a_max
 
     def gen_mtx(self, depth: int = 3):
         """
@@ -559,40 +566,40 @@ class DiNTS(nn.Module):
             mtx.append(ma)
 
         # Calculate path activation to node activation params
-        tidx, code2in, code2out = [], [], []
+        tidx, arch_code2in, arch_code2out = [], [], []
         for i in range(paths):
             tidx.append((i + 1) // 3 * depth + (i + 1) // 3 - 1 + (i + 1) % 3)
-            code2in.append((i + 1) // 3 - 1 + (i + 1) % 3)
-        code2ops = ([-1, 0, 1] * depth)[1:-1]
+            arch_code2in.append((i + 1) // 3 - 1 + (i + 1) % 3)
+        arch_code2ops = ([-1, 0, 1] * depth)[1:-1]
         for _ in range(depth):
-            code2out.extend([_, _, _])
-        code2out = code2out[1:-1]
+            arch_code2out.extend([_, _, _])
+        arch_code2out = arch_code2out[1:-1]
 
         # define all possible node activativation
         node_act_list = dfs(0, depth - 1)[1:]
         transfer_mtx = {}
-        for code in node_act_list:
+        for arch_code in node_act_list:
             # make sure each activated node has an active connection, inactivated node has no connection
-            code_mtx = [_ for _ in mtx if ((np.sum(_, 0) > 0).astype(int) == np.array(code)).all()]
-            transfer_mtx[str(np.array(code))] = code_mtx
+            arch_code_mtx = [_ for _ in mtx if ((np.sum(_, 0) > 0).astype(int) == np.array(arch_code)).all()]
+            transfer_mtx[str(np.array(arch_code))] = arch_code_mtx
 
-        return transfer_mtx, node_act_list, tidx, code2in, code2ops, code2out, all_connect[1:]
+        return transfer_mtx, node_act_list, tidx, arch_code2in, arch_code2ops, arch_code2out, all_connect[1:]
 
-    def forward(self, x, code: list = None):
+    def forward(self, x, arch_code: list = None):
         """
-        Prediction based on dynamic code
+        Prediction based on dynamic arch_code
 
         Args:
             x: input tensor
-            code: [node_a, code_a, code_c]
+            arch_code: [node_a, arch_code_a, arch_code_c]
         """
         # define output positions
         out_pos = [self.num_blocks - 1]
 
         # sample path weights
         predict_all = []
-        node_a, code_a, code_c = code
-        probs_a, code_prob_a = self.get_prob_a(child=False)
+        node_a, arch_code_a, arch_code_c = arch_code
+        probs_a, arch_code_prob_a = self.get_prob_a(child=False)
 
         # stem inference
         inputs = []
@@ -605,22 +612,22 @@ class DiNTS(nn.Module):
 
         for blk_idx in range(self.num_blocks):
             outputs = [0] * self.num_depths
-            for res_idx, activation in enumerate(code_a[blk_idx].data.cpu().numpy()):
+            for res_idx, activation in enumerate(arch_code_a[blk_idx].data.cpu().numpy()):
                 if activation:
                     if self.is_search:
-                        outputs[self.code2out[res_idx]] += (
+                        outputs[self.arch_code2out[res_idx]] += (
                             self.cell_tree[str((blk_idx, res_idx))](
-                                inputs[self.code2in[res_idx]],
-                                ops=code_c[blk_idx, res_idx],
+                                inputs[self.arch_code2in[res_idx]],
+                                ops=arch_code_c[blk_idx, res_idx],
                                 weight=F.softmax(self.log_alpha_c[blk_idx, res_idx], dim=-1),
                             )
-                            * code_prob_a[blk_idx, res_idx]
+                            * arch_code_prob_a[blk_idx, res_idx]
                         )
                     else:
-                        outputs[self.code2out[res_idx]] += self.cell_tree[str((blk_idx, res_idx))](
-                            inputs[self.code2in[res_idx]],
-                            ops=code_c[blk_idx, res_idx],
-                            weight=torch.ones_like(code_c[blk_idx, res_idx], requires_grad=False),
+                        outputs[self.arch_code2out[res_idx]] += self.cell_tree[str((blk_idx, res_idx))](
+                            inputs[self.arch_code2in[res_idx]],
+                            ops=arch_code_c[blk_idx, res_idx],
+                            weight=torch.ones_like(arch_code_c[blk_idx, res_idx], requires_grad=False),
                         )
             inputs = outputs
             if blk_idx in out_pos:
