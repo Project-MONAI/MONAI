@@ -147,8 +147,8 @@ def write_nifti(
         data_np: np.ndarray = data.reshape(list(spatial_shape) + [-1])  # type: ignore
         data_np = np.moveaxis(data_np, -1, 0)  # channel first for pytorch
         data_torch = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data_np).astype(dtype, copy=False)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype, copy=False)),
+            torch.as_tensor(np.ascontiguousarray(data_np, dtype=dtype)).unsqueeze(0),
+            torch.as_tensor(np.ascontiguousarray(transform, dtype=dtype)),
             spatial_size=output_spatial_shape_[:3],
         )
         data_np = data_torch.squeeze(0).detach().cpu().numpy()
@@ -158,8 +158,8 @@ def write_nifti(
         while len(output_spatial_shape_) < len(data.shape):
             output_spatial_shape_ = output_spatial_shape_ + [1]
         data_torch = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data).astype(dtype, copy=False)[None, None]),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype, copy=False)),
+            torch.as_tensor(np.ascontiguousarray(data, dtype=dtype)[None, None]),
+            torch.as_tensor(np.ascontiguousarray(transform, dtype=dtype)),
             spatial_size=output_spatial_shape_[: len(data.shape)],
         )
         data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
