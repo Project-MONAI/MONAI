@@ -104,7 +104,9 @@ class RandGaussianNoise(RandomizableTransform):
         if not self._do_transform:
             return None
         rand_std = self.R.uniform(0, self.std)
-        self.noise = self.R.normal(self.mean if mean is None else mean, rand_std, size=img.shape)
+        noise = self.R.normal(self.mean if mean is None else mean, rand_std, size=img.shape)
+        # noise is float64 array, convert to the output dtype to save memory
+        self.noise, *_ = convert_data_type(noise, dtype=self.dtype)  # type: ignore
 
     def __call__(self, img: NdarrayOrTensor, mean: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
         """
