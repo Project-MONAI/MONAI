@@ -70,15 +70,15 @@ def write_png(
     if scale is not None:
         data = np.clip(data, 0.0, 1.0)  # type: ignore # png writer only can scale data in range [0, 1]
         if scale == np.iinfo(np.uint8).max:
-            data = (scale * data).astype(np.uint8)
+            data = (scale * data).astype(np.uint8, copy=False)
         elif scale == np.iinfo(np.uint16).max:
-            data = (scale * data).astype(np.uint16)
+            data = (scale * data).astype(np.uint16, copy=False)
         else:
             raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535]")
 
     # PNG data must be int number
     if data.dtype not in (np.uint8, np.uint16):  # type: ignore
-        data = data.astype(np.uint8)
+        data = data.astype(np.uint8, copy=False)
 
     data = np.moveaxis(data, 0, 1)
     img = Image.fromarray(data)

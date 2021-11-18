@@ -212,7 +212,7 @@ class LoadImage(Transform):
             )
 
         img_array, meta_data = reader.get_data(img)
-        img_array = img_array.astype(self.dtype)
+        img_array = img_array.astype(self.dtype, copy=False)
 
         if self.image_only:
             return img_array
