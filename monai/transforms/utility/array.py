@@ -1033,8 +1033,8 @@ class MapLabelValue:
                 continue
             np.place(out_flat, img_flat == o, t)
 
-        out = out_flat.reshape(img_np.shape)
-        out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype)
+        reshaped = out_flat.reshape(img_np.shape)
+        out, *_ = convert_to_dst_type(src=reshaped, dst=img, dtype=self.dtype)
         return out
 
 
