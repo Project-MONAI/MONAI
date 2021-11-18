@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -86,15 +86,17 @@ class RandGaussianNoise(RandomizableTransform):
         prob: Probability to add Gaussian noise.
         mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
+        dtype: output data type, if None, same as input image. defaults to float32.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, prob: float = 0.1, mean: float = 0.0, std: float = 0.1) -> None:
+    def __init__(self, prob: float = 0.1, mean: float = 0.0, std: float = 0.1, dtype: DtypeLike = np.float32) -> None:
         RandomizableTransform.__init__(self, prob)
         self.mean = mean
         self.std = std
+        self.dtype = dtype
         self.noise: Optional[np.ndarray] = None
 
     def randomize(self, img: NdarrayOrTensor, mean: Optional[float] = None) -> None:
@@ -116,6 +118,7 @@ class RandGaussianNoise(RandomizableTransform):
 
         if self.noise is None:
             raise RuntimeError("please call the `randomize()` function first.")
+        img, *_ = convert_data_type(img, dtype=self.dtype)
         noise, *_ = convert_to_dst_type(self.noise, img)
         return img + noise
 
@@ -141,6 +144,8 @@ class RandRicianNoise(RandomizableTransform):
             histogram.
         sample_std: If True, sample the spread of the Gaussian distributions
             uniformly from 0 to std.
+        dtype: output data type, if None, same as input image. defaults to float32.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -153,6 +158,7 @@ class RandRicianNoise(RandomizableTransform):
         channel_wise: bool = False,
         relative: bool = False,
         sample_std: bool = True,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.prob = prob
@@ -161,10 +167,11 @@ class RandRicianNoise(RandomizableTransform):
         self.channel_wise = channel_wise
         self.relative = relative
         self.sample_std = sample_std
+        self.dtype = dtype
         self._noise1: NdarrayOrTensor
         self._noise2: NdarrayOrTensor
 
-    def _add_noise(self, img: NdarrayTensor, mean: float, std: float):
+    def _add_noise(self, img: NdarrayOrTensor, mean: float, std: float):
         dtype_np = get_equivalent_dtype(img.dtype, np.ndarray)
         im_shape = img.shape
         _std = self.R.uniform(0, std) if self.sample_std else std
@@ -177,7 +184,7 @@ class RandRicianNoise(RandomizableTransform):
 
         return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
 
-    def __call__(self, img: NdarrayTensor, randomize: bool = True) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -187,6 +194,7 @@ class RandRicianNoise(RandomizableTransform):
         if not self._do_transform:
             return img
 
+        img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
             _mean = ensure_tuple_rep(self.mean, len(img))
             _std = ensure_tuple_rep(self.std, len(img))

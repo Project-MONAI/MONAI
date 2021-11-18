@@ -19,7 +19,7 @@ from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, 
 
 import numpy as np
 
-from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.intensity.array import (
     AdjustContrast,
@@ -156,6 +156,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         prob: Probability to add Gaussian noise.
         mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
+        dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -167,11 +168,12 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         prob: float = 0.1,
         mean: float = 0.0,
         std: float = 0.1,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0)
+        self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0, dtype=dtype)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -206,9 +208,7 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
     Args:
         keys: Keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        global_prob: Probability to add Rician noise to the dictionary.
-        prob: Probability to add Rician noise to each item in the dictionary,
-            once asserted that noise will be added to the dictionary at all.
+        prob: Probability to add Rician noise to the dictionary.
         mean: Mean or "centre" of the Gaussian distributions sampled to make up
             the Rician noise.
         std: Standard deviation (spread) of the Gaussian distributions sampled
@@ -219,27 +219,35 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
             histogram.
         sample_std: If True, sample the spread of the Gaussian distributions
             uniformly from 0 to std.
+        dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: Don't raise exception if key is missing.
     """
 
     backend = RandRicianNoise.backend
 
+    @deprecated_arg("global_prob", since="0.7")
     def __init__(
         self,
         keys: KeysCollection,
-        global_prob: float = 0.1,
         prob: float = 0.1,
         mean: Union[Sequence[float], float] = 0.0,
         std: Union[Sequence[float], float] = 1.0,
         channel_wise: bool = False,
         relative: bool = False,
         sample_std: bool = True,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        RandomizableTransform.__init__(self, global_prob)
+        RandomizableTransform.__init__(self, prob)
         self.rand_rician_noise = RandRicianNoise(
-            prob=1.0, mean=mean, std=std, channel_wise=channel_wise, relative=relative, sample_std=sample_std
+            prob=1.0,
+            mean=mean,
+            std=std,
+            channel_wise=channel_wise,
+            relative=relative,
+            sample_std=sample_std,
+            dtype=dtype,
         )
 
     def set_random_state(
@@ -249,7 +257,7 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         self.rand_rician_noise.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
