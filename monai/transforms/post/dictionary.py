@@ -128,6 +128,9 @@ class AsDiscreted(MapTransform):
 
     backend = AsDiscrete.backend
 
+    @deprecated_arg("n_classes", since="0.6")
+    @deprecated_arg("num_classes", since="0.7")
+    @deprecated_arg("logit_thresh", since="0.7")
     @deprecated_arg(name="threshold_values", new_name="threshold", since="0.7")
     def __init__(
         self,
@@ -137,6 +140,10 @@ class AsDiscreted(MapTransform):
         threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
+        n_classes: Optional[Union[Sequence[int], int]] = None,
+        num_classes: Optional[Union[Sequence[int], int]] = None,
+        logit_thresh: Union[Sequence[float], float] = 0.5,
+        threshold_values: Union[Sequence[bool], bool] = False,
     ) -> None:
         """
         Args:
@@ -154,7 +161,12 @@ class AsDiscreted(MapTransform):
             allow_missing_keys: don't raise exception if key is missing.
 
         .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``num_classes`` instead.
+            ``n_classes`` is deprecated, use ``to_onehot`` instead.
+
+        .. deprecated:: 0.7.0
+            ``num_classes`` is deprecated, use ``to_onehot`` instead.
+            ``logit_thresh`` is deprecated, use ``threshold`` instead.
+            ``threshold_values`` is deprecated, use ``threshold`` instead.
 
         """
         super().__init__(keys, allow_missing_keys)

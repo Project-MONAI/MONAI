@@ -129,10 +129,21 @@ class AsDiscrete(Transform):
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
 
+    .. deprecated:: 0.6.0
+        ``n_classes`` is deprecated, use ``to_onehot`` instead.
+
+    .. deprecated:: 0.7.0
+        ``num_classes`` is deprecated, use ``to_onehot`` instead.
+        ``logit_thresh`` is deprecated, use ``threshold`` instead.
+        ``threshold_values`` is deprecated, use ``threshold`` instead.
+
     """
 
     backend = [TransformBackends.TORCH]
 
+    @deprecated_arg("n_classes", since="0.6")
+    @deprecated_arg("num_classes", since="0.7")
+    @deprecated_arg("logit_thresh", since="0.7")
     @deprecated_arg(name="threshold_values", new_name="threshold", since="0.7")
     def __init__(
         self,
@@ -140,14 +151,26 @@ class AsDiscrete(Transform):
         to_onehot: Optional[int] = None,
         threshold: Optional[float] = None,
         rounding: Optional[str] = None,
+        n_classes: Optional[int] = None,
+        num_classes: Optional[int] = None,
+        logit_thresh: float = 0.5,
+        threshold_values: bool = False,
     ) -> None:
         self.argmax = argmax
+        if isinstance(to_onehot, bool):
+            raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
         self.to_onehot = to_onehot
-        if threshold is True:
-            raise ValueError("`threshold_values=True` is deprecated, please use `threashold=value` instead.")
+
+        if isinstance(threshold, bool):
+            raise ValueError("`threshold_values=True/False` is deprecated, please use `threashold=value` instead.")
         self.threshold = threshold
+
         self.rounding = rounding
 
+    @deprecated_arg("n_classes", since="0.6")
+    @deprecated_arg("num_classes", since="0.7")
+    @deprecated_arg("logit_thresh", since="0.7")
+    @deprecated_arg(name="threshold_values", new_name="threshold", since="0.7")
     def __call__(
         self,
         img: NdarrayOrTensor,
@@ -155,6 +178,10 @@ class AsDiscrete(Transform):
         to_onehot: Optional[int] = None,
         threshold: Optional[float] = None,
         rounding: Optional[str] = None,
+        n_classes: Optional[int] = None,
+        num_classes: Optional[int] = None,
+        logit_thresh: Optional[float] = None,
+        threshold_values: Optional[bool] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -169,7 +196,20 @@ class AsDiscrete(Transform):
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
 
+        .. deprecated:: 0.6.0
+            ``n_classes`` is deprecated, use ``to_onehot`` instead.
+
+        .. deprecated:: 0.7.0
+            ``num_classes`` is deprecated, use ``to_onehot`` instead.
+            ``logit_thresh`` is deprecated, use ``threshold`` instead.
+            ``threshold_values`` is deprecated, use ``threshold`` instead.
+
         """
+        if isinstance(to_onehot, bool):
+            raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
+        if isinstance(threshold, bool):
+            raise ValueError("`threshold_values=True/False` is deprecated, please use `threashold=value` instead.")
+
         img_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
         if argmax or self.argmax:
