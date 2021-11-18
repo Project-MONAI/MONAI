@@ -22,7 +22,7 @@ from parameterized import parameterized
 from monai.apps import RemoteMMARKeys, download_mmar, get_model_spec, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
-from tests.utils import SkipIfAtLeastPyTorchVersion, SkipIfBeforePyTorchVersion, skip_if_quick
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick
 
 TEST_CASES = [["clara_pt_prostate_mri_segmentation_1"], ["clara_pt_covid19_ct_lesion_segmentation_1"]]
 TEST_EXTRACT_CASES = [
@@ -125,7 +125,6 @@ class TestMMMARDownload(unittest.TestCase):
 
     @parameterized.expand(TEST_EXTRACT_CASES)
     @skip_if_quick
-    @SkipIfBeforePyTorchVersion((1, 6))
     def test_load_ckpt(self, input_args, expected_name, expected_val):
         try:
             output = load_from_mmar(**input_args)
@@ -142,11 +141,6 @@ class TestMMMARDownload(unittest.TestCase):
         # model ids are unique
         keys = sorted(m["id"] for m in MODEL_DESC)
         self.assertTrue(keys == sorted(set(keys)))
-
-    @SkipIfAtLeastPyTorchVersion((1, 6))
-    def test_no_default(self):
-        with self.assertRaises(ValueError):
-            download_mmar(0)
 
     def test_search(self):
         self.assertEqual(_get_val({"a": 1, "b": 2}, key="b"), 2)
