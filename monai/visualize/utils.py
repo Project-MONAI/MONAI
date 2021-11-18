@@ -108,7 +108,7 @@ def matshow3d(
     cols = max(min(len(vol), frames_per_row), 1)
     rows = int(np.ceil(len(vol) / cols))
     width = [[0, cols * rows - len(vol)]] + [[margin, margin]] * (len(vol.shape) - 1)
-    vol = np.pad(vol.astype(dtype), width, mode="constant", constant_values=fill_value)
+    vol = np.pad(vol.astype(dtype, copy=False), width, mode="constant", constant_values=fill_value)
     im = np.block([[vol[i * cols + j] for j in range(cols)] for i in range(rows)])
 
     # figure related configurations
