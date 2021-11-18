@@ -175,7 +175,7 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
     return data
 
 
-def convert_to_cupy(data, dtype, wrap_sequence: bool = True):
+def convert_to_cupy(data, dtype, wrap_sequence: bool = False):
     """
     Utility to convert the input data to a cupy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to cupy array.

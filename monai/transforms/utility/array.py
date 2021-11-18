@@ -342,20 +342,20 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     Input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
     Will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
-    For dictionary, list or tuple, convert every item to a Tensor if applicable.
+    For dictionary, list or tuple, convert every item to a Tensor if applicable and `wrap_sequence=False`.
 
     Args:
         dtype: target data type to when converting to Tensor.
         device: target device to put the converted Tensor data.
-        wrap_sequence: if `False`, then lists will recursively call this function.
-            E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`. If `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = False
+        self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = True
     ) -> None:
         super().__init__()
         self.dtype = dtype
@@ -373,15 +373,15 @@ class EnsureType(Transform):
     """
     Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
     `float`, `int`, `bool`, `string` and `object` keep the original.
-    If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
-    every item to the expected data type.
+    If passing a dictionary, list or tuple, still return dictionary, list or tuple will recursively convert
+    every item to the expected data type if `wrap_sequence=False`.
 
     Args:
         data_type: target data type to convert, should be "tensor" or "numpy".
         dtype: target data content type to convert, for example: np.float32, torch.float, etc.
         device: for Tensor data type, specify the target device.
-        wrap_sequence: if `False`, then lists will recursively call this function.
-            E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`. If `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
 
     """
 
@@ -392,7 +392,7 @@ class EnsureType(Transform):
         data_type: str = "tensor",
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
-        wrap_sequence: bool = False,
+        wrap_sequence: bool = True,
     ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.dtype = dtype
@@ -405,7 +405,7 @@ class EnsureType(Transform):
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
                 will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
                 objects keep the original. for dictionary, list or tuple, ensure every item as expected type
-                if applicable.
+                if applicable and `wrap_sequence=False`.
 
         """
         output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
@@ -421,14 +421,14 @@ class ToNumpy(Transform):
 
     Args:
         dtype: target data type when converting to numpy array.
-        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
-            If `True`, then `[1, 2]` -> `array([1, 2])`.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype: DtypeLike = None, wrap_sequence: bool = False) -> None:
+    def __init__(self, dtype: DtypeLike = None, wrap_sequence: bool = True) -> None:
         super().__init__()
         self.dtype = dtype
         self.wrap_sequence = wrap_sequence
@@ -446,14 +446,14 @@ class ToCupy(Transform):
 
     Args:
         dtype: data type specifier. It is inferred from the input by default.
-        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
-            If `True`, then `[1, 2]` -> `array([1, 2])`.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype=None, wrap_sequence: bool = False) -> None:
+    def __init__(self, dtype=None, wrap_sequence: bool = True) -> None:
         super().__init__()
         self.dtype = dtype
         self.wrap_sequence = wrap_sequence
