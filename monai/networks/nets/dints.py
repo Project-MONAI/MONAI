@@ -382,7 +382,7 @@ class DiNTS(nn.Module):
         else:
             return None, code_prob_a
 
-    def _get_memory_usage(self, in_size, cell_memory: bool = False, code: bool = None, full: bool = False):
+    def get_memory_usage(self, in_size, cell_memory: bool = False, code: bool = None, full: bool = False):
         """
         Get estimated output tensor size
 
@@ -426,7 +426,7 @@ class DiNTS(nn.Module):
                     )
         return usage * 32 / 8 / 1024 ** 2
 
-    def _get_topology_entropy(self, probs: float):
+    def get_topology_entropy(self, probs: float):
         """
         Get topology entropy loss
         """
