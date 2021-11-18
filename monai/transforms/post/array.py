@@ -129,6 +129,20 @@ class AsDiscrete(Transform):
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
 
+    Example:
+
+        >>> transform = AsDiscrete(argmax=True)
+        >>> print(transform(np.array([[[0.0, 1.0]], [[2.0, 3.0]]])))
+        # [[[1.0, 1.0]]]
+
+        >>> transform = AsDiscrete(threshold=0.6)
+        >>> print(transform(np.array([[[0.0, 0.5], [0.8, 3.0]]])))
+        # [[[0.0, 0.0], [1.0, 1.0]]]
+
+        >>> transform = AsDiscrete(argmax=True, to_onehot=2, threshold=0.5)
+        >>> print(transform(np.array([[[0.0, 1.0]], [[2.0, 3.0]]])))
+        # [[[0.0, 0.0]], [[1.0, 1.0]]]
+
     .. deprecated:: 0.6.0
         ``n_classes`` is deprecated, use ``to_onehot`` instead.
 
