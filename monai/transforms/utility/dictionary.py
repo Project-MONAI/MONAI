@@ -460,6 +460,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
+        wrap_sequence: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -468,10 +469,12 @@ class ToTensord(MapTransform, InvertibleTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype: target data content type to convert, for example: torch.float, etc.
             device: specify the target device to put the Tensor data.
+            wrap_sequence: if `False`, then lists will recursively call this function.
+                E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`. If `True`, then `[1, 2]` -> `tensor([1, 2])`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToTensor(dtype=dtype, device=device)
+        self.converter = ToTensor(dtype=dtype, device=device, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -513,6 +516,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         data_type: str = "tensor",
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
+        wrap_sequence: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -522,10 +526,12 @@ class EnsureTyped(MapTransform, InvertibleTransform):
             data_type: target data type to convert, should be "tensor" or "numpy".
             dtype: target data content type to convert, for example: np.float32, torch.float, etc.
             device: for Tensor data type, specify the target device.
+            wrap_sequence: if `False`, then lists will recursively call this function.
+                E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`. If `True`, then `[1, 2]` -> `tensor([1, 2])`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device)
+        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -552,16 +558,24 @@ class ToNumpyd(MapTransform):
 
     backend = ToNumpy.backend
 
-    def __init__(self, keys: KeysCollection, dtype: DtypeLike = None, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: DtypeLike = None,
+        wrap_sequence: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype: target data type when converting to numpy array.
+            wrap_sequence: if `False`, then lists will recursively call this function.
+                E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToNumpy(dtype=dtype)
+        self.converter = ToNumpy(dtype=dtype, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
@@ -578,14 +592,18 @@ class ToCupyd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         dtype: data type specifier. It is inferred from the input by default.
+        wrap_sequence: if `False`, then lists will recursively call this function.
+            E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = ToCupy.backend
 
-    def __init__(self, keys: KeysCollection, dtype=None, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, dtype=None, wrap_sequence: bool = False, allow_missing_keys: bool = False
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToCupy(dtype=dtype)
+        self.converter = ToCupy(dtype=dtype, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

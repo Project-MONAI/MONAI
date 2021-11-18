@@ -340,20 +340,33 @@ class CastToType(Transform):
 class ToTensor(Transform):
     """
     Converts the input image to a tensor without applying any other transformations.
+    Input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+    Will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
+    For dictionary, list or tuple, convert every item to a Tensor if applicable.
+
+    Args:
+        dtype: target data type to when converting to Tensor.
+        device: target device to put the converted Tensor data.
+        wrap_sequence: if `False`, then lists will recursively call this function.
+            E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`. If `True`, then `[1, 2]` -> `tensor([1, 2])`.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None) -> None:
+    def __init__(
+        self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = False
+    ) -> None:
         super().__init__()
         self.dtype = dtype
         self.device = device
+        self.wrap_sequence = wrap_sequence
 
-    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=True)  # type: ignore
+        return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence)
 
 
 class EnsureType(Transform):
@@ -367,6 +380,8 @@ class EnsureType(Transform):
         data_type: target data type to convert, should be "tensor" or "numpy".
         dtype: target data content type to convert, for example: np.float32, torch.float, etc.
         device: for Tensor data type, specify the target device.
+        wrap_sequence: if `False`, then lists will recursively call this function.
+            E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`. If `True`, then `[1, 2]` -> `tensor([1, 2])`.
 
     """
 
@@ -377,10 +392,12 @@ class EnsureType(Transform):
         data_type: str = "tensor",
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
+        wrap_sequence: bool = False,
     ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.dtype = dtype
         self.device = device
+        self.wrap_sequence = wrap_sequence
 
     def __call__(self, data: NdarrayOrTensor):
         """
@@ -392,26 +409,35 @@ class EnsureType(Transform):
 
         """
         output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
-        out, *_ = convert_data_type(data, output_type=output_type, dtype=self.dtype, device=self.device)
+        out, *_ = convert_data_type(
+            data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
+        )
         return out
 
 
 class ToNumpy(Transform):
     """
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
+
+    Args:
+        dtype: target data type when converting to numpy array.
+        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
+            If `True`, then `[1, 2]` -> `array([1, 2])`.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype: DtypeLike = None) -> None:
+    def __init__(self, dtype: DtypeLike = None, wrap_sequence: bool = False) -> None:
         super().__init__()
         self.dtype = dtype
+        self.wrap_sequence = wrap_sequence
 
-    def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_numpy(img, dtype=self.dtype)  # type: ignore
+        return convert_to_numpy(img, dtype=self.dtype, wrap_sequence=self.wrap_sequence)
 
 
 class ToCupy(Transform):
@@ -420,19 +446,23 @@ class ToCupy(Transform):
 
     Args:
         dtype: data type specifier. It is inferred from the input by default.
+        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
+            If `True`, then `[1, 2]` -> `array([1, 2])`.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype=None) -> None:
+    def __init__(self, dtype=None, wrap_sequence: bool = False) -> None:
         super().__init__()
         self.dtype = dtype
+        self.wrap_sequence = wrap_sequence
 
     def __call__(self, data: NdarrayOrTensor):
         """
         Create a CuPy array from `data` and make it contiguous
         """
-        return convert_to_cupy(data, self.dtype)
+        return convert_to_cupy(data, dtype=self.dtype, wrap_sequence=self.wrap_sequence)
 
 
 class ToPIL(Transform):
