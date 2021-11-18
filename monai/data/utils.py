@@ -19,13 +19,14 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap
-from pathlib import Path, PurePath
+from pathlib import PurePath
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
+from monai.config.type_definitions import PathLike
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
@@ -66,6 +67,7 @@ __all__ = [
     "is_supported_format",
     "partition_dataset",
     "partition_dataset_classes",
+    "resample_datalist",
     "select_cross_validation_folds",
     "json_hashing",
     "pickle_hashing",
@@ -134,9 +136,7 @@ def iter_patch_slices(
 
 
 def dense_patch_slices(
-    image_size: Sequence[int],
-    patch_size: Sequence[int],
-    scan_interval: Sequence[int],
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
 ) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
@@ -283,7 +283,7 @@ def list_data_collate(batch: Sequence):
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
                 + "documentation)."
             )
-        raise RuntimeError(re_str)
+        raise RuntimeError(re_str) from re
     except TypeError as re:
         re_str = str(re)
         if "numpy" in re_str and "Tensor" in re_str:
@@ -294,7 +294,7 @@ def list_data_collate(batch: Sequence):
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
                 + "(check its documentation)."
             )
-        raise TypeError(re_str)
+        raise TypeError(re_str) from re
 
 
 def decollate_batch(batch, detach: bool = True):
@@ -470,6 +470,7 @@ def set_rnd(obj, seed: int) -> int:
     Set seed or random state for all randomisable properties of obj.
 
     Args:
+        obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
     """
     if not hasattr(obj, "__dict__"):
@@ -630,7 +631,7 @@ def compute_shape_offset(
         # different orientation, the min is the origin
         corners = corners[:-1] / corners[-1]
         offset = np.min(corners, 1)
-    return out_shape.astype(int), offset
+    return out_shape.astype(int, copy=False), offset
 
 
 def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
@@ -678,9 +679,9 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
 
 def create_file_basename(
     postfix: str,
-    input_file_name: str,
-    folder_path: Union[Path, str],
-    data_root_dir: str = "",
+    input_file_name: PathLike,
+    folder_path: PathLike,
+    data_root_dir: PathLike = "",
     separate_folder: bool = True,
     patch_index: Optional[int] = None,
 ) -> str:
@@ -795,7 +796,7 @@ def compute_importance_map(
     return importance_map
 
 
-def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[str]) -> bool:
+def is_supported_format(filename: Union[Sequence[PathLike], PathLike], suffixes: Sequence[str]) -> bool:
     """
     Verify whether the specified file or files format match supported suffixes.
     If supported suffixes is None, skip the verification and return True.
@@ -806,7 +807,7 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
         suffixes: all the supported image suffixes of current reader, must be a list of lower case suffixes.
 
     """
-    filenames: Sequence[str] = ensure_tuple(filename)
+    filenames: Sequence[PathLike] = ensure_tuple(filename)
     for name in filenames:
         tokens: Sequence[str] = PurePath(name).suffixes
         if len(tokens) == 0 or all("." + s.lower() not in "".join(tokens) for s in suffixes):
@@ -993,6 +994,31 @@ def partition_dataset_classes(
     return datasets
 
 
+def resample_datalist(data: Sequence, factor: float, random_pick: bool = False, seed: int = 0):
+    """
+    Utility function to resample the loaded datalist for training, for example:
+    If factor < 1.0, randomly pick part of the datalist and set to Dataset, useful to quickly test the program.
+    If factor > 1.0, repeat the datalist to enhance the Dataset.
+
+    Args:
+        data: original datalist to scale.
+        factor: scale factor for the datalist, for example, factor=4.5, repeat the datalist 4 times and plus
+            50% of the original datalist.
+        random_pick: whether to randomly pick data if scale factor has decimal part.
+        seed: random seed to randomly pick data.
+
+    """
+    scale, repeats = math.modf(factor)
+    ret: List = list()
+
+    for _ in range(int(repeats)):
+        ret.extend(list(deepcopy(data)))
+    if scale > 1e-6:
+        ret.extend(partition_dataset(data=data, ratios=[scale, 1 - scale], shuffle=random_pick, seed=seed)[0])
+
+    return ret
+
+
 def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[Sequence[int], int]) -> List:
     """
     Select cross validation data based on data partitions and specified fold index.
@@ -1029,7 +1055,7 @@ def json_hashing(item) -> bytes:
     """
     # TODO: Find way to hash transforms content as part of the cache
     cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
-    return f"{cache_key}".encode("utf-8")
+    return f"{cache_key}".encode()
 
 
 def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
@@ -1044,7 +1070,7 @@ def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
 
     """
     cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
-    return f"{cache_key}".encode("utf-8")
+    return f"{cache_key}".encode()
 
 
 def sorted_dict(item, key=None, reverse=False):
@@ -1117,7 +1143,7 @@ def convert_tables_to_dicts(
         # convert data types
         types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
         if types:
-            data_ = data_.astype(dtype=types)
+            data_ = data_.astype(dtype=types, copy=False)
     data: List[Dict] = data_.to_dict(orient="records")
 
     # group columns to generate new column

@@ -90,8 +90,7 @@ def run_training_test(root_dir, device="cuda:0"):
 
     train_handlers = [
         StatsHandler(
-            name="training_loss",
-            output_transform=lambda x: {Keys.GLOSS: x[Keys.GLOSS], Keys.DLOSS: x[Keys.DLOSS]},
+            name="training_loss", output_transform=lambda x: {Keys.GLOSS: x[Keys.GLOSS], Keys.DLOSS: x[Keys.DLOSS]}
         ),
         TensorBoardStatsHandler(
             log_dir=root_dir,

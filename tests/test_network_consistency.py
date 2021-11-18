@@ -20,6 +20,7 @@ import torch
 from parameterized.parameterized import parameterized
 
 import monai.networks.nets as nets
+from monai.utils import set_determinism
 
 extra_test_data_dir = os.environ.get("MONAI_EXTRA_TEST_DATA", None)
 
@@ -33,6 +34,12 @@ if extra_test_data_dir is not None:
 
 
 class TestNetworkConsistency(unittest.TestCase):
+    def setUp(self):
+        set_determinism(0)
+
+    def tearDown(self):
+        set_determinism(None)
+
     @skipIf(
         len(TESTS) == 0,
         "To run these tests, clone https://github.com/Project-MONAI/MONAI-extra-test-data and set MONAI_EXTRA_TEST_DATA",
