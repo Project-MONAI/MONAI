@@ -341,7 +341,7 @@ class ToTensor(Transform):
     """
     Converts the input image to a tensor without applying any other transformations.
     Input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-    Will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
+    Will convert Tensor, Numpy array, float, int, bool to Tensor, strings and objects keep the original.
     For dictionary, list or tuple, convert every item to a Tensor if applicable and `wrap_sequence=False`.
 
     Args:

@@ -108,7 +108,7 @@ def convert_to_tensor(
 
     Args:
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
+            will convert Tensor, Numpy array, float, int, bool to Tensor, strings and objects keep the original.
             for dictionary, list or tuple, convert every item to a Tensor if applicable.
         dtype: target data type to when converting to Tensor.
         device: target device to put the converted Tensor data.
