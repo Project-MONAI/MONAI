@@ -16,7 +16,6 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import MapLabelValue
-from monai.utils import pytorch_after
 from tests.utils import TEST_NDARRAYS
 
 TESTS = []
@@ -33,15 +32,14 @@ for p in TEST_NDARRAYS:
             [{"orig_labels": [1, 2, 3], "target_labels": [0.5, 1.5, 2.5]}, p([3, 1, 1, 2]), p([2.5, 0.5, 0.5, 1.5])],
         ]
     )
-    # PyTorch 1.5.1 doesn't support rich dtypes
-    if pytorch_after(1, 7):
-        TESTS.append(
-            [
-                {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": np.int8},
-                p([3.5, 1.5, 1.5, 2.5]),
-                p([2, 0, 0, 1]),
-            ]
-        )
+    # note: PyTorch 1.5.1 doesn't support rich dtypes
+    TESTS.append(
+        [
+            {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": np.int8},
+            p([3.5, 1.5, 1.5, 2.5]),
+            p([2, 0, 0, 1]),
+        ]
+    )
 TESTS.extend(
     [
         [
