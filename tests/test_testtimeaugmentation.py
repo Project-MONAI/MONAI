@@ -122,7 +122,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
             epoch_loss /= len(train_loader)
 
-        post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+        post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
 
         def inferrer_fn(x):
             return post_trans(model(x))
