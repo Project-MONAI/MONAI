@@ -13,6 +13,7 @@ import csv
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import torch
 
@@ -23,7 +24,7 @@ class TestWriteMetricsReports(unittest.TestCase):
     def test_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             write_metrics_reports(
-                save_dir=tempdir,
+                save_dir=Path(tempdir),
                 images=["filepath1", "filepath2"],
                 metrics={"metric1": 1, "metric2": 2},
                 metric_details={"metric3": torch.tensor([[1, 2], [2, 3]]), "metric4": torch.tensor([[5, 6], [7, 8]])},

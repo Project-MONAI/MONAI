@@ -174,22 +174,10 @@ for reduction in ["mean", "mean_batch"]:
 # 3. test metric with compute_sample, denominator may have zeros
 TEST_CASES_COMPUTE_SAMPLE_NAN = []
 metric_names = ["tpr", "tnr"]
-result_sum = [
-    torch.tensor([0.5000]),
-    torch.tensor([4.8333]),
-]
-not_nans_sum = [
-    torch.tensor([6]),
-    torch.tensor([8]),
-]
-result_sum_batch = [
-    torch.tensor([0.0000, 0.5000, 0.0000]),
-    torch.tensor([1.6667, 2.5000, 0.6667]),
-]
-not_nans_sum_batch = [
-    torch.tensor([3.0, 2.0, 1.0]),
-    torch.tensor([2.0, 3.0, 3.0]),
-]
+result_sum = [torch.tensor([0.5000]), torch.tensor([4.8333])]
+not_nans_sum = [torch.tensor([6]), torch.tensor([8])]
+result_sum_batch = [torch.tensor([0.0000, 0.5000, 0.0000]), torch.tensor([1.6667, 2.5000, 0.6667])]
+not_nans_sum_batch = [torch.tensor([3.0, 2.0, 1.0]), torch.tensor([2.0, 3.0, 3.0])]
 for idx in range(2):
     for reduction in ["sum", "sum_batch"]:
         TEST_CASE = [data_nan.copy()]
