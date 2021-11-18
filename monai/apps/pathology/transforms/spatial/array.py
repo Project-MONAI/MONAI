@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union, cast
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -113,14 +113,16 @@ class TileOnGrid(Randomizable, Transform):
     ):
         self.tile_count = tile_count
         self.tile_size = tile_size
-        self.step = step
         self.random_offset = random_offset
         self.pad_full = pad_full
         self.background_val = background_val
         self.filter_mode = filter_mode
 
-        if self.step is None:
-            self.step = self.tile_size  # non-overlapping grid
+        if step is None:
+            # non-overlapping grid
+            self.step = self.tile_size
+        else:
+            self.step = step
 
         self.offset = (0, 0)
         self.random_idxs = np.array((0,))
@@ -131,7 +133,6 @@ class TileOnGrid(Randomizable, Transform):
     def randomize(self, img_size: Sequence[int]) -> None:
 
         c, h, w = img_size
-        tile_step = cast(int, self.step)
 
         self.offset = (0, 0)
         if self.random_offset:
@@ -147,8 +148,8 @@ class TileOnGrid(Randomizable, Transform):
             h = h + pad_h
             w = w + pad_w
 
-        h_n = (h - self.tile_size + tile_step) // tile_step
-        w_n = (w - self.tile_size + tile_step) // tile_step
+        h_n = (h - self.tile_size + self.step) // self.step
+        w_n = (w - self.tile_size + self.step) // self.step
         tile_total = h_n * w_n
 
         if self.tile_count is not None and tile_total > self.tile_count:
@@ -160,7 +161,6 @@ class TileOnGrid(Randomizable, Transform):
 
         # add random offset
         self.randomize(img_size=image.shape)
-        tile_step = cast(int, self.step)
 
         if self.random_offset and (self.offset[0] > 0 or self.offset[1] > 0):
             image = image[:, self.offset[0] :, self.offset[1] :]
@@ -177,7 +177,7 @@ class TileOnGrid(Randomizable, Transform):
             )
 
         # extact tiles
-        xstep, ystep = tile_step, tile_step
+        xstep, ystep = self.step, self.step
         xsize, ysize = self.tile_size, self.tile_size
         clen, xlen, ylen = image.shape
         cstride, xstride, ystride = image.strides
