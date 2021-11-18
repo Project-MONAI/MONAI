@@ -16,7 +16,6 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "moveaxis",
@@ -297,12 +296,7 @@ def searchsorted(a: NdarrayOrTensor, v: NdarrayOrTensor, right=False, sorter=Non
     side = "right" if right else "left"
     if isinstance(a, np.ndarray):
         return np.searchsorted(a, v, side, sorter)  # type: ignore
-    if hasattr(torch, "searchsorted"):
-        return torch.searchsorted(a, v, right=right)  # type: ignore
-    # if using old PyTorch, will convert to numpy array then compute
-    ret = np.searchsorted(a.cpu().numpy(), v.cpu().numpy(), side, sorter)  # type: ignore
-    ret, *_ = convert_to_dst_type(ret, a)
-    return ret
+    return torch.searchsorted(a, v, right=right)  # type: ignore
 
 
 def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None):
