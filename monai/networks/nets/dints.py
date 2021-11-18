@@ -86,14 +86,14 @@ ConnOPS = {
 
 
 class MixedOp(nn.Module):
-    def __init__(self, c, arch_arch_code_c=None):
+    def __init__(self, c, arch_code_c=None):
         super().__init__()
         self._ops = nn.ModuleList()
-        if arch_arch_code_c is None:
-            arch_arch_code_c = np.ones(len(OPS))
+        if arch_code_c is None:
+            arch_code_c = np.ones(len(OPS))
         for idx, _ in enumerate(OPS.keys()):
-            if idx < len(arch_arch_code_c):
-                if arch_arch_code_c[idx] == 0:
+            if idx < len(arch_code_c):
+                if arch_code_c[idx] == 0:
                     op = None
                 else:
                     op = OPS[_](c)
