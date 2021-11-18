@@ -19,30 +19,30 @@ from monai.networks.nets import DiNTS
 
 TEST_CASES_3D = [
     [
-        {"in_channels": 1, "num_classes": 3, "channel_mul": 1, "num_blocks": 6, "num_depths": 3, "use_stem": False},
+        {"in_channels": 1, "num_classes": 3, "channel_mul": 1, "num_blocks": 6, "num_depths": 3, "use_downsample": False},
         (7, 1, 32, 32, 16),
         (7, 3, 32, 32, 16),
     ],
     [
-        {"in_channels": 1, "num_classes": 4, "channel_mul": 0.5, "num_blocks": 7, "num_depths": 4, "use_stem": True},
+        {"in_channels": 1, "num_classes": 4, "channel_mul": 0.5, "num_blocks": 7, "num_depths": 4, "use_downsample": True},
         (7, 1, 32, 32, 16),
         (7, 4, 32, 32, 16),
     ],
 ]
 
 
-class TestP3D(unittest.TestCase):
+class TestDints(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D)
     def test_factorized_increase_3d(self, input_param, input_shape, expected_shape):
         net = DiNTS(**input_param).cuda()
-        code2out = net.code2out
+        code2out = net.arch_code2out
         cell_ops = net.cell_ops
         num_blocks = net.num_blocks
         num_depths = net.num_depths
         node_a = torch.ones((num_blocks + 1, num_depths)).cuda()
         code_a = torch.ones((num_blocks, len(code2out))).cuda()
         code_c = torch.ones((num_blocks, len(code2out), cell_ops)).cuda()
-        result = net(torch.randn(input_shape).cuda(), code=[node_a, code_a, code_c])[-1]
+        result = net(torch.randn(input_shape).cuda(), arch_code=[node_a, code_a, code_c])[-1]
         self.assertEqual(result.shape, expected_shape)
 
 

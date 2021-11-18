@@ -137,6 +137,137 @@ class Cell(nn.Module):
         s = self.op(s, ops, weight)
         return s
 
+class Stem(nn.Module):
+    """
+    The pre-defined stem module for: 1) input downsample 2) output upsample to original size
+    Args:
+        in_channels: input image channel
+        num_classes: output segmentation channel
+        filter_nums: filter numbers on each depth (spatial resolution)
+        num_depths: number of depths
+        spatial_dims: spatial dimenstion of data (3D or 2D)
+        use_downsample: use a 2x downsample before dints search space to reduce search GPU ram
+        kernel_size: convolution kernel size
+        norm_name: normalization name
+        padding: convolution padding size
+    """
+    def __init__(self, 
+                 in_channels: int,
+                 num_classes: int,
+                 filter_nums: list,
+                 num_depths: int, 
+                 spatial_dims: int,
+                 act_name: Union[Tuple, str] = "RELU",
+                 use_downsample: bool =True, 
+                 kernel_size:int = 3, 
+                 norm_name: Union[Tuple, str] = "INSTANCE",
+                 padding:int = 1):
+        super().__init__()
+        # define stem operations for every block
+        conv_type = Conv[Conv.CONV, spatial_dims]
+        self.stem_down = nn.ModuleDict()
+        self.stem_up = nn.ModuleDict()
+        self.stem_finals = nn.Sequential(
+            get_act_layer(name=act_name),
+            conv_type(
+                in_channels=filter_nums[0],
+                out_channels=filter_nums[0],
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                groups=1,
+                bias=False,
+                dilation=1,
+            ),
+            get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[0]),
+            conv_type(
+                in_channels=filter_nums[0],
+                out_channels=num_classes,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                groups=1,
+                bias=True,
+                dilation=1,
+            ),
+        )
+        for res_idx in range(num_depths):
+            # define downsample stems before Dints serach
+            if use_downsample:
+                self.stem_down[str(res_idx)] = nn.Sequential(
+                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
+                    conv_type(
+                        in_channels=in_channels,
+                        out_channels=filter_nums[res_idx],
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx]),
+                    get_act_layer(name=act_name),
+                    conv_type(
+                        in_channels=filter_nums[res_idx],
+                        out_channels=filter_nums[res_idx + 1],
+                        kernel_size=3,
+                        stride=2,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx + 1]),
+                )
+                self.stem_up[str(res_idx)] = nn.Sequential(
+                    get_act_layer(name=act_name),
+                    conv_type(
+                        in_channels=filter_nums[res_idx + 1],
+                        out_channels=filter_nums[res_idx],
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx]),
+                    nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
+                )
+
+            else:
+                self.stem_down[str(res_idx)] = nn.Sequential(
+                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
+                    conv_type(
+                        in_channels=in_channels,
+                        out_channels=filter_nums[res_idx],
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx]),
+                )
+                self.stem_up[str(res_idx)] = nn.Sequential(
+                    get_act_layer(name=act_name),
+                    conv_type(
+                        in_channels=filter_nums[res_idx],
+                        out_channels=filter_nums[max(res_idx - 1, 0)],
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        groups=1,
+                        bias=False,
+                        dilation=1,
+                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx - 1]),
+                    nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
+                )        
+    def forward():
+        pass
 
 class DiNTS(nn.Module):
     def __init__(
@@ -152,7 +283,7 @@ class DiNTS(nn.Module):
         num_blocks: int = 6,
         num_depths: int = 3,
         spatial_dims: int = 3,
-        use_stem: bool = False,
+        use_downsample: bool = False,
     ):
         """
         Initialize NAS network search space
@@ -215,113 +346,11 @@ class DiNTS(nn.Module):
         self.num_blocks = num_blocks
         self.num_classes = num_classes
         self.num_depths = num_depths
-        self.use_stem = use_stem
-
-        self._spatial_dims = spatial_dims
-
-        conv_type = Conv[Conv.CONV, self._spatial_dims]
+        self.use_downsample = use_downsample
 
         # define stem operations for every block
-        self.stem_down = nn.ModuleDict()
-        self.stem_up = nn.ModuleDict()
-        self.stem_finals = nn.Sequential(
-            get_act_layer(name=act_name),
-            conv_type(
-                in_channels=filter_nums[0],
-                out_channels=filter_nums[0],
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                groups=1,
-                bias=False,
-                dilation=1,
-            ),
-            get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[0]),
-            conv_type(
-                in_channels=filter_nums[0],
-                out_channels=num_classes,
-                kernel_size=1,
-                stride=1,
-                padding=0,
-                groups=1,
-                bias=True,
-                dilation=1,
-            ),
-        )
-        for res_idx in range(num_depths):
-            if use_stem:
-                self.stem_down[str(res_idx)] = nn.Sequential(
-                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
-                    conv_type(
-                        in_channels=in_channels,
-                        out_channels=filter_nums[res_idx],
-                        kernel_size=3,
-                        stride=1,
-                        padding=1,
-                        groups=1,
-                        bias=False,
-                        dilation=1,
-                    ),
-                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx]),
-                    get_act_layer(name=act_name),
-                    conv_type(
-                        in_channels=filter_nums[res_idx],
-                        out_channels=filter_nums[res_idx + 1],
-                        kernel_size=3,
-                        stride=2,
-                        padding=1,
-                        groups=1,
-                        bias=False,
-                        dilation=1,
-                    ),
-                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx + 1]),
-                )
-                self.stem_up[str(res_idx)] = nn.Sequential(
-                    get_act_layer(name=act_name),
-                    conv_type(
-                        in_channels=filter_nums[res_idx + 1],
-                        out_channels=filter_nums[res_idx],
-                        kernel_size=3,
-                        stride=1,
-                        padding=1,
-                        groups=1,
-                        bias=False,
-                        dilation=1,
-                    ),
-                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx]),
-                    nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
-                )
-
-            else:
-                self.stem_down[str(res_idx)] = nn.Sequential(
-                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
-                    conv_type(
-                        in_channels=in_channels,
-                        out_channels=filter_nums[res_idx],
-                        kernel_size=3,
-                        stride=1,
-                        padding=1,
-                        groups=1,
-                        bias=False,
-                        dilation=1,
-                    ),
-                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx]),
-                )
-                self.stem_up[str(res_idx)] = nn.Sequential(
-                    get_act_layer(name=act_name),
-                    conv_type(
-                        in_channels=filter_nums[res_idx],
-                        out_channels=filter_nums[max(res_idx - 1, 0)],
-                        kernel_size=3,
-                        stride=1,
-                        padding=1,
-                        groups=1,
-                        bias=False,
-                        dilation=1,
-                    ),
-                    get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=filter_nums[res_idx - 1]),
-                    nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
-                )
+        self.stem = Stem(in_channels=in_channels, num_classes=num_classes, filter_nums=filter_nums, num_depths=num_depths,
+                         spatial_dims=spatial_dims, act_name=act_name, use_downsample=use_downsample, norm_name=norm_name)
 
         # define NAS search space
         if arch_code is None:
@@ -336,8 +365,8 @@ class DiNTS(nn.Module):
             for res_idx in range(len(arch_code2out)):
                 if arch_code_a[blk_idx, res_idx] == 1:
                     self.cell_tree[str((blk_idx, res_idx))] = cell(
-                        filter_nums[arch_code2in[res_idx] + int(use_stem)],
-                        filter_nums[arch_code2out[res_idx] + int(use_stem)],
+                        filter_nums[arch_code2in[res_idx] + int(use_downsample)],
+                        filter_nums[arch_code2out[res_idx] + int(use_downsample)],
                         arch_code2ops[res_idx],
                         arch_code_c[blk_idx, res_idx],
                     )
@@ -404,7 +433,7 @@ class DiNTS(nn.Module):
             sizes.append(
                 b * self.filter_nums[res_idx] * h // (2 ** res_idx) * w // (2 ** res_idx) * s // (2 ** res_idx)
             )
-        sizes = torch.tensor(sizes).to(torch.float32).cuda() // (2 ** (int(self.use_stem)))
+        sizes = torch.tensor(sizes).to(torch.float32).cuda() // (2 ** (int(self.use_downsample)))
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
         cell_prob = F.softmax(self.log_alpha_c, dim=-1)
         if full:
@@ -606,7 +635,7 @@ class DiNTS(nn.Module):
         for _ in range(self.num_depths):
             # allow multi-resolution input
             if node_a[0][_]:
-                inputs.append(self.stem_down[str(_)](x))
+                inputs.append(self.stem.stem_down[str(_)](x))
             else:
                 inputs.append(None)
 
@@ -634,10 +663,10 @@ class DiNTS(nn.Module):
                 start = False
                 for res_idx in range(self.num_depths - 1, -1, -1):
                     if start:
-                        _temp = self.stem_up[str(res_idx)](inputs[res_idx] + _temp)
+                        _temp = self.stem.stem_up[str(res_idx)](inputs[res_idx] + _temp)
                     elif node_a[blk_idx + 1][res_idx]:
                         start = True
-                        _temp = self.stem_up[str(res_idx)](inputs[res_idx])
-                prediction = self.stem_finals(_temp)
+                        _temp = self.stem.stem_up[str(res_idx)](inputs[res_idx])
+                prediction = self.stem.stem_finals(_temp)
                 predict_all.append(prediction)
         return predict_all
