@@ -215,8 +215,7 @@ def separable_filtering(x: torch.Tensor, kernels: List[torch.Tensor], mode: str 
             could be a single kernel (duplicated for all spatial dimensions), or
             a list of `spatial_dims` number of kernels.
         mode (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'``
-            or ``'circular'``. Default: ``'zeros'``. Modes other than ``'zeros'`` require PyTorch version >= 1.5.1. See
-            torch.nn.Conv1d() for more information.
+            or ``'circular'``. Default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
 
     Raises:
         TypeError: When ``x`` is not a ``torch.Tensor``.
