@@ -145,7 +145,7 @@ class AddInitialSeedPointd(Randomizable, Transform):
     def __call__(self, data):
         d = dict(data)
         self.randomize(data)
-        d[self.guidance] = json.dumps(self._apply(d[self.label], self.sid).astype(int).tolist())
+        d[self.guidance] = json.dumps(self._apply(d[self.label], self.sid).astype(int, copy=False).tolist())
         return d
 
 
@@ -323,7 +323,7 @@ class AddRandomGuidanced(Randomizable, Transform):
             guidance[0].append([-1] * len(neg))
             guidance[1].append(neg)
 
-        return json.dumps(np.asarray(guidance).astype(int).tolist())
+        return json.dumps(np.asarray(guidance, dtype=int).tolist())
 
     def __call__(self, data):
         d = dict(data)
@@ -420,8 +420,8 @@ class SpatialCropForegroundd(MapTransform):
             d[self.source_key], self.select_fn, self.channel_indices, self.margin
         )
 
-        center = list(np.mean([box_start, box_end], axis=0).astype(int))
-        current_size = list(np.subtract(box_end, box_start).astype(int))
+        center = list(np.mean([box_start, box_end], axis=0).astype(int, copy=False))
+        current_size = list(np.subtract(box_end, box_start).astype(int, copy=False))
 
         if np.all(np.less(current_size, self.spatial_size)):
             cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
@@ -528,9 +528,9 @@ class AddGuidanceFromPointsd(Transform):
             guidance = [pos, neg, slice_idx]
         else:
             if len(pos_clicks):
-                pos = np.multiply(pos_clicks, factor).astype(int).tolist()
+                pos = np.multiply(pos_clicks, factor).astype(int, copy=False).tolist()
             if len(neg_clicks):
-                neg = np.multiply(neg_clicks, factor).astype(int).tolist()
+                neg = np.multiply(neg_clicks, factor).astype(int, copy=False).tolist()
             guidance = [pos, neg]
         return guidance
 
@@ -555,7 +555,7 @@ class AddGuidanceFromPointsd(Transform):
         fg_bg_clicks = []
         for key in [self.foreground, self.background]:
             clicks = d[key]
-            clicks = list(np.array(clicks).astype(int))
+            clicks = list(np.array(clicks, dtype=int))
             if self.depth_first:
                 for i in range(len(clicks)):
                     clicks[i] = list(np.roll(clicks[i], 1))
@@ -651,10 +651,10 @@ class SpatialCropGuidanced(MapTransform):
         guidance = d[self.guidance]
         original_spatial_shape = d[first_key].shape[1:]  # type: ignore
         box_start, box_end = self.bounding_box(np.array(guidance[0] + guidance[1]), original_spatial_shape)
-        center = list(np.mean([box_start, box_end], axis=0).astype(int))
+        center = list(np.mean([box_start, box_end], axis=0).astype(int, copy=False))
         spatial_size = self.spatial_size
 
-        box_size = list(np.subtract(box_end, box_start).astype(int))
+        box_size = list(np.subtract(box_end, box_start).astype(int, copy=False))
         spatial_size = spatial_size[-len(box_size) :]
 
         if len(spatial_size) < len(box_size):
@@ -738,8 +738,8 @@ class ResizeGuidanced(Transform):
         factor = np.divide(current_shape, cropped_shape)
 
         pos_clicks, neg_clicks = guidance[0], guidance[1]
-        pos = np.multiply(pos_clicks, factor).astype(int).tolist() if len(pos_clicks) else []
-        neg = np.multiply(neg_clicks, factor).astype(int).tolist() if len(neg_clicks) else []
+        pos = np.multiply(pos_clicks, factor).astype(int, copy=False).tolist() if len(pos_clicks) else []
+        neg = np.multiply(neg_clicks, factor).astype(int, copy=False).tolist() if len(neg_clicks) else []
 
         d[self.guidance] = [pos, neg]
         return d
