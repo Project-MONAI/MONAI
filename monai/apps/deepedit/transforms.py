@@ -71,8 +71,8 @@ class ResizeGuidanceCustomd(Transform):
         factor = np.divide(current_shape, d["image_meta_dict"]["dim"][1:4])
         pos_clicks, neg_clicks = d["foreground"], d["background"]
 
-        pos = np.multiply(pos_clicks, factor).astype(int).tolist() if len(pos_clicks) else []
-        neg = np.multiply(neg_clicks, factor).astype(int).tolist() if len(neg_clicks) else []
+        pos = np.multiply(pos_clicks, factor).astype(int, copy=False).tolist() if len(pos_clicks) else []
+        neg = np.multiply(neg_clicks, factor).astype(int, copy=False).tolist() if len(neg_clicks) else []
 
         d[self.guidance] = [pos, neg]
         return d
@@ -158,7 +158,7 @@ class ClickRatioAddRandomGuidanced(Randomizable, Transform):
             guidance[0].append([-1] * len(neg))
             guidance[1].append(neg)
 
-        return json.dumps(np.asarray(guidance).astype(int).tolist())
+        return json.dumps(np.asarray(guidance, dtype=int).tolist())
 
     def __call__(self, data):
         d = dict(data)
