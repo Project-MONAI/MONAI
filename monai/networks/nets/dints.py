@@ -25,7 +25,7 @@ from monai.networks.blocks.dints_block import (
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
-__all__ = ["DiNTS"]
+__all__ = ["DiNTS", "DintsSearchSpace"]
 
 
 class _IdentityWithRAMCost(nn.Identity):
@@ -93,7 +93,7 @@ class MixedOp(nn.Module):
         arch_code_c: torch.tensor，binary architecture code for input operations, and it decides which operations are utilized for output.
     """
 
-    def __init__(self, c: int, arch_code_c=None):
+    def __init__(self, c: int, arch_code_c: None):
         super().__init__()
         self._ops = nn.ModuleList()
         if arch_code_c is None:
@@ -106,7 +106,7 @@ class MixedOp(nn.Module):
                     op = OPS[_](c)
                 self._ops.append(op)
 
-    def forward(self, x, ops=None, weight=None):
+    def forward(self, x, ops: None, weight: None):
         """
         Forward function.
         Args:
@@ -131,7 +131,7 @@ class Cell(nn.Module):
         arch_code_c: torch.tensor，cell operation code
     """
 
-    def __init__(self, c_prev, c, rate: int, arch_code_c=None):
+    def __init__(self, c_prev, c, rate: int, arch_code_c: None):
         super().__init__()
         self.c_out = c
         if rate == -1:  # downsample
@@ -157,7 +157,7 @@ class Cell(nn.Module):
         return x
 
 
-class Stem(nn.Module):
+class DiNTS(nn.Module):
     """
     The pre-defined stem module for: 1) input downsample 2) output upsample to original size
     Args:
@@ -174,18 +174,23 @@ class Stem(nn.Module):
 
     def __init__(
         self,
+        dints_space,
         in_channels: int,
         num_classes: int,
-        filter_nums: list,
-        num_depths: int,
-        spatial_dims: int,
         act_name: Union[Tuple, str] = "RELU",
-        use_downsample: bool = True,
         kernel_size: int = 3,
         norm_name: Union[Tuple, str] = "INSTANCE",
         padding: int = 1,
+        spatial_dims: int = 3,
+        use_downsample: bool = True,
     ):
         super().__init__()
+
+        self.dints_space = dints_space
+        self.filter_nums = dints_space.filter_nums
+        self.num_blocks = dints_space.num_blocks
+        self.num_depths = dints_space.num_depths
+
         # define stem operations for every block
         conv_type = Conv[Conv.CONV, spatial_dims]
         self.stem_down = nn.ModuleDict()
@@ -193,8 +198,8 @@ class Stem(nn.Module):
         self.stem_finals = nn.Sequential(
             get_act_layer(name=act_name),
             conv_type(
-                in_channels=filter_nums[0],
-                out_channels=filter_nums[0],
+                in_channels=self.filter_nums[0],
+                out_channels=self.filter_nums[0],
                 kernel_size=3,
                 stride=1,
                 padding=1,
@@ -202,9 +207,9 @@ class Stem(nn.Module):
                 bias=False,
                 dilation=1,
             ),
-            get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[0]),
+            get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[0]),
             conv_type(
-                in_channels=filter_nums[0],
+                in_channels=self.filter_nums[0],
                 out_channels=num_classes,
                 kernel_size=1,
                 stride=1,
@@ -214,14 +219,14 @@ class Stem(nn.Module):
                 dilation=1,
             ),
         )
-        for res_idx in range(num_depths):
+        for res_idx in range(self.num_depths):
             # define downsample stems before Dints serach
             if use_downsample:
                 self.stem_down[str(res_idx)] = nn.Sequential(
                     nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
                     conv_type(
                         in_channels=in_channels,
-                        out_channels=filter_nums[res_idx],
+                        out_channels=self.filter_nums[res_idx],
                         kernel_size=3,
                         stride=1,
                         padding=1,
@@ -229,11 +234,11 @@ class Stem(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx]),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx]),
                     get_act_layer(name=act_name),
                     conv_type(
-                        in_channels=filter_nums[res_idx],
-                        out_channels=filter_nums[res_idx + 1],
+                        in_channels=self.filter_nums[res_idx],
+                        out_channels=self.filter_nums[res_idx + 1],
                         kernel_size=3,
                         stride=2,
                         padding=1,
@@ -241,13 +246,13 @@ class Stem(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx + 1]),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx + 1]),
                 )
                 self.stem_up[str(res_idx)] = nn.Sequential(
                     get_act_layer(name=act_name),
                     conv_type(
-                        in_channels=filter_nums[res_idx + 1],
-                        out_channels=filter_nums[res_idx],
+                        in_channels=self.filter_nums[res_idx + 1],
+                        out_channels=self.filter_nums[res_idx],
                         kernel_size=3,
                         stride=1,
                         padding=1,
@@ -255,7 +260,7 @@ class Stem(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx]),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx]),
                     nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
                 )
 
@@ -264,7 +269,7 @@ class Stem(nn.Module):
                     nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
                     conv_type(
                         in_channels=in_channels,
-                        out_channels=filter_nums[res_idx],
+                        out_channels=self.filter_nums[res_idx],
                         kernel_size=3,
                         stride=1,
                         padding=1,
@@ -272,13 +277,13 @@ class Stem(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx]),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx]),
                 )
                 self.stem_up[str(res_idx)] = nn.Sequential(
                     get_act_layer(name=act_name),
                     conv_type(
-                        in_channels=filter_nums[res_idx],
-                        out_channels=filter_nums[max(res_idx - 1, 0)],
+                        in_channels=self.filter_nums[res_idx],
+                        out_channels=self.filter_nums[max(res_idx - 1, 0)],
                         kernel_size=3,
                         stride=1,
                         padding=1,
@@ -286,20 +291,52 @@ class Stem(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx - 1]),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx - 1]),
                     nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
                 )
 
+    def forward(self, x, arch_code=None):
+        """
+        Prediction based on dynamic arch_code.
 
-class DiNTS(nn.Module):
+        Args:
+            x: input tensor.
+            arch_code: [node_a, arch_code_a, arch_code_c].
+            out_pos: the indices of scales for final output.
+        """
+        predict_all = []
+        node_a, arch_code_a, arch_code_c = arch_code
+
+        # stem inference
+        inputs = []
+        for _ in range(self.num_depths):
+            # allow multi-resolution input
+            if node_a[0][_]:
+                inputs.append(self.stem_down[str(_)](x))
+            else:
+                inputs.append(None)
+
+        outputs = self.dints_space(inputs, arch_code)
+
+        blk_idx = self.num_blocks - 1
+        start = False
+        for res_idx in range(self.num_depths - 1, -1, -1):
+            if start:
+                _temp = self.stem_up[str(res_idx)](outputs[res_idx] + _temp)
+            elif node_a[blk_idx + 1][res_idx]:
+                start = True
+                _temp = self.stem_up[str(res_idx)](outputs[res_idx])
+        prediction = self.stem_finals(_temp)
+        predict_all.append(prediction)
+
+        return predict_all
+
+
+class DintsSearchSpace(nn.Module):
     def __init__(
         self,
-        in_channels: int,
-        num_classes: int,
-        act_name: Union[Tuple, str] = "RELU",
         channel_mul: float = 1.0,
         cell=Cell,
-        stem=Stem,
         cell_ops: int = 5,
         arch_code: list = None,
         norm_name: Union[Tuple, str] = "INSTANCE",
@@ -367,24 +404,8 @@ class DiNTS(nn.Module):
         self.tidx = tidx
         self.child_list = np.array(child_list)
         self.num_blocks = num_blocks
-        self.num_classes = num_classes
         self.num_depths = num_depths
         self.use_downsample = use_downsample
-
-        # define stem operations for every block
-        stem = stem(
-            in_channels=in_channels,
-            num_classes=num_classes,
-            filter_nums=filter_nums,
-            num_depths=num_depths,
-            spatial_dims=spatial_dims,
-            act_name=act_name,
-            use_downsample=use_downsample,
-            norm_name=norm_name,
-        )
-        self.stem_up = stem.stem_up
-        self.stem_down = stem.stem_down
-        self.stem_finals = stem.stem_finals
 
         # define NAS search space
         if arch_code is None:
@@ -648,31 +669,21 @@ class DiNTS(nn.Module):
 
         return transfer_mtx, node_act_list, tidx, arch_code2in, arch_code2ops, arch_code2out, all_connect[1:]
 
-    def forward(self, x, arch_code: list = None):
+    def forward(self, x, arch_code=None):
         """
-        Prediction based on dynamic arch_code
+        Prediction based on dynamic arch_code.
 
         Args:
-            x: input tensor
-            arch_code: [node_a, arch_code_a, arch_code_c]
+            x: input tensor.
+            arch_code: [node_a, arch_code_a, arch_code_c].
+            out_pos: the indices of scales for final output.
         """
-        # define output positions
-        out_pos = [self.num_blocks - 1]
-
         # sample path weights
         predict_all = []
         node_a, arch_code_a, arch_code_c = arch_code
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
 
-        # stem inference
-        inputs = []
-        for _ in range(self.num_depths):
-            # allow multi-resolution input
-            if node_a[0][_]:
-                inputs.append(self.stem_down[str(_)](x))
-            else:
-                inputs.append(None)
-
+        inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [0] * self.num_depths
             for res_idx, activation in enumerate(arch_code_a[blk_idx].data.cpu().numpy()):
@@ -693,14 +704,5 @@ class DiNTS(nn.Module):
                             weight=torch.ones_like(arch_code_c[blk_idx, res_idx], requires_grad=False),
                         )
             inputs = outputs
-            if blk_idx in out_pos:
-                start = False
-                for res_idx in range(self.num_depths - 1, -1, -1):
-                    if start:
-                        _temp = self.stem_up[str(res_idx)](inputs[res_idx] + _temp)
-                    elif node_a[blk_idx + 1][res_idx]:
-                        start = True
-                        _temp = self.stem_up[str(res_idx)](inputs[res_idx])
-                prediction = self.stem_finals(_temp)
-                predict_all.append(prediction)
-        return predict_all
+
+        return inputs
