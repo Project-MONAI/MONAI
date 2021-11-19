@@ -10,10 +10,9 @@
 # limitations under the License.
 
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Tuple, Union
 
 import torch
-import torch.nn as nn
 
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
@@ -21,7 +20,7 @@ from monai.networks.layers.utils import get_act_layer, get_norm_layer
 __all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DActiConvNormBlock", "ActiConvNormBlock"]
 
 
-class FactorizedIncreaseBlock(nn.Module):
+class FactorizedIncreaseBlock(torch.nn.Sequential):
     """
     Up-sampling the features by two using linear interpolation and convolutions.
     """
@@ -49,9 +48,10 @@ class FactorizedIncreaseBlock(nn.Module):
 
         conv_type = Conv[Conv.CONV, self._spatial_dims]
 
-        self.op = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
-            get_act_layer(name=act_name),
+        self.add_module("up", torch.nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
+        self.add_module("acti", get_act_layer(name=act_name))
+        self.add_module(
+            "conv",
             conv_type(
                 in_channels=self._in_channel,
                 out_channels=self._out_channel,
@@ -62,14 +62,13 @@ class FactorizedIncreaseBlock(nn.Module):
                 bias=False,
                 dilation=1,
             ),
-            get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel),
+        )
+        self.add_module(
+            "norm", get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel)
         )
 
-    def forward(self, x):
-        return self.op(x)
 
-
-class FactorizedReduceBlock(nn.Module):
+class FactorizedReduceBlock(torch.nn.Module):
     """
     Down-sampling the feature by 2 using stride.
     The length along each spatial dimension must be a multiple of 2.
@@ -131,10 +130,11 @@ class FactorizedReduceBlock(nn.Module):
         return out
 
 
-class P3DActiConvNormBlock(nn.Module):
+class P3DActiConvNormBlock(torch.nn.Sequential):
     """
     -- (act) -- (conv) -- (norm) --
     """
+
     def __init__(
         self,
         in_channel: int,
@@ -167,17 +167,17 @@ class P3DActiConvNormBlock(nn.Module):
 
         conv_type = Conv[Conv.CONV, 3]
 
-        if self._p3dmode == 0:  # 3 x 3 x 1
+        if self._p3dmode == 0:  # (k, k, 1), (1, 1, k)
             kernel_size0 = (kernel_size, kernel_size, 1)
             kernel_size1 = (1, 1, kernel_size)
             padding0 = (padding, padding, 0)
             padding1 = (0, 0, padding)
-        elif self._p3dmode == 1:  # 3 x 1 x 3
+        elif self._p3dmode == 1:  # (k, 1, k), (1, k, 1)
             kernel_size0 = (kernel_size, 1, kernel_size)
             kernel_size1 = (1, kernel_size, 1)
             padding0 = (padding, 0, padding)
             padding1 = (0, padding, 0)
-        elif self._p3dmode == 2:  # 1 x 3 x 3
+        elif self._p3dmode == 2:  # (1, k, k), (k, 1, 1)
             kernel_size0 = (1, kernel_size, kernel_size)
             kernel_size1 = (kernel_size, 1, 1)
             padding0 = (0, padding, padding)
@@ -185,8 +185,9 @@ class P3DActiConvNormBlock(nn.Module):
         else:
             raise ValueError("`mode` must be 0, 1, or 2.")
 
-        self.op = nn.Sequential(
-            get_act_layer(name=act_name),
+        self.add_module("acti", get_act_layer(name=act_name))
+        self.add_module(
+            "conv",
             conv_type(
                 in_channels=self._in_channel,
                 out_channels=self._out_channel,
@@ -197,6 +198,9 @@ class P3DActiConvNormBlock(nn.Module):
                 bias=False,
                 dilation=1,
             ),
+        )
+        self.add_module(
+            "conv_1",
             conv_type(
                 in_channels=self._in_channel,
                 out_channels=self._out_channel,
@@ -207,17 +211,15 @@ class P3DActiConvNormBlock(nn.Module):
                 bias=False,
                 dilation=1,
             ),
-            get_norm_layer(name=norm_name, spatial_dims=3, channels=self._out_channel),
         )
-
-    def forward(self, x):
-        return self.op(x)
+        self.add_module("norm", get_norm_layer(name=norm_name, spatial_dims=3, channels=self._out_channel))
 
 
-class ActiConvNormBlock(nn.Sequential):
+class ActiConvNormBlock(torch.nn.Sequential):
     """
     -- (Acti) -- (Conv) -- (Norm) --
     """
+
     def __init__(
         self,
         in_channel: int,
@@ -244,9 +246,9 @@ class ActiConvNormBlock(nn.Sequential):
         self._spatial_dims = spatial_dims
 
         conv_type = Conv[Conv.CONV, self._spatial_dims]
-
-        self.op = nn.Sequential(
-            get_act_layer(name=act_name),
+        self.add_module("acti", get_act_layer(name=act_name))
+        self.add_module(
+            "conv",
             conv_type(
                 in_channels=self._in_channel,
                 out_channels=self._out_channel,
@@ -257,8 +259,7 @@ class ActiConvNormBlock(nn.Sequential):
                 bias=False,
                 dilation=1,
             ),
-            get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel),
         )
-
-    def forward(self, x):
-        return self.op(x)
+        self.add_module(
+            "norm", get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel)
+        )
