@@ -708,6 +708,22 @@ Spatial
     :members:
     :special-members: __call__
 
+
+Smooth Field
+^^^^^^^^^^^^
+
+`RandSmoothFieldAdjustContrast`
+"""""""""""""""""""""""""""""""
+.. autoclass:: RandSmoothFieldAdjustContrast
+    :members:
+    :special-members: __call__
+
+`RandSmoothFieldAdjustIntensity`
+""""""""""""""""""""""""""""""""
+.. autoclass:: RandSmoothFieldAdjustIntensity
+    :members:
+    :special-members: __call__
+
 Utility
 ^^^^^^^
 
@@ -1471,6 +1487,21 @@ Spatial (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGridDistortiond.png
     :alt: example of RandGridDistortiond
 .. autoclass:: RandGridDistortiond
+    :members:
+    :special-members: __call__
+
+Smooth Field (Dict)
+^^^^^^^^^^^^^^^^^^^
+
+`RandSmoothFieldAdjustContrastd`
+""""""""""""""""""""""""""""""""
+.. autoclass:: RandSmoothFieldAdjustContrastd
+    :members:
+    :special-members: __call__
+
+`RandSmoothFieldAdjustIntensityd`
+"""""""""""""""""""""""""""""""""
+.. autoclass:: RandSmoothFieldAdjustIntensityd
     :members:
     :special-members: __call__
 
