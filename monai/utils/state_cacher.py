@@ -16,6 +16,8 @@ from typing import Dict, Optional
 
 import torch
 
+from monai.config.type_definitions import PathLike
+
 __all__ = ["StateCacher"]
 
 
@@ -34,7 +36,7 @@ class StateCacher:
     >>> model.load_state_dict(state_cacher.retrieve("model"))
     """
 
-    def __init__(self, in_memory: bool, cache_dir: Optional[str] = None, allow_overwrite: bool = True) -> None:
+    def __init__(self, in_memory: bool, cache_dir: Optional[PathLike] = None, allow_overwrite: bool = True) -> None:
         """Constructor.
 
         Args:

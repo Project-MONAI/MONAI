@@ -99,10 +99,10 @@ class TestToCupy(unittest.TestCase):
 
     def test_list_tuple(self):
         test_data = [[1, 2], [3, 4]]
-        result = ToCupy()(test_data)
+        result = ToCupy(wrap_sequence=True)(test_data)
         cp.testing.assert_allclose(result, cp.asarray(test_data))
         test_data = ((1, 2), (3, 4))
-        result = ToCupy()(test_data)
+        result = ToCupy(wrap_sequence=True)(test_data)
         cp.testing.assert_allclose(result, cp.asarray(test_data))
 
 

@@ -45,7 +45,7 @@ def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], write
     if len(image.shape) != 3:
         raise AssertionError("3D image tensors expected to be in `HWD` format, len(image.shape) != 3")
 
-    ims = [(np.asarray(image[:, :, i]) * scale_factor).astype(np.uint8) for i in range(image.shape[2])]
+    ims = [(np.asarray(image[:, :, i]) * scale_factor).astype(np.uint8, copy=False) for i in range(image.shape[2])]
     ims = [GifImage.fromarray(im) for im in ims]
     img_str = b""
     for b_data in PIL.GifImagePlugin.getheader(ims[0])[0]:

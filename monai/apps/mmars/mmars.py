@@ -17,14 +17,15 @@ See Also:
 """
 
 import json
-import os
 import warnings
-from typing import Mapping, Union
+from pathlib import Path
+from typing import Mapping, Optional, Union
 
 import torch
 
 import monai.networks.nets as monai_nets
 from monai.apps.utils import download_and_extract, logger
+from monai.config.type_definitions import PathLike
 from monai.utils.module import optional_import
 
 from .model_desc import MODEL_DESC
@@ -98,7 +99,9 @@ def _get_ngc_doc_url(model_name: str, model_prefix=""):
     return f"https://ngc.nvidia.com/catalog/models/{model_prefix}{model_name}"
 
 
-def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False, version: int = -1):
+def download_mmar(
+    item, mmar_dir: Optional[PathLike] = None, progress: bool = True, api: bool = False, version: int = -1
+):
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 
@@ -128,10 +131,10 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
     if not mmar_dir:
         get_dir, has_home = optional_import("torch.hub", name="get_dir")
         if has_home:
-            mmar_dir = os.path.join(get_dir(), "mmars")
+            mmar_dir = Path(get_dir()) / "mmars"
         else:
             raise ValueError("mmar_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
-
+    mmar_dir = Path(mmar_dir)
     if api:
         model_dict = _get_all_ngc_models(item)
         if len(model_dict) == 0:
@@ -140,10 +143,10 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
         for k, v in model_dict.items():
             ver = v["latest"] if version == -1 else str(version)
             download_url = _get_ngc_url(k, ver)
-            model_dir = os.path.join(mmar_dir, v["name"])
+            model_dir = mmar_dir / v["name"]
             download_and_extract(
                 url=download_url,
-                filepath=os.path.join(mmar_dir, f'{v["name"]}_{ver}.zip'),
+                filepath=mmar_dir / f'{v["name"]}_{ver}.zip',
                 output_dir=model_dir,
                 hash_val=None,
                 hash_type="md5",
@@ -161,11 +164,11 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
     if version > 0:
         ver = str(version)
     model_fullname = f"{item[Keys.NAME]}_{ver}"
-    model_dir = os.path.join(mmar_dir, model_fullname)
+    model_dir = mmar_dir / model_fullname
     model_url = item.get(Keys.URL) or _get_ngc_url(item[Keys.NAME], version=ver, model_prefix="nvidia/med/")
     download_and_extract(
         url=model_url,
-        filepath=os.path.join(mmar_dir, f"{model_fullname}.{item[Keys.FILE_TYPE]}"),
+        filepath=mmar_dir / f"{model_fullname}.{item[Keys.FILE_TYPE]}",
         output_dir=model_dir,
         hash_val=item[Keys.HASH_VAL],
         hash_type=item[Keys.HASH_TYPE],
@@ -178,7 +181,7 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
 
 def load_from_mmar(
     item,
-    mmar_dir=None,
+    mmar_dir: Optional[PathLike] = None,
     progress: bool = True,
     version: int = -1,
     map_location=None,
@@ -212,11 +215,11 @@ def load_from_mmar(
     if not isinstance(item, Mapping):
         item = get_model_spec(item)
     model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress, version=version)
-    model_file = os.path.join(model_dir, item[Keys.MODEL_FILE])
+    model_file = model_dir / item[Keys.MODEL_FILE]
     logger.info(f'\n*** "{item[Keys.ID]}" available at {model_dir}.')
 
     # loading with `torch.jit.load`
-    if f"{model_file}".endswith(".ts"):
+    if model_file.name.endswith(".ts"):
         if not pretrained:
             warnings.warn("Loading a ScriptModule, 'pretrained' option ignored.")
         if weights_only:
@@ -232,7 +235,7 @@ def load_from_mmar(
     model_config = _get_val(dict(model_dict).get("train_conf", {}), key=model_key, default={})
     if not model_config:
         # 2. search json CONFIG_FILE for model config spec.
-        json_path = os.path.join(model_dir, item.get(Keys.CONFIG_FILE, "config_train.json"))
+        json_path = model_dir / item.get(Keys.CONFIG_FILE, "config_train.json")
         with open(json_path) as f:
             conf_dict = json.load(f)
         conf_dict = dict(conf_dict)

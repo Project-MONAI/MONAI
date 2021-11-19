@@ -170,8 +170,8 @@ class IntegrationFastTrain(DistTestCase):
         optimizer = Novograd(model.parameters(), learning_rate * 10)
         scaler = torch.cuda.amp.GradScaler()
 
-        post_pred = Compose([EnsureType(), AsDiscrete(argmax=True, to_onehot=True, num_classes=2)])
-        post_label = Compose([EnsureType(), AsDiscrete(to_onehot=True, num_classes=2)])
+        post_pred = Compose([EnsureType(), AsDiscrete(argmax=True, to_onehot=2)])
+        post_label = Compose([EnsureType(), AsDiscrete(to_onehot=2)])
 
         dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 

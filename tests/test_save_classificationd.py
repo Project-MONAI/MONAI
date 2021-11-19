@@ -13,6 +13,7 @@ import csv
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -39,7 +40,7 @@ class TestSaveClassificationd(unittest.TestCase):
                 },
             ]
 
-            saver = CSVSaver(output_dir=tempdir, filename="predictions2.csv", overwrite=False, flush=False)
+            saver = CSVSaver(output_dir=Path(tempdir), filename="predictions2.csv", overwrite=False, flush=False)
             # set up test transforms
             post_trans = Compose(
                 [
@@ -49,7 +50,7 @@ class TestSaveClassificationd(unittest.TestCase):
                         keys="pred",
                         saver=None,
                         meta_keys=None,
-                        output_dir=tempdir,
+                        output_dir=Path(tempdir),
                         filename="predictions1.csv",
                         overwrite=True,
                     ),

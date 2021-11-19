@@ -21,8 +21,7 @@ from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optio
 
 import torch
 
-from monai.config import KeysCollection
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
@@ -130,17 +129,21 @@ class AsDiscreted(MapTransform):
     backend = AsDiscrete.backend
 
     @deprecated_arg("n_classes", since="0.6")
+    @deprecated_arg("num_classes", since="0.7")
+    @deprecated_arg("logit_thresh", since="0.7")
+    @deprecated_arg(name="threshold_values", new_name="threshold", since="0.7")
     def __init__(
         self,
         keys: KeysCollection,
         argmax: Union[Sequence[bool], bool] = False,
-        to_onehot: Union[Sequence[bool], bool] = False,
-        num_classes: Optional[Union[Sequence[int], int]] = None,
-        threshold_values: Union[Sequence[bool], bool] = False,
-        logit_thresh: Union[Sequence[float], float] = 0.5,
+        to_onehot: Union[Sequence[Optional[int]], Optional[int]] = None,
+        threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
-        n_classes: Optional[int] = None,
+        n_classes: Optional[Union[Sequence[int], int]] = None,
+        num_classes: Optional[Union[Sequence[int], int]] = None,
+        logit_thresh: Union[Sequence[float], float] = 0.5,
+        threshold_values: Union[Sequence[bool], bool] = False,
     ) -> None:
         """
         Args:
@@ -148,41 +151,37 @@ class AsDiscreted(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             argmax: whether to execute argmax function on input data before transform.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            to_onehot: whether to convert input data into the one-hot format. Defaults to False.
-                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            num_classes: the number of classes to convert to One-Hot format. it also can be a
-                sequence of int, each element corresponds to a key in ``keys``.
-            threshold_values: whether threshold the float value to int number 0 or 1, default is False.
-                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            logit_thresh: the threshold value for thresholding operation, default is 0.5.
-                it also can be a sequence of float, each element corresponds to a key in ``keys``.
+            to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
+                defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
+            threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold value.
+                defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
 
         .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``num_classes`` instead.
+            ``n_classes`` is deprecated, use ``to_onehot`` instead.
+
+        .. deprecated:: 0.7.0
+            ``num_classes`` is deprecated, use ``to_onehot`` instead.
+            ``logit_thresh`` is deprecated, use ``threshold`` instead.
+            ``threshold_values`` is deprecated, use ``threshold`` instead.
 
         """
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes is None:
-            num_classes = n_classes
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
-        self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
-        self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
-        self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
+        self.threshold = ensure_tuple_rep(threshold, len(self.keys))
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key, argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
-            d, self.argmax, self.to_onehot, self.num_classes, self.threshold_values, self.logit_thresh, self.rounding
+        for key, argmax, to_onehot, threshold, rounding in self.key_iterator(
+            d, self.argmax, self.to_onehot, self.threshold, self.rounding
         ):
-            d[key] = self.converter(d[key], argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding)
+            d[key] = self.converter(d[key], argmax, to_onehot, threshold, rounding)
         return d
 
 
@@ -360,11 +359,13 @@ class Ensembled(MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         items: Union[List[NdarrayOrTensor], NdarrayOrTensor]
-        if len(self.keys) == 1:
+        if len(self.keys) == 1 and self.keys[0] in d:
             items = d[self.keys[0]]
         else:
             items = [d[key] for key in self.key_iterator(d)]
-        d[self.output_key] = self.ensemble(items)
+
+        if len(items) > 0:
+            d[self.output_key] = self.ensemble(items)
 
         return d
 
@@ -644,7 +645,7 @@ class SaveClassificationd(MapTransform):
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         saver: Optional[CSVSaver] = None,
-        output_dir: str = "./",
+        output_dir: PathLike = "./",
         filename: str = "predictions.csv",
         overwrite: bool = True,
         flush: bool = True,

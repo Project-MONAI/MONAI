@@ -51,7 +51,7 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
-from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, first
+from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import TraceKeys
 
 __all__ = [
@@ -480,8 +480,12 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
+        first_key: Union[Hashable, List] = self.first_key(d)
+        if first_key == []:
+            return d
+
         # use the spatial size of first image to scale, expect all images have the same spatial size
-        img_size = d[first(self.key_iterator(d))].shape[1:]
+        img_size = d[first_key].shape[1:]  # type: ignore
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         cropper = CenterSpatialCrop(roi_size)
@@ -575,7 +579,11 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        self.randomize(d[first(self.key_iterator(d))].shape[1:])  # image shape from the first data key
+        first_key: Union[Hashable, List] = self.first_key(d)
+        if first_key == []:
+            return d
+
+        self.randomize(d[first_key].shape[1:])  # type: ignore
         if self._size is None:
             raise RuntimeError("self._size not specified.")
         for key in self.key_iterator(d):
@@ -669,7 +677,11 @@ class RandScaleCropd(RandSpatialCropd):
         self.max_roi_scale = max_roi_scale
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        img_size = data[first(self.key_iterator(data))].shape[1:]  # type: ignore
+        first_key: Union[Hashable, List] = self.first_key(data)  # type: ignore
+        if first_key == []:
+            return data  # type: ignore
+
+        img_size = data[first_key].shape[1:]  # type: ignore
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         if self.max_roi_scale is not None:

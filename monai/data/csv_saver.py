@@ -12,11 +12,13 @@
 import os
 import warnings
 from collections import OrderedDict
+from pathlib import Path
 from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
 
+from monai.config.type_definitions import PathLike
 from monai.utils import ImageMetaKey as Key
 
 
@@ -32,7 +34,11 @@ class CSVSaver:
     """
 
     def __init__(
-        self, output_dir: str = "./", filename: str = "predictions.csv", overwrite: bool = True, flush: bool = False
+        self,
+        output_dir: PathLike = "./",
+        filename: str = "predictions.csv",
+        overwrite: bool = True,
+        flush: bool = False,
     ) -> None:
         """
         Args:
@@ -44,12 +50,12 @@ class CSVSaver:
                 default to False.
 
         """
-        self.output_dir = output_dir
+        self.output_dir = Path(output_dir)
         self._cache_dict: OrderedDict = OrderedDict()
         if not (isinstance(filename, str) and filename[-4:] == ".csv"):
             warnings.warn("CSV filename is not a string ends with '.csv'.")
-        self._filepath = os.path.join(output_dir, filename)
-        if os.path.exists(self._filepath) and overwrite:
+        self._filepath = self.output_dir / filename
+        if self._filepath.exists() and overwrite:
             os.remove(self._filepath)
 
         self.flush = flush
@@ -60,8 +66,8 @@ class CSVSaver:
         Writes the cached dict to a csv
 
         """
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True, exist_ok=True)
         with open(self._filepath, "a") as f:
             for k, v in self._cache_dict.items():
                 f.write(k)

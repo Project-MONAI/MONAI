@@ -11,6 +11,7 @@
 
 import unittest
 from os.path import exists, join
+from pathlib import Path
 from tempfile import gettempdir
 
 import torch
@@ -23,8 +24,9 @@ DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 TEST_CASE_0 = [torch.Tensor([1]).to(DEVICE), {"in_memory": True}]
 TEST_CASE_1 = [torch.Tensor([1]).to(DEVICE), {"in_memory": False, "cache_dir": gettempdir()}]
 TEST_CASE_2 = [torch.Tensor([1]).to(DEVICE), {"in_memory": False, "allow_overwrite": False}]
+TEST_CASE_3 = [torch.Tensor([1]).to(DEVICE), {"in_memory": False, "cache_dir": Path(gettempdir())}]
 
-TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2]
+TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 
 class TestStateCacher(unittest.TestCase):

@@ -1302,7 +1302,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.device = device
 
     def randomize(self, grid_size: Sequence[int]) -> None:
-        self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32)
+        self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32, copy=False)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
     def __call__(self, spatial_size: Sequence[int]):
@@ -1978,7 +1978,7 @@ class Rand3DElastic(RandomizableTransform):
         super().randomize(None)
         if not self._do_transform:
             return None
-        self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
+        self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32, copy=False)
         self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
         self.rand_affine_grid.randomize()
