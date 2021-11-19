@@ -67,10 +67,10 @@ class TestToCupyd(unittest.TestCase):
     @skipUnless(has_cp, "CuPy is required.")
     def test_list_tuple(self):
         test_data = [[1, 2], [3, 4]]
-        result = ToCupyd(keys="img")({"img": test_data})["img"]
+        result = ToCupyd(keys="img", wrap_sequence=True)({"img": test_data})["img"]
         cp.testing.assert_allclose(result, cp.asarray(test_data))
         test_data = ((1, 2), (3, 4))
-        result = ToCupyd(keys="img")({"img": test_data})["img"]
+        result = ToCupyd(keys="img", wrap_sequence=True)({"img": test_data})["img"]
         cp.testing.assert_allclose(result, cp.asarray(test_data))
 
 
