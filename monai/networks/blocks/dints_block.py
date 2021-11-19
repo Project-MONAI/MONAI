@@ -202,7 +202,7 @@ class P3DActiConvNormBlock(torch.nn.Sequential):
         self.add_module(
             "conv_1",
             conv_type(
-                in_channels=self._in_channel,
+                in_channels=self._out_channel,
                 out_channels=self._out_channel,
                 kernel_size=kernel_size1,
                 stride=1,

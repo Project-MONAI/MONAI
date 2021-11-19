@@ -17,15 +17,31 @@ from parameterized import parameterized
 from monai.networks.blocks.dints_block import P3DActiConvNormBlock
 
 TEST_CASES_3D = [
-    [{"c_in": 32, "c_out": 16, "kernel_size": 3, "padding": 0, "mode": 0}, (7, 32, 16, 32, 8), (7, 16, 14, 30, 6)],
     [
-        {"c_in": 32, "c_out": 16, "kernel_size": 3, "padding": 1, "mode": 0},  # check padding
+        {"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 0, "mode": 0},
+        (7, 32, 16, 32, 8),
+        (7, 16, 14, 30, 6),
+    ],
+    [
+        {"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 1, "mode": 0},  # check padding
         (7, 32, 16, 32, 8),
         (7, 16, 16, 32, 8),
     ],
-    [{"c_in": 32, "c_out": 16, "kernel_size": 3, "padding": 0, "mode": 1}, (7, 32, 16, 32, 8), (7, 16, 14, 30, 6)],
-    [{"c_in": 32, "c_out": 16, "kernel_size": 3, "padding": 0, "mode": 2}, (7, 32, 16, 32, 8), (7, 16, 14, 30, 6)],
-    [{"c_in": 32, "c_out": 16, "kernel_size": 4, "padding": 0, "mode": 0}, (7, 32, 16, 32, 8), (7, 16, 13, 29, 5)],
+    [
+        {"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 0, "mode": 1},
+        (7, 32, 16, 32, 8),
+        (7, 16, 14, 30, 6),
+    ],
+    [
+        {"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 0, "mode": 2},
+        (7, 32, 16, 32, 8),
+        (7, 16, 14, 30, 6),
+    ],
+    [
+        {"in_channel": 32, "out_channel": 16, "kernel_size": 4, "padding": 0, "mode": 0},
+        (7, 32, 16, 32, 8),
+        (7, 16, 13, 29, 5),
+    ],
 ]
 
 
