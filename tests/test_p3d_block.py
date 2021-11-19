@@ -33,12 +33,26 @@ TEST_CASES_3D = [
         (7, 16, 14, 30, 6),
     ],
     [
-        {"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 0, "mode": 2},
+        {
+            "in_channel": 32,
+            "out_channel": 16,
+            "kernel_size": 3,
+            "padding": 0,
+            "mode": 2,
+            "act_name": ("leakyrelu", {"inplace": True, "negative_slope": 0.2}),
+        },
         (7, 32, 16, 32, 8),
         (7, 16, 14, 30, 6),
     ],
     [
-        {"in_channel": 32, "out_channel": 16, "kernel_size": 4, "padding": 0, "mode": 0},
+        {
+            "in_channel": 32,
+            "out_channel": 16,
+            "kernel_size": 4,
+            "padding": 0,
+            "mode": 0,
+            "norm_name": ("INSTANCE", {"affine": True}),
+        },
         (7, 32, 16, 32, 8),
         (7, 16, 13, 29, 5),
     ],
@@ -51,6 +65,10 @@ class TestP3D(unittest.TestCase):
         net = P3DActiConvNormBlock(**input_param)
         result = net(torch.randn(input_shape))
         self.assertEqual(result.shape, expected_shape)
+
+    def test_ill(self):
+        with self.assertRaises(ValueError):
+            P3DActiConvNormBlock(in_channel=32, out_channel=16, kernel_size=3, padding=0, mode=3)
 
 
 if __name__ == "__main__":
