@@ -1290,7 +1290,7 @@ class Fourier:
     @deprecated_arg(
         name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
     )
-    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int) -> NdarrayOrTensor:
+    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
@@ -1305,6 +1305,8 @@ class Fourier:
         Returns
             k: K-space data.
         """
+        if n_dims is not None:
+            spatial_dims = n_dims
         dims = tuple(range(-spatial_dims, 0))
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
@@ -1470,7 +1472,7 @@ def print_transform_backends():
     print_color(f"Number transforms allowing both torch and numpy: {n_t_or_np}", Colors.green)
     print_color(f"Number of TorchTransform: {n_t}", Colors.green)
     print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
-    print_color(f"Number of uncategorized: {n_uncategorized}", Colors.red)
+    print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
 
 
 def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadMode, str]):

@@ -37,6 +37,11 @@ for tile_count in [16, 64]:
                     )
 
 
+for tile_size in [8, 16]:
+    for step in [4, 8]:
+        TEST_CASES.append([{"tile_count": 16, "step": step, "tile_size": tile_size}])
+
+
 TEST_CASES2 = []
 for tile_count in [16, 64]:
     for tile_size in [8, 32]:
@@ -57,8 +62,19 @@ for tile_count in [16, 64]:
                     )
 
 
+for tile_size in [8, 16]:
+    for step in [4, 8]:
+        TEST_CASES.append([{"tile_count": 16, "step": step, "tile_size": tile_size}])
+
+
 def make_image(
-    tile_count: int, tile_size: int, random_offset: bool = False, filter_mode: Optional[str] = None, seed=123, **kwargs
+    tile_count: int,
+    tile_size: int,
+    step: int = 0,
+    random_offset: bool = False,
+    filter_mode: Optional[str] = None,
+    seed=123,
+    **kwargs,
 ):
 
     tile_count = int(np.sqrt(tile_count))
@@ -66,7 +82,14 @@ def make_image(
     if random_offset:
         pad = 3
 
-    image = np.random.randint(200, size=[3, tile_count * tile_size + pad, tile_count * tile_size + pad], dtype=np.uint8)
+    if step == 0:
+        step = tile_size
+
+    image = np.random.randint(
+        200,
+        size=[3, (tile_count - 1) * step + tile_size + pad, (tile_count - 1) * step + tile_size + pad],
+        dtype=np.uint8,
+    )
     imlarge = image
 
     random_state = np.random.RandomState(seed)
@@ -80,7 +103,7 @@ def make_image(
     tiles_list = []
     for x in range(tile_count):
         for y in range(tile_count):
-            tiles_list.append(image[:, x * tile_size : (x + 1) * tile_size, y * tile_size : (y + 1) * tile_size])
+            tiles_list.append(image[:, x * step : x * step + tile_size, y * step : y * step + tile_size])
 
     tiles = np.stack(tiles_list, axis=0)  # type: ignore
 
