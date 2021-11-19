@@ -90,7 +90,7 @@ class MixedOp(nn.Module):
     The class is for combining results from different operations.
     Args:
         c: output channel number.
-        arch_code_c: binary architecture code for input operations, and it decides which operations are utilized for output.
+        arch_code_c: torch.tensor，binary architecture code for input operations, and it decides which operations are utilized for output.
     """
 
     def __init__(self, c: int, arch_code_c=None):
@@ -108,9 +108,10 @@ class MixedOp(nn.Module):
 
     def forward(self, x, ops=None, weight=None):
         """
+        Forward function.
         Args:
-            ops: binary array to determine which operation/edge in DiNTS is activated.
-            weight: weights for different operations.
+            ops: torch.tensor，binary array to determine which operation/edge in DiNTS is activated.
+            weight: torch.tensor，weights for different operations.
         """
         pos = (ops == 1).nonzero()
         result = 0
@@ -124,13 +125,13 @@ class Cell(nn.Module):
     The basic class for cell operation
     Args:
         c_prev: input channel number
-        C: output channel number
+        c: output channel number
         rate: resolution change rate. -1 for 2x downsample, 1 for 2x upsample
               0 for no change of resolution
-        arch_code_c: cell operation code
+        arch_code_c: torch.tensor，cell operation code
     """
 
-    def __init__(self, c_prev, c, rate: int, arch_code_c: bool = None):
+    def __init__(self, c_prev, c, rate: int, arch_code_c=None):
         super().__init__()
         self.c_out = c
         if rate == -1:  # downsample
@@ -144,10 +145,16 @@ class Cell(nn.Module):
                 self.preprocess = ConnOPS["align_channels"](c_prev, c, 1, 0)
         self.op = MixedOp(c, arch_code_c)
 
-    def forward(self, s, ops, weight):
-        s = self.preprocess(s)
-        s = self.op(s, ops, weight)
-        return s
+    def forward(self, x, ops, weight):
+        """
+        Forward function.
+        Args:
+            ops: torch.tensor，binary array to determine which operation/edge in DiNTS is activated.
+            weight: torch.tensor，weights for different operations.
+        """
+        x = self.preprocess(x)
+        x = self.op(x, ops, weight)
+        return x
 
 
 class Stem(nn.Module):
