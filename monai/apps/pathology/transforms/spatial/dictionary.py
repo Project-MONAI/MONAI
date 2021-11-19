@@ -29,11 +29,11 @@ class SplitOnGridd(MapTransform):
     This transform works only with torch.Tensor inputs.
 
     Args:
-        grid_shape: a tuple or an integer define the shape of the grid upon which to extract patches.
+        grid_size: a tuple or an integer define the shape of the grid upon which to extract patches.
             If it's an integer, the value will be repeated for each dimension. Default is 2x2
         patch_size: a tuple or an integer that defines the output patch sizes.
             If it's an integer, the value will be repeated for each dimension.
-            The default is (0, 0), where the patch size will be infered from the grid shape.
+            The default is (0, 0), where the patch size will be inferred from the grid shape.
 
     Note: the shape of the input image is infered based on the first image used.
     """
