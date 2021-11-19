@@ -52,16 +52,16 @@ class SmoothField(Randomizable):
         high: float = 1.0,
         channels: int = 1,
     ):
-        self.resizer = Resize(spatial_size, mode=mode, align_corners=align_corners)
-        self.rand_size = ensure_tuple(rand_size)
-        self.padder = padder
-        self.field = None
-        self.low = low
-        self.high = high
-        self.channels = channels
+        self.resizer: Transform = Resize(spatial_size, mode=mode, align_corners=align_corners)
+        self.rand_size: tuple = ensure_tuple(rand_size)
+        self.padder: Optional[Transform] = padder
+        self.field: Optional[np.ndarray] = None
+        self.low: float = low
+        self.high: float = high
+        self.channels: int = channels
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self.field = self.R.uniform(self.low, self.high, (self.channels,) + self.rand_size)
+        self.field = self.R.uniform(self.low, self.high, (self.channels,) + self.rand_size)  # type: ignore
         if self.padder is not None:
             self.field = self.padder(self.field)
 

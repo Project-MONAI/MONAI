@@ -78,7 +78,7 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         if self._do_transform:
             self.trans.randomize()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
         self.randomize()
 
         if not self._do_transform:
@@ -149,7 +149,7 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         super().randomize(None)
         self.trans.randomize()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
         self.randomize()
 
         if not self._do_transform:
