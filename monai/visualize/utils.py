@@ -139,11 +139,11 @@ def blend_images(
     Args:
         image: the input image to blend with label data.
         label: the input label to blend with image data.
-        alpha: when blending image and label, `alpha` is weight for the image region mapping to `label != 0`,
-            and `1 - alpha` is weight for the label region that `label != 0`.
+        alpha: when blending image and label, `alpha` is the weight for the image region mapping to `label != 0`,
+            and `1 - alpha` is the weight for the label region that `label != 0`.
         cmap: specify colormap in the matplotlib, for more details, please refer to:
             https://matplotlib.org/2.0.2/users/colormaps.html.
-        rescale_arrays: whether to rescale the array to [0, 1] first.
+        rescale_arrays: whether to rescale the array to [0, 1] first, default to `True`.
 
     """
 
