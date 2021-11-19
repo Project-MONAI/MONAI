@@ -240,9 +240,6 @@ def pre_process_data(data, ndim, is_map, is_post):
     if ndim == 2:
         for k in keys:
             data[k] = data[k][..., data[k].shape[-1] // 2]
-    if is_post:
-        for k in keys:
-            data[k] = torch.as_tensor(data[k])
 
     if is_map:
         return data
@@ -643,15 +640,8 @@ if __name__ == "__main__":
     create_transform_im(RandScaleCropd, dict(keys=keys, roi_scale=0.4), data)
     create_transform_im(CenterScaleCrop, dict(roi_scale=0.4), data)
     create_transform_im(CenterScaleCropd, dict(keys=keys, roi_scale=0.4), data)
-    create_transform_im(
-        AsDiscrete, dict(num_classes=2, threshold_values=True, logit_thresh=10), data, is_post=True, colorbar=True
-    )
-    create_transform_im(
-        AsDiscreted,
-        dict(keys=CommonKeys.LABEL, num_classes=2, threshold_values=True, logit_thresh=10),
-        data,
-        is_post=True,
-    )
+    create_transform_im(AsDiscrete, dict(to_onehot=2, threshold=10), data, is_post=True, colorbar=True)
+    create_transform_im(AsDiscreted, dict(keys=CommonKeys.LABEL, to_onehot=2, threshold=10), data, is_post=True)
     create_transform_im(LabelFilter, dict(applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True)
     create_transform_im(
         LabelFilterd, dict(keys=CommonKeys.LABEL, applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True

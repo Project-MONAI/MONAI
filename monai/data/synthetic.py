@@ -73,7 +73,7 @@ def create_test_image_2d(
         else:
             image[circle] = rs.random() * 0.5 + 0.5
 
-    labels = np.ceil(image).astype(np.int32)
+    labels = np.ceil(image).astype(np.int32, copy=False)
 
     norm = rs.uniform(0, num_seg_classes * noise_max, size=image.shape)
     noisyimage: np.ndarray = rescale_array(np.maximum(image, norm))  # type: ignore
@@ -148,7 +148,7 @@ def create_test_image_3d(
         else:
             image[circle] = rs.random() * 0.5 + 0.5
 
-    labels = np.ceil(image).astype(np.int32)
+    labels = np.ceil(image).astype(np.int32, copy=False)
 
     norm = rs.uniform(0, num_seg_classes * noise_max, size=image.shape)
     noisyimage: np.ndarray = rescale_array(np.maximum(image, norm))  # type: ignore

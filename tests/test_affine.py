@@ -58,6 +58,17 @@ for p in TEST_NDARRAYS:
         )
         TESTS.append(
             [
+                dict(
+                    affine=p(torch.tensor([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])),
+                    padding_mode="zeros",
+                    device=device,
+                ),
+                {"img": p(np.arange(4).reshape((1, 2, 2))), "spatial_size": (4, 4)},
+                p(np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 3.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]]])),
+            ]
+        )
+        TESTS.append(
+            [
                 dict(padding_mode="zeros", device=device),
                 {"img": p(np.arange(27).reshape((1, 3, 3, 3))), "spatial_size": (-1, 0, 0)},
                 p(np.arange(27).reshape(1, 3, 3, 3)),

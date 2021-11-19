@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import DtypeLike
+from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
@@ -167,7 +167,7 @@ class LoadImage(Transform):
             warnings.warn(f"Preferably the reader should inherit ImageReader, but got {type(reader)}.")
         self.readers.append(reader)
 
-    def __call__(self, filename: Union[Sequence[str], str, Path, Sequence[Path]], reader: Optional[ImageReader] = None):
+    def __call__(self, filename: Union[Sequence[PathLike], PathLike], reader: Optional[ImageReader] = None):
         """
         Load image file and meta data from the given filename(s).
         If `reader` is not specified, this class automatically chooses readers based on the
@@ -183,7 +183,7 @@ class LoadImage(Transform):
             reader: runtime reader to load image file and meta data.
 
         """
-        filename = tuple(str(s) for s in ensure_tuple(filename))  # allow Path objects
+        filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects
         img = None
         if reader is not None:
             img = reader.read(filename)  # runtime specified reader
@@ -212,11 +212,11 @@ class LoadImage(Transform):
             )
 
         img_array, meta_data = reader.get_data(img)
-        img_array = img_array.astype(self.dtype)
+        img_array = img_array.astype(self.dtype, copy=False)
 
         if self.image_only:
             return img_array
-        meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
+        meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 
@@ -292,7 +292,7 @@ class SaveImage(Transform):
 
     def __init__(
         self,
-        output_dir: Union[Path, str] = "./",
+        output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         resample: bool = True,
@@ -302,7 +302,7 @@ class SaveImage(Transform):
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
-        data_root_dir: str = "",
+        data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:

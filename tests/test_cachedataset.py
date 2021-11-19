@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, PersistentDataset, SmartCacheDataset
 from monai.transforms import Compose, Lambda, LoadImaged, RandLambda, ThreadUnsafe, Transform
-from monai.utils import get_torch_version_tuple
+from monai.utils.module import pytorch_after
 
 TEST_CASE_1 = [Compose([LoadImaged(keys=["image", "label", "extra"])]), (128, 128, 128)]
 
@@ -134,7 +134,7 @@ class TestCacheThread(unittest.TestCase):
     @parameterized.expand(TEST_DS)
     def test_thread_safe(self, persistent_workers, cache_workers, loader_workers):
         expected = [102, 202, 302, 402, 502, 602, 702, 802, 902, 1002]
-        _kwg = {"persistent_workers": persistent_workers} if get_torch_version_tuple() > (1, 7) else {}
+        _kwg = {"persistent_workers": persistent_workers} if pytorch_after(1, 8) else {}
         data_list = list(range(1, 11))
         dataset = CacheDataset(
             data=data_list, transform=_StatefulTransform(), cache_rate=1.0, num_workers=cache_workers, progress=False

@@ -62,7 +62,7 @@ from monai.transforms.utility.array import (
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import InverseKeys, TransformBackends
+from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -460,6 +460,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
+        wrap_sequence: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -468,10 +469,12 @@ class ToTensord(MapTransform, InvertibleTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype: target data content type to convert, for example: torch.float, etc.
             device: specify the target device to put the Tensor data.
+            wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+                E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToTensor(dtype=dtype, device=device)
+        self.converter = ToTensor(dtype=dtype, device=device, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -499,7 +502,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
     Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
     `float`, `int`, `bool`, `string` and `object` keep the original.
     If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
-    every item to the expected data type.
+    every item to the expected data type if `wrap_sequence=False`.
 
     Note: Currently, we only convert tensor data to numpy array or scalar number in the inverse operation.
 
@@ -513,6 +516,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         data_type: str = "tensor",
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
+        wrap_sequence: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -522,10 +526,12 @@ class EnsureTyped(MapTransform, InvertibleTransform):
             data_type: target data type to convert, should be "tensor" or "numpy".
             dtype: target data content type to convert, for example: np.float32, torch.float, etc.
             device: for Tensor data type, specify the target device.
+            wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+                E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device)
+        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -552,16 +558,24 @@ class ToNumpyd(MapTransform):
 
     backend = ToNumpy.backend
 
-    def __init__(self, keys: KeysCollection, dtype: DtypeLike = None, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: DtypeLike = None,
+        wrap_sequence: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype: target data type when converting to numpy array.
+            wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+                E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToNumpy(dtype=dtype)
+        self.converter = ToNumpy(dtype=dtype, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
@@ -578,14 +592,18 @@ class ToCupyd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         dtype: data type specifier. It is inferred from the input by default.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = ToCupy.backend
 
-    def __init__(self, keys: KeysCollection, dtype=None, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, dtype=None, wrap_sequence: bool = True, allow_missing_keys: bool = False
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToCupy(dtype=dtype)
+        self.converter = ToCupy(dtype=dtype, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -645,7 +663,7 @@ class Transposed(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            fwd_indices = np.array(transform[InverseKeys.EXTRA_INFO]["indices"])
+            fwd_indices = np.array(transform[TraceKeys.EXTRA_INFO]["indices"])
             inv_indices = np.argsort(fwd_indices)
             inverse_transform = Transpose(inv_indices.tolist())
             # Apply inverse
@@ -917,6 +935,10 @@ class ConcatItemsd(MapTransform):
             elif not isinstance(d[key], data_type):
                 raise TypeError("All items in data must have the same type.")
             output.append(d[key])
+
+        if len(output) == 0:
+            return d
+
         if data_type is np.ndarray:
             d[self.name] = np.concatenate(output, axis=self.dim)
         elif data_type is torch.Tensor:
@@ -1051,7 +1073,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         return super().__call__(data)
 
     def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
-        return self._lambd(data, func=func) if transform_info[InverseKeys.DO_TRANSFORM] else data
+        return self._lambd(data, func=func) if transform_info[TraceKeys.DO_TRANSFORM] else data
 
 
 class LabelToMaskd(MapTransform):

@@ -23,14 +23,13 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
 from monai.utils import (
-    PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
     convert_data_type,
     convert_to_dst_type,
@@ -38,6 +37,7 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
@@ -86,15 +86,17 @@ class RandGaussianNoise(RandomizableTransform):
         prob: Probability to add Gaussian noise.
         mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
+        dtype: output data type, if None, same as input image. defaults to float32.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, prob: float = 0.1, mean: float = 0.0, std: float = 0.1) -> None:
+    def __init__(self, prob: float = 0.1, mean: float = 0.0, std: float = 0.1, dtype: DtypeLike = np.float32) -> None:
         RandomizableTransform.__init__(self, prob)
         self.mean = mean
         self.std = std
+        self.dtype = dtype
         self.noise: Optional[np.ndarray] = None
 
     def randomize(self, img: NdarrayOrTensor, mean: Optional[float] = None) -> None:
@@ -102,7 +104,9 @@ class RandGaussianNoise(RandomizableTransform):
         if not self._do_transform:
             return None
         rand_std = self.R.uniform(0, self.std)
-        self.noise = self.R.normal(self.mean if mean is None else mean, rand_std, size=img.shape)
+        noise = self.R.normal(self.mean if mean is None else mean, rand_std, size=img.shape)
+        # noise is float64 array, convert to the output dtype to save memory
+        self.noise, *_ = convert_data_type(noise, dtype=self.dtype)  # type: ignore
 
     def __call__(self, img: NdarrayOrTensor, mean: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -116,6 +120,7 @@ class RandGaussianNoise(RandomizableTransform):
 
         if self.noise is None:
             raise RuntimeError("please call the `randomize()` function first.")
+        img, *_ = convert_data_type(img, dtype=self.dtype)
         noise, *_ = convert_to_dst_type(self.noise, img)
         return img + noise
 
@@ -141,6 +146,8 @@ class RandRicianNoise(RandomizableTransform):
             histogram.
         sample_std: If True, sample the spread of the Gaussian distributions
             uniformly from 0 to std.
+        dtype: output data type, if None, same as input image. defaults to float32.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -153,6 +160,7 @@ class RandRicianNoise(RandomizableTransform):
         channel_wise: bool = False,
         relative: bool = False,
         sample_std: bool = True,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.prob = prob
@@ -161,15 +169,16 @@ class RandRicianNoise(RandomizableTransform):
         self.channel_wise = channel_wise
         self.relative = relative
         self.sample_std = sample_std
+        self.dtype = dtype
         self._noise1: NdarrayOrTensor
         self._noise2: NdarrayOrTensor
 
-    def _add_noise(self, img: NdarrayTensor, mean: float, std: float):
+    def _add_noise(self, img: NdarrayOrTensor, mean: float, std: float):
         dtype_np = get_equivalent_dtype(img.dtype, np.ndarray)
         im_shape = img.shape
         _std = self.R.uniform(0, std) if self.sample_std else std
-        self._noise1 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np)
-        self._noise2 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np)
+        self._noise1 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np, copy=False)
+        self._noise2 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np, copy=False)
         if isinstance(img, torch.Tensor):
             n1 = torch.tensor(self._noise1, device=img.device)
             n2 = torch.tensor(self._noise2, device=img.device)
@@ -177,7 +186,7 @@ class RandRicianNoise(RandomizableTransform):
 
         return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
 
-    def __call__(self, img: NdarrayTensor, randomize: bool = True) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -187,6 +196,7 @@ class RandRicianNoise(RandomizableTransform):
         if not self._do_transform:
             return img
 
+        img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
             _mean = ensure_tuple_rep(self.mean, len(img))
             _std = ensure_tuple_rep(self.std, len(img))
@@ -414,7 +424,7 @@ class ScaleIntensity(Transform):
             minv: minimum value of output data.
             maxv: maximum value of output data.
             factor: factor scale by ``v = v * (1 + factor)``. In order to use
-                this parameter, please set `minv` and `maxv` into None.
+                this parameter, please set both `minv` and `maxv` into None.
             channel_wise: if True, scale on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
@@ -433,7 +443,7 @@ class ScaleIntensity(Transform):
             ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
 
         """
-        if self.minv is not None and self.maxv is not None:
+        if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
                 ret = torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
@@ -722,6 +732,9 @@ class ScaleIntensityRange(Transform):
     Apply specific intensity scaling to the whole numpy array.
     Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
 
+    When `b_min` or `b_max` are `None`, `scacled_array * (b_max - b_min) + b_min` will be skipped.
+    If `clip=True`, when `b_min`/`b_max` is None, the clipping is not performed on the corresponding edge.
+
     Args:
         a_min: intensity original range min.
         a_max: intensity original range max.
@@ -734,7 +747,13 @@ class ScaleIntensityRange(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False, dtype: DtypeLike = np.float32
+        self,
+        a_min: float,
+        a_max: float,
+        b_min: Optional[float] = None,
+        b_max: Optional[float] = None,
+        clip: bool = False,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         self.a_min = a_min
         self.a_max = a_max
@@ -750,10 +769,13 @@ class ScaleIntensityRange(Transform):
         dtype = self.dtype or img.dtype
         if self.a_max - self.a_min == 0.0:
             warn("Divide by zero (a_min == a_max)", Warning)
+            if self.b_min is None:
+                return img - self.a_min
             return img - self.a_min + self.b_min
 
         img = (img - self.a_min) / (self.a_max - self.a_min)
-        img = img * (self.b_max - self.b_min) + self.b_min
+        if (self.b_min is not None) and (self.b_max is not None):
+            img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
             img = clip(img, self.b_min, self.b_max)
         ret, *_ = convert_data_type(img, dtype=dtype)
@@ -844,11 +866,12 @@ class ScaleIntensityRangePercentiles(Transform):
     """
     Apply range scaling to a numpy array based on the intensity distribution of the input.
 
-    By default this transform will scale from [lower_intensity_percentile, upper_intensity_percentile] to [b_min, b_max], where
-    {lower,upper}_intensity_percentile are the intensity values at the corresponding percentiles of ``img``.
+    By default this transform will scale from [lower_intensity_percentile, upper_intensity_percentile] to
+    `[b_min, b_max]`, where {lower,upper}_intensity_percentile are the intensity values at the corresponding
+    percentiles of ``img``.
 
-    The ``relative`` parameter can also be set to scale from [lower_intensity_percentile, upper_intensity_percentile] to the
-    lower and upper percentiles of the output range [b_min, b_max]
+    The ``relative`` parameter can also be set to scale from [lower_intensity_percentile, upper_intensity_percentile]
+    to the lower and upper percentiles of the output range [b_min, b_max].
 
     For example:
 
@@ -885,6 +908,9 @@ class ScaleIntensityRangePercentiles(Transform):
           [20., 60., 100., 140., 180.],
           [20., 60., 100., 140., 180.]]]
 
+    See Also:
+
+        - :py:class:`monai.transforms.ScaleIntensityRange`
 
     Args:
         lower: lower intensity percentile.
@@ -902,8 +928,8 @@ class ScaleIntensityRangePercentiles(Transform):
         self,
         lower: float,
         upper: float,
-        b_min: float,
-        b_max: float,
+        b_min: Optional[float],
+        b_max: Optional[float],
         clip: bool = False,
         relative: bool = False,
         dtype: DtypeLike = np.float32,
@@ -930,15 +956,15 @@ class ScaleIntensityRangePercentiles(Transform):
         b_max = self.b_max
 
         if self.relative:
+            if (self.b_min is None) or (self.b_max is None):
+                raise ValueError("If it is relative, b_min and b_max should not be None.")
             b_min = ((self.b_max - self.b_min) * (self.lower / 100.0)) + self.b_min
             b_max = ((self.b_max - self.b_min) * (self.upper / 100.0)) + self.b_min
 
-        scalar = ScaleIntensityRange(a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=False, dtype=self.dtype)
+        scalar = ScaleIntensityRange(
+            a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=self.clip, dtype=self.dtype
+        )
         img = scalar(img)
-
-        if self.clip:
-            img = clip(img, self.b_min, self.b_max)
-
         return img
 
 
@@ -1056,7 +1082,7 @@ class DetectEnvelope(Transform):
 
     def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
 
-        if PT_BEFORE_1_7:
+        if not pytorch_after(1, 7):
             raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         if axis < 0:
@@ -1926,7 +1952,7 @@ class RandCoarseDropout(RandCoarseTransform):
             ret = img
         else:
             if isinstance(fill_value, (tuple, list)):
-                ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype)
+                ret = self.R.uniform(fill_value[0], fill_value[1], size=img.shape).astype(img.dtype, copy=False)
             else:
                 ret = np.full_like(img, fill_value)
             for h in self.hole_coords:

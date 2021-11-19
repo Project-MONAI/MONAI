@@ -8,7 +8,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import enum
+import os
+import re
 import sys
 import warnings
 from functools import wraps
@@ -36,8 +39,8 @@ __all__ = [
     "get_full_type_name",
     "get_package_version",
     "get_torch_version_tuple",
-    "PT_BEFORE_1_7",
     "version_leq",
+    "pytorch_after",
 ]
 
 
@@ -450,7 +453,51 @@ def version_leq(lhs: str, rhs: str):
     return True
 
 
-try:
-    PT_BEFORE_1_7 = torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0")
-except (AttributeError, TypeError):
-    PT_BEFORE_1_7 = True
+def pytorch_after(major, minor, patch=0, current_ver_string=None) -> bool:
+    """
+    Compute whether the current pytorch version is after or equal to the specified version.
+    The current system pytorch version is determined by `torch.__version__` or
+    via system environment variable `PYTORCH_VER`.
+
+    Args:
+        major: major version number to be compared with
+        minor: minor version number to be compared with
+        patch: patch version number to be compared with
+        current_ver_string: if None, `torch.__version__` will be used.
+
+    Returns:
+        True if the current pytorch version is greater than or equal to the specified version.
+    """
+
+    try:
+        if current_ver_string is None:
+            _env_var = os.environ.get("PYTORCH_VER", "")
+            current_ver_string = _env_var if _env_var else torch.__version__
+        ver, has_ver = optional_import("pkg_resources", name="parse_version")
+        if has_ver:
+            return ver(".".join((f"{major}", f"{minor}", f"{patch}"))) <= ver(f"{current_ver_string}")  # type: ignore
+        parts = f"{current_ver_string}".split("+", 1)[0].split(".", 3)
+        while len(parts) < 3:
+            parts += ["0"]
+        c_major, c_minor, c_patch = parts[:3]
+    except (AttributeError, ValueError, TypeError):
+        c_major, c_minor = get_torch_version_tuple()
+        c_patch = "0"
+    c_mn = int(c_major), int(c_minor)
+    mn = int(major), int(minor)
+    if c_mn != mn:
+        return c_mn > mn
+    is_prerelease = ("a" in f"{c_patch}".lower()) or ("rc" in f"{c_patch}".lower())
+    c_p = 0
+    try:
+        p_reg = re.search(r"\d+", f"{c_patch}")
+        if p_reg:
+            c_p = int(p_reg.group())
+    except (AttributeError, TypeError, ValueError):
+        is_prerelease = True
+    patch = int(patch)
+    if c_p != patch:
+        return c_p > patch  # type: ignore
+    if is_prerelease:
+        return False
+    return True

@@ -108,7 +108,7 @@ def matshow3d(
     cols = max(min(len(vol), frames_per_row), 1)
     rows = int(np.ceil(len(vol) / cols))
     width = [[0, cols * rows - len(vol)]] + [[margin, margin]] * (len(vol.shape) - 1)
-    vol = np.pad(vol.astype(dtype), width, mode="constant", constant_values=fill_value)
+    vol = np.pad(vol.astype(dtype, copy=False), width, mode="constant", constant_values=fill_value)
     im = np.block([[vol[i * cols + j] for j in range(cols)] for i in range(rows)])
 
     # figure related configurations
@@ -131,9 +131,22 @@ def matshow3d(
 def blend_images(
     image: NdarrayOrTensor, label: NdarrayOrTensor, alpha: float = 0.5, cmap: str = "hsv", rescale_arrays: bool = True
 ):
-    """Blend two images. Both should have the shape CHW[D].
+    """
+    Blend a image and a label. Both should have the shape CHW[D].
     The image may have C==1 or 3 channels (greyscale or RGB).
-    The label is expected to have C==1."""
+    The label is expected to have C==1.
+
+    Args:
+        image: the input image to blend with label data.
+        label: the input label to blend with image data.
+        alpha: when blending image and label, `alpha` is the weight for the image region mapping to `label != 0`,
+            and `1 - alpha` is the weight for the label region that `label != 0`, default to `0.5`.
+        cmap: specify colormap in the matplotlib, default to `hsv`, for more details, please refer to:
+            https://matplotlib.org/2.0.2/users/colormaps.html.
+        rescale_arrays: whether to rescale the array to [0, 1] first, default to `True`.
+
+    """
+
     if label.shape[0] != 1:
         raise ValueError("Label should have 1 channel")
     if image.shape[0] not in (1, 3):

@@ -24,7 +24,8 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {"keys": "img", "roi_scale": [1.0, 1.0, 1.0], "random_center": False},
+    # test `allow_missing_keys` with key "label"
+    {"keys": ["label", "img"], "roi_scale": [1.0, 1.0, 1.0], "random_center": False, "allow_missing_keys": True},
     {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
     (3, 3, 3, 3),
 ]

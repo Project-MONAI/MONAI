@@ -114,7 +114,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         [
             ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=True),
+            AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
@@ -155,7 +155,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         [
             ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=True),
+            AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
@@ -242,7 +242,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         [
             ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=True),
+            AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
             SaveImaged(keys="pred", meta_keys="image_meta_dict", output_dir=root_dir, output_postfix="seg_transform"),
@@ -346,7 +346,7 @@ class IntegrationWorkflows(DistTestCase):
 
     def test_training(self):
         repeated = []
-        test_rounds = 3 if monai.utils.module.get_torch_version_tuple() >= (1, 6) else 2
+        test_rounds = 3
         for i in range(test_rounds):
             results = self.train_and_infer(idx=i)
             repeated.append(results)
@@ -354,8 +354,7 @@ class IntegrationWorkflows(DistTestCase):
 
     @TimedCall(seconds=300, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
-        if monai.utils.module.get_torch_version_tuple() >= (1, 6):
-            self.train_and_infer(idx=2)
+        self.train_and_infer(idx=2)
 
 
 if __name__ == "__main__":
