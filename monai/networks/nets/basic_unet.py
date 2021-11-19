@@ -18,7 +18,7 @@ from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
 from monai.utils import deprecated_arg, ensure_tuple_rep
 
-__all__ = ["BasicUNet", "BasicUnet", "Basicunet"]
+__all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 
 
 class TwoConv(nn.Sequential):
