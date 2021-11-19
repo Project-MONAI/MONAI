@@ -159,17 +159,23 @@ class Cell(nn.Module):
 
 class DiNTS(nn.Module):
     """
+    Reimplementation of Dints based on `DiNTS: Differentiable Neural Network Topology Search for 3D Medical Image Segmentation
+    https://arxiv.org/abs/2103.15954`.  The model contains a pre-defined stem block (defined in this class) and a 
+    dints search space (defined in class DintsSearchSpace). The model downsamples the input image by 2 (if use_downsample is True). 
+    The downsampled image is downsampled by [1, 2, 4, 8] times (num_depths=4) and used as input to the grid search space. 
+    The grid search space contains multi-path topology search and cell level search. 
+    The network only supports 3D inputs. To meet the requirements of the structure, the input size for each spatial dimension
+    should be: divisible by 2 ** (num_depths + 1).
     The pre-defined stem module for: 1) input downsample 2) output upsample to original size
     Args:
-        in_channels: input image channel
-        num_classes: output segmentation channel
-        filter_nums: filter numbers on each depth (spatial resolution)
-        num_depths: number of depths
-        spatial_dims: spatial dimenstion of data (3D or 2D)
-        use_downsample: use a 2x downsample before dints search space to reduce search GPU ram
-        kernel_size: convolution kernel size
-        norm_name: normalization name
-        padding: convolution padding size
+        dints_space: dints search space.
+        in_channels: input image channel.
+        num_classes: number of segmentation classes.
+        act_name: activation name, default ot 'RELU'.
+        norm_name: normalization used in convolution blocks. Default to InstanceNorm.
+        spatial_dims: 2D or 3D convolution. Only support 3.
+        use_downsample: use downsample in the stem. If False, the search space will be in resolution [1, 1/2, 1/4, 1/8],
+                        if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
     """
 
     def __init__(
@@ -178,9 +184,7 @@ class DiNTS(nn.Module):
         in_channels: int,
         num_classes: int,
         act_name: Union[Tuple, str] = "RELU",
-        kernel_size: int = 3,
         norm_name: Union[Tuple, str] = "INSTANCE",
-        padding: int = 1,
         spatial_dims: int = 3,
         use_downsample: bool = True,
     ):
@@ -301,11 +305,11 @@ class DiNTS(nn.Module):
 
         Args:
             x: input tensor.
-            arch_code: [node_a, arch_code_a, arch_code_c].
-            out_pos: the indices of scales for final output.
+            arch_code: [node_a, arch_code_a, arch_code_c]. arch_code_a and arch_code_c are torch.tensor, which are
+                       used in the forward() of self.dints_space. 
         """
         predict_all = []
-        node_a, arch_code_a, arch_code_c = arch_code
+        node_a, _, _ = arch_code
 
         # stem inference
         inputs = []
@@ -339,29 +343,32 @@ class DintsSearchSpace(nn.Module):
         cell=Cell,
         cell_ops: int = 5,
         arch_code: list = None,
-        norm_name: Union[Tuple, str] = "INSTANCE",
         num_blocks: int = 6,
         num_depths: int = 3,
-        spatial_dims: int = 3,
         use_downsample: bool = False,
     ):
         """
-        Initialize NAS network search space
+        Initialize Dints network search space
 
         Args:
-            in_channels: input image channel
-            num_classes: number of segmentation classes
-            num_blocks: number of blocks (depth in the horizontal direction)
-            num_depths: number of image resolutions: 1, 1/2, 1/4 ... in each dimention, each resolution feature
-                is a node at each block
-            cell: operatoin of each node
-            cell_ops: cell operation numbers
             channel_mul: adjust intermediate channel number, default 1.
-            arch_code: [node_a, arch_code_a, arch_code_c] decoded using self.decode(). Remove unused cells in retraining
+            cell: operation of each node.
+            cell_ops: cell operation numbers, should match the number of operations defined in cell.
+            arch_code: [node_a, arch_code_a, arch_code_c] decoded using self.decode(). For num_depths=4, num_blocks=12
+                       search space, node_a is a 4x13 binary matrix representing if a feature node is activated. 
+                       arch_code_a is a 12x10 (10 pathes) binary matrix representing if a path is activated.
+                       arch_code_c is a 12x10x5 (5 operatiosn) binary matrix representing if a cell operation is used.
+                       arch_code in __init__() is used for creating the network and remove unused network blocks. If None,
+                       all  pathes and cells operations will be used. The forward pass also requires arch_code, which is 
+                       used for controlling the actual feature flow.
+            num_blocks: number of blocks (depth in the horizontal direction) of the Dints search space.
+            num_depths: number of image resolutions of the Dints search space: 1, 1/2, 1/4 ... in each dimention.
+            use_downsample: use downsample in the stem. If False, the search space will be in resolution [1, 1/2, 1/4, 1/8],
+                            if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
 
         Predefined variables:
-            filter_nums: default init 64. Double channel number after downsample
-            topology related varaibles from gen_mtx():
+            filter_nums: default init 32. Double channel number after downsample
+            topology related varaibles from self.gen_mtx():
                 trans_mtx: feasible path activation given node activation key
                 arch_code2in: path activation to its incoming node index
                 arch_code2ops: path activation to operations of upsample 1, keep 0, downsample -1
@@ -369,7 +376,7 @@ class DintsSearchSpace(nn.Module):
                 node_act_list: all node activation arch_codes [2^num_depths-1, res_num]
                 node_act_dict: node activation arch_code to its index
                 tidx: index used to convert path activation matrix (depth,depth) in trans_mtx to path activation
-                    arch_code (1,3*depth-2)
+                      arch_code (1,3*depth-2)
         """
         super().__init__()
 
@@ -448,10 +455,10 @@ class DintsSearchSpace(nn.Module):
 
     def get_prob_a(self, child: bool = False):
         """
-        Get final path probabilities and child model weights
-
+        Get final path probabilities and child model weights from architecture weights log_alpha_a for 
+        architecture sampling.
         Args:
-            child: return child probability as well (used in decode)
+            child: return child probability (used in decode)
         """
         log_alpha = self.log_alpha_a
         _arch_code_prob_a = torch.sigmoid(log_alpha)
@@ -473,13 +480,14 @@ class DintsSearchSpace(nn.Module):
         else:
             return None, arch_code_prob_a
 
-    def get_ram_cost_usage(self, in_size, cell_ram_cost: bool = False, arch_code: bool = None, full: bool = False):
+    def get_ram_cost_usage(self, in_size, arch_code: bool = None, full: bool = False):
         """
         Get estimated output tensor size
 
         Args:
-            in_size: input image shape at the highest resolutoin level
-            full: full ram cost usage with all probability of 1
+            in_size: input image shape (5D) at the highest resolutoin level.
+            arch_code: architecture code , if None, the ram is calculated using probability.
+            full: full ram cost usage with all probability of 1.
         """
         # convert input image size to feature map size at each level
         b, c, h, w, s = in_size
@@ -494,9 +502,6 @@ class DintsSearchSpace(nn.Module):
         if full:
             arch_code_prob_a = arch_code_prob_a.detach()
             arch_code_prob_a.fill_(1)
-            if cell_ram_cost:
-                cell_prob = cell_prob.detach()
-                cell_prob.fill_(1 / self.cell_ops)
         ram_cost = torch.from_numpy(self.ram_cost).to(torch.float32).cuda()
         usage = 0
         for blk_idx in range(self.num_blocks):
@@ -520,6 +525,8 @@ class DintsSearchSpace(nn.Module):
     def get_topology_entropy(self, probs: float):
         """
         Get topology entropy loss
+        Args:
+            probs: path activation probabilities
         """
         if hasattr(self, "node2in"):
             node2in = self.node2in
@@ -676,7 +683,6 @@ class DintsSearchSpace(nn.Module):
         Args:
             x: input tensor.
             arch_code: [node_a, arch_code_a, arch_code_c].
-            out_pos: the indices of scales for final output.
         """
         # sample path weights
         predict_all = []
