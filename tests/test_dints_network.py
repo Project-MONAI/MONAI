@@ -18,7 +18,7 @@ from parameterized import parameterized
 from monai.networks.nets import DiNTS, DintsSearchSpace
 
 TEST_CASES_3D = [
-    [   
+    [
         {
             "channel_mul": 1,
             "num_blocks": 6,
@@ -31,7 +31,7 @@ TEST_CASES_3D = [
             "num_classes": 3,
             "act_name": 'RELU',
             "norm_name": 'INSTANCE',
-            "use_downsample": False,            
+            "use_downsample": False,
         },
         (7, 1, 32, 32, 16),
         (7, 3, 32, 32, 16),
@@ -49,7 +49,7 @@ TEST_CASES_3D = [
             "num_classes": 2,
             "act_name": 'PRELU',
             "norm_name": 'BATCH',
-            "use_downsample": True,            
+            "use_downsample": True,
         },
         (7, 2, 32, 32, 16),
         (7, 2, 32, 32, 16),
