@@ -346,6 +346,7 @@ class DintsSearchSpace(nn.Module):
         num_blocks: int = 6,
         num_depths: int = 3,
         use_downsample: bool = False,
+        device: str = 'cuda'
     ):
         """
         Initialize Dints network search space
@@ -365,6 +366,7 @@ class DintsSearchSpace(nn.Module):
             num_depths: number of image resolutions of the Dints search space: 1, 1/2, 1/4 ... in each dimention.
             use_downsample: use downsample in the stem. If False, the search space will be in resolution [1, 1/2, 1/4, 1/8],
                             if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
+            device: 'cpu', 'cuda', or device ID.
 
         Predefined variables:
             filter_nums: default init 32. Double channel number after downsample
@@ -413,7 +415,7 @@ class DintsSearchSpace(nn.Module):
         self.num_blocks = num_blocks
         self.num_depths = num_depths
         self.use_downsample = use_downsample
-
+        self.device = device
         # define NAS search space
         if arch_code is None:
             arch_code_a = np.ones((num_blocks, len(arch_code2out)))
@@ -443,10 +445,10 @@ class DintsSearchSpace(nn.Module):
 
         # define cell and macro arhitecture probabilities
         self.log_alpha_c = nn.Parameter(
-            torch.zeros(num_blocks, len(arch_code2out), cell_ops).normal_(1, 0.01).cuda().requires_grad_()
+            torch.zeros(num_blocks, len(arch_code2out), cell_ops).normal_(1, 0.01).to(self.device).requires_grad_()
         )
         self.log_alpha_a = nn.Parameter(
-            torch.zeros(num_blocks, len(arch_code2out)).normal_(0, 0.01).cuda().requires_grad_()
+            torch.zeros(num_blocks, len(arch_code2out)).normal_(0, 0.01).to(self.device).requires_grad_()
         )
         self._arch_param_names = ["log_alpha_a", "log_alpha_c"]
 
@@ -466,7 +468,7 @@ class DintsSearchSpace(nn.Module):
         arch_code_prob_a = _arch_code_prob_a / norm.unsqueeze(1)
         if child:
             probs_a = []
-            path_activation = torch.from_numpy(self.child_list).cuda()
+            path_activation = torch.from_numpy(self.child_list).to(self.device)
             for blk_idx in range(self.num_blocks):
                 probs_a.append(
                     (
@@ -496,13 +498,13 @@ class DintsSearchSpace(nn.Module):
             sizes.append(
                 b * self.filter_nums[res_idx] * h // (2 ** res_idx) * w // (2 ** res_idx) * s // (2 ** res_idx)
             )
-        sizes = torch.tensor(sizes).to(torch.float32).cuda() // (2 ** (int(self.use_downsample)))
+        sizes = torch.tensor(sizes).to(torch.float32).to(self.device) // (2 ** (int(self.use_downsample)))
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
         cell_prob = F.softmax(self.log_alpha_c, dim=-1)
         if full:
             arch_code_prob_a = arch_code_prob_a.detach()
             arch_code_prob_a.fill_(1)
-        ram_cost = torch.from_numpy(self.ram_cost).to(torch.float32).cuda()
+        ram_cost = torch.from_numpy(self.ram_cost).to(torch.float32).to(self.device)
         usage = 0
         for blk_idx in range(self.num_blocks):
             # node activation for input
