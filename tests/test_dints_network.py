@@ -19,12 +19,26 @@ from monai.networks.nets import DiNTS
 
 TEST_CASES_3D = [
     [
-        {"in_channels": 1, "num_classes": 3, "channel_mul": 1, "num_blocks": 6, "num_depths": 3, "use_downsample": False},
+        {
+            "in_channels": 1,
+            "num_classes": 3,
+            "channel_mul": 1,
+            "num_blocks": 6,
+            "num_depths": 3,
+            "use_downsample": False,
+        },
         (7, 1, 32, 32, 16),
         (7, 3, 32, 32, 16),
     ],
     [
-        {"in_channels": 1, "num_classes": 4, "channel_mul": 0.5, "num_blocks": 7, "num_depths": 4, "use_downsample": True},
+        {
+            "in_channels": 1,
+            "num_classes": 4,
+            "channel_mul": 0.5,
+            "num_blocks": 7,
+            "num_depths": 4,
+            "use_downsample": True,
+        },
         (7, 1, 32, 32, 16),
         (7, 4, 32, 32, 16),
     ],

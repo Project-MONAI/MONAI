@@ -137,6 +137,7 @@ class Cell(nn.Module):
         s = self.op(s, ops, weight)
         return s
 
+
 class Stem(nn.Module):
     """
     The pre-defined stem module for: 1) input downsample 2) output upsample to original size
@@ -151,17 +152,20 @@ class Stem(nn.Module):
         norm_name: normalization name
         padding: convolution padding size
     """
-    def __init__(self,
-                 in_channels: int,
-                 num_classes: int,
-                 filter_nums: list,
-                 num_depths: int,
-                 spatial_dims: int,
-                 act_name: Union[Tuple, str] = "RELU",
-                 use_downsample: bool =True,
-                 kernel_size:int = 3,
-                 norm_name: Union[Tuple, str] = "INSTANCE",
-                 padding:int = 1):
+
+    def __init__(
+        self,
+        in_channels: int,
+        num_classes: int,
+        filter_nums: list,
+        num_depths: int,
+        spatial_dims: int,
+        act_name: Union[Tuple, str] = "RELU",
+        use_downsample: bool = True,
+        kernel_size: int = 3,
+        norm_name: Union[Tuple, str] = "INSTANCE",
+        padding: int = 1,
+    ):
         super().__init__()
         # define stem operations for every block
         conv_type = Conv[Conv.CONV, spatial_dims]
@@ -266,8 +270,10 @@ class Stem(nn.Module):
                     get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=filter_nums[res_idx - 1]),
                     nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
                 )
+
     def forward():
         pass
+
 
 class DiNTS(nn.Module):
     def __init__(
@@ -350,8 +356,16 @@ class DiNTS(nn.Module):
         self.use_downsample = use_downsample
 
         # define stem operations for every block
-        stem = stem(in_channels=in_channels, num_classes=num_classes, filter_nums=filter_nums, num_depths=num_depths,
-                         spatial_dims=spatial_dims, act_name=act_name, use_downsample=use_downsample, norm_name=norm_name)
+        stem = stem(
+            in_channels=in_channels,
+            num_classes=num_classes,
+            filter_nums=filter_nums,
+            num_depths=num_depths,
+            spatial_dims=spatial_dims,
+            act_name=act_name,
+            use_downsample=use_downsample,
+            norm_name=norm_name,
+        )
         self.stem_up = stem.stem_up
         self.stem_down = stem.stem_down
         self.stem_finals = stem.stem_finals

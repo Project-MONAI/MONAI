@@ -13,24 +13,31 @@ import unittest
 
 import torch
 from parameterized import parameterized
+
 from monai.networks.nets.dints import MixedOp
 
 TEST_CASES_3D = [
-    [{'c':8, 'arch_code_c': None},
-     torch.tensor([1, 1, 1, 1, 1]),
-     [1, 1, 1, 1, 1],
-     (2, 8, 32, 16, 8),
-     (2, 8, 32, 16, 8)],
-    [{'c':8, 'arch_code_c': [1, 1, 0, 0, 1]},
-     torch.tensor([1, 1, 0, 0, 1]),
-     [1, 0.2, 1.3, 0, 1],
-     (2, 8, 64, 32, 16),
-     (2, 8, 64, 32, 16)],
-    [{'c':8, 'arch_code_c': None},
-     torch.tensor([1, 1, 1, 1, 1]),
-     [0, 0, 0, 1, 0],
-     (2, 8, 32, 16, 8),
-     (2, 8, 32, 16, 8)],
+    [
+        {"c": 8, "arch_code_c": None},
+        torch.tensor([1, 1, 1, 1, 1]),
+        [1, 1, 1, 1, 1],
+        (2, 8, 32, 16, 8),
+        (2, 8, 32, 16, 8),
+    ],
+    [
+        {"c": 8, "arch_code_c": [1, 1, 0, 0, 1]},
+        torch.tensor([1, 1, 0, 0, 1]),
+        [1, 0.2, 1.3, 0, 1],
+        (2, 8, 64, 32, 16),
+        (2, 8, 64, 32, 16),
+    ],
+    [
+        {"c": 8, "arch_code_c": None},
+        torch.tensor([1, 1, 1, 1, 1]),
+        [0, 0, 0, 1, 0],
+        (2, 8, 32, 16, 8),
+        (2, 8, 32, 16, 8),
+    ],
 ]
 
 
@@ -40,6 +47,7 @@ class TestP3D(unittest.TestCase):
         net = MixedOp(**input_param)
         result = net(torch.randn(input_shape), ops=ops, weight=weight)
         self.assertEqual(result.shape, expected_shape)
+
 
 if __name__ == "__main__":
     unittest.main()
