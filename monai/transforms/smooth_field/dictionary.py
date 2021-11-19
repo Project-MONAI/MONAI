@@ -18,6 +18,7 @@ from monai.config import KeysCollection
 from monai.transforms.smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity
 from monai.transforms.transform import MapTransform, RandomizableTransform, Transform
 from monai.utils import InterpolateMode
+from monai.utils.enums import TransformBackends
 
 __all__ = ["RandSmoothFieldAdjustContrastd", "RandSmoothFieldAdjustIntensityd"]
 
@@ -38,6 +39,8 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         gamma: (min, max) range for exponential field
         apply_same_field: if True, apply the same field to each key, otherwise randomize individually
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -111,6 +114,8 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         gamma: (min, max) range of intensity multipliers
         apply_same_field: if True, apply the same field to each key, otherwise randomize individually
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,

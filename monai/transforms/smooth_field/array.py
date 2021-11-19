@@ -20,6 +20,7 @@ from monai.transforms.spatial.array import Resize
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import rescale_array
 from monai.utils import InterpolateMode, ensure_tuple
+from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = ["SmoothField", "RandSmoothFieldAdjustContrast", "RandSmoothFieldAdjustIntensity"]
@@ -85,6 +86,8 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         prob: probability transform is applied
         gamma: (min, max) range for exponential field
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -162,6 +165,8 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         prob: probability transform is applied
         gamma: (min, max) range of intensity multipliers
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
