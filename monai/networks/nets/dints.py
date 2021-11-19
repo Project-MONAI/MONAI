@@ -290,9 +290,6 @@ class Stem(nn.Module):
                     nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
                 )
 
-    def forward():
-        pass
-
 
 class DiNTS(nn.Module):
     def __init__(
