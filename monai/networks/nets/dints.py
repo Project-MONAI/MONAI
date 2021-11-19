@@ -86,7 +86,14 @@ ConnOPS = {
 
 
 class MixedOp(nn.Module):
-    def __init__(self, c, arch_code_c=None):
+    """
+    The class is for combining results from different operations.
+    Args:
+        c: output channel number.
+        arch_code_c: binary architecture code for input operations, and it decides which operations are utilized for output.
+    """
+
+    def __init__(self, c: int, arch_code_c=None):
         super().__init__()
         self._ops = nn.ModuleList()
         if arch_code_c is None:
@@ -99,7 +106,12 @@ class MixedOp(nn.Module):
                     op = OPS[_](c)
                 self._ops.append(op)
 
-    def forward(self, x, ops=None, weight: float = None):
+    def forward(self, x, ops=None, weight=None):
+        """
+        Args:
+            ops: binary array to determine which operation/edge in DiNTS is activated.
+            weight: weights for different operations.
+        """
         pos = (ops == 1).nonzero()
         result = 0
         for _ in pos:
