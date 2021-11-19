@@ -12,42 +12,45 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
-from tests.utils import assert_allclose, is_tf32_env
+from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
 
 _rtol = 5e-3 if is_tf32_env() else 1e-4
 
 INPUT_SHAPE1 = (1, 8, 8)
 INPUT_SHAPE2 = (2, 8, 8)
 
-TESTS_CONTRAST = [
-    (
-        {"keys": ("test",), "spatial_size": INPUT_SHAPE1[1:], "rand_size": (4, 4), "prob": 1.0},
-        {"test": np.ones(INPUT_SHAPE1, np.float32)},
-        {"test": np.ones(INPUT_SHAPE1, np.float32)},
-    ),
-    (
-        {"keys": ("test",), "spatial_size": INPUT_SHAPE2[1:], "rand_size": (4, 4), "prob": 1.0},
-        {"test": np.ones(INPUT_SHAPE2, np.float32)},
-        {"test": np.ones(INPUT_SHAPE2, np.float32)},
-    ),
-]
+TESTS_CONTRAST = []
+TESTS_INTENSITY = []
 
-TESTS_INTENSITY = [
-    (
-        {"keys": ("test",), "spatial_size": INPUT_SHAPE1[1:], "rand_size": (4, 4), "prob": 1.0, "gamma": (1, 1)},
-        {"test": np.ones(INPUT_SHAPE1, np.float32)},
-        {"test": np.ones(INPUT_SHAPE1, np.float32)},
-    ),
-    (
-        {"keys": ("test",), "spatial_size": INPUT_SHAPE2[1:], "rand_size": (4, 4), "prob": 1.0, "gamma": (1, 1)},
-        {"test": np.ones(INPUT_SHAPE2, np.float32)},
-        {"test": np.ones(INPUT_SHAPE2, np.float32)},
-    ),
-]
+for p in TEST_NDARRAYS:
+    TESTS_CONTRAST += [
+        (
+            {"keys": ("test",), "spatial_size": INPUT_SHAPE1[1:], "rand_size": (4, 4), "prob": 1.0},
+            {"test": p(np.ones(INPUT_SHAPE1, np.float32))},
+            {"test": p(np.ones(INPUT_SHAPE1, np.float32))},
+        ),
+        (
+            {"keys": ("test",), "spatial_size": INPUT_SHAPE2[1:], "rand_size": (4, 4), "prob": 1.0},
+            {"test": p(np.ones(INPUT_SHAPE2, np.float32))},
+            {"test": p(np.ones(INPUT_SHAPE2, np.float32))},
+        ),
+    ]
+
+    TESTS_INTENSITY += [
+        (
+            {"keys": ("test",), "spatial_size": INPUT_SHAPE1[1:], "rand_size": (4, 4), "prob": 1.0, "gamma": (1, 1)},
+            {"test": p(np.ones(INPUT_SHAPE1, np.float32))},
+            {"test": p(np.ones(INPUT_SHAPE1, np.float32))},
+        ),
+        (
+            {"keys": ("test",), "spatial_size": INPUT_SHAPE2[1:], "rand_size": (4, 4), "prob": 1.0, "gamma": (1, 1)},
+            {"test": p(np.ones(INPUT_SHAPE2, np.float32))},
+            {"test": p(np.ones(INPUT_SHAPE2, np.float32))},
+        ),
+    ]
 
 
 class TestSmoothField(unittest.TestCase):

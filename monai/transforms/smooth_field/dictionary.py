@@ -16,7 +16,7 @@ import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms.smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity
-from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform, Transform
+from monai.transforms.transform import MapTransform, RandomizableTransform, Transform
 from monai.utils import InterpolateMode
 
 __all__ = ["RandSmoothFieldAdjustContrastd", "RandSmoothFieldAdjustIntensityd"]
@@ -54,7 +54,15 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         MapTransform.__init__(self, keys)
 
-        self.trans = RandSmoothFieldAdjustContrast(spatial_size, rand_size, padder, mode, align_corners, 1.0, gamma)
+        self.trans = RandSmoothFieldAdjustContrast(
+            spatial_size=spatial_size,
+            rand_size=rand_size,
+            padder=padder,
+            mode=mode,
+            align_corners=align_corners,
+            prob=1.0,
+            gamma=gamma,
+        )
         self.apply_same_field = apply_same_field
 
     def set_random_state(
@@ -66,7 +74,9 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
-        self.trans.randomize()
+
+        if self._do_transform:
+            self.trans.randomize()
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         self.randomize()
@@ -117,7 +127,15 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         MapTransform.__init__(self, keys)
 
-        self.trans = RandSmoothFieldAdjustIntensity(spatial_size, rand_size, padder, mode, align_corners, 1.0, gamma)
+        self.trans = RandSmoothFieldAdjustIntensity(
+            spatial_size=spatial_size,
+            rand_size=rand_size,
+            padder=padder,
+            mode=mode,
+            align_corners=align_corners,
+            prob=1.0,
+            gamma=gamma,
+        )
         self.apply_same_field = apply_same_field
 
     def set_random_state(

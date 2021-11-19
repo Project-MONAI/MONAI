@@ -20,6 +20,7 @@ from monai.transforms.spatial.array import Resize
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import rescale_array
 from monai.utils import InterpolateMode, ensure_tuple
+from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = ["SmoothField", "RandSmoothFieldAdjustContrast", "RandSmoothFieldAdjustIntensity"]
 
@@ -135,14 +136,16 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         img_rng = img_max - img_min
 
         field = self.sfield()
-        field = np.repeat(field, img.shape[0], 0)
+        field, *_ = convert_to_dst_type(field, img)
 
-        img = (img - img_min) / max(img_rng, 1e-10)
+        img = (img - img_min) / max(img_rng, 1e-10)  # rescale to unit values
         img = img ** field  # contrast is changed by raising image data to a power, in this case the field
 
-        out = (img * img_rng) + img_min
+        out = (img * img_rng) + img_min  # rescale back to the original image value range
 
-        return out.astype(img.dtype)
+        out, *_ = convert_to_dst_type(out, img, img.dtype)
+
+        return out
 
 
 class RandSmoothFieldAdjustIntensity(RandomizableTransform):
@@ -210,8 +213,9 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         img_max = img.max()
 
         field = self.sfield()
-        rfield = np.repeat(field, img.shape[0], 0)
+        rfield, *_ = convert_to_dst_type(field, img)
 
         out = img * rfield
+        out, *_ = convert_to_dst_type(out, img, img.dtype)
 
-        return out.astype(img.dtype)
+        return out
