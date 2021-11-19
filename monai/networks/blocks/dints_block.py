@@ -23,7 +23,7 @@ __all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DReLUConvNormB
 
 class FactorizedIncreaseBlock(nn.Module):
     """
-    Up-sampling the feature by 2 using stride.
+    Up-sampling the features by 2 using linear interpolation and convolutions.
     """
 
     def __init__(
@@ -64,6 +64,7 @@ class FactorizedIncreaseBlock(nn.Module):
 class FactorizedReduceBlock(nn.Module):
     """
     Down-sampling the feature by 2 using stride.
+    The length along each spatial dimension must be a multiple of 2.
     """
 
     def __init__(

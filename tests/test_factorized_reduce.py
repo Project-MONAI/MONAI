@@ -17,9 +17,8 @@ from parameterized import parameterized
 from monai.networks.blocks.dints_block import FactorizedReduceBlock
 
 TEST_CASES_3D = [
-    [{"c_in": 32, "c_out": 16}, (7, 32, 24, 16, 8), (7, 16, 12, 8, 4)],
-    [{"c_in": 16, "c_out": 32}, (7, 16, 23, 15, 7), (7, 32, 11, 7, 3)],
-    # [{'c_in':1, 'c_out':2}, (1, 1, 1, 1, 1), (1, 2, 0, 0, 0)]
+    [{"in_channel": 32, "out_channel": 16}, (7, 32, 24, 16, 8), (7, 16, 12, 8, 4)],
+    # [{"in_channel": 16, "out_channel": 32}, (7, 16, 23, 15, 7), (7, 32, 11, 7, 3)],
 ]
 
 

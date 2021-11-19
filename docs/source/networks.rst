@@ -188,6 +188,26 @@ Blocks
 .. autoclass:: PatchEmbeddingBlock
     :members:
 
+`FactorizedIncreaseBlock`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FactorizedIncreaseBlock
+    :members:
+
+`FactorizedReduceBlock`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FactorizedReduceBlock
+    :members:
+
+`P3DReLUConvNormBlock`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: P3DReLUConvNormBlock
+    :members:
+
+`ReLUConvNormBlock`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ReLUConvNormBlock
+    :members:
+
 `Warp`
 ~~~~~~
 .. autoclass:: Warp
