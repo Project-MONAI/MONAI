@@ -47,7 +47,7 @@ TEST_CASES_3D = [
 
 class TestP3D(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D)
-    def test_factorized_increase_3d(self, input_param, input_shape, expected_shape):
+    def test_3d(self, input_param, input_shape, expected_shape):
         net = P3DActiConvNormBlock(**input_param)
         result = net(torch.randn(input_shape))
         self.assertEqual(result.shape, expected_shape)
