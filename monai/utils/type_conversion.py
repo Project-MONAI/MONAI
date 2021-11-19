@@ -108,7 +108,7 @@ def convert_to_tensor(
 
     Args:
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
+            will convert Tensor, Numpy array, float, int, bool to Tensor, strings and objects keep the original.
             for dictionary, list or tuple, convert every item to a Tensor if applicable.
         dtype: target data type to when converting to Tensor.
         device: target device to put the converted Tensor data.
@@ -175,7 +175,7 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
     return data
 
 
-def convert_to_cupy(data, dtype, wrap_sequence: bool = True):
+def convert_to_cupy(data, dtype, wrap_sequence: bool = False):
     """
     Utility to convert the input data to a cupy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to cupy array.

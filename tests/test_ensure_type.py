@@ -59,12 +59,12 @@ class TestEnsureType(unittest.TestCase):
 
     def test_list_tuple(self):
         for dtype in ("tensor", "numpy"):
-            result = EnsureType(data_type=dtype)([[1, 2], [3, 4]])
+            result = EnsureType(data_type=dtype, wrap_sequence=False)([[1, 2], [3, 4]])
             self.assertTrue(isinstance(result, list))
             self.assertTrue(isinstance(result[0][1], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result[1][0], torch.as_tensor(3))
             # tuple of numpy arrays
-            result = EnsureType(data_type=dtype)((np.array([1, 2]), np.array([3, 4])))
+            result = EnsureType(data_type=dtype, wrap_sequence=False)((np.array([1, 2]), np.array([3, 4])))
             self.assertTrue(isinstance(result, tuple))
             self.assertTrue(isinstance(result[0], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result[1], torch.as_tensor([3, 4]))
