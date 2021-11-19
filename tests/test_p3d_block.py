@@ -17,24 +17,58 @@ from parameterized import parameterized
 from monai.networks.blocks.dints_block import P3DActiConvNormBlock
 
 TEST_CASES_3D = [
-    [{"c_in": 32, "c_out": 16, "kernel_size": 3, "padding": 0, "p3dmode": 0}, (7, 32, 16, 32, 8), (7, 16, 14, 30, 6)],
     [
-        {"c_in": 32, "c_out": 16, "kernel_size": 3, "padding": 1, "p3dmode": 0},  # check padding
+        {"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 0, "mode": 0},
+        (7, 32, 16, 32, 8),
+        (7, 16, 14, 30, 6),
+    ],
+    [
+        {"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 1, "mode": 0},  # check padding
         (7, 32, 16, 32, 8),
         (7, 16, 16, 32, 8),
     ],
-    [{"c_in": 32, "c_out": 16, "kernel_size": 3, "padding": 0, "p3dmode": 1}, (7, 32, 16, 32, 8), (7, 16, 14, 30, 6)],
-    [{"c_in": 32, "c_out": 16, "kernel_size": 3, "padding": 0, "p3dmode": 2}, (7, 32, 16, 32, 8), (7, 16, 14, 30, 6)],
-    [{"c_in": 32, "c_out": 16, "kernel_size": 4, "padding": 0, "p3dmode": 0}, (7, 32, 16, 32, 8), (7, 16, 13, 29, 5)],
+    [
+        {"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 0, "mode": 1},
+        (7, 32, 16, 32, 8),
+        (7, 16, 14, 30, 6),
+    ],
+    [
+        {
+            "in_channel": 32,
+            "out_channel": 16,
+            "kernel_size": 3,
+            "padding": 0,
+            "mode": 2,
+            "act_name": ("leakyrelu", {"inplace": True, "negative_slope": 0.2}),
+        },
+        (7, 32, 16, 32, 8),
+        (7, 16, 14, 30, 6),
+    ],
+    [
+        {
+            "in_channel": 32,
+            "out_channel": 16,
+            "kernel_size": 4,
+            "padding": 0,
+            "mode": 0,
+            "norm_name": ("INSTANCE", {"affine": True}),
+        },
+        (7, 32, 16, 32, 8),
+        (7, 16, 13, 29, 5),
+    ],
 ]
 
 
 class TestP3D(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D)
-    def test_factorized_increase_3d(self, input_param, input_shape, expected_shape):
+    def test_3d(self, input_param, input_shape, expected_shape):
         net = P3DActiConvNormBlock(**input_param)
         result = net(torch.randn(input_shape))
         self.assertEqual(result.shape, expected_shape)
+
+    def test_ill(self):
+        with self.assertRaises(ValueError):
+            P3DActiConvNormBlock(in_channel=32, out_channel=16, kernel_size=3, padding=0, mode=3)
 
 
 if __name__ == "__main__":
