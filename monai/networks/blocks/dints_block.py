@@ -18,12 +18,12 @@ import torch.nn as nn
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
-__all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DReLUConvNormBlock", "ReLUConvNormBlock"]
+__all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DActiConvNormBlock", "ActiConvNormBlock"]
 
 
 class FactorizedIncreaseBlock(nn.Module):
     """
-    Up-sampling the features by 2 using linear interpolation and convolutions.
+    Up-sampling the features by two using linear interpolation and convolutions.
     """
 
     def __init__(
@@ -34,6 +34,14 @@ class FactorizedIncreaseBlock(nn.Module):
         act_name: Union[Tuple, str] = "RELU",
         norm_name: Union[Tuple, str] = "INSTANCE",
     ):
+        """
+        Args:
+            in_channel: number of input channels
+            out_channel: number of output channels
+            spatial_dims: number of spatial dimensions
+            act_name: activation layer type and arguments.
+            norm_name: feature normalization type and arguments.
+        """
         super().__init__()
         self._in_channel = in_channel
         self._out_channel = out_channel
@@ -75,6 +83,14 @@ class FactorizedReduceBlock(nn.Module):
         act_name: Union[Tuple, str] = "RELU",
         norm_name: Union[Tuple, str] = "INSTANCE",
     ):
+        """
+        Args:
+            in_channel: number of input channels
+            out_channel: number of output channels.
+            spatial_dims: number of spatial dimensions.
+            act_name: activation layer type and arguments.
+            norm_name: feature normalization type and arguments.
+        """
         super().__init__()
         self._in_channel = in_channel
         self._out_channel = out_channel
@@ -106,27 +122,48 @@ class FactorizedReduceBlock(nn.Module):
         self.norm = get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel)
 
     def forward(self, x):
+        """
+        The length along each spatial dimension must be a multiple of 2.
+        """
         x = self.act(x)
         out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:, 1:])], dim=1)
         out = self.norm(out)
         return out
 
 
-class P3DReLUConvNormBlock(nn.Module):
+class P3DActiConvNormBlock(nn.Module):
+    """
+    -- (act) -- (conv) -- (norm) --
+    """
     def __init__(
         self,
         in_channel: int,
         out_channel: int,
         kernel_size: int,
         padding: int,
-        p3dmode: int = 0,
+        mode: int = 0,
         act_name: Union[Tuple, str] = "RELU",
         norm_name: Union[Tuple, str] = "INSTANCE",
     ):
+        """
+        Args:
+            in_channel: number of input channels.
+            out_channel: number of output channels.
+            kernel_size: kernel size to be expanded to 3D.
+            padding: padding size to be expanded to 3D.
+            mode: mode for the anisotropic kernels:
+
+                - 0: ``(k, k, 1)``, ``(1, 1, k)``,
+                - 1: ``(k, 1, k)``, ``(1, k, 1)``,
+                - 2: ``(1, k, k)``. ``(k, 1, 1)``.
+
+            act_name:activation layer type and arguments.
+            norm_name: feature normalization type and arguments.
+        """
         super().__init__()
         self._in_channel = in_channel
         self._out_channel = out_channel
-        self._p3dmode = p3dmode
+        self._p3dmode = int(mode)
 
         conv_type = Conv[Conv.CONV, 3]
 
@@ -145,6 +182,8 @@ class P3DReLUConvNormBlock(nn.Module):
             kernel_size1 = (kernel_size, 1, 1)
             padding0 = (0, padding, padding)
             padding1 = (padding, 0, 0)
+        else:
+            raise ValueError("`mode` must be 0, 1, or 2.")
 
         self.op = nn.Sequential(
             get_act_layer(name=act_name),
@@ -175,7 +214,10 @@ class P3DReLUConvNormBlock(nn.Module):
         return self.op(x)
 
 
-class ReLUConvNormBlock(nn.Module):
+class ActiConvNormBlock(nn.Sequential):
+    """
+    -- (Acti) -- (Conv) -- (Norm) --
+    """
     def __init__(
         self,
         in_channel: int,
@@ -186,6 +228,16 @@ class ReLUConvNormBlock(nn.Module):
         act_name: Union[Tuple, str] = "RELU",
         norm_name: Union[Tuple, str] = "INSTANCE",
     ):
+        """
+        Args:
+            in_channel: number of input channels.
+            out_channel: number of output channels.
+            kernel_size: kernel size of the convolution.
+            padding: padding size of the convolution.
+            spatial_dims: number of spatial dimensions.
+            act_name: activation layer type and arguments.
+            norm_name: feature normalization type and arguments.
+        """
         super().__init__()
         self._in_channel = in_channel
         self._out_channel = out_channel
