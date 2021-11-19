@@ -19,10 +19,7 @@ from parameterized import parameterized
 from monai.transforms import SaveImaged
 
 TEST_CASE_1 = [
-    {
-        "img": torch.randint(0, 255, (1, 2, 3, 4)),
-        "img_meta_dict": {"filename_or_obj": "testfile0.nii.gz"},
-    },
+    {"img": torch.randint(0, 255, (1, 2, 3, 4)), "img_meta_dict": {"filename_or_obj": "testfile0.nii.gz"}},
     ".nii.gz",
     False,
 ]
