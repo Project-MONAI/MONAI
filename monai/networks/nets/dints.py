@@ -160,10 +160,10 @@ class Cell(nn.Module):
 class DiNTS(nn.Module):
     """
     Reimplementation of Dints based on `DiNTS: Differentiable Neural Network Topology Search for 3D Medical Image Segmentation
-    https://arxiv.org/abs/2103.15954`.  The model contains a pre-defined stem block (defined in this class) and a 
-    dints search space (defined in class DintsSearchSpace). The model downsamples the input image by 2 (if use_downsample is True). 
-    The downsampled image is downsampled by [1, 2, 4, 8] times (num_depths=4) and used as input to the grid search space. 
-    The grid search space contains multi-path topology search and cell level search. 
+    https://arxiv.org/abs/2103.15954`.  The model contains a pre-defined stem block (defined in this class) and a
+    dints search space (defined in class DintsSearchSpace). The model downsamples the input image by 2 (if use_downsample is True).
+    The downsampled image is downsampled by [1, 2, 4, 8] times (num_depths=4) and used as input to the grid search space.
+    The grid search space contains multi-path topology search and cell level search.
     The network only supports 3D inputs. To meet the requirements of the structure, the input size for each spatial dimension
     should be: divisible by 2 ** (num_depths + 1).
     The pre-defined stem module for: 1) input downsample 2) output upsample to original size
@@ -306,7 +306,7 @@ class DiNTS(nn.Module):
         Args:
             x: input tensor.
             arch_code: [node_a, arch_code_a, arch_code_c]. arch_code_a and arch_code_c are torch.tensor, which are
-                       used in the forward() of self.dints_space. 
+                       used in the forward() of self.dints_space.
         """
         predict_all = []
         node_a, _, _ = arch_code
@@ -356,11 +356,11 @@ class DintsSearchSpace(nn.Module):
             cell: operation of each node.
             cell_ops: cell operation numbers, should match the number of operations defined in cell.
             arch_code: [node_a, arch_code_a, arch_code_c] decoded using self.decode(). For num_depths=4, num_blocks=12
-                       search space, node_a is a 4x13 binary matrix representing if a feature node is activated. 
+                       search space, node_a is a 4x13 binary matrix representing if a feature node is activated.
                        arch_code_a is a 12x10 (10 pathes) binary matrix representing if a path is activated.
                        arch_code_c is a 12x10x5 (5 operatiosn) binary matrix representing if a cell operation is used.
                        arch_code in __init__() is used for creating the network and remove unused network blocks. If None,
-                       all  pathes and cells operations will be used. The forward pass also requires arch_code, which is 
+                       all  pathes and cells operations will be used. The forward pass also requires arch_code, which is
                        used for controlling the actual feature flow.
             num_blocks: number of blocks (depth in the horizontal direction) of the Dints search space.
             num_depths: number of image resolutions of the Dints search space: 1, 1/2, 1/4 ... in each dimention.
@@ -457,7 +457,7 @@ class DintsSearchSpace(nn.Module):
 
     def get_prob_a(self, child: bool = False):
         """
-        Get final path probabilities and child model weights from architecture weights log_alpha_a for 
+        Get final path probabilities and child model weights from architecture weights log_alpha_a for
         architecture sampling.
         Args:
             child: return child probability (used in decode)

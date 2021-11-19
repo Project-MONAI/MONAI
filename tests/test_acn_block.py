@@ -14,18 +14,22 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.blocks.dints_block import FactorizedReduceBlock
+from monai.networks.blocks.dints_block import ActiConvNormBlock
 
-TEST_CASES_3D = [
-    [{"in_channel": 32, "out_channel": 16}, (7, 32, 24, 16, 8), (7, 16, 12, 8, 4)],
-    [{"in_channel": 16, "out_channel": 32}, (7, 16, 22, 14, 6), (7, 32, 11, 7, 3)],
+TEST_CASES = [
+    [{"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 1}, (7, 32, 16, 31, 7), (7, 16, 16, 31, 7)],
+    [
+        {"in_channel": 32, "out_channel": 16, "kernel_size": 3, "padding": 1, "spatial_dims": 2},
+        (7, 32, 13, 32),
+        (7, 16, 13, 32),
+    ],
 ]
 
 
-class TestFactRed(unittest.TestCase):
-    @parameterized.expand(TEST_CASES_3D)
-    def test_factorized_reduce_3d(self, input_param, input_shape, expected_shape):
-        net = FactorizedReduceBlock(**input_param)
+class TestACNBlock(unittest.TestCase):
+    @parameterized.expand(TEST_CASES)
+    def test_acn_block(self, input_param, input_shape, expected_shape):
+        net = ActiConvNormBlock(**input_param)
         result = net(torch.randn(input_shape))
         self.assertEqual(result.shape, expected_shape)
 
