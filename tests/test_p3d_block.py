@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.blocks.dints_block import P3DReLUConvNormBlock
+from monai.networks.blocks.dints_block import P3DActiConvNormBlock
 
 TEST_CASES_3D = [
     [{"c_in": 32, "c_out": 16, "kernel_size": 3, "padding": 0, "p3dmode": 0}, (7, 32, 16, 32, 8), (7, 16, 14, 30, 6)],
@@ -32,7 +32,7 @@ TEST_CASES_3D = [
 class TestP3D(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D)
     def test_factorized_increase_3d(self, input_param, input_shape, expected_shape):
-        net = P3DReLUConvNormBlock(**input_param)
+        net = P3DActiConvNormBlock(**input_param)
         result = net(torch.randn(input_shape))
         self.assertEqual(result.shape, expected_shape)
 

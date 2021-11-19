@@ -18,7 +18,7 @@ import torch.nn as nn
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
-__all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DReLUConvNormBlock", "ReLUConvNormBlock"]
+__all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DActiConvNormBlock", "ActiConvNormBlock"]
 
 
 class FactorizedIncreaseBlock(nn.Module):
@@ -112,7 +112,7 @@ class FactorizedReduceBlock(nn.Module):
         return out
 
 
-class P3DReLUConvNormBlock(nn.Module):
+class P3DActiConvNormBlock(nn.Module):
     def __init__(
         self,
         in_channel: int,
@@ -175,7 +175,7 @@ class P3DReLUConvNormBlock(nn.Module):
         return self.op(x)
 
 
-class ReLUConvNormBlock(nn.Module):
+class ActiConvNormBlock(nn.Module):
     def __init__(
         self,
         in_channel: int,

@@ -17,10 +17,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.blocks.dints_block import (
+    ActiConvNormBlock,
     FactorizedIncreaseBlock,
     FactorizedReduceBlock,
-    P3DReLUConvNormBlock,
-    ReLUConvNormBlock,
+    P3DActiConvNormBlock,
 )
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
@@ -34,13 +34,13 @@ class _IdentityWithRAMCost(nn.Identity):
         self.ram_cost = 0
 
 
-class _ReLUConvNormBlockWithRAMCost(ReLUConvNormBlock):
+class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int):
         super().__init__(in_channel, out_channel, kernel_size, padding)
         self.ram_cost = 1 + out_channel / in_channel * 2
 
 
-class _P3DReLUConvNormBlockWithRAMCost(P3DReLUConvNormBlock):
+class _P3DActiConvNormBlockWithRAMCost(P3DActiConvNormBlock):
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, p3dmode: int = 0):
         super().__init__(in_channel, out_channel, kernel_size, padding, p3dmode)
         self.ram_cost = 1 + 1 + out_channel / in_channel * 2
@@ -69,10 +69,10 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
 # Define Operation Set
 OPS = {
     "skip_connect": lambda c: _IdentityWithRAMCost(),
-    "conv_3x3x3": lambda c: _ReLUConvNormBlockWithRAMCost(c, c, 3, padding=1),
-    "conv_3x3x1": lambda c: _P3DReLUConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=0),
-    "conv_3x1x3": lambda c: _P3DReLUConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=1),
-    "conv_1x3x3": lambda c: _P3DReLUConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=2),
+    "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1),
+    "conv_3x3x1": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=0),
+    "conv_3x1x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=1),
+    "conv_1x3x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=2),
 }
 
 
@@ -81,7 +81,7 @@ ConnOPS = {
     "up": _FactorizedIncreaseBlockWithRAMCost,
     "down": _FactorizedReduceBlockWithRAMCost,
     "identity": _IdentityWithRAMCost,
-    "align_channels": _ReLUConvNormBlockWithRAMCost,
+    "align_channels": _ActiConvNormBlockWithRAMCost,
 }
 
 

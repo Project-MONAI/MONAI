@@ -198,14 +198,14 @@ Blocks
 .. autoclass:: FactorizedReduceBlock
     :members:
 
-`P3DReLUConvNormBlock`
+`P3DActiConvNormBlock`
 ~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: P3DReLUConvNormBlock
+.. autoclass:: P3DActiConvNormBlock
     :members:
 
-`ReLUConvNormBlock`
+`ActiConvNormBlock`
 ~~~~~~~~~~~~~~~~~~~
-.. autoclass:: ReLUConvNormBlock
+.. autoclass:: ActiConvNormBlock
     :members:
 
 `Warp`
