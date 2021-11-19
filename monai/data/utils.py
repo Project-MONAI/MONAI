@@ -18,7 +18,7 @@ import warnings
 from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
-from itertools import product, starmap
+from itertools import product, starmap, zip_longest
 from pathlib import PurePath
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
@@ -297,7 +297,7 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str) from re
 
 
-def decollate_batch(batch, detach: bool = True):
+def decollate_batch(batch, detach: bool = True, pad_zip=True, fillvalue=None):
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
     Returns a list of structures with the original tensor's 0-th dimension sliced into elements using `torch.unbind`.
@@ -339,6 +339,8 @@ def decollate_batch(batch, detach: bool = True):
         batch: data to be de-collated.
         detach: whether to detach the tensors. Scalars tensors will be detached into number types
             instead of torch tensors.
+        pad_zip: when the items in a batch indicate different batch size, whether to pad up to the longest.
+        fillvalue: when `pad_zip` is True, the `fillvalue` to use when padding.
     """
     if batch is None:
         return batch
@@ -355,6 +357,8 @@ def decollate_batch(batch, detach: bool = True):
         return list(out_list)
     if isinstance(batch, Mapping):
         _dict_list = {key: decollate_batch(batch[key], detach) for key in batch}
+        if pad_zip:
+            return [dict(zip(_dict_list, item)) for item in zip_longest(*_dict_list.values(), fillvalue=fillvalue)]
         return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]
     if isinstance(batch, Iterable):
         item_0 = first(batch)
@@ -367,6 +371,10 @@ def decollate_batch(batch, detach: bool = True):
             # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
             # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
             return [decollate_batch(b, detach) for b in batch]
+        if pad_zip:
+            return [
+                list(item) for item in zip_longest(*(decollate_batch(b, detach) for b in batch), fillvalue=fillvalue)
+            ]
         return [list(item) for item in zip(*(decollate_batch(b, detach) for b in batch))]
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
