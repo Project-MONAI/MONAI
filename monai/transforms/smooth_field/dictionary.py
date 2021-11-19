@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Union
+from typing import Any, Hashable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
