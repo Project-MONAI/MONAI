@@ -128,10 +128,12 @@ class AsDiscreted(MapTransform):
 
     backend = AsDiscrete.backend
 
-    @deprecated_arg("n_classes", since="0.6")
-    @deprecated_arg("num_classes", since="0.7")
-    @deprecated_arg("logit_thresh", since="0.7")
-    @deprecated_arg(name="threshold_values", new_name="threshold", since="0.7")
+    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
+    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
+    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
+    @deprecated_arg(
+        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
+    )
     def __init__(
         self,
         keys: KeysCollection,
@@ -140,10 +142,10 @@ class AsDiscreted(MapTransform):
         threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
-        n_classes: Optional[Union[Sequence[int], int]] = None,
-        num_classes: Optional[Union[Sequence[int], int]] = None,
-        logit_thresh: Union[Sequence[float], float] = 0.5,
-        threshold_values: Union[Sequence[bool], bool] = False,
+        n_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
+        num_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
+        logit_thresh: Union[Sequence[float], float] = 0.5,  # deprecated
+        threshold_values: Union[Sequence[bool], bool] = False,  # deprecated
     ) -> None:
         """
         Args:
@@ -172,7 +174,17 @@ class AsDiscreted(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
+
+        if True in self.to_onehot or False in self.to_onehot:  # backward compatibility
+            warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
+            num_classes = ensure_tuple_rep(num_classes, len(self.keys))
+            self.to_onehot = tuple(val if flag else None for flag, val in zip(self.to_onehot, num_classes))
+
         self.threshold = ensure_tuple_rep(threshold, len(self.keys))
+        if True in self.threshold or False in self.threshold:  # backward compatibility
+            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
+            logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
+            self.threshold = tuple(val if flag else None for flag, val in zip(self.threshold, logit_thresh))
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
