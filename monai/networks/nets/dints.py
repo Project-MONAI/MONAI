@@ -34,8 +34,8 @@ __all__ = ["DiNTS", "DintsSearchSpace"]
 
 
 class _IdentityWithRAMCost(nn.Identity):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.ram_cost = 0
 
 
@@ -71,16 +71,6 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
         self.ram_cost = (1 + out_channel / in_channel / 8 * 3) * 8 * in_channel / out_channel
 
 
-# Define Operation Set parameterized by the number of channels
-OPS = {
-    "skip_connect": lambda c: _IdentityWithRAMCost(),
-    "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1),
-    "conv_3x3x1": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=0),
-    "conv_3x1x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=1),
-    "conv_1x3x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=2),
-}
-
-
 # connection operations
 ConnOPS = {
     "up": _FactorizedIncreaseBlockWithRAMCost,
@@ -96,19 +86,18 @@ class MixedOp(nn.Module):
 
     Args:
         c: output channel number.
-        arch_code_c: torch.tensor，binary architecture code for input operations,
+        ops: a dictionary of operations.
+        arch_code_c: list of binary numbers for input operations,
             it decides which operations are utilized for output.
     """
 
-    def __init__(self, c: int, arch_code_c=None):
+    def __init__(self, c: int, ops: dict, arch_code_c=None):
         super().__init__()
-        self._ops = nn.ModuleList()
         if arch_code_c is None:
-            arch_code_c = np.ones(len(OPS))
-        for idx, op_name in enumerate(OPS):
-            if idx < len(arch_code_c):
-                op = None if arch_code_c[idx] == 0 else OPS[op_name](c)  # type: ignore
-                self._ops.append(op)  # type: ignore
+            arch_code_c = np.ones(len(ops))
+        self._ops = nn.ModuleList()
+        for arch_c, op_name in zip(arch_code_c, ops):
+            self._ops.append(_IdentityWithRAMCost() if arch_c == 0 else ops[op_name](c))
 
     def forward(self, x: torch.Tensor, ops: torch.Tensor, weight: torch.Tensor):
         """
@@ -117,16 +106,12 @@ class MixedOp(nn.Module):
             ops: binary array to determine which operation/edge in DiNTS is activated.
             weight: weights for different operations.
         """
-        pos = (ops == 1).nonzero()
-        result = 0
-        for _ in pos:
-            result += self._ops[_.item()](x) * ops[_.item()] * weight[_.item()]
-        return result
+        return sum(self._ops[idx.item()](x) * ops[idx.item()] * weight[idx.item()] for idx in (ops == 1).nonzero())
 
 
 class Cell(nn.Module):
     """
-    The basic class for cell operation.
+    The basic class for cell operation, contains a preprocessing and a mixed operation.
 
     Args:
         c_prev: number of input channels
@@ -134,6 +119,15 @@ class Cell(nn.Module):
         rate: resolution change rate. `-1` for 2x downsample, `1` for 2x upsample, `0` for no change of resolution.
         arch_code_c: cell operation code
     """
+
+    # Define Operation Set parameterized by the number of channels
+    OPS = {
+        "skip_connect": lambda _c: _IdentityWithRAMCost(),
+        "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1),
+        "conv_3x3x1": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=0),
+        "conv_3x1x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=1),
+        "conv_1x3x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=2),
+    }
 
     def __init__(self, c_prev: int, c: int, rate: int, arch_code_c=None):
         super().__init__()
@@ -146,7 +140,7 @@ class Cell(nn.Module):
                 self.preprocess = ConnOPS["identity"]()
             else:
                 self.preprocess = ConnOPS["align_channels"](c_prev, c, 1, 0)
-        self.op = MixedOp(c, arch_code_c)
+        self.op = MixedOp(c, self.OPS, arch_code_c)
 
     def forward(self, x: torch.Tensor, ops: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
         """
@@ -167,9 +161,9 @@ class DiNTS(nn.Module):
     <https://arxiv.org/abs/2103.15954>".
 
     The model contains a pre-defined stem block (defined in this class) and a
-    dints search space (defined in class DintsSearchSpace).
+    dints search space (defined in class `DintsSearchSpace`).
 
-    The model downsamples the input image by 2 (if use_downsample is True).
+    The model downsamples the input image by 2 (if `use_downsample` is True).
     The downsampled image is downsampled by [1, 2, 4, 8] times (num_depths=4) and used as input to the grid search space.
     The grid search space contains multi-path topology search and cell level search.
     The network only supports 3D inputs. To meet the requirements of the structure, the input size for each spatial dimension
@@ -198,6 +192,8 @@ class DiNTS(nn.Module):
         use_downsample: bool = True,
     ):
         super().__init__()
+        if spatial_dims != 3:
+            raise NotImplementedError("Only support 3D input.")
 
         self.dints_space = dints_space
         self.filter_nums = dints_space.filter_nums
@@ -310,17 +306,16 @@ class DiNTS(nn.Module):
         Args:
             x: input tensor.
             arch_code: [node_a, arch_code_a, arch_code_c]. arch_code_a and arch_code_c are `torch.Tensor`, which are
-                used in the forward() of self.dints_space.
+                used in the `forward()` of `self.dints_space`.
         """
         predict_all = []
         node_a, _, _ = arch_code
 
-        # stem inference
         inputs = []
-        for _ in range(self.num_depths):
+        for d in range(self.num_depths):
             # allow multi-resolution input
-            if node_a[0][_]:
-                inputs.append(self.stem_down[str(_)](x))
+            if node_a[0][d]:
+                inputs.append(self.stem_down[str(d)](x))
             else:
                 inputs.append(None)
 
@@ -346,7 +341,6 @@ class DintsSearchSpace(nn.Module):
         self,
         channel_mul: float = 1.0,
         cell=Cell,
-        cell_ops: int = 5,
         arch_code: Optional[list] = None,
         num_blocks: int = 6,
         num_depths: int = 3,
@@ -359,7 +353,6 @@ class DintsSearchSpace(nn.Module):
         Args:
             channel_mul: adjust intermediate channel number, default 1.
             cell: operation of each node.
-            cell_ops: cell operation numbers, should match the number of operations defined in cell.
             arch_code: `[node_a, arch_code_a, arch_code_c]` decoded using self.decode().
                 For num_depths=4, num_blocks=12
                 search space, node_a is a 4x13 binary matrix representing if a feature node is activated.
@@ -410,7 +403,6 @@ class DintsSearchSpace(nn.Module):
 
         self.num_depths = num_depths
         self.filter_nums = filter_nums
-        self.cell_ops = cell_ops
         self.arch_code2in = arch_code2in
         self.arch_code2ops = arch_code2ops
         self.arch_code2out = arch_code2out
@@ -426,12 +418,12 @@ class DintsSearchSpace(nn.Module):
         # define NAS search space
         if arch_code is None:
             arch_code_a = np.ones((num_blocks, len(arch_code2out)))
-            arch_code_c = np.ones((num_blocks, len(arch_code2out), cell_ops))
+            arch_code_c = np.ones((num_blocks, len(arch_code2out), len(cell.OPS)))
         else:
             arch_code_a = arch_code[1]
-            arch_code_c = F.one_hot(torch.from_numpy(arch_code[2]), cell_ops).numpy()
+            arch_code_c = F.one_hot(torch.from_numpy(arch_code[2]), len(cell.OPS)).numpy()
         self.cell_tree = nn.ModuleDict()
-        self.ram_cost = np.zeros((num_blocks, len(arch_code2out), cell_ops))
+        self.ram_cost = np.zeros((num_blocks, len(arch_code2out), len(cell.OPS)))
         for blk_idx in range(num_blocks):
             for res_idx in range(len(arch_code2out)):
                 if arch_code_a[blk_idx, res_idx] == 1:
@@ -443,16 +435,14 @@ class DintsSearchSpace(nn.Module):
                     )
                     self.ram_cost[blk_idx, res_idx] = np.array(
                         [
-                            _.ram_cost + self.cell_tree[str((blk_idx, res_idx))].preprocess.ram_cost
-                            if _ is not None
-                            else 0
-                            for _ in self.cell_tree[str((blk_idx, res_idx))].op._ops[:cell_ops]
+                            op.ram_cost + self.cell_tree[str((blk_idx, res_idx))].preprocess.ram_cost
+                            for op in self.cell_tree[str((blk_idx, res_idx))].op._ops[: len(cell.OPS)]
                         ]
                     )
 
         # define cell and macro architecture probabilities
         self.log_alpha_c = nn.Parameter(
-            torch.zeros(num_blocks, len(arch_code2out), cell_ops).normal_(1, 0.01).to(self.device).requires_grad_()
+            torch.zeros(num_blocks, len(arch_code2out), len(cell.OPS)).normal_(1, 0.01).to(self.device).requires_grad_()
         )
         self.log_alpha_a = nn.Parameter(
             torch.zeros(num_blocks, len(arch_code2out)).normal_(0, 0.01).to(self.device).requires_grad_()
@@ -474,16 +464,15 @@ class DintsSearchSpace(nn.Module):
         norm = 1 - (1 - _arch_code_prob_a).prod(-1)  # normalizing factor
         arch_code_prob_a = _arch_code_prob_a / norm.unsqueeze(1)
         if child:
-            probs_a = []
             path_activation = torch.from_numpy(self.child_list).to(self.device)
-            for blk_idx in range(self.num_blocks):
-                probs_a.append(
-                    (
-                        path_activation * _arch_code_prob_a[blk_idx]
-                        + (1 - path_activation) * (1 - _arch_code_prob_a[blk_idx])
-                    ).prod(-1)
-                    / norm[blk_idx]
-                )
+            probs_a = [
+                (
+                    path_activation * _arch_code_prob_a[blk_idx]
+                    + (1 - path_activation) * (1 - _arch_code_prob_a[blk_idx])
+                ).prod(-1)
+                / norm[blk_idx]
+                for blk_idx in range(self.num_blocks)
+            ]
             probs_a = torch.stack(probs_a)  # type: ignore
             return probs_a, arch_code_prob_a
         else:
@@ -646,9 +635,8 @@ class DintsSearchSpace(nn.Module):
         def dfs(node, paths=6):
             if node == paths:
                 return [[0], [1]]
-            else:
-                child = dfs(node + 1, paths)
-                return [[0] + _ for _ in child] + [[1] + _ for _ in child]
+            child = dfs(node + 1, paths)
+            return [[0] + _ for _ in child] + [[1] + _ for _ in child]
 
         all_connect = dfs(0, paths - 1)
 

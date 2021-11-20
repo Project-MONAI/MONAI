@@ -15,6 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import DiNTS, DintsSearchSpace
+from monai.networks.nets.dints import Cell
 
 TEST_CASES_3D = [
     [
@@ -42,12 +43,11 @@ class TestDints(unittest.TestCase):
         dints_params["dints_space"] = grid
         net = DiNTS(**dints_params).to(dints_grid_params["device"])
         code2out = net.dints_space.arch_code2out
-        cell_ops = net.dints_space.cell_ops
         num_blocks = net.num_blocks
         num_depths = net.num_depths
         node_a = torch.ones((num_blocks + 1, num_depths)).to(dints_grid_params["device"])
         code_a = torch.ones((num_blocks, len(code2out))).to(dints_grid_params["device"])
-        code_c = torch.ones((num_blocks, len(code2out), cell_ops)).to(dints_grid_params["device"])
+        code_c = torch.ones((num_blocks, len(code2out), len(Cell.OPS))).to(dints_grid_params["device"])
         result = net(torch.randn(input_shape).to(dints_grid_params["device"]), arch_code=[node_a, code_a, code_c])[-1]
         self.assertEqual(result.shape, expected_shape)
 
