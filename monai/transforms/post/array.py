@@ -229,7 +229,7 @@ class AsDiscrete(Transform):
             warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
             to_onehot = num_classes if to_onehot else None
         if isinstance(threshold, bool):
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threashold=value` instead.")
+            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
             threshold = logit_thresh if threshold else None
 
         img_t: torch.Tensor
