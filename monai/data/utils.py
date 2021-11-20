@@ -298,10 +298,10 @@ def list_data_collate(batch: Sequence):
 
 def _non_zipping_check(data):
     """
-    util used by decollate batch, to identify batch size from the collated data.
+    utility function used by `decollate_batch`, to identify the largest batch size from the collated data.
     returns batch_size and the list of non-iterable items.
     """
-    b, non_iterable = 1, []
+    batch_size, non_iterable = 0, []
     for k, v in data.items() if isinstance(data, Mapping) else enumerate(data):
         if not isinstance(v, Iterable) or isinstance(v, (str, bytes)) or (isinstance(v, torch.Tensor) and v.ndim == 0):
             # Not running the usual list decollate here:
@@ -309,8 +309,8 @@ def _non_zipping_check(data):
             # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
             non_iterable.append(k)
         elif hasattr(v, "__len__"):
-            b = max(b, len(v))
-    return b, non_iterable
+            batch_size = max(batch_size, len(v))
+    return batch_size, non_iterable
 
 
 def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
@@ -384,10 +384,10 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         return list(out_list)
     if isinstance(batch, Mapping):
         _dict_list = {key: decollate_batch(batch[key], detach, pad=pad, fill_value=fill_value) for key in batch}
+        b, non_iterable = _non_zipping_check(_dict_list)
+        if b == 0:  # all non-iterable
+            return _dict_list
         if pad:
-            b, non_iterable = _non_zipping_check(_dict_list)
-            if len(non_iterable) == len(_dict_list):
-                return _dict_list
             for k in non_iterable:
                 _dict_list[k] = [deepcopy(_dict_list[k]) for _ in range(b)]
             return [dict(zip(_dict_list, item)) for item in zip_longest(*_dict_list.values(), fillvalue=fill_value)]
@@ -395,7 +395,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     if isinstance(batch, Iterable):
         _lists = [decollate_batch(b, detach, pad=pad, fill_value=fill_value) for b in batch]
         b, non_iterable = _non_zipping_check(_lists)  # type: ignore
-        if len(non_iterable) == len(_lists):  # all non-iterable
+        if b == 0:  # all non-iterable
             return _lists
         if pad:
             for k in non_iterable:
