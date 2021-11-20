@@ -563,6 +563,16 @@ Nets
 .. autoclass:: MILModel
   :members:
 
+`DiNTS`
+~~~~~~~
+.. autoclass:: DiNTS
+  :members:
+
+`DintsSearchSpace`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: DintsSearchSpace
+  :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils

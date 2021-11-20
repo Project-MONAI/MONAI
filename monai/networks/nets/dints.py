@@ -95,22 +95,22 @@ class MixedOp(nn.Module):
             it decides which operations are utilized for output.
     """
 
-    def __init__(self, c: int, arch_code_c: None):
+    def __init__(self, c: int, arch_code_c=None):
         super().__init__()
         self._ops = nn.ModuleList()
         if arch_code_c is None:
             arch_code_c = np.ones(len(OPS))
-        for idx, _ in enumerate(OPS.keys()):
+        for idx, op_name in enumerate(OPS):
             if idx < len(arch_code_c):
-                op = None if arch_code_c[idx] == 0 else OPS[_](c)
+                op = None if arch_code_c[idx] == 0 else OPS[op_name](c)
                 self._ops.append(op)
 
-    def forward(self, x, ops: None, weight: None):
+    def forward(self, x: torch.Tensor, ops: torch.Tensor, weight: torch.Tensor):
         """
-        Forward function.
         Args:
-            ops: torch.tensor，binary array to determine which operation/edge in DiNTS is activated.
-            weight: torch.tensor，weights for different operations.
+            x: input tensor.
+            ops: binary array to determine which operation/edge in DiNTS is activated.
+            weight: weights for different operations.
         """
         pos = (ops == 1).nonzero()
         result = 0
@@ -126,12 +126,11 @@ class Cell(nn.Module):
     Args:
         c_prev: number of input channels
         c: number of output channels
-        rate: resolution change rate. -1 for 2x downsample, 1 for 2x upsample
-              0 for no change of resolution
-        arch_code_c: torch.tensor，cell operation code
+        rate: resolution change rate. `-1` for 2x downsample, `1` for 2x upsample, `0` for no change of resolution.
+        arch_code_c: cell operation code
     """
 
-    def __init__(self, c_prev: int, c: int, rate: int, arch_code_c: None):
+    def __init__(self, c_prev: int, c: int, rate: int, arch_code_c=None):
         super().__init__()
         if rate == -1:  # downsample
             self.preprocess = ConnOPS["down"](c_prev, c)
@@ -148,8 +147,8 @@ class Cell(nn.Module):
         """
         Args:
             x: input tensor
-            ops: torch.tensor，binary array to determine which operation/edge in DiNTS is activated.
-            weight: torch.tensor，weights for different operations.
+            ops: binary array to determine which operation/edge in DiNTS is activated.
+            weight: weights for different operations.
         """
         x = self.preprocess(x)
         x = self.op(x, ops, weight)
@@ -159,8 +158,10 @@ class Cell(nn.Module):
 class DiNTS(nn.Module):
     """
     Reimplementation of Dints based on
-    `DiNTS: Differentiable Neural Network Topology Search for 3D Medical Image Segmentation`
-    https://arxiv.org/abs/2103.15954.  The model contains a pre-defined stem block (defined in this class) and a
+    "DiNTS: Differentiable Neural Network Topology Search for 3D Medical Image Segmentation
+    <https://arxiv.org/abs/2103.15954>".
+
+    The model contains a pre-defined stem block (defined in this class) and a
     dints search space (defined in class DintsSearchSpace).
 
     The model downsamples the input image by 2 (if use_downsample is True).
@@ -168,7 +169,8 @@ class DiNTS(nn.Module):
     The grid search space contains multi-path topology search and cell level search.
     The network only supports 3D inputs. To meet the requirements of the structure, the input size for each spatial dimension
     should be: divisible by 2 ** (num_depths + 1).
-    The pre-defined stem module for: 1) input downsample 2) output upsample to original size
+    The pre-defined stem module for: 1) input downsample 2) output upsample to original size.
+
     Args:
         dints_space: dints search space.
         in_channels: input image channel.
@@ -177,7 +179,7 @@ class DiNTS(nn.Module):
         norm_name: normalization used in convolution blocks. Default to InstanceNorm.
         spatial_dims: 2D or 3D convolution. Only support 3.
         use_downsample: use downsample in the stem. If False, the search space will be in resolution [1, 1/2, 1/4, 1/8],
-                        if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
+            if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
     """
 
     def __init__(
@@ -296,14 +298,14 @@ class DiNTS(nn.Module):
                     nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
                 )
 
-    def forward(self, x, arch_code=None):
+    def forward(self, x: torch.Tensor, arch_code=None):
         """
         Prediction based on dynamic arch_code.
 
         Args:
             x: input tensor.
             arch_code: [node_a, arch_code_a, arch_code_c]. arch_code_a and arch_code_c are `torch.Tensor`, which are
-                       used in the forward() of self.dints_space.
+                used in the forward() of self.dints_space.
         """
         predict_all = []
         node_a, _, _ = arch_code
@@ -352,30 +354,31 @@ class DintsSearchSpace(nn.Module):
             channel_mul: adjust intermediate channel number, default 1.
             cell: operation of each node.
             cell_ops: cell operation numbers, should match the number of operations defined in cell.
-            arch_code: [node_a, arch_code_a, arch_code_c] decoded using self.decode(). For num_depths=4, num_blocks=12
-                       search space, node_a is a 4x13 binary matrix representing if a feature node is activated.
-                       arch_code_a is a 12x10 (10 paths) binary matrix representing if a path is activated.
-                       arch_code_c is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
-                       arch_code in __init__() is used for creating the network and remove unused network blocks. If None,
-                       all  paths and cells operations will be used. The forward pass also requires arch_code, which is
-                       used for controlling the actual feature flow.
+            arch_code: `[node_a, arch_code_a, arch_code_c]` decoded using self.decode().
+                For num_depths=4, num_blocks=12
+                search space, node_a is a 4x13 binary matrix representing if a feature node is activated.
+                arch_code_a is a 12x10 (10 paths) binary matrix representing if a path is activated.
+                arch_code_c is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
+                arch_code in __init__() is used for creating the network and remove unused network blocks. If None,
+                all  paths and cells operations will be used. The forward pass also requires arch_code, which is
+                used for controlling the actual feature flow.
             num_blocks: number of blocks (depth in the horizontal direction) of the Dints search space.
             num_depths: number of image resolutions of the Dints search space: 1, 1/2, 1/4 ... in each dimension.
             use_downsample: use downsample in the stem. If False, the search space will be in resolution [1, 1/2, 1/4, 1/8],
-                            if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
+                if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
             device: 'cpu', 'cuda', or device ID.
 
         Predefined variables:
             filter_nums: default init 32. Double channel number after downsample
-            topology related variables from self.gen_mtx():
-                trans_mtx: feasible path activation given node activation key
-                arch_code2in: path activation to its incoming node index
-                arch_code2ops: path activation to operations of upsample 1, keep 0, downsample -1
-                arch_code2out: path activation to its output node index
-                node_act_list: all node activation arch_codes [2^num_depths-1, res_num]
-                node_act_dict: node activation arch_code to its index
-                tidx: index used to convert path activation matrix (depth,depth) in trans_mtx to path activation
-                      arch_code (1,3*depth-2)
+            topology related variables from `self.gen_mtx()`:
+
+                - `trans_mtx`: feasible path activation given node activation key
+                - `arch_code2in`: path activation to its incoming node index
+                - `arch_code2ops`: path activation to operations of upsample 1, keep 0, downsample -1
+                - `arch_code2out`: path activation to its output node index
+                - `node_act_list`: all node activation arch_codes [2^num_depths-1, res_num]
+                - `node_act_dict`: node activation arch_code to its index
+                - `tidx`: index used to convert path activation matrix (depth,depth) in trans_mtx to path activation arch_code (1,3*depth-2)
         """
         super().__init__()
 
@@ -631,7 +634,7 @@ class DintsSearchSpace(nn.Module):
 
     def gen_mtx(self, depth: int = 3):
         """
-        Generate elements needed in decoding, topology e.t.c
+        Generate elements needed in decoding, topology
         """
         # total path in a block
         paths = 3 * depth - 2
@@ -648,11 +651,11 @@ class DintsSearchSpace(nn.Module):
 
         # Save all possible connections in mtx (might be redundant and infeasible)
         mtx = []
-        for _ in all_connect:
+        for m in all_connect:
             # convert path activation [1,paths] to path activation matrix [depth, depth]
             ma = np.zeros((depth, depth))
             for i in range(paths):
-                ma[(i + 1) // 3, (i + 1) // 3 - 1 + (i + 1) % 3] = _[i]
+                ma[(i + 1) // 3, (i + 1) // 3 - 1 + (i + 1) % 3] = m[i]
             mtx.append(ma)
 
         # Calculate path activation to node activation params
@@ -661,8 +664,8 @@ class DintsSearchSpace(nn.Module):
             tidx.append((i + 1) // 3 * depth + (i + 1) // 3 - 1 + (i + 1) % 3)
             arch_code2in.append((i + 1) // 3 - 1 + (i + 1) % 3)
         arch_code2ops = ([-1, 0, 1] * depth)[1:-1]
-        for _ in range(depth):
-            arch_code2out.extend([_, _, _])
+        for m in range(depth):
+            arch_code2out.extend([m, m, m])
         arch_code2out = arch_code2out[1:-1]
 
         # define all possible node activativation
