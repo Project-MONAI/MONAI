@@ -73,7 +73,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial ndimensions, {``1``, ``2``, ``3``}. Defaults to 3.
+            spatial_dims: number of spatial dimensions, {``1``, ``2``, ``3``}. Defaults to 3.
             kernel_size: kernel spatial size, must be odd.
             kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
