@@ -167,7 +167,7 @@ class OcclusionSensitivity:
             upsampler: An upsampling method to upsample the output image. Default is
                 N-dimensional linear (bilinear, trilinear, etc.) depending on num spatial
                 dimensions of input.
-            verbose: Use ``tdqm.trange`` output (if available).
+            verbose: Use ``tqdm.trange`` output (if available).
         """
 
         self.nn_module = nn_module

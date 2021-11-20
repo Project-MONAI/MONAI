@@ -29,9 +29,10 @@ import torch
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
-from monai.data.utils import convert_tables_to_dicts, first, pickle_hashing
+from monai.data.utils import convert_tables_to_dicts, pickle_hashing
 from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
 from monai.utils import MAX_SEED, ensure_tuple, get_seed, min_version, optional_import
+from monai.utils.misc import first
 
 if TYPE_CHECKING:
     from tqdm import tqdm
