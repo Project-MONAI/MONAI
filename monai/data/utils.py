@@ -475,7 +475,7 @@ def worker_init_fn(worker_id: int) -> None:
 
 def set_rnd(obj, seed: int) -> int:
     """
-    Set seed or random state for all randomisable properties of obj.
+    Set seed or random state for all randomizable properties of obj.
 
     Args:
         obj: object to set seed or random state for.

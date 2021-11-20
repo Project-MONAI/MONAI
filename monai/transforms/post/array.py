@@ -179,7 +179,7 @@ class AsDiscrete(Transform):
         self.to_onehot = to_onehot
 
         if isinstance(threshold, bool):  # for backward compatibility
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threashold=value` instead.")
+            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
             threshold = logit_thresh if threshold else None
         self.threshold = threshold
 
@@ -211,7 +211,7 @@ class AsDiscrete(Transform):
                 Defaults to ``self.argmax``.
             to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
                 Defaults to ``self.to_onehot``.
-            threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold value.
+            threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold value.
                 Defaults to ``self.threshold``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
@@ -229,7 +229,7 @@ class AsDiscrete(Transform):
             warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
             to_onehot = num_classes if to_onehot else None
         if isinstance(threshold, bool):
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threashold=value` instead.")
+            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
             threshold = logit_thresh if threshold else None
 
         img_t: torch.Tensor

@@ -13,7 +13,7 @@ from typing import Callable, Union
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import ConfusionMatrixMetric
-from monai.metrics.utils import MetricReduction
+from monai.utils.enums import MetricReduction
 
 
 class ConfusionMatrix(IgniteMetric):

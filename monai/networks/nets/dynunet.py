@@ -75,7 +75,7 @@ class DynUNet(nn.Module):
 
     To meet the requirements of the structure, the input size for each spatial dimension should be divisible
     by `2 * the product of all strides in the corresponding dimension`. The output size for each spatial dimension
-    equals to the input size of the correponding dimension divided by the stride in strides[0].
+    equals to the input size of the corresponding dimension divided by the stride in strides[0].
     For example, if `strides=((1, 2, 4), 2, 1, 1)`, the minimal spatial size of the input is `(8, 16, 32)`, and
     the spatial size of the output is `(8, 8, 8)`.
 
