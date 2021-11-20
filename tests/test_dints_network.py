@@ -11,7 +11,6 @@
 
 import unittest
 
-import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -23,19 +22,22 @@ TEST_CASES_3D = [
         {"in_channels": 1, "num_classes": 3, "act_name": "RELU", "norm_name": "INSTANCE", "use_downsample": False},
         (7, 1, 32, 32, 16),
         (7, 3, 32, 32, 16),
-    ],
-    [
-        {"channel_mul": 0.5, "num_blocks": 7, "num_depths": 4, "device": "cuda", "use_downsample": True},
-        {"in_channels": 2, "num_classes": 2, "act_name": "PRELU", "norm_name": "BATCH", "use_downsample": True},
-        (7, 2, 32, 32, 16),
-        (7, 2, 32, 32, 16),
-    ],
+    ]
 ]
+if torch.cuda.is_available():
+    TEST_CASES_3D += [
+        [
+            {"channel_mul": 0.5, "num_blocks": 7, "num_depths": 4, "device": "cuda", "use_downsample": True},
+            {"in_channels": 2, "num_classes": 2, "act_name": "PRELU", "norm_name": "BATCH", "use_downsample": True},
+            (7, 2, 32, 32, 16),
+            (7, 2, 32, 32, 16),
+        ]
+    ]
 
 
 class TestDints(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D)
-    def test_factorized_increase_3d(self, dints_grid_params, dints_params, input_shape, expected_shape):
+    def test_dints_search_space(self, dints_grid_params, dints_params, input_shape, expected_shape):
         grid = DintsSearchSpace(**dints_grid_params)
         dints_params["dints_space"] = grid
         net = DiNTS(**dints_params).to(dints_grid_params["device"])

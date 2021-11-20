@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -24,6 +24,11 @@ from monai.networks.blocks.dints_block import (
 )
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
+from monai.utils import optional_import
+
+# solving shortest path problem
+csr_matrix, _ = optional_import("scipy.sparse", name="csr_matrix")
+dijkstra, _ = optional_import("scipy.sparse.csgraph", name="dijkstra")
 
 __all__ = ["DiNTS", "DintsSearchSpace"]
 
@@ -102,8 +107,8 @@ class MixedOp(nn.Module):
             arch_code_c = np.ones(len(OPS))
         for idx, op_name in enumerate(OPS):
             if idx < len(arch_code_c):
-                op = None if arch_code_c[idx] == 0 else OPS[op_name](c)
-                self._ops.append(op)
+                op = None if arch_code_c[idx] == 0 else OPS[op_name](c)  # type: ignore
+                self._ops.append(op)  # type: ignore
 
     def forward(self, x: torch.Tensor, ops: torch.Tensor, weight: torch.Tensor):
         """
@@ -323,6 +328,7 @@ class DiNTS(nn.Module):
 
         blk_idx = self.num_blocks - 1
         start = False
+        _temp: torch.Tensor
         for res_idx in range(self.num_depths - 1, -1, -1):
             if start:
                 _temp = self.stem_up[str(res_idx)](outputs[res_idx] + _temp)
@@ -341,11 +347,11 @@ class DintsSearchSpace(nn.Module):
         channel_mul: float = 1.0,
         cell=Cell,
         cell_ops: int = 5,
-        arch_code: list = None,
+        arch_code: Optional[list] = None,
         num_blocks: int = 6,
         num_depths: int = 3,
         use_downsample: bool = False,
-        device: str = "cuda",
+        device: str = "cpu",
     ):
         """
         Initialize Dints network search space
@@ -378,7 +384,8 @@ class DintsSearchSpace(nn.Module):
                 - `arch_code2out`: path activation to its output node index
                 - `node_act_list`: all node activation arch_codes [2^num_depths-1, res_num]
                 - `node_act_dict`: node activation arch_code to its index
-                - `tidx`: index used to convert path activation matrix (depth,depth) in trans_mtx to path activation arch_code (1,3*depth-2)
+                - `tidx`: index used to convert path activation matrix (depth,depth)
+                  in trans_mtx to path activation arch_code (1,3*depth-2)
         """
         super().__init__()
 
@@ -477,12 +484,12 @@ class DintsSearchSpace(nn.Module):
                     ).prod(-1)
                     / norm[blk_idx]
                 )
-            probs_a = torch.stack(probs_a)
+            probs_a = torch.stack(probs_a)  # type: ignore
             return probs_a, arch_code_prob_a
         else:
             return None, arch_code_prob_a
 
-    def get_ram_cost_usage(self, in_size, arch_code: bool = None, full: bool = False):
+    def get_ram_cost_usage(self, in_size, arch_code=None, full: bool = False):
         """
         Get estimated output tensor size
 
@@ -604,10 +611,6 @@ class DintsSearchSpace(nn.Module):
 
         # fill in the last to the sink
         amtx[1 + (self.num_blocks - 1) * len(self.child_list) : 1 + self.num_blocks * len(self.child_list), -1] = 0.001
-
-        # solving shortest path problem
-        from scipy.sparse import csr_matrix
-        from scipy.sparse.csgraph import dijkstra
 
         graph = csr_matrix(amtx)
         dist_matrix, predecessors, sources = dijkstra(
