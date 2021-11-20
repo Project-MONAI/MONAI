@@ -32,6 +32,7 @@ def matshow3d(
     title: Optional[str] = None,
     figsize=(10, 10),
     frames_per_row: Optional[int] = None,
+    frame_dim: int = -3,
     vmin=None,
     vmax=None,
     every_n: int = 1,
@@ -53,6 +54,8 @@ def matshow3d(
         title: title of the figure.
         figsize: size of the figure.
         frames_per_row: number of frames to display in each row. If None, sqrt(firstdim) will be used.
+        frame_dim: for higher dimensional arrays, which dimension (`-1`, `-2`, `-3`) is moved to the `-3`
+            dim and reshape to (-1, H, W) shape to construct frames, default to `-3`.
         vmin: `vmin` for the matplotlib `imshow`.
         vmax: `vmax` for the matplotlib `imshow`.
         every_n: factor to subsample the frames so that only every n-th frame is displayed.
@@ -95,6 +98,8 @@ def matshow3d(
     else:  # ndarray
         while len(vol.shape) < 3:
             vol = np.expand_dims(vol, 0)  # so that we display 1d and 2d as well
+
+    vol = np.moveaxis(vol, frame_dim, -3)  # move the expected dim to construct frames with `B` or `C` dims
     if len(vol.shape) > 3:
         vol = vol.reshape((-1, vol.shape[-2], vol.shape[-1]))
     vmin = np.nanmin(vol) if vmin is None else vmin
