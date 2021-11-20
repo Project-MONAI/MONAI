@@ -345,7 +345,7 @@ class DintsSearchSpace(nn.Module):
         num_blocks: int = 6,
         num_depths: int = 3,
         use_downsample: bool = False,
-        device: str = 'cuda'
+        device: str = "cuda",
     ):
         """
         Initialize Dints network search space
