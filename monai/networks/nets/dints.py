@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Tuple, Union
 
 import numpy as np
 import torch
@@ -50,7 +50,7 @@ class _FactorizedIncreaseBlockWithRAMCost(FactorizedIncreaseBlock):
     def __init__(self, in_channel: int, out_channel: int):
         super().__init__(in_channel, out_channel)
 
-        # devide by 8 to comply with cell output size
+        # divide by 8 to comply with cell output size
         self.ram_cost = 8 * (1 + 1 + out_channel / in_channel * 2) / 8 * in_channel / out_channel
 
 
@@ -66,7 +66,7 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
         self.ram_cost = (1 + out_channel / in_channel / 8 * 3) * 8 * in_channel / out_channel
 
 
-# Define Operation Set
+# Define Operation Set parameterized by the number of channels
 OPS = {
     "skip_connect": lambda c: _IdentityWithRAMCost(),
     "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1),
@@ -88,9 +88,11 @@ ConnOPS = {
 class MixedOp(nn.Module):
     """
     The class is for combining results from different operations.
+
     Args:
         c: output channel number.
-        arch_code_c: torch.tensor，binary architecture code for input operations, and it decides which operations are utilized for output.
+        arch_code_c: torch.tensor，binary architecture code for input operations,
+            it decides which operations are utilized for output.
     """
 
     def __init__(self, c: int, arch_code_c: None):
@@ -100,10 +102,7 @@ class MixedOp(nn.Module):
             arch_code_c = np.ones(len(OPS))
         for idx, _ in enumerate(OPS.keys()):
             if idx < len(arch_code_c):
-                if arch_code_c[idx] == 0:
-                    op = None
-                else:
-                    op = OPS[_](c)
+                op = None if arch_code_c[idx] == 0 else OPS[_](c)
                 self._ops.append(op)
 
     def forward(self, x, ops: None, weight: None):
@@ -122,18 +121,18 @@ class MixedOp(nn.Module):
 
 class Cell(nn.Module):
     """
-    The basic class for cell operation
+    The basic class for cell operation.
+
     Args:
-        c_prev: input channel number
-        c: output channel number
+        c_prev: number of input channels
+        c: number of output channels
         rate: resolution change rate. -1 for 2x downsample, 1 for 2x upsample
               0 for no change of resolution
         arch_code_c: torch.tensor，cell operation code
     """
 
-    def __init__(self, c_prev, c, rate: int, arch_code_c: None):
+    def __init__(self, c_prev: int, c: int, rate: int, arch_code_c: None):
         super().__init__()
-        self.c_out = c
         if rate == -1:  # downsample
             self.preprocess = ConnOPS["down"](c_prev, c)
         elif rate == 1:  # upsample
@@ -145,10 +144,10 @@ class Cell(nn.Module):
                 self.preprocess = ConnOPS["align_channels"](c_prev, c, 1, 0)
         self.op = MixedOp(c, arch_code_c)
 
-    def forward(self, x, ops, weight):
+    def forward(self, x: torch.Tensor, ops: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
         """
-        Forward function.
         Args:
+            x: input tensor
             ops: torch.tensor，binary array to determine which operation/edge in DiNTS is activated.
             weight: torch.tensor，weights for different operations.
         """
@@ -159,9 +158,12 @@ class Cell(nn.Module):
 
 class DiNTS(nn.Module):
     """
-    Reimplementation of Dints based on `DiNTS: Differentiable Neural Network Topology Search for 3D Medical Image Segmentation
-    https://arxiv.org/abs/2103.15954`.  The model contains a pre-defined stem block (defined in this class) and a
-    dints search space (defined in class DintsSearchSpace). The model downsamples the input image by 2 (if use_downsample is True).
+    Reimplementation of Dints based on
+    `DiNTS: Differentiable Neural Network Topology Search for 3D Medical Image Segmentation`
+    https://arxiv.org/abs/2103.15954.  The model contains a pre-defined stem block (defined in this class) and a
+    dints search space (defined in class DintsSearchSpace).
+
+    The model downsamples the input image by 2 (if use_downsample is True).
     The downsampled image is downsampled by [1, 2, 4, 8] times (num_depths=4) and used as input to the grid search space.
     The grid search space contains multi-path topology search and cell level search.
     The network only supports 3D inputs. To meet the requirements of the structure, the input size for each spatial dimension
@@ -200,18 +202,13 @@ class DiNTS(nn.Module):
         self.stem_down = nn.ModuleDict()
         self.stem_up = nn.ModuleDict()
         self.stem_finals = nn.Sequential(
-            get_act_layer(name=act_name),
-            conv_type(
-                in_channels=self.filter_nums[0],
-                out_channels=self.filter_nums[0],
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                groups=1,
-                bias=False,
-                dilation=1,
+            ActiConvNormBlock(
+                self.filter_nums[0],
+                self.filter_nums[0],
+                act_name=act_name,
+                norm_name=norm_name,
+                spatial_dims=spatial_dims,
             ),
-            get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[0]),
             conv_type(
                 in_channels=self.filter_nums[0],
                 out_channels=num_classes,
@@ -224,7 +221,7 @@ class DiNTS(nn.Module):
             ),
         )
         for res_idx in range(self.num_depths):
-            # define downsample stems before Dints serach
+            # define downsample stems before Dints search
             if use_downsample:
                 self.stem_down[str(res_idx)] = nn.Sequential(
                     nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
@@ -305,7 +302,7 @@ class DiNTS(nn.Module):
 
         Args:
             x: input tensor.
-            arch_code: [node_a, arch_code_a, arch_code_c]. arch_code_a and arch_code_c are torch.tensor, which are
+            arch_code: [node_a, arch_code_a, arch_code_c]. arch_code_a and arch_code_c are `torch.Tensor`, which are
                        used in the forward() of self.dints_space.
         """
         predict_all = []
@@ -357,20 +354,20 @@ class DintsSearchSpace(nn.Module):
             cell_ops: cell operation numbers, should match the number of operations defined in cell.
             arch_code: [node_a, arch_code_a, arch_code_c] decoded using self.decode(). For num_depths=4, num_blocks=12
                        search space, node_a is a 4x13 binary matrix representing if a feature node is activated.
-                       arch_code_a is a 12x10 (10 pathes) binary matrix representing if a path is activated.
-                       arch_code_c is a 12x10x5 (5 operatiosn) binary matrix representing if a cell operation is used.
+                       arch_code_a is a 12x10 (10 paths) binary matrix representing if a path is activated.
+                       arch_code_c is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
                        arch_code in __init__() is used for creating the network and remove unused network blocks. If None,
-                       all  pathes and cells operations will be used. The forward pass also requires arch_code, which is
+                       all  paths and cells operations will be used. The forward pass also requires arch_code, which is
                        used for controlling the actual feature flow.
             num_blocks: number of blocks (depth in the horizontal direction) of the Dints search space.
-            num_depths: number of image resolutions of the Dints search space: 1, 1/2, 1/4 ... in each dimention.
+            num_depths: number of image resolutions of the Dints search space: 1, 1/2, 1/4 ... in each dimension.
             use_downsample: use downsample in the stem. If False, the search space will be in resolution [1, 1/2, 1/4, 1/8],
                             if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
             device: 'cpu', 'cuda', or device ID.
 
         Predefined variables:
             filter_nums: default init 32. Double channel number after downsample
-            topology related varaibles from self.gen_mtx():
+            topology related variables from self.gen_mtx():
                 trans_mtx: feasible path activation given node activation key
                 arch_code2in: path activation to its incoming node index
                 arch_code2ops: path activation to operations of upsample 1, keep 0, downsample -1
@@ -443,7 +440,7 @@ class DintsSearchSpace(nn.Module):
                         ]
                     )
 
-        # define cell and macro arhitecture probabilities
+        # define cell and macro architecture probabilities
         self.log_alpha_c = nn.Parameter(
             torch.zeros(num_blocks, len(arch_code2out), cell_ops).normal_(1, 0.01).to(self.device).requires_grad_()
         )
@@ -524,7 +521,7 @@ class DintsSearchSpace(nn.Module):
                     )
         return usage * 32 / 8 / 1024 ** 2
 
-    def get_topology_entropy(self, probs: float):
+    def get_topology_entropy(self, probs):
         """
         Get topology entropy loss
         Args:
@@ -573,7 +570,7 @@ class DintsSearchSpace(nn.Module):
         arch_code_c = torch.argmax(F.softmax(self.log_alpha_c, -1), -1).data.cpu().numpy()
         probs = probs.data.cpu().numpy()
 
-        # define adacency matrix
+        # define adjacency matrix
         amtx = np.zeros(
             (1 + len(self.child_list) * self.num_blocks + 1, 1 + len(self.child_list) * self.num_blocks + 1)
         )
@@ -687,7 +684,6 @@ class DintsSearchSpace(nn.Module):
             arch_code: [node_a, arch_code_a, arch_code_c].
         """
         # sample path weights
-        predict_all = []
         node_a, arch_code_a, arch_code_c = arch_code
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
 
