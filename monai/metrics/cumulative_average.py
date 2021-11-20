@@ -21,9 +21,9 @@ class CumulativeAverage(Cumulative):
     """
     Cumulatively record data value and aggregate for the average value.
     It supports single class or multi-class data, for example,
-    value can be 0.44 (like loss) or [0.3, 0.4] (like metrics of 2 classes).
+    value can be 0.44 (a loss value) or [0.3, 0.4] (metrics of two classes).
     It also supports distributed data parallel, sync data when aggregating.
-    For example, recording loss value and compute the oveall average value in every 5 iterations:
+    For example, recording loss values and compute the overall average value in every 5 iterations:
 
     .. code-block:: python
 

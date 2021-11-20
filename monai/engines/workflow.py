@@ -231,8 +231,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 current_val_metric = engine.state.metrics[key_metric_name]
                 if not is_scalar(current_val_metric):
                     warnings.warn(
-                        "key metric is not a scalar value, skip the metric comaprison with best metric."
-                        "please use other metrics as key metric, or change the `reduction` mode to 'mean'."
+                        "key metric is not a scalar value, skip the metric comparison with the current best metric."
+                        "please set other metrics as the key metric, or change the `reduction` mode to 'mean'."
                     )
                     return
 

@@ -29,14 +29,14 @@ def get_inplanes():
 
 
 def get_avgpool():
-    return [(0), (1), (1, 1), (1, 1, 1)]
+    return [0, 1, (1, 1), (1, 1, 1)]
 
 
 def get_conv1(conv1_t_size: int, conv1_t_stride: int):
     return (
-        [(0), (conv1_t_size), (conv1_t_size, 7), (conv1_t_size, 7, 7)],
-        [(0), (conv1_t_stride), (conv1_t_stride, 2), (conv1_t_stride, 2, 2)],
-        [(0), (conv1_t_size // 2), (conv1_t_size // 2, 3), (conv1_t_size // 2, 3, 3)],
+        [0, conv1_t_size, (conv1_t_size, 7), (conv1_t_size, 7, 7)],
+        [0, conv1_t_stride, (conv1_t_stride, 2), (conv1_t_stride, 2, 2)],
+        [0, (conv1_t_size // 2), (conv1_t_size // 2, 3), (conv1_t_size // 2, 3, 3)],
     )
 
 

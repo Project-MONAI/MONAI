@@ -132,7 +132,7 @@ def blend_images(
     image: NdarrayOrTensor, label: NdarrayOrTensor, alpha: float = 0.5, cmap: str = "hsv", rescale_arrays: bool = True
 ):
     """
-    Blend a image and a label. Both should have the shape CHW[D].
+    Blend an image and a label. Both should have the shape CHW[D].
     The image may have C==1 or 3 channels (greyscale or RGB).
     The label is expected to have C==1.
 
