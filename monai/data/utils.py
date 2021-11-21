@@ -296,13 +296,21 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str) from re
 
 
-def _non_zipping_check(data):
+def _non_zipping_check(batch_data, detach, pad, fill_value):
     """
-    utility function used by `decollate_batch`, to identify the largest batch size from the collated data.
-    returns batch_size and the list of non-iterable items.
+    Utility function based on `decollate_batch`, to identify the largest batch size from the collated data.
+    returns batch_size, the list of non-iterable items, and the dictionary or list with their items decollated.
+
+    See `decollate_batch` for more details.
     """
+    if isinstance(batch_data, Mapping):
+        _deco = {key: decollate_batch(batch_data[key], detach, pad=pad, fill_value=fill_value) for key in batch_data}
+    elif isinstance(batch_data, Iterable):
+        _deco = [decollate_batch(b, detach, pad=pad, fill_value=fill_value) for b in batch_data]
+    else:
+        raise NotImplementedError(f"Unable to de-collate: {batch_data}, type: {type(batch_data)}.")
     batch_size, non_iterable = 0, []
-    for k, v in data.items() if isinstance(data, Mapping) else enumerate(data):
+    for k, v in _deco.items() if isinstance(_deco, Mapping) else enumerate(_deco):
         if not isinstance(v, Iterable) or isinstance(v, (str, bytes)) or (isinstance(v, torch.Tensor) and v.ndim == 0):
             # Not running the usual list decollate here:
             # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
@@ -310,7 +318,7 @@ def _non_zipping_check(data):
             non_iterable.append(k)
         elif hasattr(v, "__len__"):
             batch_size = max(batch_size, len(v))
-    return batch_size, non_iterable
+    return batch_size, non_iterable, _deco
 
 
 def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
@@ -367,7 +375,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             instead of torch tensors.
         pad: when the items in a batch indicate different batch size, whether to pad all the sequences to the longest.
             If False, the batch size will be the length of the shortest sequence.
-        fill_value: when `pad` is True, the `fillvalue` to use when padding.
+        fill_value: when `pad` is True, the `fillvalue` to use when padding, defaults to `None`.
     """
     if batch is None:
         return batch
@@ -382,26 +390,19 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
-    if isinstance(batch, Mapping):
-        _dict_list = {key: decollate_batch(batch[key], detach, pad=pad, fill_value=fill_value) for key in batch}
-        b, non_iterable = _non_zipping_check(_dict_list)
-        if b == 0:  # all non-iterable
-            return _dict_list
-        if pad:
-            for k in non_iterable:
-                _dict_list[k] = [deepcopy(_dict_list[k]) for _ in range(b)]
-            return [dict(zip(_dict_list, item)) for item in zip_longest(*_dict_list.values(), fillvalue=fill_value)]
-        return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]
-    if isinstance(batch, Iterable):
-        _lists = [decollate_batch(b, detach, pad=pad, fill_value=fill_value) for b in batch]
-        b, non_iterable = _non_zipping_check(_lists)  # type: ignore
-        if b == 0:  # all non-iterable
-            return _lists
-        if pad:
-            for k in non_iterable:
-                _lists[k] = [deepcopy(_lists[k]) for _ in range(b)]
-            return [list(item) for item in zip_longest(*_lists, fillvalue=fill_value)]
-        return [list(item) for item in zip(*_lists)]
+
+    b, non_iterable, deco = _non_zipping_check(batch, detach, pad, fill_value)
+    if b <= 0:  # all non-iterable, single item "batch"? {"image": 1, "label": 1}
+        return deco
+    if pad:  # duplicate non-iterable items to the longest batch
+        for k in non_iterable:
+            deco[k] = [deepcopy(deco[k]) for _ in range(b)]
+    if isinstance(deco, Mapping):
+        _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
+        return [dict(zip(deco, item)) for item in _gen]
+    if isinstance(deco, Iterable):
+        _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
+        return [list(item) for item in _gen]
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
