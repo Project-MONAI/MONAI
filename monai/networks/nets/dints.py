@@ -306,6 +306,9 @@ class DiNTS(nn.Module):
                     nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
                 )
 
+    def weight_parameters(self):
+        return [param for name, param in self.named_parameters()]
+        
     def forward(self, x: torch.Tensor):
         """
         Prediction based on dynamic arch_code.
@@ -347,7 +350,7 @@ class DintsSearchSpace(nn.Module):
         arch_code: Optional[list] = None,
         num_blocks: int = 6,
         num_depths: int = 3,
-        use_downsample: bool = False,
+        use_downsample: bool = True,
         device: str = "cpu",
     ):
         """
