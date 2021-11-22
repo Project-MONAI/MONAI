@@ -49,7 +49,11 @@ TEST_CASE_MC_0 = [
 ]
 
 
-TEST_CASE_MC_1 = [{"keys": "image", "grid_size": (2, 1)}, [{"image": A}] * 5, [torch.stack([A1, A2])] * 5]
+TEST_CASE_MC_1 = [
+    {"keys": "image", "grid_size": (2, 1)},
+    [{"image": A}, {"image": A}, {"image": A}],
+    [torch.stack([A1, A2])] * 3,
+]
 
 
 TEST_CASE_MC_2 = [
@@ -63,13 +67,34 @@ class TestSplitOnGridDict(unittest.TestCase):
     @parameterized.expand(
         [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
     )
-    def test_split_pathce_single_call(self, input_parameters, img_dict, expected):
+    def test_split_patch_single_call_numpy(self, input_parameters, img_dict, expected):
+        img_dict_np = {}
+        for k, v in img_dict.items():
+            img_dict_np[k] = v.numpy()
+        splitter = SplitOnGridDict(**input_parameters)
+        output = splitter(img_dict_np)[input_parameters["keys"]]
+        np.testing.assert_equal(output, expected.numpy())
+
+    @parameterized.expand([TEST_CASE_MC_0, TEST_CASE_MC_1, TEST_CASE_MC_2])
+    def test_split_patch_multiple_call_numpy(self, input_parameters, img_list, expected_list):
+        splitter = SplitOnGridDict(**input_parameters)
+        for img_dict, expected in zip(img_list, expected_list):
+            img_dict_np = {}
+            for k, v in img_dict.items():
+                img_dict_np[k] = v.numpy()
+            output = splitter(img_dict_np)[input_parameters["keys"]]
+            np.testing.assert_equal(output, expected.numpy())
+
+    @parameterized.expand(
+        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+    )
+    def test_split_patch_single_call_torch(self, input_parameters, img_dict, expected):
         splitter = SplitOnGridDict(**input_parameters)
         output = splitter(img_dict)[input_parameters["keys"]]
         np.testing.assert_equal(output.numpy(), expected.numpy())
 
     @parameterized.expand([TEST_CASE_MC_0, TEST_CASE_MC_1, TEST_CASE_MC_2])
-    def test_split_pathce_multiple_call(self, input_parameters, img_list, expected_list):
+    def test_split_patch_multiple_call_torch(self, input_parameters, img_list, expected_list):
         splitter = SplitOnGridDict(**input_parameters)
         for img_dict, expected in zip(img_list, expected_list):
             output = splitter(img_dict)[input_parameters["keys"]]
