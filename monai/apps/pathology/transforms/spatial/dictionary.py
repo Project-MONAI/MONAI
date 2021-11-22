@@ -13,7 +13,6 @@ import copy
 from typing import Any, Dict, Hashable, List, Mapping, Optional, Tuple, Union
 
 import numpy as np
-import torch
 
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
