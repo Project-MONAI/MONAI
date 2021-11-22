@@ -168,6 +168,12 @@ If the pipeline includes random transformations, users may want to observe the e
 (2) The TTA results of `mode`, `mean` and `standard deviation`:
 ![test time augmentation](../images/tta.png)
 
+### 15. Visualization of transform examples
+To help clearly introduce the transform functionalities, MONAI provides visualization examples in the [API document](https://docs.monai.io/en/latest/transforms.html) for almost every transform, including spatial transforms, intensity transforms, crop / pad transforms, etc.
+
+For example:
+![rand gaussian noise](../images/rand_gaussian_noise.png)
+
 ## Datasets and DataLoader
 ### 1. Cache IO and transforms data to accelerate training
 Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch implementation may repeatedly load data and run the same preprocessing steps for every epoch during training, which can be time-consuming and unnecessary, especially when the medical image volumes are large.
@@ -269,7 +275,7 @@ add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=Fal
 ```
 
 ### 2. Implementation of generic 2D/3D networks
-And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DynUNet, DenseNet, GAN, AHNet, VNet, SENet(and SEResNet, SEResNeXt), SegResNet, EfficientNet, Attention-based transformer networks. All the networks can support PyTorch serialization pipeline based on `torch.jit.script`.
+And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DynUNet, DenseNet, GAN, AHNet, VNet, SENet(and SEResNet, SEResNeXt), SegResNet, EfficientNet, Attention-based transformer networks, Multi-instance learning networks, DiNTS for AutoML, etc. All the networks can support PyTorch serialization pipeline based on `torch.jit.script`.
 
 ### 3. Network adapter to finetune final layers
 Instead of training from scratch, we often leverage the existing models, and finetune the final layers of a network for new learning tasks. MONAI provides a `NetAdapter` to easily replace the last layer of a model by a convolutional layer or a fully-connected layer. A typical usage example is to adapt [Torchvision models trained with ImageNet](https://pytorch.org/vision/stable/models.html) for other learning tasks.
@@ -306,6 +312,13 @@ During evaluation, users usually save the metrics of every input image, then ana
 
 ## Visualization
 Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualization is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_training_dict.py).
+
+To easily visualize the 3D images as frames, MONAI provides the utility `matshow3d` based on `matplotlib` library. It can plot frames of image for the specified dimension, showing the spleen image as example:
+`matshow3d(volume=image, figsize=(100, 100), every_n=10, frame_dim=-1 show=True, cmap="gray")`
+![matshow3d example](../images/matshow3d.png)
+
+MONAI also provide the `blend_images` utility to blend the `image` and `label` to a RGB color image to better visualize the segmentation regions with specified `cmap` mode and weights, etc. Showing the spleen segmentation `image` and `label` as example:
+![blend example](../images/blend.png)
 
 And to visualize the class activation mapping for a trained classification model, MONAI provides CAM, GradCAM, GradCAM++ APIs for both 2D and 3D models:
 
@@ -385,6 +398,20 @@ G. Wang, X. Liu, C. Li, Z. Xu, J. Ruan, H. Zhu, T. Meng, K. Li, N. Huang, S. Zha
 
 Wentao Zhu, Can Zhao, Wenqi Li, Holger Roth, Ziyue Xu, and Daguang Xu (2020) "LAMP: Large Deep Nets with Automated Model Parallelism for Image Segmentation." MICCAI 2020 (Early Accept, paper link: https://arxiv.org/abs/2006.12575)
 ![LAMP UNet](../images/unet-pipe.png)
+
+### 3. DiNTS: Differentiable Neural Network Topology Search for 3D Medical Image Segmentation
+MONAI integrated the `DiNTS` module to support more flexible topologies and joint two-level search. It provides a topology guaranteed discretization algorithm and a discretization aware topology loss for the search stage to minimize the discretization gap, and a cost usage aware search method which can search 3D networks with different GPU memory requirements. For more details, please check the [DiNTS tutorial](https://github.com/Project-MONAI/tutorials/tree/master/neural_architecture_search).
+![DiNTS](../images/dints.png)
+
+### 4. Accounting for Dependencies in Deep Learning Based Multiple Instance Learning for Whole Slide Imaging
+MONAI integrated a `multi-instance` network which can explicitly account for dependencies between instances during training by embedding self-attention Transformer blocks to capture dependencies between instances. For more details, please check the [multi-instance tutorial](https://github.com/Project-MONAI/tutorials/tree/master/pathology/multiple_instance_learning)
+![multi-instance](../images/multi_instance.png)
+
+### 5. Self-supervised training solution
+MONAI provides modified version of `ViT` as backbone for the `UNETR` network which is used for the fine-tuning fully supervised tasks. The [tutorial](https://github.com/Project-MONAI/tutorials/tree/master/self_supervised_pretraining) shows how to generate a good set of pre-trained weights using unlabeled data with self-supervised tasks that are based on augmentations of different types, then use the pre-trained weights to perform fine-tuning on a fully supervised task.
+
+The augmentations mutate the 3D patch in different ways and the self-supervised task of the network is to reconstruct the original image. Below example images show the augmentations pipeline where 2 augmented views:
+![Self-supervised learning](../images/ssl_aug_views.png)
 
 ## Performance optimization and GPU acceleration
 Typically, model training is a time-consuming step during deep learning development, especially in medical imaging applications. Volumetric medical images are usually large (as multi-dimensional arrays) and the model training process can be complex. Even with powerful hardware (e.g. CPU/GPU with large RAM), it is not easy to fully leverage them to achieve high performance. MONAI provides a fast training guide to achieve the best performance: https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md.
