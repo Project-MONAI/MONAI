@@ -320,6 +320,8 @@ To easily visualize the 3D images as frames, MONAI provides the utility `matshow
 MONAI also provide the `blend_images` utility to blend the `image` and `label` to a RGB color image to better visualize the segmentation regions with specified `cmap` mode and weights, etc. Showing the spleen segmentation `image` and `label` as example:
 ![blend example](../images/blend.png)
 
+For more details, please check the [visualziation tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/transform_visualization.ipynb) for `TensorBoard utility`, `matshow3d` and `blend_images`.
+
 And to visualize the class activation mapping for a trained classification model, MONAI provides CAM, GradCAM, GradCAM++ APIs for both 2D and 3D models:
 
 ![CAM visualization example](../images/cam.png)
