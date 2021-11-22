@@ -421,7 +421,7 @@ class DintsSearchSpace(nn.Module):
 
         # define NAS search space
         if arch_code is None:
-            assert self.is_search 
+            assert self.is_search
             arch_code_a = torch.ones((num_blocks, len(arch_code2out))).to(self.device)
             arch_code_c = torch.ones((num_blocks, len(arch_code2out), self.num_cell_ops)).to(self.device)
         else:
