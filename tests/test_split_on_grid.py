@@ -53,16 +53,7 @@ TEST_CASE_MC_2 = [{"grid_size": (1, 2)}, [A1, A2], [torch.stack([A11, A12]), tor
 
 class TestSplitOnGrid(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-            TEST_CASE_7,
-        ]
+        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
     )
     def test_split_patch_single_call_numpy(self, input_parameters, img, expected):
         img = img.numpy()
