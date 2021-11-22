@@ -38,6 +38,8 @@ class SplitOnGridd(MapTransform):
     Note: the shape of the input image is inferred based on the first image used.
     """
 
+    backend = SplitOnGrid.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -80,6 +82,8 @@ class TileOnGridd(Randomizable, MapTransform):
             Defaults to ``min`` (which assumes background is high value)
 
     """
+
+    backend = TileOnGrid.backend
 
     def __init__(
         self,
