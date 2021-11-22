@@ -308,7 +308,7 @@ class DiNTS(nn.Module):
 
     def weight_parameters(self):
         return [param for name, param in self.named_parameters()]
-        
+
     def forward(self, x: torch.Tensor):
         """
         Prediction based on dynamic arch_code.
