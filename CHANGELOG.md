@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 * Overview of [new features in v0.8](docs/source/whatsnew_0_8.md)
 * Network modules for differentiable neural network topology search (DiNTS)
-* Multi-instance learning transforms and models for digital pathology image analysis
+* Multiple Instance Learning transforms and models for digital pathology WSI analysis
 * Vision transformers for self-supervised representation learning
 * Contrastive loss for self-supervised learning
 * Finalized major improvements of 200+ components in `monai.transforms` to support input and backend in PyTorch and NumPy
@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Wrong numbering of iterations in `StatsHandler`
 * Naming conflicts in network modules and aliases
 * Incorrect output shape when `reduction="none"` in `FocalLoss`
-* Various bugs and usability issues reported by users
+* Various usability issues reported by users
 
 ## [0.7.0] - 2021-09-24
 ### Added
