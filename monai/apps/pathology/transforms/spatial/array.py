@@ -73,18 +73,12 @@ class SplitOnGrid(Transform):
                 .contiguous()
             )
         elif isinstance(image, np.ndarray):
-            x_step, y_step = steps
-            c_stride, x_stride, y_stride = image.strides
+            h_step, w_step = steps
+            c_stride, h_stride, w_stride = image.strides
             patches = as_strided(
                 image,
                 shape=(*self.grid_size, 3, patch_size[0], patch_size[1]),
-                strides=(
-                    x_stride * x_step,
-                    y_stride * y_step,
-                    c_stride,
-                    x_stride,
-                    y_stride,
-                ),
+                strides=(h_stride * h_step, w_stride * w_step, c_stride, h_stride, w_stride),
                 writeable=False,
             )
             # flatten the first two dimensions
