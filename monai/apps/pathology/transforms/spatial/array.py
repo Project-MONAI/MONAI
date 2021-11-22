@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from numpy.lib.stride_tricks import as_strided
 
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import Randomizable, Transform
 from monai.utils.enums import TransformBackends
 
@@ -53,7 +54,7 @@ class SplitOnGrid(Transform):
         else:
             self.patch_size = patch_size
 
-    def __call__(self, image: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
+    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
         if self.grid_size == (1, 1) and self.patch_size is None:
             if isinstance(image, torch.Tensor):
                 return torch.stack([image])
@@ -63,7 +64,7 @@ class SplitOnGrid(Transform):
                 raise ValueError(f"Input type [{type(image)}] is not supported.")
 
         patch_size, steps = self.get_params(image.shape[1:])
-        patches: Union[np.ndarray, torch.Tensor]
+        patches: NdarrayOrTensor
         if isinstance(image, torch.Tensor):
             patches = (
                 image.unfold(1, patch_size[0], steps[0])
@@ -127,8 +128,6 @@ class TileOnGrid(Randomizable, Transform):
             Defaults to ``min`` (which assumes background is high value)
 
     """
-
-    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,

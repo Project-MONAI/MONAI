@@ -16,6 +16,7 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import MapTransform, Randomizable
 
 from .array import SplitOnGrid, TileOnGrid
@@ -50,9 +51,7 @@ class SplitOnGridd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.splitter = SplitOnGrid(grid_size=grid_size, patch_size=patch_size)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.splitter(d[key])
