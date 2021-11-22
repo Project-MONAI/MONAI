@@ -6,6 +6,53 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.8.0] - 2021-11-25
+### Added
+* Overview of [new features in v0.8](docs/source/whatsnew_0_8.md)
+* Network modules for differentiable neural network topology search (DiNTS)
+* Multi-instance learning transforms and models for digital pathology image analysis
+* Vision transformers for self-supervised representation learning
+* Contrastive loss for self-supervised learning
+* Finalized major improvements of 200+ components in `monai.transforms` to support input and backend in PyTorch and NumPy
+* Initial registration module benchmarking with `GlobalMutualInformationLoss` as an example
+* `monai.transforms` documentation with visual examples and the utility functions
+* Event handler for `MLfLow` integration
+* Enhanced data visualization functions including `blend_images` and `matshow3d`
+* `RandGridDistortion` and `SmoothField` in `monai.transforms`
+* Support of randomized shuffle buffer in iterable datasets
+* Performance review and enhancements for data type casting
+* Cumulative averaging API with distributed environment support
+* Module utility functions including `require_pkg` and `pytorch_after`
+* Various usability enhancements such as `allow_smaller` when sampling ROI and `wrap_sequence` when casting object types
+* `tifffile` support in `WSIReader`
+* Regression tests for the fast training workflows
+* Various tutorials and demos including educational contents at [MONAI Bootcamp 2021](https://github.com/Project-MONAI/MONAIBootcamp2021)
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.10-py3` from `nvcr.io/nvidia/pytorch:21.08-py3`
+* Decoupled `TraceKeys` and `TraceableTransform` APIs from `InvertibleTransform`
+* Skipping affine-based resampling when `resample=False` in `NiftiSaver`
+* Deprecated `threshold_values: bool` and `num_classes: int` in `AsDiscrete`
+* Enhanced `apply_filter` for spatially 1D, 2D and 3D inputs with non-separable kernels
+* Logging with `logging` in downloading and model archives in `monai.apps`
+* API documentation site now defaults to `stable` instead of `latest`
+* `skip-magic-trailing-comma` in coding style enforcements
+* Pre-merge CI pipelines now include unit tests with Nvidia Ampere architecture
+### Removed
+* Support for PyTorch 1.5
+* The deprecated `DynUnetV1` and the related network blocks
+* GitHub self-hosted CI/CD pipelines for package releases
+### Fixed
+* Support of path-like objects as file path inputs in most modules
+* Issue of `decollate_batch` for dictionary of empty lists
+* Typos in documentation and code examples in various modules
+* Issue of no available keys when `allow_missing_keys=True` for the `MapTransform`
+* Issue of redundant computation when normalization factors are 0.0 and 1.0 in `ScaleIntensity`
+* Incorrect reports of registered readers in `ImageReader`
+* Wrong numbering of iterations in `StatsHandler`
+* Naming conflicts in network modules and aliases
+* Incorrect output shape when `reduction="none"` in `FocalLoss`
+* Various bugs and usability issues reported by users
+
 ## [0.7.0] - 2021-09-24
 ### Added
 * Overview of [new features in v0.7](docs/source/whatsnew_0_7.md)
@@ -387,7 +434,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.7.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...HEAD
+[0.8.0]: https://github.com/Project-MONAI/MONAI/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/Project-MONAI/MONAI/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/Project-MONAI/MONAI/compare/0.5.3...0.6.0
 [0.5.3]: https://github.com/Project-MONAI/MONAI/compare/0.5.0...0.5.3
