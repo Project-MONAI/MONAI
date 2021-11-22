@@ -81,8 +81,6 @@ class TileOnGridd(Randomizable, MapTransform):
 
     """
 
-    backend = TileOnGrid.backend
-
     def __init__(
         self,
         keys: KeysCollection,
