@@ -61,7 +61,7 @@ class TestDints(unittest.TestCase):
         dints_params['node_a'] = node_a
         net = DiNTS(**dints_params).to(dints_grid_params["device"])
         result = net(torch.randn(input_shape).to(dints_grid_params["device"]))
-        self.assertEqual(result.shape, expected_shape)    
+        self.assertEqual(result.shape, expected_shape)
 
 
 if __name__ == "__main__":
