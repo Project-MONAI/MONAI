@@ -632,13 +632,13 @@ class DintsSearchSpace(nn.Module):
             - `node_act_list`: all node activation [2^num_depths-1, depth]. For depth = 4, there are 15 node activation
                                patterns, each of length 4. For example, [1,1,0,0] means nodes 0, 1 are activated (with input pathes).
             - `tidx`: index used to convert path activation matrix T = (depth,depth) in transfer_mtx to path activation arch_code (1,3*depth-2),
-                      for depth = 4, tidx = [0, 1, 4, 5, 6, 9, 10, 11, 14, 15]. A[tidx] (10 binary values) represents the path activation. 
-            - `arch_code2in`: path activation to its incoming node index (resolution). For depth = 4, 
+                      for depth = 4, tidx = [0, 1, 4, 5, 6, 9, 10, 11, 14, 15]. A[tidx] (10 binary values) represents the path activation.
+            - `arch_code2in`: path activation to its incoming node index (resolution). For depth = 4,
                               arch_code2in = [0, 1, 0, 1, 2, 1, 2, 3, 2, 3]. The first path outputs from node 0 (top resolution),
                               the second path outputs from node 1 (second resolution in the search space), the third path outputs
                               from node 0, e.t.c.
             - `arch_code2ops`: path activation to operations of upsample 1, keep 0, downsample -1. For depth = 4,
-                               arch_code2ops = [0, 1, -1, 0, 1, -1, 0, 1, -1, 0]. The first path does not change 
+                               arch_code2ops = [0, 1, -1, 0, 1, -1, 0, 1, -1, 0]. The first path does not change
                                resolution, the second path perform upsample, the third perform downsample, e.t.c.
             - `arch_code2out`: path activation to its output node index. For depth = 4, arch_code2out = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3].
                                The first and second pathes connects to node 0 (top resolution), the 3,4,5 pathes connects to
