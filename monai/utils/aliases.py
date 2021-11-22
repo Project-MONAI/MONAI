@@ -70,8 +70,8 @@ def resolve_name(name):
         try:
             mod = importlib.import_module(modname)
             obj = getattr(mod, declname, None)
-        except ModuleNotFoundError:
-            raise ValueError(f"Module {modname!r} not found.")
+        except ModuleNotFoundError as not_found_err:
+            raise ValueError(f"Module {modname!r} not found.") from not_found_err
 
         if obj is None:
             raise ValueError(f"Module {modname!r} does not have member {declname!r}.")

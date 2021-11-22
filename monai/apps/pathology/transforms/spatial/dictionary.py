@@ -9,16 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Hashable, Mapping, Optional, Tuple, Union
+import copy
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Tuple, Union
 
+import numpy as np
 import torch
 
 from monai.config import KeysCollection
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, Randomizable
 
-from .array import SplitOnGrid
+from .array import SplitOnGrid, TileOnGrid
 
-__all__ = ["SplitOnGridd", "SplitOnGridD", "SplitOnGridDict"]
+__all__ = ["SplitOnGridd", "SplitOnGridD", "SplitOnGridDict", "TileOnGridd", "TileOnGridD", "TileOnGridDict"]
 
 
 class SplitOnGridd(MapTransform):
@@ -27,11 +29,11 @@ class SplitOnGridd(MapTransform):
     This transform works only with torch.Tensor inputs.
 
     Args:
-        grid_shape: a tuple or an integer define the shape of the grid upon which to extract patches.
+        grid_size: a tuple or an integer define the shape of the grid upon which to extract patches.
             If it's an integer, the value will be repeated for each dimension. Default is 2x2
         patch_size: a tuple or an integer that defines the output patch sizes.
             If it's an integer, the value will be repeated for each dimension.
-            The default is (0, 0), where the patch size will be infered from the grid shape.
+            The default is (0, 0), where the patch size will be inferred from the grid shape.
 
     Note: the shape of the input image is infered based on the first image used.
     """
@@ -53,4 +55,78 @@ class SplitOnGridd(MapTransform):
         return d
 
 
+class TileOnGridd(Randomizable, MapTransform):
+    """
+    Tile the 2D image into patches on a grid and maintain a subset of it.
+    This transform works only with np.ndarray inputs for 2D images.
+
+    Args:
+        tile_count: number of tiles to extract, if None extracts all non-background tiles
+            Defaults to ``None``.
+        tile_size: size of the square tile
+            Defaults to ``256``.
+        step: step size
+            Defaults to ``None`` (same as tile_size)
+        random_offset: Randomize position of the grid, instead of starting from the top-left corner
+            Defaults to ``False``.
+        pad_full: pad image to the size evenly divisible by tile_size
+            Defaults to ``False``.
+        background_val: the background constant (e.g. 255 for white background)
+            Defaults to ``255``.
+        filter_mode: mode must be in ["min", "max", "random"]. If total number of tiles is more than tile_size,
+            then sort by intensity sum, and take the smallest (for min), largest (for max) or random (for random) subset
+            Defaults to ``min`` (which assumes background is high value)
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        tile_count: Optional[int] = None,
+        tile_size: int = 256,
+        step: Optional[int] = None,
+        random_offset: bool = False,
+        pad_full: bool = False,
+        background_val: int = 255,
+        filter_mode: str = "min",
+        allow_missing_keys: bool = False,
+        return_list_of_dicts: bool = False,
+    ):
+        super().__init__(keys, allow_missing_keys)
+
+        self.return_list_of_dicts = return_list_of_dicts
+        self.seed = None
+
+        self.splitter = TileOnGrid(
+            tile_count=tile_count,
+            tile_size=tile_size,
+            step=step,
+            random_offset=random_offset,
+            pad_full=pad_full,
+            background_val=background_val,
+            filter_mode=filter_mode,
+        )
+
+    def randomize(self, data: Any = None) -> None:
+        self.seed = self.R.randint(10000)  # type: ignore
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Union[Dict[Hashable, np.ndarray], List[Dict]]:
+
+        self.randomize()
+
+        d = dict(data)
+        for key in self.key_iterator(d):
+            self.splitter.set_random_state(seed=self.seed)  # same random seed for all keys
+            d[key] = self.splitter(d[key])
+
+        if self.return_list_of_dicts:
+            d_list = []
+            for i in range(len(d[self.keys[0]])):
+                d_list.append({k: d[k][i] if k in self.keys else copy.deepcopy(d[k]) for k in d.keys()})
+            d = d_list  # type: ignore
+
+        return d
+
+
 SplitOnGridDict = SplitOnGridD = SplitOnGridd
+TileOnGridDict = TileOnGridD = TileOnGridd

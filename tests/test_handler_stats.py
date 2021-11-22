@@ -140,7 +140,7 @@ class TestHandlerStats(unittest.TestCase):
             engine.run(range(3), max_epochs=2)
             handler.close()
             stats_handler.logger.removeHandler(handler)
-            with open(filename, "r") as f:
+            with open(filename) as f:
                 output_str = f.read()
                 grep = re.compile(f".*{key_to_handler}.*")
                 has_key_word = re.compile(f".*{key_to_print}.*")
@@ -162,6 +162,45 @@ class TestHandlerStats(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             engine.run(range(3), max_epochs=2)
+
+    def test_attributes_print(self):
+        log_stream = StringIO()
+        log_handler = logging.StreamHandler(log_stream)
+        log_handler.setLevel(logging.INFO)
+        key_to_handler = "test_logging"
+
+        # set up engine
+        def _train_func(engine, batch):
+            return [torch.tensor(0.0)]
+
+        engine = Engine(_train_func)
+
+        # set up dummy metric
+        @engine.on(Events.EPOCH_COMPLETED)
+        def _update_metric(engine):
+            if not hasattr(engine.state, "test1"):
+                engine.state.test1 = 0.1
+                engine.state.test2 = 0.2
+            else:
+                engine.state.test1 += 0.1
+                engine.state.test2 += 0.2
+
+        # set up testing handler
+        stats_handler = StatsHandler(
+            name=key_to_handler, state_attributes=["test1", "test2", "test3"], logger_handler=log_handler
+        )
+        stats_handler.attach(engine)
+
+        engine.run(range(3), max_epochs=2)
+
+        # check logging output
+        output_str = log_stream.getvalue()
+        log_handler.close()
+        grep = re.compile(f".*{key_to_handler}.*")
+        has_key_word = re.compile(".*State values.*")
+        for idx, line in enumerate(output_str.split("\n")):
+            if grep.match(line) and idx in [5, 10]:
+                self.assertTrue(has_key_word.match(line))
 
 
 if __name__ == "__main__":
