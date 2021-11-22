@@ -18,7 +18,7 @@ import warnings
 from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
-from itertools import product, starmap
+from itertools import product, starmap, zip_longest
 from pathlib import PurePath
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
@@ -73,7 +73,6 @@ __all__ = [
     "pickle_hashing",
     "sorted_dict",
     "decollate_batch",
-    "rep_scalar_to_batch",
     "pad_list_data_collate",
     "no_collation",
     "convert_tables_to_dicts",
@@ -297,7 +296,32 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str) from re
 
 
-def decollate_batch(batch, detach: bool = True):
+def _non_zipping_check(batch_data, detach, pad, fill_value):
+    """
+    Utility function based on `decollate_batch`, to identify the largest batch size from the collated data.
+    returns batch_size, the list of non-iterable items, and the dictionary or list with their items decollated.
+
+    See `decollate_batch` for more details.
+    """
+    if isinstance(batch_data, Mapping):
+        _deco = {key: decollate_batch(batch_data[key], detach, pad=pad, fill_value=fill_value) for key in batch_data}
+    elif isinstance(batch_data, Iterable):
+        _deco = [decollate_batch(b, detach, pad=pad, fill_value=fill_value) for b in batch_data]
+    else:
+        raise NotImplementedError(f"Unable to de-collate: {batch_data}, type: {type(batch_data)}.")
+    batch_size, non_iterable = 0, []
+    for k, v in _deco.items() if isinstance(_deco, Mapping) else enumerate(_deco):
+        if not isinstance(v, Iterable) or isinstance(v, (str, bytes)) or (isinstance(v, torch.Tensor) and v.ndim == 0):
+            # Not running the usual list decollate here:
+            # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
+            # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
+            non_iterable.append(k)
+        elif hasattr(v, "__len__"):
+            batch_size = max(batch_size, len(v))
+    return batch_size, non_iterable, _deco
+
+
+def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
     Returns a list of structures with the original tensor's 0-th dimension sliced into elements using `torch.unbind`.
@@ -335,10 +359,23 @@ def decollate_batch(batch, detach: bool = True):
         print(out[0])
         >>> tensor([[[4.3549e-01...43e-01]]])
 
+        batch_data = {
+            "image": [1, 2, 3], "meta": [4, 5],  # undetermined batch size
+        }
+        out = decollate_batch(batch_data, pad=True, fill_value=0)
+        print(out)
+        >>> [{'image': 1, 'meta': 4}, {'image': 2, 'meta': 5}, {'image': 3, 'meta': 0}]
+        out = decollate_batch(batch_data, pad=False)
+        print(out)
+        >>> [{'image': 1, 'meta': 4}, {'image': 2, 'meta': 5}]
+
     Args:
         batch: data to be de-collated.
         detach: whether to detach the tensors. Scalars tensors will be detached into number types
             instead of torch tensors.
+        pad: when the items in a batch indicate different batch size, whether to pad all the sequences to the longest.
+            If False, the batch size will be the length of the shortest sequence.
+        fill_value: when `pad` is True, the `fillvalue` to use when padding, defaults to `None`.
     """
     if batch is None:
         return batch
@@ -353,68 +390,20 @@ def decollate_batch(batch, detach: bool = True):
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
-    if isinstance(batch, Mapping):
-        _dict_list = {key: decollate_batch(batch[key], detach) for key in batch}
-        return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]
-    if isinstance(batch, Iterable):
-        item_0 = first(batch)
-        if (
-            not isinstance(item_0, Iterable)
-            or isinstance(item_0, (str, bytes))
-            or (isinstance(item_0, torch.Tensor) and item_0.ndim == 0)
-        ):
-            # Not running the usual list decollate here:
-            # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
-            # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
-            return [decollate_batch(b, detach) for b in batch]
-        return [list(item) for item in zip(*(decollate_batch(b, detach) for b in batch))]
+
+    b, non_iterable, deco = _non_zipping_check(batch, detach, pad, fill_value)
+    if b <= 0:  # all non-iterable, single item "batch"? {"image": 1, "label": 1}
+        return deco
+    if pad:  # duplicate non-iterable items to the longest batch
+        for k in non_iterable:
+            deco[k] = [deepcopy(deco[k]) for _ in range(b)]
+    if isinstance(deco, Mapping):
+        _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
+        return [dict(zip(deco, item)) for item in _gen]
+    if isinstance(deco, Iterable):
+        _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
+        return [list(item) for item in _gen]
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
-
-
-def rep_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
-    """
-    Utility tp replicate the scalar items of a list or dictionary to ensure all the items have batch dimension.
-    It leverages `decollate_batch(detach=False)` to filter out the scalar items.
-
-    """
-
-    def _detect_batch_size(batch_data: Sequence):
-        """
-        Detect the batch size from a list of data, some items in the list have batch dim, some not.
-
-        """
-        for v in batch_data:
-            if isinstance(v, torch.Tensor) and v.ndim > 0:
-                return v.shape[0]
-        for v in batch_data:
-            if issequenceiterable(v):
-                warnings.warn("batch_data doesn't contain batched Tensor data, use the length of first sequence data.")
-                return len(v)
-        raise RuntimeError("failed to automatically detect the batch size.")
-
-    if isinstance(batch_data, dict):
-        batch_size = _detect_batch_size(list(batch_data.values()))
-        dict_batch = {}
-        for k, v in batch_data.items():
-            if decollate_batch(v, detach=False) == v and not isinstance(v, list):
-                # if decollating a list, the result may be the same list, so should skip this case
-                dict_batch[k] = [deepcopy(decollate_batch(v, detach=True)) for _ in range(batch_size)]
-            else:
-                dict_batch[k] = v
-
-        return dict_batch
-    if isinstance(batch_data, list):
-        batch_size = _detect_batch_size(batch_data)
-        list_batch = []
-        for b in batch_data:
-            if decollate_batch(b, detach=False) == b and not isinstance(b, list):
-                list_batch.append([deepcopy(decollate_batch(b, detach=True)) for _ in range(batch_size)])
-            else:
-                list_batch.append(b)
-
-        return list_batch
-    # if not dict or list, just return the original data
-    return batch_data
 
 
 def pad_list_data_collate(
