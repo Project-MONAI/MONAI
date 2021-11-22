@@ -29,7 +29,7 @@ from .densenet import (
     densenet201,
     densenet264,
 )
-from .dints import DiNTS, DintsSearchSpace
+from .dints import DiNTS, TopologySearchSpace
 from .dynunet import DynUNet, DynUnet, Dynunet
 from .efficientnet import (
     BlockArgs,

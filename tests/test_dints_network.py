@@ -11,9 +11,10 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
-import numpy as np
+
 from monai.networks.nets import DiNTS, DintsSearchSpace
 from monai.networks.nets.dints import Cell
 
@@ -44,21 +45,22 @@ class TestDints(unittest.TestCase):
         net = DiNTS(**dints_params).to(dints_grid_params["device"])
         result = net(torch.randn(input_shape).to(dints_grid_params["device"]))
         self.assertEqual(result.shape, expected_shape)
+
     @parameterized.expand(TEST_CASES_3D)
     def test_dints_search_space_deploy(self, dints_grid_params, dints_params, input_shape, expected_shape):
-        num_blocks = dints_grid_params['num_blocks']
-        num_depths = dints_grid_params['num_depths']
+        num_blocks = dints_grid_params["num_blocks"]
+        num_depths = dints_grid_params["num_depths"]
         # define archtecture codes
         node_a = np.ones((num_blocks + 1, num_depths))
-        arch_code_a = np.ones((num_blocks, 3*num_depths -2))
-        arch_code_c = np.random.randint(len(Cell.OPS), size=(num_blocks, 3*num_depths -2))
+        arch_code_a = np.ones((num_blocks, 3 * num_depths - 2))
+        arch_code_c = np.random.randint(len(Cell.OPS), size=(num_blocks, 3 * num_depths - 2))
         # initialize with codes
-        dints_grid_params['arch_code'] = [arch_code_a, arch_code_c]
+        dints_grid_params["arch_code"] = [arch_code_a, arch_code_c]
         grid = DintsSearchSpace(**dints_grid_params)
         # set as deploy stage
         grid.is_search = False
-        dints_params['dints_space'] = grid
-        dints_params['node_a'] = node_a
+        dints_params["dints_space"] = grid
+        dints_params["node_a"] = node_a
         net = DiNTS(**dints_params).to(dints_grid_params["device"])
         result = net(torch.randn(input_shape).to(dints_grid_params["device"]))
         self.assertEqual(result.shape, expected_shape)

@@ -30,7 +30,7 @@ from monai.utils import optional_import
 csr_matrix, _ = optional_import("scipy.sparse", name="csr_matrix")
 dijkstra, _ = optional_import("scipy.sparse.csgraph", name="dijkstra")
 
-__all__ = ["DiNTS", "DintsSearchSpace"]
+__all__ = ["DiNTS", "TopologySearchSpace"]
 
 
 class _IdentityWithRAMCost(nn.Identity):
@@ -40,7 +40,7 @@ class _IdentityWithRAMCost(nn.Identity):
 
 
 class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
-    def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int):
+    def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, spatial_dims: int = 3):
         super().__init__(in_channel, out_channel, kernel_size, padding)
         self.ram_cost = 1 + out_channel / in_channel * 2
 
@@ -52,11 +52,15 @@ class _P3DActiConvNormBlockWithRAMCost(P3DActiConvNormBlock):
 
 
 class _FactorizedIncreaseBlockWithRAMCost(FactorizedIncreaseBlock):
-    def __init__(self, in_channel: int, out_channel: int):
+    def __init__(self, in_channel: int, out_channel: int, spatial_dims: int = 3):
         super().__init__(in_channel, out_channel)
 
-        # divide by 8 to comply with cell output size
-        self.ram_cost = 8 * (1 + 1 + out_channel / in_channel * 2) / 8 * in_channel / out_channel
+        # divide by 2^spatial_dims to comply with cell output size
+        self.ram_cost = 0
+        if self._spatial_dims == 2:
+            self.ram_cost = 4 * (1 + 1 + out_channel / in_channel * 2) / 4 * in_channel / out_channel
+        elif self._spatial_dims == 3:
+            self.ram_cost = 8 * (1 + 1 + out_channel / in_channel * 2) / 8 * in_channel / out_channel
 
 
 class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
@@ -64,11 +68,15 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
     Down-sampling the feature by 2 using stride.
     """
 
-    def __init__(self, in_channel: int, out_channel: int):
+    def __init__(self, in_channel: int, out_channel: int, spatial_dims: int = 3):
         super().__init__(in_channel, out_channel)
 
-        # multiply by 8 to comply with cell output size (see net.get_ram_cost_usage)
-        self.ram_cost = (1 + out_channel / in_channel / 8 * 3) * 8 * in_channel / out_channel
+        # multiply by 2^spatial_dims to comply with cell output size (see net.get_ram_cost_usage)
+        self.ram_cost = 0
+        if self._spatial_dims == 2:
+            self.ram_cost = (1 + out_channel / in_channel / 4 * 3) * 4 * in_channel / out_channel
+        elif self._spatial_dims == 3:
+            self.ram_cost = (1 + out_channel / in_channel / 8 * 3) * 8 * in_channel / out_channel
 
 
 class MixedOp(nn.Module):
@@ -119,26 +127,41 @@ class Cell(nn.Module):
         "align_channels": _ActiConvNormBlockWithRAMCost,
     }
 
-    # Define operation set parameterized by the number of channels
-    OPS = {
+    # Define 2D operation set parameterized by the number of channels
+    OPS2D = {
         "skip_connect": lambda _c: _IdentityWithRAMCost(),
-        "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1),
+        "conv_3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1, spatial_dims=2),
+    }
+
+    # Define 3D operation set parameterized by the number of channels
+    OPS3D = {
+        "skip_connect": lambda _c: _IdentityWithRAMCost(),
+        "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1, spatial_dims=3),
         "conv_3x3x1": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=0),
         "conv_3x1x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=1),
         "conv_1x3x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=2),
     }
 
-    def __init__(self, c_prev: int, c: int, rate: int, arch_code_c=None):
+    def __init__(self, c_prev: int, c: int, rate: int, arch_code_c=None, spatial_dims: int = 3):
         super().__init__()
+        self._spatial_dims = spatial_dims
+
         if rate == -1:  # downsample
-            self.preprocess = self.ConnOPS["down"](c_prev, c)
+            self.preprocess = self.ConnOPS["down"](c_prev, c, spatial_dims=self._spatial_dims)
         elif rate == 1:  # upsample
-            self.preprocess = self.ConnOPS["up"](c_prev, c)
+            self.preprocess = self.ConnOPS["up"](c_prev, c, spatial_dims=self._spatial_dims)
         else:
             if c_prev == c:
                 self.preprocess = self.ConnOPS["identity"]()
             else:
-                self.preprocess = self.ConnOPS["align_channels"](c_prev, c, 1, 0)
+                self.preprocess = self.ConnOPS["align_channels"](c_prev, c, 1, 0, spatial_dims=self._spatial_dims)
+
+        self.OPS = {}
+        if self._spatial_dims == 2:
+            self.OPS = self.OPS2D
+        elif self._spatial_dims == 3:
+            self.OPS = self.OPS3D
+
         self.op = MixedOp(c, self.OPS, arch_code_c)
 
     def forward(self, x: torch.Tensor, ops: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
@@ -155,7 +178,7 @@ class Cell(nn.Module):
 
 class DiNTS(nn.Module):
     """
-    Reimplementation of Dints based on
+    Reimplementation of DiNTS based on
     "DiNTS: Differentiable Neural Network Topology Search for 3D Medical Image Segmentation
     <https://arxiv.org/abs/2103.15954>".
 
@@ -191,7 +214,7 @@ class DiNTS(nn.Module):
         norm_name: Union[Tuple, str] = "INSTANCE",
         spatial_dims: int = 3,
         use_downsample: bool = True,
-        node_a = None
+        node_a=None,
     ):
         super().__init__()
         if spatial_dims != 3:
@@ -342,7 +365,7 @@ class DiNTS(nn.Module):
         return prediction
 
 
-class DintsSearchSpace(nn.Module):
+class TopologySearchSpace(nn.Module):
     def __init__(
         self,
         channel_mul: float = 1.0,
@@ -350,11 +373,12 @@ class DintsSearchSpace(nn.Module):
         arch_code: Optional[list] = None,
         num_blocks: int = 6,
         num_depths: int = 3,
+        spatial_dims: int = 3,
         use_downsample: bool = True,
         device: str = "cpu",
     ):
         """
-        Initialize Dints network search space
+        Initialize DiNTS topology search space of neural architecture
 
         Args:
             channel_mul: adjust intermediate channel number, default 1.
@@ -418,9 +442,15 @@ class DintsSearchSpace(nn.Module):
         self.child_list = np.array(child_list)
         self.num_blocks = num_blocks
         self.num_depths = num_depths
-        self.num_cell_ops = len(cell.OPS)
+        self._spatial_dims = spatial_dims
         self.use_downsample = use_downsample
         self.device = device
+
+        self.num_cell_ops = 0
+        if self._spatial_dims == 2:
+            self.num_cell_ops = len(cell.OPS2D)
+        elif self._spatial_dims == 3:
+            self.num_cell_ops = len(cell.OPS3D)
 
         # define NAS search space
         if arch_code is None:
@@ -442,6 +472,7 @@ class DintsSearchSpace(nn.Module):
                         filter_nums[arch_code2out[res_idx] + int(use_downsample)],
                         arch_code2ops[res_idx],
                         arch_code_c[blk_idx, res_idx],
+                        self._spatial_dims,
                     )
                     self.ram_cost[blk_idx, res_idx] = np.array(
                         [
@@ -655,7 +686,7 @@ class DintsSearchSpace(nn.Module):
             - `all_connect`: All possible path activations. For depth = 4, all_connection has 1024 vectors of length 10 (10 pathes).
                              The return value will exclude path activation of all 0.
         """
-        # total pathes in a block, each node has three output pathes, except the two nodes at the top and the bottom
+        # total pathes in a block, each node has three output pathes, except the two nodes at the top and the bottom scales
         paths = 3 * depth - 2
 
         # use depth first search to find all path activation combination
@@ -664,6 +695,7 @@ class DintsSearchSpace(nn.Module):
                 return [[0], [1]]
             child = dfs(node + 1, paths)
             return [[0] + _ for _ in child] + [[1] + _ for _ in child]
+
         # for 10 pathes, all_connect has 1024 possible path activations. [1 0 0 0 0 0 0 0 0 0] means the top
         # path is activated.
         all_connect = dfs(0, paths - 1)
