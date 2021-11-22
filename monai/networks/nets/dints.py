@@ -178,6 +178,8 @@ class DiNTS(nn.Module):
         spatial_dims: 2D or 3D convolution. Only support 3.
         use_downsample: use downsample in the stem. If False, the search space will be in resolution [1, 1/2, 1/4, 1/8],
             if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
+        node_a: node activation numpy matrix. size (num_depths, num_blocks + 1). +1 for multi-resolution inputs. In model
+                searching stage, node_a can be None. In deloyment stage, node_a cannot be None.
     """
 
     def __init__(
@@ -189,6 +191,7 @@ class DiNTS(nn.Module):
         norm_name: Union[Tuple, str] = "INSTANCE",
         spatial_dims: int = 3,
         use_downsample: bool = True,
+        node_a = None
     ):
         super().__init__()
         if spatial_dims != 3:
@@ -198,6 +201,11 @@ class DiNTS(nn.Module):
         self.filter_nums = dints_space.filter_nums
         self.num_blocks = dints_space.num_blocks
         self.num_depths = dints_space.num_depths
+        if node_a is None:
+            assert self.dints_space.is_search
+            self.node_a = np.ones((self.num_blocks + 1, self.num_depths))
+        else:
+            self.node_a = node_a
 
         # define stem operations for every block
         conv_type = Conv[Conv.CONV, spatial_dims]
@@ -298,17 +306,14 @@ class DiNTS(nn.Module):
                     nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
                 )
 
-    def forward(self, x: torch.Tensor, arch_code=None):
+    def forward(self, x: torch.Tensor):
         """
         Prediction based on dynamic arch_code.
 
         Args:
             x: input tensor.
-            arch_code: [node_a, arch_code_a, arch_code_c]. arch_code_a and arch_code_c are `torch.Tensor`, which are
-                used in the `forward()` of `self.dints_space`.
         """
-        predict_all = []
-        node_a, arch_code_a, arch_code_c = arch_code
+        node_a = self.node_a
 
         inputs = []
         for d in range(self.num_depths):
@@ -318,7 +323,7 @@ class DiNTS(nn.Module):
             else:
                 inputs.append(None)
 
-        outputs = self.dints_space(inputs, arch_code_a, arch_code_c)
+        outputs = self.dints_space(inputs)
 
         blk_idx = self.num_blocks - 1
         start = False
@@ -330,9 +335,8 @@ class DiNTS(nn.Module):
                 start = True
                 _temp = self.stem_up[str(res_idx)](outputs[res_idx])
         prediction = self.stem_finals(_temp)
-        predict_all.append(prediction)
 
-        return predict_all
+        return prediction
 
 
 class DintsSearchSpace(nn.Module):
@@ -352,7 +356,7 @@ class DintsSearchSpace(nn.Module):
         Args:
             channel_mul: adjust intermediate channel number, default 1.
             cell: operation of each node.
-            arch_code: `[arch_code_a, arch_code_c]`.
+            arch_code: `[arch_code_a, arch_code_c]`. numpy array.
                 For num_depths=4, num_blocks=12 search space,
                 arch_code_a is a 12x10 (10 paths) binary matrix representing if a path is activated.
                 arch_code_c is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
@@ -417,12 +421,14 @@ class DintsSearchSpace(nn.Module):
 
         # define NAS search space
         if arch_code is None:
-            arch_code_a = np.ones((num_blocks, len(arch_code2out)))
-            arch_code_c = np.ones((num_blocks, len(arch_code2out), self.num_cell_ops))
+            assert self.is_search 
+            arch_code_a = torch.ones((num_blocks, len(arch_code2out))).to(self.device)
+            arch_code_c = torch.ones((num_blocks, len(arch_code2out), self.num_cell_ops)).to(self.device)
         else:
-            arch_code_a = arch_code[0]
-            arch_code_c = F.one_hot(torch.from_numpy(arch_code[1]), self.num_cell_ops).numpy()
-
+            arch_code_a = torch.from_numpy(arch_code[0]).to(self.device)
+            arch_code_c = F.one_hot(torch.from_numpy(arch_code[1]), self.num_cell_ops).to(self.device)
+        self.arch_code_a = arch_code_a
+        self.arch_code_c = arch_code_c
         self.cell_tree = nn.ModuleDict()
         self.ram_cost = np.zeros((num_blocks, len(arch_code2out), self.num_cell_ops))
         for blk_idx in range(num_blocks):
@@ -688,18 +694,17 @@ class DintsSearchSpace(nn.Module):
 
         return transfer_mtx, node_act_list, tidx, arch_code2in, arch_code2ops, arch_code2out, all_connect[1:]
 
-    def forward(self, x, arch_code_a, arch_code_c):
+    def forward(self, x):
         """
         Prediction based on dynamic arch_code.
 
         Args:
             x: input tensor.
-            arch_code_a: matrix for network macro architecture.  (num_blocks, number of pathes)
-            arch_code_c: matrix for network cell operations. (num_blocks, number of pathes, cell operation)
         """
         # generate path activatio probability
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
-
+        arch_code_a = self.arch_code_a
+        arch_code_c = self.arch_code_c
         inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [0] * self.num_depths
