@@ -308,7 +308,7 @@ class DiNTS(nn.Module):
                 used in the `forward()` of `self.dints_space`.
         """
         predict_all = []
-        node_a, _, _ = arch_code
+        node_a, arch_code_a, arch_code_c = arch_code
 
         inputs = []
         for d in range(self.num_depths):
@@ -318,7 +318,7 @@ class DiNTS(nn.Module):
             else:
                 inputs.append(None)
 
-        outputs = self.dints_space(inputs, arch_code)
+        outputs = self.dints_space(inputs, arch_code_a, arch_code_c)
 
         blk_idx = self.num_blocks - 1
         start = False
@@ -482,13 +482,12 @@ class DintsSearchSpace(nn.Module):
         else:
             return None, arch_code_prob_a
 
-    def get_ram_cost_usage(self, in_size, arch_code=None, full: bool = False):
+    def get_ram_cost_usage(self, in_size, full: bool = False):
         """
         Get estimated output tensor size
 
         Args:
             in_size: input image shape (5D) at the highest resolutoin level.
-            arch_code: architecture code , if None, the ram is calculated using probability.
             full: full ram cost usage with all probability of 1.
         """
         # convert input image size to feature map size at each level
@@ -510,18 +509,11 @@ class DintsSearchSpace(nn.Module):
             # node activation for input
             # cell operation
             for path_idx in range(len(self.arch_code2out)):
-                if arch_code is not None:
-                    usage += (
-                        arch_code[0][blk_idx, path_idx]
-                        * (1 + (ram_cost[blk_idx, path_idx] * arch_code[0][blk_idx, path_idx]).sum())
-                        * sizes[self.arch_code2out[path_idx]]
-                    )
-                else:
-                    usage += (
-                        arch_code_prob_a[blk_idx, path_idx]
-                        * (1 + (ram_cost[blk_idx, path_idx] * cell_prob[blk_idx, path_idx]).sum())
-                        * sizes[self.arch_code2out[path_idx]]
-                    )
+                usage += (
+                    arch_code_prob_a[blk_idx, path_idx]
+                    * (1 + (ram_cost[blk_idx, path_idx] * cell_prob[blk_idx, path_idx]).sum())
+                    * sizes[self.arch_code2out[path_idx]]
+                )
         return usage * 32 / 8 / 1024 ** 2
 
     def get_topology_entropy(self, probs):
@@ -678,16 +670,16 @@ class DintsSearchSpace(nn.Module):
 
         return transfer_mtx, node_act_list, tidx, arch_code2in, arch_code2ops, arch_code2out, all_connect[1:]
 
-    def forward(self, x, arch_code=None):
+    def forward(self, x, arch_code_a, arch_code_c):
         """
         Prediction based on dynamic arch_code.
 
         Args:
             x: input tensor.
-            arch_code: [node_a, arch_code_a, arch_code_c].
+            arch_code_a: matrix for network macro architecture.
+            arch_code_c: matrix for network cell operations.
         """
         # sample path weights
-        node_a, arch_code_a, arch_code_c = arch_code
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
 
         inputs = x
