@@ -366,17 +366,17 @@ class DintsSearchSpace(nn.Module):
             device: 'cpu', 'cuda', or device ID.
 
         Predefined variables:
-            filter_nums: default init 32. Double channel number after downsample
+            filter_nums: default init 32. Double channel number after downsample.
             topology related variables from `self.gen_mtx()`:
-
-                - `trans_mtx`: feasible path activation given node activation key
-                - `arch_code2in`: path activation to its incoming node index
-                - `arch_code2ops`: path activation to operations of upsample 1, keep 0, downsample -1
-                - `arch_code2out`: path activation to its output node index
-                - `node_act_list`: all node activation arch_codes [2^num_depths-1, res_num]
-                - `node_act_dict`: node activation arch_code to its index
+                - `transfer_mtx`: feasible path activation given node activation key.
+                - `arch_code2in`: path activation to its incoming node index.
+                - `arch_code2ops`: path activation to operations of upsample 1, keep 0, downsample -1.
+                - `arch_code2out`: path activation to its output node index.
+                - `node_act_list`: all node activation arch_codes [2^num_depths-1, res_num].
+                - `node_act_dict`: node activation arch_code to its index.
                 - `tidx`: index used to convert path activation matrix (depth,depth)
-                  in trans_mtx to path activation arch_code (1,3*depth-2)
+                          in transfer_mtx to path activation arch_code (1,3*depth-2).
+            Please refer to `self.gen_mtx()` for more details.
         """
         super().__init__()
 
@@ -393,7 +393,7 @@ class DintsSearchSpace(nn.Module):
         ]
 
         # path activation and node activations
-        trans_mtx, node_act_list, tidx, arch_code2in, arch_code2ops, arch_code2out, child_list = self.gen_mtx(
+        transfer_mtx, node_act_list, tidx, arch_code2in, arch_code2ops, arch_code2out, child_list = self.gen_mtx(
             num_depths
         )
         node_act_list = np.array(node_act_list)
@@ -406,7 +406,7 @@ class DintsSearchSpace(nn.Module):
         self.arch_code2out = arch_code2out
         self.node_act_list = node_act_list
         self.node_act_dict = node_act_dict
-        self.trans_mtx = trans_mtx
+        self.transfer_mtx = transfer_mtx
         self.tidx = tidx
         self.child_list = np.array(child_list)
         self.num_blocks = num_blocks
@@ -463,9 +463,8 @@ class DintsSearchSpace(nn.Module):
         Args:
             child: return child probability (used in decode)
         """
-        log_alpha = self.log_alpha_a
-        _arch_code_prob_a = torch.sigmoid(log_alpha)
-        norm = 1 - (1 - _arch_code_prob_a).prod(-1)  # normalizing factor
+        _arch_code_prob_a = torch.sigmoid(self.log_alpha_a)
+        norm = 1 - (1 - _arch_code_prob_a).prod(-1)  # remove the case where all path are zero, and re-normalize.
         arch_code_prob_a = _arch_code_prob_a / norm.unsqueeze(1)
         if child:
             path_activation = torch.from_numpy(self.child_list).to(self.device)
@@ -585,7 +584,7 @@ class DintsSearchSpace(nn.Module):
             for path_idx in range(len(self.child_list[child_idx])):
                 _node_act[self.arch_code2out[path_idx]] += self.child_list[child_idx][path_idx]
             _node_act = (_node_act >= 1).astype(int)
-            for mtx in self.trans_mtx[str(_node_act)]:
+            for mtx in self.transfer_mtx[str(_node_act)]:
                 connect_child_idx = path2child[str(mtx.flatten()[self.tidx].astype(int))]
                 sub_amtx[child_idx, connect_child_idx] = 1
 
@@ -625,20 +624,39 @@ class DintsSearchSpace(nn.Module):
         node_a = (node_a >= 1).astype(int)
         return node_a, arch_code_a, arch_code_c, arch_code_a_max
 
-    def gen_mtx(self, depth: int = 3):
+    def gen_mtx(self, depth: int):
         """
-        Generate elements needed in decoding, topology
+        Generate elements needed in decoding and topology.
+            - `transfer_mtx`: feasible path activation matrix (denoted as T) given a node activation pattern. It is used to convert
+                             path activation pattern (1, pathes) to node activation (1, nodes)
+            - `node_act_list`: all node activation [2^num_depths-1, depth]. For depth = 4, there are 15 node activation
+                               patterns, each of length 4. For example, [1,1,0,0] means nodes 0, 1 are activated (with input pathes).
+            - `tidx`: index used to convert path activation matrix T = (depth,depth) in transfer_mtx to path activation arch_code (1,3*depth-2),
+                      for depth = 4, tidx = [0, 1, 4, 5, 6, 9, 10, 11, 14, 15]. A[tidx] (10 binary values) represents the path activation. 
+            - `arch_code2in`: path activation to its incoming node index (resolution). For depth = 4, 
+                              arch_code2in = [0, 1, 0, 1, 2, 1, 2, 3, 2, 3]. The first path outputs from node 0 (top resolution),
+                              the second path outputs from node 1 (second resolution in the search space), the third path outputs
+                              from node 0, e.t.c.
+            - `arch_code2ops`: path activation to operations of upsample 1, keep 0, downsample -1. For depth = 4,
+                               arch_code2ops = [0, 1, -1, 0, 1, -1, 0, 1, -1, 0]. The first path does not change 
+                               resolution, the second path perform upsample, the third perform downsample, e.t.c.
+            - `arch_code2out`: path activation to its output node index. For depth = 4, arch_code2out = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3].
+                               The first and second pathes connects to node 0 (top resolution), the 3,4,5 pathes connects to
+                               node 1, e.t.c.
+            - `all_connect`: All possible path activations. For depth = 4, all_connection has 1024 vectors of length 10 (10 pathes).
+                             The return value will exclude path activation of all 0.
         """
-        # total path in a block
+        # total pathes in a block, each node has three output pathes, except the two nodes at the top and the bottom
         paths = 3 * depth - 2
 
         # use depth first search to find all path activation combination
-        def dfs(node, paths=6):
+        def dfs(node, paths):
             if node == paths:
                 return [[0], [1]]
             child = dfs(node + 1, paths)
             return [[0] + _ for _ in child] + [[1] + _ for _ in child]
-
+        # for 10 pathes, all_connect has 1024 possible path activations. [1 0 0 0 0 0 0 0 0 0] means the top
+        # path is activated.
         all_connect = dfs(0, paths - 1)
 
         # Save all possible connections in mtx (might be redundant and infeasible)
@@ -676,10 +694,10 @@ class DintsSearchSpace(nn.Module):
 
         Args:
             x: input tensor.
-            arch_code_a: matrix for network macro architecture.
-            arch_code_c: matrix for network cell operations.
+            arch_code_a: matrix for network macro architecture.  (num_blocks, number of pathes)
+            arch_code_c: matrix for network cell operations. (num_blocks, number of pathes, cell operation)
         """
-        # sample path weights
+        # generate path activatio probability
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
 
         inputs = x
