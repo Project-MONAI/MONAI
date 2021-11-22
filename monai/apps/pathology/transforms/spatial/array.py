@@ -16,6 +16,7 @@ import torch
 from numpy.lib.stride_tricks import as_strided
 
 from monai.transforms.transform import Randomizable, Transform
+from monai.utils.enums import TransformBackends
 
 __all__ = ["SplitOnGrid", "TileOnGrid"]
 
@@ -35,6 +36,8 @@ class SplitOnGrid(Transform):
     Note: the shape of the input image is inferred based on the first image used.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self, grid_size: Union[int, Tuple[int, int]] = (2, 2), patch_size: Optional[Union[int, Tuple[int, int]]] = None
     ):
@@ -50,17 +53,47 @@ class SplitOnGrid(Transform):
         else:
             self.patch_size = patch_size
 
-    def __call__(self, image: torch.Tensor) -> torch.Tensor:
+    def __call__(self, image: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         if self.grid_size == (1, 1) and self.patch_size is None:
-            return torch.stack([image])
+            if isinstance(image, torch.Tensor):
+                return torch.stack([image])
+            elif isinstance(image, np.ndarray):
+                return np.stack([image])
+            else:
+                raise ValueError(f"Input type [{type(image)}] is not supported.")
+
         patch_size, steps = self.get_params(image.shape[1:])
-        patches = (
-            image.unfold(1, patch_size[0], steps[0])
-            .unfold(2, patch_size[1], steps[1])
-            .flatten(1, 2)
-            .transpose(0, 1)
-            .contiguous()
-        )
+        patches: Union[np.ndarray, torch.Tensor]
+        if isinstance(image, torch.Tensor):
+            patches = (
+                image.unfold(1, patch_size[0], steps[0])
+                .unfold(2, patch_size[1], steps[1])
+                .flatten(1, 2)
+                .transpose(0, 1)
+                .contiguous()
+            )
+        elif isinstance(image, np.ndarray):
+            x_step, y_step = steps
+            c_stride, x_stride, y_stride = image.strides
+            patches = as_strided(
+                image,
+                shape=(*self.grid_size, 3, patch_size[0], patch_size[1]),
+                strides=(
+                    x_stride * x_step,
+                    y_stride * y_step,
+                    c_stride,
+                    x_stride,
+                    y_stride,
+                ),
+                writeable=False,
+            )
+            # flatten the first two dimensions
+            patches = patches.reshape(np.prod(patches.shape[:2]), *patches.shape[2:])
+            # make it a contiguous array
+            patches = np.ascontiguousarray(patches)
+        else:
+            raise ValueError(f"Input type [{type(image)}] is not supported.")
+
         return patches
 
     def get_params(self, image_size):
@@ -100,6 +133,8 @@ class TileOnGrid(Randomizable, Transform):
             Defaults to ``min`` (which assumes background is high value)
 
     """
+
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -177,17 +212,17 @@ class TileOnGrid(Randomizable, Transform):
             )
 
         # extact tiles
-        xstep, ystep = self.step, self.step
-        xsize, ysize = self.tile_size, self.tile_size
-        clen, xlen, ylen = image.shape
-        cstride, xstride, ystride = image.strides
+        x_step, y_step = self.step, self.step
+        x_size, y_size = self.tile_size, self.tile_size
+        c_len, x_len, y_len = image.shape
+        c_stride, x_stride, y_stride = image.strides
         llw = as_strided(
             image,
-            shape=((xlen - xsize) // xstep + 1, (ylen - ysize) // ystep + 1, clen, xsize, ysize),
-            strides=(xstride * xstep, ystride * ystep, cstride, xstride, ystride),
+            shape=((x_len - x_size) // x_step + 1, (y_len - y_size) // y_step + 1, c_len, x_size, y_size),
+            strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
             writeable=False,
         )
-        image = llw.reshape(-1, clen, xsize, ysize)
+        image = llw.reshape(-1, c_len, x_size, y_size)
 
         # if keeping all patches
         if self.tile_count is None:

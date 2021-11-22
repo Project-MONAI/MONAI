@@ -35,7 +35,7 @@ class SplitOnGridd(MapTransform):
             If it's an integer, the value will be repeated for each dimension.
             The default is (0, 0), where the patch size will be inferred from the grid shape.
 
-    Note: the shape of the input image is infered based on the first image used.
+    Note: the shape of the input image is inferred based on the first image used.
     """
 
     def __init__(
@@ -48,7 +48,9 @@ class SplitOnGridd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.splitter = SplitOnGrid(grid_size=grid_size, patch_size=patch_size)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.splitter(d[key])
