@@ -71,15 +71,6 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
         self.ram_cost = (1 + out_channel / in_channel / 8 * 3) * 8 * in_channel / out_channel
 
 
-# connection operations
-ConnOPS = {
-    "up": _FactorizedIncreaseBlockWithRAMCost,
-    "down": _FactorizedReduceBlockWithRAMCost,
-    "identity": _IdentityWithRAMCost,
-    "align_channels": _ActiConvNormBlockWithRAMCost,
-}
-
-
 class MixedOp(nn.Module):
     """
     The class is for combining results from different operations.
@@ -120,7 +111,15 @@ class Cell(nn.Module):
         arch_code_c: cell operation code
     """
 
-    # Define Operation Set parameterized by the number of channels
+    # Define connection operation set parameterized by the number of channels
+    ConnOPS = {
+        "up": _FactorizedIncreaseBlockWithRAMCost,
+        "down": _FactorizedReduceBlockWithRAMCost,
+        "identity": _IdentityWithRAMCost,
+        "align_channels": _ActiConvNormBlockWithRAMCost,
+    }
+
+    # Define operation set parameterized by the number of channels
     OPS = {
         "skip_connect": lambda _c: _IdentityWithRAMCost(),
         "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1),
@@ -132,14 +131,14 @@ class Cell(nn.Module):
     def __init__(self, c_prev: int, c: int, rate: int, arch_code_c=None):
         super().__init__()
         if rate == -1:  # downsample
-            self.preprocess = ConnOPS["down"](c_prev, c)
+            self.preprocess = self.ConnOPS["down"](c_prev, c)
         elif rate == 1:  # upsample
-            self.preprocess = ConnOPS["up"](c_prev, c)
+            self.preprocess = self.ConnOPS["up"](c_prev, c)
         else:
             if c_prev == c:
-                self.preprocess = ConnOPS["identity"]()
+                self.preprocess = self.ConnOPS["identity"]()
             else:
-                self.preprocess = ConnOPS["align_channels"](c_prev, c, 1, 0)
+                self.preprocess = self.ConnOPS["align_channels"](c_prev, c, 1, 0)
         self.op = MixedOp(c, self.OPS, arch_code_c)
 
     def forward(self, x: torch.Tensor, ops: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
@@ -353,9 +352,8 @@ class DintsSearchSpace(nn.Module):
         Args:
             channel_mul: adjust intermediate channel number, default 1.
             cell: operation of each node.
-            arch_code: `[node_a, arch_code_a, arch_code_c]` decoded using self.decode().
-                For num_depths=4, num_blocks=12
-                search space, node_a is a 4x13 binary matrix representing if a feature node is activated.
+            arch_code: `[arch_code_a, arch_code_c]`.
+                For num_depths=4, num_blocks=12 search space,
                 arch_code_a is a 12x10 (10 paths) binary matrix representing if a path is activated.
                 arch_code_c is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
                 arch_code in __init__() is used for creating the network and remove unused network blocks. If None,
@@ -413,17 +411,20 @@ class DintsSearchSpace(nn.Module):
         self.child_list = np.array(child_list)
         self.num_blocks = num_blocks
         self.num_depths = num_depths
+        self.num_cell_ops = len(cell.OPS)
         self.use_downsample = use_downsample
         self.device = device
+
         # define NAS search space
         if arch_code is None:
             arch_code_a = np.ones((num_blocks, len(arch_code2out)))
-            arch_code_c = np.ones((num_blocks, len(arch_code2out), len(cell.OPS)))
+            arch_code_c = np.ones((num_blocks, len(arch_code2out), self.num_cell_ops))
         else:
-            arch_code_a = arch_code[1]
-            arch_code_c = F.one_hot(torch.from_numpy(arch_code[2]), len(cell.OPS)).numpy()
+            arch_code_a = arch_code[0]
+            arch_code_c = F.one_hot(torch.from_numpy(arch_code[1]), self.num_cell_ops).numpy()
+
         self.cell_tree = nn.ModuleDict()
-        self.ram_cost = np.zeros((num_blocks, len(arch_code2out), len(cell.OPS)))
+        self.ram_cost = np.zeros((num_blocks, len(arch_code2out), self.num_cell_ops))
         for blk_idx in range(num_blocks):
             for res_idx in range(len(arch_code2out)):
                 if arch_code_a[blk_idx, res_idx] == 1:
@@ -436,13 +437,16 @@ class DintsSearchSpace(nn.Module):
                     self.ram_cost[blk_idx, res_idx] = np.array(
                         [
                             op.ram_cost + self.cell_tree[str((blk_idx, res_idx))].preprocess.ram_cost
-                            for op in self.cell_tree[str((blk_idx, res_idx))].op._ops[: len(cell.OPS)]
+                            for op in self.cell_tree[str((blk_idx, res_idx))].op._ops[: self.num_cell_ops]
                         ]
                     )
 
         # define cell and macro architecture probabilities
         self.log_alpha_c = nn.Parameter(
-            torch.zeros(num_blocks, len(arch_code2out), len(cell.OPS)).normal_(1, 0.01).to(self.device).requires_grad_()
+            torch.zeros(num_blocks, len(arch_code2out), self.num_cell_ops)
+            .normal_(1, 0.01)
+            .to(self.device)
+            .requires_grad_()
         )
         self.log_alpha_a = nn.Parameter(
             torch.zeros(num_blocks, len(arch_code2out)).normal_(0, 0.01).to(self.device).requires_grad_()
@@ -509,7 +513,7 @@ class DintsSearchSpace(nn.Module):
                 if arch_code is not None:
                     usage += (
                         arch_code[0][blk_idx, path_idx]
-                        * (1 + (ram_cost[blk_idx, path_idx] * arch_code[1][blk_idx, path_idx]).sum())
+                        * (1 + (ram_cost[blk_idx, path_idx] * arch_code[0][blk_idx, path_idx]).sum())
                         * sizes[self.arch_code2out[path_idx]]
                     )
                 else:
@@ -559,7 +563,12 @@ class DintsSearchSpace(nn.Module):
 
     def decode(self):
         """
-        Decode network log_alpha_a/log_alpha_c using dijkstra shortpath algorithm
+        Decode network log_alpha_a/log_alpha_c using dijkstra shortpath algorithm.
+        `[node_a, arch_code_a, arch_code_c, arch_code_a_max]` is decoded when using self.decode().
+        For num_depths=4, num_blocks=12 search space,
+        node_a is a 4x13 binary matrix representing if a feature node is activated.
+        arch_code_a is a 12x10 (10 paths) binary matrix representing if a path is activated.
+        arch_code_c is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
 
         Return:
             arch_code with maximum probability
