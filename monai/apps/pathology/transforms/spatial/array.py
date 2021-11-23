@@ -75,12 +75,12 @@ class SplitOnGrid(Transform):
                 .contiguous()
             )
         elif isinstance(image, np.ndarray):
-            h_step, w_step = steps
-            c_stride, h_stride, w_stride = image.strides
+            x_step, y_step = steps
+            c_stride, x_stride, y_stride = image.strides
             patches = as_strided(
                 image,
                 shape=(*self.grid_size, 3, patch_size[0], patch_size[1]),
-                strides=(h_stride * h_step, w_stride * w_step, c_stride, h_stride, w_stride),
+                strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
                 writeable=False,
             )
             # flatten the first two dimensions
@@ -210,17 +210,17 @@ class TileOnGrid(Randomizable, Transform):
             )
 
         # extact tiles
-        h_step, w_step = self.step, self.step
-        h_size, w_size = self.tile_size, self.tile_size
-        c_len, h_len, w_len = img_np.shape
-        c_stride, h_stride, w_stride = img_np.strides
+        x_step, y_step = self.step, self.step
+        h_tile, w_tile = self.tile_size, self.tile_size
+        c_image, h_image, w_image = img_np.shape
+        c_stride, x_stride, y_stride = img_np.strides
         llw = as_strided(
             img_np,
-            shape=((h_len - h_size) // h_step + 1, (w_len - w_size) // w_step + 1, c_len, h_size, w_size),
-            strides=(h_stride * h_step, w_stride * w_step, c_stride, h_stride, w_stride),
+            shape=((h_image - h_tile) // x_step + 1, (w_image - w_tile) // y_step + 1, c_image, h_tile, w_tile),
+            strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
             writeable=False,
         )
-        img_np = llw.reshape(-1, c_len, h_size, w_size)
+        img_np = llw.reshape(-1, c_image, h_tile, w_tile)
 
         # if keeping all patches
         if self.tile_count is None:
