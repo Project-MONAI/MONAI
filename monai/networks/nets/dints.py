@@ -397,6 +397,28 @@ class TopologySearchSpace(nn.Module):
             if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
         device: `'cpu'`, `'cuda'`, or device ID.
 
+    Examples:
+
+    .. code-block:: python
+
+        from monai.networks.nets.dints import TopologySearchSpace
+
+        topology_search_space = TopologySearchSpace(
+            channel_mul=0.5, num_blocks=8, num_depths=4, use_downsample=True, spatial_dims=3)
+        topology_search_space.get_ram_cost_usage(in_size=(2, 16, 80, 80, 80), full=True)
+        multi_res_images = [
+            torch.randn(2, 16, 80, 80, 80),
+            torch.randn(2, 32, 40, 40, 40),
+            torch.randn(2, 64, 20, 20, 20),
+            torch.randn(2, 128, 10, 10, 10)]
+        prediction = topology_search_space(image)
+        for x in prediction: print(x.shape)
+        # torch.Size([2, 16, 80, 80, 80])
+        # torch.Size([2, 32, 40, 40, 40])
+        # torch.Size([2, 64, 20, 20, 20])
+        # torch.Size([2, 128, 10, 10, 10])
+
+
     Class method overview:
 
         - ``get_prob_a()``: convert learnable architecture weights to path activation probabilities.
@@ -485,7 +507,7 @@ class TopologySearchSpace(nn.Module):
             arch_code_c = torch.ones((num_blocks, len(arch_code2out), self.num_cell_ops)).to(self.device)
         else:
             arch_code_a = torch.from_numpy(arch_code[0]).to(self.device)
-            arch_code_c = F.one_hot(torch.from_numpy(arch_code[1]), self.num_cell_ops).to(self.device)
+            arch_code_c = F.one_hot(torch.from_numpy(arch_code[1]).to(torch.int64), self.num_cell_ops).to(self.device)
         self.arch_code_a = arch_code_a
         self.arch_code_c = arch_code_c
         self.cell_tree = nn.ModuleDict()
@@ -569,14 +591,14 @@ class TopologySearchSpace(nn.Module):
         sizes = []
         for res_idx in range(self.num_depths):
             sizes.append(batch_size * self.filter_nums[res_idx] * (image_size // (2 ** res_idx)).prod())
-        sizes = torch.tensor(sizes).to(torch.float32).to(self.device) // (2 ** (int(self.use_downsample)))
+        sizes = torch.tensor(sizes).to(torch.float32).to(self.device) / (2 ** (int(self.use_downsample)))
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
         cell_prob = F.softmax(self.log_alpha_c, dim=-1)
         if full:
             arch_code_prob_a = arch_code_prob_a.detach()
             arch_code_prob_a.fill_(1)
         ram_cost = torch.from_numpy(self.ram_cost).to(torch.float32).to(self.device)
-        usage = 0
+        usage = 0.0
         for blk_idx in range(self.num_blocks):
             # node activation for input
             # cell operation
@@ -727,7 +749,8 @@ class TopologySearchSpace(nn.Module):
               all_connection has 1024 vectors of length 10 (10 paths).
               The return value will exclude path activation of all 0.
         """
-        # total paths in a block, each node has three output paths, except the two nodes at the top and the bottom scales
+        # total paths in a block, each node has three output paths,
+        # except the two nodes at the top and the bottom scales
         paths = 3 * depth - 2
 
         # use depth first search to find all path activation combination
