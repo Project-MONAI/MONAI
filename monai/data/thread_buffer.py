@@ -87,12 +87,13 @@ class ThreadDataLoader(DataLoader):
     value the generated batch is yielded that many times while underlying dataset asynchronously generates the next.
     Typically not all relevant information is learned from a batch in a single iteration so training multiple times
     on the same batch will still produce good training with minimal short-term overfitting while allowing a slow batch
-    generation process more time to produce a result. See:
+    generation process more time to produce a result. 
+    
+    See:
         * Fischetti et al. "Faster SGD training by minibatch persistency." ArXiv (2018) https://arxiv.org/abs/1806.07353
         * Dami et al., "Faster Neural Network Training with Data Echoing" ArXiv (2020) https://arxiv.org/abs/1907.05550
         * Ramezani et al. "GCN meets GPU: Decoupling "When to Sample" from "How to Sample"." NeurIPS (2020).
           https://proceedings.neurips.cc/paper/2020/file/d714d2c5a796d5814c565d78dd16188d-Paper.pdf
-
 
     Args:
         dataset: input dataset.
