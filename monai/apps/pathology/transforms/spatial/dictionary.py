@@ -13,9 +13,9 @@ import copy
 from typing import Any, Dict, Hashable, List, Mapping, Optional, Tuple, Union
 
 import numpy as np
-import torch
 
 from monai.config import KeysCollection
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import MapTransform, Randomizable
 
 from .array import SplitOnGrid, TileOnGrid
@@ -35,8 +35,10 @@ class SplitOnGridd(MapTransform):
             If it's an integer, the value will be repeated for each dimension.
             The default is (0, 0), where the patch size will be inferred from the grid shape.
 
-    Note: the shape of the input image is infered based on the first image used.
+    Note: the shape of the input image is inferred based on the first image used.
     """
+
+    backend = SplitOnGrid.backend
 
     def __init__(
         self,
@@ -48,7 +50,7 @@ class SplitOnGridd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.splitter = SplitOnGrid(grid_size=grid_size, patch_size=patch_size)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.splitter(d[key])
