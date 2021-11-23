@@ -79,6 +79,8 @@ class TileOnGridd(Randomizable, MapTransform):
 
     """
 
+    backend = SplitOnGrid.backend
+
     def __init__(
         self,
         keys: KeysCollection,
