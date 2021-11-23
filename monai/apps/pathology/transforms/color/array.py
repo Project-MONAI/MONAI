@@ -130,14 +130,6 @@ class NormalizeHEStains(Transform):
         target_he: target stain matrix. Defaults to ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)).
         max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E).
             Defaults to [1.9705, 1.0308].
-
-    Note:
-        For more information refer to:
-        - the original paper: Macenko et al., 2009 http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
-        - the previous implementations:
-
-            - MATLAB: https://github.com/mitkovetta/staining-normalization
-            - Python: https://github.com/schaugf/HEnorm_python
     """
 
     def __init__(
