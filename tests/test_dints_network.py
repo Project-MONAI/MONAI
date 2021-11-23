@@ -40,7 +40,7 @@ TEST_CASES_2D = [
         {"channel_mul": 1, "num_blocks": 7, "num_depths": 4, "device": "cpu", "use_downsample": True, "spatial_dims": 2},
         {"in_channels": 2, "num_classes": 2, "act_name": "PRELU", "norm_name": "BATCH", "use_downsample": True, "spatial_dims": 2},
         (7, 2, 32, 16),
-        (7, 2, 32, 16),        
+        (7, 2, 32, 16),
     ]
 
 ]
@@ -50,7 +50,7 @@ if torch.cuda.is_available():
         {"channel_mul": 0.5, "num_blocks": 8, "num_depths": 4, "device": "cuda", "use_downsample": False, "spatial_dims": 2},
         {"in_channels": 1, "num_classes": 4, "act_name": "RELU", "norm_name": "INSTANCE", "use_downsample": False, "spatial_dims": 2},
         (7, 1, 32, 16),
-        (7, 4, 32, 16),                
+        (7, 4, 32, 16),
         ]
     ]
 

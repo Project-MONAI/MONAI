@@ -42,8 +42,8 @@ class _IdentityWithRAMCost(nn.Identity):
 class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
     ''' The class wraps monai layers with ram estimation. The ram_cost = total_ram/output_size is estimated.
         Here is the estimation:
-            feature_size = output_size/out_channel 
-            total_ram = ram_cost * output_size 
+            feature_size = output_size/out_channel
+            total_ram = ram_cost * output_size
             total_ram = in_channel * feature_size (activation map) +
                         in_channel * feature_size (convolution map) +
                         out_channel * feature_size (normalization)
@@ -58,7 +58,7 @@ class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
 class _P3DActiConvNormBlockWithRAMCost(P3DActiConvNormBlock):
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, p3dmode: int = 0):
         super().__init__(in_channel, out_channel, kernel_size, padding, p3dmode)
-        # 1 in_channel (activation) + 1 in_channel (convolution) + 1 out_channel (convolution) + 1 out_channel (normalization) 
+        # 1 in_channel (activation) + 1 in_channel (convolution) + 1 out_channel (convolution) + 1 out_channel (normalization)
         self.ram_cost = 2 + 2 * in_channel / out_channel
 
 
@@ -76,7 +76,7 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
         super().__init__(in_channel, out_channel, spatial_dims)
         # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
         # in_channel * s0 (activation) + 3 * out_channel * s1 (convolution, concatenation, normalization)
-        # s0 = s1 * 2^(spatial_dims) = output_size / out_channel * 2^(spatial_dims) 
+        # s0 = s1 * 2^(spatial_dims) = output_size / out_channel * 2^(spatial_dims)
         self.ram_cost = in_channel / out_channel * 2**(self._spatial_dims) + 3
 
 
@@ -402,7 +402,7 @@ class TopologySearchSpace(nn.Module):
             get_ram_cost_usage(): get estimated ram cost.
             get_topology_entropy(): get topology entropy loss in searching stage.
             decode(): get final binarized architecture code.
-            gen_mtx(): generate variables needed for topology search. 
+            gen_mtx(): generate variables needed for topology search.
 
         Predefined variables:
             filter_nums: default init 32. Double channel number after downsample.
@@ -505,19 +505,19 @@ class TopologySearchSpace(nn.Module):
 
     def get_prob_a(self, child: bool = False):
         """
-        Get final path and child model probabilities from architecture weights log_alpha_a. 
+        Get final path and child model probabilities from architecture weights log_alpha_a.
         This is used in forward pass, getting training loss, and final decoding.
         Args:
             child: return child probability (used in decoding)
         Return:
             arch_code_prob_a: the path activation probability of size [number of blocks, number of pathes in each block].
                               For 12 blocks, 4 depths search space, the size is [12,10]
-            probs_a: The probability of all child models (size 1023x10). Each child model is a path activation pattern 
+            probs_a: The probability of all child models (size 1023x10). Each child model is a path activation pattern
                      (1D vector of length 10 for 10 pathes). In total 1023 child models (2^10 -1)
         """
         _arch_code_prob_a = torch.sigmoid(self.log_alpha_a)
         # remove the case where all path are zero, and re-normalize.
-        norm = 1 - (1 - _arch_code_prob_a).prod(-1) 
+        norm = 1 - (1 - _arch_code_prob_a).prod(-1)
         arch_code_prob_a = _arch_code_prob_a / norm.unsqueeze(1)
         if child:
             path_activation = torch.from_numpy(self.child_list).to(self.device)
