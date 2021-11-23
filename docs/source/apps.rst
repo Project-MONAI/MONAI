@@ -99,13 +99,13 @@ Clara MMARs
 .. autoclass:: PathologyProbNMS
     :members:
 
-.. automodule:: monai.apps.pathology.transforms.stain.array
+.. automodule:: monai.apps.pathology.transforms.color.array
 .. autoclass:: ExtractHEStains
     :members:
 .. autoclass:: NormalizeHEStains
     :members:
 
-.. automodule:: monai.apps.pathology.transforms.stain.dictionary
+.. automodule:: monai.apps.pathology.transforms.color.dictionary
 .. autoclass:: ExtractHEStainsd
     :members:
 .. autoclass:: NormalizeHEStainsd

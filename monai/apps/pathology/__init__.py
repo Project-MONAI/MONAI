@@ -12,8 +12,8 @@
 from .data import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCachePatchWSIDataset
 from .handlers import ProbMapProducer
 from .metrics import LesionFROC
-from .transforms.stain.array import ExtractHEStains, NormalizeHEStains
-from .transforms.stain.dictionary import (
+from .transforms.color.array import ExtractHEStains, NormalizeHEStains
+from .transforms.color.dictionary import (
     ExtractHEStainsd,
     ExtractHEStainsD,
     ExtractHEStainsDict,

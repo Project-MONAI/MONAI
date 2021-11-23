@@ -11,8 +11,8 @@
 
 from .spatial.array import SplitOnGrid, TileOnGrid
 from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
-from .stain.array import ExtractHEStains, NormalizeHEStains
-from .stain.dictionary import (
+from .color.array import ExtractHEStains, NormalizeHEStains
+from .color.dictionary import (
     ExtractHEStainsd,
     ExtractHEStainsD,
     ExtractHEStainsDict,
