@@ -210,17 +210,17 @@ class TileOnGrid(Randomizable, Transform):
             )
 
         # extact tiles
-        x_step, y_step = self.step, self.step
-        x_size, y_size = self.tile_size, self.tile_size
-        c_len, x_len, y_len = img_np.shape
-        c_stride, x_stride, y_stride = img_np.strides
+        h_step, w_step = self.step, self.step
+        h_size, w_size = self.tile_size, self.tile_size
+        c_len, h_len, w_len = img_np.shape
+        c_stride, h_stride, w_stride = img_np.strides
         llw = as_strided(
             img_np,
-            shape=((x_len - x_size) // x_step + 1, (y_len - y_size) // y_step + 1, c_len, x_size, y_size),
-            strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
+            shape=((h_len - h_size) // h_step + 1, (w_len - w_size) // w_step + 1, c_len, h_size, w_size),
+            strides=(h_stride * h_step, w_stride * w_step, c_stride, h_stride, w_stride),
             writeable=False,
         )
-        img_np = llw.reshape(-1, c_len, x_size, y_size)
+        img_np = llw.reshape(-1, c_len, h_size, w_size)
 
         # if keeping all patches
         if self.tile_count is None:
