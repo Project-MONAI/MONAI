@@ -85,9 +85,6 @@ def make_animated_gif_summary(
         max_out: maximum number of image channels to animate through
         frame_dim: the dimension used as frames for GIF image, expect input data shape as `CHWD`,
             default to `-3` (the first spatial dim)
-        animation_axes: axis to animate on (not currently used)
-        image_axes: axes of image (not currently used)
-        other_indices: (not currently used)
         scale_factor: amount to multiply values by.
             if the image data is between 0 and 1, using 255 for this value will scale it to displayable range
     """
