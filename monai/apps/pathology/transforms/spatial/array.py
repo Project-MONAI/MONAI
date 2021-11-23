@@ -77,10 +77,10 @@ class SplitOnGrid(Transform):
         elif isinstance(image, np.ndarray):
             x_step, y_step = steps
             c_stride, x_stride, y_stride = image.strides
-            c_image = image.shape[0]
+            n_channels = image.shape[0]
             patches = as_strided(
                 image,
-                shape=(*self.grid_size, c_image, patch_size[0], patch_size[1]),
+                shape=(*self.grid_size, n_channels, patch_size[0], patch_size[1]),
                 strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
                 writeable=False,
             )
