@@ -31,7 +31,7 @@ class TestToNumpyd(unittest.TestCase):
         result = ToNumpyd(keys="img")({"img": test_data})["img"]
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        assert_allclose(result, test_data.get())
+        assert_allclose(result, test_data.get(), type_test=False)
 
     def test_numpy_input(self):
         test_data = np.array([[1, 2], [3, 4]])
@@ -40,7 +40,7 @@ class TestToNumpyd(unittest.TestCase):
         result = ToNumpyd(keys="img")({"img": test_data})["img"]
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        assert_allclose(result, test_data)
+        assert_allclose(result, test_data, type_test=False)
 
     def test_tensor_input(self):
         test_data = torch.tensor([[1, 2], [3, 4]])
@@ -49,7 +49,7 @@ class TestToNumpyd(unittest.TestCase):
         result = ToNumpyd(keys="img")({"img": test_data})["img"]
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        assert_allclose(result, test_data)
+        assert_allclose(result, test_data, type_test=False)
 
     @skip_if_no_cuda
     def test_tensor_cuda_input(self):
@@ -59,7 +59,7 @@ class TestToNumpyd(unittest.TestCase):
         result = ToNumpyd(keys="img")({"img": test_data})["img"]
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        assert_allclose(result, test_data)
+        assert_allclose(result, test_data, type_test=False)
 
 
 if __name__ == "__main__":

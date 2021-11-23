@@ -11,73 +11,91 @@
 
 import unittest
 
-import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import ClassesToIndicesd
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TEST_CASE_1 = [
-    # test Argmax data
-    {"keys": "label", "num_classes": 3, "image_threshold": 0.0},
-    {"label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])},
-    [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
-]
+TESTS_CASES = []
+for p in TEST_NDARRAYS:
+    TESTS_CASES.append(
+        [
+            # test Argmax data
+            {"keys": "label", "num_classes": 3, "image_threshold": 0.0},
+            {"label": p([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])},
+            [p([0, 4, 8]), p([1, 5, 6]), p([2, 3, 7])],
+        ]
+    )
 
-TEST_CASE_2 = [
-    {"keys": "label", "image_key": "image", "num_classes": 3, "image_threshold": 60},
-    {
-        "label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]),
-        "image": np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
-    },
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
-]
+    TESTS_CASES.append(
+        [
+            {"keys": "label", "image_key": "image", "num_classes": 3, "image_threshold": 60},
+            {
+                "label": p([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]),
+                "image": p([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
+            },
+            [p([0, 8]), p([1, 5, 6]), p([3])],
+        ]
+    )
 
-TEST_CASE_3 = [
-    # test One-Hot data
-    {"keys": "label", "image_threshold": 0.0},
-    {
-        "label": np.array(
-            [
-                [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-                [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
-                [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-            ]
-        )
-    },
-    [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
-]
+    TESTS_CASES.append(
+        [
+            # test One-Hot data
+            {"keys": "label", "image_threshold": 0.0},
+            {
+                "label": p(
+                    [
+                        [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                        [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
+                        [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
+                    ]
+                )
+            },
+            [p([0, 4, 8]), p([1, 5, 6]), p([2, 3, 7])],
+        ]
+    )
 
-TEST_CASE_4 = [
-    {"keys": "label", "image_key": "image", "num_classes": None, "image_threshold": 60},
-    {
-        "label": np.array(
-            [
-                [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-                [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
-                [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-            ]
-        ),
-        "image": np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
-    },
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
-]
+    TESTS_CASES.append(
+        [
+            {"keys": "label", "image_key": "image", "num_classes": None, "image_threshold": 60},
+            {
+                "label": p(
+                    [
+                        [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                        [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
+                        [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
+                    ]
+                ),
+                "image": p([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
+            },
+            [p([0, 8]), p([1, 5, 6]), p([3])],
+        ]
+    )
 
-TEST_CASE_5 = [
-    # test output_shape
-    {"keys": "label", "indices_postfix": "cls", "num_classes": 3, "image_threshold": 0.0, "output_shape": [3, 3]},
-    {"label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])},
-    [np.array([[0, 0], [1, 1], [2, 2]]), np.array([[0, 1], [1, 2], [2, 0]]), np.array([[0, 2], [1, 0], [2, 1]])],
-]
+    TESTS_CASES.append(
+        [
+            # test output_shape
+            {
+                "keys": "label",
+                "indices_postfix": "cls",
+                "num_classes": 3,
+                "image_threshold": 0.0,
+                "output_shape": [3, 3],
+            },
+            {"label": p([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])},
+            [p([[0, 0], [1, 1], [2, 2]]), p([[0, 1], [1, 2], [2, 0]]), p([[0, 2], [1, 0], [2, 1]])],
+        ]
+    )
 
 
 class TestClassesToIndicesd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand(TESTS_CASES)
     def test_value(self, input_args, input_data, expected_indices):
         result = ClassesToIndicesd(**input_args)(input_data)
         key_postfix = input_args.get("indices_postfix")
         key_postfix = "_cls_indices" if key_postfix is None else key_postfix
         for i, e in zip(result["label" + key_postfix], expected_indices):
-            np.testing.assert_allclose(i, e)
+            assert_allclose(i, e)
 
 
 if __name__ == "__main__":
