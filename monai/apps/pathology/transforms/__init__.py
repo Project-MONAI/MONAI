@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .spatial.array import SplitOnGrid, TileOnGrid
-from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
 from .color.array import ExtractHEStains, NormalizeHEStains
 from .color.dictionary import (
     ExtractHEStainsd,
@@ -20,3 +18,5 @@ from .color.dictionary import (
     NormalizeHEStainsD,
     NormalizeHEStainsDict,
 )
+from .spatial.array import SplitOnGrid, TileOnGrid
+from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
