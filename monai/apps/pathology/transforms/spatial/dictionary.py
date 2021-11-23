@@ -12,8 +12,6 @@
 import copy
 from typing import Any, Dict, Hashable, List, Mapping, Optional, Tuple, Union
 
-import numpy as np
-
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import MapTransform, Randomizable
@@ -81,6 +79,8 @@ class TileOnGridd(Randomizable, MapTransform):
 
     """
 
+    backend = SplitOnGrid.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -112,7 +112,9 @@ class TileOnGridd(Randomizable, MapTransform):
     def randomize(self, data: Any = None) -> None:
         self.seed = self.R.randint(10000)  # type: ignore
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Union[Dict[Hashable, np.ndarray], List[Dict]]:
+    def __call__(
+        self, data: Mapping[Hashable, NdarrayOrTensor]
+    ) -> Union[Dict[Hashable, NdarrayOrTensor], List[Dict[Hashable, NdarrayOrTensor]]]:
 
         self.randomize()
 
