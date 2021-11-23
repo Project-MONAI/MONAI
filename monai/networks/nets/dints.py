@@ -34,12 +34,12 @@ __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"
 
 
 DIRECTIONS = 3
-#       - UpSample 
-#      /           
-# +--+/            
-# |  |--- Identity 
-# +--+\            
-#      \           
+#       - UpSample
+#      /
+# +--+/
+# |  |--- Identity
+# +--+\
+#      \
 #       -Downsample
 
 # use depth first search to find all path activation combination
