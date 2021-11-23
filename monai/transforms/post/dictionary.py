@@ -175,13 +175,13 @@ class AsDiscreted(MapTransform):
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
 
-        if True in self.to_onehot or False in self.to_onehot:  # backward compatibility
+        if any([isinstance(i, bool) for i in self.to_onehot]):  # backward compatibility
             warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
             num_classes = ensure_tuple_rep(num_classes, len(self.keys))
             self.to_onehot = tuple(val if flag else None for flag, val in zip(self.to_onehot, num_classes))
 
         self.threshold = ensure_tuple_rep(threshold, len(self.keys))
-        if True in self.threshold or False in self.threshold:  # backward compatibility
+        if any([isinstance(i, bool) for i in self.threshold]):  # backward compatibility
             warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
             logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
             self.threshold = tuple(val if flag else None for flag, val in zip(self.threshold, logit_thresh))
