@@ -47,8 +47,8 @@ class FactorizedIncreaseBlock(torch.nn.Sequential):
         self._spatial_dims = spatial_dims
 
         conv_type = Conv[Conv.CONV, self._spatial_dims]
-
-        self.add_module("up", torch.nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
+        mode = 'trilinear' if self._spatial_dims == 3 else 'bilinear'
+        self.add_module("up", torch.nn.Upsample(scale_factor=2, mode=mode, align_corners=True))
         self.add_module("acti", get_act_layer(name=act_name))
         self.add_module(
             "conv",
@@ -125,7 +125,10 @@ class FactorizedReduceBlock(torch.nn.Module):
         The length along each spatial dimension must be a multiple of 2.
         """
         x = self.act(x)
-        out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:, 1:])], dim=1)
+        if self._spatial_dims == 3:
+            out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:, 1:])], dim=1)
+        else:
+            out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:])], dim=1)
         out = self.norm(out)
         return out
 

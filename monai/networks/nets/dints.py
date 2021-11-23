@@ -40,43 +40,44 @@ class _IdentityWithRAMCost(nn.Identity):
 
 
 class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
+    ''' The class wraps monai layers with ram estimation. The ram_cost = total_ram/output_size is estimated.
+        Here is the estimation:
+            feature_size = output_size/out_channel 
+            total_ram = ram_cost * output_size 
+            total_ram = in_channel * feature_size (activation map) +
+                        in_channel * feature_size (convolution map) +
+                        out_channel * feature_size (normalization)
+                    = (2*in_channel + out_channel) * output_size/out_channel
+            total_ram/output_size = 2 * in_channel/out_channel + 1
+    '''
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, spatial_dims: int = 3):
-        super().__init__(in_channel, out_channel, kernel_size, padding)
-        self.ram_cost = 1 + out_channel / in_channel * 2
+        super().__init__(in_channel, out_channel, kernel_size, padding, spatial_dims)
+        self.ram_cost = 1 + in_channel / out_channel * 2
 
 
 class _P3DActiConvNormBlockWithRAMCost(P3DActiConvNormBlock):
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, p3dmode: int = 0):
         super().__init__(in_channel, out_channel, kernel_size, padding, p3dmode)
-        self.ram_cost = 1 + 1 + out_channel / in_channel * 2
+        # 1 in_channel (activation) + 1 in_channel (convolution) + 1 out_channel (convolution) + 1 out_channel (normalization) 
+        self.ram_cost = 2 + 2 * in_channel / out_channel
 
 
 class _FactorizedIncreaseBlockWithRAMCost(FactorizedIncreaseBlock):
     def __init__(self, in_channel: int, out_channel: int, spatial_dims: int = 3):
-        super().__init__(in_channel, out_channel)
-
-        # divide by 2^spatial_dims to comply with cell output size
-        self.ram_cost = 0
-        if self._spatial_dims == 2:
-            self.ram_cost = 4 * (1 + 1 + out_channel / in_channel * 2) / 4 * in_channel / out_channel
-        elif self._spatial_dims == 3:
-            self.ram_cost = 8 * (1 + 1 + out_channel / in_channel * 2) / 8 * in_channel / out_channel
+        super().__init__(in_channel, out_channel, spatial_dims)
+        # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
+        # 2 * in_channel * s0 (upsample + activation) + 2 * out_channel * s0 (conv + normalization)
+        # s0 = output_size/out_channel
+        self.ram_cost = 2 * in_channel / out_channel + 2
 
 
 class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
-    """
-    Down-sampling the feature by 2 using stride.
-    """
-
     def __init__(self, in_channel: int, out_channel: int, spatial_dims: int = 3):
-        super().__init__(in_channel, out_channel)
-
-        # multiply by 2^spatial_dims to comply with cell output size (see net.get_ram_cost_usage)
-        self.ram_cost = 0
-        if self._spatial_dims == 2:
-            self.ram_cost = (1 + out_channel / in_channel / 4 * 3) * 4 * in_channel / out_channel
-        elif self._spatial_dims == 3:
-            self.ram_cost = (1 + out_channel / in_channel / 8 * 3) * 8 * in_channel / out_channel
+        super().__init__(in_channel, out_channel, spatial_dims)
+        # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
+        # in_channel * s0 (activation) + 3 * out_channel * s1 (convolution, concatenation, normalization)
+        # s0 = s1 * 2^(spatial_dims) = output_size / out_channel * 2^(spatial_dims) 
+        self.ram_cost = in_channel / out_channel * 2**(self._spatial_dims) + 3
 
 
 class MixedOp(nn.Module):
@@ -102,15 +103,16 @@ class MixedOp(nn.Module):
         """
         Args:
             x: input tensor.
-            ops: binary array to determine which operation/edge in DiNTS is activated.
-            weight: weights for different operations.
+            ops: binary array representing which operation in DiNTS is activated.
+            weight: architecture weights for cell operations.
         """
         return sum(self._ops[idx.item()](x) * ops[idx.item()] * weight[idx.item()] for idx in (ops == 1).nonzero())
 
 
 class Cell(nn.Module):
     """
-    The basic class for cell operation, contains a preprocessing and a mixed operation.
+    The basic class for cell operation search, which contains a preprocessing and a mixed cell operation. The cell level
+    search is performed within the mixed cell operation.
 
     Args:
         c_prev: number of input channels
@@ -119,7 +121,7 @@ class Cell(nn.Module):
         arch_code_c: cell operation code
     """
 
-    # Define connection operation set parameterized by the number of channels
+    # Define connection operation set, parameterized by the number of channels
     ConnOPS = {
         "up": _FactorizedIncreaseBlockWithRAMCost,
         "down": _FactorizedReduceBlockWithRAMCost,
@@ -127,13 +129,13 @@ class Cell(nn.Module):
         "align_channels": _ActiConvNormBlockWithRAMCost,
     }
 
-    # Define 2D operation set parameterized by the number of channels
+    # Define 2D operation set, parameterized by the number of channels
     OPS2D = {
         "skip_connect": lambda _c: _IdentityWithRAMCost(),
         "conv_3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1, spatial_dims=2),
     }
 
-    # Define 3D operation set parameterized by the number of channels
+    # Define 3D operation set, parameterized by the number of channels
     OPS3D = {
         "skip_connect": lambda _c: _IdentityWithRAMCost(),
         "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1, spatial_dims=3),
@@ -145,7 +147,6 @@ class Cell(nn.Module):
     def __init__(self, c_prev: int, c: int, rate: int, arch_code_c=None, spatial_dims: int = 3):
         super().__init__()
         self._spatial_dims = spatial_dims
-
         if rate == -1:  # downsample
             self.preprocess = self.ConnOPS["down"](c_prev, c, spatial_dims=self._spatial_dims)
         elif rate == 1:  # upsample
@@ -168,7 +169,7 @@ class Cell(nn.Module):
         """
         Args:
             x: input tensor
-            ops: binary array to determine which operation/edge in DiNTS is activated.
+            ops: binary cell activation code.
             weight: weights for different operations.
         """
         x = self.preprocess(x)
@@ -217,13 +218,12 @@ class DiNTS(nn.Module):
         node_a=None,
     ):
         super().__init__()
-        if spatial_dims != 3:
-            raise NotImplementedError("Only support 3D input.")
 
         self.dints_space = dints_space
         self.filter_nums = dints_space.filter_nums
         self.num_blocks = dints_space.num_blocks
         self.num_depths = dints_space.num_depths
+        self._spatial_dims = spatial_dims
         if node_a is None:
             assert self.dints_space.is_search
             self.node_a = np.ones((self.num_blocks + 1, self.num_depths))
@@ -253,11 +253,12 @@ class DiNTS(nn.Module):
                 dilation=1,
             ),
         )
+        mode = "trilinear" if self._spatial_dims == 3 else "bilinear"
         for res_idx in range(self.num_depths):
             # define downsample stems before Dints search
             if use_downsample:
                 self.stem_down[str(res_idx)] = nn.Sequential(
-                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
+                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode=mode, align_corners=True),
                     conv_type(
                         in_channels=in_channels,
                         out_channels=self.filter_nums[res_idx],
@@ -295,12 +296,12 @@ class DiNTS(nn.Module):
                         dilation=1,
                     ),
                     get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx]),
-                    nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True),
+                    nn.Upsample(scale_factor=2, mode=mode, align_corners=True),
                 )
 
             else:
                 self.stem_down[str(res_idx)] = nn.Sequential(
-                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode="trilinear", align_corners=True),
+                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode=mode, align_corners=True),
                     conv_type(
                         in_channels=in_channels,
                         out_channels=self.filter_nums[res_idx],
@@ -326,7 +327,7 @@ class DiNTS(nn.Module):
                         dilation=1,
                     ),
                     get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx - 1]),
-                    nn.Upsample(scale_factor=2 ** (res_idx != 0), mode="trilinear", align_corners=True),
+                    nn.Upsample(scale_factor=2 ** (res_idx != 0), mode=mode, align_corners=True),
                 )
 
     def weight_parameters(self):
@@ -396,6 +397,13 @@ class TopologySearchSpace(nn.Module):
                 if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
             device: 'cpu', 'cuda', or device ID.
 
+        Funcions:
+            get_prob_a(): convert learnable architecture weights to path activation probabilities.
+            get_ram_cost_usage(): get estimated ram cost.
+            get_topology_entropy(): get topology entropy loss in searching stage.
+            decode(): get final binarized architecture code.
+            gen_mtx(): generate variables needed for topology search. 
+
         Predefined variables:
             filter_nums: default init 32. Double channel number after downsample.
             topology related variables from `self.gen_mtx()`:
@@ -445,7 +453,6 @@ class TopologySearchSpace(nn.Module):
         self._spatial_dims = spatial_dims
         self.use_downsample = use_downsample
         self.device = device
-
         self.num_cell_ops = 0
         if self._spatial_dims == 2:
             self.num_cell_ops = len(cell.OPS2D)
@@ -498,13 +505,19 @@ class TopologySearchSpace(nn.Module):
 
     def get_prob_a(self, child: bool = False):
         """
-        Get final path probabilities and child model weights from architecture weights log_alpha_a for
-        architecture sampling.
+        Get final path and child model probabilities from architecture weights log_alpha_a. 
+        This is used in forward pass, getting training loss, and final decoding.
         Args:
-            child: return child probability (used in decode)
+            child: return child probability (used in decoding)
+        Return:
+            arch_code_prob_a: the path activation probability of size [number of blocks, number of pathes in each block].
+                              For 12 blocks, 4 depths search space, the size is [12,10]
+            probs_a: The probability of all child models (size 1023x10). Each child model is a path activation pattern 
+                     (1D vector of length 10 for 10 pathes). In total 1023 child models (2^10 -1)
         """
         _arch_code_prob_a = torch.sigmoid(self.log_alpha_a)
-        norm = 1 - (1 - _arch_code_prob_a).prod(-1)  # remove the case where all path are zero, and re-normalize.
+        # remove the case where all path are zero, and re-normalize.
+        norm = 1 - (1 - _arch_code_prob_a).prod(-1) 
         arch_code_prob_a = _arch_code_prob_a / norm.unsqueeze(1)
         if child:
             path_activation = torch.from_numpy(self.child_list).to(self.device)
@@ -526,15 +539,16 @@ class TopologySearchSpace(nn.Module):
         Get estimated output tensor size
 
         Args:
-            in_size: input image shape (5D) at the highest resolutoin level.
+            in_size: input image shape (4D/5D) at the highest resolutoin level.
             full: full ram cost usage with all probability of 1.
         """
         # convert input image size to feature map size at each level
-        b, c, h, w, s = in_size
+        batch_size = in_size[0]
+        image_size = np.array(in_size[-self._spatial_dims:])
         sizes = []
         for res_idx in range(self.num_depths):
             sizes.append(
-                b * self.filter_nums[res_idx] * h // (2 ** res_idx) * w // (2 ** res_idx) * s // (2 ** res_idx)
+                batch_size * self.filter_nums[res_idx] * (image_size // (2 ** res_idx)).prod()
             )
         sizes = torch.tensor(sizes).to(torch.float32).to(self.device) // (2 ** (int(self.use_downsample)))
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
@@ -557,7 +571,7 @@ class TopologySearchSpace(nn.Module):
 
     def get_topology_entropy(self, probs):
         """
-        Get topology entropy loss
+        Get searching stage topology entropy loss
         Args:
             probs: path activation probabilities
         """
@@ -597,10 +611,9 @@ class TopologySearchSpace(nn.Module):
         Decode network log_alpha_a/log_alpha_c using dijkstra shortpath algorithm.
         `[node_a, arch_code_a, arch_code_c, arch_code_a_max]` is decoded when using self.decode().
         For num_depths=4, num_blocks=12 search space,
-        node_a is a 4x13 binary matrix representing if a feature node is activated.
+        node_a is a 4x13 binary matrix representing if a feature node is activated (13 because of multi-resolution inputs).
         arch_code_a is a 12x10 (10 paths) binary matrix representing if a path is activated.
         arch_code_c is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
-
         Return:
             arch_code with maximum probability
         """
