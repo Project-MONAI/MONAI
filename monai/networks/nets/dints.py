@@ -755,10 +755,9 @@ class TopologySearch(TopologyConstruction):
             is_search = True,
         )
 
-
         # Calculate path activation to node activation params
         tidx = []
-        for i in range(3 * self.num_depths - 2):
+        for i in range(DIRECTIONS * self.num_depths - 2):
             tidx.append((i + 1) // DIRECTIONS * self.num_depths + (i + 1) // DIRECTIONS - 1 + (i + 1) % DIRECTIONS)
         self.tidx = tidx
 
