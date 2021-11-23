@@ -46,12 +46,27 @@ TEST_CASES_3D = [
         (2, 8, 32, 16, 8),
     ],
 ]
+TEST_CASES_2D = [
+    [
+        {"c": 32, "arch_code_c": [1, 1, 1, 0, 1]},
+        torch.tensor([1, 1]),
+        torch.tensor([0, 0]),
+        (2, 32, 16, 8),
+        (2, 32, 16, 8),
+    ]
+]
 
 
 class TestMixOP(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D)
-    def test_mixop(self, input_param, ops, weight, input_shape, expected_shape):
-        net = MixedOp(ops=Cell.OPS, **input_param)
+    def test_mixop_3d(self, input_param, ops, weight, input_shape, expected_shape):
+        net = MixedOp(ops=Cell.OPS3D, **input_param)
+        result = net(torch.randn(input_shape), ops=ops, weight=weight)
+        self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_CASES_2D)
+    def test_mixop_2d(self, input_param, ops, weight, input_shape, expected_shape):
+        net = MixedOp(ops=Cell.OPS2D, **input_param)
         result = net(torch.randn(input_shape), ops=ops, weight=weight)
         self.assertEqual(result.shape, expected_shape)
 

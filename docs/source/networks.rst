@@ -568,9 +568,9 @@ Nets
 .. autoclass:: DiNTS
   :members:
 
-`DintsSearchSpace`
-~~~~~~~~~~~~~~~~~~
-.. autoclass:: DintsSearchSpace
+`TopologySearchSpace for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologySearchSpace
   :members:
 
 Utilities
