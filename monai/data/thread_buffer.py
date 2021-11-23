@@ -109,7 +109,7 @@ class ThreadDataLoader(DataLoader):
         buffer_timeout: float = 0.01,
         num_workers: int = 0,
         repeats: int = 1,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(dataset, num_workers, **kwargs)
         self.buffer_size = buffer_size
