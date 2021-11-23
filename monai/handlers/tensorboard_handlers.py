@@ -275,6 +275,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
         global_iter_transform: Callable = lambda x: x,
         index: int = 0,
         max_channels: int = 1,
+        frame_dim: int = -3,
         max_frames: int = 64,
     ) -> None:
         """
@@ -301,6 +302,8 @@ class TensorBoardImageHandler(TensorBoardHandler):
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
             max_channels: number of channels to plot.
+            frame_dim: if plotting 3D image as GIF, specify the dimension used as frames,
+                expect input data shape as `NCHWD`, default to `-3` (the first spatial dim)
             max_frames: if plot 3D RGB image as video in TensorBoardX, set the FPS to `max_frames`.
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
@@ -310,6 +313,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
         self.output_transform = output_transform
         self.global_iter_transform = global_iter_transform
         self.index = index
+        self.frame_dim = frame_dim
         self.max_frames = max_frames
         self.max_channels = max_channels
 
@@ -349,13 +353,14 @@ class TensorBoardImageHandler(TensorBoardHandler):
                 )
             plot_2d_or_3d_image(
                 # add batch dim and plot the first item
-                show_images[None],
-                step,
-                self._writer,
-                0,
-                self.max_channels,
-                self.max_frames,
-                "input_0",
+                data=show_images[None],
+                step=step,
+                writer=self._writer,
+                index=0,
+                max_channels=self.max_channels,
+                frame_dim=self.frame_dim,
+                max_frames=self.max_frames,
+                tag="input_0",
             )
 
         show_labels = self.batch_transform(engine.state.batch)[1][self.index]
@@ -367,7 +372,16 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     "batch_transform(engine.state.batch)[1] must be None or one of "
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_labels).__name__}."
                 )
-            plot_2d_or_3d_image(show_labels[None], step, self._writer, 0, self.max_channels, self.max_frames, "input_1")
+            plot_2d_or_3d_image(
+                data=show_labels[None],
+                step=step,
+                writer=self._writer,
+                index=0,
+                max_channels=self.max_channels,
+                frame_dim=self.frame_dim,
+                max_frames=self.max_frames,
+                tag="input_1",
+            )
 
         show_outputs = self.output_transform(engine.state.output)[self.index]
         if isinstance(show_outputs, torch.Tensor):
@@ -378,6 +392,15 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     "output_transform(engine.state.output) must be None or one of "
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_outputs).__name__}."
                 )
-            plot_2d_or_3d_image(show_outputs[None], step, self._writer, 0, self.max_channels, self.max_frames, "output")
+            plot_2d_or_3d_image(
+                data=show_outputs[None],
+                step=step,
+                writer=self._writer,
+                index=0,
+                max_channels=self.max_channels,
+                frame_dim=self.frame_dim,
+                max_frames=self.max_frames,
+                tag="output",
+            )
 
         self._writer.flush()
