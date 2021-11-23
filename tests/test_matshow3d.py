@@ -34,7 +34,7 @@ class TestMatshow3d(unittest.TestCase):
         ims = xforms({keys: image_path})
 
         fig = pyplot.figure()  # external figure
-        fig, _ = matshow3d(ims[keys], fig=fig, figsize=(2, 2), frames_per_row=5, every_n=2, show=False)
+        fig, _ = matshow3d(ims[keys], fig=fig, figsize=(2, 2), frames_per_row=5, every_n=2, frame_dim=-1, show=False)
 
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_test.png"

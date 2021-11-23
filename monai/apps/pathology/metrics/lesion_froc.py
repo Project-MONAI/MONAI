@@ -147,7 +147,7 @@ class LesionFROC:
             total_tp_probs.extend(tp_probs)
             total_num_targets += num_targets
 
-        return (np.array(total_fp_probs), np.array(total_tp_probs), total_num_targets, num_images)
+        return np.array(total_fp_probs), np.array(total_tp_probs), total_num_targets, num_images
 
     def evaluate(self):
         """

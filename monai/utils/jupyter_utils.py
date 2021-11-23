@@ -178,6 +178,7 @@ def plot_engine_status(
         window_fraction: for metric plot, what fraction of the graph value length to use as the running average window
         image_fn: callable converting tensors keyed to a name in the Engine to a tuple of images to plot
         fig: Figure object to plot into, reuse from previous plotting for flicker-free refreshing
+        selected_inst: index of the instance to show in the image plot
 
     Returns:
         Figure object (or `fig` if given), list of Axes objects for graph and images
