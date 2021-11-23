@@ -100,7 +100,6 @@ class ThreadDataLoader(DataLoader):
         buffer_timeout: time to wait for an item from the buffer, or to wait while the buffer is full when adding items.
         num_workers: number of the multi-processing workers in PyTorch DataLoader.
         repeats: number of times to yield the same batch
-
     """
 
     def __init__(
