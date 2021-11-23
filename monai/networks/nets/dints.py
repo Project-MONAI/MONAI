@@ -167,7 +167,7 @@ class Cell(nn.Module):
         elif self._spatial_dims == 3:
             self.OPS = self.OPS3D
         else:
-            raise NotImplementedError("Spatial dimensions {} is not supported.".format(self._spatial_dims))
+            raise NotImplementedError(f"Spatial dimensions {self._spatial_dims} is not supported.")
 
         self.op = MixedOp(c, self.OPS, arch_code_c)
 
@@ -230,7 +230,7 @@ class DiNTS(nn.Module):
         self.num_blocks = dints_space.num_blocks
         self.num_depths = dints_space.num_depths
         if spatial_dims not in (2, 3):
-            raise NotImplementedError("Spatial dimensions {} is not supported.".format(spatial_dims))
+            raise NotImplementedError(f"Spatial dimensions {spatial_dims} is not supported.")
         self._spatial_dims = spatial_dims
         if node_a is None:
             if not self.dints_space.is_search:
