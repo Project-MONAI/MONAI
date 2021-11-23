@@ -26,7 +26,7 @@ class DistributedROCAUC(DistTestCase):
     def test_compute(self):
         auc_metric = ROCAUC()
         act = Activations(softmax=True)
-        to_onehot = AsDiscrete(to_onehot=True, num_classes=2)
+        to_onehot = AsDiscrete(to_onehot=2)
 
         device = f"cuda:{dist.get_rank()}" if torch.cuda.is_available() else "cpu"
         if dist.get_rank() == 0:

@@ -13,6 +13,7 @@ import unittest
 
 from monai.data import ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.transforms import LoadImage, LoadImaged
+from tests.utils import SkipIfNoModule
 
 
 class TestInitLoadImage(unittest.TestCase):
@@ -26,6 +27,9 @@ class TestInitLoadImage(unittest.TestCase):
             inst = LoadImaged("image", reader=r)
             self.assertIsInstance(inst, LoadImaged)
 
+    @SkipIfNoModule("itk")
+    @SkipIfNoModule("nibabel")
+    @SkipIfNoModule("PIL")
     def test_readers(self):
         inst = ITKReader()
         self.assertIsInstance(inst, ITKReader)
