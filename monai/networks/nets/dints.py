@@ -574,7 +574,7 @@ class TopologyInstance(TopologyConstruction):
         inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [0] * self.num_depths
-            for res_idx, activation in enumerate(arch_code_a[blk_idx].data.cpu().numpy()):
+            for res_idx, activation in enumerate(arch_code_a[blk_idx].data):
                 if activation:
                     outputs[self.arch_code2out[res_idx]] += self.cell_tree[str((blk_idx, res_idx))](
                                     inputs[self.arch_code2in[res_idx]],
