@@ -298,7 +298,6 @@ class DiNTS(nn.Module):
             raise NotImplementedError(f"Spatial dimensions {spatial_dims} is not supported.")
         self._spatial_dims = spatial_dims
         if node_a is None:
-            warnings.warn("`node_a` must be provided when not searching.")
             self.node_a = torch.ones((self.num_blocks + 1, self.num_depths))
         else:
             self.node_a = node_a
@@ -565,7 +564,7 @@ class TopologyInstance(TopologyConstruction):
         Initialize DiNTS topology search space of neural architectures.
         """
         if arch_code is None:
-            print("[warning] arch_code must be provided when not searching.")
+            warnings.warn("arch_code not provided when not searching.")
 
         super().__init__(
             arch_code=arch_code,
