@@ -45,10 +45,12 @@ class FactorizedIncreaseBlock(torch.nn.Sequential):
         self._in_channel = in_channel
         self._out_channel = out_channel
         self._spatial_dims = spatial_dims
+        if self._spatial_dims not in (2, 3):
+            raise ValueError("spatial_dims must be 2 or 3.")
 
         conv_type = Conv[Conv.CONV, self._spatial_dims]
-
-        self.add_module("up", torch.nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True))
+        mode = "trilinear" if self._spatial_dims == 3 else "bilinear"
+        self.add_module("up", torch.nn.Upsample(scale_factor=2, mode=mode, align_corners=True))
         self.add_module("acti", get_act_layer(name=act_name))
         self.add_module(
             "conv",
@@ -94,6 +96,8 @@ class FactorizedReduceBlock(torch.nn.Module):
         self._in_channel = in_channel
         self._out_channel = out_channel
         self._spatial_dims = spatial_dims
+        if self._spatial_dims not in (2, 3):
+            raise ValueError("spatial_dims must be 2 or 3.")
 
         conv_type = Conv[Conv.CONV, self._spatial_dims]
 
@@ -110,7 +114,7 @@ class FactorizedReduceBlock(torch.nn.Module):
         )
         self.conv_2 = conv_type(
             in_channels=self._in_channel,
-            out_channels=self._out_channel // 2,
+            out_channels=self._out_channel - self._out_channel // 2,
             kernel_size=1,
             stride=2,
             padding=0,
@@ -125,7 +129,10 @@ class FactorizedReduceBlock(torch.nn.Module):
         The length along each spatial dimension must be a multiple of 2.
         """
         x = self.act(x)
-        out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:, 1:])], dim=1)
+        if self._spatial_dims == 3:
+            out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:, 1:])], dim=1)
+        else:
+            out = torch.cat([self.conv_1(x), self.conv_2(x[:, :, 1:, 1:])], dim=1)
         out = self.norm(out)
         return out
 
@@ -157,7 +164,7 @@ class P3DActiConvNormBlock(torch.nn.Sequential):
                 - 1: ``(k, 1, k)``, ``(1, k, 1)``,
                 - 2: ``(1, k, k)``. ``(k, 1, 1)``.
 
-            act_name:activation layer type and arguments.
+            act_name: activation layer type and arguments.
             norm_name: feature normalization type and arguments.
         """
         super().__init__()
