@@ -157,13 +157,13 @@ class TestDints(unittest.TestCase):
         grid.decode()
         grid.gen_mtx(depth=4)
 
-    # @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
-    # def test_script(self, dints_grid_params, dints_params, input_shape, _):
-    #     grid = TopologyInstance(**dints_grid_params)
-    #     dints_grid_params["device"] = "cpu"
-    #     dints_params["dints_space"] = grid
-    #     net = DiNTS(**dints_params).to(dints_grid_params["device"])
-    #     test_script_save(net, torch.randn(input_shape).to(dints_grid_params["device"]))
+    @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
+    def test_script(self, dints_grid_params, dints_params, input_shape, _):
+        grid = TopologyInstance(**dints_grid_params)
+        dints_grid_params["device"] = "cpu"
+        dints_params["dints_space"] = grid
+        net = DiNTS(**dints_params).to(dints_grid_params["device"])
+        test_script_save(net, torch.randn(input_shape).to(dints_grid_params["device"]))
 
 
 if __name__ == "__main__":

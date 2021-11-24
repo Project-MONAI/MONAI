@@ -126,7 +126,11 @@ class MixedOp(nn.Module):
               The length of `ops` must be `len(self.ops)`.
             weight: architecture weights for cell operations.
         """
-        return sum(self.ops[idx.item()](x) * ops[idx.item()] * weight[idx.item()] for idx in (ops == 1).nonzero())
+        ops_sum = 0
+        for i, o in enumerate(ops):
+            if o == 1:
+                ops_sum += self.ops[i](x) * o * weight[i]
+        return ops_sum
 
 
 class Cell(nn.Module):
@@ -188,7 +192,7 @@ class Cell(nn.Module):
 
         self.op = MixedOp(c, self.OPS, arch_code_c)
 
-    def forward(self, x: torch.Tensor, ops: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, ops: torch.Tensor, weight: torch.Tensor):
         """
         Args:
             x: input tensor
@@ -649,7 +653,7 @@ class TopologyInstance(TopologyConstruction):
         inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [0] * self.num_depths
-            for res_idx, activation in enumerate(arch_code_a[blk_idx].data.cpu().numpy()):
+            for res_idx, activation in enumerate(arch_code_a[blk_idx].data):
                 if activation:
                     outputs[self.arch_code2out[res_idx]] += self.cell_tree[str((blk_idx, res_idx))](
                         inputs[self.arch_code2in[res_idx]],
