@@ -563,6 +563,26 @@ Nets
 .. autoclass:: MILModel
   :members:
 
+`DiNTS`
+~~~~~~~
+.. autoclass:: DiNTS
+  :members:
+
+`TopologyConstruction for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologyConstruction
+  :members:
+
+`TopologyInstance for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologyInstance
+  :members:
+
+`TopologySearch for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologySearch
+  :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
