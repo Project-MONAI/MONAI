@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.networks.nets import DiNTS, TopologyInstance, TopologySearch
 from monai.networks.nets.dints import Cell
-from tests.utils import test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 TEST_CASES_3D = [
     [
@@ -148,8 +148,10 @@ class TestDints(unittest.TestCase):
         result = net(torch.randn(input_shape).to(dints_grid_params["device"]))
         self.assertEqual(result.shape, expected_shape)
 
-    # @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
-    @parameterized.expand(TEST_CASES_2D)
+
+@SkipIfBeforePyTorchVersion((1, 9))
+class TestDintsTS(unittest.TestCase):
+    @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
     def test_script(self, dints_grid_params, dints_params, input_shape, _):
         grid = TopologyInstance(**dints_grid_params)
         dints_grid_params["device"] = "cpu"
