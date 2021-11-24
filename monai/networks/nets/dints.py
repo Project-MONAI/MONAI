@@ -263,12 +263,12 @@ class DiNTS(nn.Module):
     divisible by 2 ** (num_depths + 1).
 
     Args:
-        dints_space: DiNTS search space.
-        in_channels: input image channel.
-        num_classes: number of segmentation classes.
+        dints_space: DiNTS search space. The value should be instance of `TopologyInstance` or `TopologySearch`.
+        in_channels: number of input image channels.
+        num_classes: number of output segmentation classes.
         act_name: activation name, default ot 'RELU'.
-        norm_name: normalization used in convolution blocks. Default to InstanceNorm.
-        spatial_dims: 2D or 3D convolution.
+        norm_name: normalization used in convolution blocks. Default to `InstanceNorm`.
+        spatial_dims: spatial 2D or 3D inputs.
         use_downsample: use downsample in the stem.
             If ``False``, the search space will be in resolution [1, 1/2, 1/4, 1/8],
             if ``True``, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
@@ -772,12 +772,14 @@ class TopologySearch(TopologyConstruction):
         arch_code_prob_a = _arch_code_prob_a / norm.unsqueeze(1)
         if child:
             path_activation = torch.from_numpy(self.child_list).to(self.device)
-            probs_a = []
-            for blk_idx in range(self.num_blocks):
-                arch_prob = _arch_code_prob_a[blk_idx]
-                _prob = (path_activation * arch_prob + (1 - path_activation) * (1 - arch_prob)).prod(-1)
-                _prob /= norm[blk_idx]
-                probs_a.append(_prob)
+            probs_a = [
+                (
+                    path_activation * _arch_code_prob_a[blk_idx]
+                    + (1 - path_activation) * (1 - _arch_code_prob_a[blk_idx])
+                ).prod(-1)
+                / norm[blk_idx]
+                for blk_idx in range(self.num_blocks)
+            ]
             probs_a = torch.stack(probs_a)  # type: ignore
             return probs_a, arch_code_prob_a
         return None, arch_code_prob_a
