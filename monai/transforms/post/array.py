@@ -237,13 +237,13 @@ class AsDiscrete(Transform):
         if argmax or self.argmax:
             img_t = torch.argmax(img_t, dim=0, keepdim=True)
 
-        to_onehot = to_onehot or self.to_onehot
+        to_onehot = self.to_onehot if to_onehot is None else to_onehot
         if to_onehot is not None:
             if not isinstance(to_onehot, int):
                 raise AssertionError("the number of classes for One-Hot must be an integer.")
             img_t = one_hot(img_t, num_classes=to_onehot, dim=0)
 
-        threshold = threshold or self.threshold
+        threshold = self.threshold if threshold is None else threshold
         if threshold is not None:
             img_t = img_t >= threshold
 
