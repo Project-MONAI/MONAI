@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -33,20 +34,11 @@ dijkstra, _ = optional_import("scipy.sparse.csgraph", name="dijkstra")
 __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"]
 
 
-DIRECTIONS = 3
-#       - UpSample
-#      /
-# +--+/
-# |  |--- Identity
-# +--+\
-#      \
-#       -Downsample
-
-# use depth first search to find all path activation combination
-def dfs(node, paths):
+def _dfs(node, paths):
+    """use depth first search to find all path activation combination"""
     if node == paths:
         return [[0], [1]]
-    child = dfs(node + 1, paths)
+    child = _dfs(node + 1, paths)
     return [[0] + _ for _ in child] + [[1] + _ for _ in child]
 
 
@@ -57,24 +49,24 @@ class _IdentityWithRAMCost(nn.Identity):
 
 
 class _CloseWithRAMCost(nn.Module):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
         self.ram_cost = 0
 
     def forward(self, x):
-        return torch.tensor(0.0, requires_grad=False).to(x.dtype).to(x.device)
+        return torch.tensor(0.0, requires_grad=False).to(x)
 
 
 class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
     """The class wraps monai layers with ram estimation. The ram_cost = total_ram/output_size is estimated.
     Here is the estimation:
-        feature_size = output_size/out_channel
-        total_ram = ram_cost * output_size
-        total_ram = in_channel * feature_size (activation map) +
-                    in_channel * feature_size (convolution map) +
-                    out_channel * feature_size (normalization)
-                = (2*in_channel + out_channel) * output_size/out_channel
-        ram_cost = total_ram/output_size = 2 * in_channel/out_channel + 1
+     feature_size = output_size/out_channel
+     total_ram = ram_cost * output_size
+     total_ram = in_channel * feature_size (activation map) +
+                 in_channel * feature_size (convolution map) +
+                 out_channel * feature_size (normalization)
+               = (2*in_channel + out_channel) * output_size/out_channel
+     ram_cost = total_ram/output_size = 2 * in_channel/out_channel + 1
     """
 
     def __init__(self, in_channel: int, out_channel: int, kernel_size: int, padding: int, spatial_dims: int = 3):
@@ -151,6 +143,17 @@ class Cell(nn.Module):
         arch_code_c: cell operation code
     """
 
+    DIRECTIONS = 3
+    # Possible output paths for `Cell`.
+    #
+    #       - UpSample
+    #      /
+    # +--+/
+    # |  |--- Identity or AlignChannels
+    # +--+\
+    #      \
+    #       - Downsample
+
     # Define connection operation set, parameterized by the number of channels
     ConnOPS = {
         "up": _FactorizedIncreaseBlockWithRAMCost,
@@ -201,7 +204,6 @@ class Cell(nn.Module):
         """
         Args:
             x: input tensor
-            ops: binary cell activation code.
             weight: weights for different operations.
         """
         x = self.preprocess(x)
@@ -216,16 +218,18 @@ class DiNTS(nn.Module):
     <https://arxiv.org/abs/2103.15954>".
 
     The model contains a pre-defined multi-resolution stem block (defined in this class) and a
-    DiNTS space (defined in :py:class:`monai.networks.nets.TopologyInstance` and :py:class:`monai.networks.nets.TopologySearch`).
+    DiNTS space (defined in :py:class:`monai.networks.nets.TopologyInstance` and
+    :py:class:`monai.networks.nets.TopologySearch`).
 
     The stem block is for: 1) input downsample and 2) output upsample to original size.
     The model downsamples the input image by 2 (if ``use_downsample=True``).
     The downsampled image is downsampled by [1, 2, 4, 8] times (``num_depths=4``) and used as input to the
     DiNTS search space (``TopologySearch``) or the DiNTS instance (``TopologyInstance``).
 
-    ``TopologyInstance`` is the final searched model. The initialization requires the searched architecture codes.
-    ``TopologySearch`` is a multi-path topology and cell operation search space. The architecture codes will be initialized as one.
-    ``TopologyConstruction`` is the parent class which constructs the instance and search space.
+        - ``TopologyInstance`` is the final searched model. The initialization requires the searched architecture codes.
+        - ``TopologySearch`` is a multi-path topology and cell operation search space.
+          The architecture codes will be initialized as one.
+        - ``TopologyConstruction`` is the parent class which constructs the instance and search space.
 
     To meet the requirements of the structure, the input size for each spatial dimension should be:
     divisible by 2 ** (num_depths + 1).
@@ -237,10 +241,12 @@ class DiNTS(nn.Module):
         act_name: activation name, default ot 'RELU'.
         norm_name: normalization used in convolution blocks. Default to InstanceNorm.
         spatial_dims: 2D or 3D convolution.
-        use_downsample: use downsample in the stem. If False, the search space will be in resolution [1, 1/2, 1/4, 1/8],
-                        if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
-        node_a: node activation numpy matrix. Its shape is `(num_depths, num_blocks + 1)`. +1 for multi-resolution inputs.
-                In model searching stage, `node_a` can be None. In deployment stage, node_a cannot be None.
+        use_downsample: use downsample in the stem.
+            If ``False``, the search space will be in resolution [1, 1/2, 1/4, 1/8],
+            if ``True``, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
+        node_a: node activation numpy matrix. Its shape is `(num_depths, num_blocks + 1)`.
+            +1 for multi-resolution inputs.
+            In model searching stage, ``node_a`` can be None. In deployment stage, ``node_a`` cannot be None.
     """
 
     def __init__(
@@ -264,7 +270,7 @@ class DiNTS(nn.Module):
             raise NotImplementedError(f"Spatial dimensions {spatial_dims} is not supported.")
         self._spatial_dims = spatial_dims
         if node_a is None:
-            print("[warning] node_a must be provided when not searching.")
+            warnings.warn("`node_a` must be provided when not searching.")
             self.node_a = np.ones((self.num_blocks + 1, self.num_depths))
         else:
             self.node_a = node_a
@@ -409,12 +415,13 @@ class TopologyConstruction(nn.Module):
     The parent class for `TopologyInstance` and `TopologySearch`
 
     Args:
-        is_search: True if in the searching stage.
         arch_code: `[arch_code_a, arch_code_c]`, numpy arrays. The architecture codes defining the model.
             For num_depths=4, num_blocks=12 search space:
-              - `arch_code_a` is a 12x10 (10 paths) binary matrix representing if a path is activated.
-              - `arch_code_c` is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
-              - `arch_code` in ``__init__()`` is used for creating the network and remove unused network blocks. If None,
+
+            - `arch_code_a` is a 12x10 (10 paths) binary matrix representing if a path is activated.
+            - `arch_code_c` is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
+            - `arch_code` in ``__init__()`` is used for creating the network and remove unused network blocks. If None,
+
             all paths and cells operations will be used, and must be in the searching stage (is_search=True).
         channel_mul: adjust intermediate channel number, default is 1.
         cell: operation of each node.
@@ -428,21 +435,21 @@ class TopologyConstruction(nn.Module):
     Predefined variables:
         `filter_nums`: default to 32. Double the number of channels after downsample.
         topology related variables:
+
             - `arch_code2in`: path activation to its incoming node index (resolution). For depth = 4,
-                            arch_code2in = [0, 1, 0, 1, 2, 1, 2, 3, 2, 3]. The first path outputs from node 0 (top resolution),
-                            the second path outputs from node 1 (second resolution in the search space),
-                            the third path outputs from node 0, etc.
+              arch_code2in = [0, 1, 0, 1, 2, 1, 2, 3, 2, 3]. The first path outputs from node 0 (top resolution),
+              the second path outputs from node 1 (second resolution in the search space),
+              the third path outputs from node 0, etc.
             - `arch_code2ops`: path activation to operations of upsample 1, keep 0, downsample -1. For depth = 4,
-                            arch_code2ops = [0, 1, -1, 0, 1, -1, 0, 1, -1, 0]. The first path does not change
-                            resolution, the second path perform upsample, the third perform downsample, etc.
+              arch_code2ops = [0, 1, -1, 0, 1, -1, 0, 1, -1, 0]. The first path does not change
+              resolution, the second path perform upsample, the third perform downsample, etc.
             - `arch_code2out`: path activation to its output node index.
-                            For depth = 4, arch_code2out = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3],
-                            the first and second paths connects to node 0 (top resolution), the 3,4,5 paths connects to node 1, etc.
+              For depth = 4, arch_code2out = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3],
+              the first and second paths connects to node 0 (top resolution), the 3,4,5 paths connects to node 1, etc.
     """
 
     def __init__(
         self,
-        is_search: bool,
         arch_code: Optional[list] = None,
         channel_mul: float = 1.0,
         cell=Cell,
@@ -454,9 +461,6 @@ class TopologyConstruction(nn.Module):
     ):
 
         super().__init__()
-
-        # if searching architecture
-        self.is_search = is_search
 
         # predefined variables
         filter_nums = [
@@ -482,8 +486,8 @@ class TopologyConstruction(nn.Module):
 
         # Calculate predefined parameters for topology search and decoding
         arch_code2in, arch_code2out = [], []
-        for i in range(DIRECTIONS * self.num_depths - 2):
-            arch_code2in.append((i + 1) // DIRECTIONS - 1 + (i + 1) % DIRECTIONS)
+        for i in range(Cell.DIRECTIONS * self.num_depths - 2):
+            arch_code2in.append((i + 1) // Cell.DIRECTIONS - 1 + (i + 1) % Cell.DIRECTIONS)
         arch_code2ops = ([-1, 0, 1] * self.num_depths)[1:-1]
         for m in range(self.num_depths):
             arch_code2out.extend([m, m, m])
@@ -550,20 +554,17 @@ class TopologyInstance(TopologyConstruction):
             spatial_dims=spatial_dims,
             use_downsample=use_downsample,
             device=device,
-            is_search=False,
         )
 
     def forward(self, x):
         """
-        Prediction based on dynamic arch_code.
-
         Args:
             x: input tensor.
         """
         # generate path activation probability
         arch_code_a = self.arch_code_a
         arch_code_c = self.arch_code_c
-        inputs = x
+        inputs, outputs = x, [0] * self.num_depths
         for blk_idx in range(self.num_blocks):
             outputs = [0] * self.num_depths
             for res_idx, activation in enumerate(arch_code_a[blk_idx].data):
@@ -603,6 +604,7 @@ class TopologySearch(TopologyConstruction):
         # torch.Size([2, 128, 10, 10, 10])
 
     Class method overview:
+
         - ``get_prob_a()``: convert learnable architecture weights to path activation probabilities.
         - ``get_ram_cost_usage()``: get estimated ram cost.
         - ``get_topology_entropy()``: get topology entropy loss in searching stage.
@@ -611,15 +613,15 @@ class TopologySearch(TopologyConstruction):
 
     Predefined varaibles:
         - `tidx`: index used to convert path activation matrix T = (depth,depth) in transfer_mtx to
-                path activation arch_code (1,3*depth-2), for depth = 4, tidx = [0, 1, 4, 5, 6, 9, 10, 11, 14, 15],
-                A tidx (10 binary values) represents the path activation.
+          path activation arch_code (1,3*depth-2), for depth = 4, tidx = [0, 1, 4, 5, 6, 9, 10, 11, 14, 15],
+          A tidx (10 binary values) represents the path activation.
         - `transfer_mtx`: feasible path activation matrix (denoted as T) given a node activation pattern.
-                It is used to convert path activation pattern (1, paths) to node activation (1, nodes)
+          It is used to convert path activation pattern (1, paths) to node activation (1, nodes)
         - `node_act_list`: all node activation [2^num_depths-1, depth]. For depth = 4, there are 15 node activation
-                patterns, each of length 4. For example, [1,1,0,0] means nodes 0, 1 are activated (with input paths).
+          patterns, each of length 4. For example, [1,1,0,0] means nodes 0, 1 are activated (with input paths).
         - `all_connect`: All possible path activations. For depth = 4,
-                all_connection has 1024 vectors of length 10 (10 paths).
-                The return value will exclude path activation of all 0.
+          all_connection has 1024 vectors of length 10 (10 paths).
+          The return value will exclude path activation of all 0.
     """
 
     def __init__(
@@ -645,12 +647,12 @@ class TopologySearch(TopologyConstruction):
             spatial_dims=spatial_dims,
             use_downsample=use_downsample,
             device=device,
-            is_search=True,
         )
 
         tidx = []
-        for i in range(DIRECTIONS * self.num_depths - 2):
-            tidx.append((i + 1) // DIRECTIONS * self.num_depths + (i + 1) // DIRECTIONS - 1 + (i + 1) % DIRECTIONS)
+        _d = Cell.DIRECTIONS
+        for i in range(_d * self.num_depths - 2):
+            tidx.append((i + 1) // _d * self.num_depths + (i + 1) // _d - 1 + (i + 1) % _d)
         self.tidx = tidx
 
         transfer_mtx, node_act_list, child_list = self.gen_mtx(num_depths)
@@ -688,6 +690,7 @@ class TopologySearch(TopologyConstruction):
     def gen_mtx(self, depth: int):
         """
         Generate elements needed in decoding and topology.
+
             - `transfer_mtx`: feasible path activation matrix (denoted as T) given a node activation pattern.
                It is used to convert path activation pattern (1, paths) to node activation (1, nodes)
             - `node_act_list`: all node activation [2^num_depths-1, depth]. For depth = 4, there are 15 node activation
@@ -698,11 +701,11 @@ class TopologySearch(TopologyConstruction):
         """
         # total paths in a block, each node has three output paths,
         # except the two nodes at the top and the bottom scales
-        paths = DIRECTIONS * depth - 2
+        paths = Cell.DIRECTIONS * depth - 2
 
         # for 10 paths, all_connect has 1024 possible path activations. [1 0 0 0 0 0 0 0 0 0] means the top
         # path is activated.
-        all_connect = dfs(0, paths - 1)
+        all_connect = _dfs(0, paths - 1)
 
         # Save all possible connections in mtx (might be redundant and infeasible)
         mtx = []
@@ -710,11 +713,11 @@ class TopologySearch(TopologyConstruction):
             # convert path activation [1,paths] to path activation matrix [depth, depth]
             ma = np.zeros((depth, depth))
             for i in range(paths):
-                ma[(i + 1) // DIRECTIONS, (i + 1) // DIRECTIONS - 1 + (i + 1) % DIRECTIONS] = m[i]
+                ma[(i + 1) // Cell.DIRECTIONS, (i + 1) // Cell.DIRECTIONS - 1 + (i + 1) % Cell.DIRECTIONS] = m[i]
             mtx.append(ma)
 
         # define all possible node activation
-        node_act_list = dfs(0, depth - 1)[1:]
+        node_act_list = _dfs(0, depth - 1)[1:]
         transfer_mtx = {}
         for arch_code in node_act_list:
             # make sure each activated node has an active connection, inactivated node has no connection
@@ -746,18 +749,15 @@ class TopologySearch(TopologyConstruction):
         arch_code_prob_a = _arch_code_prob_a / norm.unsqueeze(1)
         if child:
             path_activation = torch.from_numpy(self.child_list).to(self.device)
-            probs_a = [
-                (
-                    path_activation * _arch_code_prob_a[blk_idx]
-                    + (1 - path_activation) * (1 - _arch_code_prob_a[blk_idx])
-                ).prod(-1)
-                / norm[blk_idx]
-                for blk_idx in range(self.num_blocks)
-            ]
+            probs_a = []
+            for blk_idx in range(self.num_blocks):
+                arch_prob = _arch_code_prob_a[blk_idx]
+                _prob = (path_activation * arch_prob + (1 - path_activation) * (1 - arch_prob)).prod(-1)
+                _prob /= norm[blk_idx]
+                probs_a.append(_prob)
             probs_a = torch.stack(probs_a)  # type: ignore
             return probs_a, arch_code_prob_a
-        else:
-            return None, arch_code_prob_a
+        return None, arch_code_prob_a
 
     def get_ram_cost_usage(self, in_size, full: bool = False):
         """
@@ -911,22 +911,19 @@ class TopologySearch(TopologyConstruction):
         Prediction based on dynamic arch_code.
 
         Args:
-            x: input tensor.
+            x: a list of `num_depths` input tensors as a multi-resolution input.
+                tensor is of shape `BCHW[D]` where `C` must match `self.filter_nums`.
         """
         # generate path activation probability
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
-        arch_code_a = self.arch_code_a
-        arch_code_c = self.arch_code_c
         inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [0] * self.num_depths
-            for res_idx, activation in enumerate(arch_code_a[blk_idx].data.cpu().numpy()):
+            for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data.cpu().numpy()):
                 if activation:
+                    _w = F.softmax(self.log_alpha_c[blk_idx, res_idx], dim=-1)
                     outputs[self.arch_code2out[res_idx]] += (
-                        self.cell_tree[str((blk_idx, res_idx))](
-                            inputs[self.arch_code2in[res_idx]],
-                            weight=F.softmax(self.log_alpha_c[blk_idx, res_idx], dim=-1),
-                        )
+                        self.cell_tree[str((blk_idx, res_idx))](inputs[self.arch_code2in[res_idx]], weight=_w)
                         * arch_code_prob_a[blk_idx, res_idx]
                     )
             inputs = outputs
