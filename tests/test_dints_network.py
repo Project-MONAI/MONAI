@@ -15,10 +15,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import DiNTS, TopologySearch, TopologyInstance
+from monai.networks.nets import DiNTS, TopologyInstance, TopologySearch
 from monai.networks.nets.dints import Cell
 from tests.utils import test_script_save
-
 
 TEST_CASES_3D = [
     [

@@ -77,5 +77,6 @@ class TestMixOP(unittest.TestCase):
         net = MixedOp(ops=Cell.OPS3D, **input_param)
         test_script_save(net, torch.randn(input_shape), weight)
 
+
 if __name__ == "__main__":
     unittest.main()

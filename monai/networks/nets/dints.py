@@ -55,12 +55,15 @@ class _IdentityWithRAMCost(nn.Identity):
         super().__init__(*args, **kwargs)
         self.ram_cost = 0
 
+
 class _CloseWithRAMCost(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ram_cost = 0
+
     def forward(self, x):
         return torch.tensor(0.0, requires_grad=False).to(x.dtype).to(x.device)
+
 
 class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
     """The class wraps monai layers with ram estimation. The ram_cost = total_ram/output_size is estimated.
@@ -130,10 +133,11 @@ class MixedOp(nn.Module):
         Return:
             out: weighted average of the operation results.
         """
-        out = 0.
+        out = 0.0
         for idx, _ in enumerate(self.ops):
             out = out + _(x) * weight[idx]
         return out
+
 
 class Cell(nn.Module):
     """
@@ -534,7 +538,7 @@ class TopologyInstance(TopologyConstruction):
 
     def __init__(
         self,
-        arch_code = None,
+        arch_code=None,
         channel_mul: float = 1.0,
         cell=Cell,
         num_blocks: int = 6,
@@ -550,15 +554,15 @@ class TopologyInstance(TopologyConstruction):
             print("[warning] arch_code must be provided when not searching.")
 
         super().__init__(
-            arch_code = arch_code,
-            channel_mul = channel_mul,
-            cell = cell,
-            num_blocks = num_blocks,
-            num_depths = num_depths,
-            spatial_dims = spatial_dims,
-            use_downsample = use_downsample,
-            device = device,
-            is_search = False,
+            arch_code=arch_code,
+            channel_mul=channel_mul,
+            cell=cell,
+            num_blocks=num_blocks,
+            num_depths=num_depths,
+            spatial_dims=spatial_dims,
+            use_downsample=use_downsample,
+            device=device,
+            is_search=False,
         )
 
     def forward(self, x):
@@ -577,8 +581,9 @@ class TopologyInstance(TopologyConstruction):
             for res_idx, activation in enumerate(arch_code_a[blk_idx].data):
                 if activation:
                     outputs[self.arch_code2out[res_idx]] += self.cell_tree[str((blk_idx, res_idx))](
-                                    inputs[self.arch_code2in[res_idx]],
-                                    weight=torch.ones_like(arch_code_c[blk_idx, res_idx], requires_grad=False))
+                        inputs[self.arch_code2in[res_idx]],
+                        weight=torch.ones_like(arch_code_c[blk_idx, res_idx], requires_grad=False),
+                    )
         inputs = outputs
 
         return inputs
@@ -640,15 +645,15 @@ class TopologySearch(TopologyConstruction):
         Initialize DiNTS topology search space of neural architectures.
         """
         super().__init__(
-            arch_code = arch_code,
-            channel_mul = channel_mul,
-            cell = cell,
-            num_blocks = num_blocks,
-            num_depths = num_depths,
-            spatial_dims = spatial_dims,
-            use_downsample = use_downsample,
-            device = device,
-            is_search = True,
+            arch_code=arch_code,
+            channel_mul=channel_mul,
+            cell=cell,
+            num_blocks=num_blocks,
+            num_depths=num_depths,
+            spatial_dims=spatial_dims,
+            use_downsample=use_downsample,
+            device=device,
+            is_search=True,
         )
 
         tidx = []
@@ -925,10 +930,13 @@ class TopologySearch(TopologyConstruction):
             outputs = [0] * self.num_depths
             for res_idx, activation in enumerate(arch_code_a[blk_idx].data.cpu().numpy()):
                 if activation:
-                    outputs[self.arch_code2out[res_idx]] += self.cell_tree[str((blk_idx, res_idx))](
-                        inputs[self.arch_code2in[res_idx]],
-                        weight=F.softmax(self.log_alpha_c[blk_idx, res_idx], dim=-1),
-                    ) * arch_code_prob_a[blk_idx, res_idx]
+                    outputs[self.arch_code2out[res_idx]] += (
+                        self.cell_tree[str((blk_idx, res_idx))](
+                            inputs[self.arch_code2in[res_idx]],
+                            weight=F.softmax(self.log_alpha_c[blk_idx, res_idx], dim=-1),
+                        )
+                        * arch_code_prob_a[blk_idx, res_idx]
+                    )
             inputs = outputs
 
         return inputs
