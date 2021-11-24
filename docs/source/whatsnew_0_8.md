@@ -54,4 +54,3 @@ fine-tuning on a fully supervised volumetric segmentation task using a transform
   inputs, segmentation maps, and intermediate feature maps.
   The visualization tutorial is available for
   [TensorBoard utility, `matshow3d` and `blend_images`](https://github.com/Project-MONAI/tutorials/blob/master/modules/transform_visualization.ipynb).
-
