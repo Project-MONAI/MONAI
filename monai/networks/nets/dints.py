@@ -153,8 +153,9 @@ class MixedOp(nn.Module):
             out: weighted average of the operation results.
         """
         out = 0.0
-        for idx, _ in enumerate(self.ops):
-            out = out + _(x) * weight[idx]
+        weight = weight.to(x)
+        for idx, _op in enumerate(self.ops):
+            out = out + _op(x) * weight[idx]
         return out
 
 
