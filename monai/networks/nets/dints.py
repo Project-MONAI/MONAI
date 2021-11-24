@@ -387,7 +387,7 @@ class DiNTS(nn.Module):
             if node_a[0][d]:
                 inputs.append(self.stem_down[str(d)](x))
             else:
-                inputs.append(None)
+                inputs.append(torch.zeros_like(self.stem_down[str(d)](x)))
 
         outputs = self.dints_space(inputs)
 
