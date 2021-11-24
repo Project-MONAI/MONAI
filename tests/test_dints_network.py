@@ -22,7 +22,7 @@ from tests.utils import test_script_save
 TEST_CASES_3D = [
     [
         {
-            "channel_mul": 1,
+            "channel_mul": 0.2,
             "num_blocks": 6,
             "num_depths": 3,
             "device": "cpu",
@@ -37,8 +37,8 @@ TEST_CASES_3D = [
             "use_downsample": False,
             "spatial_dims": 3,
         },
-        (7, 1, 32, 32, 16),
-        (7, 3, 32, 32, 16),
+        (3, 1, 32, 32, 16),
+        (3, 3, 32, 32, 16),
     ]
 ]
 if torch.cuda.is_available():
@@ -60,8 +60,8 @@ if torch.cuda.is_available():
                 "use_downsample": True,
                 "spatial_dims": 3,
             },
-            (7, 2, 32, 32, 16),
-            (7, 2, 32, 32, 16),
+            (3, 2, 32, 32, 16),
+            (3, 2, 32, 32, 16),
         ]
     ]
 TEST_CASES_2D = [
@@ -82,8 +82,8 @@ TEST_CASES_2D = [
             "use_downsample": True,
             "spatial_dims": 2,
         },
-        (7, 2, 32, 16),
-        (7, 2, 32, 16),
+        (2, 2, 32, 16),
+        (2, 2, 32, 16),
     ]
 ]
 if torch.cuda.is_available():
@@ -105,8 +105,8 @@ if torch.cuda.is_available():
                 "use_downsample": False,
                 "spatial_dims": 2,
             },
-            (7, 1, 32, 16),
-            (7, 4, 32, 16),
+            (2, 1, 32, 16),
+            (2, 4, 32, 16),
         ]
     ]
 
@@ -135,7 +135,7 @@ class TestDints(unittest.TestCase):
         _cell = Cell(1, 1, 0, spatial_dims=dints_grid_params["spatial_dims"])
         num_cell_ops = len(_cell.OPS)
         # define archtecture codes
-        node_a = np.ones((num_blocks + 1, num_depths))
+        node_a = torch.ones((num_blocks + 1, num_depths))
         arch_code_a = np.ones((num_blocks, 3 * num_depths - 2))
         arch_code_c = np.random.randint(num_cell_ops, size=(num_blocks, 3 * num_depths - 2))
         # initialize with codes
@@ -148,7 +148,8 @@ class TestDints(unittest.TestCase):
         result = net(torch.randn(input_shape).to(dints_grid_params["device"]))
         self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
+    # @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
+    @parameterized.expand(TEST_CASES_2D)
     def test_script(self, dints_grid_params, dints_params, input_shape, _):
         grid = TopologyInstance(**dints_grid_params)
         dints_grid_params["device"] = "cpu"

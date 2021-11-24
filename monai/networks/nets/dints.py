@@ -444,7 +444,7 @@ class TopologyConstruction(nn.Module):
 
     Args:
         arch_code: `[arch_code_a, arch_code_c]`, numpy arrays. The architecture codes defining the model.
-            For num_depths=4, num_blocks=12 search space:
+            For ``num_depths=4, num_blocks=12`` search space:
 
             - `arch_code_a` is a 12x10 (10 paths) binary matrix representing if a path is activated.
             - `arch_code_c` is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
@@ -490,14 +490,7 @@ class TopologyConstruction(nn.Module):
 
         super().__init__()
 
-        # predefined variables
-        filter_nums = [
-            int(32 * channel_mul),
-            int(64 * channel_mul),
-            int(128 * channel_mul),
-            int(256 * channel_mul),
-            int(512 * channel_mul),
-        ]
+        filter_nums = [int(n_feat * channel_mul) for n_feat in (32, 64, 128, 256, 512)]
 
         self.num_depths = num_depths
         self.filter_nums = filter_nums
@@ -947,7 +940,7 @@ class TopologySearch(TopologyConstruction):
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
         inputs = x
         for blk_idx in range(self.num_blocks):
-            outputs = [0] * self.num_depths
+            outputs = [0.0] * self.num_depths
             for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data.cpu().numpy()):
                 if activation:
                     _w = F.softmax(self.log_alpha_c[blk_idx, res_idx], dim=-1)
