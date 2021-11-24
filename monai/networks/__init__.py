@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from .utils import (
+    convert_to_torchscript,
     copy_model_state,
     eval_mode,
     icnr_init,

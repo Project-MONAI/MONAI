@@ -22,5 +22,5 @@ void learn_cpu(const float* input, const int* labels, float* gmm, float* scratch
 
 void apply_cpu(const float* gmm, const float* input, float* output, unsigned int batch_count, unsigned int element_count)
 {
-    throw std::invalid_argument("GMM recieved a cpu tensor but is not yet implemented for the cpu");
+    throw std::invalid_argument("GMM received a cpu tensor but is not yet implemented for the cpu");
 }

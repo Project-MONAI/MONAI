@@ -21,6 +21,12 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
+`ShuffleBuffer`
+~~~~~~~~~~~~~~~
+.. autoclass:: ShuffleBuffer
+  :members:
+  :special-members: __next__
+
 `CSVIterableDataset`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: CSVIterableDataset
@@ -194,6 +200,8 @@ DatasetSummary
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.data.load_decathlon_datalist
+.. autofunction:: monai.data.load_decathlon_properties
+.. autofunction:: monai.data.check_missing_files
 
 
 DataLoader
@@ -205,6 +213,9 @@ ThreadBuffer
 ~~~~~~~~~~~~
 .. autoclass:: monai.data.ThreadBuffer
 
+ThreadDataLoader
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.ThreadDataLoader
 
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~

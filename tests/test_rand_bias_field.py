@@ -12,29 +12,34 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandBiasField
 
-TEST_CASES_2D = [{}, (3, 32, 32)]
-TEST_CASES_3D = [{}, (3, 32, 32, 32)]
-TEST_CASES_2D_ZERO_RANGE = [{"coeff_range": (0.0, 0.0)}, (2, 3, 3)]
-TEST_CASES_2D_ONES = [{"coeff_range": (1.0, 1.0)}, np.asarray([[[7.389056, 0.1353353], [7.389056, 22026.46]]])]
+TEST_CASES_2D = [{"prob": 1.0}, (3, 32, 32)]
+TEST_CASES_3D = [{"prob": 1.0}, (3, 32, 32, 32)]
+TEST_CASES_2D_ZERO_RANGE = [{"prob": 1.0, "coeff_range": (0.0, 0.0)}, (2, 3, 3)]
+TEST_CASES_2D_ONES = [
+    {"prob": 1.0, "coeff_range": (1.0, 1.0)},
+    np.asarray([[[7.389056, 0.1353353], [7.389056, 22026.46]]]),
+]
 
 
 class TestRandBiasField(unittest.TestCase):
     @parameterized.expand([TEST_CASES_2D, TEST_CASES_3D])
     def test_output_shape(self, class_args, img_shape):
-        for degree in [1, 2, 3]:
-            bias_field = RandBiasField(degree=degree, **class_args)
-            img = np.random.rand(*img_shape)
-            output = bias_field(img)
-            np.testing.assert_equal(output.shape, img_shape)
-            np.testing.assert_equal(output.dtype, bias_field.dtype)
+        for fn in (np.random, torch):
+            for degree in [1, 2, 3]:
+                bias_field = RandBiasField(degree=degree, **class_args)
+                img = fn.rand(*img_shape)
+                output = bias_field(img)
+                np.testing.assert_equal(output.shape, img_shape)
+                self.assertTrue(output.dtype in (np.float32, torch.float32))
 
-            img_zero = np.zeros([*img_shape])
-            output_zero = bias_field(img_zero)
-            np.testing.assert_equal(output_zero, img_zero)
+                img_zero = np.zeros([*img_shape])
+                output_zero = bias_field(img_zero)
+                np.testing.assert_equal(output_zero, img_zero)
 
     @parameterized.expand([TEST_CASES_2D_ZERO_RANGE])
     def test_zero_range(self, class_args, img_shape):
