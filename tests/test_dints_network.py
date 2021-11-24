@@ -147,6 +147,7 @@ class TestDints(unittest.TestCase):
         net = DiNTS(**dints_params).to(dints_grid_params["device"])
         result = net(torch.randn(input_shape).to(dints_grid_params["device"]))
         self.assertEqual(result.shape, expected_shape)
+        self.assertTrue(isinstance(net.weight_parameters(), list))
 
 
 @SkipIfBeforePyTorchVersion((1, 9))

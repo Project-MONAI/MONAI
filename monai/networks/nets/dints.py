@@ -530,8 +530,8 @@ class TopologyConstruction(nn.Module):
             for res_idx in range(len(self.arch_code2out)):
                 if self.arch_code_a[blk_idx, res_idx] == 1:
                     self.cell_tree[str((blk_idx, res_idx))] = cell(
-                        filter_nums[self.arch_code2in[res_idx] + int(use_downsample)],
-                        filter_nums[self.arch_code2out[res_idx] + int(use_downsample)],
+                        self.filter_nums[self.arch_code2in[res_idx] + int(use_downsample)],
+                        self.filter_nums[self.arch_code2out[res_idx] + int(use_downsample)],
                         self.arch_code2ops[res_idx],
                         self.arch_code_c[blk_idx, res_idx],
                         self._spatial_dims,
