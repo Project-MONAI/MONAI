@@ -2,7 +2,7 @@
 
 - Differentiable neural network topology search
 - Multiple instance learning for digital pathology WSI analysis
-- Self-supervised representation learning modules
+- Self-supervised representation learning
 - Major usability improvements in `monai.transforms`
 
 ## Differentiable neural network topology search
@@ -15,7 +15,8 @@ It provides a topology guaranteed discretization algorithm and a
 discretization-aware topology loss for the search stage to minimize the
 discretization gap. The module is memory usage aware and is able to search 3D
 networks with different GPU memory requirements. For more details, please checkout the
-[DiNTS tutorial](https://github.com/Project-MONAI/tutorials/tree/master/neural_architecture_search).
+[DiNTS tutorial](https://github.com/Project-MONAI/tutorials/tree/master/automl).
+
 ![DiNTS](../images/dints-overview.png)
 
 ## Multiple instance learning for digital pathology WSI analysis
@@ -28,7 +29,7 @@ please checkout the [multi-instance tutorial](https://github.com/Project-MONAI/t
 
 ![multi-instance](../images/mil-patches.jpg)
 
-## Self-supervised representation learning modules
+## Self-supervised representation learning
 MONAI starts to explore self-supervised representation learning in this
 milestone release. The Vision Transformer has been extended to learn from self-supervised
 reconstruction tasks with various data augmentation and a regularized
@@ -38,7 +39,8 @@ enhance the performance of the novel downstream deep learning tasks.
 The [tutorial](https://github.com/Project-MONAI/tutorials/tree/master/self_supervised_pretraining)
 shows how to generate a good set of pre-trained weights using unlabeled data
 with self-supervised tasks, then use the pre-trained weights to perform
-fine-tuning on a fully supervised volumetric segmentation task.
+fine-tuning on a fully supervised volumetric segmentation task using a transformer based `UNETR`.
+
 ![self-supervised](../images/SSL_Overview_Figure.png)
 
 ## Major usability improvements in `monai.transforms`
