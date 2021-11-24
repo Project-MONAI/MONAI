@@ -34,6 +34,11 @@ TEST_CASE_4 = [{"keys": "image", "grid_size": (1, 1), "patch_size": (2, 2)}, {"i
 TEST_CASE_5 = [{"keys": "image", "grid_size": 1, "patch_size": 4}, {"image": A}, torch.stack([A])]
 TEST_CASE_6 = [{"keys": "image", "grid_size": 2, "patch_size": 2}, {"image": A}, torch.stack([A11, A12, A21, A22])]
 TEST_CASE_7 = [{"keys": "image", "grid_size": 1}, {"image": A}, torch.stack([A])]
+TEST_CASE_8 = [
+    {"keys": "image", "grid_size": (2, 2), "patch_size": 2},
+    {"image": torch.arange(12).reshape(1, 3, 4).to(torch.float32)},
+    torch.Tensor([[[[0, 1], [4, 5]]], [[[2, 3], [6, 7]]], [[[4, 5], [8, 9]]], [[[6, 7], [10, 11]]]]).to(torch.float32),
+]
 
 TEST_SINGLE = []
 for p in TEST_NDARRAYS:
@@ -45,6 +50,7 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_5])
     TEST_SINGLE.append([p, *TEST_CASE_6])
     TEST_SINGLE.append([p, *TEST_CASE_7])
+    TEST_SINGLE.append([p, *TEST_CASE_8])
 
 TEST_CASE_MC_0 = [
     {"keys": "image", "grid_size": (2, 2)},
