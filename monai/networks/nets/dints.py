@@ -137,7 +137,7 @@ class MixedOp(nn.Module):
 
 class Cell(nn.Module):
     """
-    The basic class for cell operation search, which contains a preprocessing operation and a mixed cell operation. 
+    The basic class for cell operation search, which contains a preprocessing operation and a mixed cell operation.
     Each cell is defined on a `path` in the topology search space.
     Args:
         c_prev: number of input channels
@@ -216,7 +216,7 @@ class DiNTS(nn.Module):
 
     The stem block is for: 1) input downsample and 2) output upsample to original size.
     The model downsamples the input image by 2 (if ``use_downsample=True``).
-    The downsampled image is downsampled by [1, 2, 4, 8] times (``num_depths=4``) and used as input to the 
+    The downsampled image is downsampled by [1, 2, 4, 8] times (``num_depths=4``) and used as input to the
     DiNTS search space (``TopologySearch``) or the DiNTS instance (``TopologyInstance``).
 
     ``TopologyInstance`` is the final searched model. The initialization requires the searched architecture codes.
@@ -232,7 +232,7 @@ class DiNTS(nn.Module):
         num_classes: number of segmentation classes.
         act_name: activation name, default ot 'RELU'.
         norm_name: normalization used in convolution blocks. Default to InstanceNorm.
-        spatial_dims: 2D or 3D convolution. 
+        spatial_dims: 2D or 3D convolution.
         use_downsample: use downsample in the stem. If False, the search space will be in resolution [1, 1/2, 1/4, 1/8],
                         if True, the search space will be in resolution [1/2, 1/4, 1/8, 1/16].
         node_a: node activation numpy matrix. Its shape is `(num_depths, num_blocks + 1)`. +1 for multi-resolution inputs.
