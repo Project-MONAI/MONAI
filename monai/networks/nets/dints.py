@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -32,6 +32,33 @@ csr_matrix, _ = optional_import("scipy.sparse", name="csr_matrix")
 dijkstra, _ = optional_import("scipy.sparse.csgraph", name="dijkstra")
 
 __all__ = ["DiNTS", "TopologyConstruction", "TopologyInstance", "TopologySearch"]
+
+
+@torch.jit.interface
+class CellInterface(torch.nn.Module):
+    """interface for torchscriptable Cell"""
+
+    def forward(self, x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+        pass
+
+
+@torch.jit.interface
+class StemInterface(torch.nn.Module):
+    """interface for torchscriptable Stem"""
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        pass
+
+
+class StemTS(StemInterface):
+    """wrapper for torchscriptable Stem"""
+
+    def __init__(self, *mod):
+        super().__init__()
+        self.mod = torch.nn.Sequential(*mod)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.mod(x)  # type: ignore
 
 
 def _dfs(node, paths):
@@ -131,7 +158,7 @@ class MixedOp(nn.Module):
         return out
 
 
-class Cell(nn.Module):
+class Cell(CellInterface):
     """
     The basic class for cell operation search, which contains a preprocessing operation and a mixed cell operation.
     Each cell is defined on a `path` in the topology search space.
@@ -271,7 +298,7 @@ class DiNTS(nn.Module):
         self._spatial_dims = spatial_dims
         if node_a is None:
             warnings.warn("`node_a` must be provided when not searching.")
-            self.node_a = np.ones((self.num_blocks + 1, self.num_depths))
+            self.node_a = torch.ones((self.num_blocks + 1, self.num_depths))
         else:
             self.node_a = node_a
 
@@ -302,7 +329,7 @@ class DiNTS(nn.Module):
         for res_idx in range(self.num_depths):
             # define downsample stems before DiNTS search
             if use_downsample:
-                self.stem_down[str(res_idx)] = nn.Sequential(
+                self.stem_down[str(res_idx)] = StemTS(
                     nn.Upsample(scale_factor=1 / (2 ** res_idx), mode=mode, align_corners=True),
                     conv_type(
                         in_channels=in_channels,
@@ -328,7 +355,7 @@ class DiNTS(nn.Module):
                     ),
                     get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx + 1]),
                 )
-                self.stem_up[str(res_idx)] = nn.Sequential(
+                self.stem_up[str(res_idx)] = StemTS(
                     get_act_layer(name=act_name),
                     conv_type(
                         in_channels=self.filter_nums[res_idx + 1],
@@ -345,7 +372,7 @@ class DiNTS(nn.Module):
                 )
 
             else:
-                self.stem_down[str(res_idx)] = nn.Sequential(
+                self.stem_down[str(res_idx)] = StemTS(
                     nn.Upsample(scale_factor=1 / (2 ** res_idx), mode=mode, align_corners=True),
                     conv_type(
                         in_channels=in_channels,
@@ -359,7 +386,7 @@ class DiNTS(nn.Module):
                     ),
                     get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx]),
                 )
-                self.stem_up[str(res_idx)] = nn.Sequential(
+                self.stem_up[str(res_idx)] = StemTS(
                     get_act_layer(name=act_name),
                     conv_type(
                         in_channels=self.filter_nums[res_idx],
@@ -385,15 +412,15 @@ class DiNTS(nn.Module):
         Args:
             x: input tensor.
         """
-        node_a = self.node_a
-
         inputs = []
         for d in range(self.num_depths):
             # allow multi-resolution input
-            if node_a[0][d]:
-                inputs.append(self.stem_down[str(d)](x))
+            _mod_w: StemInterface = self.stem_down[str(d)]
+            x_out = _mod_w.forward(x)
+            if self.node_a[0][d]:
+                inputs.append(x_out)
             else:
-                inputs.append(torch.zeros_like(self.stem_down[str(d)](x)))
+                inputs.append(torch.zeros_like(x_out))
 
         outputs = self.dints_space(inputs)
 
@@ -401,11 +428,12 @@ class DiNTS(nn.Module):
         start = False
         _temp: torch.Tensor = torch.empty(0)
         for res_idx in range(self.num_depths - 1, -1, -1):
+            _mod_up: StemInterface = self.stem_up[str(res_idx)]
             if start:
-                _temp = self.stem_up[str(res_idx)](outputs[res_idx] + _temp)
-            elif node_a[blk_idx + 1][res_idx]:
+                _temp = _mod_up.forward(outputs[res_idx] + _temp)
+            elif self.node_a[blk_idx + 1][res_idx]:
                 start = True
-                _temp = self.stem_up[str(res_idx)](outputs[res_idx])
+                _temp = _mod_up.forward(outputs[res_idx])
         prediction = self.stem_finals(_temp)
         return prediction
 
@@ -556,7 +584,7 @@ class TopologyInstance(TopologyConstruction):
             device=device,
         )
 
-    def forward(self, x):
+    def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Args:
             x: input tensor.
@@ -564,15 +592,16 @@ class TopologyInstance(TopologyConstruction):
         # generate path activation probability
         arch_code_a = self.arch_code_a
         arch_code_c = self.arch_code_c
-        inputs, outputs = x, [0] * self.num_depths
+        inputs, outputs = x, [torch.tensor(0.0).to(x[0])] * self.num_depths
         for blk_idx in range(self.num_blocks):
-            outputs = [0] * self.num_depths
+            outputs = [torch.tensor(0.0).to(x[0])] * self.num_depths
             for res_idx, activation in enumerate(arch_code_a[blk_idx].data):
                 if activation:
-                    outputs[self.arch_code2out[res_idx]] += self.cell_tree[str((blk_idx, res_idx))](
-                        inputs[self.arch_code2in[res_idx]],
-                        weight=torch.ones_like(arch_code_c[blk_idx, res_idx], requires_grad=False),
+                    mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]
+                    _out = mod.forward(
+                        x=inputs[self.arch_code2in[res_idx]], weight=torch.ones_like(arch_code_c[blk_idx, res_idx])
                     )
+                    outputs[self.arch_code2out[res_idx]] = outputs[self.arch_code2out[res_idx]] + _out
         inputs = outputs
 
         return inputs
