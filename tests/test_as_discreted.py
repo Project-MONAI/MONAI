@@ -70,6 +70,16 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+    # test threshold = 0.0
+    TEST_CASES.append(
+        [
+            {"keys": ["pred", "label"], "argmax": False, "to_onehot": None, "threshold": [0.0, None]},
+            {"pred": p([[[0.0, -1.0], [-2.0, 3.0]]]), "label": p([[[0, 1], [1, 1]]])},
+            {"pred": p([[[1.0, 0.0], [0.0, 1.0]]]), "label": p([[[0.0, 1.0], [1.0, 1.0]]])},
+            (1, 2, 2),
+        ]
+    )
+
 
 class TestAsDiscreted(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
