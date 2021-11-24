@@ -45,6 +45,16 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+    # test threshold = 0.0
+    TEST_CASES.append(
+        [
+            {"argmax": False, "to_onehot": None, "threshold": 0.0},
+            p([[[0.0, -1.0], [-2.0, 3.0]]]),
+            p([[[1.0, 0.0], [0.0, 1.0]]]),
+            (1, 2, 2),
+        ]
+    )
+
     TEST_CASES.append([{"argmax": False, "to_onehot": 3}, p(1), p([0.0, 1.0, 0.0]), (3,)])
 
     TEST_CASES.append(
