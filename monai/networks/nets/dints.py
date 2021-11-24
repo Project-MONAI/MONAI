@@ -438,18 +438,6 @@ class TopologyConstruction(nn.Module):
             - `arch_code2out`: path activation to its output node index.
                             For depth = 4, arch_code2out = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3],
                             the first and second paths connects to node 0 (top resolution), the 3,4,5 paths connects to node 1, etc.
-
-        Please refer to ``self.gen_mtx()`` and ``TopologySearch``` for more topology related variables:
-            - `tidx`: index used to convert path activation matrix T = (depth,depth) in transfer_mtx to
-                    path activation arch_code (1,3*depth-2), for depth = 4, tidx = [0, 1, 4, 5, 6, 9, 10, 11, 14, 15],
-                    A tidx (10 binary values) represents the path activation.
-            - `transfer_mtx`: feasible path activation matrix (denoted as T) given a node activation pattern.
-                    It is used to convert path activation pattern (1, paths) to node activation (1, nodes)
-            - `node_act_list`: all node activation [2^num_depths-1, depth]. For depth = 4, there are 15 node activation
-                    patterns, each of length 4. For example, [1,1,0,0] means nodes 0, 1 are activated (with input paths).
-            - `all_connect`: All possible path activations. For depth = 4,
-                    all_connection has 1024 vectors of length 10 (10 paths).
-                    The return value will exclude path activation of all 0.
     """
 
     def __init__(
@@ -533,7 +521,7 @@ class TopologyConstruction(nn.Module):
 
 class TopologyInstance(TopologyConstruction):
     """
-    Instance of the final searched architecture. Only used in retraining/inference stage.
+    Instance of the final searched architecture. Only used in re-training/inference stage.
     """
 
     def __init__(
@@ -614,9 +602,7 @@ class TopologySearch(TopologyConstruction):
         # torch.Size([2, 64, 20, 20, 20])
         # torch.Size([2, 128, 10, 10, 10])
 
-
     Class method overview:
-
         - ``get_prob_a()``: convert learnable architecture weights to path activation probabilities.
         - ``get_ram_cost_usage()``: get estimated ram cost.
         - ``get_topology_entropy()``: get topology entropy loss in searching stage.
@@ -627,7 +613,13 @@ class TopologySearch(TopologyConstruction):
         - `tidx`: index used to convert path activation matrix T = (depth,depth) in transfer_mtx to
                 path activation arch_code (1,3*depth-2), for depth = 4, tidx = [0, 1, 4, 5, 6, 9, 10, 11, 14, 15],
                 A tidx (10 binary values) represents the path activation.
-
+        - `transfer_mtx`: feasible path activation matrix (denoted as T) given a node activation pattern.
+                It is used to convert path activation pattern (1, paths) to node activation (1, nodes)
+        - `node_act_list`: all node activation [2^num_depths-1, depth]. For depth = 4, there are 15 node activation
+                patterns, each of length 4. For example, [1,1,0,0] means nodes 0, 1 are activated (with input paths).
+        - `all_connect`: All possible path activations. For depth = 4,
+                all_connection has 1024 vectors of length 10 (10 paths).
+                The return value will exclude path activation of all 0.
     """
 
     def __init__(
@@ -769,7 +761,7 @@ class TopologySearch(TopologyConstruction):
 
     def get_ram_cost_usage(self, in_size, full: bool = False):
         """
-        Get estimated output tensor size
+        Get estimated output tensor size to approximate RAM consumption.
 
         Args:
             in_size: input image shape (4D/5D, ``[BCHW[D]]``) at the highest resolution level.
@@ -802,7 +794,7 @@ class TopologySearch(TopologyConstruction):
 
     def get_topology_entropy(self, probs):
         """
-        Get searching stage topology entropy loss
+        Get topology entropy loss at searching stage.
 
         Args:
             probs: path activation probabilities
