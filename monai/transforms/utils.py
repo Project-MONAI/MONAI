@@ -449,7 +449,8 @@ def correct_crop_centers(
             center_i = valid_start[i]
         if c >= valid_end[i]:
             center_i = valid_end[i] - 1
-        centers[i] = center_i
+        # centers[i] = center_i
+        centers[i], *_ = convert_data_type(center_i, np.ndarray)  # type: ignore
 
     return centers
 
