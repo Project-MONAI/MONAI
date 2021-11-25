@@ -406,7 +406,7 @@ MONAI integrated the `DiNTS` module to support more flexible topologies and join
 ![DiNTS](../images/dints-overview.png)
 
 ### 4. Accounting for Dependencies in Deep Learning Based Multiple Instance Learning for Whole Slide Imaging
-For [classification of digital pathology whole slide images (WSI)](https://arxiv.org/abs/2111.01556), MONAI introduces new transforms and network modules for multiple instance learning. These include self-attention transformer blocks for explicitly accounting of the dependencies between instances (image patches) during training. For more details, please checkout the [multi-instance tutorial](https://github.com/Project-MONAI/tutorials/tree/master/pathology/multiple_instance_learning) ![multi-instance](../images/mil-patches.jpg)
+For [classification of digital pathology whole slide images (WSI)](https://arxiv.org/abs/2111.01556), MONAI introduces new transforms and network modules for multiple instance learning. These include self-attention transformer blocks for explicitly accounting of the dependencies between instances (image patches) during training. For more details, please checkout the [multiple instance learning tutorial](https://github.com/Project-MONAI/tutorials/tree/master/pathology/multiple_instance_learning) ![multi-instance](../images/mil-patches.jpg)
 
 ### 5. Self-supervised representation learning
 MONAI starts to explore self-supervised representation learning in this milestone release. The Vision Transformer has been extended to learn from self-supervised reconstruction tasks with various data augmentation and a regularized contrastive loss. The weights of the pre-trained backbone could be used to enhance the performance of the novel downstream deep learning tasks.

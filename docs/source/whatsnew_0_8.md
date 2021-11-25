@@ -25,7 +25,7 @@ For [classification of digital pathology whole slide images
 network modules for multiple instance learning. These include self-attention
 transformer blocks for explicitly accounting of the dependencies between instances
 (image patches) during training. For more details,
-please checkout the [multi-instance tutorial](https://github.com/Project-MONAI/tutorials/tree/master/pathology/multiple_instance_learning)
+please checkout the [multiple instance learning tutorial](https://github.com/Project-MONAI/tutorials/tree/master/pathology/multiple_instance_learning).
 
 ![multi-instance](../images/mil-patches.jpg)
 
