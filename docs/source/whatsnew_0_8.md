@@ -14,7 +14,7 @@ high search efficiency and budgeted memory usage.
 It provides a topology guaranteed discretization algorithm and a
 discretization-aware topology loss for the search stage to minimize the
 discretization gap. The module is memory usage aware and is able to search 3D
-networks with different GPU memory requirements. For more details, please checkout the
+networks with different GPU memory requirements. For more details, please check out the
 [DiNTS tutorial](https://monai.io/research/dints.html).
 
 ![DiNTS](../images/dints-overview.png)
@@ -25,7 +25,7 @@ For [classification of digital pathology whole slide images
 network modules for multiple instance learning. These include self-attention
 transformer blocks for explicitly accounting of the dependencies between instances
 (image patches) during training. For more details,
-please checkout the [multiple instance learning tutorial](https://github.com/Project-MONAI/tutorials/tree/master/pathology/multiple_instance_learning).
+please check out the [multiple instance learning tutorial](https://github.com/Project-MONAI/tutorials/tree/master/pathology/multiple_instance_learning).
 
 ![multi-instance](../images/mil-patches.jpg)
 
