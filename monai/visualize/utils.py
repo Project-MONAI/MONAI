@@ -60,7 +60,7 @@ def matshow3d(
             dim and reshape to (-1, H, W) shape to construct frames, default to `-3`.
         channel_dim: if not None, explicitly specify the channel dimension, which will be switched to the end,
             it can be used to plot RGB color image. if None, the channel dim will be reshaped with frame dim
-            and batch dim. default to None.
+            and batch dim. note that it can only support 3D input image. default to None.
         vmin: `vmin` for the matplotlib `imshow`.
         vmax: `vmax` for the matplotlib `imshow`.
         every_n: factor to subsample the frames so that only every n-th frame is displayed.
@@ -93,6 +93,10 @@ def matshow3d(
 
     """
     vol: np.ndarray = convert_data_type(data=volume, output_type=np.ndarray)[0]  # type: ignore
+    if channel_dim is not None:
+        if channel_dim not in [0, 1] or vol.shape[channel_dim] not in [1, 3, 4]:
+            raise ValueError("channel_dim must be: None, 0 or 1, and channels of image must be 1, 3 or 4.")
+
     if isinstance(vol, (list, tuple)):
         # a sequence of channel-first volumes
         if not isinstance(vol[0], np.ndarray):
@@ -102,14 +106,13 @@ def matshow3d(
         vol = np.concatenate([pad(v) for v in vol], axis=0)
     else:  # ndarray
         while len(vol.shape) < 3:
-            vol = np.expand_dims(vol, 0)  # so that we display 1d and 2d as well
+            vol = np.expand_dims(vol, 0)  # so that we display 2d as well
 
-    vol = np.moveaxis(vol, frame_dim, -3)  # move the expected dim to construct frames with `B` or `C` dims
-    if channel_dim is not None and vol.shape[channel_dim] in [1, 3, 4]:
-        # change to channel-last for matplotlib
-        vol = np.moveaxis(vol, channel_dim, -1)
+    if channel_dim is not None:
+        vol = np.moveaxis(vol, frame_dim, -4)  # move the expected dim to construct frames with `B` dim
         vol = vol.reshape((-1, vol.shape[-3], vol.shape[-2], vol.shape[-1]))
     else:
+        vol = np.moveaxis(vol, frame_dim, -3)
         vol = vol.reshape((-1, vol.shape[-2], vol.shape[-1]))
     vmin = np.nanmin(vol) if vmin is None else vmin
     vmax = np.nanmax(vol) if vmax is None else vmax
@@ -121,21 +124,25 @@ def matshow3d(
     # create the grid of frames
     cols = max(min(len(vol), frames_per_row), 1)
     rows = int(np.ceil(len(vol) / cols))
-    width = [[0, cols * rows - len(vol)]] + [[margin, margin]] * 2
+    width = [[0, cols * rows - len(vol)]]
+    if channel_dim is not None:
+        width += [[0, 0]]  # add pad width for the channel dim
+    width += [[margin, margin]] * 2
     vol = np.pad(vol.astype(dtype, copy=False), width, mode="constant", constant_values=fill_value)
     im = np.block([[vol[i * cols + j] for j in range(cols)] for i in range(rows)])
-    print("!!!!!!!!!!!!!!!", im.shape)
+    if channel_dim is not None:
+        # move channel dim to the end
+        im = np.moveaxis(im, 0, -1)
 
     # figure related configurations
     if fig is None:
-        
         fig = plt.figure(tight_layout=True)
     if not fig.axes:
         fig.add_subplot(111)
     ax = fig.axes[0]
     ax.matshow(im, vmin=vmin, vmax=vmax, interpolation=interpolation, **kwargs)
     ax.axis("off")
-    
+
     if title is not None:
         ax.set_title(title)
     if figsize is not None:
