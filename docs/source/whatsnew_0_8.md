@@ -15,7 +15,7 @@ It provides a topology guaranteed discretization algorithm and a
 discretization-aware topology loss for the search stage to minimize the
 discretization gap. The module is memory usage aware and is able to search 3D
 networks with different GPU memory requirements. For more details, please checkout the
-[DiNTS tutorial](https://github.com/Project-MONAI/tutorials/tree/master/automl).
+[DiNTS tutorial](https://monai.io/research/dints.html).
 
 ![DiNTS](../images/dints-overview.png)
 
