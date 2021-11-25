@@ -20,11 +20,7 @@ from monai.utils import UpsampleMode
 
 TEST_CASES = [
     [{"dimensions": 2, "in_channels": 4}, (7, 4, 32, 48), (7, 4, 64, 96)],  # 4-channel 2D, batch 7
-    [
-        {"dimensions": 1, "in_channels": 4, "out_channels": 3},
-        (16, 4, 63),
-        (16, 3, 126),
-    ],  # 4-channel 1D, batch 16
+    [{"dimensions": 1, "in_channels": 4, "out_channels": 3}, (16, 4, 63), (16, 3, 126)],  # 4-channel 1D, batch 16
     [
         {"dimensions": 1, "in_channels": 4, "out_channels": 8, "mode": "deconv", "align_corners": False},
         (16, 4, 20),
@@ -78,14 +74,7 @@ for s in range(1, 5):
     expected_shape = (16, 5, 4 * s, 5 * s, 6 * s)
     for t in UpsampleMode:
         test_case = [
-            {
-                "dimensions": 3,
-                "in_channels": 3,
-                "out_channels": 5,
-                "mode": t,
-                "scale_factor": s,
-                "align_corners": True,
-            },
+            {"dimensions": 3, "in_channels": 3, "out_channels": 5, "mode": t, "scale_factor": s, "align_corners": True},
             (16, 3, 4, 5, 6),
         ]
         test_case.append(expected_shape)

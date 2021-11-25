@@ -33,9 +33,15 @@ TEST_CASE_3 = [
     (3, 2, 2, 2),
 ]
 
+TEST_CASE_4 = [
+    {"keys": "test", "roi_scale": 0.6, "allow_missing_keys": True},
+    np.random.randint(0, 2, size=[3, 3, 3, 3]),
+    (3, 3, 3, 3),
+]
+
 
 class TestCenterScaleCropd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, input_data, expected_shape):
         result = CenterScaleCropd(**input_param)({"img": input_data})
         np.testing.assert_allclose(result["img"].shape, expected_shape)
