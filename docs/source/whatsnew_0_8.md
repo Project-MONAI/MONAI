@@ -41,7 +41,7 @@ shows how to generate a good set of pre-trained weights using unlabeled data
 with self-supervised tasks, then use the pre-trained weights to perform
 fine-tuning on a fully supervised volumetric segmentation task using a transformer based `UNETR`.
 
-![self-supervised](../images/SSL_Overview_Figure.png)
+![self-supervised](../images/ssl_overview.png)
 
 ## Major usability improvements in `monai.transforms`
 `monai.transforms` are now more flexible and easy to use in version 0.8.
