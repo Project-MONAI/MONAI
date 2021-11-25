@@ -26,7 +26,7 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
-@deprecated(since="0.6.0", removed="0.8.0", msg_suffix="Please consider using `SaveImage[d]` transform instead.")
+@deprecated(since="0.6.0", removed="0.9.0", msg_suffix="Please consider using `SaveImage[d]` transform instead.")
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.

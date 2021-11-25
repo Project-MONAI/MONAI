@@ -74,7 +74,7 @@ class TorchVisionFCModel(NetAdapter):
         )
 
 
-@deprecated(since="0.6.0", removed="0.8.0", msg_suffix="Please consider using `TorchVisionFCModel` instead.")
+@deprecated(since="0.6.0", removed="0.9.0", msg_suffix="Please consider using `TorchVisionFCModel` instead.")
 class TorchVisionFullyConvModel(TorchVisionFCModel):
     """
     Customize TorchVision models to replace fully connected layer by convolutional layer.
