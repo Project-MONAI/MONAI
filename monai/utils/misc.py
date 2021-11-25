@@ -22,7 +22,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.utils.module import get_torch_version_tuple, version_leq
+from monai.utils.module import version_leq
 
 __all__ = [
     "zip_with",
@@ -43,6 +43,7 @@ __all__ = [
     "copy_to_device",
     "ImageMetaKey",
     "is_module_ver_at_least",
+    "has_option",
 ]
 
 _seed = None
@@ -256,13 +257,11 @@ def set_determinism(
     else:  # restore the original flags
         torch.backends.cudnn.deterministic = _flag_deterministic
         torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
-
     if use_deterministic_algorithms is not None:
-        torch_ver = get_torch_version_tuple()
-        if torch_ver >= (1, 9):
+        if hasattr(torch, "use_deterministic_algorithms"):
             torch.use_deterministic_algorithms(use_deterministic_algorithms)
-        elif torch_ver >= (1, 7):
-            torch.set_deterministic(use_deterministic_algorithms)  # beta feature
+        elif hasattr(torch, "set_deterministic"):
+            torch.set_deterministic(use_deterministic_algorithms)  # type: ignore
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
 
@@ -279,9 +278,7 @@ def list_to_dict(items):
     def _parse_var(s):
         items = s.split("=", maxsplit=1)
         key = items[0].strip(" \n\r\t'")
-        value = None
-        if len(items) > 1:
-            value = items[1].strip(" \n\r\t'")
+        value = items[1].strip(" \n\r\t'") if len(items) > 1 else None
         return key, value
 
     d = {}
@@ -302,10 +299,7 @@ def list_to_dict(items):
 
 
 def copy_to_device(
-    obj: Any,
-    device: Optional[Union[str, torch.device]],
-    non_blocking: bool = True,
-    verbose: bool = False,
+    obj: Any, device: Optional[Union[str, torch.device]], non_blocking: bool = True, verbose: bool = False
 ) -> Any:
     """
     Copy object or tuple/list/dictionary of objects to ``device``.
@@ -314,7 +308,7 @@ def copy_to_device(
         obj: object or tuple/list/dictionary of objects to move to ``device``.
         device: move ``obj`` to this device. Can be a string (e.g., ``cpu``, ``cuda``,
             ``cuda:0``, etc.) or of type ``torch.device``.
-        non_blocking_transfer: when `True`, moves data to device asynchronously if
+        non_blocking: when `True`, moves data to device asynchronously if
             possible, e.g., moving CPU Tensors with pinned memory to CUDA devices.
         verbose: when `True`, will print a warning for any elements of incompatible type
             not copied to ``device``.

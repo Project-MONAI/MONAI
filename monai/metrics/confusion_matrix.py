@@ -99,11 +99,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
                 warnings.warn("As for classification task, compute_sample should be False.")
                 self.compute_sample = False
 
-        return get_confusion_matrix(
-            y_pred=y_pred,
-            y=y,
-            include_background=self.include_background,
-        )
+        return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
 
     def aggregate(self):  # type: ignore
         """
@@ -129,11 +125,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         return results
 
 
-def get_confusion_matrix(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
-    include_background: bool = True,
-):
+def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True):
     """
     Compute confusion matrix. A tensor with the shape [BC4] will be returned. Where, the third dimension
     represents the number of true positive, false positive, true negative and false negative values for
@@ -153,10 +145,7 @@ def get_confusion_matrix(
     """
 
     if not include_background:
-        y_pred, y = ignore_background(
-            y_pred=y_pred,
-            y=y,
-        )
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
     y = y.float()
     y_pred = y_pred.float()

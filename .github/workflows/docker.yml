@@ -13,20 +13,21 @@ on:
   workflow_dispatch:
 
 jobs:
-  versioning:
+  versioning_dev:
     # compute versioning file from python setup.py
     # upload as artifact
-    # (also used in release.yml)
     if: github.repository == 'Project-MONAI/MONAI'
-    container:
-      image: localhost:5000/local_monai:latest
-    runs-on: [self-hosted, linux, x64, build_only]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         # full history so that we can git describe
         with:
           ref: dev
           fetch-depth: 0
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
       - shell: bash
         run: |
           git describe
@@ -43,13 +44,11 @@ jobs:
           ls -al
           rm -rf {*,.[^.]*}
 
-  local_docker:
-    # builds two versions: local_monai:latest and local_monai:dockerhub
-    # latest: used for local tests
-    # dockerhub: release, no flake package
+  docker_build_dev:
+    # builds projectmonai/monai:latest
     if: github.repository == 'Project-MONAI/MONAI'
-    needs: versioning
-    runs-on: [self-hosted, linux, x64, build_only]
+    needs: versioning_dev
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
@@ -58,67 +57,47 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: _version.py
+    - name: Install Latest Docker
+      run: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+        sudo apt-get update
+        sudo apt-get install docker-ce
     - name: docker_build
       shell: bash
       run: |
         # get tag info for versioning
         cat _version.py
         mv _version.py monai/
-        # build and run original docker image for local registry
-        docker build -t localhost:5000/local_monai:latest -f Dockerfile .
-        docker push localhost:5000/local_monai:latest
-        # build once more w/ tag "latest": remove flake package as it is not needed on hub.docker.com
+
+        # build "latest": remove flake package as it is not needed on hub.docker.com
         sed -i '/flake/d' requirements-dev.txt
         docker build -t projectmonai/monai:latest -f Dockerfile .
-        # also push as tag "dockerhub" to local registry
-        docker image tag projectmonai/monai:latest localhost:5000/local_monai:dockerhub
-        docker push localhost:5000/local_monai:dockerhub
+
         # distribute as always w/ tag "latest" to hub.docker.com
         echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
+
         docker push projectmonai/monai:latest
         docker logout
         docker image prune -f
 
-  docker_test_latest:
-    if: github.repository == 'Project-MONAI/MONAI'
-    needs: local_docker
-    container:
-      image: localhost:5000/local_monai:latest
-    runs-on: [self-hosted, linux, x64, common]
-    steps:
-    - name: Import
-      run: |
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
-        echo $CUDA_VISIBLE_DEVICES
-        trap 'if pgrep python; then pkill python; fi;' ERR
-        python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
-        python -c 'import monai; monai.config.print_config()'
-        cd /opt/monai
-        ls -al
-        ngc --version
-        python -m tests.min_tests
-        if pgrep python; then pkill python; fi
-      env:
-        QUICKTEST: True
-
   docker_test_dockerhub:
     if: github.repository == 'Project-MONAI/MONAI'
-    needs: local_docker
+    needs: docker_build_dev
     container:
-      image: localhost:5000/local_monai:dockerhub
-    runs-on: [self-hosted, linux, x64, common]
+      image: docker://projectmonai/monai:latest
+      options: "--shm-size=4g --ipc=host"
+    runs-on: ubuntu-latest
     steps:
     - name: Import
       run: |
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
-        trap 'if pgrep python; then pkill python; fi;' ERR
-        python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
-        python -c 'import monai; monai.config.print_config()'
+        python -c 'import monai; monai.config.print_debug_info()'
         cd /opt/monai
         ls -al
         ngc --version
-        python -m tests.min_tests
-        if pgrep python; then pkill python; fi
+        ./runtests.sh --min
+      shell: bash
       env:
         QUICKTEST: True
