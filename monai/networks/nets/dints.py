@@ -124,7 +124,7 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
         # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
         # in_channel * s0 (activation) + 3 * out_channel * s1 (convolution, concatenation, normalization)
         # s0 = s1 * 2^(spatial_dims) = output_size / out_channel * 2^(spatial_dims)
-        self.ram_cost = in_channel / out_channel * 2 ** (self._spatial_dims) + 3
+        self.ram_cost = in_channel / out_channel * 2 ** self._spatial_dims + 3
 
 
 class MixedOp(nn.Module):
@@ -266,7 +266,7 @@ class DiNTS(nn.Module):
         dints_space: DiNTS search space. The value should be instance of `TopologyInstance` or `TopologySearch`.
         in_channels: number of input image channels.
         num_classes: number of output segmentation classes.
-        act_name: activation name, default ot 'RELU'.
+        act_name: activation name, default to 'RELU'.
         norm_name: normalization used in convolution blocks. Default to `InstanceNorm`.
         spatial_dims: spatial 2D or 3D inputs.
         use_downsample: use downsample in the stem.
@@ -440,11 +440,11 @@ class DiNTS(nn.Module):
 
 class TopologyConstruction(nn.Module):
     """
-    The parent class for `TopologyInstance` and `TopologySearch`
+    The base class for `TopologyInstance` and `TopologySearch`.
 
     Args:
         arch_code: `[arch_code_a, arch_code_c]`, numpy arrays. The architecture codes defining the model.
-            For ``num_depths=4, num_blocks=12`` search space:
+            For example, for a ``num_depths=4, num_blocks=12`` search space:
 
             - `arch_code_a` is a 12x10 (10 paths) binary matrix representing if a path is activated.
             - `arch_code_c` is a 12x10x5 (5 operations) binary matrix representing if a cell operation is used.
@@ -490,10 +490,7 @@ class TopologyConstruction(nn.Module):
 
         super().__init__()
 
-        filter_nums = [int(n_feat * channel_mul) for n_feat in (32, 64, 128, 256, 512)]
-
-        self.num_depths = num_depths
-        self.filter_nums = filter_nums
+        self.filter_nums = [int(n_feat * channel_mul) for n_feat in (32, 64, 128, 256, 512)]
         self.num_blocks = num_blocks
         self.num_depths = num_depths
         self._spatial_dims = spatial_dims
@@ -533,14 +530,15 @@ class TopologyConstruction(nn.Module):
             for res_idx in range(len(self.arch_code2out)):
                 if self.arch_code_a[blk_idx, res_idx] == 1:
                     self.cell_tree[str((blk_idx, res_idx))] = cell(
-                        filter_nums[self.arch_code2in[res_idx] + int(use_downsample)],
-                        filter_nums[self.arch_code2out[res_idx] + int(use_downsample)],
+                        self.filter_nums[self.arch_code2in[res_idx] + int(use_downsample)],
+                        self.filter_nums[self.arch_code2out[res_idx] + int(use_downsample)],
                         self.arch_code2ops[res_idx],
                         self.arch_code_c[blk_idx, res_idx],
                         self._spatial_dims,
                     )
 
     def forward(self, x):
+        """This function to be implemented by the architecture instances or search spaces."""
         pass
 
 
@@ -583,16 +581,14 @@ class TopologyInstance(TopologyConstruction):
             x: input tensor.
         """
         # generate path activation probability
-        arch_code_a = self.arch_code_a
-        arch_code_c = self.arch_code_c
         inputs, outputs = x, [torch.tensor(0.0).to(x[0])] * self.num_depths
         for blk_idx in range(self.num_blocks):
             outputs = [torch.tensor(0.0).to(x[0])] * self.num_depths
-            for res_idx, activation in enumerate(arch_code_a[blk_idx].data):
+            for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data):
                 if activation:
                     mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]
                     _out = mod.forward(
-                        x=inputs[self.arch_code2in[res_idx]], weight=torch.ones_like(arch_code_c[blk_idx, res_idx])
+                        x=inputs[self.arch_code2in[res_idx]], weight=torch.ones_like(self.arch_code_c[blk_idx, res_idx])
                     )
                     outputs[self.arch_code2out[res_idx]] = outputs[self.arch_code2out[res_idx]] + _out
         inputs = outputs
@@ -633,7 +629,7 @@ class TopologySearch(TopologyConstruction):
         - ``decode()``: get final binarized architecture code.
         - ``gen_mtx()``: generate variables needed for topology search.
 
-    Predefined varaibles:
+    Predefined variables:
         - `tidx`: index used to convert path activation matrix T = (depth,depth) in transfer_mtx to
           path activation arch_code (1,3*depth-2), for depth = 4, tidx = [0, 1, 4, 5, 6, 9, 10, 11, 14, 15],
           A tidx (10 binary values) represents the path activation.
@@ -676,15 +672,12 @@ class TopologySearch(TopologyConstruction):
         for i in range(_d * self.num_depths - 2):
             tidx.append((i + 1) // _d * self.num_depths + (i + 1) // _d - 1 + (i + 1) % _d)
         self.tidx = tidx
-
         transfer_mtx, node_act_list, child_list = self.gen_mtx(num_depths)
-        node_act_list = np.array(node_act_list)
-        node_act_dict = {str(node_act_list[i]): i for i in range(len(node_act_list))}
 
-        self.node_act_list = node_act_list
-        self.node_act_dict = node_act_dict
+        self.node_act_list = np.asarray(node_act_list)
+        self.node_act_dict = {str(self.node_act_list[i]): i for i in range(len(self.node_act_list))}
         self.transfer_mtx = transfer_mtx
-        self.child_list = np.array(child_list)
+        self.child_list = np.asarray(child_list)
 
         self.ram_cost = np.zeros((self.num_blocks, len(self.arch_code2out), self.num_cell_ops))
         for blk_idx in range(self.num_blocks):
@@ -828,9 +821,9 @@ class TopologySearch(TopologyConstruction):
             node2out = self.node2out
         else:
             # node activation index to feasible input child_idx
-            node2in = [[] for i in range(len(self.node_act_list))]
+            node2in = [[] for _ in range(len(self.node_act_list))]
             # node activation index to feasible output child_idx
-            node2out = [[] for i in range(len(self.node_act_list))]
+            node2out = [[] for _ in range(len(self.node_act_list))]
             for child_idx in range(len(self.child_list)):
                 _node_in, _node_out = np.zeros(self.num_depths), np.zeros(self.num_depths)
                 for res_idx in range(len(self.arch_code2out)):
