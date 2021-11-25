@@ -674,10 +674,10 @@ class TopologySearch(TopologyConstruction):
         self.tidx = tidx
         transfer_mtx, node_act_list, child_list = self.gen_mtx(num_depths)
 
-        self.node_act_list = np.array(node_act_list)
+        self.node_act_list = np.asarray(node_act_list)
         self.node_act_dict = {str(self.node_act_list[i]): i for i in range(len(self.node_act_list))}
         self.transfer_mtx = transfer_mtx
-        self.child_list = np.array(child_list)
+        self.child_list = np.asarray(child_list)
 
         self.ram_cost = np.zeros((self.num_blocks, len(self.arch_code2out), self.num_cell_ops))
         for blk_idx in range(self.num_blocks):
