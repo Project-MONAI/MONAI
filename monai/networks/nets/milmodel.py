@@ -11,6 +11,8 @@ models, _ = optional_import("torchvision.models")
 class MILModel(nn.Module):
     """
     Multiple Instance Learning (MIL) model, with a backbone classification model.
+    Currently, it only works for 2D images and expected shape is `[B, N, C, H, W]`,
+    where `B` is batch_size from PyTorch Dataloader and `N` is number of patches.
 
     Args:
         num_classes: number of output classes.
