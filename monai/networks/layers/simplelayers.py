@@ -381,7 +381,7 @@ class HilbertTransform(nn.Module):
 
     Args:
         axis: Axis along which to apply Hilbert transform. Default 2 (first spatial dimension).
-        N: Number of Fourier components (i.e. FFT size). Default: ``x.shape[axis]``.
+        n: Number of Fourier components (i.e. FFT size). Default: ``x.shape[axis]``.
     """
 
     def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:

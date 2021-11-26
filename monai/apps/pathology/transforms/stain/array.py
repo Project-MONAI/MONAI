@@ -52,7 +52,7 @@ class ExtractHEStains(Transform):
         """Perform Stain Deconvolution and return stain matrix for the image.
 
         Args:
-            img: uint8 RGB image to perform stain deconvolution on
+            image: uint8 RGB image to perform stain deconvolution on
 
         Return:
             he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)

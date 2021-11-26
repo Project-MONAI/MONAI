@@ -270,7 +270,7 @@ class EnsembleEvaluator(Evaluator):
         device: an object representing the device on which to run.
         val_data_loader: Ignite engine use data_loader to run, must be Iterable, typically be torch.DataLoader.
         epoch_length: number of iterations for one epoch, default to `len(val_data_loader)`.
-        network: networks to evaluate in order in the evaluator, should be regular PyTorch `torch.nn.Module`.
+        networks: networks to evaluate in order in the evaluator, should be regular PyTorch `torch.nn.Module`.
         pred_keys: the keys to store every prediction data.
             the length must exactly match the number of networks.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
