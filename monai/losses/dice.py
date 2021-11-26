@@ -253,7 +253,6 @@ class GeneralizedDiceLoss(_Loss):
             other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
                 other activation layers, Defaults to ``None``. for example:
                 `other_act = torch.tanh`.
-            squared_pred: use squared versions of targets and predictions in the denominator or not.
             w_type: {``"square"``, ``"simple"``, ``"uniform"``}
                 Type of function to transform ground truth volume to a weight factor. Defaults to ``"square"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}

@@ -1073,7 +1073,7 @@ class DetectEnvelope(Transform):
 
     Args:
         axis: Axis along which to detect the envelope. Default 1, i.e. the first spatial dimension.
-        N: FFT size. Default img.shape[axis]. Input will be zero-padded or truncated to this size along dimension
+        n: FFT size. Default img.shape[axis]. Input will be zero-padded or truncated to this size along dimension
         ``axis``.
 
     """
