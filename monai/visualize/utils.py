@@ -56,11 +56,12 @@ def matshow3d(
         title: title of the figure.
         figsize: size of the figure.
         frames_per_row: number of frames to display in each row. If None, sqrt(firstdim) will be used.
-        frame_dim: for higher dimensional arrays, which dimension (`-1`, `-2`, `-3`) is moved to the `-3`.
-            dim and reshape to (-1, H, W) shape to construct frames, default to `-3`.
-        channel_dim: if not None, explicitly specify the channel dimension, which will be switched to the end,
-            it can be used to plot RGB color image. if None, the channel dim will be reshaped with frame dim
-            and batch dim. note that it can only support 3D input image. default to None.
+        frame_dim: for higher dimensional arrays, which dimension from (`-1`, `-2`, `-3`) is moved to
+            the `-3` dimension. dim and reshape to (-1, H, W) shape to construct frames, default to `-3`.
+        channel_dim: if not None, explicitly specify the channel dimension to be transposed to the
+            last dimensionas shape (-1, H, W, C). this can be used to plot RGB color image.
+            if None, the channel dimension will be flattened with `frame_dim` and `batch_dim` as shape (-1, H, W).
+            note that it can only support 3D input image. default is None.
         vmin: `vmin` for the matplotlib `imshow`.
         vmax: `vmax` for the matplotlib `imshow`.
         every_n: factor to subsample the frames so that only every n-th frame is displayed.
