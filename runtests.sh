@@ -397,9 +397,9 @@ then
 
     if [ $doBlackFix = true ]
     then
-        ${cmdPrefix}${PY_EXE} -m black "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma "$(pwd)"
     else
-        ${cmdPrefix}${PY_EXE} -m black --check "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma --check "$(pwd)"
     fi
 
     black_status=$?

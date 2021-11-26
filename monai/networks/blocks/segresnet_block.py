@@ -25,13 +25,7 @@ def get_conv_layer(
 ):
 
     return Convolution(
-        spatial_dims,
-        in_channels,
-        out_channels,
-        strides=stride,
-        kernel_size=kernel_size,
-        bias=bias,
-        conv_only=True,
+        spatial_dims, in_channels, out_channels, strides=stride, kernel_size=kernel_size, bias=bias, conv_only=True
     )
 
 
@@ -39,7 +33,7 @@ def get_upsample_layer(
     spatial_dims: int, in_channels: int, upsample_mode: Union[UpsampleMode, str] = "nontrainable", scale_factor: int = 2
 ):
     return UpSample(
-        dimensions=spatial_dims,
+        spatial_dims=spatial_dims,
         in_channels=in_channels,
         out_channels=in_channels,
         scale_factor=scale_factor,
@@ -56,13 +50,7 @@ class ResBlock(nn.Module):
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
     """
 
-    def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        norm: Union[Tuple, str],
-        kernel_size: int = 3,
-    ) -> None:
+    def __init__(self, spatial_dims: int, in_channels: int, norm: Union[Tuple, str], kernel_size: int = 3) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2 or 3.

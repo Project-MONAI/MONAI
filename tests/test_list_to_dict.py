@@ -15,25 +15,13 @@ from parameterized import parameterized
 
 from monai.utils import list_to_dict
 
-TEST_CASE_1 = [
-    ["a=1", "b=2", "c=3", "d=4"],
-    {"a": 1, "b": 2, "c": 3, "d": 4},
-]
+TEST_CASE_1 = [["a=1", "b=2", "c=3", "d=4"], {"a": 1, "b": 2, "c": 3, "d": 4}]
 
-TEST_CASE_2 = [
-    ["a=a", "b=b", "c=c", "d=d"],
-    {"a": "a", "b": "b", "c": "c", "d": "d"},
-]
+TEST_CASE_2 = [["a=a", "b=b", "c=c", "d=d"], {"a": "a", "b": "b", "c": "c", "d": "d"}]
 
-TEST_CASE_3 = [
-    ["a=0.1", "b=0.2", "c=0.3", "d=0.4"],
-    {"a": 0.1, "b": 0.2, "c": 0.3, "d": 0.4},
-]
+TEST_CASE_3 = [["a=0.1", "b=0.2", "c=0.3", "d=0.4"], {"a": 0.1, "b": 0.2, "c": 0.3, "d": 0.4}]
 
-TEST_CASE_4 = [
-    ["a=True", "b=TRUE", "c=false", "d=FALSE"],
-    {"a": True, "b": True, "c": False, "d": False},
-]
+TEST_CASE_4 = [["a=True", "b=TRUE", "c=false", "d=FALSE"], {"a": True, "b": True, "c": False, "d": False}]
 
 TEST_CASE_5 = [
     ["a='1'", "b=2 ", " c = 3", "d='test'", "'e'=0", "f", "g=None"],
