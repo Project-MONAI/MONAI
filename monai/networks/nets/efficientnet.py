@@ -89,7 +89,7 @@ class MBConvBlock(nn.Module):
         Args:
             spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
-            out_classes: number of output channels.
+            out_channels: number of output channels.
             kernel_size: size of the kernel for conv ops.
             stride: stride to use for conv ops.
             image_size: input image resolution.
