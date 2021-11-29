@@ -22,6 +22,7 @@ import torch
 from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple, first
+from monai.utils.enums import TransformBackends
 
 __all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
@@ -201,6 +202,8 @@ class Transform(ABC):
 
         :py:class:`monai.transforms.Compose`
     """
+
+    backend: List[TransformBackends] = []
 
     @abstractmethod
     def __call__(self, data: Any):
