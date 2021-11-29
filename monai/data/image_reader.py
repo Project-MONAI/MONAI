@@ -686,8 +686,8 @@ class WSIReader(ImageReader):
             This is overridden if the level argument is provided in `get_data`.
 
     Note:
-        While "cucim" and "OpenSlide" backends both can load patches from large whole slide images
-        without loading the entire image into memory, "Tifffile" backend needs to load the entire image into memory
+        While "cuCim" and "OpenSlide" backends both can load patches from large whole slide images
+        without loading the entire image into memory, "TiffFile" backend needs to load the entire image into memory
         before extracting any patch; thus, memory consideration is needed when using "Tifffile" backend for
         patch extraction.
     """
@@ -767,7 +767,6 @@ class WSIReader(ImageReader):
         """
         # Verify inputs
         level = self._check_level(img, level)
-        location = self._check_location(img, level, location)
         size = self._check_image_size(img, size, level, location)
 
         # Extract patch (or the whole image)
@@ -809,25 +808,24 @@ class WSIReader(ImageReader):
 
         return level
 
-    def _check_location(self, img, level, location):
-        if self.backend == "tifffile" and location != (0, 0):
-            level0_size = img.pages[0].shape[:2]
-            max_size = img.pages[level].shape[:2]
-            location = [int(location[i] / level0_size[i] * max_size[i]) for i in range(len(location))]
-        return location
-
     def _check_image_size(self, img, size, level, location):
         if size is None:
             max_size = []
+            downsampling_factor = []
             if self.backend == "openslide":
+                downsampling_factor = img.level_downsamples[level]
                 max_size = img.level_dimensions[level][::-1]
             elif self.backend == "cucim":
+                downsampling_factor = img.resolutions["level_downsamples"][level]
                 max_size = img.resolutions["level_dimensions"][level][::-1]
             elif self.backend == "tifffile":
+                level0_size = img.pages[0].shape[:2]
                 max_size = img.pages[level].shape[:2]
+                downsampling_factor = np.mean([level0_size[i] / max_size[i] for i in range(len(max_size))])
 
             # subtract the top left corner of the patch from maximum size
-            size = [max_size[i] - location[i] for i in range(len(max_size))]
+            level_location = [round(location[i] / downsampling_factor) for i in range(len(location))]
+            size = [max_size[i] - level_location[i] for i in range(len(max_size))]
 
         return size
 
@@ -840,8 +838,12 @@ class WSIReader(ImageReader):
         dtype: DtypeLike = np.uint8,
     ):
         if self.backend == "tifffile":
-            with img_obj:
-                region = img_obj.asarray(level=level)
+            # with img_obj:
+            region = img_obj.asarray(level=level)
+            if level != 0:
+                level0_size = img_obj.pages[0].shape[:2]
+                max_size = img_obj.pages[level].shape[:2]
+                location = [int(location[i] / level0_size[i] * max_size[i]) for i in range(len(location))]
             region = region[location[0] : location[0] + size[0], location[1] : location[1] + size[1]]
         else:
             # reverse the order of dimensions for size and location to become WxH
