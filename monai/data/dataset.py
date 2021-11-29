@@ -182,7 +182,7 @@ class PersistentDataset(Dataset):
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
         self.hash_func = hash_func
-        self.pickle_module = look_up_option(pickle_module, SUPPORTED_PICKLE_MOD)
+        self.pickle_module = pickle_module
         self.pickle_protocol = pickle_protocol
         if self.cache_dir is not None:
             if not self.cache_dir.exists():
@@ -287,7 +287,7 @@ class PersistentDataset(Dataset):
                 torch.save(
                     obj=_item_transformed,
                     f=temp_hash_file,
-                    pickle_module=self.pickle_module,
+                    pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
                 )
                 if temp_hash_file.is_file() and not hashfile.is_file():
