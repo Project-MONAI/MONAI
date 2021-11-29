@@ -69,6 +69,12 @@ TEST_CASE_4 = [
     np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
 ]
 
+TEST_CASE_5 = [
+    FILE_PATH,
+    {"location": (171, 128), "level": 8, "grid_shape": (2, 1), "patch_size": 1},
+    np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
+]
+
 TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
 TEST_CASE_RGB_1 = [np.ones((3, 100, 100), dtype=np.uint8)]  # CHW
@@ -92,7 +98,7 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
     return filename
 
 
-@skipUnless(has_cucim or has_osl, "Requires cucim or openslide!")
+@skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
 def setUpModule():  # noqa: N802
     download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
@@ -114,7 +120,9 @@ class WSIReaderTests:
             img_obj = reader.read(file_path)
             # Read twice to check multiple calls
             img = reader.get_data(img_obj, **patch_info)[0]
-            img = reader.get_data(img_obj, **patch_info)[0]
+            img2 = reader.get_data(img_obj, **patch_info)[0]
+            self.assertTupleEqual(img.shape, img2.shape)
+            self.assertIsNone(assert_array_equal(img, img2))
             self.assertTupleEqual(img.shape, expected_img.shape)
             self.assertIsNone(assert_array_equal(img, expected_img))
 
