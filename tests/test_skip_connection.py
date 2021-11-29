@@ -24,11 +24,7 @@ for type_1 in ("cat", "add", "mul"):
         result_shape = (input_shape[0] * 2, *input_shape[1:])
     else:
         result_shape = input_shape
-    test_case = [
-        {"dim": 0, "mode": type_1},
-        input_shape,
-        result_shape,
-    ]
+    test_case = [{"dim": 0, "mode": type_1}, input_shape, result_shape]
     TEST_CASES_3D.append(test_case)
 
 

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 from typing import Collection, Hashable, Iterable, Sequence, TypeVar, Union
 
 import numpy as np
@@ -29,7 +30,15 @@ import torch
 # may be implemented). Consistent use of the concept and recorded documentation of
 # the rationale and convention behind it lowers the learning curve for new
 # developers. For readability, short names are preferred.
-__all__ = ["KeysCollection", "IndexSelection", "DtypeLike", "NdarrayTensor", "NdarrayOrTensor", "TensorOrList"]
+__all__ = [
+    "KeysCollection",
+    "IndexSelection",
+    "DtypeLike",
+    "NdarrayTensor",
+    "NdarrayOrTensor",
+    "TensorOrList",
+    "PathLike",
+]
 
 
 #: KeysCollection
@@ -66,3 +75,6 @@ NdarrayOrTensor = Union[np.ndarray, torch.Tensor]
 
 #: TensorOrList: The TensorOrList type is used for defining `batch-first Tensor` or `list of channel-first Tensor`.
 TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]
+
+#: PathLike: The PathLike type is used for defining a file path.
+PathLike = Union[str, os.PathLike]
