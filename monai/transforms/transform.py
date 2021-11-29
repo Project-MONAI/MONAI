@@ -210,6 +210,7 @@ class Transform(ABC):
     are required if the input is either \"torch.Tensor\" or \"np.ndarray\".
 
     """
+
     @abstractmethod
     def __call__(self, data: Any):
         """
