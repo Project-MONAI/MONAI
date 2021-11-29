@@ -108,12 +108,12 @@ class WSIReaderTests:
     class Tests(unittest.TestCase):
         backend = None
 
-        # @parameterized.expand([TEST_CASE_0])
-        # def test_read_whole_image(self, file_path, level, expected_shape):
-        #     reader = WSIReader(self.backend, level=level)
-        #     with reader.read(file_path) as img_obj:
-        #         img = reader.get_data(img_obj)[0]
-        #     self.assertTupleEqual(img.shape, expected_shape)
+        @parameterized.expand([TEST_CASE_0])
+        def test_read_whole_image(self, file_path, level, expected_shape):
+            reader = WSIReader(self.backend, level=level)
+            with reader.read(file_path) as img_obj:
+                img = reader.get_data(img_obj)[0]
+            self.assertTupleEqual(img.shape, expected_shape)
 
         @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_5])
         def test_read_region(self, file_path, patch_info, expected_img):
