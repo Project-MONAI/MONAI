@@ -152,6 +152,8 @@ class PersistentDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
+        pickle_module=pickle,
+        pickle_protocol=pickle.DEFAULT_PROTOCOL,
     ) -> None:
         """
         Args:
@@ -167,6 +169,12 @@ class PersistentDataset(Dataset):
                 If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
+            pickle_module: module used for pickling metadata and objects, default to `pickle`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            pickle_protocol: can be specified to override the default protocol, default to `2`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
 
         """
         if not isinstance(transform, Compose):
@@ -174,6 +182,8 @@ class PersistentDataset(Dataset):
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
         self.hash_func = hash_func
+        self.pickle_module = pickle_module
+        self.pickle_protocol = pickle_protocol
         if self.cache_dir is not None:
             if not self.cache_dir.exists():
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -274,7 +284,12 @@ class PersistentDataset(Dataset):
             #       which may leave partially written cache files in an incomplete state
             with tempfile.TemporaryDirectory() as tmpdirname:
                 temp_hash_file = Path(tmpdirname) / hashfile.name
-                torch.save(_item_transformed, temp_hash_file)
+                torch.save(
+                    obj=_item_transformed,
+                    f=temp_hash_file,
+                    pickle_module=self.pickle_module,
+                    pickle_protocol=self.pickle_protocol,
+                )
                 if temp_hash_file.is_file() and not hashfile.is_file():
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
                     # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
@@ -302,6 +317,8 @@ class CacheNTransDataset(PersistentDataset):
         cache_n_trans: int,
         cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
+        pickle_module=pickle,
+        pickle_protocol=pickle.DEFAULT_PROTOCOL,
     ) -> None:
         """
         Args:
@@ -318,9 +335,22 @@ class CacheNTransDataset(PersistentDataset):
                 If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
+            pickle_module: module used for pickling metadata and objects, default to `pickle`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            pickle_protocol: can be specified to override the default protocol, default to `2`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
 
         """
-        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        super().__init__(
+            data=data,
+            transform=transform,
+            cache_dir=cache_dir,
+            hash_func=hash_func,
+            pickle_module=pickle_module,
+            pickle_protocol=pickle_protocol,
+        )
         self.cache_n_trans = cache_n_trans
 
     def _pre_transform(self, item_transformed):
@@ -407,12 +437,13 @@ class LMDBDataset(PersistentDataset):
             lmdb_kwargs: additional keyword arguments to the lmdb environment.
                 for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
         """
-        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        super().__init__(
+            data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func, pickle_protocol=pickle_protocol
+        )
         self.progress = progress
         if not self.cache_dir:
             raise ValueError("cache_dir must be specified.")
         self.db_file = self.cache_dir / f"{db_name}.lmdb"
-        self.pickle_protocol = pickle_protocol
         self.lmdb_kwargs = lmdb_kwargs or {}
         if not self.lmdb_kwargs.get("map_size", 0):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
