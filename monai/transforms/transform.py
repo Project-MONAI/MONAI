@@ -22,7 +22,6 @@ import torch
 from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple, first
-from monai.utils.enums import TransformBackends
 
 __all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
@@ -202,11 +201,6 @@ class Transform(ABC):
 
         :py:class:`monai.transforms.Compose`
     """
-
-    backend: List[TransformBackends] = []  # noqa: B018
-    """Transforms should add data types to this list if they are capable of performing a transform without
-    modifying the input type. For example, ['torch.Tensor', 'np.ndarray'] means that no copies of the data
-    are required if the input is either `torch.Tensor` or `np.ndarray`."""
 
     @abstractmethod
     def __call__(self, data: Any):
