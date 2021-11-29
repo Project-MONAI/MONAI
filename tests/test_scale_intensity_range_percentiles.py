@@ -50,7 +50,7 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
 
         for p in TEST_NDARRAYS:
             result = scaler(p(img))
-            assert_allclose(result, p(expected_img), rtol=1e-4)
+            assert_allclose(result, p(expected_img), rtol=1e-3)
 
         scaler = ScaleIntensityRangePercentiles(
             lower=lower, upper=upper, b_min=b_min, b_max=b_max, relative=True, clip=True
