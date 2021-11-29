@@ -79,6 +79,7 @@ __all__ = [
     "SUPPORTED_PICKLE_MOD",
 ]
 
+# module to be used by `torch.save`
 SUPPORTED_PICKLE_MOD = {"pickle": pickle}
 
 

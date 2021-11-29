@@ -169,9 +169,10 @@ class PersistentDataset(Dataset):
                 If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            pickle_module: module used for pickling metadata and objects, default to `"pickle"`.
+            pickle_module: string representing the module used for pickling metadata and objects, default to `"pickle"`.
                 this arg is used by `torch.save`, for more details, please check:
-                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
+                and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
             pickle_protocol: can be specified to override the default protocol, default to `2`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
@@ -335,9 +336,10 @@ class CacheNTransDataset(PersistentDataset):
                 If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            pickle_module: module used for pickling metadata and objects, default to `"pickle"`.
+            pickle_module: string representing the module used for pickling metadata and objects, default to `"pickle"`.
                 this arg is used by `torch.save`, for more details, please check:
-                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
+                and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
             pickle_protocol: can be specified to override the default protocol, default to `2`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
