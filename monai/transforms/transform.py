@@ -197,15 +197,15 @@ class Transform(ABC):
            subsequent transforms in a composed transform.
         #. storing too much information in ``data`` may cause some memory issue or IPC sync issue,
            especially in the multi-processing environment of PyTorch DataLoader.
-        #. transforms should add data types to the `backend` list if they are capable of performing a transform
-           without modifying the input type. For example, [\"torch.Tensor\", \"np.ndarray\"] means that
-           no copies of the data are required if the input is either \"torch.Tensor\" or \"np.ndarray\".
 
     See Also
 
         :py:class:`monai.transforms.Compose`
     """
 
+    # Transforms should add data types to this list if they are capable of performing a transform without
+    # modifying the input type. For example, ["torch.Tensor", "np.ndarray"] means that no copies of the data
+    # are required if the input is either `torch.Tensor` or `np.ndarray`.
     backend: List[TransformBackends] = []
 
     @abstractmethod
