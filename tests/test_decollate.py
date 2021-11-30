@@ -38,7 +38,7 @@ from monai.transforms import (
 from monai.transforms.inverse_batch_transform import Decollated
 from monai.transforms.spatial.dictionary import RandAffined, RandRotate90d
 from monai.utils import optional_import, set_determinism
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import TraceKeys
 from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
@@ -75,6 +75,7 @@ TEST_BASIC = [
     [[None, None], [None, None]],
     [["test"], ["test"]],
     [[], []],
+    [[("ch1", "ch2"), ("ch3",)], [["ch1", "ch3"], ["ch2", None]]],  # default pad None
 ]
 
 
@@ -105,7 +106,7 @@ class TestDeCollate(unittest.TestCase):
                     k1, k2 = k1.value, k2.value
                 self.check_match(k1, k2)
                 # Transform ids won't match for windows with multiprocessing, so don't check values
-                if k1 == InverseKeys.ID and sys.platform in ["darwin", "win32"]:
+                if k1 == TraceKeys.ID and sys.platform in ["darwin", "win32"]:
                     continue
                 self.check_match(v1, v2)
         elif isinstance(in1, (list, tuple)):
@@ -120,7 +121,7 @@ class TestDeCollate(unittest.TestCase):
 
     def check_decollate(self, dataset):
         batch_size = 2
-        num_workers = 2
+        num_workers = 2 if sys.platform == "linux" else 0
 
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
@@ -170,10 +171,7 @@ class TestBasicDeCollate(unittest.TestCase):
         self.assertListEqual(expected_out, out)
 
     def test_dict_examples(self):
-        test_case = {
-            "meta": {"out": ["test", "test"]},
-            "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))},
-        }
+        test_case = {"meta": {"out": ["test", "test"]}, "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))}}
         out = decollate_batch(test_case)
         self.assertEqual(out[0]["meta"]["out"], "test")
         self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
@@ -210,6 +208,16 @@ class TestBasicDeCollate(unittest.TestCase):
         out = decollate_batch(test_case, detach=False)
         self.assertEqual(out[0]["out"], "test")
 
+        test_case = {
+            "image": torch.tensor([[[1, 2, 3]], [[3, 4, 5]]]),
+            "label": torch.tensor([[[5]], [[7]]]),
+            "out": ["test"],
+        }
+        out = decollate_batch(test_case, detach=False, pad=False)
+        self.assertEqual(len(out), 1)  # no padding
+        out = decollate_batch(test_case, detach=False, pad=True, fill_value=0)
+        self.assertEqual(out[1]["out"], 0)  # verify padding fill_value
+
     def test_decollated(self):
         test_case = {
             "image": torch.tensor([[[1, 2]], [[3, 4]]]),
@@ -236,12 +244,16 @@ class TestBasicDeCollate(unittest.TestCase):
             torch.tensor([[[1, 2]], [[3, 4]]]),
             {"out": ["test", "test"]},
             {"scl_slope": torch.Tensor((0.0, 0.0))},
+            {"out2": ["test1"]},
             0.85,
+            [],
         ]
-        transform = Decollated(keys=None, detach=False)
+        transform = Decollated(keys=None, detach=False, fill_value=-1)
         out = transform(test_case)
-        # the 4th item in the list is scalar loss value
-        self.assertEqual(out[1][3], 0.85)
+
+        self.assertEqual(out[0][-2], 0.85)  # scalar replicates
+        self.assertEqual(out[1][-2], 0.85)  # scalar replicates
+        self.assertEqual(out[1][-3], -1)  # fill value for the dictionary item
         self.assertEqual(out[0][1]["out"], "test")
         self.assertEqual(out[0][2]["scl_slope"], 0.0)
         self.assertTrue(isinstance(out[0][2]["scl_slope"], torch.Tensor))

@@ -11,10 +11,13 @@
 
 import copy
 import os
+import pickle
 import tempfile
 from typing import Dict, Optional
 
 import torch
+
+from monai.config.type_definitions import PathLike
 
 __all__ = ["StateCacher"]
 
@@ -37,8 +40,10 @@ class StateCacher:
     def __init__(
         self,
         in_memory: bool,
-        cache_dir: Optional[str] = None,
+        cache_dir: Optional[PathLike] = None,
         allow_overwrite: bool = True,
+        pickle_module=pickle,
+        pickle_protocol=pickle.DEFAULT_PROTOCOL,
     ) -> None:
         """Constructor.
 
@@ -51,10 +56,19 @@ class StateCacher:
             allow_overwrite: allow the cache to be overwritten. If set to `False`, an
                 error will be thrown if a matching already exists in the list of cached
                 objects.
+            pickle_module: module used for pickling metadata and objects, default to `pickle`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            pickle_protocol: can be specified to override the default protocol, default to `2`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+
         """
         self.in_memory = in_memory
         self.cache_dir = cache_dir
         self.allow_overwrite = allow_overwrite
+        self.pickle_module = pickle_module
+        self.pickle_protocol = pickle_protocol
 
         if self.cache_dir is None:
             self.cache_dir = tempfile.gettempdir()
@@ -63,8 +77,21 @@ class StateCacher:
 
         self.cached: Dict[str, str] = {}
 
-    def store(self, key, data_obj):
-        """Store a given object with the given key name."""
+    def store(self, key, data_obj, pickle_module=None, pickle_protocol=None):
+        """
+        Store a given object with the given key name.
+
+        Args:
+            key: key of the data object to store.
+            data_obj: data object to store.
+            pickle_module: module used for pickling metadata and objects, default to `self.pickle_module`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            pickle_protocol: can be specified to override the default protocol, default to `self.pickle_protocol`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+
+        """
         if key in self.cached and not self.allow_overwrite:
             raise RuntimeError("Cached key already exists and overwriting is disabled.")
         if self.in_memory:
@@ -72,7 +99,12 @@ class StateCacher:
         else:
             fn = os.path.join(self.cache_dir, f"state_{key}_{id(self)}.pt")
             self.cached.update({key: {"obj": fn}})
-            torch.save(data_obj, fn)
+            torch.save(
+                obj=data_obj,
+                f=fn,
+                pickle_module=self.pickle_module if pickle_module is None else pickle_module,
+                pickle_protocol=self.pickle_protocol if pickle_protocol is None else pickle_protocol,
+            )
             # store object's device if relevant
             if hasattr(data_obj, "device"):
                 self.cached[key]["device"] = data_obj.device

@@ -63,6 +63,11 @@ Segmentation Losses
 .. autoclass:: TverskyLoss
     :members:
 
+`ContrastiveLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: ContrastiveLoss
+    :members:
+
 Registration Losses
 -------------------
 
