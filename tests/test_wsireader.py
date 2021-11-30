@@ -28,6 +28,8 @@ cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
 _, has_osl = optional_import("openslide")
 imsave, has_tiff = optional_import("tifffile", name="imsave")
+_, has_codec = optional_import("imagecodecs")
+has_tiff = has_tiff and has_codec
 
 FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
 base_name, extension = FILE_URL.split("id=")[1], ".tiff"
