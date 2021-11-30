@@ -76,7 +76,11 @@ __all__ = [
     "pad_list_data_collate",
     "no_collation",
     "convert_tables_to_dicts",
+    "SUPPORTED_PICKLE_MOD",
 ]
+
+# module to be used by `torch.save`
+SUPPORTED_PICKLE_MOD = {"pickle": pickle}
 
 
 def get_random_patch(
