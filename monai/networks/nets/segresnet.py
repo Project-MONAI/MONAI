@@ -130,6 +130,7 @@ class SegResNet(nn.Module):
                     *[ResBlock(spatial_dims, sample_in_channels // 2, norm=norm, act=self.act) for _ in range(blocks_up[i])]
                 )
             )
+
             up_samples.append(
                 nn.Sequential(
                     *[
