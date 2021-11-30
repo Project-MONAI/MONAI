@@ -21,7 +21,7 @@ for in_channels in [1, 4]:
     for img_size in [64, 96, 128]:
         for patch_size in [16]:
             for pos_embed in ["conv", "perceptron"]:
-                for nd in [3]:
+                for nd in [2, 3]:
                     test_case = [
                         {
                             "in_channels": in_channels,
