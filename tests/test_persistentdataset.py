@@ -61,7 +61,7 @@ class TestDataset(unittest.TestCase):
                 data=items,
                 transform=_InplaceXform(),
                 cache_dir=tempdir,
-                pickle_module=pickle,
+                pickle_module="pickle",
                 pickle_protocol=pickle.HIGHEST_PROTOCOL,
             )
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
