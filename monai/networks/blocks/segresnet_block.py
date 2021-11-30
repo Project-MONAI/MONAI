@@ -49,9 +49,9 @@ class ResBlock(nn.Module):
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
     """
 
-    def __init__(self, spatial_dims: int, 
-                       in_channels: int, 
-                       norm: Union[Tuple, str], 
+    def __init__(self, spatial_dims: int,
+                       in_channels: int,
+                       norm: Union[Tuple, str],
                        kernel_size: int = 3,
                        act: Optional[Union[Tuple, str]] = "RELU") -> None:
         """
