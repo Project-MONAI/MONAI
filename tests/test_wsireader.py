@@ -71,12 +71,6 @@ TEST_CASE_4 = [
     np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
 ]
 
-TEST_CASE_5 = [
-    FILE_PATH,
-    {"location": (HEIGHT - 2, WIDTH - 2), "level": 0, "grid_shape": (1, 1)},
-    np.array([[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[237, 237], [237, 237]]]),
-]
-
 
 TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
@@ -117,7 +111,7 @@ class WSIReaderTests:
                 img = reader.get_data(img_obj)[0]
             self.assertTupleEqual(img.shape, expected_shape)
 
-        @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_5])
+        @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
         def test_read_region(self, file_path, patch_info, expected_img):
             reader = WSIReader(self.backend)
             # Read twice to check multiple calls
