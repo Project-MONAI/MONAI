@@ -9,13 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.upsample import UpSample
-from monai.networks.layers.factories import Act
 from monai.networks.layers.utils import get_norm_layer, get_act_layer
 from monai.utils import InterpolateMode, UpsampleMode
 
