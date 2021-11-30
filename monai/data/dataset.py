@@ -29,9 +29,9 @@ import torch
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
-from monai.data.utils import convert_tables_to_dicts, pickle_hashing
+from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
 from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
-from monai.utils import MAX_SEED, ensure_tuple, get_seed, min_version, optional_import
+from monai.utils import MAX_SEED, ensure_tuple, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
@@ -152,7 +152,7 @@ class PersistentDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
-        pickle_module=pickle,
+        pickle_module: str = "pickle",
         pickle_protocol=pickle.DEFAULT_PROTOCOL,
     ) -> None:
         """
@@ -169,9 +169,10 @@ class PersistentDataset(Dataset):
                 If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            pickle_module: module used for pickling metadata and objects, default to `pickle`.
+            pickle_module: string representing the module used for pickling metadata and objects, default to `"pickle"`.
                 this arg is used by `torch.save`, for more details, please check:
-                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
+                and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
             pickle_protocol: can be specified to override the default protocol, default to `2`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
@@ -287,7 +288,7 @@ class PersistentDataset(Dataset):
                 torch.save(
                     obj=_item_transformed,
                     f=temp_hash_file,
-                    pickle_module=self.pickle_module,
+                    pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
                 )
                 if temp_hash_file.is_file() and not hashfile.is_file():
@@ -317,7 +318,7 @@ class CacheNTransDataset(PersistentDataset):
         cache_n_trans: int,
         cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
-        pickle_module=pickle,
+        pickle_module: str = "pickle",
         pickle_protocol=pickle.DEFAULT_PROTOCOL,
     ) -> None:
         """
@@ -335,9 +336,10 @@ class CacheNTransDataset(PersistentDataset):
                 If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            pickle_module: module used for pickling metadata and objects, default to `pickle`.
+            pickle_module: string representing the module used for pickling metadata and objects, default to `"pickle"`.
                 this arg is used by `torch.save`, for more details, please check:
-                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
+                and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
             pickle_protocol: can be specified to override the default protocol, default to `2`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
