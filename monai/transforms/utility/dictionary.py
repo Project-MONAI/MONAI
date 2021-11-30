@@ -1003,7 +1003,8 @@ class Lambdad(MapTransform, InvertibleTransform):
             ret = self._transform(data=d[key], func=func)
             if overwrite:
                 d[key] = ret
-            self.push_transform(d, key)
+            if self.inv_func is not None:
+                self.push_transform(d, key)
         return d
 
     def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
