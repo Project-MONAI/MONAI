@@ -681,14 +681,14 @@ class WSIReader(ImageReader):
     Read whole slide images and extract patches.
 
     Args:
-        backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "Tifffile".
+        backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "TiffFile".
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
 
     Note:
-        While "cuCim" and "OpenSlide" backends both can load patches from large whole slide images
+        While "cuCIM" and "OpenSlide" backends both can load patches from large whole slide images
         without loading the entire image into memory, "TiffFile" backend needs to load the entire image into memory
-        before extracting any patch; thus, memory consideration is needed when using "Tifffile" backend for
+        before extracting any patch; thus, memory consideration is needed when using "TiffFile" backend for
         patch extraction.
     """
 

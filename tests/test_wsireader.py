@@ -158,7 +158,10 @@ class WSIReaderTests:
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(self, file_path, level, expected_spatial_shape, expected_shape):
             train_transform = Compose(
-                [LoadImaged(keys=["image"], reader=WSIReader, backend="cuCIM", level=level), ToTensord(keys=["image"])]
+                [
+                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    ToTensord(keys=["image"]),
+                ]
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
