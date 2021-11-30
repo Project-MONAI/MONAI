@@ -26,6 +26,7 @@ from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Seque
 
 import numpy as np
 import torch
+from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
@@ -153,7 +154,7 @@ class PersistentDataset(Dataset):
         cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
-        pickle_protocol=pickle.DEFAULT_PROTOCOL,
+        pickle_protocol: int = DEFAULT_PROTOCOL,
     ) -> None:
         """
         Args:
@@ -169,7 +170,12 @@ class PersistentDataset(Dataset):
                 If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            pickle_module: string representing the module used for pickling metadata and objects, default to `"pickle"`.
+            pickle_module: string representing the module used for pickling metadata and objects,
+                default to `"pickle"`. due to the pickle limitation in multi-processing of Dataloader,
+                we can't use `pickle` as arg directly, so here we use a string name instead.
+                if want to use other pickle module at runtime, just register like:
+                >>> from monai.data import utils
+                >>> utils.SUPPORTED_PICKLE_MOD["test"] = other_pickle
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
@@ -319,7 +325,7 @@ class CacheNTransDataset(PersistentDataset):
         cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
-        pickle_protocol=pickle.DEFAULT_PROTOCOL,
+        pickle_protocol: int = DEFAULT_PROTOCOL,
     ) -> None:
         """
         Args:
@@ -336,7 +342,12 @@ class CacheNTransDataset(PersistentDataset):
                 If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            pickle_module: string representing the module used for pickling metadata and objects, default to `"pickle"`.
+            pickle_module: string representing the module used for pickling metadata and objects,
+                default to `"pickle"`. due to the pickle limitation in multi-processing of Dataloader,
+                we can't use `pickle` as arg directly, so here we use a string name instead.
+                if want to use other pickle module at runtime, just register like:
+                >>> from monai.data import utils
+                >>> utils.SUPPORTED_PICKLE_MOD["test"] = other_pickle
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
                 and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.

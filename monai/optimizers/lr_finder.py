@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
 import warnings
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
@@ -17,6 +18,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
+from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import DataLoader
 
 from monai.networks.utils import eval_mode
@@ -183,6 +185,8 @@ class LearningRateFinder:
         memory_cache: bool = True,
         cache_dir: Optional[str] = None,
         amp: bool = False,
+        pickle_module=pickle,
+        pickle_protocol: int = DEFAULT_PROTOCOL,
         verbose: bool = True,
     ) -> None:
         """Constructor.
@@ -202,6 +206,12 @@ class LearningRateFinder:
                 specified, system-wide temporary directory is used. Notice that this
                 parameter will be ignored if `memory_cache` is True.
             amp: use Automatic Mixed Precision
+            pickle_module: module used for pickling metadata and objects, default to `pickle`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            pickle_protocol: can be specified to override the default protocol, default to `2`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             verbose: verbose output
         Returns:
             None
@@ -221,7 +231,9 @@ class LearningRateFinder:
         # Save the original state of the model and optimizer so they can be restored if
         # needed
         self.model_device = next(self.model.parameters()).device
-        self.state_cacher = StateCacher(memory_cache, cache_dir=cache_dir)
+        self.state_cacher = StateCacher(
+            in_memory=memory_cache, cache_dir=cache_dir, pickle_module=pickle_module, pickle_protocol=pickle_protocol
+        )
         self.state_cacher.store("model", self.model.state_dict())
         self.state_cacher.store("optimizer", self.optimizer.state_dict())
 
