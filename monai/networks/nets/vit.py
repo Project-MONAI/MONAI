@@ -41,6 +41,7 @@ class ViT(nn.Module):
         num_classes: int = 2,
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
+        get_hidden_states: bool = True,
     ) -> None:
         """
         Args:
@@ -79,6 +80,7 @@ class ViT(nn.Module):
             raise ValueError("hidden_size should be divisible by num_heads.")
 
         self.classification = classification
+        self.get_hidden_states = get_hidden_states
         self.patch_embedding = PatchEmbeddingBlock(
             in_channels=in_channels,
             img_size=img_size,
@@ -90,7 +92,7 @@ class ViT(nn.Module):
             spatial_dims=spatial_dims,
         )
         self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
+            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for _ in range(num_layers)]
         )
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:
@@ -109,4 +111,4 @@ class ViT(nn.Module):
         x = self.norm(x)
         if self.classification:
             x = self.classification_head(x[:, 0])
-        return x, hidden_states_out
+        return (x, hidden_states_out) if self.get_hidden_states else x
