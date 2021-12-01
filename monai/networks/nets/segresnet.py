@@ -73,7 +73,7 @@ class SegResNet(nn.Module):
         super().__init__()
 
         if spatial_dims not in (2, 3):
-            raise AssertionError("spatial_dims can only be 2 or 3.")
+            raise ValueError("`spatial_dims` can only be 2 or 3.")
 
         self.spatial_dims = spatial_dims
         self.init_filters = init_filters
@@ -81,7 +81,8 @@ class SegResNet(nn.Module):
         self.blocks_down = blocks_down
         self.blocks_up = blocks_up
         self.dropout_prob = dropout_prob
-        self.act = get_act_layer(act)
+        self.act = act  # input options
+        self.act_mod = get_act_layer(act)
         if norm_name:
             if norm_name.lower() != "group":
                 raise ValueError(f"Deprecating option 'norm_name={norm_name}', please use 'norm' instead.")
@@ -108,7 +109,8 @@ class SegResNet(nn.Module):
                 else nn.Identity()
             )
             down_layer = nn.Sequential(
-                pre_conv, *[ResBlock(spatial_dims, layer_in_channels, norm=norm) for _ in range(blocks_down[i])]
+                pre_conv,
+                *[ResBlock(spatial_dims, layer_in_channels, norm=norm, act=self.act) for _ in range(blocks_down[i])],
             )
             down_layers.append(down_layer)
         return down_layers
@@ -127,7 +129,10 @@ class SegResNet(nn.Module):
             sample_in_channels = filters * 2 ** (n_up - i)
             up_layers.append(
                 nn.Sequential(
-                    *[ResBlock(spatial_dims, sample_in_channels // 2, norm=norm) for _ in range(blocks_up[i])]
+                    *[
+                        ResBlock(spatial_dims, sample_in_channels // 2, norm=norm, act=self.act)
+                        for _ in range(blocks_up[i])
+                    ]
                 )
             )
             up_samples.append(
@@ -143,7 +148,7 @@ class SegResNet(nn.Module):
     def _make_final_conv(self, out_channels: int):
         return nn.Sequential(
             get_norm_layer(name=self.norm, spatial_dims=self.spatial_dims, channels=self.init_filters),
-            self.act,
+            self.act_mod,
             get_conv_layer(self.spatial_dims, self.init_filters, out_channels, kernel_size=1, bias=True),
         )
 
@@ -262,10 +267,10 @@ class SegResNetVAE(SegResNet):
 
         self.vae_down = nn.Sequential(
             get_norm_layer(name=self.norm, spatial_dims=self.spatial_dims, channels=v_filters),
-            self.act,
+            self.act_mod,
             get_conv_layer(self.spatial_dims, v_filters, self.smallest_filters, stride=2, bias=True),
             get_norm_layer(name=self.norm, spatial_dims=self.spatial_dims, channels=self.smallest_filters),
-            self.act,
+            self.act_mod,
         )
         self.vae_fc1 = nn.Linear(total_elements, self.vae_nz)
         self.vae_fc2 = nn.Linear(total_elements, self.vae_nz)
@@ -275,7 +280,7 @@ class SegResNetVAE(SegResNet):
             get_conv_layer(self.spatial_dims, self.smallest_filters, v_filters, kernel_size=1),
             get_upsample_layer(self.spatial_dims, v_filters, upsample_mode=self.upsample_mode),
             get_norm_layer(name=self.norm, spatial_dims=self.spatial_dims, channels=v_filters),
-            self.act,
+            self.act_mod,
         )
 
     def _get_vae_loss(self, net_input: torch.Tensor, vae_input: torch.Tensor):
@@ -304,7 +309,7 @@ class SegResNetVAE(SegResNet):
             x_vae = z_mean + z_sigma * z_mean_rand
 
         x_vae = self.vae_fc3(x_vae)
-        x_vae = self.act(x_vae)
+        x_vae = self.act_mod(x_vae)
         x_vae = x_vae.view([-1, self.smallest_filters] + self.fc_insize)
         x_vae = self.vae_fc_up_sample(x_vae)
 
