@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union, Optional
+from typing import Tuple, Union
 
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.upsample import UpSample
-from monai.networks.layers.utils import get_norm_layer, get_act_layer
+from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import InterpolateMode, UpsampleMode
 
 
@@ -49,11 +49,14 @@ class ResBlock(nn.Module):
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
     """
 
-    def __init__(self, spatial_dims: int,
-                       in_channels: int,
-                       norm: Union[Tuple, str],
-                       kernel_size: int = 3,
-                       act: Optional[Union[Tuple, str]] = "RELU") -> None:
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        norm: Union[Tuple, str],
+        kernel_size: int = 3,
+        act: Union[Tuple, str] = "RELU",
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions, could be 1, 2 or 3.
