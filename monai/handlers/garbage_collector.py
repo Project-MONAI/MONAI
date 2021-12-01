@@ -42,6 +42,7 @@ class GarbageCollector:
     """
 
     def __init__(self, trigger_event: str = "epoch", log_level: int = 10):
+        self.trigger_event: Events
         if isinstance(trigger_event, Events):
             self.trigger_event = trigger_event
         elif trigger_event.lower() == "epoch":

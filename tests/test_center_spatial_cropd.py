@@ -15,36 +15,43 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import CenterSpatialCropd
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TEST_CASE_0 = [
-    {"keys": "img", "roi_size": [2, -1, -1]},
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 2, 3, 3),
-]
+TEST_SHAPES = []
+for p in TEST_NDARRAYS:
+    TEST_SHAPES.append(
+        [{"keys": "img", "roi_size": [2, -1, -1]}, {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))}, (3, 2, 3, 3)]
+    )
 
-TEST_CASE_1 = [
-    {"keys": "img", "roi_size": [2, 2, 2]},
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 2, 2, 2),
-]
+    TEST_SHAPES.append(
+        [{"keys": "img", "roi_size": [2, 2, 2]}, {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))}, (3, 2, 2, 2)]
+    )
 
-TEST_CASE_2 = [
-    {"keys": "img", "roi_size": [2, 2]},
-    {"img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])},
-    np.array([[[1, 2], [2, 3]]]),
-]
+TEST_CASES = []
+for p in TEST_NDARRAYS:
+    TEST_CASES.append(
+        [
+            {"keys": "img", "roi_size": [2, 2]},
+            {
+                "img": p(
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])
+                )
+            },
+            p(np.array([[[1, 2], [2, 3]]])),
+        ]
+    )
 
 
 class TestCenterSpatialCropd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
+    @parameterized.expand(TEST_SHAPES)
     def test_shape(self, input_param, input_data, expected_shape):
         result = CenterSpatialCropd(**input_param)(input_data)
         self.assertTupleEqual(result["img"].shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_2])
+    @parameterized.expand(TEST_CASES)
     def test_value(self, input_param, input_data, expected_value):
         result = CenterSpatialCropd(**input_param)(input_data)
-        np.testing.assert_allclose(result["img"], expected_value)
+        assert_allclose(result["img"], expected_value, type_test=False)
 
 
 if __name__ == "__main__":

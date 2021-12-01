@@ -117,16 +117,7 @@ TEST_CASE_8 = [
 
 class TestPartitionDataset(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-            TEST_CASE_7,
-            TEST_CASE_8,
-        ]
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
     )
     def test_value(self, input_param, result):
         self.assertListEqual(partition_dataset(**input_param), result)
