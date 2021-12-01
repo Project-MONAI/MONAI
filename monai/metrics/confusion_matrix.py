@@ -47,8 +47,10 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             returned with the same order as input names when calling the class.
         compute_sample: when reducing, if ``True``, each sample's metric will be computed based on each confusion matrix first.
             if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``.
+            if "none", return the input f tensor and not_nans.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns [(metric, not_nans), ...]. If False,
             aggregate() returns [metric, ...].
             Here `not_nans` count the number of not nans for True Positive, False Positive, True Negative and False Negative.

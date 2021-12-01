@@ -35,9 +35,10 @@ class DiceMetric(CumulativeIterationMetric):
     Args:
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to ``True``.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result. Defaults to ``"mean"``.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``.
+            if "none", return the input f tensor and not_nans.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
             Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
 

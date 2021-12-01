@@ -42,9 +42,10 @@ class HausdorffDistance(IgniteMetric):
                 percentile of the Hausdorff Distance rather than the maximum result will be achieved.
                 Defaults to ``None``.
             directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
-            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-                ``"mean_channel"``, ``"sum_channel"``}
-                Define the mode to reduce computation result. Defaults to ``"mean"``.
+            reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``.
+                if "none", return the input f tensor and not_nans.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
