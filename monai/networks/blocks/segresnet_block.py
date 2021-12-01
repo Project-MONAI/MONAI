@@ -55,7 +55,7 @@ class ResBlock(nn.Module):
         in_channels: int,
         norm: Union[Tuple, str],
         kernel_size: int = 3,
-        act: Union[Tuple, str] = "RELU",
+        act: Union[Tuple, str] = ("RELU", {"inplace": True}),
     ) -> None:
         """
         Args:
@@ -63,6 +63,7 @@ class ResBlock(nn.Module):
             in_channels: number of input channels.
             norm: feature normalization type and arguments.
             kernel_size: convolution kernel size, the value should be an odd number. Defaults to 3.
+            act: activation type and arguments. Defaults to ``RELU``.
         """
 
         super().__init__()

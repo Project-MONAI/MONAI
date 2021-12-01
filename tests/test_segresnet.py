@@ -89,7 +89,7 @@ class TestResNet(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             SegResNet(spatial_dims=4)
 
     def test_script(self):
