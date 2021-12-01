@@ -93,12 +93,18 @@ class ViTAutoEnc(nn.Module):
 
         new_patch_size = [4] * self.spatial_dims
         conv_trans = Conv[Conv.CONVTRANS, self.spatial_dims]
-        self.conv_transpose = conv_trans(hidden_size, deconv_chns, kernel_size=new_patch_size, stride=new_patch_size)
-        self.conv_transpose_1 = conv_trans(
+        # self.conv3d_transpose* is to be compatible with existing 3d model weights.
+        self.conv3d_transpose = conv_trans(hidden_size, deconv_chns, kernel_size=new_patch_size, stride=new_patch_size)
+        self.conv3d_transpose_1 = conv_trans(
             in_channels=deconv_chns, out_channels=out_channels, kernel_size=new_patch_size, stride=new_patch_size
         )
 
     def forward(self, x):
+        """
+        Args:
+            x: input tensor must have isotropic spatial dimensions,
+                such as ``[batch_size, channels, sp_size, sp_size[, sp_size]]``.
+        """
         x = self.patch_embedding(x)
         hidden_states_out = []
         for blk in self.blocks:
@@ -108,6 +114,6 @@ class ViTAutoEnc(nn.Module):
         x = x.transpose(1, 2)
         d = [round(math.pow(x.shape[2], 1 / self.spatial_dims))] * self.spatial_dims
         x = torch.reshape(x, [x.shape[0], x.shape[1], *d])
-        x = self.conv_transpose(x)
-        x = self.conv_transpose_1(x)
+        x = self.conv3d_transpose(x)
+        x = self.conv3d_transpose_1(x)
         return x, hidden_states_out

@@ -33,6 +33,7 @@ for in_channels in [1, 4]:
                             "num_heads": 12,
                             "pos_embed": pos_embed,
                             "dropout_rate": 0.6,
+                            "spatial_dims": nd,
                         },
                         (2, in_channels, *([img_size] * nd)),
                         (2, 1, *([img_size] * nd)),
