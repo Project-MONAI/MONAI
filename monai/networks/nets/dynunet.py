@@ -58,24 +58,30 @@ class DynUNet(nn.Module):
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
     `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
     `Optimized U-Net for Brain Tumor Segmentation <https://arxiv.org/pdf/2110.03352.pdf>`_.
+
     This model is more flexible compared with ``monai.networks.nets.UNet`` in three
     places:
+
         - Residual connection is supported in conv blocks.
         - Anisotropic kernel sizes and strides can be used in each layers.
         - Deep supervision heads can be added.
+
     The model supports 2D or 3D inputs and is consisted with four kinds of blocks:
     one input block, `n` downsample blocks, one bottleneck and `n+1` upsample blocks. Where, `n>0`.
     The first and last kernel and stride values of the input sequences are used for input block and
     bottleneck respectively, and the rest value(s) are used for downsample and upsample blocks.
     Therefore, pleasure ensure that the length of input sequences (``kernel_size`` and ``strides``)
     is no less than 3 in order to have at least one downsample and upsample blocks.
+
     To meet the requirements of the structure, the input size for each spatial dimension should be divisible
     by `2 * the product of all strides in the corresponding dimension`. The output size for each spatial dimension
     equals to the input size of the corresponding dimension divided by the stride in strides[0].
     For example, if `strides=((1, 2, 4), 2, 1, 1)`, the minimal spatial size of the input is `(8, 16, 32)`, and
     the spatial size of the output is `(8, 8, 8)`.
+
     Usage example with medical segmentation decathlon dataset is available at:
     https://github.com/Project-MONAI/tutorials/tree/master/modules/dynunet_pipeline.
+
     Args:
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
@@ -210,10 +216,7 @@ class DynUNet(nn.Module):
 
         if not self.deep_supervision:
             self.skip_layers = create_skips(
-                0,
-                [self.input_block] + list(self.downsamples),
-                self.upsamples[::-1],
-                self.bottleneck,
+                0, [self.input_block] + list(self.downsamples), self.upsamples[::-1], self.bottleneck
             )
         else:
             self.skip_layers = create_skips(
