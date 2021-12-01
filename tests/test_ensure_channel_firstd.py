@@ -25,11 +25,7 @@ TEST_CASE_1 = [{"keys": "img"}, ["test_image.nii.gz"], None]
 
 TEST_CASE_2 = [{"keys": "img"}, ["test_image.nii.gz"], -1]
 
-TEST_CASE_3 = [
-    {"keys": "img"},
-    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
-    None,
-]
+TEST_CASE_3 = [{"keys": "img"}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], None]
 
 
 class TestEnsureChannelFirstd(unittest.TestCase):

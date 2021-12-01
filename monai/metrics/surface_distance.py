@@ -134,10 +134,7 @@ def compute_average_surface_distance(
     """
 
     if not include_background:
-        y_pred, y = ignore_background(
-            y_pred=y_pred,
-            y=y,
-        )
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
     if isinstance(y, torch.Tensor):
         y = y.float()

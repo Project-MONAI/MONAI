@@ -84,3 +84,8 @@ Metrics
 ----------------------------
 .. autoclass:: PSNRMetric
     :members:
+
+`Cumulative average`
+--------------------
+.. autoclass:: CumulativeAverage
+    :members:

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
 import warnings
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
@@ -17,6 +18,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
+from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import DataLoader
 
 from monai.networks.utils import eval_mode
@@ -120,7 +122,7 @@ class ValDataLoaderIter(DataLoaderIter):
 
     def __next__(self):
         self.run_counter += 1
-        return super(ValDataLoaderIter, self).__next__()
+        return super().__next__()
 
 
 def default_image_extractor(x: Any) -> torch.Tensor:
@@ -183,6 +185,8 @@ class LearningRateFinder:
         memory_cache: bool = True,
         cache_dir: Optional[str] = None,
         amp: bool = False,
+        pickle_module=pickle,
+        pickle_protocol: int = DEFAULT_PROTOCOL,
         verbose: bool = True,
     ) -> None:
         """Constructor.
@@ -202,6 +206,12 @@ class LearningRateFinder:
                 specified, system-wide temporary directory is used. Notice that this
                 parameter will be ignored if `memory_cache` is True.
             amp: use Automatic Mixed Precision
+            pickle_module: module used for pickling metadata and objects, default to `pickle`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            pickle_protocol: can be specified to override the default protocol, default to `2`.
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
             verbose: verbose output
         Returns:
             None
@@ -221,7 +231,9 @@ class LearningRateFinder:
         # Save the original state of the model and optimizer so they can be restored if
         # needed
         self.model_device = next(self.model.parameters()).device
-        self.state_cacher = StateCacher(memory_cache, cache_dir=cache_dir)
+        self.state_cacher = StateCacher(
+            in_memory=memory_cache, cache_dir=cache_dir, pickle_module=pickle_module, pickle_protocol=pickle_protocol
+        )
         self.state_cacher.store("model", self.model.state_dict())
         self.state_cacher.store("optimizer", self.optimizer.state_dict())
 
@@ -328,11 +340,7 @@ class LearningRateFinder:
                 print(f"Computing optimal learning rate, iteration {iteration + 1}/{num_iter}")
 
             # Train on batch and retrieve loss
-            loss = self._train_batch(
-                train_iter,
-                accumulation_steps,
-                non_blocking_transfer=non_blocking_transfer,
-            )
+            loss = self._train_batch(train_iter, accumulation_steps, non_blocking_transfer=non_blocking_transfer)
             if val_loader:
                 loss = self._validate(val_iter, non_blocking_transfer=non_blocking_transfer)
 
@@ -429,11 +437,7 @@ class LearningRateFinder:
 
         return running_loss / len(val_iter.dataset)
 
-    def get_lrs_and_losses(
-        self,
-        skip_start: int = 0,
-        skip_end: int = 0,
-    ) -> Tuple[list, list]:
+    def get_lrs_and_losses(self, skip_start: int = 0, skip_end: int = 0) -> Tuple[list, list]:
         """Get learning rates and their corresponding losses
 
         Args:
@@ -454,9 +458,7 @@ class LearningRateFinder:
         return lrs, losses
 
     def get_steepest_gradient(
-        self,
-        skip_start: int = 0,
-        skip_end: int = 0,
+        self, skip_start: int = 0, skip_end: int = 0
     ) -> Union[Tuple[float, float], Tuple[None, None]]:
         """Get learning rate which has steepest gradient and its corresponding loss
 
@@ -476,14 +478,7 @@ class LearningRateFinder:
             print("Failed to compute the gradients, there might not be enough points.")
             return None, None
 
-    def plot(
-        self,
-        skip_start: int = 0,
-        skip_end: int = 0,
-        log_lr: bool = True,
-        ax=None,
-        steepest_lr: bool = True,
-    ):
+    def plot(self, skip_start: int = 0, skip_end: int = 0, log_lr: bool = True, ax=None, steepest_lr: bool = True):
         """Plots the learning rate range test.
 
         Args:

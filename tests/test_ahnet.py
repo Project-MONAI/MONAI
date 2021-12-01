@@ -162,26 +162,14 @@ class TestMCFCNWithPretrain(unittest.TestCase):
 
 
 class TestAHNET(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_AHNET_2D_1,
-            TEST_CASE_AHNET_2D_2,
-            TEST_CASE_AHNET_2D_3,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_AHNET_2D_1, TEST_CASE_AHNET_2D_2, TEST_CASE_AHNET_2D_3])
     def test_ahnet_shape_2d(self, input_param, input_shape, expected_shape):
         net = AHNet(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand(
-        [
-            TEST_CASE_AHNET_3D_1,
-            TEST_CASE_AHNET_3D_2,
-            TEST_CASE_AHNET_3D_3,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_AHNET_3D_1, TEST_CASE_AHNET_3D_2, TEST_CASE_AHNET_3D_3])
     @skip_if_quick
     def test_ahnet_shape_3d(self, input_param, input_shape, expected_shape):
         net = AHNet(**input_param).to(device)
@@ -203,11 +191,7 @@ class TestAHNET(unittest.TestCase):
 
 class TestAHNETWithPretrain(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_AHNET_3D_WITH_PRETRAIN_1,
-            TEST_CASE_AHNET_3D_WITH_PRETRAIN_2,
-            TEST_CASE_AHNET_3D_WITH_PRETRAIN_3,
-        ]
+        [TEST_CASE_AHNET_3D_WITH_PRETRAIN_1, TEST_CASE_AHNET_3D_WITH_PRETRAIN_2, TEST_CASE_AHNET_3D_WITH_PRETRAIN_3]
     )
     def test_ahnet_shape(self, input_param, input_shape, expected_shape, fcn_input_param):
         net = AHNet(**input_param).to(device)
