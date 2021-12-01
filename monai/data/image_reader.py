@@ -767,9 +767,9 @@ class WSIReader(ImageReader):
         """
         # Verify inputs
         if level is None:
-            level = self._evaluate_level(img, level)
+            level = self._check_level(img, level)
         if size is None:
-            size = self._evaluate_image_size(img, size, level, location)
+            size = self._get_image_size(img, size, level, location)
 
         # Extract patch (or the whole image)
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
@@ -793,7 +793,7 @@ class WSIReader(ImageReader):
 
         return patches, metadata
 
-    def _evaluate_level(self, img, level):
+    def _check_level(self, img, level):
         level = self.level
 
         level_count = 0
@@ -809,7 +809,7 @@ class WSIReader(ImageReader):
 
         return level
 
-    def _evaluate_image_size(self, img, size, level, location):
+    def _get_image_size(self, img, size, level, location):
         max_size = []
         downsampling_factor = []
         if self.backend == "openslide":
