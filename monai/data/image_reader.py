@@ -852,13 +852,12 @@ class WSIReader(ImageReader):
                 )
             region = img_obj.asarray(level=level)
         else:
+            # Get region size to be extracted
+            region_size = self._get_image_size(img_obj, size, level, location)
+            # reverse the order of location's dimensions to become WxH (for cuCIM and OpenSlide)
+            region_location = location[::-1]
             # Extract a region (or the entire image)
-            if size is None:
-                region_size = self._get_image_size(img_obj, size, level, location)
-            else:
-                region_size = size[::-1]
-            # reverse the order of dimensions for size and location to become WxH
-            region = img_obj.read_region(location=location[::-1], size=region_size, level=level)
+            region = img_obj.read_region(location=region_location, size=region_size, level=level)
 
         region = self.convert_to_rgb_array(region, dtype)
         return region
