@@ -37,10 +37,12 @@ from monai.utils.misc import first
 
 if TYPE_CHECKING:
     from tqdm import tqdm
+    from pandas import DataFrame
 
     has_tqdm = True
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
+    DataFrame, _ = optional_import("pandas", name="DataFrame")
 
 lmdb, _ = optional_import("lmdb")
 pd, _ = optional_import("pandas")
@@ -1224,6 +1226,7 @@ class CSVDataset(Dataset):
     Args:
         filename: the filename of expected CSV file to load. if providing a list
             of filenames, it will load all the files and join tables.
+        dataframes: if proving `dataframe` directly, skip loading from filename.
         row_indices: indices of the expected rows to load. it should be a list,
             every item can be a int number or a range `[start, end)` for the indices.
             for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
@@ -1253,7 +1256,8 @@ class CSVDataset(Dataset):
 
     def __init__(
         self,
-        filename: Union[str, Sequence[str]],
+        filename: Optional[Union[str, Sequence[str]]] = None,
+        dataframe: Optional[Union[DataFrame, Sequence[DataFrame]]] = None,
         row_indices: Optional[Sequence[Union[int, str]]] = None,
         col_names: Optional[Sequence[str]] = None,
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
@@ -1262,7 +1266,8 @@ class CSVDataset(Dataset):
         **kwargs,
     ):
         files = ensure_tuple(filename)
-        dfs = [pd.read_csv(f) for f in files]
+        dataframe = ensure_tuple(dataframe)
+        dfs = [pd.read_csv(f) for f in files] if any([i is None for i in dataframe]) else dataframe
         data = convert_tables_to_dicts(
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
