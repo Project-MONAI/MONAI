@@ -120,12 +120,12 @@ class ClassificationSaver:
                 o = o.detach()
             self._outputs.append(o)
 
-    def _finalize(self, engine: Engine) -> None:
+    def _finalize(self, _engine: Engine) -> None:
         """
         All gather classification results from ranks and save to CSV file.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            _engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         ws = idist.get_world_size()
         if self.save_rank >= ws:

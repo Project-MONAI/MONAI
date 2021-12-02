@@ -173,13 +173,13 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         else:
             self._default_iteration_writer(engine, self._writer)
 
-    def _write_scalar(self, engine: Engine, writer: SummaryWriter, tag: str, value: Any, step: int) -> None:
+    def _write_scalar(self, _engine: Engine, writer: SummaryWriter, tag: str, value: Any, step: int) -> None:
         """
         Write scale value into TensorBoard.
-        Default to call `SummaryWriter.add_scalar()`, subclass can override it for more complicated logic.
+        Default to call `SummaryWriter.add_scalar()`.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            _engine: Ignite Engine, it can be a trainer, validator or evaluator, unused in the default logic.
             writer: TensorBoard or TensorBoardX writer, passed or created in TensorBoardHandler.
             tag: tag name in the TensorBoard.
             value: value of the scalar data for current step.

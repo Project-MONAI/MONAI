@@ -105,7 +105,7 @@ class MetricsSaver:
         engine.add_event_handler(Events.ITERATION_COMPLETED, self._get_filenames)
         engine.add_event_handler(Events.EPOCH_COMPLETED, self)
 
-    def _started(self, engine: Engine) -> None:
+    def _started(self, _engine: Engine) -> None:
         self._filenames = []
 
     def _get_filenames(self, engine: Engine) -> None:
