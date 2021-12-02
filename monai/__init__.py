@@ -26,11 +26,11 @@ __copyright__ = "(c) 2020 - 2021 MONAI Consortium"
 
 __basedir__ = os.path.dirname(__file__)
 
-if not (sys.version_info.major == PY_REQUIRED_MAJOR and sys.version_info.minor >= PY_REQUIRED_MINOR):
+if sys.version_info.major != PY_REQUIRED_MAJOR or sys.version_info.minor < PY_REQUIRED_MINOR:
     raise RuntimeError(
         "MONAI requires Python {}.{} or higher. But the current Python is: {}".format(
             PY_REQUIRED_MAJOR, PY_REQUIRED_MINOR, sys.version
-        ),
+        )
     )
 
 from .utils.module import load_submodules  # noqa: E402

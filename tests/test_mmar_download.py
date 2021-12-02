@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -21,7 +22,7 @@ from parameterized import parameterized
 from monai.apps import RemoteMMARKeys, download_mmar, get_model_spec, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
-from tests.utils import SkipIfAtLeastPyTorchVersion, SkipIfBeforePyTorchVersion, skip_if_quick
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick
 
 TEST_CASES = [["clara_pt_prostate_mri_segmentation_1"], ["clara_pt_covid19_ct_lesion_segmentation_1"]]
 TEST_EXTRACT_CASES = [
@@ -109,11 +110,12 @@ class TestMMMARDownload(unittest.TestCase):
             # test model specification
             cand = get_model_spec(idx)
             self.assertEqual(cand[RemoteMMARKeys.ID], idx)
-            download_mmar(idx)
+            with self.assertLogs(level="INFO", logger="monai.apps"):
+                download_mmar(idx)
             download_mmar(idx, progress=False)  # repeated to check caching
             with tempfile.TemporaryDirectory() as tmp_dir:
                 download_mmar(idx, mmar_dir=tmp_dir, progress=False)
-                download_mmar(idx, mmar_dir=tmp_dir, progress=False, version=1)  # repeated to check caching
+                download_mmar(idx, mmar_dir=Path(tmp_dir), progress=False, version=1)  # repeated to check caching
                 self.assertTrue(os.path.exists(os.path.join(tmp_dir, idx)))
         except (ContentTooShortError, HTTPError, RuntimeError) as e:
             print(str(e))
@@ -123,7 +125,6 @@ class TestMMMARDownload(unittest.TestCase):
 
     @parameterized.expand(TEST_EXTRACT_CASES)
     @skip_if_quick
-    @SkipIfBeforePyTorchVersion((1, 6))
     def test_load_ckpt(self, input_args, expected_name, expected_val):
         try:
             output = load_from_mmar(**input_args)
@@ -138,13 +139,8 @@ class TestMMMARDownload(unittest.TestCase):
 
     def test_unique(self):
         # model ids are unique
-        keys = sorted([m["id"] for m in MODEL_DESC])
+        keys = sorted(m["id"] for m in MODEL_DESC)
         self.assertTrue(keys == sorted(set(keys)))
-
-    @SkipIfAtLeastPyTorchVersion((1, 6))
-    def test_no_default(self):
-        with self.assertRaises(ValueError):
-            download_mmar(0)
 
     def test_search(self):
         self.assertEqual(_get_val({"a": 1, "b": 2}, key="b"), 2)

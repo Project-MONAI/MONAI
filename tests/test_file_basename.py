@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from monai.data.utils import create_file_basename
 
@@ -66,6 +67,10 @@ class TestFilename(unittest.TestCase):
             self.assertEqual(result, expected)
 
             result = create_file_basename("post", "test.tar.gz", output_tmp, "foo", True, 8)
+            expected = os.path.join(output_tmp, "test", "test_post_8")
+            self.assertEqual(result, expected)
+
+            result = create_file_basename("post", Path("test.tar.gz"), Path(output_tmp), Path("foo"), True, 8)
             expected = os.path.join(output_tmp, "test", "test_post_8")
             self.assertEqual(result, expected)
 
