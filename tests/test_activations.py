@@ -16,27 +16,36 @@ from parameterized import parameterized
 
 from monai.networks.layers.factories import Act
 from monai.transforms import Activations
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TEST_CASE_1 = [
-    {"sigmoid": True, "softmax": False, "other": None},
-    torch.tensor([[[0.0, 1.0], [2.0, 3.0]]]),
-    torch.tensor([[[0.5000, 0.7311], [0.8808, 0.9526]]]),
-    (1, 2, 2),
-]
+TEST_CASES = []
+for p in TEST_NDARRAYS:
+    TEST_CASES.append(
+        [
+            {"sigmoid": True, "softmax": False, "other": None},
+            p([[[0.0, 1.0], [2.0, 3.0]]]),
+            p([[[0.5000, 0.7311], [0.8808, 0.9526]]]),
+            (1, 2, 2),
+        ]
+    )
 
-TEST_CASE_2 = [
-    {"sigmoid": False, "softmax": True, "other": None},
-    torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]),
-    torch.tensor([[[0.1192, 0.1192]], [[0.8808, 0.8808]]]),
-    (2, 1, 2),
-]
+    TEST_CASES.append(
+        [
+            {"sigmoid": False, "softmax": True, "other": None},
+            p([[[0.0, 1.0]], [[2.0, 3.0]]]),
+            p([[[0.1192, 0.1192]], [[0.8808, 0.8808]]]),
+            (2, 1, 2),
+        ]
+    )
 
-TEST_CASE_3 = [
-    {"sigmoid": False, "softmax": False, "other": torch.tanh},
-    torch.tensor([[[0.0, 1.0], [2.0, 3.0]]]),
-    torch.tensor([[[0.0000, 0.7616], [0.9640, 0.9951]]]),
-    (1, 2, 2),
-]
+    TEST_CASES.append(
+        [
+            {"sigmoid": False, "softmax": False, "other": torch.tanh},
+            p([[[0.0, 1.0], [2.0, 3.0]]]),
+            p([[[0.0000, 0.7616], [0.9640, 0.9951]]]),
+            (1, 2, 2),
+        ]
+    )
 
 TEST_CASE_4 = [
     "swish",
@@ -67,12 +76,12 @@ TEST_CASE_6 = [
 
 
 class TestActivations(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand(TEST_CASES[:3])
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = Activations(**input_param)(img)
 
         def _compare(ret, out, shape):
-            torch.testing.assert_allclose(ret, out)
+            assert_allclose(ret, out, rtol=1e-3)
             self.assertTupleEqual(ret.shape, shape)
 
         if isinstance(result, (list, tuple)):
