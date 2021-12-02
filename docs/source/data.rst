@@ -150,27 +150,36 @@ WSIReader
 .. autoclass:: WSIReader
   :members:
 
-Nifti format handling
----------------------
+Image writer
+------------
 
-Writing Nifti
-~~~~~~~~~~~~~
-.. autoclass:: monai.data.NiftiSaver
+Register writers
+~~~~~~~~~~~~~~~~
+.. autofunction:: register_writer
+
+Resolve writers
+~~~~~~~~~~~~~~~
+.. autofunction:: resolve_writer
+
+FolderLayout
+~~~~~~~~~~~~
+.. autoclass:: FolderLayout
   :members:
 
-.. autofunction:: monai.data.write_nifti
-
-
-PNG format handling
--------------------
-
-Writing PNG
+ImageWriter
 ~~~~~~~~~~~
-.. autoclass:: monai.data.PNGSaver
+.. autoclass:: ImageWriter
   :members:
 
-.. autofunction:: monai.data.write_png
+ITKWriter
+~~~~~~~~~
+.. autoclass:: ITKWriter
+  :members:
 
+NibabelWriter
+~~~~~~~~~~~~~
+.. autoclass:: NibabelWriter
+  :members:
 
 Synthetic
 ---------

@@ -31,7 +31,9 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
     BlendMode,
+    Method,
     NumpyPadMode,
+    convert_data_type,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -41,7 +43,6 @@ from monai.utils import (
     look_up_option,
     optional_import,
 )
-from monai.utils.enums import Method
 
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
@@ -62,6 +63,7 @@ __all__ = [
     "zoom_affine",
     "compute_shape_offset",
     "to_affine_nd",
+    "ensure_mat44",
     "create_file_basename",
     "compute_importance_map",
     "is_supported_format",
@@ -627,7 +629,7 @@ def compute_shape_offset(
     return out_shape.astype(int, copy=False), offset
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
+def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndarray:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
@@ -637,14 +639,15 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(r, len(affine) - 1)`.
 
-    when ``r`` is an affine matrix, the output has the same as ``r``,
-    the top left kxk elements are  copied from ``affine``,
+    when ``r`` is an affine matrix, the output has the same shape as ``r``,
+    and the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
 
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
+        dtype: data type of the output array.
 
     Raises:
         ValueError: When ``affine`` dimensions is not 2.
@@ -654,20 +657,31 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
         an (r+1) x (r+1) matrix
 
     """
-    affine_np = np.array(affine, dtype=np.float64)
+    affine_np: np.ndarray
+    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]  # type: ignore
+    affine_np = affine_np.copy()
     if affine_np.ndim != 2:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
-    new_affine = np.array(r, dtype=np.float64, copy=True)
+    new_affine = np.array(r, dtype=dtype, copy=True)
     if new_affine.ndim == 0:
         sr: int = int(new_affine.astype(np.uint))
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
-        new_affine = np.eye(sr + 1, dtype=np.float64)
+        new_affine = np.eye(sr + 1, dtype=dtype)
     d = max(min(len(new_affine) - 1, len(affine_np) - 1), 1)
     new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
         new_affine[:d, -1] = affine_np[:d, -1]
     return new_affine
+
+
+def ensure_mat44(affine, dtype=np.float64) -> np.ndarray:
+    """
+    Given a matrix `affine`, ensure that it is a float64 4x4 matrix using `to_affine_nd`.
+    """
+    if affine is None:
+        return np.eye(4, dtype=dtype)
+    return to_affine_nd(r=3, affine=affine, dtype=dtype)
 
 
 def create_file_basename(
@@ -682,16 +696,24 @@ def create_file_basename(
     """
     Utility function to create the path to the output file based on the input
     filename (file name extension is not added by this function).
-    When `data_root_dir` is not specified, the output file name is:
+    When ``data_root_dir`` is not specified, the output file name is:
 
         `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix][_patch_index]`
 
-    otherwise the relative path with respect to `data_root_dir` will be inserted, for example:
-    input_file_name: /foo/bar/test1/image.png,
-    postfix: seg
-    folder_path: /output,
-    data_root_dir: /foo/bar,
-    output will be: /output/test1/image/image_seg
+    otherwise the relative path with respect to ``data_root_dir`` will be inserted, for example:
+
+    .. code-block:: python
+
+        from monai.data import create_file_basename
+
+        create_file_basename(
+            postfix="seg",
+            input_file_name="/foo/bar/test1/image.png",
+            folder_path="/output",
+            data_root_dir="/foo/bar",
+            separate_folder=True,
+            makedirs=False)
+        # output: /output/test1/image/image_seg
 
     Args:
         postfix: output name's postfix
@@ -730,7 +752,7 @@ def create_file_basename(
         os.makedirs(output, exist_ok=True)
 
     # add the sub-folder plus the postfix name to become the file basename in the output path
-    output = os.path.join(output, (filename + "_" + postfix) if len(postfix) > 0 else filename)
+    output = os.path.join(output, filename + "_" + postfix if postfix != "" else filename)
 
     if patch_index is not None:
         output += f"_{patch_index}"

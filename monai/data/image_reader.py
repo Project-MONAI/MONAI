@@ -18,11 +18,9 @@ import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import DtypeLike, KeysCollection, PathLike
-from monai.data.utils import correct_nifti_header_if_necessary
+from monai.data.utils import correct_nifti_header_if_necessary, is_supported_format
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
-
-from .utils import is_supported_format
 
 if TYPE_CHECKING:
     import itk  # type: ignore

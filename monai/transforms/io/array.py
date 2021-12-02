@@ -24,9 +24,8 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, PathLike
+from monai.data import image_writer
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
-from monai.data.nifti_saver import NiftiSaver
-from monai.data.png_saver import PNGSaver
 from monai.transforms.transform import Transform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
@@ -112,7 +111,7 @@ class LoadImage(Transform):
               or a tuple of two elements containing the data array, and the meta data in a dictionary format otherwise.
             - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
               readers. This might introduce overheads when handling the exceptions of trying the incompatible loaders.
-              In this case, it is therefore recommended to set the most appropriate reader as
+              In this case, it is therefore recommended setting the most appropriate reader as
               the last item of the `reader` parameter.
 
         """
@@ -231,8 +230,8 @@ class SaveImage(Transform):
     It can work for both numpy array and PyTorch Tensor in both preprocessing transform
     chain and postprocessing transform chain.
     The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
-    where the input image name is extracted from the provided meta data dictionary.
-    If no meta data provided, use index from 0 as the filename prefix.
+    where the input image name is extracted from the provided metadata dictionary.
+    If no metadata provided, use index from 0 as the filename prefix.
     It can also save a list of PyTorch Tensor or numpy array without `batch dim`.
 
     Note: image should be channel-first shape: [C,H,W,[D]].
@@ -289,7 +288,10 @@ class SaveImage(Transform):
             `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
             `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
         print_log: whether to print log about the saved file path, etc. default to `True`.
-
+        output_format: an optional string to specify the output image writer.
+            see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
+        writer: a customised image writer to save data arrays.
+            if None, use the default writer from `monai.data.image_writer` according to `output_ext`.
     """
 
     def __init__(
@@ -297,47 +299,42 @@ class SaveImage(Transform):
         output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
+        output_dtype: DtypeLike = np.float32,
         resample: bool = True,
         mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
-        output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
         data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
+        output_format: Optional[str] = None,
+        writer: Optional[image_writer.ImageWriter] = None,
     ) -> None:
-        self.saver: Union[NiftiSaver, PNGSaver]
-        if output_ext in {".nii.gz", ".nii"}:
-            self.saver = NiftiSaver(
-                output_dir=output_dir,
-                output_postfix=output_postfix,
-                output_ext=output_ext,
-                resample=resample,
-                mode=GridSampleMode(mode),
-                padding_mode=padding_mode,
-                dtype=dtype,
-                output_dtype=output_dtype,
-                squeeze_end_dims=squeeze_end_dims,
-                data_root_dir=data_root_dir,
-                separate_folder=separate_folder,
-                print_log=print_log,
-            )
-        elif output_ext == ".png":
-            self.saver = PNGSaver(
-                output_dir=output_dir,
-                output_postfix=output_postfix,
-                output_ext=output_ext,
-                resample=resample,
-                mode=InterpolateMode(mode),
-                scale=scale,
-                data_root_dir=data_root_dir,
-                separate_folder=separate_folder,
-                print_log=print_log,
-            )
-        else:
-            raise ValueError(f"unsupported output extension: {output_ext}.")
+        self.folder_layout = image_writer.FolderLayout(
+            output_dir=output_dir,
+            postfix=output_postfix,
+            extension=output_ext,
+            parent=separate_folder,
+            makedirs=True,
+            data_root_dir=data_root_dir,
+        )
+
+        self.output_ext = output_ext
+        self.writers = image_writer.resolve_writer(output_format or self.output_ext) if writer is None else (writer,)
+        self.resample = resample
+        self.output_dtype = output_dtype
+        if self.output_ext.lower() == ".png" and self.output_dtype not in (np.uint8, np.uint16):
+            self.output_dtype = np.uint8
+        if self.output_ext.lower() == ".dcm" and self.output_dtype not in (np.uint8, np.uint16):
+            self.output_dtype = np.uint8
+        self.scale = scale
+        self.squeeze_end_dims = squeeze_end_dims
+        self.print_log = print_log
+        self.resample_dict = {"mode": mode, "padding_mode": padding_mode, "dtype": dtype}
+
+        self._data_index = 0
 
     def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
         """
@@ -346,6 +343,29 @@ class SaveImage(Transform):
             meta_data: key-value pairs of meta_data corresponding to the data.
 
         """
-        self.saver.save(img, meta_data)
+        subject = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
+        patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
+        filename = self.folder_layout.filename(subject=f"{subject}", idx=patch_index)
 
-        return img
+        for writer_cls in self.writers:
+            try:
+                (
+                    writer_cls(output_dtype=self.output_dtype, scale=self.scale)
+                    .set_data_array(img, channel_dim=0, squeeze_end_dims=self.squeeze_end_dims)
+                    .set_metadata(meta_dict=meta_data, resample=self.resample, **self.resample_dict)
+                    .write(filename, verbose=self.print_log)
+                )
+            except Exception as e:
+                logging.getLogger(self.__class__.__name__).exception(e, exc_info=True)
+                logging.getLogger(self.__class__.__name__).info(
+                    f"{writer_cls.__class__.__name__}: unable to load {filename}."
+                )
+            else:
+                self._data_index += 1
+                return img
+        raise RuntimeError(
+            f"cannot find a suitable writer for {filename}.\n"
+            "    Please install the reader libraries, see also the installation instructions:\n"
+            "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
+            f"   The current registered: {self.writers}.\n"
+        )

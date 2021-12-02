@@ -34,11 +34,17 @@ from .decathlon_datalist import (
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
+from .image_writer import (
+    SUPPORTED_WRITERS,
+    FolderLayout,
+    ImageWriter,
+    ITKWriter,
+    NibabelWriter,
+    PILWriter,
+    register_writer,
+    resolve_writer,
+)
 from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
-from .nifti_saver import NiftiSaver
-from .nifti_writer import write_nifti
-from .png_saver import PNGSaver
-from .png_writer import write_png
 from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
 from .test_time_augmentation import TestTimeAugmentation
@@ -52,6 +58,7 @@ from .utils import (
     create_file_basename,
     decollate_batch,
     dense_patch_slices,
+    ensure_mat44,
     get_random_patch,
     get_valid_patch_size,
     is_supported_format,
