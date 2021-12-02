@@ -12,10 +12,6 @@
 import torch
 import torch.nn as nn
 
-from monai.utils import optional_import
-
-einops, _ = optional_import("einops")
-
 
 class SABlock(nn.Module):
     """
@@ -49,11 +45,15 @@ class SABlock(nn.Module):
         self.scale = self.head_dim ** -0.5
 
     def forward(self, x):
-        q, k, v = einops.rearrange(self.qkv(x), "b h (qkv l d) -> qkv b l h d", qkv=3, l=self.num_heads)
+        b, h, in_feats = x.shape
+        l = self.num_heads
+        d = in_feats // l
+        x = self.qkv(x).reshape([b, h, 3, l, d]).permute(2, 0, 3, 1, 4)
+        q, k, v = x[0], x[1], x[2]
         att_mat = (torch.einsum("blxd,blyd->blxy", q, k) * self.scale).softmax(dim=-1)
         att_mat = self.drop_weights(att_mat)
         x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
-        x = einops.rearrange(x, "b h l d -> b l (h d)")
+        x = x.permute([0, 2, 1, 3]).reshape([b, h, l * d])
         x = self.out_proj(x)
         x = self.drop_output(x)
         return x

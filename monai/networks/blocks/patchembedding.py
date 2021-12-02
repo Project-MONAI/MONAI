@@ -18,10 +18,9 @@ import torch
 import torch.nn as nn
 
 from monai.networks.layers import Conv
-from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option
 
-Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 SUPPORTED_EMBEDDING_TYPES = {"conv", "perceptron"}
 
 
@@ -70,7 +69,11 @@ class PatchEmbeddingBlock(nn.Module):
         if hidden_size % num_heads != 0:
             raise ValueError("hidden size should be divisible by num_heads.")
 
+        if spatial_dims not in [2, 3]:
+            raise ValueError("spatial_dims should be 2 or 3.")
+
         self.pos_embed = look_up_option(pos_embed, SUPPORTED_EMBEDDING_TYPES)
+        self.permute_dims = get_permute_dims(spatial_dims)
 
         img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_size = ensure_tuple_rep(patch_size, spatial_dims)
@@ -79,23 +82,19 @@ class PatchEmbeddingBlock(nn.Module):
                 raise ValueError("patch_size should be smaller than img_size.")
             if self.pos_embed == "perceptron" and m % p != 0:
                 raise ValueError("patch_size should be divisible by img_size for perceptron.")
-        self.n_patches = np.prod([im_d // p_d for im_d, p_d in zip(img_size, patch_size)])
-        self.patch_dim = in_channels * np.prod(patch_size)
+
+        img_by_patch = [im_d // p_d for im_d, p_d in zip(img_size, patch_size)]
+        self.n_patches = int(np.prod(img_by_patch))
+        self.patch_dim = int(in_channels * np.prod(patch_size))
+        self.reshape_spatial_dims = [x for z in zip(img_by_patch, patch_size) for x in z]
 
         self.patch_embeddings: nn.Module
         if self.pos_embed == "conv":
             self.patch_embeddings = Conv[Conv.CONV, spatial_dims](
                 in_channels=in_channels, out_channels=hidden_size, kernel_size=patch_size, stride=patch_size
             )
-        elif self.pos_embed == "perceptron":
-            # for 3d: "b c (h p1) (w p2) (d p3)-> b (h w d) (p1 p2 p3 c)"
-            chars = (("h", "p1"), ("w", "p2"), ("d", "p3"))[:spatial_dims]
-            from_chars = "b c " + " ".join(f"({k} {v})" for k, v in chars)
-            to_chars = f"b ({' '.join([c[0] for c in chars])}) ({' '.join([c[1] for c in chars])} c)"
-            axes_len = {f"p{i+1}": p for i, p in enumerate(patch_size)}
-            self.patch_embeddings = nn.Sequential(
-                Rearrange(f"{from_chars} -> {to_chars}", **axes_len), nn.Linear(self.patch_dim, hidden_size)
-            )
+        else:
+            self.patch_embeddings = nn.Linear(self.patch_dim, hidden_size)
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
         self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
         self.dropout = nn.Dropout(dropout_rate)
@@ -127,10 +126,26 @@ class PatchEmbeddingBlock(nn.Module):
             tensor.clamp_(min=a, max=b)
             return tensor
 
+    def _rearrange_input(self, x):
+        b, c = x.shape[:2]
+        reshape_size = [b, c] + self.reshape_spatial_dims
+        x = x.reshape(reshape_size)
+        x = x.permute(self.permute_dims)
+        return x.reshape([b, self.n_patches, self.patch_dim])
+
     def forward(self, x):
+        if self.pos_embed == "perceptron":
+            x = self._rearrange_input(x)
         x = self.patch_embeddings(x)
         if self.pos_embed == "conv":
             x = x.flatten(2).transpose(-1, -2)
         embeddings = x + self.position_embeddings
         embeddings = self.dropout(embeddings)
         return embeddings
+
+
+def get_permute_dims(spatial_dims: int):
+    if spatial_dims == 2:
+        return (0, 2, 4, 3, 5, 1)
+    else:  # spatial_dims == 3
+        return (0, 2, 4, 6, 3, 5, 7, 1)

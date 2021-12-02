@@ -72,7 +72,6 @@ def get_optional_config_values():
     output["lmdb"] = get_package_version("lmdb")
     output["psutil"] = psutil_version
     output["pandas"] = get_package_version("pandas")
-    output["einops"] = get_package_version("einops")
     output["transformers"] = get_package_version("transformers")
     output["mlflow"] = get_package_version("mlflow")
 

@@ -10,16 +10,12 @@
 # limitations under the License.
 
 import unittest
-from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
-from monai.utils import optional_import
-
-einops, has_einops = optional_import("einops")
 
 TEST_CASE_PATCHEMBEDDINGBLOCK = []
 for dropout_rate in (0.5,):
@@ -51,7 +47,6 @@ for dropout_rate in (0.5,):
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_PATCHEMBEDDINGBLOCK)
-    @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
         net = PatchEmbeddingBlock(**input_param)
         with eval_mode(net):

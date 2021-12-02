@@ -37,7 +37,6 @@ imagecodecs; platform_system == "Linux"
 tifffile; platform_system == "Linux"
 pandas
 requests
-einops
 transformers
 mlflow
 matplotlib!=3.5.0

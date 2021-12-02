@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import unittest
-from unittest import skipUnless
 
 import numpy as np
 import torch
@@ -18,9 +17,6 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
-from monai.utils import optional_import
-
-einops, has_einops = optional_import("einops")
 
 TEST_CASE_SABLOCK = []
 for dropout_rate in np.linspace(0, 1, 4):
@@ -37,7 +33,6 @@ for dropout_rate in np.linspace(0, 1, 4):
 
 class TestResBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SABLOCK)
-    @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SABlock(**input_param)
         with eval_mode(net):
