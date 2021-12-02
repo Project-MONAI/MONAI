@@ -460,13 +460,14 @@ class ITKWriter(ImageWriter):
         super().__init__(output_dtype=output_dtype, affine=None, channel_dim=0, **kwargs)
 
     def set_data_array(self, data_array, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs):
-        self.data_obj = type(self).convert_to_channel_last(
+        self.data_obj = self.convert_to_channel_last(
             data=data_array,
             channel_dim=channel_dim,
             squeeze_end_dims=squeeze_end_dims,
             spatial_ndim=kwargs.pop("spatial_ndim", 3),
             contiguous=kwargs.pop("contiguous", True),
         )
+        self.channel_dim = channel_dim
         return self
 
     def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
@@ -517,8 +518,7 @@ class ITKWriter(ImageWriter):
         # convert affine to LPS
         if affine is None:
             affine = np.eye(d + 1, dtype=np.float64)
-        _affine: np.ndarray
-        _affine = convert_data_type(affine, np.ndarray)[0]  # type: ignore
+        _affine: np.ndarray = convert_data_type(affine, np.ndarray)[0]  # type: ignore
         _affine = cls.ras_to_lps(to_affine_nd(d, _affine))
         spacing = np.sqrt(np.sum(np.square(_affine[:d, :d]), 0))
         spacing[spacing == 0] = 1.0
@@ -558,7 +558,7 @@ class NibabelWriter(ImageWriter):
     def set_data_array(
         self, data_array: NdarrayOrTensor, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs
     ):
-        self.data_obj = type(self).convert_to_channel_last(
+        self.data_obj = self.convert_to_channel_last(
             data=data_array,
             channel_dim=channel_dim,
             squeeze_end_dims=squeeze_end_dims,
@@ -671,8 +671,7 @@ class PILWriter(ImageWriter):
         This method assumes the 'channel-last' format
         """
 
-        data: np.ndarray
-        data, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
+        data: np.ndarray = convert_data_type(data_array, np.ndarray)[0]  # type: ignore
         if output_spatial_shape is not None:
             output_spatial_shape_ = ensure_tuple_rep(output_spatial_shape, 2)
             mode = look_up_option(mode, InterpolateMode)
@@ -699,8 +698,7 @@ class PILWriter(ImageWriter):
         reverse_indexing: bool = True,
         **kwargs,
     ):
-        data: np.ndarray
-        data = super().create_backend_obj(data_array)
+        data: np.ndarray = super().create_backend_obj(data_array)
         if scale:
             # scale the data to be in an integer range
             data = np.clip(data, 0.0, 1.0)  # type: ignore # png writer only can scale data in range [0, 1]
