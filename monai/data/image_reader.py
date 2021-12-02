@@ -768,10 +768,8 @@ class WSIReader(ImageReader):
         # Verify inputs
         if level is None:
             level = self._check_level(img, level)
-        if size is None:
-            size = self._get_image_size(img, size, level, location)
 
-        # Extract patch (or the whole image)
+        # Extract a region or the entire image
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
         # Add necessary metadata
@@ -810,49 +808,57 @@ class WSIReader(ImageReader):
         return level
 
     def _get_image_size(self, img, size, level, location):
+        """
+        Calculate the maximum region size for the given level and starting location (if size is None).
+        Note that region size in OpenSlide and cuCIM are WxH (but the final image output would be HxW)
+        """
+        if size is not None:
+            return size[::-1]
+
         max_size = []
         downsampling_factor = []
         if self.backend == "openslide":
             downsampling_factor = img.level_downsamples[level]
-            max_size = img.level_dimensions[level][::-1]
+            max_size = img.level_dimensions[level]
         elif self.backend == "cucim":
             downsampling_factor = img.resolutions["level_downsamples"][level]
-            max_size = img.resolutions["level_dimensions"][level][::-1]
-        elif self.backend == "tifffile":
-            level0_size = img.pages[0].shape[:2]
-            max_size = img.pages[level].shape[:2]
-            downsampling_factor = np.mean([level0_size[i] / max_size[i] for i in range(len(max_size))])
+            max_size = img.resolutions["level_dimensions"][level]
 
-        # subtract the top left corner of the patch from maximum size
-        level_location = [round(location[i] / downsampling_factor) for i in range(len(location))]
-        size = [max_size[i] - level_location[i] for i in range(len(max_size))]
+        # subtract the top left corner of the patch (at given level) from maximum size
+        location_at_level = (round(location[1] / downsampling_factor), round(location[0] / downsampling_factor))
+        size = [max_size[i] - location_at_level[i] for i in range(len(max_size))]
 
         return size
 
     def _extract_region(
         self,
         img_obj,
-        size: Tuple[int, int],
+        size: Optional[Tuple[int, int]],
         location: Tuple[int, int] = (0, 0),
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
         if self.backend == "tifffile":
-            # with img_obj:
-            region = img_obj.asarray(level=level)
-            if level != 0:
-                level0_size = img_obj.pages[0].shape[:2]
-                max_size = img_obj.pages[level].shape[:2]
-                location = (
-                    int(location[0] / level0_size[0] * max_size[0]),
-                    int(location[1] / level0_size[1] * max_size[1]),
+            # Read the entire image
+            if size is not None:
+                raise ValueError(
+                    f"TiffFile backend reads the entire image only, so size '{size}'' should not be provided!",
+                    "For more flexibility or extracting regions, please use cuCIM or OpenSlide backend.",
                 )
-            region = region[location[0] : location[0] + size[0], location[1] : location[1] + size[1]]
+            if location != (0, 0):
+                raise ValueError(
+                    f"TiffFile backend reads the entire image only, so location '{location}' should not be provided!",
+                    "For more flexibility and extracting regions, please use cuCIM or OpenSlide backend.",
+                )
+            region = img_obj.asarray(level=level)
         else:
+            # Extract a region (or the entire image)
+            if size is None:
+                region_size = self._get_image_size(img_obj, size, level, location)
+            else:
+                region_size = size[::-1]
             # reverse the order of dimensions for size and location to become WxH
-            location = location[::-1]
-            size = size[::-1]
-            region = img_obj.read_region(location=location, size=size, level=level)
+            region = img_obj.read_region(location=location[::-1], size=region_size, level=level)
 
         region = self.convert_to_rgb_array(region, dtype)
         return region

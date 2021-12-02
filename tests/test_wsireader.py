@@ -119,26 +119,31 @@ class WSIReaderTests:
 
         @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_5])
         def test_read_region(self, file_path, patch_info, expected_img):
-            # Due to CPU memory limitation ignore tifffile at level 0.
-            if self.backend == "tifffile" and patch_info["level"] == 0:
-                return
             reader = WSIReader(self.backend)
-            # Read twice to check multiple calls
             with reader.read(file_path) as img_obj:
-                img = reader.get_data(img_obj, **patch_info)[0]
-                img2 = reader.get_data(img_obj, **patch_info)[0]
-            self.assertTupleEqual(img.shape, img2.shape)
-            self.assertIsNone(assert_array_equal(img, img2))
-            self.assertTupleEqual(img.shape, expected_img.shape)
-            self.assertIsNone(assert_array_equal(img, expected_img))
+                if self.backend == "tifffile":
+                    with self.assertRaises(ValueError):
+                        reader.get_data(img_obj, **patch_info)[0]
+                else:
+                    # Read twice to check multiple calls
+                    img = reader.get_data(img_obj, **patch_info)[0]
+                    img2 = reader.get_data(img_obj, **patch_info)[0]
+                    self.assertTupleEqual(img.shape, img2.shape)
+                    self.assertIsNone(assert_array_equal(img, img2))
+                    self.assertTupleEqual(img.shape, expected_img.shape)
+                    self.assertIsNone(assert_array_equal(img, expected_img))
 
         @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
         def test_read_patches(self, file_path, patch_info, expected_img):
             reader = WSIReader(self.backend)
             with reader.read(file_path) as img_obj:
-                img = reader.get_data(img_obj, **patch_info)[0]
-            self.assertTupleEqual(img.shape, expected_img.shape)
-            self.assertIsNone(assert_array_equal(img, expected_img))
+                if self.backend == "tifffile":
+                    with self.assertRaises(ValueError):
+                        reader.get_data(img_obj, **patch_info)[0]
+                else:
+                    img = reader.get_data(img_obj, **patch_info)[0]
+                    self.assertTupleEqual(img.shape, expected_img.shape)
+                    self.assertIsNone(assert_array_equal(img, expected_img))
 
         @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
         @skipUnless(has_tiff, "Requires tifffile.")
