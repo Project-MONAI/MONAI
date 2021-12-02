@@ -175,7 +175,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
     def _write_scalar(self, engine: Engine, writer: SummaryWriter, tag: str, value: Any, step: int) -> None:
         """
-        Write scale values into TensorBoard.
+        Write scale value into TensorBoard.
         Default to call `SummaryWriter.add_scalar()`, subclass can override it for more complicated logic.
 
         Args:
