@@ -28,6 +28,8 @@ cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
 _, has_osl = optional_import("openslide")
 imsave, has_tiff = optional_import("tifffile", name="imsave")
+_, has_codec = optional_import("imagecodecs")
+has_tiff = has_tiff and has_codec
 
 FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
 base_name, extension = FILE_URL.split("id=")[1], ".tiff"
@@ -69,6 +71,13 @@ TEST_CASE_4 = [
     np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
 ]
 
+TEST_CASE_5 = [
+    FILE_PATH,
+    {"location": (HEIGHT - 2, WIDTH - 2), "level": 0, "grid_shape": (1, 1)},
+    np.array([[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[237, 237], [237, 237]]]),
+]
+
+
 TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
 TEST_CASE_RGB_1 = [np.ones((3, 100, 100), dtype=np.uint8)]  # CHW
@@ -92,7 +101,7 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
     return filename
 
 
-@skipUnless(has_cucim or has_osl, "Requires cucim or openslide!")
+@skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
 def setUpModule():  # noqa: N802
     download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
@@ -104,25 +113,30 @@ class WSIReaderTests:
         @parameterized.expand([TEST_CASE_0])
         def test_read_whole_image(self, file_path, level, expected_shape):
             reader = WSIReader(self.backend, level=level)
-            img_obj = reader.read(file_path)
-            img = reader.get_data(img_obj)[0]
+            with reader.read(file_path) as img_obj:
+                img = reader.get_data(img_obj)[0]
             self.assertTupleEqual(img.shape, expected_shape)
 
-        @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+        @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_5])
         def test_read_region(self, file_path, patch_info, expected_img):
+            # Due to CPU memory limitation ignore tifffile at level 0.
+            if self.backend == "tifffile" and patch_info["level"] == 0:
+                return
             reader = WSIReader(self.backend)
-            img_obj = reader.read(file_path)
             # Read twice to check multiple calls
-            img = reader.get_data(img_obj, **patch_info)[0]
-            img = reader.get_data(img_obj, **patch_info)[0]
+            with reader.read(file_path) as img_obj:
+                img = reader.get_data(img_obj, **patch_info)[0]
+                img2 = reader.get_data(img_obj, **patch_info)[0]
+            self.assertTupleEqual(img.shape, img2.shape)
+            self.assertIsNone(assert_array_equal(img, img2))
             self.assertTupleEqual(img.shape, expected_img.shape)
             self.assertIsNone(assert_array_equal(img, expected_img))
 
         @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
         def test_read_patches(self, file_path, patch_info, expected_img):
             reader = WSIReader(self.backend)
-            img_obj = reader.read(file_path)
-            img = reader.get_data(img_obj, **patch_info)[0]
+            with reader.read(file_path) as img_obj:
+                img = reader.get_data(img_obj, **patch_info)[0]
             self.assertTupleEqual(img.shape, expected_img.shape)
             self.assertIsNone(assert_array_equal(img, expected_img))
 
@@ -140,8 +154,8 @@ class WSIReaderTests:
                     os.path.join(os.path.dirname(__file__), "testing_data", f"temp_tiff_image_{mode}.tiff"),
                     mode=mode,
                 )
-                img_obj = reader.read(file_path)
-                image[mode], _ = reader.get_data(img_obj)
+                with reader.read(file_path) as img_obj:
+                    image[mode], _ = reader.get_data(img_obj)
 
             self.assertIsNone(assert_array_equal(image["RGB"], img_expected))
             self.assertIsNone(assert_array_equal(image["RGBA"], img_expected))
@@ -149,7 +163,10 @@ class WSIReaderTests:
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(self, file_path, level, expected_spatial_shape, expected_shape):
             train_transform = Compose(
-                [LoadImaged(keys=["image"], reader=WSIReader, backend="cuCIM", level=level), ToTensord(keys=["image"])]
+                [
+                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    ToTensord(keys=["image"]),
+                ]
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)

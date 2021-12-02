@@ -681,14 +681,14 @@ class WSIReader(ImageReader):
     Read whole slide images and extract patches.
 
     Args:
-        backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "Tifffile".
+        backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "TiffFile".
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
 
     Note:
-        While "cucim" and "OpenSlide" backends both can load patches from large whole slide images
-        without loading the entire image into memory, "Tifffile" backend needs to load the entire image into memory
-        before extracting any patch; thus, memory consideration is needed when using "Tifffile" backend for
+        While "cuCIM" and "OpenSlide" backends both can load patches from large whole slide images
+        without loading the entire image into memory, "TiffFile" backend needs to load the entire image into memory
+        before extracting any patch; thus, memory consideration is needed when using "TiffFile" backend for
         patch extraction.
     """
 
@@ -765,19 +765,24 @@ class WSIReader(ImageReader):
             grid_shape: (row, columns) tuple define a grid to extract patches on that
             patch_size: (height, width) the size of extracted patches at the given level
         """
+        # Verify inputs
         if level is None:
-            level = self.level
+            level = self._check_level(img, level)
+        if size is None:
+            size = self._get_image_size(img, size, level, location)
 
-        if self.backend == "openslide" and size is None:
-            # the maximum size is set to WxH at the specified level
-            size = (img.shape[0] // (2 ** level) - location[0], img.shape[1] // (2 ** level) - location[1])
-
+        # Extract patch (or the whole image)
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
+        # Add necessary metadata
         metadata: Dict = {}
         metadata["spatial_shape"] = np.asarray(region.shape[:-1])
         metadata["original_channel_dim"] = -1
+
+        # Make it channel first
         region = EnsureChannelFirst()(region, metadata)
+
+        # Split into patches
         if patch_size is None:
             patches = region
         else:
@@ -788,30 +793,66 @@ class WSIReader(ImageReader):
 
         return patches, metadata
 
+    def _check_level(self, img, level):
+        level = self.level
+
+        level_count = 0
+        if self.backend == "openslide":
+            level_count = img.level_count
+        elif self.backend == "cucim":
+            level_count = img.resolutions["level_count"]
+        elif self.backend == "tifffile":
+            level_count = len(img.pages)
+
+        if level > level_count - 1:
+            raise ValueError(f"The maximum level of this image is {level_count - 1} while level={level} is requested)!")
+
+        return level
+
+    def _get_image_size(self, img, size, level, location):
+        max_size = []
+        downsampling_factor = []
+        if self.backend == "openslide":
+            downsampling_factor = img.level_downsamples[level]
+            max_size = img.level_dimensions[level][::-1]
+        elif self.backend == "cucim":
+            downsampling_factor = img.resolutions["level_downsamples"][level]
+            max_size = img.resolutions["level_dimensions"][level][::-1]
+        elif self.backend == "tifffile":
+            level0_size = img.pages[0].shape[:2]
+            max_size = img.pages[level].shape[:2]
+            downsampling_factor = np.mean([level0_size[i] / max_size[i] for i in range(len(max_size))])
+
+        # subtract the top left corner of the patch from maximum size
+        level_location = [round(location[i] / downsampling_factor) for i in range(len(location))]
+        size = [max_size[i] - level_location[i] for i in range(len(max_size))]
+
+        return size
+
     def _extract_region(
         self,
         img_obj,
-        size: Optional[Tuple[int, int]],
+        size: Tuple[int, int],
         location: Tuple[int, int] = (0, 0),
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
         if self.backend == "tifffile":
-            with img_obj:
-                region = img_obj.asarray(level=level)
-            if size is None:
-                region = region[location[0] :, location[1] :]
-            else:
-                region = region[location[0] : location[0] + size[0], location[1] : location[1] + size[1]]
-
+            # with img_obj:
+            region = img_obj.asarray(level=level)
+            if level != 0:
+                level0_size = img_obj.pages[0].shape[:2]
+                max_size = img_obj.pages[level].shape[:2]
+                location = (
+                    int(location[0] / level0_size[0] * max_size[0]),
+                    int(location[1] / level0_size[1] * max_size[1]),
+                )
+            region = region[location[0] : location[0] + size[0], location[1] : location[1] + size[1]]
         else:
-            # reverse the order of dimensions for size and location to be compatible with image shape
+            # reverse the order of dimensions for size and location to become WxH
             location = location[::-1]
-            if size is None:
-                region = img_obj.read_region(location=location, level=level)
-            else:
-                size = size[::-1]
-                region = img_obj.read_region(location=location, size=size, level=level)
+            size = size[::-1]
+            region = img_obj.read_region(location=location, size=size, level=level)
 
         region = self.convert_to_rgb_array(region, dtype)
         return region
@@ -824,6 +865,7 @@ class WSIReader(ImageReader):
 
         # convert to numpy (if not already in numpy)
         raw_region = np.asarray(raw_region, dtype=dtype)
+
         # remove alpha channel if exist (RGBA)
         if raw_region.shape[-1] > 3:
             raw_region = raw_region[..., :3]
