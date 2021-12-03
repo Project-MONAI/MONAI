@@ -36,13 +36,11 @@ from monai.utils import MAX_SEED, ensure_tuple, get_seed, look_up_option, min_ve
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
-    from pandas import DataFrame
     from tqdm import tqdm
 
     has_tqdm = True
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
-    DataFrame, _ = optional_import("pandas", name="DataFrame")
 
 lmdb, _ = optional_import("lmdb")
 pd, _ = optional_import("pandas")
@@ -1257,7 +1255,7 @@ class CSVDataset(Dataset):
     def __init__(
         self,
         filename: Optional[Union[str, Sequence[str]]] = None,
-        dataframe: Optional[Union[DataFrame, Sequence[DataFrame]]] = None,
+        dataframe=None,
         row_indices: Optional[Sequence[Union[int, str]]] = None,
         col_names: Optional[Sequence[str]] = None,
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
