@@ -173,6 +173,21 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         else:
             self._default_iteration_writer(engine, self._writer)
 
+    def _write_scalar(self, _engine: Engine, writer: SummaryWriter, tag: str, value: Any, step: int) -> None:
+        """
+        Write scale value into TensorBoard.
+        Default to call `SummaryWriter.add_scalar()`.
+
+        Args:
+            _engine: Ignite Engine, unused argument.
+            writer: TensorBoard or TensorBoardX writer, passed or created in TensorBoardHandler.
+            tag: tag name in the TensorBoard.
+            value: value of the scalar data for current step.
+            step: index of current step.
+
+        """
+        writer.add_scalar(tag, value, step)
+
     def _default_epoch_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
         Execute epoch level event write operation.
@@ -188,11 +203,11 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         summary_dict = engine.state.metrics
         for name, value in summary_dict.items():
             if is_scalar(value):
-                writer.add_scalar(name, value, current_epoch)
+                self._write_scalar(engine, writer, name, value, current_epoch)
 
         if self.state_attributes is not None:
             for attr in self.state_attributes:
-                writer.add_scalar(attr, getattr(engine.state, attr, None), current_epoch)
+                self._write_scalar(engine, writer, attr, getattr(engine.state, attr, None), current_epoch)
         writer.flush()
 
     def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter) -> None:
@@ -221,12 +236,20 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                         " {}:{}".format(name, type(value))
                     )
                     continue  # not plot multi dimensional output
-                writer.add_scalar(
-                    name, value.item() if isinstance(value, torch.Tensor) else value, engine.state.iteration
+                self._write_scalar(
+                    _engine=engine,
+                    writer=writer,
+                    tag=name,
+                    value=value.item() if isinstance(value, torch.Tensor) else value,
+                    step=engine.state.iteration,
                 )
         elif is_scalar(loss):  # not printing multi dimensional output
-            writer.add_scalar(
-                self.tag_name, loss.item() if isinstance(loss, torch.Tensor) else loss, engine.state.iteration
+            self._write_scalar(
+                _engine=engine,
+                writer=writer,
+                tag=self.tag_name,
+                value=loss.item() if isinstance(loss, torch.Tensor) else loss,
+                step=engine.state.iteration,
             )
         else:
             warnings.warn(
