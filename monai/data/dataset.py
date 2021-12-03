@@ -1224,7 +1224,7 @@ class CSVDataset(Dataset):
     Args:
         filename: the filename of expected CSV file to load. if providing a list
             of filenames, it will load all the files and join tables.
-        dataframes: if proving `dataframe` directly, skip loading from filename.
+        dataframe: if proving `dataframe` directly, skip loading from filename.
         row_indices: indices of the expected rows to load. it should be a list,
             every item can be a int number or a range `[start, end)` for the indices.
             for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
@@ -1255,7 +1255,7 @@ class CSVDataset(Dataset):
     def __init__(
         self,
         filename: Optional[Union[str, Sequence[str]]] = None,
-        dataframe=None,
+        dataframe=None,  # if not None, should be `pandas.DataFrame` or sequense of `pandas.DataFrame`
         row_indices: Optional[Sequence[Union[int, str]]] = None,
         col_names: Optional[Sequence[str]] = None,
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
