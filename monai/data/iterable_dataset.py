@@ -149,6 +149,7 @@ class CSVIterableDataset(IterableDataset):
     Args:
         filename: the filename of CSV file to load. it can be a str, URL, path object or file-like object.
             if providing a list of filenames, it will load all the files and join tables.
+        iter: if proving `iter` for stream input directly, skip loading from filename.
         chunksize: rows of a chunk when loading iterable data from CSV files, default to 1000. more details:
             https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html.
         buffer_size: size of the buffer to store the loaded chunks, if None, set to `2 x chunksize`.
@@ -181,7 +182,8 @@ class CSVIterableDataset(IterableDataset):
 
     def __init__(
         self,
-        filename: Union[str, Sequence[str]],
+        filename: Optional[Union[str, Sequence[str]]] = None,
+        iter: Optional[Union[Iterable, Sequence[Iterable]]] = None,
         chunksize: int = 1000,
         buffer_size: Optional[int] = None,
         col_names: Optional[Sequence[str]] = None,
@@ -192,7 +194,9 @@ class CSVIterableDataset(IterableDataset):
         seed: int = 0,
         **kwargs,
     ):
-        self.files = ensure_tuple(filename)
+        self.filename = filename
+        self.iter = iter
+        self.iters = self.reset(filename=filename, iter=iter)
         self.chunksize = chunksize
         self.buffer_size = 2 * chunksize if buffer_size is None else buffer_size
         self.col_names = col_names
@@ -201,14 +205,18 @@ class CSVIterableDataset(IterableDataset):
         self.shuffle = shuffle
         self.seed = seed
         self.kwargs = kwargs
-        self.iters = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore
 
-    def reset(self, filename: Optional[Union[str, Sequence[str]]] = None):
-        if filename is not None:
-            # update files if necessary
-            self.files = ensure_tuple(filename)
-        self.iters = [pd.read_csv(f, chunksize=self.chunksize) for f in self.files]
+    def reset(
+        self,
+        filename: Optional[Union[str, Sequence[str]]] = None,
+        iter: Optional[Union[Iterable, Sequence[Iterable]]] = None,
+    ):
+        files = ensure_tuple(self.filename if filename is None else filename)
+        self.iters = ensure_tuple(self.iter if iter is None else iter)
+        # if None in the iters, load from files
+        if any([i is None for i in self.iters]):
+            self.iters = [pd.read_csv(f, chunksize=self.chunksize) for f in files]
         return self.iters
 
     def _flattened(self):
