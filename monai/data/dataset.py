@@ -36,8 +36,8 @@ from monai.utils import MAX_SEED, ensure_tuple, get_seed, look_up_option, min_ve
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
-    from tqdm import tqdm
     from pandas import DataFrame
+    from tqdm import tqdm
 
     has_tqdm = True
 else:
@@ -1266,8 +1266,11 @@ class CSVDataset(Dataset):
         **kwargs,
     ):
         files = ensure_tuple(filename)
-        dataframe = ensure_tuple(dataframe)
-        dfs = [pd.read_csv(f) for f in files] if any([i is None for i in dataframe]) else dataframe
+        dfs = (dataframe,) if not isinstance(dataframe, (tuple, list)) else dataframe
+        # if None in the dataframes, load from files
+        if any([i is None for i in dfs]):
+            dfs = [pd.read_csv(f) for f in files]
+
         data = convert_tables_to_dicts(
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
