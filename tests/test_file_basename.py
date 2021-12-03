@@ -74,6 +74,11 @@ class TestFilename(unittest.TestCase):
             expected = os.path.join(output_tmp, "test", "test_post_8")
             self.assertEqual(result, expected)
 
+    def test_relative_path(self):
+        output = create_file_basename("", "test.txt", "output", "", makedirs=False)
+        expected = os.path.join("output", "test", "test")
+        self.assertEqual(output, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
