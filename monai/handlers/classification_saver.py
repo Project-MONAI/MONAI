@@ -98,7 +98,14 @@ class ClassificationSaver:
         if not engine.has_event_handler(self._finalize, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self._finalize)
 
-    def _started(self, engine: Engine) -> None:
+    def _started(self, _engine: Engine) -> None:
+        """
+        Initialize internal buffers.
+
+        Args:
+            _engine: Ignite Engine, unused argument.
+
+        """
         self._outputs = []
         self._filenames = []
 
@@ -125,7 +132,7 @@ class ClassificationSaver:
         All gather classification results from ranks and save to CSV file.
 
         Args:
-            _engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            _engine: Ignite Engine, unused argument.
         """
         ws = idist.get_world_size()
         if self.save_rank >= ws:

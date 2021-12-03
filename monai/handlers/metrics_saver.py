@@ -106,6 +106,13 @@ class MetricsSaver:
         engine.add_event_handler(Events.EPOCH_COMPLETED, self)
 
     def _started(self, _engine: Engine) -> None:
+        """
+        Initialize internal buffers.
+
+        Args:
+            _engine: Ignite Engine, unused argument.
+
+        """
         self._filenames = []
 
     def _get_filenames(self, engine: Engine) -> None:

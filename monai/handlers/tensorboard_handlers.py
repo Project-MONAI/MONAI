@@ -179,7 +179,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         Default to call `SummaryWriter.add_scalar()`.
 
         Args:
-            _engine: Ignite Engine, it can be a trainer, validator or evaluator, unused in the default logic.
+            _engine: Ignite Engine, unused argument.
             writer: TensorBoard or TensorBoardX writer, passed or created in TensorBoardHandler.
             tag: tag name in the TensorBoard.
             value: value of the scalar data for current step.
@@ -237,7 +237,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                     )
                     continue  # not plot multi dimensional output
                 self._write_scalar(
-                    engine=engine,
+                    _engine=engine,
                     writer=writer,
                     tag=name,
                     value=value.item() if isinstance(value, torch.Tensor) else value,
@@ -245,7 +245,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 )
         elif is_scalar(loss):  # not printing multi dimensional output
             self._write_scalar(
-                engine=engine,
+                _engine=engine,
                 writer=writer,
                 tag=self.tag_name,
                 value=loss.item() if isinstance(loss, torch.Tensor) else loss,
