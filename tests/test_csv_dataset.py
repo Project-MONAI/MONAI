@@ -104,7 +104,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test selected rows and columns
             dataset = CSVDataset(
-                filename=filepaths,
+                src=filepaths,
                 row_indices=[[0, 2], 3],  # load row: 0, 1, 3
                 col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"],
             )
@@ -122,7 +122,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test group columns
             dataset = CSVDataset(
-                filename=filepaths,
+                src=filepaths,
                 row_indices=[1, 3],  # load row: 1, 3
                 col_names=["subject_id", "image", *[f"ehr_{i}" for i in range(11)], "meta_0", "meta_1", "meta_2"],
                 col_groups={"ehr": [f"ehr_{i}" for i in range(11)], "meta12": ["meta_1", "meta_2"]},
@@ -135,7 +135,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test transform
             dataset = CSVDataset(
-                filename=filepaths, col_groups={"ehr": [f"ehr_{i}" for i in range(5)]}, transform=ToNumpyd(keys="ehr")
+                src=filepaths, col_groups={"ehr": [f"ehr_{i}" for i in range(5)]}, transform=ToNumpyd(keys="ehr")
             )
             self.assertEqual(len(dataset), 5)
             expected = [
@@ -151,7 +151,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test default values and dtype
             dataset = CSVDataset(
-                filename=filepaths,
+                src=filepaths,
                 col_names=["subject_id", "image", "ehr_1", "ehr_9", "meta_1"],
                 col_types={"image": {"type": str, "default": "No image"}, "ehr_1": {"type": int, "default": 0}},
                 how="outer",  # generate NaN values in this merge mode
@@ -163,7 +163,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test pre-loaded DataFrame
             df = pd.read_csv(filepath1)
-            dataset = CSVDataset(dataframe=df)
+            dataset = CSVDataset(src=df)
             self.assertDictEqual(
                 {k: round(v, 4) if not isinstance(v, str) else v for k, v in dataset[2].items()},
                 {
@@ -178,7 +178,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test pre-loaded multiple DataFrames, join tables with kwargs
             dfs = [pd.read_csv(i) for i in filepaths]
-            dataset = CSVDataset(dataframe=dfs, on="subject_id")
+            dataset = CSVDataset(src=dfs, on="subject_id")
             self.assertDictEqual(
                 {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in dataset[3].items()},
                 {

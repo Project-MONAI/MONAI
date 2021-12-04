@@ -18,7 +18,7 @@ from torch.utils.data import get_worker_info
 from monai.data.utils import convert_tables_to_dicts
 from monai.transforms import apply_transform
 from monai.transforms.transform import Randomizable
-from monai.utils import deprecated_arg, ensure_tuple, optional_import
+from monai.utils import deprecated_arg, optional_import
 
 pd, _ = optional_import("pandas")
 
@@ -147,7 +147,7 @@ class CSVIterableDataset(IterableDataset):
         ]
 
     Args:
-        src: if provided the filename of CSV file to load. it can be a str, URL, path object or file-like object.
+        src: if provided the filename of CSV file, it can be a str, URL, path object or file-like object to load.
             also support to provide iter for stream input directly, will skip loading from filename.
             if provided a list of filenames or iters, it will join the tables.
         chunksize: rows of a chunk when loading iterable data from CSV files, default to 1000. more details:
@@ -178,6 +178,9 @@ class CSVIterableDataset(IterableDataset):
             https://github.com/pytorch/pytorch/blob/v1.10.0/torch/utils/data/distributed.py#L98.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
+    .. deprecated:: 0.8.0
+        ``filename`` is deprecated, use ``src`` instead.
+
     """
 
     @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
@@ -203,14 +206,14 @@ class CSVIterableDataset(IterableDataset):
         self.shuffle = shuffle
         self.seed = seed
         self.kwargs = kwargs
-        self.iters = self.reset()
+        self.iters: List[Iterable] = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore
 
     @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def reset(self, src: Optional[Union[Union[str, Sequence[str]], Union[Iterable, Sequence[Iterable]]]] = None):
         src = self.src if src is None else src
         srcs = (src,) if not isinstance(src, (tuple, list)) else src
-        self.iters: List[Iterable] = []
+        self.iters = []
         for i in srcs:
             if isinstance(i, str):
                 self.iters.append(pd.read_csv(i, chunksize=self.chunksize))

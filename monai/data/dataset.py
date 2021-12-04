@@ -32,7 +32,7 @@ from torch.utils.data import Subset
 
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
 from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
-from monai.utils import MAX_SEED, ensure_tuple, get_seed, look_up_option, min_version, optional_import
+from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
@@ -1222,9 +1222,9 @@ class CSVDataset(Dataset):
         ]
 
     Args:
-        filename: the filename of expected CSV file to load. if providing a list
-            of filenames, it will load all the files and join tables.
-        dataframe: if proving `dataframe` directly, skip loading from filename.
+        src: if provided the filename of CSV file, it can be a str, URL, path object or file-like object to load.
+            also support to provide pandas `DataFrame` directly, will skip loading from filename.
+            if provided a list of filenames or pandas `DataFrame`, it will join the tables.
         row_indices: indices of the expected rows to load. it should be a list,
             every item can be a int number or a range `[start, end)` for the indices.
             for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
@@ -1250,12 +1250,16 @@ class CSVDataset(Dataset):
         transform: transform to apply on the loaded items of a dictionary data.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
+    .. deprecated:: 0.8.0
+        ``filename`` is deprecated, use ``src`` instead.
+
     """
 
+    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def __init__(
         self,
-        filename: Optional[Union[str, Sequence[str]]] = None,
-        dataframe=None,  # if not None, should be `pandas.DataFrame` or sequense of `pandas.DataFrame`
+        # `src` also can be `pandas.DataFrame` or sequense of `pandas.DataFrame`
+        src: Optional[Union[str, Sequence[str]]] = None,
         row_indices: Optional[Sequence[Union[int, str]]] = None,
         col_names: Optional[Sequence[str]] = None,
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
@@ -1263,11 +1267,15 @@ class CSVDataset(Dataset):
         transform: Optional[Callable] = None,
         **kwargs,
     ):
-        files = ensure_tuple(filename)
-        dfs = (dataframe,) if not isinstance(dataframe, (tuple, list)) else dataframe
-        # if None in the dataframes, load from files
-        if any([i is None for i in dfs]):
-            dfs = [pd.read_csv(f) for f in files]
+        srcs = (src,) if not isinstance(src, (tuple, list)) else src
+        dfs: List = []
+        for i in srcs:
+            if isinstance(i, str):
+                dfs.append(pd.read_csv(i))
+            elif isinstance(i, pd.DataFrame):
+                dfs.append(i)
+            else:
+                raise ValueError("`src` must be file path or pandas `DataFrame`.")
 
         data = convert_tables_to_dicts(
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs

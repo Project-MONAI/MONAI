@@ -125,10 +125,7 @@ class TestCSVIterableDataset(unittest.TestCase):
 
             # test selected columns and chunk size
             dataset = CSVIterableDataset(
-                src=filepaths,
-                chunksize=2,
-                col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"],
-                shuffle=False,
+                src=filepaths, chunksize=2, col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"], shuffle=False
             )
             count = 0
             for item in dataset:
