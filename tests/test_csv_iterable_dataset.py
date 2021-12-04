@@ -85,7 +85,7 @@ class TestCSVIterableDataset(unittest.TestCase):
             self.assertEqual(count, 3)
 
             # test reset iterables
-            dataset.reset(filename=filepath3)
+            dataset.reset(src=filepath3)
             count = 0
             for i, item in enumerate(dataset):
                 count += 1
@@ -125,7 +125,7 @@ class TestCSVIterableDataset(unittest.TestCase):
 
             # test selected columns and chunk size
             dataset = CSVIterableDataset(
-                filename=filepaths,
+                src=filepaths,
                 chunksize=2,
                 col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"],
                 shuffle=False,
@@ -148,7 +148,7 @@ class TestCSVIterableDataset(unittest.TestCase):
 
             # test group columns
             dataset = CSVIterableDataset(
-                filename=filepaths,
+                src=filepaths,
                 col_names=["subject_id", "image", *[f"ehr_{i}" for i in range(11)], "meta_0", "meta_1", "meta_2"],
                 col_groups={"ehr": [f"ehr_{i}" for i in range(11)], "meta12": ["meta_1", "meta_2"]},
                 shuffle=False,
@@ -168,7 +168,7 @@ class TestCSVIterableDataset(unittest.TestCase):
             dataset = CSVIterableDataset(
                 chunksize=2,
                 buffer_size=4,
-                filename=filepaths,
+                src=filepaths,
                 col_groups={"ehr": [f"ehr_{i}" for i in range(5)]},
                 transform=ToNumpyd(keys="ehr"),
                 shuffle=True,
@@ -205,7 +205,7 @@ class TestCSVIterableDataset(unittest.TestCase):
 
             # test iterable stream
             iters = pd.read_csv(filepath1, chunksize=1000)
-            dataset = CSVIterableDataset(iter=iters, shuffle=False)
+            dataset = CSVIterableDataset(src=iters, shuffle=False)
             count = 0
             for item in dataset:
                 count += 1
