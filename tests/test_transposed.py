@@ -21,30 +21,10 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TESTS.append(
-        [
-            p(np.arange(5 * 4).reshape(5, 4)),
-            [1, 0],
-        ]
-    )
-    TESTS.append(
-        [
-            p(np.arange(5 * 4).reshape(5, 4)),
-            None,
-        ]
-    )
-    TESTS.append(
-        [
-            p(np.arange(5 * 4 * 3).reshape(5, 4, 3)),
-            [2, 0, 1],
-        ]
-    )
-    TESTS.append(
-        [
-            p(np.arange(5 * 4 * 3).reshape(5, 4, 3)),
-            None,
-        ]
-    )
+    TESTS.append([p(np.arange(5 * 4).reshape(5, 4)), [1, 0]])
+    TESTS.append([p(np.arange(5 * 4).reshape(5, 4)), None])
+    TESTS.append([p(np.arange(5 * 4 * 3).reshape(5, 4, 3)), [2, 0, 1]])
+    TESTS.append([p(np.arange(5 * 4 * 3).reshape(5, 4, 3)), None])
 
 
 class TestTranspose(unittest.TestCase):
@@ -57,13 +37,13 @@ class TestTranspose(unittest.TestCase):
         if isinstance(im, torch.Tensor):
             im = im.cpu().numpy()
         out_gt = np.transpose(im, indices)
-        assert_allclose(out_im1, out_gt)
-        assert_allclose(out_im2, out_gt)
+        assert_allclose(out_im1, out_gt, type_test=False)
+        assert_allclose(out_im2, out_gt, type_test=False)
 
         # test inverse
         fwd_inv_data = tr.inverse(out_data)
         for i, j in zip(data.values(), fwd_inv_data.values()):
-            assert_allclose(i, j)
+            assert_allclose(i, j, type_test=False)
 
 
 if __name__ == "__main__":

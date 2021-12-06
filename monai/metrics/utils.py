@@ -25,10 +25,7 @@ distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="di
 __all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance"]
 
 
-def ignore_background(
-    y_pred: Union[np.ndarray, torch.Tensor],
-    y: Union[np.ndarray, torch.Tensor],
-):
+def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor]):
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
     Args:
@@ -43,19 +40,18 @@ def ignore_background(
     return y_pred, y
 
 
-def do_metric_reduction(
-    f: torch.Tensor,
-    reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-):
+def do_metric_reduction(f: torch.Tensor, reduction: Union[MetricReduction, str] = MetricReduction.MEAN):
     """
-    This function is to do the metric reduction for calculated metrics of each example's each class.
+    This function is to do the metric reduction for calculated `not-nan` metrics of each sample's each class.
     The function also returns `not_nans`, which counts the number of not nans for the metric.
 
     Args:
         f: a tensor that contains the calculated metric scores per batch and
             per class. The first two dims should be batch and class.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}, if "none", return the input f tensor and not_nans.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``.
+            if "none", return the input f tensor and not_nans.
         Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
     Raises:
@@ -156,7 +152,7 @@ def get_mask_edges(
 
     if crop:
         if not np.any(seg_pred | seg_gt):
-            return (np.zeros_like(seg_pred), np.zeros_like(seg_gt))
+            return np.zeros_like(seg_pred), np.zeros_like(seg_gt)
 
         seg_pred, seg_gt = np.expand_dims(seg_pred, 0), np.expand_dims(seg_gt, 0)
         box_start, box_end = generate_spatial_bounding_box(np.asarray(seg_pred | seg_gt))
@@ -167,14 +163,10 @@ def get_mask_edges(
     edges_pred = binary_erosion(seg_pred) ^ seg_pred
     edges_gt = binary_erosion(seg_gt) ^ seg_gt
 
-    return (edges_pred, edges_gt)
+    return edges_pred, edges_gt
 
 
-def get_surface_distance(
-    seg_pred: np.ndarray,
-    seg_gt: np.ndarray,
-    distance_metric: str = "euclidean",
-) -> np.ndarray:
+def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metric: str = "euclidean") -> np.ndarray:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.
 

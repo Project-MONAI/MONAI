@@ -28,11 +28,7 @@ DATA_1 = {
     "background": [0, 0, 0],
 }
 
-DISCARD_ADD_GUIDANCE_TEST_CASE = [
-    {"image": IMAGE, "label": LABEL},
-    DATA_1,
-    (3, 1, 5, 5),
-]
+DISCARD_ADD_GUIDANCE_TEST_CASE = [{"image": IMAGE, "label": LABEL}, DATA_1, (3, 1, 5, 5)]
 
 DATA_2 = {
     "image": IMAGE,
