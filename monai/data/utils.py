@@ -676,14 +676,15 @@ def create_file_basename(
     folder_path: PathLike,
     data_root_dir: PathLike = "",
     separate_folder: bool = True,
-    patch_index: Optional[int] = None,
+    patch_index=None,
+    makedirs: bool = True,
 ) -> str:
     """
     Utility function to create the path to the output file based on the input
     filename (file name extension is not added by this function).
     When `data_root_dir` is not specified, the output file name is:
 
-        `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix]`
+        `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix][_patch_index]`
 
     otherwise the relative path with respect to `data_root_dir` will be inserted, for example:
     input_file_name: /foo/bar/test1/image.png,
@@ -704,6 +705,7 @@ def create_file_basename(
             `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
             `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
         patch_index: if not None, append the patch index to filename.
+        makedirs: whether to create the folder if it does not exist.
     """
 
     # get the filename and directory
@@ -722,8 +724,10 @@ def create_file_basename(
 
     if separate_folder:
         output = os.path.join(output, filename)
-    # create target folder if no existing
-    os.makedirs(output, exist_ok=True)
+
+    if makedirs:
+        # create target folder if no existing
+        os.makedirs(output, exist_ok=True)
 
     # add the sub-folder plus the postfix name to become the file basename in the output path
     output = os.path.join(output, (filename + "_" + postfix) if len(postfix) > 0 else filename)
@@ -731,7 +735,7 @@ def create_file_basename(
     if patch_index is not None:
         output += f"_{patch_index}"
 
-    return os.path.abspath(output)
+    return os.path.normpath(output)
 
 
 def compute_importance_map(
