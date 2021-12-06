@@ -1258,8 +1258,7 @@ class CSVDataset(Dataset):
     @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def __init__(
         self,
-        # `src` also can be `pandas.DataFrame` or sequense of `pandas.DataFrame`
-        src: Optional[Union[str, Sequence[str]]] = None,
+        src: Optional[Union[str, Sequence[str]]] = None,  # also can be `DataFrame` or sequense of `DataFrame`
         row_indices: Optional[Sequence[Union[int, str]]] = None,
         col_names: Optional[Sequence[str]] = None,
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,

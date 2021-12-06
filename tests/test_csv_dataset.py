@@ -179,28 +179,10 @@ class TestCSVDataset(unittest.TestCase):
             # test pre-loaded multiple DataFrames, join tables with kwargs
             dfs = [pd.read_csv(i) for i in filepaths]
             dataset = CSVDataset(src=dfs, on="subject_id")
-            self.assertDictEqual(
-                {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in dataset[3].items()},
-                {
-                    "subject_id": "s000003",
-                    "label": 1,
-                    "image": "./imgs/s000003.png",
-                    "ehr_0": 3.3333,
-                    "ehr_1": 3.2353,
-                    "ehr_2": 3.4000,
-                    "ehr_3": 3.1647,
-                    "ehr_4": 3.0863,
-                    "ehr_5": 3.7255,
-                    "ehr_6": 3.6980,
-                    "ehr_7": 3.6980,
-                    "ehr_8": 3.7020,
-                    "ehr_9": 3.3098,
-                    "ehr_10": 3.7294,
-                    "meta_0": False,
-                    "meta_1": False,
-                    "meta_2": True,
-                },
-            )
+            self.assertEqual(dataset[3]["subject_id"], "s000003")
+            self.assertEqual(dataset[3]["label"], 1)
+            self.assertEqual(round(dataset[3]["ehr_0"], 4), 3.3333)
+            self.assertEqual(dataset[3]["meta_0"], False)
 
 
 if __name__ == "__main__":

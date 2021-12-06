@@ -228,28 +228,10 @@ class TestCSVIterableDataset(unittest.TestCase):
             for item in dataset:
                 count += 1
                 if count == 4:
-                    self.assertDictEqual(
-                        {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in item.items()},
-                        {
-                            "subject_id": "s000003",
-                            "label": 1,
-                            "image": "./imgs/s000003.png",
-                            "ehr_0": 3.3333,
-                            "ehr_1": 3.2353,
-                            "ehr_2": 3.4000,
-                            "ehr_3": 3.1647,
-                            "ehr_4": 3.0863,
-                            "ehr_5": 3.7255,
-                            "ehr_6": 3.6980,
-                            "ehr_7": 3.6980,
-                            "ehr_8": 3.7020,
-                            "ehr_9": 3.3098,
-                            "ehr_10": 3.7294,
-                            "meta_0": False,
-                            "meta_1": False,
-                            "meta_2": True,
-                        },
-                    )
+                    self.assertEqual(item["subject_id"], "s000003")
+                    self.assertEqual(item["label"], 1)
+                    self.assertEqual(round(item["ehr_0"], 4), 3.3333)
+                    self.assertEqual(item["meta_0"], False)
             self.assertEqual(count, 5)
 
 
