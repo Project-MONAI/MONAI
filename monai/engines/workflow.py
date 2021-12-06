@@ -25,6 +25,7 @@ from monai.utils import ensure_tuple, is_scalar, min_version, optional_import
 
 from .utils import engine_apply_transform
 
+IgniteEngine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 State, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "State")
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
@@ -49,7 +50,7 @@ class BaseWorkflow(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class Workflow(Engine):  # type: ignore[valid-type, misc] # due to optional_import
+class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
     """
     Workflow defines the core work process inheriting from Ignite engine.
     All trainer, validator and evaluator share this same workflow as base class,
