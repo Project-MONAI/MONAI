@@ -217,9 +217,9 @@ class CSVIterableDataset(IterableDataset):
 
         Args:
             src: if not None and provided the filename of CSV file, it can be a str, URL, path object
-            or file-like object to load. also support to provide iter for stream input directly,
-            will skip loading from filename. if provided a list of filenames or iters, it will join the tables.
-            default to `self.src`.
+                or file-like object to load. also support to provide iter for stream input directly,
+                will skip loading from filename. if provided a list of filenames or iters, it will join the tables.
+                default to `self.src`.
 
         """
         src = self.src if src is None else src
@@ -239,7 +239,7 @@ class CSVIterableDataset(IterableDataset):
         Close the pandas `TextFileReader` iterable objects.
         If the input src is file path, TextFileReader was created internally, need to close it.
         If the input src is iterable object, depends on users requirements whether to close it in this function.
-         For more details, please check:
+        For more details, please check:
         https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html?#iteration.
 
         """
