@@ -60,14 +60,8 @@ class TestNetworkConsistency(unittest.TestCase):
         json_file.close()
 
         # Create model
-        model = nets.__dict__[net_name](**model_params)
-        state_dict = loaded_data["model"]
-        model_dict = model.state_dict()
-        state_dict = {
-            k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
-        }
-        model_dict.update(state_dict)
-        model.load_state_dict(model_dict)
+        model = getattr(nets, net_name)(**model_params)
+        model.load_state_dict(loaded_data["model"], strict=False)
         model.eval()
 
         in_data = loaded_data["in_data"]

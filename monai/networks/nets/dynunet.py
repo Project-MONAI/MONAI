@@ -79,6 +79,8 @@ class DynUNet(nn.Module):
     For example, if `strides=((1, 2, 4), 2, 1, 1)`, the minimal spatial size of the input is `(8, 16, 32)`, and
     the spatial size of the output is `(8, 8, 8)`.
 
+    For backwards compatibility with old weights, please set `strict=False` when calling `load_state_dict`.
+
     Usage example with medical segmentation decathlon dataset is available at:
     https://github.com/Project-MONAI/tutorials/tree/master/modules/dynunet_pipeline.
 
