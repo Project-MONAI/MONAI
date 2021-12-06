@@ -83,6 +83,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                     )
                     break
             self.assertEqual(count, 3)
+            dataset.close()
 
             # test reset iterables
             dataset.reset(src=filepath3)
@@ -92,6 +93,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                 if i == 4:
                     self.assertEqual(item["meta_0"], False)
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test multiple CSV files, join tables with kwargs
             dataset = CSVIterableDataset(filepaths, on="subject_id", shuffle=False)
@@ -122,6 +124,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                         },
                     )
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test selected columns and chunk size
             dataset = CSVIterableDataset(
@@ -142,6 +145,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                         },
                     )
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test group columns
             dataset = CSVIterableDataset(
@@ -160,6 +164,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                     )
                     np.testing.assert_allclose(item["meta12"], [False, True])
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test transform
             dataset = CSVIterableDataset(
@@ -184,6 +189,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                 self.assertTrue(isinstance(item["ehr"], np.ndarray))
                 np.testing.assert_allclose(np.around(item["ehr"], 4), exp)
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test multiple processes loading
             dataset = CSVIterableDataset(filepath1, transform=ToNumpyd(keys="label"), shuffle=False)
@@ -199,6 +205,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                     np.testing.assert_allclose(item["label"], [4])
                     self.assertListEqual(item["image"], ["./imgs/s000002.png"])
             self.assertEqual(count, 3)
+            dataset.close()
 
             # test iterable stream
             iters = pd.read_csv(filepath1, chunksize=1000)
@@ -220,10 +227,11 @@ class TestCSVIterableDataset(unittest.TestCase):
                     )
                     break
             self.assertEqual(count, 3)
+            dataset.close()
 
             # test multiple iterable streams, join tables with kwargs
             iters = [pd.read_csv(i, chunksize=1000) for i in filepaths]
-            dataset = CSVIterableDataset(filepaths, on="subject_id", shuffle=False)
+            dataset = CSVIterableDataset(src=iters, on="subject_id", shuffle=False)
             count = 0
             for item in dataset:
                 count += 1
@@ -233,6 +241,9 @@ class TestCSVIterableDataset(unittest.TestCase):
                     self.assertEqual(round(item["ehr_0"], 4), 3.3333)
                     self.assertEqual(item["meta_0"], False)
             self.assertEqual(count, 5)
+            # manually close the pre-loaded iterables instead of `dataset.close()`
+            for i in iters:
+                i.close()
 
 
 if __name__ == "__main__":
