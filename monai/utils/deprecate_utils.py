@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import inspect
+import sys
 import warnings
 from functools import wraps
 from types import FunctionType
@@ -62,7 +63,7 @@ def deprecated(
 
     # if version_val.startswith("0+"):
     #     # version unknown, set version_val to a large value (assuming the latest version)
-    #     version_val = "100"
+    #     version_val = f"{sys.maxsize}"
     if since is not None and removed is not None and not version_leq(since, removed):
         raise ValueError(f"since must be less or equal to removed, got since={since}, removed={removed}.")
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
@@ -153,7 +154,7 @@ def deprecated_arg(
 
     if version_val.startswith("0+") or not f"{version_val}".strip()[0].isdigit():
         # version unknown, set version_val to a large value (assuming the latest version)
-        version_val = "100"
+        version_val = f"{sys.maxsize}"
     if since is not None and removed is not None and not version_leq(since, removed):
         raise ValueError(f"since must be less or equal to removed, got since={since}, removed={removed}.")
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
