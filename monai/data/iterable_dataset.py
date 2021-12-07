@@ -205,7 +205,10 @@ class CSVIterableDataset(IterableDataset):
         self.col_groups = col_groups
         self.shuffle = shuffle
         self.seed = seed
+        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
+        kwargs.pop("filename", None)
         self.kwargs = kwargs
+
         self.iters: List[Iterable] = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore
 
