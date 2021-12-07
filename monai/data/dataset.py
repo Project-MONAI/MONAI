@@ -97,6 +97,16 @@ class Dataset(_TorchDataset):
         return self._transform(index)
 
 
+class DatasetGenerator(Dataset):
+    def __init__(self, transform: Callable) -> None:
+        self.transform = transform
+        super().__init__(self.reset(), transform=None)
+
+    def reset(self, transform: Optional[Callable] = None) -> Sequence:
+        self.data = (self.transform if transform is None else transform)()
+        return self.data
+
+
 class PersistentDataset(Dataset):
     """
     Persistent storage of pre-computed values to efficiently manage larger than memory dictionary format data,
