@@ -46,7 +46,7 @@ class BaseWorkflow(ABC):
     """
 
     @abstractmethod
-    def run(self):
+    def run(self, *args, **kwargs):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
