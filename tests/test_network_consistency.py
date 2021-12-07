@@ -22,7 +22,7 @@ from parameterized.parameterized import parameterized
 import monai.networks.nets as nets
 from monai.utils import set_determinism
 
-extra_test_data_dir = os.environ.get("MONAI_EXTRA_TEST_DATA", None)
+extra_test_data_dir = os.environ.get("MONAI_EXTRA_TEST_DATA")
 
 TESTS = []
 if extra_test_data_dir is not None:

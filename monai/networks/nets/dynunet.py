@@ -102,17 +102,16 @@ class DynUNet(nn.Module):
         norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
         act_name: activation layer type and arguments. Defaults to ``leakyrelu``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
-            If ``True``, in training mode, the forward function will output not only the last feature
-            map, but also the previous feature maps that come from the intermediate up sample layers.
+            If ``True``, in training mode, the forward function will output not only the final feature map
+            (from `output_block`), but also the feature maps that come from the intermediate up sample layers.
             In order to unify the return type (the restriction of TorchScript), all intermediate
-            feature maps are interpolated into the same size as the last feature map and stacked together
+            feature maps are interpolated into the same size as the final feature map and stacked together
             (with a new dimension in the first axis)into one single tensor.
-            For instance, if there are three feature maps with shapes: (1, 2, 32, 24), (1, 2, 16, 12) and
-            (1, 2, 8, 6). The last two will be interpolated into (1, 2, 32, 24), and the stacked tensor
-            will has the shape (1, 3, 2, 8, 6).
+            For instance, if there are two intermediate feature maps with shapes: (1, 2, 16, 12) and
+            (1, 2, 8, 6), and the final feature map has the shape (1, 2, 32, 24), then all intermediate feature maps
+            will be interpolated into (1, 2, 32, 24), and the stacked tensor will has the shape (1, 3, 2, 32, 24).
             When calculating the loss, you can use torch.unbind to get all feature maps can compute the loss
             one by one with the ground truth, then do a weighted average for all losses to achieve the final loss.
-            (To be added: a corresponding tutorial link)
         deep_supr_num: number of feature maps that will output during deep supervision head. The
             value should be larger than 0 and less than the number of up sample layers.
             Defaults to 1.
@@ -189,32 +188,30 @@ class DynUNet(nn.Module):
             if superheads is None:
                 next_layer = create_skips(1 + index, downsamples[1:], upsamples[1:], bottleneck)
                 return DynUNetSkipLayer(index, downsample=downsamples[0], upsample=upsamples[0], next_layer=next_layer)
-            else:
-                super_head_flag = False
-                if index == 0:  # don't associate a supervision head with self.input_block
-                    rest_heads = superheads
-                else:
-                    if len(superheads) > 0:
-                        super_head_flag = True
-                        rest_heads = superheads[1:]
-                    else:
-                        rest_heads = nn.ModuleList()
 
-                # create the next layer down, this will stop at the bottleneck layer
-                next_layer = create_skips(1 + index, downsamples[1:], upsamples[1:], bottleneck, rest_heads)
-                if super_head_flag:
-                    return DynUNetSkipLayer(
-                        index,
-                        downsample=downsamples[0],
-                        upsample=upsamples[0],
-                        next_layer=next_layer,
-                        heads=self.heads,
-                        super_head=superheads[0],
-                    )
+            super_head_flag = False
+            if index == 0:  # don't associate a supervision head with self.input_block
+                rest_heads = superheads
+            else:
+                if len(superheads) > 0:
+                    super_head_flag = True
+                    rest_heads = superheads[1:]
                 else:
-                    return DynUNetSkipLayer(
-                        index, downsample=downsamples[0], upsample=upsamples[0], next_layer=next_layer
-                    )
+                    rest_heads = nn.ModuleList()
+
+            # create the next layer down, this will stop at the bottleneck layer
+            next_layer = create_skips(1 + index, downsamples[1:], upsamples[1:], bottleneck, superheads=rest_heads)
+            if super_head_flag:
+                return DynUNetSkipLayer(
+                    index,
+                    downsample=downsamples[0],
+                    upsample=upsamples[0],
+                    next_layer=next_layer,
+                    heads=self.heads,
+                    super_head=superheads[0],
+                )
+
+            return DynUNetSkipLayer(index, downsample=downsamples[0], upsample=upsamples[0], next_layer=next_layer)
 
         if not self.deep_supervision:
             self.skip_layers = create_skips(
@@ -226,7 +223,7 @@ class DynUNet(nn.Module):
                 [self.input_block] + list(self.downsamples),
                 self.upsamples[::-1],
                 self.bottleneck,
-                self.deep_supervision_heads,
+                superheads=self.deep_supervision_heads,
             )
 
     def check_kernel_stride(self):
