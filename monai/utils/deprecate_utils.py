@@ -144,6 +144,8 @@ def deprecated_arg(
         msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead.
         version_val: (used for testing) version to compare since and removed against, default is MONAI version.
         new_name: name of position or keyword argument to replace the deprecated argument.
+            if it is specified and the signature of the decorated function has a `kwargs`, the value to the
+            deprecated argument `name` will be removed.
 
     Returns:
         Decorated callable which warns or raises exception when deprecated argument used.
@@ -197,9 +199,13 @@ def deprecated_arg(
                     # multiple values for new_name using both args and kwargs
                     kwargs.pop(new_name, None)
             binding = sig.bind(*args, **kwargs).arguments
-
             positional_found = name in binding
-            kw_found = "kwargs" in binding and name in binding["kwargs"]
+            kw_found = False
+            for k, param in sig.parameters.items():
+                if param.kind == inspect.Parameter.VAR_KEYWORD and k in binding and name in binding[k]:
+                    kw_found = True
+                    # if the deprecated arg is found in the **kwargs, it should be removed
+                    kwargs.pop(name, None)
 
             if positional_found or kw_found:
                 if is_removed:
