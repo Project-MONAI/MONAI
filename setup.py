@@ -53,11 +53,7 @@ finally:
 
 def torch_parallel_backend():
     try:
-        match = re.search(
-            "^ATen parallel backend: (?P<backend>.*)$",
-            torch._C._parallel_info(),
-            re.MULTILINE,
-        )
+        match = re.search("^ATen parallel backend: (?P<backend>.*)$", torch._C._parallel_info(), re.MULTILINE)
         if match is None:
             return None
         backend = match.group("backend")

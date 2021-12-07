@@ -25,10 +25,7 @@ class DistributedWeightedRandomSamplerTest(DistTestCase):
         data = [1, 2, 3, 4, 5]
         weights = [1, 2, 3, 4, 5]
         sampler = DistributedWeightedRandomSampler(
-            weights=weights,
-            dataset=data,
-            shuffle=False,
-            generator=torch.Generator().manual_seed(0),
+            weights=weights, dataset=data, shuffle=False, generator=torch.Generator().manual_seed(0)
         )
         samples = np.array([data[i] for i in list(sampler)])
 

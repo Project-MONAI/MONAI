@@ -11,10 +11,10 @@
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Mapping, Optional
 
 from monai.config import IgniteInfo
-from monai.utils import min_version, optional_import
+from monai.utils import is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
@@ -126,7 +126,7 @@ class CheckpointSaver:
                 super().__init__(dirname=dirname, require_empty=False, atomic=False)
                 self.filename = filename
 
-            def __call__(self, checkpoint: Dict, filename: str, metadata: Optional[Dict] = None) -> None:
+            def __call__(self, checkpoint: Mapping, filename: str, metadata: Optional[Mapping] = None) -> None:
                 if self.filename is not None:
                     filename = self.filename
                 super().__call__(checkpoint=checkpoint, filename=filename, metadata=metadata)
@@ -154,14 +154,20 @@ class CheckpointSaver:
             def _score_func(engine: Engine):
                 if isinstance(key_metric_name, str):
                     metric_name = key_metric_name
-                elif hasattr(engine.state, "key_metric_name") and isinstance(engine.state.key_metric_name, str):
-                    metric_name = engine.state.key_metric_name
+                elif hasattr(engine.state, "key_metric_name"):
+                    metric_name = engine.state.key_metric_name  # type: ignore
                 else:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
                     )
-
-                return (-1 if key_metric_negative_sign else 1) * engine.state.metrics[metric_name]
+                metric = engine.state.metrics[metric_name]
+                if not is_scalar(metric):
+                    warnings.warn(
+                        "key metric is not a scalar value, skip metric comparison and don't save a model."
+                        "please use other metrics as key metric, or change the `reduction` mode to 'mean'."
+                    )
+                    return -1
+                return (-1 if key_metric_negative_sign else 1) * metric
 
             if key_metric_filename is not None and key_metric_n_saved > 1:
                 raise ValueError("if using fixed filename to save the best metric model, we should only save 1 model.")
