@@ -22,7 +22,7 @@ from parameterized.parameterized import parameterized
 import monai.networks.nets as nets
 from monai.utils import set_determinism
 
-extra_test_data_dir = os.environ.get("MONAI_EXTRA_TEST_DATA", None)
+extra_test_data_dir = os.environ.get("MONAI_EXTRA_TEST_DATA")
 
 TESTS = []
 if extra_test_data_dir is not None:
@@ -60,8 +60,8 @@ class TestNetworkConsistency(unittest.TestCase):
         json_file.close()
 
         # Create model
-        model = nets.__dict__[net_name](**model_params)
-        model.load_state_dict(loaded_data["model"])
+        model = getattr(nets, net_name)(**model_params)
+        model.load_state_dict(loaded_data["model"], strict=False)
         model.eval()
 
         in_data = loaded_data["in_data"]
