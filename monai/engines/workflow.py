@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import warnings
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
@@ -35,6 +36,18 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
     EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
+
+
+class BaseWorkflow(ABC):
+    """
+    Base class for any MONAI style workflow.
+    `run()` is designed to execute the train, evaluation or inference logic.
+
+    """
+
+    @abstractmethod
+    def run(self, *args, **kwargs):
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
