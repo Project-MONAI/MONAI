@@ -97,47 +97,53 @@ class Dataset(_TorchDataset):
         return self._transform(index)
 
 
-class DatasetGenerator(Dataset):
+class DatasetFunc(Dataset):
     """
-    Generator to provide dataset items with specified `func`.
+    Execute function on the input dataset and leverage the output to act as a new Dataset.
     It can be used to load / fetch the basic dataset items, like the list of `image, label` paths.
     Or chain together to execute more complicated logic, like `partition_dataset`, `resample_datalist`, etc.
+    The `data` arg of `Dataset` will be applied to the first arg of callable `func`.
     Usage example::
 
-        data_list = DatasetGenerator(
+        data_list = DatasetFunc(
+            data="path to file",
             func=monai.data.load_decathlon_datalist,
-            data_list_file_path="path to file",
             data_list_key="validation",
             base_dir="path to base dir",
         )
         # partition dataset for every rank
-        data_partition = DatasetGenerator(
-            func=lambda **kwargs: monai.data.partition_dataset(**kwargs)[torch.distributed.get_rank()],
+        data_partition = DatasetFunc(
             data=data_list,
+            func=lambda **kwargs: monai.data.partition_dataset(**kwargs)[torch.distributed.get_rank()],
             num_partitions=torch.distributed.get_world_size(),
         )
         dataset = Dataset(data=data_partition, transform=transforms)
 
     Args:
+        data: input data for the func to process, will apply to `func` as the first arg.
         func: callable function to generate dataset items.
-        kwargs: arguments for the `func`.
+        kwargs: other arguments for the `func` except for the first arg.
 
     """
 
-    def __init__(self, func: Callable, **kwargs) -> None:
+    def __init__(self, data: Any, func: Callable, **kwargs) -> None:
+        self.src = data
         self.func = func
         self.kwargs = kwargs
         super().__init__(self.reset(), transform=None)
 
-    def reset(self, func: Optional[Callable] = None, **kwargs) -> Sequence:
+    def reset(self, data: Optional[Any] = None, func: Optional[Callable] = None, **kwargs) -> Sequence:
         """
         Reset the dataset items with specified `func`.
 
         Args:
+            data: if not None, execute `func` on it, default to `self.src`.
             func: if not None, execute the `func` with specified `kwargs`, default to `self.func`.
+            kwargs: other arguments for the `func` except for the first arg.
 
         """
-        self.data = self.func(**self.kwargs) if func is None else func(**kwargs)
+        src = self.src if data is None else data
+        self.data = self.func(src, **self.kwargs) if func is None else func(src, **kwargs)
 
         return self.data
 

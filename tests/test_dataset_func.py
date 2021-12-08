@@ -14,10 +14,10 @@ import os
 import tempfile
 import unittest
 
-from monai.data import Dataset, DatasetGenerator, load_decathlon_datalist, partition_dataset
+from monai.data import Dataset, DatasetFunc, load_decathlon_datalist, partition_dataset
 
 
-class TestDatasetGenerator(unittest.TestCase):
+class TestDatasetFunc(unittest.TestCase):
     def test_seg_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             # prepare test datalist file
@@ -36,12 +36,12 @@ class TestDatasetGenerator(unittest.TestCase):
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
 
-            data_list = DatasetGenerator(
-                func=load_decathlon_datalist, data_list_file_path=file_path, data_list_key="training", base_dir=tempdir
+            data_list = DatasetFunc(
+                data=file_path, func=load_decathlon_datalist, data_list_key="training", base_dir=tempdir,
             )
             # partition dataset for train / validation
-            data_partition = DatasetGenerator(
-                func=lambda **kwargs: partition_dataset(**kwargs)[0], data=data_list, num_partitions=2
+            data_partition = DatasetFunc(
+                data=data_list, func=lambda **kwargs: partition_dataset(**kwargs)[0], num_partitions=2
             )
             dataset = Dataset(data=data_partition, transform=None)
             self.assertEqual(dataset[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))

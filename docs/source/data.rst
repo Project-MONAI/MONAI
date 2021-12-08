@@ -21,9 +21,9 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
-`DatasetGenerator`
-~~~~~~~~~~~~~~~~~~
-.. autoclass:: DatasetGenerator
+`DatasetFunc`
+~~~~~~~~~~~~~
+.. autoclass:: DatasetFunc
   :members:
   :special-members: __next__
 
