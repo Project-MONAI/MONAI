@@ -37,7 +37,7 @@ class TestDatasetFunc(unittest.TestCase):
                 json_file.write(json_str)
 
             data_list = DatasetFunc(
-                data=file_path, func=load_decathlon_datalist, data_list_key="training", base_dir=tempdir,
+                data=file_path, func=load_decathlon_datalist, data_list_key="training", base_dir=tempdir
             )
             # partition dataset for train / validation
             data_partition = DatasetFunc(
