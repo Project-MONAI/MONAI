@@ -1321,6 +1321,9 @@ class CSVDataset(Dataset):
             else:
                 raise ValueError("`src` must be file path or pandas `DataFrame`.")
 
+        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
+        kwargs.pop("filename", None)
+
         data = convert_tables_to_dicts(
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
