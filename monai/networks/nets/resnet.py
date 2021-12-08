@@ -14,9 +14,10 @@ from typing import Any, Callable, List, Optional, Type, Union
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from monai.networks.layers.factories import Conv, Norm, Pool
+from monai.networks.layers.utils import get_pool_layer
+from monai.utils.module import look_up_option
 
 __all__ = ["ResNet", "resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
 
@@ -28,14 +29,14 @@ def get_inplanes():
 
 
 def get_avgpool():
-    return [(0), (1), (1, 1), (1, 1, 1)]
+    return [0, 1, (1, 1), (1, 1, 1)]
 
 
 def get_conv1(conv1_t_size: int, conv1_t_stride: int):
     return (
-        [(0), (conv1_t_size), (conv1_t_size, 7), (conv1_t_size, 7, 7)],
-        [(0), (conv1_t_stride), (conv1_t_stride, 2), (conv1_t_stride, 2, 2)],
-        [(0), (conv1_t_size // 2), (conv1_t_size // 2, 3), (conv1_t_size // 2, 3, 3)],
+        [0, conv1_t_size, (conv1_t_size, 7), (conv1_t_size, 7, 7)],
+        [0, conv1_t_stride, (conv1_t_stride, 2), (conv1_t_stride, 2, 2)],
+        [0, (conv1_t_size // 2), (conv1_t_size // 2, 3), (conv1_t_size // 2, 3, 3)],
     )
 
 
@@ -58,7 +59,7 @@ class ResNetBlock(nn.Module):
             stride: stride to use for first conv layer.
             downsample: which downsample layer to use.
         """
-        super(ResNetBlock, self).__init__()
+        super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
@@ -110,7 +111,7 @@ class ResNetBottleneck(nn.Module):
             downsample: which downsample layer to use.
         """
 
-        super(ResNetBottleneck, self).__init__()
+        super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
@@ -162,9 +163,16 @@ class ResNet(nn.Module):
         conv1_t_size: size of first convolution layer, determines kernel and padding.
         conv1_t_stride: stride of first convolution layer.
         no_max_pool: bool argument to determine if to use maxpool layer.
-        shortcut_type: which downsample block to use.
+        shortcut_type: which downsample block to use. Options are 'A', 'B', default to 'B'.
+            - 'A': using `self._downsample_basic_block`.
+            - 'B': kernel_size 1 conv + norm.
         widen_factor: widen output for each layer.
-        num_classes: number of output (classifications)
+        num_classes: number of output (classifications).
+        feed_forward: whether to add the FC layer for the output, default to `True`.
+
+    .. deprecated:: 0.6.0
+        ``n_classes`` is deprecated, use ``num_classes`` instead.
+
     """
 
     @deprecated_arg("n_classes", since="0.6")
@@ -185,7 +193,7 @@ class ResNet(nn.Module):
         n_classes: Optional[int] = None,
     ) -> None:
 
-        super(ResNet, self).__init__()
+        super().__init__()
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes == 400:
             num_classes = n_classes
@@ -198,7 +206,7 @@ class ResNet(nn.Module):
         ]
 
         block_avgpool = get_avgpool()
-        conv1_kernel, conv1_stride, con1_padding = get_conv1(conv1_t_size, conv1_t_stride)
+        conv1_kernel, conv1_stride, conv1_padding = get_conv1(conv1_t_size, conv1_t_stride)
         block_inplanes = [int(x * widen_factor) for x in block_inplanes]
 
         self.in_planes = block_inplanes[0]
@@ -209,7 +217,7 @@ class ResNet(nn.Module):
             self.in_planes,
             kernel_size=conv1_kernel[spatial_dims],
             stride=conv1_stride[spatial_dims],
-            padding=con1_padding[spatial_dims],
+            padding=conv1_padding[spatial_dims],
             bias=False,
         )
         self.bn1 = norm_type(self.in_planes)
@@ -220,9 +228,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=2)
         self.layer4 = self._make_layer(block, block_inplanes[3], layers[3], spatial_dims, shortcut_type, stride=2)
         self.avgpool = avgp_type(block_avgpool[spatial_dims])
-
-        if feed_forward:
-            self.fc = nn.Linear(block_inplanes[3] * block.expansion, num_classes)
+        self.fc = nn.Linear(block_inplanes[3] * block.expansion, num_classes) if feed_forward else None
 
         for m in self.modules():
             if isinstance(m, conv_type):
@@ -234,14 +240,9 @@ class ResNet(nn.Module):
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
     def _downsample_basic_block(self, x: torch.Tensor, planes: int, stride: int, spatial_dims: int = 3) -> torch.Tensor:
-        assert spatial_dims == 3
-        out: torch.Tensor = F.avg_pool3d(x, kernel_size=1, stride=stride)
-        zero_pads = torch.zeros(out.size(0), planes - out.size(1), out.size(2), out.size(3), out.size(4))
-        if isinstance(out.data, torch.FloatTensor):
-            zero_pads = zero_pads.cuda()
-
+        out: torch.Tensor = get_pool_layer(("avg", {"kernel_size": 1, "stride": stride}), spatial_dims=spatial_dims)(x)
+        zero_pads = torch.zeros(out.size(0), planes - out.size(1), *out.shape[2:], dtype=out.dtype, device=out.device)
         out = torch.cat([out.data, zero_pads], dim=1)
-
         return out
 
     def _make_layer(
@@ -259,9 +260,12 @@ class ResNet(nn.Module):
 
         downsample: Union[nn.Module, partial, None] = None
         if stride != 1 or self.in_planes != planes * block.expansion:
-            if shortcut_type == "A":
+            if look_up_option(shortcut_type, {"A", "B"}) == "A":
                 downsample = partial(
-                    self._downsample_basic_block, planes=planes * block.expansion, kernel_size=1, stride=stride
+                    self._downsample_basic_block,
+                    planes=planes * block.expansion,
+                    stride=stride,
+                    spatial_dims=spatial_dims,
                 )
             else:
                 downsample = nn.Sequential(
@@ -269,12 +273,12 @@ class ResNet(nn.Module):
                     norm_type(planes * block.expansion),
                 )
 
-        layers = []
-        layers.append(
+        layers = [
             block(
                 in_planes=self.in_planes, planes=planes, spatial_dims=spatial_dims, stride=stride, downsample=downsample
             )
-        )
+        ]
+
         self.in_planes = planes * block.expansion
         for _i in range(1, blocks):
             layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims))
@@ -296,7 +300,8 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
 
         x = x.view(x.size(0), -1)
-        x = self.fc(x)
+        if self.fc is not None:
+            x = self.fc(x)
 
         return x
 

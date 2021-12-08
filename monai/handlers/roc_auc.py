@@ -36,8 +36,9 @@ class ROCAUC(IgniteMetric):  # type: ignore[valid-type, misc]  # due to optional
         output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
             construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
             lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-            for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
-            output_transform can be `lambda x: (x["pred"], x["label"])`.
+            `engine.state` and `output_transform` inherit from the ignite concept:
+            https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's.
@@ -45,14 +46,6 @@ class ROCAUC(IgniteMetric):  # type: ignore[valid-type, misc]  # due to optional
 
     """
 
-    def __init__(
-        self,
-        average: Union[Average, str] = Average.MACRO,
-        output_transform: Callable = lambda x: x,
-    ) -> None:
+    def __init__(self, average: Union[Average, str] = Average.MACRO, output_transform: Callable = lambda x: x) -> None:
         metric_fn = ROCAUCMetric(average=Average(average))
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=False,
-        )
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=False)

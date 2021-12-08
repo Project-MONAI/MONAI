@@ -188,6 +188,26 @@ Blocks
 .. autoclass:: PatchEmbeddingBlock
     :members:
 
+`FactorizedIncreaseBlock`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FactorizedIncreaseBlock
+    :members:
+
+`FactorizedReduceBlock`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FactorizedReduceBlock
+    :members:
+
+`P3DActiConvNormBlock`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: P3DActiConvNormBlock
+    :members:
+
+`ActiConvNormBlock`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ActiConvNormBlock
+    :members:
+
 `Warp`
 ~~~~~~
 .. autoclass:: Warp
@@ -255,6 +275,19 @@ Layers
 ~~~~~~~~~
 .. autoclass:: Flatten
     :members:
+
+`Reshape`
+~~~~~~~~~
+.. autoclass:: Reshape
+    :members:
+
+`separable_filtering`
+~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: separable_filtering
+
+`apply_filter`
+~~~~~~~~~~~~~~
+.. autofunction:: apply_filter
 
 `GaussianFilter`
 ~~~~~~~~~~~~~~~~
@@ -470,6 +503,11 @@ Nets
 .. autoclass:: ViT
   :members:
 
+`ViTAutoEnc`
+~~~~~~~~~~~~
+.. autoclass:: ViTAutoEnc
+  :members:
+
 `FullyConnectedNet`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: FullyConnectedNet
@@ -500,6 +538,11 @@ Nets
 .. autoclass:: Critic
   :members:
 
+`Transchex`
+~~~~~~~~~~~~~~~~
+.. autoclass:: Transchex
+  :members:
+
 `NetAdapter`
 ~~~~~~~~~~~~
 .. autoclass:: NetAdapter
@@ -513,6 +556,31 @@ Nets
 `TorchVisionFullyConvModel`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TorchVisionFullyConvModel
+  :members:
+
+`MILModel`
+~~~~~~~~~~
+.. autoclass:: MILModel
+  :members:
+
+`DiNTS`
+~~~~~~~
+.. autoclass:: DiNTS
+  :members:
+
+`TopologyConstruction for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologyConstruction
+  :members:
+
+`TopologyInstance for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologyInstance
+  :members:
+
+`TopologySearch for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologySearch
   :members:
 
 Utilities

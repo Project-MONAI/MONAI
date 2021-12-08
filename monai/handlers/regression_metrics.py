@@ -23,29 +23,30 @@ class MeanSquaredError(IgniteMetric):
 
     def __init__(
         self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
         """
 
         Args:
+            reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
-                for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
-                output_transform can be `lambda x: (x["pred"], x["label"])`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
             :py:class:`monai.metrics.MSEMetric`
         """
-        metric_fn = MSEMetric(reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        metric_fn = MSEMetric(reduction=reduction)
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
 class MeanAbsoluteError(IgniteMetric):
@@ -55,25 +56,30 @@ class MeanAbsoluteError(IgniteMetric):
 
     def __init__(
         self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
         """
 
         Args:
-            output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-            save_details: whether to save metric computation details per image, for example: mean absolute error of every image.
+            reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
+            output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
+                construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
+                lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
+            save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
             :py:class:`monai.metrics.MAEMetric`
         """
-        metric_fn = MAEMetric(reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        metric_fn = MAEMetric(reduction=reduction)
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
 class RootMeanSquaredError(IgniteMetric):
@@ -83,25 +89,30 @@ class RootMeanSquaredError(IgniteMetric):
 
     def __init__(
         self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
         """
 
         Args:
-            output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-            save_details: whether to save metric computation details per image, for example: root mean squared error of every image.
+            reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
+            output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
+                construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
+                lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
+            save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
             :py:class:`monai.metrics.RMSEMetric`
         """
-        metric_fn = RMSEMetric(reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        metric_fn = RMSEMetric(reduction=reduction)
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
 class PeakSignalToNoiseRatio(IgniteMetric):
@@ -112,6 +123,7 @@ class PeakSignalToNoiseRatio(IgniteMetric):
     def __init__(
         self,
         max_val: Union[int, float],
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -120,17 +132,21 @@ class PeakSignalToNoiseRatio(IgniteMetric):
         Args:
             max_val: The dynamic range of the images/volumes (i.e., the difference between the
                 maximum and the minimum allowed values e.g. 255 for a uint8 image).
-            output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-            save_details: whether to save metric computation details per image, for example: PSNR of every image.
+            reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
+            output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
+                construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
+                lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
+            save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
             reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
 
         See also:
             :py:class:`monai.metrics.PSNRMetric`
         """
-        metric_fn = PSNRMetric(max_val=max_val, reduction=MetricReduction.MEAN)
-        super().__init__(
-            metric_fn=metric_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-        )
+        metric_fn = PSNRMetric(max_val=max_val, reduction=reduction)
+        super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

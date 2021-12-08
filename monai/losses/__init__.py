@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss
 from .dice import (
     Dice,
@@ -18,7 +19,6 @@ from .dice import (
     GeneralizedDiceLoss,
     GeneralizedWassersteinDiceLoss,
     MaskedDiceLoss,
-    dice,
     dice_ce,
     dice_focal,
     generalized_dice,
