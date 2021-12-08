@@ -204,6 +204,8 @@ class LoadImage(Transform):
                         break
 
         if img is None or reader is None:
+            if isinstance(filename, tuple) and len(filename) == 0:
+                filename = filename[0]
             raise RuntimeError(
                 f"can not find a suitable reader for file: {filename}.\n"
                 "    Please install the reader libraries, see also the installation instructions:\n"
