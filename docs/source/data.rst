@@ -21,6 +21,12 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
+`DatasetGenerator`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: DatasetGenerator
+  :members:
+  :special-members: __next__
+
 `ShuffleBuffer`
 ~~~~~~~~~~~~~~~
 .. autoclass:: ShuffleBuffer

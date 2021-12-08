@@ -98,12 +98,47 @@ class Dataset(_TorchDataset):
 
 
 class DatasetGenerator(Dataset):
-    def __init__(self, transform: Callable) -> None:
-        self.transform = transform
+    """
+    Generator to provide dataset items with specified `func`.
+    It can be used to load / fetch the basic dataset items, like the list of `image, label` paths.
+    Or chain together to execute more complicated logic, like `partition_dataset`, `resample_datalist`, etc.
+    Usage example::
+
+        data_list = DatasetGenerator(
+            func=monai.data.load_decathlon_datalist,
+            data_list_file_path="path to file",
+            data_list_key="validation",
+            base_dir="path to base dir",
+        )
+        # partition dataset for every rank
+        data_partition = DatasetGenerator(
+            func=lambda **kwargs: monai.data.partition_dataset(**kwargs)[torch.distributed.get_rank()],
+            data=data_list,
+            num_partitions=torch.distributed.get_world_size(),
+        )
+        dataset = Dataset(data=data_partition, transform=transforms)
+
+    Args:
+        func: callable function to generate dataset items.
+        kwargs: arguments for the `func`.
+
+    """
+
+    def __init__(self, func: Callable, **kwargs) -> None:
+        self.func = func
+        self.kwargs = kwargs
         super().__init__(self.reset(), transform=None)
 
-    def reset(self, transform: Optional[Callable] = None) -> Sequence:
-        self.data = (self.transform if transform is None else transform)()
+    def reset(self, func: Optional[Callable] = None, **kwargs) -> Sequence:
+        """
+        Reset the dataset items with specified `func`.
+
+        Args:
+            func: if not None, execute the `func` with specified `kwargs`, default to `self.func`.
+
+        """
+        self.data = self.func(**self.kwargs) if func is None else func(**kwargs)
+
         return self.data
 
 
