@@ -151,7 +151,7 @@ class PersistentDataset(Dataset):
         self,
         data: Sequence,
         transform: Union[Sequence[Callable], Callable],
-        cache_dir: Optional[Union[Path, str]],
+        cache_dir: Union[Path, str],
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
@@ -162,12 +162,11 @@ class PersistentDataset(Dataset):
                 `PersistentDataset` expects input data to be a list of serializable
                 and hashes them as cache keys using `hash_func`.
             transform: transforms to execute operations on input data.
-            cache_dir: If specified, this is the location for persistent storage
-                of pre-computed transformed data tensors. The cache_dir is computed once, and
-                persists on disk until explicitly removed.  Different runs, programs, experiments
-                may share a common cache dir provided that the transforms pre-processing is consistent.
+            cache_dir: the location for persistent storage of pre-computed transformed data tensors.
+                The cache_dir is computed once, and persists on disk until explicitly removed.
+                Different runs, programs, experiments may share a common cache dir provided that
+                the transforms pre-processing is consistent.
                 If `cache_dir` doesn't exist, will automatically create it.
-                If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
             pickle_module: string representing the module used for pickling metadata and objects,
@@ -187,15 +186,17 @@ class PersistentDataset(Dataset):
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
-        self.cache_dir = Path(cache_dir) if cache_dir is not None else None
+        if not isinstance(cache_dir, (Path, str)):
+            raise ValueError("`cache_dir` must be specified and be a `Path` or `string`.")
+        self.cache_dir = Path(cache_dir)
         self.hash_func = hash_func
         self.pickle_module = pickle_module
         self.pickle_protocol = pickle_protocol
-        if self.cache_dir is not None:
-            if not self.cache_dir.exists():
-                self.cache_dir.mkdir(parents=True, exist_ok=True)
-            if not self.cache_dir.is_dir():
-                raise ValueError("cache_dir must be a directory.")
+
+        if not self.cache_dir.exists():
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        if not self.cache_dir.is_dir():
+            raise ValueError("cache_dir must be a directory.")
 
     def set_data(self, data: Sequence):
         """
@@ -203,7 +204,7 @@ class PersistentDataset(Dataset):
 
         """
         self.data = data
-        if self.cache_dir is not None and self.cache_dir.exists():
+        if self.cache_dir.exists():
             shutil.rmtree(self.cache_dir, ignore_errors=True)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -272,10 +273,8 @@ class PersistentDataset(Dataset):
             cache is ONLY dependant on the input filename paths.
 
         """
-        hashfile = None
-        if self.cache_dir is not None:
-            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
-            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+        data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
+        hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
@@ -322,7 +321,7 @@ class CacheNTransDataset(PersistentDataset):
         data: Sequence,
         transform: Union[Sequence[Callable], Callable],
         cache_n_trans: int,
-        cache_dir: Optional[Union[Path, str]],
+        cache_dir: Union[Path, str],
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
@@ -334,12 +333,11 @@ class CacheNTransDataset(PersistentDataset):
                 and hashes them as cache keys using `hash_func`.
             transform: transforms to execute operations on input data.
             cache_n_trans: cache the result of first N transforms.
-            cache_dir: If specified, this is the location for persistent storage
-                of pre-computed transformed data tensors. The cache_dir is computed once, and
-                persists on disk until explicitly removed.  Different runs, programs, experiments
-                may share a common cache dir provided that the transforms pre-processing is consistent.
+            cache_dir: the location for persistent storage of pre-computed transformed data tensors.
+                The cache_dir is computed once, and persists on disk until explicitly removed.
+                Different runs, programs, experiments may share a common cache dir provided that
+                the transforms pre-processing is consistent.
                 If `cache_dir` doesn't exist, will automatically create it.
-                If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
             pickle_module: string representing the module used for pickling metadata and objects,
@@ -454,8 +452,6 @@ class LMDBDataset(PersistentDataset):
             data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func, pickle_protocol=pickle_protocol
         )
         self.progress = progress
-        if not self.cache_dir:
-            raise ValueError("cache_dir must be specified.")
         self.db_file = self.cache_dir / f"{db_name}.lmdb"
         self.lmdb_kwargs = lmdb_kwargs or {}
         if not self.lmdb_kwargs.get("map_size", 0):
