@@ -41,7 +41,7 @@ class TestDatasetFunc(unittest.TestCase):
             )
             # partition dataset for train / validation
             data_partition = DatasetFunc(
-                data=data_list, func=lambda **kwargs: partition_dataset(**kwargs)[0], num_partitions=2
+                data=data_list, func=lambda x, **kwargs: partition_dataset(x, **kwargs)[0], num_partitions=2
             )
             dataset = Dataset(data=data_partition, transform=None)
             self.assertEqual(dataset[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
