@@ -61,7 +61,7 @@ class TestContrastiveLoss(unittest.TestCase):
 
     def test_ill_shape(self):
         loss = ContrastiveLoss(temperature=0.5, batch_size=1)
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
     def test_with_cuda(self):
