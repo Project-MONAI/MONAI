@@ -14,14 +14,12 @@ import unittest
 import numpy as np
 
 from monai.transforms.intensity.dictionary import ScaleIntensityRangePercentilesd
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
     def test_scaling(self):
         img = self.imt
-        data = {}
-        data["img"] = img
         lower = 10
         upper = 99
         b_min = 0
@@ -32,9 +30,12 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
         expected = (img - a_min) / (a_max - a_min)
         expected = (expected * (b_max - b_min)) + b_min
 
-        scaler = ScaleIntensityRangePercentilesd(keys=data.keys(), lower=lower, upper=upper, b_min=b_min, b_max=b_max)
-
-        self.assertTrue(np.allclose(expected, scaler(data)["img"]))
+        for p in TEST_NDARRAYS:
+            data = {"img": p(img)}
+            scaler = ScaleIntensityRangePercentilesd(
+                keys=data.keys(), lower=lower, upper=upper, b_min=b_min, b_max=b_max
+            )
+            assert_allclose(p(expected), scaler(data)["img"], rtol=1e-4)
 
     def test_relative_scaling(self):
         img = self.imt
@@ -55,7 +56,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
         expected_img = (img - expected_a_min) / (expected_a_max - expected_a_min)
         expected_img = (expected_img * (expected_b_max - expected_b_min)) + expected_b_min
 
-        self.assertTrue(np.allclose(expected_img, scaler(data)["img"]))
+        np.testing.assert_allclose(expected_img, scaler(data)["img"])
 
     def test_invalid_instantiation(self):
         self.assertRaises(
@@ -70,6 +71,9 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
         self.assertRaises(
             ValueError, ScaleIntensityRangePercentilesd, keys=["img"], lower=30, upper=1000, b_min=0, b_max=255
         )
+        with self.assertRaises(ValueError):
+            s = ScaleIntensityRangePercentilesd(keys=["img"], lower=30, upper=90, b_min=None, b_max=20, relative=True)
+            s(self.imt)
 
 
 if __name__ == "__main__":

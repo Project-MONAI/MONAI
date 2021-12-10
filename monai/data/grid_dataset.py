@@ -141,7 +141,7 @@ class GridPatchDataset(IterableDataset):
         try:
             iter_end = len(self.dataset)  # TODO: support iterable self.dataset
         except TypeError:
-            raise NotImplementedError("image dataset must implement `len()`.")
+            raise NotImplementedError("image dataset must implement `len()`.") from None
 
         if worker_info is not None:
             # split workload
