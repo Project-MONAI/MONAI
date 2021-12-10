@@ -13,6 +13,7 @@ import os
 import unittest
 from typing import TYPE_CHECKING
 from unittest import skipUnless
+from urllib.error import ContentTooShortError, HTTPError
 
 import torch
 from parameterized import parameterized
