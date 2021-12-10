@@ -1740,7 +1740,7 @@ Transform Adaptors
 .. automodule:: monai.transforms.adaptors
 
 `FunctionSignature`
-"""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^
 .. autoclass:: FunctionSignature
     :members:
 
