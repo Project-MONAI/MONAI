@@ -42,9 +42,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
             Defaults to ``None``.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result. Defaults to ``"mean"``.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
             Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
 
@@ -141,10 +141,7 @@ def compute_hausdorff_distance(
     """
 
     if not include_background:
-        y_pred, y = ignore_background(
-            y_pred=y_pred,
-            y=y,
-        )
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
     if isinstance(y, torch.Tensor):
         y = y.float()
     if isinstance(y_pred, torch.Tensor):
@@ -172,10 +169,7 @@ def compute_hausdorff_distance(
 
 
 def compute_percent_hausdorff_distance(
-    edges_pred: np.ndarray,
-    edges_gt: np.ndarray,
-    distance_metric: str = "euclidean",
-    percentile: Optional[float] = None,
+    edges_pred: np.ndarray, edges_gt: np.ndarray, distance_metric: str = "euclidean", percentile: Optional[float] = None
 ):
     """
     This function is used to compute the directed Hausdorff distance.

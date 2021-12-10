@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pathlib import Path
 from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
 
+from monai.config.type_definitions import PathLike
 from monai.data.png_writer import write_png
 from monai.data.utils import create_file_basename
 from monai.utils import ImageMetaKey as Key
@@ -34,13 +34,13 @@ class PNGSaver:
 
     def __init__(
         self,
-        output_dir: Union[Path, str] = "./",
+        output_dir: PathLike = "./",
         output_postfix: str = "seg",
         output_ext: str = ".png",
         resample: bool = True,
         mode: Union[InterpolateMode, str] = InterpolateMode.NEAREST,
         scale: Optional[int] = None,
-        data_root_dir: str = "",
+        data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:
@@ -134,11 +134,7 @@ class PNGSaver:
             raise ValueError(f"Unsupported number of channels: {data.shape[0]}, available options are [1, 3, 4]")
 
         write_png(
-            np.asarray(data),
-            file_name=path,
-            output_spatial_shape=spatial_shape,
-            mode=self.mode,
-            scale=self.scale,
+            np.asarray(data), file_name=path, output_spatial_shape=spatial_shape, mode=self.mode, scale=self.scale
         )
 
         if self.print_log:
