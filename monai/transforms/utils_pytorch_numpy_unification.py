@@ -118,7 +118,7 @@ def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None) -> Union[Ndarra
             k = 1 + (0.01 * q * (x.numel() - 1)).round().int()
             if k.numel() > 1:
                 r = [x.view(-1).kthvalue(int(_k)).values.item() for _k in k]
-                result = torch.tensor(r, device=q.device)
+                result = torch.tensor(r, device=x.device)
             else:
                 result = x.view(-1).kthvalue(int(k)).values.item()
 
