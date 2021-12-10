@@ -20,9 +20,7 @@ from monai.metrics import SurfaceDistanceMetric
 
 
 def create_spherical_seg_3d(
-    radius: float = 20.0,
-    centre: Tuple[int, int, int] = (49, 49, 49),
-    im_shape: Tuple[int, int, int] = (99, 99, 99),
+    radius: float = 20.0, centre: Tuple[int, int, int] = (49, 49, 49), im_shape: Tuple[int, int, int] = (99, 99, 99)
 ) -> np.ndarray:
     """
     Return a 3D image with a sphere inside. Voxel values will be
@@ -49,10 +47,7 @@ def create_spherical_seg_3d(
 
 
 TEST_CASES = [
-    [
-        [create_spherical_seg_3d(), create_spherical_seg_3d()],
-        [0, 0],
-    ],
+    [[create_spherical_seg_3d(), create_spherical_seg_3d()], [0, 0]],
     [
         [
             create_spherical_seg_3d(radius=20, centre=(20, 20, 20)),
@@ -91,21 +86,8 @@ TEST_CASES = [
         ],
         [17.32691760951026, 12.432687531048186],
     ],
-    [
-        [
-            np.zeros([99, 99, 99]),
-            create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
-        ],
-        [np.inf, np.inf],
-    ],
-    [
-        [
-            create_spherical_seg_3d(),
-            np.zeros([99, 99, 99]),
-            "taxicab",
-        ],
-        [np.inf, np.inf],
-    ],
+    [[np.zeros([99, 99, 99]), create_spherical_seg_3d(radius=40, centre=(20, 33, 22))], [np.inf, np.inf]],
+    [[create_spherical_seg_3d(), np.zeros([99, 99, 99]), "taxicab"], [np.inf, np.inf]],
 ]
 
 TEST_CASES_NANS = [
@@ -114,8 +96,8 @@ TEST_CASES_NANS = [
             # both pred and gt do not have foreground, metric and not_nans should be 0
             np.zeros([99, 99, 99]),
             np.zeros([99, 99, 99]),
-        ],
-    ],
+        ]
+    ]
 ]
 
 
