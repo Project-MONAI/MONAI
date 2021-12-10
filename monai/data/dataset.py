@@ -133,7 +133,7 @@ class DatasetFunc(Dataset):
         self.kwargs = kwargs
         self.reset()
 
-    def reset(self, data: Optional[Any] = None, func: Optional[Callable] = None, **kwargs) -> Sequence:
+    def reset(self, data: Optional[Any] = None, func: Optional[Callable] = None, **kwargs):
         """
         Reset the dataset items with specified `func`.
 
@@ -145,8 +145,6 @@ class DatasetFunc(Dataset):
         """
         src = self.src if data is None else data
         self.data = self.func(src, **self.kwargs) if func is None else func(src, **kwargs)
-
-        return self.data
 
 
 class PersistentDataset(Dataset):
