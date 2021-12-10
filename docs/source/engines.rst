@@ -10,7 +10,8 @@ Multi-GPU data parallel
 
 .. automodule:: monai.engines.multi_gpu_supervised_trainer
   :members:
-
+.. automodule:: monai.engines.create_multigpu_supervised_evaluator
+  :members:
 
 Workflows
 ---------
