@@ -81,16 +81,21 @@ def clip(a: NdarrayOrTensor, a_min, a_max) -> NdarrayOrTensor:
     return result
 
 
-def percentile(x: NdarrayOrTensor, q) -> Union[NdarrayOrTensor, float, int]:
+def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None) -> Union[NdarrayOrTensor, float, int]:
     """`np.percentile` with equivalent implementation for torch.
 
     Pytorch uses `quantile`, but this functionality is only available from v1.7.
     For earlier methods, we calculate it ourselves. This doesn't do interpolation,
     so is the equivalent of ``numpy.percentile(..., interpolation="nearest")``.
+    For more details, please refer to:
+    https://pytorch.org/docs/stable/generated/torch.quantile.html.
+    https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
 
     Args:
         x: input data
         q: percentile to compute (should in range 0 <= q <= 100)
+        dim: the dim along which the percentiles are computed. default is to compute the percentile
+            along a flattened version of the array. only work for numpy array or Tensor with PyTorch >= 1.7.0.
 
     Returns:
         Resulting value (scalar)
@@ -102,18 +107,18 @@ def percentile(x: NdarrayOrTensor, q) -> Union[NdarrayOrTensor, float, int]:
         raise ValueError
     result: Union[NdarrayOrTensor, float, int]
     if isinstance(x, np.ndarray):
-        result = np.percentile(x, q)
+        result = np.percentile(x, q, axis=dim)
     else:
         q = torch.tensor(q, device=x.device)
         if hasattr(torch, "quantile"):
-            result = torch.quantile(x, q / 100.0)
+            result = torch.quantile(x, q / 100.0, dim=dim)
         else:
             # Note that ``kthvalue()`` works one-based, i.e., the first sorted value
             # corresponds to k=1, not k=0. Thus, we need the `1 +`.
             k = 1 + (0.01 * q * (x.numel() - 1)).round().int()
             if k.numel() > 1:
                 r = [x.view(-1).kthvalue(int(_k)).values.item() for _k in k]
-                result = torch.tensor(r, device=x.device)
+                result = torch.tensor(r, device=q.device)
             else:
                 result = x.view(-1).kthvalue(int(k)).values.item()
 

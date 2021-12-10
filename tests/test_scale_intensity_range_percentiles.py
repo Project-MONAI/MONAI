@@ -19,7 +19,7 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
     def test_scaling(self):
-        img = self.imt
+        img = self.imt[0]
         lower = 10
         upper = 99
         b_min = 0
@@ -34,7 +34,7 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
             assert_allclose(result, p(expected), rtol=1e-4)
 
     def test_relative_scaling(self):
-        img = self.imt
+        img = self.imt[0]
         lower = 10
         upper = 99
         b_min = 100
@@ -66,7 +66,7 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=30, upper=900, b_min=0, b_max=255)
 
     def test_channel_wise(self):
-        img = self.imt
+        img = self.imt[0]
         lower = 10
         upper = 99
         b_min = 0

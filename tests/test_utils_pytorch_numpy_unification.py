@@ -42,6 +42,17 @@ class TestPytorchNumpyUnification(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     percentile(arr, q)
 
+    def test_dim(self):
+        q = np.random.randint(0, 100, size=50)
+        results = []
+        for p in TEST_NDARRAYS:
+            arr = p(np.arange(6).reshape(1, 2, 3).astype(np.float32))
+            results.append(percentile(arr, q, dim=1))
+            # pre torch 1.7, no `quantile`. Our own method doesn't interpolate,
+            # so we can only be accurate to 0.5
+            atol = 0.5 if not hasattr(torch, "quantile") else 1e-4
+            assert_allclose(results[0], results[-1], type_test=False, atol=atol)
+
 
 if __name__ == "__main__":
     unittest.main()
