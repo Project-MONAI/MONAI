@@ -65,6 +65,26 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=30, upper=-20, b_min=0, b_max=255)
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=30, upper=900, b_min=0, b_max=255)
 
+    def test_channel_wise(self):
+        img = self.imt
+        lower = 10
+        upper = 99
+        b_min = 0
+        b_max = 255
+        scaler = ScaleIntensityRangePercentiles(
+            lower=lower, upper=upper, b_min=b_min, b_max=b_max, channel_wise=True, dtype=np.uint8
+        )
+        expected = []
+        for c in img:
+            a_min = np.percentile(c, lower)
+            a_max = np.percentile(c, upper)
+            expected.append(((c - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min)
+        expected = np.stack(expected).astype(np.uint8)
+
+        for p in TEST_NDARRAYS:
+            result = scaler(p(img))
+            assert_allclose(result, p(expected), rtol=1e-4)
+
 
 if __name__ == "__main__":
     unittest.main()
