@@ -154,6 +154,7 @@ class ResNet(nn.Module):
     ResNet based on: `Deep Residual Learning for Image Recognition <https://arxiv.org/pdf/1512.03385.pdf>`_
     and `Can Spatiotemporal 3D CNNs Retrace the History of 2D CNNs and ImageNet? <https://arxiv.org/pdf/1711.09577.pdf>`_.
     Adapted from `<https://github.com/kenshohara/3D-ResNets-PyTorch/tree/master/models>`_.
+
     Args:
         block: which ResNet block to use, either Basic or Bottleneck.
         layers: how many layers to use.
