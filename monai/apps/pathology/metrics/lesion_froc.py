@@ -78,11 +78,7 @@ class LesionFROC:
         self.itc_diameter = itc_diameter
         self.eval_thresholds = eval_thresholds
         self.image_reader = WSIReader(image_reader_name)
-        self.nms = PathologyProbNMS(
-            sigma=nms_sigma,
-            prob_threshold=nms_prob_threshold,
-            box_size=nms_box_size,
-        )
+        self.nms = PathologyProbNMS(sigma=nms_sigma, prob_threshold=nms_prob_threshold, box_size=nms_box_size)
 
     def prepare_inference_result(self, sample: Dict):
         """
@@ -151,12 +147,7 @@ class LesionFROC:
             total_tp_probs.extend(tp_probs)
             total_num_targets += num_targets
 
-        return (
-            np.array(total_fp_probs),
-            np.array(total_tp_probs),
-            total_num_targets,
-            num_images,
-        )
+        return np.array(total_fp_probs), np.array(total_tp_probs), total_num_targets, num_images
 
     def evaluate(self):
         """
@@ -168,17 +159,12 @@ class LesionFROC:
 
         # compute FROC curve given the evaluation of all images
         fps_per_image, total_sensitivity = compute_froc_curve_data(
-            fp_probs=fp_probs,
-            tp_probs=tp_probs,
-            num_targets=num_targets,
-            num_images=num_images,
+            fp_probs=fp_probs, tp_probs=tp_probs, num_targets=num_targets, num_images=num_images
         )
 
         # compute FROC score give specific evaluation threshold
         froc_score = compute_froc_score(
-            fps_per_image=fps_per_image,
-            total_sensitivity=total_sensitivity,
-            eval_thresholds=self.eval_thresholds,
+            fps_per_image=fps_per_image, total_sensitivity=total_sensitivity, eval_thresholds=self.eval_thresholds
         )
 
         return froc_score

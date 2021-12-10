@@ -29,11 +29,12 @@ seed = 0
 class TestRandRicianNoisedNumpy(NumpyImageTestCase2D):
     @parameterized.expand(TESTS)
     def test_correct_results(self, _, in_type, keys, mean, std):
-        rician_fn = RandRicianNoised(keys=keys, global_prob=1.0, prob=1.0, mean=mean, std=std)
+        rician_fn = RandRicianNoised(keys=keys, prob=1.0, mean=mean, std=std, dtype=np.float64)
         rician_fn.set_random_state(seed)
         noised = rician_fn({k: in_type(self.imt) for k in keys})
         np.random.seed(seed)
         for k in keys:
+            # simulate the `randomize` function of transform
             np.random.random()
             _std = np.random.uniform(0, std)
             expected = np.sqrt(

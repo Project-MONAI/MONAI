@@ -42,12 +42,7 @@ class TestCacheDatasetParallel(unittest.TestCase):
                     "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
                 }
             ] * dataset_size
-            dataset = CacheDataset(
-                data=test_data,
-                transform=transform,
-                cache_rate=1,
-                num_workers=num_workers,
-            )
+            dataset = CacheDataset(data=test_data, transform=transform, cache_rate=1, num_workers=num_workers)
 
         self.assertEqual(len(dataset._cache), dataset.cache_num)
         for i in range(dataset.cache_num):

@@ -15,15 +15,17 @@ Multi-GPU data parallel
 Workflows
 ---------
 
-.. automodule:: monai.engines.workflow
-.. currentmodule:: monai.engines.workflow
+.. currentmodule:: monai.engines
+
+`BaseWorkflow`
+~~~~~~~~~~~~~~
+.. autoclass:: BaseWorkflow
+    :members:
 
 `Workflow`
 ~~~~~~~~~~
 .. autoclass:: Workflow
     :members:
-
-.. currentmodule:: monai.engines
 
 `Trainer`
 ~~~~~~~~~
