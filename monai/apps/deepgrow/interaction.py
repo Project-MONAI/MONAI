@@ -13,13 +13,13 @@ from typing import Callable, Dict, Sequence, Union
 import torch
 
 from monai.data import decollate_batch, list_data_collate
-from monai.engines import SupervisedEvaluator, SupervisedTrainer
+from monai.engines import Iteration, SupervisedEvaluator, SupervisedTrainer
 from monai.engines.utils import IterationEvents
 from monai.transforms import Compose
 from monai.utils.enums import CommonKeys
 
 
-class Interaction:
+class Interaction(Iteration):
     """
     Ignite process_function used to introduce interactions (simulation of clicks) for Deepgrow Training/Evaluation.
     This implementation is based on:
@@ -51,7 +51,9 @@ class Interaction:
         self.train = train
         self.key_probability = key_probability
 
-    def __call__(self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]):
+    def __call__(  # type: ignore
+        self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]
+    ):
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
 

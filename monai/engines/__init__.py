@@ -14,6 +14,7 @@ from .multi_gpu_supervised_trainer import create_multigpu_supervised_evaluator, 
 from .trainer import GanTrainer, SupervisedTrainer, Trainer
 from .utils import (
     GanKeys,
+    Iteration,
     IterationEvents,
     PrepareBatch,
     PrepareBatchDefault,

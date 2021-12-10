@@ -20,8 +20,9 @@ from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
-    from ignite.engine import EventEnum
+    from ignite.engine import Engine, EventEnum
 else:
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "PrepareBatch",
     "PrepareBatchDefault",
     "PrepareBatchExtraInput",
+    "Iteration",
     "default_make_latent",
     "engine_apply_transform",
     "default_metric_cmp_fn",
@@ -198,6 +200,18 @@ class PrepareBatchExtraInput(PrepareBatch):
                 kwargs.update({k: _get_data(v)})
 
         return image, label, tuple(args), kwargs
+
+
+class Iteration(ABC):
+    """
+    Base class of customized iteration in the trainer or evaluator workflows.
+    It takes ignite Engine and the data of current batch as input.
+
+    """
+
+    @abstractmethod
+    def __call__(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 def default_make_latent(
