@@ -127,10 +127,11 @@ class DatasetFunc(Dataset):
     """
 
     def __init__(self, data: Any, func: Callable, **kwargs) -> None:
+        super().__init__(data=None, transform=None)  # type:ignore
         self.src = data
         self.func = func
         self.kwargs = kwargs
-        super().__init__(self.reset(), transform=None)
+        self.reset()
 
     def reset(self, data: Optional[Any] = None, func: Optional[Callable] = None, **kwargs) -> Sequence:
         """
