@@ -166,9 +166,9 @@ class PrepareBatchExtraInput(PrepareBatch):
 
     Args:
         extra_keys: if a string or list provided, every item is the key of extra data in current batch,
-            and will pass the extra data to the network(*args) in order.
+            and will pass the extra data to the `network(*args)` in order.
             If a dictionary is provided, every `{k, v}` pair is the key of extra data in current batch,
-            `k` the param name in network, `v` is the key of extra data in current batch,
+            `k` is the param name in network, `v` is the key of extra data in current batch,
             and will pass the `{k1: batch[v1], k2: batch[v2], ...}` as kwargs to the network.
 
     """

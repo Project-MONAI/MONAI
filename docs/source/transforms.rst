@@ -43,6 +43,11 @@ Generic Interfaces
 .. autoclass:: InvertibleTransform
     :members:
 
+`TraceableTransform`
+^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: TraceableTransform
+    :members:
+
 `BatchInverseTransform`
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: BatchInverseTransform
@@ -63,6 +68,12 @@ Vanilla Transforms
 
 Crop and Pad
 ^^^^^^^^^^^^
+
+`PadListDataCollate`
+""""""""""""""""""""
+.. autoclass:: PadListDataCollate
+    :members:
+    :special-members: __call__
 
 `Pad`
 """""
@@ -392,6 +403,12 @@ Intensity
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandKSpaceSpikeNoise.png
     :alt: example of RandKSpaceSpikeNoise
 .. autoclass:: RandKSpaceSpikeNoise
+    :members:
+    :special-members: __call__
+
+`RandRicianNoise`
+"""""""""""""""""
+.. autoclass:: RandRicianNoise
     :members:
     :special-members: __call__
 
@@ -827,6 +844,12 @@ Utility
 `RandLambda`
 """"""""""""
 .. autoclass:: RandLambda
+    :members:
+    :special-members: __call__
+
+`RemoveRepeatedChannel`
+"""""""""""""""""""""""
+.. autoclass:: RemoveRepeatedChannel
     :members:
     :special-members: __call__
 
@@ -1568,6 +1591,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`ToPIL`
+"""""""
+.. autoclass:: ToPIL
+    :members:
+    :special-members: __call__
+
 `ToCupyd`
 """""""""
 .. autoclass:: ToCupyd
@@ -1709,6 +1738,11 @@ Utility (Dict)
 Transform Adaptors
 ------------------
 .. automodule:: monai.transforms.adaptors
+
+`FunctionSignature`
+"""""""""""""""""""
+.. autoclass:: FunctionSignature
+    :members:
 
 `adaptor`
 ^^^^^^^^^
