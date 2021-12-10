@@ -51,3 +51,28 @@ Type conversion
 ---------------
 .. automodule:: monai.utils.type_conversion
   :members:
+
+Decorators
+----------
+.. automodule:: monai.utils.decorators
+  :members:
+
+Distributed Data Parallel
+-------------------------
+.. automodule:: monai.utils.dist
+  :members:
+
+Enums
+-----
+.. automodule:: monai.utils.enums
+  :members:
+
+Jupyter Utilities
+-----------------
+.. automodule:: monai.utils.jupyter_utils
+  :members:
+
+State Cacher
+------------
+.. automodule:: monai.utils.state_cacher
+  :members:
