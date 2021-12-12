@@ -47,8 +47,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             returned with the same order as input names when calling the class.
         compute_sample: when reducing, if ``True``, each sample's metric will be computed based on each confusion matrix first.
             if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns [(metric, not_nans), ...]. If False,
             aggregate() returns [metric, ...].
             Here `not_nans` count the number of not nans for True Positive, False Positive, True Negative and False Negative.
@@ -99,11 +100,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
                 warnings.warn("As for classification task, compute_sample should be False.")
                 self.compute_sample = False
 
-        return get_confusion_matrix(
-            y_pred=y_pred,
-            y=y,
-            include_background=self.include_background,
-        )
+        return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
 
     def aggregate(self):  # type: ignore
         """
@@ -129,11 +126,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         return results
 
 
-def get_confusion_matrix(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
-    include_background: bool = True,
-):
+def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True):
     """
     Compute confusion matrix. A tensor with the shape [BC4] will be returned. Where, the third dimension
     represents the number of true positive, false positive, true negative and false negative values for
@@ -153,10 +146,7 @@ def get_confusion_matrix(
     """
 
     if not include_background:
-        y_pred, y = ignore_background(
-            y_pred=y_pred,
-            y=y,
-        )
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
     y = y.float()
     y_pred = y_pred.float()
