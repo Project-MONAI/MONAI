@@ -27,8 +27,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
 
         a_min = np.percentile(img, lower)
         a_max = np.percentile(img, upper)
-        expected = (img - a_min) / (a_max - a_min)
-        expected = (expected * (b_max - b_min)) + b_min
+        expected = (((img - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min).astype(np.uint8)
 
         for p in TEST_NDARRAYS:
             data = {"img": p(img)}
