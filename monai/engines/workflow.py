@@ -11,7 +11,7 @@
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
 import torch.distributed as dist
@@ -67,9 +67,13 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         epoch_length: number of iterations for one epoch, default to `len(data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch: function to parse image and label for every iteration.
+        prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
+            from `engine.state.batch` for every iteration, for more details please refer to:
+            https://github.com/pytorch/ignite/blob/v0.4.7/ignite/engine/__init__.py#L33.
         iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+            and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
+            if not provided, use `self._iteration()` instead. for more details please refer to:
+            https://github.com/pytorch/ignite/blob/v0.4.7/ignite/engine/engine.py#L831.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_metric: compute metric when every iteration completed, and save average value to
@@ -107,7 +111,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable] = None,
+        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
         postprocessing: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,

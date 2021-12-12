@@ -13,15 +13,16 @@ from typing import Callable, Dict, Sequence, Union
 import torch
 
 from monai.data import decollate_batch, list_data_collate
-from monai.engines import Iteration, SupervisedEvaluator, SupervisedTrainer
+from monai.engines import SupervisedEvaluator, SupervisedTrainer
 from monai.engines.utils import IterationEvents
 from monai.transforms import Compose
 from monai.utils.enums import CommonKeys
 
 
-class Interaction(Iteration):
+class Interaction:
     """
     Ignite process_function used to introduce interactions (simulation of clicks) for Deepgrow Training/Evaluation.
+    For more details please refer to: https://github.com/pytorch/ignite/blob/v0.4.7/ignite/engine/engine.py#L831.
     This implementation is based on:
 
         Sakinis et al., Interactive segmentation of medical images through
@@ -51,9 +52,7 @@ class Interaction(Iteration):
         self.train = train
         self.key_probability = key_probability
 
-    def __call__(  # type: ignore
-        self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]
-    ):
+    def __call__(self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]):
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
 
