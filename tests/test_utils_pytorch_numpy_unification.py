@@ -16,7 +16,7 @@ import torch
 
 from monai.transforms.utils_pytorch_numpy_unification import percentile
 from monai.utils import set_determinism
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
 
 
 class TestPytorchNumpyUnification(unittest.TestCase):
@@ -41,6 +41,18 @@ class TestPytorchNumpyUnification(unittest.TestCase):
                 arr = p(np.arange(100 * 101).reshape(1, 100, 101).astype(np.float32))
                 with self.assertRaises(ValueError):
                     percentile(arr, q)
+
+    @SkipIfBeforePyTorchVersion((1, 7))
+    def test_dim(self):
+        q = np.random.randint(0, 100, size=50)
+        results = []
+        for p in TEST_NDARRAYS:
+            arr = p(np.arange(6).reshape(1, 2, 3).astype(np.float32))
+            results.append(percentile(arr, q, dim=1))
+            # pre torch 1.7, no `quantile`. Our own method doesn't interpolate,
+            # so we can only be accurate to 0.5
+            atol = 0.5 if not hasattr(torch, "quantile") else 1e-4
+            assert_allclose(results[0], results[-1], type_test=False, atol=atol)
 
 
 if __name__ == "__main__":

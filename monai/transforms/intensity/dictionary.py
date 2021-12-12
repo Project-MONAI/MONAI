@@ -655,8 +655,8 @@ class NormalizeIntensityd(MapTransform):
         subtrahend: the amount to subtract by (usually the mean)
         divisor: the amount to divide by (usually the standard deviation)
         nonzero: whether only normalize non-zero values.
-        channel_wise: if using calculated mean and std, calculate on each channel separately
-            or calculate on the entire image directly.
+        channel_wise: if True, calculate on each channel separately, otherwise, calculate on
+            the entire image directly. default to False.
         dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -844,6 +844,8 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
         relative: whether to scale to the corresponding percentiles of [b_min, b_max]
+        channel_wise: if True, compute intensity percentile and normalize every channel separately.
+            default to False.
         dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -859,11 +861,12 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: Optional[float],
         clip: bool = False,
         relative: bool = False,
+        channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative, dtype)
+        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative, channel_wise, dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
