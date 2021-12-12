@@ -208,6 +208,7 @@ Decathlon Datalist
 .. autofunction:: monai.data.load_decathlon_datalist
 .. autofunction:: monai.data.load_decathlon_properties
 .. autofunction:: monai.data.check_missing_files
+.. autofunction:: monai.data.create_cross_validation_datalist
 
 
 DataLoader
