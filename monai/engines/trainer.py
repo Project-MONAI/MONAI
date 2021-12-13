@@ -77,11 +77,11 @@ class SupervisedTrainer(Trainer):
             with respect to the host. For other cases, this argument has no effect.
         prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
             from `engine.state.batch` for every iteration, for more details please refer to:
-            https://github.com/pytorch/ignite/blob/v0.4.7/ignite/engine/__init__.py#L33.
+            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
             if not provided, use `self._iteration()` instead. for more details please refer to:
-            https://github.com/pytorch/ignite/blob/v0.4.7/ignite/engine/engine.py#L831.
+            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
         inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
@@ -246,15 +246,15 @@ class GanTrainer(Trainer):
             with respect to the host. For other cases, this argument has no effect.
         d_prepare_batch: callback function to prepare batchdata for D inferer.
             Defaults to return ``GanKeys.REALS`` in batchdata dict. for more details please refer to:
-            https://github.com/pytorch/ignite/blob/v0.4.7/ignite/engine/__init__.py#L33.
+            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
         g_prepare_batch: callback function to create batch of latent input for G inferer.
             Defaults to return random latents. for more details please refer to:
-            https://github.com/pytorch/ignite/blob/v0.4.7/ignite/engine/__init__.py#L33.
+            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
         g_update_latents: Calculate G loss with new latent codes. Defaults to ``True``.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
             if not provided, use `self._iteration()` instead. for more details please refer to:
-            https://github.com/pytorch/ignite/blob/v0.4.7/ignite/engine/engine.py#L831.
+            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_train_metric: compute metric when every iteration completed, and save average value to
