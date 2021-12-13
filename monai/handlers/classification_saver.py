@@ -55,9 +55,15 @@ class ClassificationSaver:
             batch_transform: a callable that is used to extract the `meta_data` dictionary of
                 the input images from `ignite.engine.state.batch`. the purpose is to get the input
                 filenames from the `meta_data` and store with classification results together.
+                `engine.state` and `batch_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             output_transform: a callable that is used to extract the model prediction data from
                 `ignite.engine.state.output`. the first dimension of its output will be treated as
                 the batch dimension. each item in the batch will be saved individually.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
             save_rank: only the handler on specified rank will save to CSV file in multi-gpus validation,
                 default to 0.
@@ -92,7 +98,14 @@ class ClassificationSaver:
         if not engine.has_event_handler(self._finalize, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self._finalize)
 
-    def _started(self, engine: Engine) -> None:
+    def _started(self, _engine: Engine) -> None:
+        """
+        Initialize internal buffers.
+
+        Args:
+            _engine: Ignite Engine, unused argument.
+
+        """
         self._outputs = []
         self._filenames = []
 
@@ -114,12 +127,12 @@ class ClassificationSaver:
                 o = o.detach()
             self._outputs.append(o)
 
-    def _finalize(self, engine: Engine) -> None:
+    def _finalize(self, _engine: Engine) -> None:
         """
         All gather classification results from ranks and save to CSV file.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            _engine: Ignite Engine, unused argument.
         """
         ws = idist.get_world_size()
         if self.save_rank >= ws:

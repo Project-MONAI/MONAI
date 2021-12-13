@@ -11,13 +11,13 @@
 
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
-from monai.config import IgniteInfo, KeysCollection
-from monai.utils import deprecated, ensure_tuple, get_torch_version_tuple, look_up_option, min_version, optional_import
+from monai.config import IgniteInfo, KeysCollection, PathLike
+from monai.utils import ensure_tuple, look_up_option, min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 if TYPE_CHECKING:
@@ -25,14 +25,7 @@ if TYPE_CHECKING:
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
-__all__ = [
-    "stopping_fn_from_metric",
-    "stopping_fn_from_loss",
-    "evenly_divisible_all_gather",
-    "string_list_all_gather",
-    "write_metrics_reports",
-    "from_engine",
-]
+__all__ = ["stopping_fn_from_metric", "stopping_fn_from_loss", "write_metrics_reports", "from_engine"]
 
 
 def stopping_fn_from_metric(metric_name: str):
@@ -52,85 +45,13 @@ def stopping_fn_from_loss():
     """
 
     def stopping_fn(engine: Engine):
-        return -engine.state.output
+        return -engine.state.output  # type:ignore
 
     return stopping_fn
 
 
-@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="The API had been moved to monai.utils module.")
-def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
-    """
-    Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
-
-    Args:
-        data: source tensor to pad and execute all_gather in distributed data parallel.
-
-    Note:
-        The input data on different ranks must have exactly same `dtype`.
-
-    .. versionchanged:: 0.6.0
-        The API had been moved to `monai.utils`.
-
-    """
-    if not isinstance(data, torch.Tensor):
-        raise ValueError("input data must be PyTorch Tensor.")
-
-    if idist.get_world_size() <= 1:
-        return data
-
-    # make sure the data is evenly-divisible on multi-GPUs
-    length = data.shape[0]
-    all_lens = idist.all_gather(length)
-    max_len = max(all_lens)
-    if length < max_len:
-        size = [max_len - length] + list(data.shape[1:])
-        data = torch.cat([data, data.new_full(size, 0)], dim=0)
-    # all gather across all processes
-    data = idist.all_gather(data)
-    # delete the padding NaN items
-    return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
-
-
-@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="The API had been moved to monai.utils module.")
-def string_list_all_gather(strings: List[str]) -> List[str]:
-    """
-    Utility function for distributed data parallel to all gather a list of strings.
-    Note that if the item in `strings` is longer than 1024 chars, it will be truncated to 1024:
-    https://pytorch.org/ignite/v0.4.5/distributed.html#ignite.distributed.utils.all_gather.
-
-    Args:
-        strings: a list of strings to all gather.
-
-    .. versionchanged:: 0.6.0
-        The API had been moved to `monai.utils`.
-
-    """
-    world_size = idist.get_world_size()
-    if world_size <= 1:
-        return strings
-
-    result: List[List[str]] = [[] for _ in range(world_size)]
-    # get length of strings
-    length = len(strings)
-    all_lens = idist.all_gather(length)
-    max_len = max(all_lens)
-    # pad the item to make sure the same length
-    if length < max_len:
-        strings += ["" for _ in range(max_len - length)]
-
-    if get_torch_version_tuple() <= (1, 6):
-        raise RuntimeError("string all_gather can not be supported in PyTorch < 1.7.0.")
-
-    for s in strings:
-        gathered = idist.all_gather(s)
-        for i, g in enumerate(gathered):
-            if len(g) > 0:
-                result[i].append(g)
-    return [i for k in result for i in k]
-
-
 def write_metrics_reports(
-    save_dir: str,
+    save_dir: PathLike,
     images: Optional[Sequence[str]],
     metrics: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
     metric_details: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
@@ -204,12 +125,12 @@ def write_metrics_reports(
             if summary_ops is not None:
                 supported_ops = OrderedDict(
                     {
-                        "mean": lambda x: np.nanmean(x),
-                        "median": lambda x: np.nanmedian(x),
-                        "max": lambda x: np.nanmax(x),
-                        "min": lambda x: np.nanmin(x),
+                        "mean": np.nanmean,
+                        "median": np.nanmedian,
+                        "max": np.nanmax,
+                        "min": np.nanmin,
                         "90percentile": lambda x: np.nanpercentile(x[0], x[1]),
-                        "std": lambda x: np.nanstd(x),
+                        "std": np.nanstd,
                         "notnans": lambda x: (~np.isnan(x)).sum(),
                     }
                 )
@@ -223,7 +144,7 @@ def write_metrics_reports(
                         return c_op(d)
 
                     threshold = int(op.split("percentile")[0])
-                    return supported_ops["90percentile"]((d, threshold))
+                    return supported_ops["90percentile"]((d, threshold))  # type: ignore
 
                 with open(os.path.join(save_dir, f"{k}_summary.csv"), "w") as f:
                     f.write(f"class{deli}{deli.join(ops)}\n")

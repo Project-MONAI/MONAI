@@ -33,12 +33,10 @@ class TestFlipd(NumpyImageTestCase2D):
     def test_correct_results(self, _, spatial_axis):
         for p in TEST_NDARRAYS:
             flip = Flipd(keys="img", spatial_axis=spatial_axis)
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(np.flip(channel, spatial_axis))
+            expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)
             result = flip({"img": p(self.imt[0])})["img"]
-            assert_allclose(expected, result)
+            assert_allclose(result, p(expected))
 
 
 if __name__ == "__main__":
