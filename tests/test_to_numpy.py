@@ -47,7 +47,7 @@ class TestToNumpy(unittest.TestCase):
         test_data = torch.tensor([[1, 2], [3, 4]])
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
-        result = ToNumpy(dtype=torch.unit8)(test_data)
+        result = ToNumpy(dtype=torch.uint8)(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         assert_allclose(result, test_data, type_test=False)
