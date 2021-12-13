@@ -592,6 +592,8 @@ class ToCupyd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         dtype: data type specifier. It is inferred from the input by default.
+            if not None, must be an argument of `numpy.dtype`, for more details:
+            https://docs.cupy.dev/en/stable/reference/generated/cupy.array.html.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
         allow_missing_keys: don't raise exception if key is missing.
@@ -600,7 +602,11 @@ class ToCupyd(MapTransform):
     backend = ToCupy.backend
 
     def __init__(
-        self, keys: KeysCollection, dtype=None, wrap_sequence: bool = True, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        dtype: Optional[np.dtype] = None,
+        wrap_sequence: bool = True,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.converter = ToCupy(dtype=dtype, wrap_sequence=wrap_sequence)

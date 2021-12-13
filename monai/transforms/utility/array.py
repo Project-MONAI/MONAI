@@ -446,6 +446,8 @@ class ToCupy(Transform):
 
     Args:
         dtype: data type specifier. It is inferred from the input by default.
+            if not None, must be an argument of `numpy.dtype`, for more details:
+            https://docs.cupy.dev/en/stable/reference/generated/cupy.array.html.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
 
@@ -453,7 +455,7 @@ class ToCupy(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype=None, wrap_sequence: bool = True) -> None:
+    def __init__(self, dtype: Optional[np.dtype] = None, wrap_sequence: bool = True) -> None:
         super().__init__()
         self.dtype = dtype
         self.wrap_sequence = wrap_sequence
