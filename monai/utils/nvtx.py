@@ -63,7 +63,10 @@ class Range:
         if self.name is None:
             name = type(obj).__name__
             self.name_counter[name] += 1
-            self.name = f"{name}_{self.name_counter[name]}"
+            if self.name_counter[name] > 1:
+                self.name = f"{name}_{self.name_counter[name]}"
+            else:
+                self.name = name
 
         # Define the methods to be wrapped if not provided
         if self.methods is None:
