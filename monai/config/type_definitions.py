@@ -60,8 +60,8 @@ KeysCollection = Union[Collection[Hashable], Hashable]
 # container must be iterable.
 IndexSelection = Union[Iterable[int], int]
 
-#: Type of datatypes: Adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like.py
-DtypeLike = Union[np.dtype, type, None]
+#: Type of datatypes: Adapted from https://github.com/numpy/numpy/blob/v1.21.4/numpy/typing/_dtype_like.py#L121
+DtypeLike = Union[np.dtype, type, str, None]
 
 #: NdarrayTensor
 #
