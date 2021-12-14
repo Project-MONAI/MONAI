@@ -62,16 +62,28 @@ class ConfigParser:
         pkgs: the expected packages to scan.
         modules: the expected modules in the packages to scan.
 
-    Raises:
-        ValueError: must provide `path` or `name` of class to build component.
-        ValueError: can not find component class.
-
     """
 
     def __init__(self, pkgs: Sequence[str], modules: Sequence[str]):
         self.module_scanner = ModuleScanner(pkgs=pkgs, modules=modules)
 
     def build_component(self, config: Dict) -> object:
+        """
+        Build component instance based on the provided dictonary config.
+        Supported keys for the config:
+        - 'name' - class name in the modules of packages.
+        - 'path' - directly specify the class path, based on PYTHONPATH, ignore 'name' if specified.
+        - 'args' - arguments to initialize the component instance.
+        - 'disabled' - if defined `'disabled': true`, will skip the buiding, useful for development or tuning.
+
+        Args:
+            config: dictionary config to define a component.
+
+        Raises:
+            ValueError: must provide `path` or `name` of class to build component.
+            ValueError: can not find component class.
+
+        """
         if not isinstance(config, dict):
             raise ValueError("config of component must be a dictionary.")
 
