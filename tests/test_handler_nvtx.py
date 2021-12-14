@@ -22,42 +22,18 @@ from monai.utils import optional_import
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
-TENSOR_0 = torch.tensor(
-    [
-        [
-            [[1.0], [2.0]],
-            [[3.0], [4.0]],
-        ]
-    ]
-)
+TENSOR_0 = torch.tensor([[[[1.0], [2.0]], [[3.0], [4.0]]]])
 
-TENSOR_1 = torch.tensor(
-    [
-        [
-            [[0.0], [-2.0]],
-            [[-3.0], [4.0]],
-        ]
-    ]
-)
+TENSOR_1 = torch.tensor([[[[0.0], [-2.0]], [[-3.0], [4.0]]]])
 
-TENSOR_1_EXPECTED = torch.tensor(
-    [
-        [[1.0], [0.5]],
-        [[0.25], [5.0]],
-    ]
-)
+TENSOR_1_EXPECTED = torch.tensor([[[1.0], [0.5]], [[0.25], [5.0]]])
 
 TEST_CASE_0 = [[{"image": TENSOR_0}], TENSOR_0[0] + 1.0]
 TEST_CASE_1 = [[{"image": TENSOR_1}], TENSOR_1_EXPECTED]
 
 
 class TestHandlerDecollateBatch(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_compute(self, data, expected):
         # Set up handlers
