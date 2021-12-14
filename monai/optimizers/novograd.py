@@ -20,7 +20,7 @@ class Novograd(Optimizer):
     Novograd based on `Stochastic Gradient Methods with Layer-wise Adaptive Moments for Training of Deep Networks
     <https://arxiv.org/pdf/1905.11286.pdf>`_.
     The code is adapted from the implementations in `Jasper for PyTorch
-    <https://github.com/NVIDIA/DeepLearningExamples/blob/master/PyTorch/SpeechRecognition/Jasper/optimizers.py>`_,
+    <https://github.com/NVIDIA/DeepLearningExamples/blob/master/PyTorch/SpeechRecognition/Jasper/common/optimizers.py>`_,
     and `OpenSeq2Seq <https://github.com/NVIDIA/OpenSeq2Seq/blob/master/open_seq2seq/optimizers/novograd.py>`_.
 
     Args:
