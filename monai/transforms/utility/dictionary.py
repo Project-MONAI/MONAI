@@ -1319,6 +1319,7 @@ class TorchVisiond(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
+        self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1358,6 +1359,7 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
+        self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1519,6 +1521,7 @@ class CuCIMd(MapTransform):
 
     def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
+        self.name = name
         self.trans = CuCIM(name, *args, **kwargs)
 
     def __call__(self, data):

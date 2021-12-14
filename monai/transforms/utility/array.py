@@ -1006,6 +1006,7 @@ class TorchVision:
 
         """
         super().__init__()
+        self.name = name
         transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
@@ -1194,6 +1195,7 @@ class CuCIM(Transform):
 
     def __init__(self, name: str, *args, **kwargs) -> None:
         super().__init__()
+        self.name = name
         self.transform, _ = optional_import("cucim.core.operations.expose.transform", name=name)
         self.args = args
         self.kwargs = kwargs
