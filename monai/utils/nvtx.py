@@ -62,6 +62,26 @@ class Range:
         # Define the name to be associated to the range if not provided
         if self.name is None:
             name = type(obj).__name__
+            # If CuCIM or TorchVision transform wrappers are being used,
+            # append the underlying transform to the name for more clarity
+            if name in [
+                "CuCIM",
+                "CuCIMd",
+                "CuCIMD",
+                "CuCIMDict",
+                "RandCuCIM",
+                "RandCuCIMd",
+                "RandCuCIMD",
+                "RandCuCIMDict",
+                "TorchVision",
+                "TorchVisiond",
+                "TorchVisionD",
+                "TorchVisionDict",
+                "RandTorchVisiond",
+                "RandTorchVisionD",
+                "RandTorchVisionDict",
+            ]:
+                name = f"{name}_{obj.name}"
             self.name_counter[name] += 1
             if self.name_counter[name] > 1:
                 self.name = f"{name}_{self.name_counter[name]}"
