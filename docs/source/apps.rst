@@ -29,6 +29,16 @@ Clara MMARs
     :annotation:
 
 
+Model Package
+-------------
+
+.. autoclass:: ConfigParser
+    :members:
+
+.. autoclass:: ModuleScanner
+    :members:
+
+
 `Utilities`
 -----------
 
