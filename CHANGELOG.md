@@ -6,6 +6,38 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.8.1] - 2021-12-21
+### Added
+* Support of `matshow3d` with given `channel_dim`
+* Support of spatial 2D for `ViTAutoEnc`
+* Support of `dataframe` object in `CSVDataset`
+* A base workflow API
+* `DataFunc` API for dataset-level preprocessing
+* `write_scalar` API for logging with additional `engine` parameter in `TensorBoardHandler`
+* Enhancements for NVTX Range transform logging
+* Enhancements for `set_determinism`
+* Performance enhancements in the cache-based datasets
+* Configurable metadata keys for `monai.data.DatasetSummary`
+* Flexible `kwargs` for `WSIReader`
+* Logging for the learning rate schedule handler
+
+### Fixed
+* Issue when caching large items with `pickle`
+* Issue of hard-coded activation functions in `ResBlock`
+* Issue of `create_file_name` assuming local disk file creation
+* Issue of `WSIReader` when the backend is `TiffFile`
+* Issue of `deprecated_args` when the function signature contains kwargs
+* Issue of `channel_wise` computations for the intensity-based transforms
+* Issue of inverting `OneOf`
+* Error messages when reader backend is not available
+* Output type casting issue in `ScaleIntensityRangePercentiles`
+* Various docstring typos
+
+### Removed
+* Additional deep supervision modules in `DynUnet`
+* Deprecated `reduction` argument for `ContrastiveLoss`
+* Decollate warning in `Workflow`
+
 ## [0.8.0] - 2021-11-25
 ### Added
 * Overview of [new features in v0.8](docs/source/whatsnew_0_8.md)
@@ -434,7 +466,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.8.1...HEAD
+[0.8.1]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/Project-MONAI/MONAI/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/Project-MONAI/MONAI/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/Project-MONAI/MONAI/compare/0.5.3...0.6.0
