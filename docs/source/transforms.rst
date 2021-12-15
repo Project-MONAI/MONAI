@@ -324,6 +324,8 @@ Intensity
 
 `SavitzkyGolaySmooth`
 """""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SavitzkyGolaySmooth.png
+    :alt: example of SavitzkyGolaySmooth
 .. autoclass:: SavitzkyGolaySmooth
     :members:
     :special-members: __call__
@@ -408,6 +410,8 @@ Intensity
 
 `RandRicianNoise`
 """""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRicianNoise.png
+    :alt: example of RandRicianNoise
 .. autoclass:: RandRicianNoise
     :members:
     :special-members: __call__
@@ -1170,6 +1174,14 @@ Intensity (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandKSpaceSpikeNoised.png
     :alt: example of RandKSpaceSpikeNoised
 .. autoclass:: RandKSpaceSpikeNoised
+    :members:
+    :special-members: __call__
+
+`RandRicianNoised`
+""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRicianNoised.png
+    :alt: example of RandRicianNoised
+.. autoclass:: RandRicianNoised
     :members:
     :special-members: __call__
 
