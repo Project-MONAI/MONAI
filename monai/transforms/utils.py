@@ -873,7 +873,7 @@ def generate_spatial_bounding_box(
     margin: Union[Sequence[int], int] = 0,
 ) -> Tuple[List[int], List[int]]:
     """
-    generate the spatial bounding box of foreground in the image with start-end positions.
+    generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
     And it can also add margin to every dim of the bounding box.
     The output format of the coordinates is:

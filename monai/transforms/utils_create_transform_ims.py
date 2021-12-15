@@ -102,9 +102,11 @@ from monai.transforms.intensity.array import (
     RandGibbsNoise,
     RandHistogramShift,
     RandKSpaceSpikeNoise,
+    RandRicianNoise,
     RandScaleIntensity,
     RandShiftIntensity,
     RandStdShiftIntensity,
+    SavitzkyGolaySmooth,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
     ShiftIntensity,
@@ -130,6 +132,7 @@ from monai.transforms.intensity.dictionary import (
     RandGibbsNoised,
     RandHistogramShiftd,
     RandKSpaceSpikeNoised,
+    RandRicianNoised,
     RandScaleIntensityd,
     RandShiftIntensityd,
     RandStdShiftIntensityd,
@@ -520,6 +523,9 @@ if __name__ == "__main__":
         dict(keys=CommonKeys.IMAGE, global_prob=1, prob=1, common_sampling=True, intensity_range=(13, 15)),
         data,
     )
+    create_transform_im(RandRicianNoise, dict(prob=1.0, mean=1, std=0.5), data)
+    create_transform_im(RandRicianNoised, dict(keys=CommonKeys.IMAGE, prob=1.0, mean=1, std=0.5), data)
+    create_transform_im(SavitzkyGolaySmooth, dict(window_length=5, order=1), data)
     create_transform_im(GibbsNoise, dict(alpha=0.8), data)
     create_transform_im(GibbsNoised, dict(keys=CommonKeys.IMAGE, alpha=0.8), data)
     create_transform_im(RandGibbsNoise, dict(prob=1.0, alpha=(0.6, 0.8)), data)
@@ -640,8 +646,8 @@ if __name__ == "__main__":
     create_transform_im(RandScaleCropd, dict(keys=keys, roi_scale=0.4), data)
     create_transform_im(CenterScaleCrop, dict(roi_scale=0.4), data)
     create_transform_im(CenterScaleCropd, dict(keys=keys, roi_scale=0.4), data)
-    create_transform_im(AsDiscrete, dict(to_onehot=2, threshold=10), data, is_post=True, colorbar=True)
-    create_transform_im(AsDiscreted, dict(keys=CommonKeys.LABEL, to_onehot=2, threshold=10), data, is_post=True)
+    create_transform_im(AsDiscrete, dict(to_onehot=None, threshold=10), data, is_post=True, colorbar=True)
+    create_transform_im(AsDiscreted, dict(keys=CommonKeys.LABEL, to_onehot=None, threshold=10), data, is_post=True)
     create_transform_im(LabelFilter, dict(applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True)
     create_transform_im(
         LabelFilterd, dict(keys=CommonKeys.LABEL, applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True
