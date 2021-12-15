@@ -15,8 +15,7 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.upsample import UpSample
-from monai.networks.layers.factories import Act
-from monai.networks.layers.utils import get_norm_layer
+from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import InterpolateMode, UpsampleMode
 
 
@@ -25,13 +24,7 @@ def get_conv_layer(
 ):
 
     return Convolution(
-        spatial_dims,
-        in_channels,
-        out_channels,
-        strides=stride,
-        kernel_size=kernel_size,
-        bias=bias,
-        conv_only=True,
+        spatial_dims, in_channels, out_channels, strides=stride, kernel_size=kernel_size, bias=bias, conv_only=True
     )
 
 
@@ -39,7 +32,7 @@ def get_upsample_layer(
     spatial_dims: int, in_channels: int, upsample_mode: Union[UpsampleMode, str] = "nontrainable", scale_factor: int = 2
 ):
     return UpSample(
-        dimensions=spatial_dims,
+        spatial_dims=spatial_dims,
         in_channels=in_channels,
         out_channels=in_channels,
         scale_factor=scale_factor,
@@ -62,6 +55,7 @@ class ResBlock(nn.Module):
         in_channels: int,
         norm: Union[Tuple, str],
         kernel_size: int = 3,
+        act: Union[Tuple, str] = ("RELU", {"inplace": True}),
     ) -> None:
         """
         Args:
@@ -69,6 +63,7 @@ class ResBlock(nn.Module):
             in_channels: number of input channels.
             norm: feature normalization type and arguments.
             kernel_size: convolution kernel size, the value should be an odd number. Defaults to 3.
+            act: activation type and arguments. Defaults to ``RELU``.
         """
 
         super().__init__()
@@ -78,7 +73,7 @@ class ResBlock(nn.Module):
 
         self.norm1 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
         self.norm2 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
-        self.relu = Act[Act.RELU](inplace=True)
+        self.act = get_act_layer(act)
         self.conv1 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
         self.conv2 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
 
@@ -87,11 +82,11 @@ class ResBlock(nn.Module):
         identity = x
 
         x = self.norm1(x)
-        x = self.relu(x)
+        x = self.act(x)
         x = self.conv1(x)
 
         x = self.norm2(x)
-        x = self.relu(x)
+        x = self.act(x)
         x = self.conv2(x)
 
         x += identity

@@ -115,17 +115,7 @@ TEST_CASE_PRETRAINED_5 = [
 
 
 class TestTorchVisionFCModel(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     @skipUnless(has_tv, "Requires TorchVision.")
     def test_without_pretrained(self, input_param, input_shape, expected_shape):
         net = TorchVisionFCModel(**input_param).to(device)

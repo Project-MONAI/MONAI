@@ -20,7 +20,7 @@ class Novograd(Optimizer):
     Novograd based on `Stochastic Gradient Methods with Layer-wise Adaptive Moments for Training of Deep Networks
     <https://arxiv.org/pdf/1905.11286.pdf>`_.
     The code is adapted from the implementations in `Jasper for PyTorch
-    <https://github.com/NVIDIA/DeepLearningExamples/blob/master/PyTorch/SpeechRecognition/Jasper/optimizers.py>`_,
+    <https://github.com/NVIDIA/DeepLearningExamples/blob/master/PyTorch/SpeechRecognition/Jasper/common/optimizers.py>`_,
     and `OpenSeq2Seq <https://github.com/NVIDIA/OpenSeq2Seq/blob/master/open_seq2seq/optimizers/novograd.py>`_.
 
     Args:
@@ -45,28 +45,23 @@ class Novograd(Optimizer):
         amsgrad: bool = False,
     ):
         if 0.0 > lr:
-            raise ValueError("Invalid learning rate: {}".format(lr))
+            raise ValueError(f"Invalid learning rate: {lr}")
         if 0.0 > eps:
-            raise ValueError("Invalid epsilon value: {}".format(eps))
+            raise ValueError(f"Invalid epsilon value: {eps}")
         if not 0.0 <= betas[0] < 1.0:
-            raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
+            raise ValueError(f"Invalid beta parameter at index 0: {betas[0]}")
         if not 0.0 <= betas[1] < 1.0:
-            raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+            raise ValueError(f"Invalid beta parameter at index 1: {betas[1]}")
         if 0.0 > weight_decay:
-            raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
+            raise ValueError(f"Invalid weight_decay value: {weight_decay}")
         defaults = dict(
-            lr=lr,
-            betas=betas,
-            eps=eps,
-            weight_decay=weight_decay,
-            grad_averaging=grad_averaging,
-            amsgrad=amsgrad,
+            lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, grad_averaging=grad_averaging, amsgrad=amsgrad
         )
 
-        super(Novograd, self).__init__(params, defaults)
+        super().__init__(params, defaults)
 
     def __setstate__(self, state):
-        super(Novograd, self).__setstate__(state)
+        super().__setstate__(state)
         for group in self.param_groups:
             group.setdefault("amsgrad", False)
 
