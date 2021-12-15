@@ -52,12 +52,12 @@ class BendingEnergyLoss(_Loss):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
-    def __init__(self, normalize: bool = True, reduction: Union[LossReduction, str] = LossReduction.MEAN) -> None:
+    def __init__(self, normalize: bool = False, reduction: Union[LossReduction, str] = LossReduction.MEAN) -> None:
         """
         Args:
             normalize:
                 Whether to divide out spatial sizes in order to make the computation roughly
-                invariant to image scale (i.e. vector field sampling resolution). Defaults to True.
+                invariant to image scale (i.e. vector field sampling resolution). Defaults to False.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
