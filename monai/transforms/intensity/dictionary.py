@@ -937,7 +937,7 @@ class SavitzkyGolaySmoothd(MapTransform):
 
     """
 
-    backend = GaussianSmooth.backend
+    backend = SavitzkyGolaySmooth.backend
 
     def __init__(
         self,
