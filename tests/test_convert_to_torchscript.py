@@ -34,6 +34,7 @@ class TestConvertToTorchScript(unittest.TestCase):
                 device="cuda" if torch.cuda.is_available() else "cpu",
                 rtol=1e-3,
                 atol=1e-4,
+                optimize=None,
             )
             self.assertTrue(isinstance(torchscript_model, torch.nn.Module))
 
