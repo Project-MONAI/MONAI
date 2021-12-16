@@ -26,11 +26,9 @@ class TestRandFlipd(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             flip = RandFlipd(keys="img", prob=1.0, spatial_axis=spatial_axis)
             result = flip({"img": p(self.imt[0])})["img"]
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(np.flip(channel, spatial_axis))
+            expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(expected, result)
+            assert_allclose(result, p(expected))
 
 
 if __name__ == "__main__":

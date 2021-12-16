@@ -10,5 +10,6 @@
 # limitations under the License.
 
 from .lr_finder import LearningRateFinder
+from .lr_scheduler import ExponentialLR, LinearLR, WarmupCosineSchedule
 from .novograd import Novograd
 from .utils import generate_param_groups
