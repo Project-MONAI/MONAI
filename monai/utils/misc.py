@@ -89,7 +89,7 @@ def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
     Returns a tuple of `vals`.
     """
     if not issequenceiterable(vals):
-        vals = (vals,)
+        return (vals,)
 
     return tuple(vals)
 
@@ -98,8 +98,8 @@ def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> Tuple[Any, ...]:
     """
     Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary.
     """
-    tup = ensure_tuple(tup) + (pad_val,) * dim
-    return tuple(tup[:dim])
+    new_tup = ensure_tuple(tup) + (pad_val,) * dim
+    return new_tup[:dim]
 
 
 def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
