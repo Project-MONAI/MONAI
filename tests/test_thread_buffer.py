@@ -78,6 +78,22 @@ class TestDataLoader(unittest.TestCase):
                 f"Buffered time {buffered_time} should be less than unbuffered time {unbuffered_time}",
             )
 
+    def test_dataloader_repeats(self):
+        dataset = Dataset(data=self.datalist, transform=self.transform)
+        dataloader = ThreadDataLoader(dataset=dataset, batch_size=2, num_workers=0, repeats=2)
+
+        previous_batch = None
+
+        for d in dataloader:
+            self.assertEqual(d["image"][0], "spleen_19.nii.gz")
+            self.assertEqual(d["image"][1], "spleen_31.nii.gz")
+
+            if previous_batch is None:
+                previous_batch = d
+            else:
+                self.assertTrue(previous_batch is d, "Batch object was not repeated")
+                previous_batch = None
+
 
 if __name__ == "__main__":
     unittest.main()

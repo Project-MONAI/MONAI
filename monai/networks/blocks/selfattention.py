@@ -23,12 +23,7 @@ class SABlock(nn.Module):
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
     """
 
-    def __init__(
-        self,
-        hidden_size: int,
-        num_heads: int,
-        dropout_rate: float = 0.0,
-    ) -> None:
+    def __init__(self, hidden_size: int, num_heads: int, dropout_rate: float = 0.0) -> None:
         """
         Args:
             hidden_size: dimension of hidden layer.
@@ -37,7 +32,7 @@ class SABlock(nn.Module):
 
         """
 
-        super(SABlock, self).__init__()
+        super().__init__()
 
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")

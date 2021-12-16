@@ -15,60 +15,79 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import generate_spatial_bounding_box
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    {
-        "img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-        "select_fn": lambda x: x > 0,
-        "channel_indices": None,
-        "margin": 0,
-    },
-    ([1, 1], [4, 4]),
-]
-
-TEST_CASE_2 = [
-    {
-        "img": np.array([[[0, 0, 0, 0, 0], [0, 1, 1, 1, 0], [0, 1, 3, 1, 0], [0, 1, 1, 1, 0], [0, 0, 0, 0, 0]]]),
-        "select_fn": lambda x: x > 1,
-        "channel_indices": None,
-        "margin": 0,
-    },
-    ([2, 2], [3, 3]),
-]
-
-TEST_CASE_3 = [
-    {
-        "img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-        "select_fn": lambda x: x > 0,
-        "channel_indices": 0,
-        "margin": 0,
-    },
-    ([1, 1], [4, 4]),
-]
-
-TEST_CASE_4 = [
-    {
-        "img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-        "select_fn": lambda x: x > 0,
-        "channel_indices": None,
-        "margin": 1,
-    },
-    ([0, 0], [4, 5]),
-]
-
-TEST_CASE_5 = [
-    {
-        "img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-        "select_fn": lambda x: x > 0,
-        "channel_indices": None,
-        "margin": [2, 1],
-    },
-    ([0, 0], [5, 5]),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            {
+                "img": p(
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])
+                ),
+                "select_fn": lambda x: x > 0,
+                "channel_indices": None,
+                "margin": 0,
+            },
+            ([1, 1], [4, 4]),
+        ]
+    )
+    TESTS.append(
+        [
+            {
+                "img": p(
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 1, 1, 0], [0, 1, 3, 1, 0], [0, 1, 1, 1, 0], [0, 0, 0, 0, 0]]])
+                ),
+                "select_fn": lambda x: x > 1,
+                "channel_indices": None,
+                "margin": 0,
+            },
+            ([2, 2], [3, 3]),
+        ]
+    )
+    TESTS.append(
+        [
+            {
+                "img": p(
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])
+                ),
+                "select_fn": lambda x: x > 0,
+                "channel_indices": 0,
+                "margin": 0,
+            },
+            ([1, 1], [4, 4]),
+        ]
+    )
+    TESTS.append(
+        [
+            {
+                "img": p(
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]])
+                ),
+                "select_fn": lambda x: x > 0,
+                "channel_indices": None,
+                "margin": 1,
+            },
+            ([0, 0], [4, 5]),
+        ]
+    )
+    TESTS.append(
+        [
+            {
+                "img": p(
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]])
+                ),
+                "select_fn": lambda x: x > 0,
+                "channel_indices": None,
+                "margin": [2, 1],
+            },
+            ([0, 0], [5, 5]),
+        ]
+    )
 
 
 class TestGenerateSpatialBoundingBox(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand(TESTS)
     def test_value(self, input_data, expected_box):
         result = generate_spatial_bounding_box(**input_data)
         self.assertTupleEqual(result, expected_box)
