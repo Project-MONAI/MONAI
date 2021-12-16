@@ -44,6 +44,7 @@ from monai.transforms.intensity.array import (
     RandScaleIntensity,
     RandShiftIntensity,
     RandStdShiftIntensity,
+    SavitzkyGolaySmooth,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
@@ -73,6 +74,7 @@ __all__ = [
     "RandAdjustContrastd",
     "ScaleIntensityRangePercentilesd",
     "MaskIntensityd",
+    "SavitzkyGolaySmoothd",
     "GaussianSmoothd",
     "RandGaussianSmoothd",
     "GaussianSharpend",
@@ -115,6 +117,8 @@ __all__ = [
     "ScaleIntensityRangePercentilesDict",
     "MaskIntensityD",
     "MaskIntensityDict",
+    "SavitzkyGolaySmoothD",
+    "SavitzkyGolaySmoothDict",
     "GaussianSmoothD",
     "GaussianSmoothDict",
     "RandGaussianSmoothD",
@@ -917,6 +921,43 @@ class MaskIntensityd(MapTransform):
         return d
 
 
+class SavitzkyGolaySmoothd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.SavitzkyGolaySmooth`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        window_length: length of the filter window, must be a positive odd integer.
+        order: order of the polynomial to fit to each window, must be less than ``window_length``.
+        axis: optional axis along which to apply the filter kernel. Default 1 (first spatial dimension).
+        mode: optional padding mode, passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'``
+            or ``'circular'``. default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    backend = GaussianSmooth.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        window_length: int,
+        order: int,
+        axis: int = 1,
+        mode: str = "zeros",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = SavitzkyGolaySmooth(window_length=window_length, order=order, axis=axis, mode=mode)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
 class GaussianSmoothd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSmooth`.
@@ -1626,6 +1667,7 @@ AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd
 MaskIntensityD = MaskIntensityDict = MaskIntensityd
+SavitzkyGolaySmoothD = SavitzkyGolaySmoothDict = SavitzkyGolaySmoothd
 GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
 RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend

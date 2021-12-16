@@ -1217,6 +1217,14 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`SavitzkyGolaySmoothd`
+""""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SavitzkyGolaySmoothd.png
+    :alt: example of SavitzkyGolaySmoothd
+.. autoclass:: SavitzkyGolaySmoothd
+    :members:
+    :special-members: __call__
+
 `GaussianSmoothd`
 """""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GaussianSmoothd.png
