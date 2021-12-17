@@ -59,15 +59,9 @@ TEST_CASE_SINE_SMOOTH = [
 
 
 class TestSavitzkyGolaySmooth(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_SINGLE_VALUE, TEST_CASE_2D_AXIS_2, TEST_CASE_SINE_SMOOTH])
-    def test_value(self, arguments, image, expected_data, atol):
-        for p in TEST_NDARRAYS:
-            result = SavitzkyGolaySmooth(**arguments)(p(image.astype(np.float32)))
-            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-4, atol=atol)
-
-
-class TestSavitzkyGolaySmoothREP(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_SINGLE_VALUE_REP])
+    @parameterized.expand(
+        [TEST_CASE_SINGLE_VALUE, TEST_CASE_2D_AXIS_2, TEST_CASE_SINE_SMOOTH, TEST_CASE_SINGLE_VALUE_REP]
+    )
     def test_value(self, arguments, image, expected_data, atol):
         for p in TEST_NDARRAYS:
             result = SavitzkyGolaySmooth(**arguments)(p(image.astype(np.float32)))
