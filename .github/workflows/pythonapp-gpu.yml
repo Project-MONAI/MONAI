@@ -47,7 +47,7 @@ jobs:
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
           - environment: PT110+CUDA102
-            pytorch: "torch==1.10.0 torchvision==0.11.1"
+            pytorch: "torch==1.10.1 torchvision==0.11.2"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
