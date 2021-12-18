@@ -100,15 +100,15 @@ Clara MMARs
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.stain.array
-.. autoclass:: ExtractHEStains
+.. autoclass:: HEStainExtractor
     :members:
-.. autoclass:: NormalizeHEStains
+.. autoclass:: StainNormalizers
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.stain.dictionary
-.. autoclass:: ExtractHEStainsd
+.. autoclass:: HEStainExtractord
     :members:
-.. autoclass:: NormalizeHEStainsd
+.. autoclass:: StainNormalizersd
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.spatial.array
