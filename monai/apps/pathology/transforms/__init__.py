@@ -11,12 +11,12 @@
 
 from .spatial.array import SplitOnGrid, TileOnGrid
 from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
-from .stain.array import ExtractHEStains, NormalizeHEStains
+from .stain.array import HEStainExtractor, StainNormalizer
 from .stain.dictionary import (
-    ExtractHEStainsd,
-    ExtractHEStainsD,
-    ExtractHEStainsDict,
-    NormalizeHEStainsd,
-    NormalizeHEStainsD,
-    NormalizeHEStainsDict,
+    HEStainExtractord,
+    HEStainExtractorD,
+    HEStainExtractorDict,
+    StainNormalizerd,
+    StainNormalizerD,
+    StainNormalizerDict,
 )
