@@ -32,12 +32,7 @@ class HEStainExtractor(Transform):
         Macenko et al., 2009 http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
     """
 
-    def __init__(
-        self,
-        source_intensity: float = 240,
-        alpha: float = 1,
-        beta: float = 0.15,
-    ) -> None:
+    def __init__(self, source_intensity: float = 240, alpha: float = 1, beta: float = 0.15) -> None:
         self.source_intensity = source_intensity
         self.alpha = alpha
         self.beta = beta
