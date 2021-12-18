@@ -16,7 +16,7 @@ import numpy as np
 from monai.transforms.transform import Transform
 
 
-class HEStainExtractor:
+class HEStainExtractor(Transform):
     """Extract stain coefficients from an image.
 
     Args:
@@ -113,15 +113,14 @@ class HEStainExtractor:
         return ref_stain_coeff
 
 
-class StainNormalizer:
+class StainNormalizer(Transform):
     """Normalize images to a reference stain color matrix.
 
     First, it extracts the stain coefficient matrix from the image using the provided stain extractor.
     Then, it calculates the stain concentrations based on Beer-Lamber Law.
     Next, it reconstructs the image using the provided reference stain matrix (stain-normalized image).
 
-    Parameters
-    ----------
+    Args:
         source_intensity: transmitted light intensity.
             Defaults to 240.
         alpha: percentiles to ignore for outliers, so to calculate min and max,
@@ -153,12 +152,10 @@ class StainNormalizer:
     def __call__(self, image: np.ndarray) -> np.ndarray:
         """Perform stain normalization.
 
-        Parameters
-        ----------
+        Args:
             image: uint8 RGB image to be stain normalized, pixel values between 0 and 255
 
-        Returns
-        -------
+        Return:
             image_norm: stain normalized image/patch
         """
         # check image type and values
