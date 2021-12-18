@@ -178,6 +178,9 @@ from .intensity.dictionary import (
     RandStdShiftIntensityd,
     RandStdShiftIntensityD,
     RandStdShiftIntensityDict,
+    SavitzkyGolaySmoothd,
+    SavitzkyGolaySmoothD,
+    SavitzkyGolaySmoothDict,
     ScaleIntensityd,
     ScaleIntensityD,
     ScaleIntensityDict,
@@ -197,7 +200,7 @@ from .intensity.dictionary import (
     ThresholdIntensityD,
     ThresholdIntensityDict,
 )
-from .inverse import InvertibleTransform
+from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
@@ -274,11 +277,14 @@ from .post.dictionary import (
     VoteEnsembled,
     VoteEnsembleDict,
 )
+from .smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity, SmoothField
+from .smooth_field.dictionary import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
 from .spatial.array import (
     AddCoordinateChannels,
     Affine,
     AffineGrid,
     Flip,
+    GridDistortion,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
@@ -287,6 +293,7 @@ from .spatial.array import (
     RandAxisFlip,
     RandDeformGrid,
     RandFlip,
+    RandGridDistortion,
     RandRotate,
     RandRotate90,
     RandZoom,
@@ -307,6 +314,9 @@ from .spatial.dictionary import (
     Flipd,
     FlipD,
     FlipDict,
+    GridDistortiond,
+    GridDistortionD,
+    GridDistortionDict,
     Orientationd,
     OrientationD,
     OrientationDict,
@@ -325,6 +335,9 @@ from .spatial.dictionary import (
     RandFlipd,
     RandFlipD,
     RandFlipDict,
+    RandGridDistortiond,
+    RandGridDistortionD,
+    RandGridDistortionDict,
     RandRotate90d,
     RandRotate90D,
     RandRotate90Dict,
@@ -540,11 +553,13 @@ from .utils_pytorch_numpy_unification import (
     floor_divide,
     in1d,
     isfinite,
+    isnan,
     maximum,
     moveaxis,
     nonzero,
     percentile,
     ravel,
+    repeat,
     unravel_index,
     where,
 )

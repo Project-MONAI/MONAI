@@ -62,7 +62,7 @@ from monai.transforms.utility.array import (
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import InverseKeys, TransformBackends
+from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -171,6 +171,9 @@ __all__ = [
     "Transposed",
     "TransposeDict",
     "TransposeD",
+    "ClassesToIndicesd",
+    "ClassesToIndicesD",
+    "ClassesToIndicesDict",
 ]
 
 
@@ -457,6 +460,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
+        wrap_sequence: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -465,10 +469,12 @@ class ToTensord(MapTransform, InvertibleTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype: target data content type to convert, for example: torch.float, etc.
             device: specify the target device to put the Tensor data.
+            wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+                E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToTensor(dtype=dtype, device=device)
+        self.converter = ToTensor(dtype=dtype, device=device, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -496,7 +502,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
     Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
     `float`, `int`, `bool`, `string` and `object` keep the original.
     If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
-    every item to the expected data type.
+    every item to the expected data type if `wrap_sequence=False`.
 
     Note: Currently, we only convert tensor data to numpy array or scalar number in the inverse operation.
 
@@ -510,6 +516,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         data_type: str = "tensor",
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
+        wrap_sequence: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -519,10 +526,12 @@ class EnsureTyped(MapTransform, InvertibleTransform):
             data_type: target data type to convert, should be "tensor" or "numpy".
             dtype: target data content type to convert, for example: np.float32, torch.float, etc.
             device: for Tensor data type, specify the target device.
+            wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+                E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device)
+        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -552,7 +561,8 @@ class ToNumpyd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        dtype: Optional[DtypeLike] = None,
+        dtype: DtypeLike = None,
+        wrap_sequence: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -560,10 +570,12 @@ class ToNumpyd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype: target data type when converting to numpy array.
+            wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+                E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToNumpy(dtype=dtype)
+        self.converter = ToNumpy(dtype=dtype, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
@@ -580,14 +592,24 @@ class ToCupyd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         dtype: data type specifier. It is inferred from the input by default.
+            if not None, must be an argument of `numpy.dtype`, for more details:
+            https://docs.cupy.dev/en/stable/reference/generated/cupy.array.html.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = ToCupy.backend
 
-    def __init__(self, keys: KeysCollection, dtype=None, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: Optional[np.dtype] = None,
+        wrap_sequence: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToCupy(dtype=dtype)
+        self.converter = ToCupy(dtype=dtype, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -647,7 +669,7 @@ class Transposed(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            fwd_indices = np.array(transform[InverseKeys.EXTRA_INFO]["indices"])
+            fwd_indices = np.array(transform[TraceKeys.EXTRA_INFO]["indices"])
             inv_indices = np.argsort(fwd_indices)
             inverse_transform = Transpose(inv_indices.tolist())
             # Apply inverse
@@ -663,12 +685,9 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        sep: str = ".",
-        use_re: Union[Sequence[bool], bool] = False,
-    ) -> None:
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, keys: KeysCollection, sep: str = ".", use_re: Union[Sequence[bool], bool] = False) -> None:
         """
         Args:
             keys: keys of the corresponding items to delete, can be "A{sep}B{sep}C"
@@ -702,6 +721,8 @@ class SelectItemsd(MapTransform):
     Select only specified items from data dictionary to release memory.
     It will copy the selected key-values and construct and new dictionary.
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __call__(self, data):
         return {key: data[key] for key in self.key_iterator(data)}
@@ -790,15 +811,7 @@ class DataStatsd(MapTransform):
         for key, prefix, data_type, data_shape, value_range, data_value, additional_info in self.key_iterator(
             d, self.prefix, self.data_type, self.data_shape, self.value_range, self.data_value, self.additional_info
         ):
-            d[key] = self.printer(
-                d[key],
-                prefix,
-                data_type,
-                data_shape,
-                value_range,
-                data_value,
-                additional_info,
-            )
+            d[key] = self.printer(d[key], prefix, data_type, data_shape, value_range, data_value, additional_info)
         return d
 
 
@@ -928,6 +941,10 @@ class ConcatItemsd(MapTransform):
             elif not isinstance(d[key], data_type):
                 raise TypeError("All items in data must have the same type.")
             output.append(d[key])
+
+        if len(output) == 0:
+            return d
+
         if data_type is np.ndarray:
             d[self.name] = np.concatenate(output, axis=self.dim)
         elif data_type is torch.Tensor:
@@ -1062,7 +1079,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         return super().__call__(data)
 
     def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
-        return self._lambd(data, func=func) if transform_info[InverseKeys.DO_TRANSFORM] else data
+        return self._lambd(data, func=func) if transform_info[TraceKeys.DO_TRANSFORM] else data
 
 
 class LabelToMaskd(MapTransform):
@@ -1204,11 +1221,13 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     and ET (Enhancing tumor).
     """
 
+    backend = ConvertToMultiChannelBasedOnBratsClasses.backend
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
         super().__init__(keys, allow_missing_keys)
         self.converter = ConvertToMultiChannelBasedOnBratsClasses()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1292,14 +1311,9 @@ class TorchVisiond(MapTransform):
         data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    backend = TorchVision.backend
+
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -1311,9 +1325,10 @@ class TorchVisiond(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
+        self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
@@ -1336,14 +1351,9 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    backend = TorchVision.backend
+
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -1355,9 +1365,10 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
+        self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.trans(d[key])
@@ -1368,6 +1379,8 @@ class MapLabelValued(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.MapLabelValue`.
     """
+
+    backend = MapLabelValue.backend
 
     def __init__(
         self,
@@ -1390,7 +1403,7 @@ class MapLabelValued(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.mapper = MapLabelValue(orig_labels=orig_labels, target_labels=target_labels, dtype=dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.mapper(d[key])
@@ -1432,6 +1445,8 @@ class IntensityStatsd(MapTransform):
 
     """
 
+    backend = IntensityStats.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1451,16 +1466,14 @@ class IntensityStatsd(MapTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mask_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.mask_keys, self.meta_keys, self.meta_key_postfix
         ):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
             d[key], d[meta_key] = self.stats(
-                img=d[key],
-                meta_data=d.get(meta_key),
-                mask=d.get(mask_key) if mask_key is not None else None,
+                img=d[key], meta_data=d.get(meta_key), mask=d.get(mask_key) if mask_key is not None else None
             )
         return d
 
@@ -1470,14 +1483,10 @@ class ToDeviced(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ToDevice`.
     """
 
-    backend = [TransformBackends.TORCH]
+    backend = ToDevice.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        device: Union[torch.device, str],
-        allow_missing_keys: bool = False,
-        **kwargs,
+        self, keys: KeysCollection, device: Union[torch.device, str], allow_missing_keys: bool = False, **kwargs
     ) -> None:
         """
         Args:
@@ -1516,15 +1525,9 @@ class CuCIMd(MapTransform):
         Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
     """
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
+        self.name = name
         self.trans = CuCIM(name, *args, **kwargs)
 
     def __call__(self, data):
@@ -1561,18 +1564,13 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
           Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
         - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
           the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
-          or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+          or non-randomized) being applied randomly, so it can apply non-randomized transforms randomly but be careful
           with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
         - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
     """
 
-    def __init__(
-        self,
-        apply_prob: float = 1.0,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, apply_prob: float = 1.0, *args, **kwargs) -> None:
         CuCIMd.__init__(self, *args, **kwargs)
         RandomizableTransform.__init__(self, prob=apply_prob)
 

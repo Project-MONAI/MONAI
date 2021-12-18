@@ -30,18 +30,16 @@ class RegressionMetric(CumulativeIterationMetric):
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
     Args:
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result. Defaults to ``"mean"``.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
             Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
 
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__()
         self.reduction = reduction
@@ -86,17 +84,15 @@ class MSEMetric(RegressionMetric):
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
     Args:
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)
@@ -120,17 +116,15 @@ class MAEMetric(RegressionMetric):
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
     Args:
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.abs_func = torch.abs
@@ -155,17 +149,15 @@ class RMSEMetric(RegressionMetric):
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
     Args:
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
     def __init__(
-        self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        get_not_nans: bool = False,
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)
@@ -196,9 +188,9 @@ class PSNRMetric(RegressionMetric):
     Args:
         max_val: The dynamic range of the images/volumes (i.e., the difference between the
             maximum and the minimum allowed values e.g. 255 for a uint8 image).
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """

@@ -73,7 +73,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial ndimensions, {``1``, ``2``, ``3``}. Defaults to 3.
+            spatial_dims: number of spatial dimensions, {``1``, ``2``, ``3``}. Defaults to 3.
             kernel_size: kernel spatial size, must be odd.
             kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -262,7 +262,7 @@ class GlobalMutualInformationLoss(_Loss):
         _max, _min = torch.max(img), torch.min(img)
         padding = 2
         bin_size = (_max - _min) / (self.num_bins - 2 * padding)
-        norm_min = torch.div(_min, bin_size, rounding_mode="floor") - padding
+        norm_min = torch.div(_min, bin_size) - padding
 
         # assign bin/window index to each voxel
         window_term = torch.div(img, bin_size) - norm_min  # B[NDHW]

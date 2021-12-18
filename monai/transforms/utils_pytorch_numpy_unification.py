@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "moveaxis",
@@ -34,6 +33,9 @@ __all__ = [
     "concatenate",
     "cumsum",
     "isfinite",
+    "searchsorted",
+    "repeat",
+    "isnan",
 ]
 
 
@@ -75,20 +77,25 @@ def clip(a: NdarrayOrTensor, a_min, a_max) -> NdarrayOrTensor:
     if isinstance(a, np.ndarray):
         result = np.clip(a, a_min, a_max)
     else:
-        result = torch.clip(a, a_min, a_max)
+        result = torch.clamp(a, a_min, a_max)
     return result
 
 
-def percentile(x: NdarrayOrTensor, q) -> Union[NdarrayOrTensor, float, int]:
+def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None) -> Union[NdarrayOrTensor, float, int]:
     """`np.percentile` with equivalent implementation for torch.
 
     Pytorch uses `quantile`, but this functionality is only available from v1.7.
     For earlier methods, we calculate it ourselves. This doesn't do interpolation,
     so is the equivalent of ``numpy.percentile(..., interpolation="nearest")``.
+    For more details, please refer to:
+    https://pytorch.org/docs/stable/generated/torch.quantile.html.
+    https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
 
     Args:
         x: input data
         q: percentile to compute (should in range 0 <= q <= 100)
+        dim: the dim along which the percentiles are computed. default is to compute the percentile
+            along a flattened version of the array. only work for numpy array or Tensor with PyTorch >= 1.7.0.
 
     Returns:
         Resulting value (scalar)
@@ -100,11 +107,11 @@ def percentile(x: NdarrayOrTensor, q) -> Union[NdarrayOrTensor, float, int]:
         raise ValueError
     result: Union[NdarrayOrTensor, float, int]
     if isinstance(x, np.ndarray):
-        result = np.percentile(x, q)
+        result = np.percentile(x, q, axis=dim)
     else:
         q = torch.tensor(q, device=x.device)
         if hasattr(torch, "quantile"):
-            result = torch.quantile(x, q / 100.0)
+            result = torch.quantile(x, q / 100.0, dim=dim)
         else:
             # Note that ``kthvalue()`` works one-based, i.e., the first sorted value
             # corresponds to k=1, not k=0. Thus, we need the `1 +`.
@@ -142,7 +149,7 @@ def nonzero(x: NdarrayOrTensor):
     """`np.nonzero` with equivalent implementation for torch.
 
     Args:
-        idx: array/tensor
+        x: array/tensor
 
     Returns:
         Index unravelled for given shape
@@ -192,7 +199,7 @@ def unravel_index(idx, shape):
 
 
 def unravel_indices(idx, shape):
-    """Computing unravel cooridnates from indices.
+    """Computing unravel coordinates from indices.
 
     Args:
         idx: a sequence of indices to unravel
@@ -271,38 +278,46 @@ def concatenate(to_cat: Sequence[NdarrayOrTensor], axis: int = 0, out=None) -> N
     """`np.concatenate` with equivalent implementation for torch (`torch.cat`)."""
     if isinstance(to_cat[0], np.ndarray):
         return np.concatenate(to_cat, axis, out)  # type: ignore
-    else:
-        return torch.cat(to_cat, dim=axis, out=out)  # type: ignore
+    return torch.cat(to_cat, dim=axis, out=out)  # type: ignore
 
 
 def cumsum(a: NdarrayOrTensor, axis=None):
     """`np.cumsum` with equivalent implementation for torch."""
     if isinstance(a, np.ndarray):
         return np.cumsum(a, axis)
-    else:
-        if axis is None:
-            return torch.cumsum(a[:], 0)
-        else:
-            return torch.cumsum(a, dim=axis)
+    if axis is None:
+        return torch.cumsum(a[:], 0)
+    return torch.cumsum(a, dim=axis)
 
 
 def isfinite(x):
     """`np.isfinite` with equivalent implementation for torch."""
     if not isinstance(x, torch.Tensor):
         return np.isfinite(x)
-    else:
-        return torch.isfinite(x)
+    return torch.isfinite(x)
 
 
 def searchsorted(a: NdarrayOrTensor, v: NdarrayOrTensor, right=False, sorter=None):
     side = "right" if right else "left"
     if isinstance(a, np.ndarray):
         return np.searchsorted(a, v, side, sorter)  # type: ignore
-    else:
-        if hasattr(torch, "searchsorted"):
-            return torch.searchsorted(a, v, right=right)  # type: ignore
-        else:
-            # if using old PyTorch, will convert to numpy array then compute
-            ret = np.searchsorted(a.cpu().numpy(), v.cpu().numpy(), side, sorter)  # type: ignore
-            ret, *_ = convert_to_dst_type(ret, a)
-            return ret
+    return torch.searchsorted(a, v, right=right)  # type: ignore
+
+
+def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None):
+    """`np.repeat` with equivalent implementation for torch (`repeat_interleave`)."""
+    if isinstance(a, np.ndarray):
+        return np.repeat(a, repeats, axis)
+    return torch.repeat_interleave(a, repeats, dim=axis)
+
+
+def isnan(x: NdarrayOrTensor):
+    """`np.isnan` with equivalent implementation for torch.
+
+    Args:
+        x: array/tensor
+
+    """
+    if isinstance(x, np.ndarray):
+        return np.isnan(x)
+    return torch.isnan(x)

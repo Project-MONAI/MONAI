@@ -23,7 +23,6 @@ from monai.utils.module import look_up_option
 
 __all__ = [
     "DenseNet",
-    "densenet",
     "Densenet",
     "DenseNet121",
     "densenet121",
@@ -299,12 +298,7 @@ class DenseNet121(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(
-            init_features=init_features,
-            growth_rate=growth_rate,
-            block_config=block_config,
-            **kwargs,
-        )
+        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
             if kwargs["spatial_dims"] > 2:
                 raise NotImplementedError(
@@ -326,12 +320,7 @@ class DenseNet169(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(
-            init_features=init_features,
-            growth_rate=growth_rate,
-            block_config=block_config,
-            **kwargs,
-        )
+        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
             if kwargs["spatial_dims"] > 2:
                 raise NotImplementedError(
@@ -353,12 +342,7 @@ class DenseNet201(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(
-            init_features=init_features,
-            growth_rate=growth_rate,
-            block_config=block_config,
-            **kwargs,
-        )
+        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
             if kwargs["spatial_dims"] > 2:
                 raise NotImplementedError(
@@ -380,17 +364,12 @@ class DenseNet264(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(
-            init_features=init_features,
-            growth_rate=growth_rate,
-            block_config=block_config,
-            **kwargs,
-        )
+        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
         if pretrained:
             raise NotImplementedError("Currently PyTorch Hub does not provide densenet264 pretrained models.")
 
 
-Densenet = densenet = DenseNet
+Densenet = DenseNet
 Densenet121 = densenet121 = DenseNet121
 Densenet169 = densenet169 = DenseNet169
 Densenet201 = densenet201 = DenseNet201

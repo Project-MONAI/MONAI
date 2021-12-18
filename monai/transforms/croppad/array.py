@@ -47,9 +47,10 @@ from monai.utils import (
     look_up_option,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
+    "Pad",
     "SpatialPad",
     "BorderPad",
     "DivisiblePad",
@@ -108,9 +109,7 @@ class Pad(Transform):
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -186,9 +185,7 @@ class SpatialPad(Transform):
         return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -251,9 +248,7 @@ class BorderPad(Transform):
         self.kwargs = kwargs
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -333,9 +328,7 @@ class DivisiblePad(Transform):
         self.kwargs = kwargs
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -350,12 +343,7 @@ class DivisiblePad(Transform):
 
         """
         new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
-        spatial_pad = SpatialPad(
-            spatial_size=new_size,
-            method=self.method,
-            mode=mode or self.mode,
-            **self.kwargs,
-        )
+        spatial_pad = SpatialPad(spatial_size=new_size, method=self.method, mode=mode or self.mode, **self.kwargs)
 
         return spatial_pad(img)
 
@@ -402,19 +390,22 @@ class SpatialCrop(Transform):
             self.slices = list(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                roi_center = torch.as_tensor(roi_center, dtype=torch.int16)
-                roi_size = torch.as_tensor(roi_size, dtype=torch.int16, device=roi_center.device)
-                roi_start_torch = maximum(  # type: ignore
-                    roi_center - floor_divide(roi_size, 2),
-                    torch.zeros_like(roi_center),
+                roi_center, *_ = convert_data_type(
+                    data=roi_center, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
                 )
+                roi_size, *_ = convert_to_dst_type(src=roi_size, dst=roi_center, wrap_sequence=True)
+                _zeros = torch.zeros_like(roi_center)  # type: ignore
+                roi_start_torch = maximum(roi_center - floor_divide(roi_size, 2), _zeros)  # type: ignore
                 roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start_torch = torch.as_tensor(roi_start, dtype=torch.int16)
+                roi_start_torch, *_ = convert_data_type(  # type: ignore
+                    data=roi_start, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
+                )
                 roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))  # type: ignore
-                roi_end_torch = maximum(torch.as_tensor(roi_end, dtype=torch.int16), roi_start_torch)
+                roi_end_torch, *_ = convert_to_dst_type(src=roi_end, dst=roi_start_torch, wrap_sequence=True)
+                roi_end_torch = maximum(roi_end_torch, roi_start_torch)
             # convert to slices (accounting for 1d)
             if roi_start_torch.numel() == 1:
                 self.slices = [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
@@ -628,7 +619,7 @@ class RandSpatialCropSamples(Randomizable, Transform):
 
     """
 
-    backend = RandScaleCrop.backend
+    backend = RandSpatialCrop.backend
 
     def __init__(
         self,
@@ -702,7 +693,7 @@ class CropForeground(Transform):
         margin: Union[Sequence[int], int] = 0,
         return_coords: bool = False,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
         **np_kwargs,
     ) -> None:
         """
@@ -714,10 +705,12 @@ class CropForeground(Transform):
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode: padding mode {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                one of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                see also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
                 more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
@@ -730,20 +723,18 @@ class CropForeground(Transform):
         self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
-    def compute_bounding_box(self, img: NdarrayOrTensor) -> Tuple[np.ndarray, np.ndarray]:
+    def compute_bounding_box(self, img: NdarrayOrTensor):
         """
         Compute the start points and end points of bounding box to crop.
         And adjust bounding box coords to be divisible by `k`.
 
         """
         box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indices, self.margin)
-        box_start = [i.cpu() if isinstance(i, torch.Tensor) else i for i in box_start]  # type: ignore
-        box_end = [i.cpu() if isinstance(i, torch.Tensor) else i for i in box_end]  # type: ignore
-        box_start_ = np.asarray(box_start, dtype=np.int16)
-        box_end_ = np.asarray(box_end, dtype=np.int16)
+        box_start_, *_ = convert_data_type(box_start, output_type=np.ndarray, dtype=np.int16, wrap_sequence=True)
+        box_end_, *_ = convert_data_type(box_end, output_type=np.ndarray, dtype=np.int16, wrap_sequence=True)
         orig_spatial_size = box_end_ - box_start_
         # make the spatial size divisible by `k`
-        spatial_size = np.asarray(compute_divisible_spatial_size(spatial_shape=orig_spatial_size, k=self.k_divisible))
+        spatial_size = np.asarray(compute_divisible_spatial_size(orig_spatial_size.tolist(), k=self.k_divisible))
         # update box_start and box_end
         box_start_ = box_start_ - np.floor_divide(np.asarray(spatial_size) - orig_spatial_size, 2)
         box_end_ = box_start_ + spatial_size
@@ -754,7 +745,7 @@ class CropForeground(Transform):
         img: NdarrayOrTensor,
         box_start: np.ndarray,
         box_end: np.ndarray,
-        mode: Optional[Union[NumpyPadMode, str]] = None,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
     ):
         """
         Crop and pad based on the bounding box.
@@ -880,6 +871,9 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices`
             and `bg_indices` together, expect to be 1 dim array of spatial indices after flattening.
             a typical usage is to call `FgBgToIndices` transform first and cache the results.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.
@@ -900,6 +894,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         image_threshold: float = 0.0,
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
+        allow_smaller: bool = False,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
         self.label = label
@@ -914,6 +909,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         self.centers: Optional[List[List[int]]] = None
         self.fg_indices = fg_indices
         self.bg_indices = bg_indices
+        self.allow_smaller = allow_smaller
 
     def randomize(
         self,
@@ -933,7 +929,14 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
         self.centers = generate_pos_neg_label_crop_centers(
-            self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
+            self.spatial_size,
+            self.num_samples,
+            self.pos_ratio,
+            label.shape[1:],
+            fg_indices_,
+            bg_indices_,
+            self.R,
+            self.allow_smaller,
         )
 
     def __call__(
@@ -1031,6 +1034,9 @@ class RandCropByLabelClasses(Randomizable, Transform):
             `image_threshold`, and randomly select crop centers based on them, expect to be 1 dim array
             of spatial indices after flattening. a typical usage is to call `ClassesToIndices` transform first
             and cache the results for better performance.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will remain
+            unchanged.
 
     """
 
@@ -1046,6 +1052,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         image: Optional[NdarrayOrTensor] = None,
         image_threshold: float = 0.0,
         indices: Optional[List[NdarrayOrTensor]] = None,
+        allow_smaller: bool = False,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
         self.ratios = ratios
@@ -1056,6 +1063,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         self.image_threshold = image_threshold
         self.centers: Optional[List[List[int]]] = None
         self.indices = indices
+        self.allow_smaller = allow_smaller
 
     def randomize(
         self,
@@ -1073,7 +1081,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         else:
             indices_ = indices
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
+            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R, self.allow_smaller
         )
 
     def __call__(
@@ -1181,14 +1189,15 @@ class BoundingRect(Transform):
         select_fn: function to select expected foreground, default is to select values > 0.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, select_fn: Callable = is_positive) -> None:
         self.select_fn = select_fn
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         bbox = []
 
         for channel in range(img.shape[0]):

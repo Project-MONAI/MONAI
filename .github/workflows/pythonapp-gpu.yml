@@ -19,17 +19,13 @@ jobs:
     strategy:
       matrix:
         environment:
-          - "PT16+CUDA110"
           - "PT17+CUDA102"
           - "PT17+CUDA110"
           - "PT18+CUDA102"
+          - "PT18+CUDA110"
           - "PT19+CUDA114"
-          - "PT19+CUDA102"
+          - "PT110+CUDA102"
         include:
-          - environment: PT16+CUDA110
-            # we explicitly set pytorch to -h to avoid pip install error
-            pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:20.07-py3"
           - environment: PT17+CUDA102
             pytorch: "torch==1.7.1 torchvision==0.8.2"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
@@ -40,14 +36,18 @@ jobs:
           - environment: PT18+CUDA102
             pytorch: "torch==1.8.1 torchvision==0.9.1"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT18+CUDA110
+            # we explicitly set pytorch to -h to avoid pip install error
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:21.02-py3"
           - environment: PT19+CUDA114
             # we explicitly set pytorch to -h to avoid pip install error
             # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
-            # 21.08: 1.10.0a0+3fd9dcf
+            # 21.10: 1.10.0a0+0aef44c
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.08-py3"
-          - environment: PT19+CUDA102
-            pytorch: "torch==1.9.1 torchvision==0.10.1"
+            base: "nvcr.io/nvidia/pytorch:21.10-py3"
+          - environment: PT110+CUDA102
+            pytorch: "torch==1.10.1 torchvision==0.11.2"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
@@ -59,7 +59,7 @@ jobs:
       run: |
         if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
-          [ ${{ matrix.environment }} = "PT19+CUDA102" ]
+          [ ${{ matrix.environment }} = "PT110+CUDA102" ]
         then
         PYVER=3.6 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -123,7 +123,7 @@ jobs:
         python -c "import monai; monai.config.print_config()"
         # build for the current self-hosted CI Tesla V100
         BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --quick --unittests
-        if [ ${{ matrix.environment }} = "PT19+CUDA102" ]; then
+        if [ ${{ matrix.environment }} = "PT110+CUDA102" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi

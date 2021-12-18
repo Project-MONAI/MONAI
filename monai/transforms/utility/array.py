@@ -38,14 +38,13 @@ from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
-    get_equivalent_dtype,
     look_up_option,
     min_version,
     optional_import,
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type
+from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -81,6 +80,9 @@ __all__ = [
     "MapLabelValue",
     "IntensityStats",
     "ToDevice",
+    "CuCIM",
+    "RandCuCIM",
+    "ToCupy",
 ]
 
 
@@ -244,8 +246,8 @@ class RepeatChannel(Transform):
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        repeeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
-        return repeeat_fn(img, self.repeats, 0)  # type: ignore
+        repeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
+        return repeat_fn(img, self.repeats, 0)  # type: ignore
 
 
 class RemoveRepeatedChannel(Transform):
@@ -338,33 +340,48 @@ class CastToType(Transform):
 class ToTensor(Transform):
     """
     Converts the input image to a tensor without applying any other transformations.
+    Input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+    Will convert Tensor, Numpy array, float, int, bool to Tensor, strings and objects keep the original.
+    For dictionary, list or tuple, convert every item to a Tensor if applicable and `wrap_sequence=False`.
+
+    Args:
+        dtype: target data type to when converting to Tensor.
+        device: target device to put the converted Tensor data.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None) -> None:
+    def __init__(
+        self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = True
+    ) -> None:
         super().__init__()
         self.dtype = dtype
         self.device = device
+        self.wrap_sequence = wrap_sequence
 
-    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=True)  # type: ignore
+        return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence)
 
 
 class EnsureType(Transform):
     """
     Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
     `float`, `int`, `bool`, `string` and `object` keep the original.
-    If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
-    every item to the expected data type.
+    If passing a dictionary, list or tuple, still return dictionary, list or tuple will recursively convert
+    every item to the expected data type if `wrap_sequence=False`.
 
     Args:
         data_type: target data type to convert, should be "tensor" or "numpy".
         dtype: target data content type to convert, for example: np.float32, torch.float, etc.
         device: for Tensor data type, specify the target device.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
 
     """
 
@@ -375,10 +392,12 @@ class EnsureType(Transform):
         data_type: str = "tensor",
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
+        wrap_sequence: bool = True,
     ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.dtype = dtype
         self.device = device
+        self.wrap_sequence = wrap_sequence
 
     def __call__(self, data: NdarrayOrTensor):
         """
@@ -386,32 +405,39 @@ class EnsureType(Transform):
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
                 will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
                 objects keep the original. for dictionary, list or tuple, ensure every item as expected type
-                if applicable.
+                if applicable and `wrap_sequence=False`.
 
         """
-        if self.data_type == "tensor":
-            dtype_ = get_equivalent_dtype(self.dtype, torch.Tensor)
-            return convert_to_tensor(data, dtype=dtype_, device=self.device)
-        dtype_ = get_equivalent_dtype(self.dtype, np.ndarray)
-        return convert_to_numpy(data, dtype=dtype_)
+        output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
+        out, *_ = convert_data_type(
+            data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
+        )
+        return out
 
 
 class ToNumpy(Transform):
     """
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
+
+    Args:
+        dtype: target data type when converting to numpy array.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype: Optional[DtypeLike] = None) -> None:
+    def __init__(self, dtype: DtypeLike = None, wrap_sequence: bool = True) -> None:
         super().__init__()
         self.dtype = dtype
+        self.wrap_sequence = wrap_sequence
 
-    def __call__(self, img: NdarrayOrTensor) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_numpy(img, dtype=self.dtype)  # type: ignore
+        return convert_to_numpy(img, dtype=self.dtype, wrap_sequence=self.wrap_sequence)
 
 
 class ToCupy(Transform):
@@ -420,19 +446,25 @@ class ToCupy(Transform):
 
     Args:
         dtype: data type specifier. It is inferred from the input by default.
+            if not None, must be an argument of `numpy.dtype`, for more details:
+            https://docs.cupy.dev/en/stable/reference/generated/cupy.array.html.
+        wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
+            E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype=None) -> None:
+    def __init__(self, dtype: Optional[np.dtype] = None, wrap_sequence: bool = True) -> None:
         super().__init__()
         self.dtype = dtype
+        self.wrap_sequence = wrap_sequence
 
     def __call__(self, data: NdarrayOrTensor):
         """
         Create a CuPy array from `data` and make it contiguous
         """
-        return convert_to_cupy(data, self.dtype)
+        return convert_to_cupy(data, dtype=self.dtype, wrap_sequence=self.wrap_sequence)
 
 
 class ToPIL(Transform):
@@ -728,9 +760,7 @@ class LabelToMask(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(  # pytype: disable=annotation-type-mismatch
-        self,
-        select_labels: Union[Sequence[int], int],
-        merge_channels: bool = False,
+        self, select_labels: Union[Sequence[int], int], merge_channels: bool = False
     ) -> None:  # pytype: disable=annotation-type-mismatch
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
@@ -882,18 +912,17 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     and ET (Enhancing tumor).
     """
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         # if img has channel dim, squeeze it
         if img.ndim == 4 and img.shape[0] == 1:
-            img = np.squeeze(img, axis=0)
+            img = img.squeeze(0)
 
-        result = [np.logical_or(img == 1, img == 4)]
+        result = [(img == 1) | (img == 4), (img == 1) | (img == 4) | (img == 2), img == 4]
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
-        result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
         # label 4 is ET
-        result.append(img == 4)
-        return np.stack(result, axis=0)
+        return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
 
 
 class AddExtremePointsChannel(Randomizable, Transform):
@@ -968,6 +997,8 @@ class TorchVision:
 
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(self, name: str, *args, **kwargs) -> None:
         """
         Args:
@@ -977,17 +1008,20 @@ class TorchVision:
 
         """
         super().__init__()
+        self.name = name
         transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, img: torch.Tensor):
+    def __call__(self, img: NdarrayOrTensor):
         """
         Args:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
-        img, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
-        return self.trans(img)
+        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        out = self.trans(img_t)
+        out, *_ = convert_to_dst_type(src=out, dst=img)
+        return out
 
 
 class MapLabelValue:
@@ -998,6 +1032,8 @@ class MapLabelValue:
     The label data must be numpy array or array-like data and the output data will be numpy array.
 
     """
+
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, orig_labels: Sequence, target_labels: Sequence, dtype: DtypeLike = np.float32) -> None:
         """
@@ -1014,13 +1050,13 @@ class MapLabelValue:
 
         self.orig_labels = orig_labels
         self.target_labels = target_labels
-        self.dtype = dtype
+        self.dtype = get_equivalent_dtype(dtype, data_type=np.ndarray)
 
-    def __call__(self, img: np.ndarray):
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-        img_flat = img.flatten()
+    def __call__(self, img: NdarrayOrTensor):
+        img_np, *_ = convert_data_type(img, np.ndarray)
+        img_flat = img_np.flatten()
         try:
-            out_flat = np.copy(img_flat).astype(self.dtype)
+            out_flat = np.array(img_flat, dtype=self.dtype)
         except ValueError:
             # can't copy unchanged labels as the expected dtype is not supported, must map all the label values
             out_flat = np.zeros(shape=img_flat.shape, dtype=self.dtype)
@@ -1030,7 +1066,9 @@ class MapLabelValue:
                 continue
             np.place(out_flat, img_flat == o, t)
 
-        return out_flat.reshape(img.shape)
+        reshaped = out_flat.reshape(img_np.shape)
+        out, *_ = convert_to_dst_type(src=reshaped, dst=img, dtype=self.dtype)
+        return out
 
 
 class IntensityStats(Transform):
@@ -1052,17 +1090,16 @@ class IntensityStats(Transform):
 
     """
 
+    backend = [TransformBackends.NUMPY]
+
     def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
         self.ops = ensure_tuple(ops)
         self.key_prefix = key_prefix
         self.channel_wise = channel_wise
 
     def __call__(
-        self,
-        img: np.ndarray,
-        meta_data: Optional[Dict] = None,
-        mask: Optional[np.ndarray] = None,
-    ) -> Tuple[np.ndarray, Dict]:
+        self, img: NdarrayOrTensor, meta_data: Optional[Dict] = None, mask: Optional[np.ndarray] = None
+    ) -> Tuple[NdarrayOrTensor, Dict]:
         """
         Compute statistics for the intensity of input image.
 
@@ -1073,15 +1110,15 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
-        img, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np: np.ndarray
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         if meta_data is None:
             meta_data = {}
 
-        img_: np.ndarray = img
         if mask is not None:
-            if mask.shape != img.shape or mask.dtype != bool:
+            if mask.shape != img_np.shape or mask.dtype != bool:
                 raise TypeError("mask must be bool array with the same shape as input `img`.")
-            img_ = img[mask]
+            img_np = img_np[mask]
 
         supported_ops = {
             "mean": np.nanmean,
@@ -1100,9 +1137,9 @@ class IntensityStats(Transform):
         for o in self.ops:
             if isinstance(o, str):
                 o = look_up_option(o, supported_ops.keys())
-                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)  # type: ignore
+                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_np)  # type: ignore
             elif callable(o):
-                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
+                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_np)
                 custom_index += 1
             else:
                 raise ValueError("ops must be key string for predefined operations or callable function.")
@@ -1160,6 +1197,7 @@ class CuCIM(Transform):
 
     def __init__(self, name: str, *args, **kwargs) -> None:
         super().__init__()
+        self.name = name
         self.transform, _ = optional_import("cucim.core.operations.expose.transform", name=name)
         self.args = args
         self.kwargs = kwargs
@@ -1193,7 +1231,7 @@ class RandCuCIM(CuCIM, RandomizableTransform):
           Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
         - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
           the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
-          or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+          or non-randomized) being applied randomly, so it can apply non-randomized transforms randomly but be careful
           with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
         - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.

@@ -30,7 +30,7 @@ DEFAULT_TAG = "Loss"
 class MLFlowHandler:
     """
     MLFlowHandler defines a set of Ignite Event-handlers for the MLFlow tracking logics.
-    It's can be used for any Ignite Engine(trainer, validator and evaluator).
+    It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can track both epoch level and iteration level logging, then MLFlow can store
     the data and visualize.
     The expected data source is Ignite ``engine.state.output`` and ``engine.state.metrics``.
@@ -40,6 +40,9 @@ class MLFlowHandler:
           ``engine.state.metrics`` in MLFlow.
         - When ITERATION_COMPLETED, track expected item in
           ``self.output_transform(engine.state.output)`` in MLFlow, default to `Loss`.
+
+    Usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
 
     Args:
         tracking_uri: connects to a tracking URI. can also set the `MLFLOW_TRACKING_URI` environment
@@ -56,6 +59,9 @@ class MLFlowHandler:
             By default this value logging happens when every iteration completed.
             The default behavior is to track loss from output[0] as output is a decollated list
             and we replicated loss value for every item of the decollated list.
+            `engine.state` and `output_transform` inherit from the ignite concept:
+            https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
         global_epoch_transform: a callable that is used to customize global epoch number.
             For example, in evaluation, the evaluator engine might want to track synced epoch number
             with the trainer engine.

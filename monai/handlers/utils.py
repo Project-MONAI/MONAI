@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import IgniteInfo, KeysCollection
+from monai.config import IgniteInfo, KeysCollection, PathLike
 from monai.utils import ensure_tuple, look_up_option, min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
@@ -25,12 +25,7 @@ if TYPE_CHECKING:
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
-__all__ = [
-    "stopping_fn_from_metric",
-    "stopping_fn_from_loss",
-    "write_metrics_reports",
-    "from_engine",
-]
+__all__ = ["stopping_fn_from_metric", "stopping_fn_from_loss", "write_metrics_reports", "from_engine"]
 
 
 def stopping_fn_from_metric(metric_name: str):
@@ -56,7 +51,7 @@ def stopping_fn_from_loss():
 
 
 def write_metrics_reports(
-    save_dir: str,
+    save_dir: PathLike,
     images: Optional[Sequence[str]],
     metrics: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
     metric_details: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],

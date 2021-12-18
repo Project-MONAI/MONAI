@@ -25,11 +25,7 @@ TESTS = []
 for p in TEST_NDARRAYS:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append(
-            [
-                dict(device=device),
-                {"img": p(torch.arange(27).reshape((3, 3, 3)))},
-                p(np.arange(27).reshape((3, 3, 3))),
-            ]
+            [dict(device=device), {"img": p(torch.arange(27).reshape((3, 3, 3)))}, p(np.arange(27).reshape((3, 3, 3)))]
         )
         TESTS.append(
             [

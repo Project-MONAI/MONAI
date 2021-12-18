@@ -98,11 +98,7 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
         data = {"img": np.ones((1, 10, 11, 12))}
         num_samples = 3
         sampler = RandSpatialCropSamplesd(
-            keys=["img"],
-            roi_size=(3, 3, 3),
-            num_samples=num_samples,
-            random_center=True,
-            random_size=False,
+            keys=["img"], roi_size=(3, 3, 3), num_samples=num_samples, random_center=True, random_size=False
         )
         transform = Compose([ToTensord(keys="img"), sampler])
         samples = transform(data)

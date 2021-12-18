@@ -22,7 +22,6 @@ import traceback
 import unittest
 import warnings
 from functools import partial
-from io import BytesIO
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
 from urllib.error import HTTPError, URLError
@@ -35,9 +34,9 @@ from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.utils import ensure_tuple, optional_import, set_determinism
-from monai.utils.misc import is_module_ver_at_least
-from monai.utils.module import version_leq
+from monai.networks import convert_to_torchscript
+from monai.utils import optional_import
+from monai.utils.module import pytorch_after, version_leq
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
@@ -193,7 +192,7 @@ class SkipIfBeforePyTorchVersion:
 
     def __init__(self, pytorch_version_tuple):
         self.min_version = pytorch_version_tuple
-        self.version_too_old = not is_module_ver_at_least(torch, pytorch_version_tuple)
+        self.version_too_old = not pytorch_after(*pytorch_version_tuple)
 
     def __call__(self, obj):
         return unittest.skipIf(
@@ -207,8 +206,7 @@ class SkipIfAtLeastPyTorchVersion:
 
     def __init__(self, pytorch_version_tuple):
         self.max_version = pytorch_version_tuple
-        test_ver = ".".join(map(str, self.max_version))
-        self.version_too_new = version_leq(test_ver, torch.__version__)
+        self.version_too_new = pytorch_after(*pytorch_version_tuple)
 
     def __call__(self, obj):
         return unittest.skipIf(
@@ -578,54 +576,26 @@ class TorchImageTestCase3D(NumpyImageTestCase3D):
         self.segn = torch.tensor(self.segn)
 
 
-def test_script_save(net, *inputs, eval_nets=True, device=None, rtol=1e-4):
+def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
     """
     Test the ability to save `net` as a Torchscript object, reload it, and apply inference. The value `inputs` is
-    forward-passed through the original and loaded copy of the network and their results returned. Both `net` and its
-    reloaded copy are set to evaluation mode if `eval_nets` is True. The forward pass for both is done without
-    gradient accumulation.
+    forward-passed through the original and loaded copy of the network and their results returned.
+    The forward pass for both is done without gradient accumulation.
 
     The test will be performed with CUDA if available, else CPU.
     """
-    if True:
-        device = "cpu"
-    else:
-        # TODO: It would be nice to be able to use GPU if
-        # available, but this currently causes CI failures.
-        if not device:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # Convert to device
-    inputs = [i.to(device) for i in inputs]
-
-    scripted = torch.jit.script(net.cpu())
-    buffer = scripted.save_to_buffer()
-    reloaded_net = torch.jit.load(BytesIO(buffer)).to(device)
-    net.to(device)
-
-    if eval_nets:
-        net.eval()
-        reloaded_net.eval()
-
-    with torch.no_grad():
-        set_determinism(seed=0)
-        result1 = net(*inputs)
-        result2 = reloaded_net(*inputs)
-        set_determinism(seed=None)
-
-    # convert results to tuples if needed to allow iterating over pairs of outputs
-    result1 = ensure_tuple(result1)
-    result2 = ensure_tuple(result2)
-
-    for i, (r1, r2) in enumerate(zip(result1, result2)):
-        if None not in (r1, r2):  # might be None
-            np.testing.assert_allclose(
-                r1.detach().cpu().numpy(),
-                r2.detach().cpu().numpy(),
-                rtol=rtol,
-                atol=0,
-                err_msg=f"failed on comparison number: {i}",
-            )
+    # TODO: would be nice to use GPU if available, but it currently causes CI failures.
+    device = "cpu"
+    with tempfile.TemporaryDirectory() as tempdir:
+        convert_to_torchscript(
+            model=net,
+            filename_or_obj=os.path.join(tempdir, "model.ts"),
+            verify=True,
+            inputs=inputs,
+            device=device,
+            rtol=rtol,
+            atol=atol,
+        )
 
 
 def query_memory(n=2):
@@ -641,7 +611,7 @@ def query_memory(n=2):
         free_memory = np.asarray(free_memory, dtype=float).T
         free_memory[1] += free_memory[0]  # combine 0/1 column measures
         ids = np.lexsort(free_memory)[:n]
-    except (FileNotFoundError, TypeError, IndexError):
+    except (TypeError, IndexError, OSError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join(f"{int(x)}" for x in ids)
 

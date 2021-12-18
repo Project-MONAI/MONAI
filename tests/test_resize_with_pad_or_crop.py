@@ -19,31 +19,15 @@ from monai.transforms import ResizeWithPadOrCrop
 from tests.utils import TEST_NDARRAYS
 
 TEST_CASES = [
-    [
-        {"spatial_size": [15, 8, 8], "mode": "constant"},
-        (3, 8, 8, 4),
-        (3, 15, 8, 8),
-    ],
+    [{"spatial_size": [15, 8, 8], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 8, 8)],
     [
         {"spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "constant_values": 1},
         (3, 8, 8, 4),
         (3, 15, 4, 8),
     ],
-    [
-        {"spatial_size": [15, 4, -1], "mode": "constant"},
-        (3, 8, 8, 4),
-        (3, 15, 4, 4),
-    ],
-    [
-        {"spatial_size": [15, 4, -1], "mode": "reflect"},
-        (3, 8, 8, 4),
-        (3, 15, 4, 4),
-    ],
-    [
-        {"spatial_size": [-1, -1, -1], "mode": "reflect"},
-        (3, 8, 8, 4),
-        (3, 8, 8, 4),
-    ],
+    [{"spatial_size": [15, 4, -1], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 4, 4)],
+    [{"spatial_size": [15, 4, -1], "mode": "reflect"}, (3, 8, 8, 4), (3, 15, 4, 4)],
+    [{"spatial_size": [-1, -1, -1], "mode": "reflect"}, (3, 8, 8, 4), (3, 8, 8, 4)],
 ]
 
 

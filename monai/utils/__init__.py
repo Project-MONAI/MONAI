@@ -12,7 +12,7 @@
 # have to explicitly bring these in here to resolve circular import issues
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
-from .deprecated import DeprecatedError, deprecated, deprecated_arg
+from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg
 from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
     Average,
@@ -31,6 +31,7 @@ from .enums import (
     NumpyPadMode,
     PytorchPadMode,
     SkipMode,
+    TraceKeys,
     TransformBackends,
     UpsampleMode,
     Weight,
@@ -58,7 +59,6 @@ from .misc import (
     zip_with,
 )
 from .module import (
-    PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
     OptionalImportError,
     damerau_levenshtein_distance,
@@ -71,6 +71,8 @@ from .module import (
     look_up_option,
     min_version,
     optional_import,
+    pytorch_after,
+    require_pkg,
     version_leq,
 )
 from .nvtx import Range

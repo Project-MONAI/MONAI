@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Spacingd
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS: List[Tuple] = []
 for p in TEST_NDARRAYS:
@@ -28,7 +28,7 @@ for p in TEST_NDARRAYS:
             dict(keys="image", pixdim=(1, 2, 1.4)),
             ("image", "image_meta_dict", "image_transforms"),
             (2, 10, 8, 15),
-            np.diag([1, 2, 1.4, 1.0]),
+            p(np.diag([1, 2, 1.4, 1.0])),
         )
     )
     TESTS.append(
@@ -60,14 +60,7 @@ for p in TEST_NDARRAYS:
                 "image_meta_dict": {"affine": np.eye(4)},
                 "seg_meta_dict": {"affine": np.eye(4)},
             },
-            dict(
-                keys=("image", "seg"),
-                mode="nearest",
-                pixdim=(
-                    1,
-                    0.2,
-                ),
-            ),
+            dict(keys=("image", "seg"), mode="nearest", pixdim=(1, 0.2)),
             ("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"),
             (2, 1, 46),
             np.diag((1, 0.2, 1, 1)),
@@ -98,7 +91,7 @@ class TestSpacingDCase(unittest.TestCase):
             self.assertEqual(data["image"].device, res["image"].device)
         self.assertEqual(expected_keys, tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, expected_shape)
-        np.testing.assert_allclose(res["image_meta_dict"]["affine"], expected_affine)
+        assert_allclose(res["image_meta_dict"]["affine"], expected_affine)
 
 
 if __name__ == "__main__":

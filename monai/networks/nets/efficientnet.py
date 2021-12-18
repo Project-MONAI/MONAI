@@ -23,7 +23,14 @@ from monai.networks.layers.factories import Act, Conv, Pad, Pool
 from monai.networks.layers.utils import get_norm_layer
 from monai.utils.module import look_up_option
 
-__all__ = ["EfficientNet", "EfficientNetBN", "get_efficientnet_image_size", "drop_connect"]
+__all__ = [
+    "EfficientNet",
+    "EfficientNetBN",
+    "get_efficientnet_image_size",
+    "drop_connect",
+    "EfficientNetBNFeatures",
+    "BlockArgs",
+]
 
 efficientnet_params = {
     # model_name: (width_mult, depth_mult, image_size, dropout_rate, dropconnect_rate)
@@ -82,7 +89,7 @@ class MBConvBlock(nn.Module):
         Args:
             spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
-            out_classes: number of output channels.
+            out_channels: number of output channels.
             kernel_size: size of the kernel for conv ops.
             stride: stride to use for conv ops.
             image_size: input image resolution.
@@ -369,10 +376,7 @@ class EfficientNet(nn.Module):
                 )
                 idx += 1  # increment blocks index counter
 
-            self._blocks.add_module(
-                str(stack_idx),
-                sub_stack,
-            )
+            self._blocks.add_module(str(stack_idx), sub_stack)
 
         # sanity check to see if len(self._blocks) equal expected num_blocks
         if idx != num_blocks:
@@ -669,7 +673,7 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     e.g. 1D activations [B, C, H], 2D activations [B, C, H, W] and 3D activations [B, C, H, W, D]
 
     Args:
-        input: input tensor with [B, C, dim_1, dim_2, ..., dim_N] where N=spatial_dims.
+        inputs: input tensor with [B, C, dim_1, dim_2, ..., dim_N] where N=spatial_dims.
         p: probability to use for dropping connections.
         training: whether in training or evaluation mode.
 

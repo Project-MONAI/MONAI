@@ -50,9 +50,7 @@ class RangeHandler:
     """
 
     def __init__(
-        self,
-        events: Union[str, Tuple[Union[str, Events], Union[str, Events]]],
-        msg: Optional[str] = None,
+        self, events: Union[str, Tuple[Union[str, Events], Union[str, Events]]], msg: Optional[str] = None
     ) -> None:
         self.events = self.resolve_events(events)
         if msg is None:
@@ -73,10 +71,7 @@ class RangeHandler:
         if len(events) == 1:
             return self.create_paired_events(events[0])
         if len(events) == 2:
-            return (
-                self.get_event(events[0]),
-                self.get_event(events[1]),
-            )
+            return self.get_event(events[0]), self.get_event(events[1])
         raise ValueError(f"Exactly two Ignite events should be provided [received {len(events)}].")
 
     def create_paired_events(self, event: str) -> Tuple[Events, Events]:
@@ -84,17 +79,8 @@ class RangeHandler:
         Create pair of Ignite events from a event prefix name
         """
         event = event.upper()
-        event_prefix = {
-            "": "",
-            "ENGINE": "",
-            "EPOCH": "EPOCH_",
-            "ITERATION": "ITERATION_",
-            "BATCH": "GET_BATCH_",
-        }
-        return (
-            self.get_event(event_prefix[event] + "STARTED"),
-            self.get_event(event_prefix[event] + "COMPLETED"),
-        )
+        event_prefix = {"": "", "ENGINE": "", "EPOCH": "EPOCH_", "ITERATION": "ITERATION_", "BATCH": "GET_BATCH_"}
+        return self.get_event(event_prefix[event] + "STARTED"), self.get_event(event_prefix[event] + "COMPLETED")
 
     def get_event(self, event: Union[str, Events]) -> Events:
         return Events[event.upper()] if isinstance(event, str) else event

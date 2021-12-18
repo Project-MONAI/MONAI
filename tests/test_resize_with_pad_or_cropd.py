@@ -19,31 +19,15 @@ from monai.transforms import ResizeWithPadOrCropd
 from tests.utils import TEST_NDARRAYS
 
 TEST_CASES = [
-    [
-        {"keys": "img", "spatial_size": [15, 8, 8], "mode": "constant"},
-        {"img": np.zeros((3, 8, 8, 4))},
-        (3, 15, 8, 8),
-    ],
+    [{"keys": "img", "spatial_size": [15, 8, 8], "mode": "constant"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 8, 8)],
     [
         {"keys": "img", "spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "constant_values": 1},
         {"img": np.zeros((3, 8, 8, 4))},
         (3, 15, 4, 8),
     ],
-    [
-        {"keys": "img", "spatial_size": [15, 4, -1], "mode": "constant"},
-        {"img": np.zeros((3, 8, 8, 4))},
-        (3, 15, 4, 4),
-    ],
-    [
-        {"keys": "img", "spatial_size": [15, 4, -1], "mode": "reflect"},
-        {"img": np.zeros((3, 8, 8, 4))},
-        (3, 15, 4, 4),
-    ],
-    [
-        {"keys": "img", "spatial_size": [-1, -1, -1], "mode": "reflect"},
-        {"img": np.zeros((3, 8, 8, 4))},
-        (3, 8, 8, 4),
-    ],
+    [{"keys": "img", "spatial_size": [15, 4, -1], "mode": "constant"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 4, 4)],
+    [{"keys": "img", "spatial_size": [15, 4, -1], "mode": "reflect"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 4, 4)],
+    [{"keys": "img", "spatial_size": [-1, -1, -1], "mode": "reflect"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 8, 8, 4)],
 ]
 
 

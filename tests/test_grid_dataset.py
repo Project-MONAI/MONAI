@@ -59,11 +59,7 @@ class TestGridPatchDataset(unittest.TestCase):
             np.array([[[[2.0577, 3.0577], [6.0577, 7.0577]]], [[[10.5540, 11.5540], [14.5540, 15.5540]]]]),
             rtol=1e-5,
         )
-        np.testing.assert_allclose(
-            item[1],
-            np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]),
-            rtol=1e-5,
-        )
+        np.testing.assert_allclose(item[1], np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
         if sys.platform != "win32":
             for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=2):
                 np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
@@ -73,9 +69,7 @@ class TestGridPatchDataset(unittest.TestCase):
                 rtol=1e-3,
             )
             np.testing.assert_allclose(
-                item[1],
-                np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]),
-                rtol=1e-5,
+                item[1], np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5
             )
 
 

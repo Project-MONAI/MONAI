@@ -19,10 +19,9 @@ import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
-import numpy as np
 import torch
 
-from monai.config import KeysCollection, NdarrayTensor
+from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
@@ -40,7 +39,6 @@ from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import InverseKeys
 
 __all__ = [
     "ActivationsD",
@@ -116,7 +114,7 @@ class Activationsd(MapTransform):
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, sigmoid, softmax, other in self.key_iterator(d, self.sigmoid, self.softmax, self.other):
             d[key] = self.converter(d[key], sigmoid, softmax, other)
@@ -130,18 +128,24 @@ class AsDiscreted(MapTransform):
 
     backend = AsDiscrete.backend
 
-    @deprecated_arg("n_classes", since="0.6")
+    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
+    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
+    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
+    @deprecated_arg(
+        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
+    )
     def __init__(
         self,
         keys: KeysCollection,
         argmax: Union[Sequence[bool], bool] = False,
-        to_onehot: Union[Sequence[bool], bool] = False,
-        num_classes: Optional[Union[Sequence[int], int]] = None,
-        threshold_values: Union[Sequence[bool], bool] = False,
-        logit_thresh: Union[Sequence[float], float] = 0.5,
+        to_onehot: Union[Sequence[Optional[int]], Optional[int]] = None,
+        threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
-        n_classes: Optional[int] = None,
+        n_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
+        num_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
+        logit_thresh: Union[Sequence[float], float] = 0.5,  # deprecated
+        threshold_values: Union[Sequence[bool], bool] = False,  # deprecated
     ) -> None:
         """
         Args:
@@ -149,49 +153,55 @@ class AsDiscreted(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             argmax: whether to execute argmax function on input data before transform.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            to_onehot: whether to convert input data into the one-hot format. Defaults to False.
-                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            num_classes: the number of classes to convert to One-Hot format. it also can be a
-                sequence of int, each element corresponds to a key in ``keys``.
-            threshold_values: whether threshold the float value to int number 0 or 1, default is False.
-                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            logit_thresh: the threshold value for thresholding operation, default is 0.5.
-                it also can be a sequence of float, each element corresponds to a key in ``keys``.
+            to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
+                defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
+            threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold value.
+                defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
 
         .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``num_classes`` instead.
+            ``n_classes`` is deprecated, use ``to_onehot`` instead.
+
+        .. deprecated:: 0.7.0
+            ``num_classes`` is deprecated, use ``to_onehot`` instead.
+            ``logit_thresh`` is deprecated, use ``threshold`` instead.
+            ``threshold_values`` is deprecated, use ``threshold`` instead.
 
         """
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes is None:
-            num_classes = n_classes
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
-        self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
-        self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
-        self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
-        self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
+        to_onehot_ = ensure_tuple_rep(to_onehot, len(self.keys))
+        num_classes = ensure_tuple_rep(num_classes, len(self.keys))
+        self.to_onehot = []
+        for flag, val in zip(to_onehot_, num_classes):
+            if isinstance(flag, bool):
+                warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
+                self.to_onehot.append(val if flag else None)
+            else:
+                self.to_onehot.append(flag)
+
+        threshold_ = ensure_tuple_rep(threshold, len(self.keys))
+        logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
+        self.threshold = []
+        for flag, val in zip(threshold_, logit_thresh):
+            if isinstance(flag, bool):
+                warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
+                self.threshold.append(val if flag else None)
+            else:
+                self.threshold.append(flag)
+
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key, argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
-            d, self.argmax, self.to_onehot, self.num_classes, self.threshold_values, self.logit_thresh, self.rounding
+        for key, argmax, to_onehot, threshold, rounding in self.key_iterator(
+            d, self.argmax, self.to_onehot, self.threshold, self.rounding
         ):
-            d[key] = self.converter(
-                d[key],
-                argmax,
-                to_onehot,
-                num_classes,
-                threshold_values,
-                logit_thresh,
-                rounding,
-            )
+            d[key] = self.converter(d[key], argmax, to_onehot, threshold, rounding)
         return d
 
 
@@ -199,6 +209,8 @@ class KeepLargestConnectedComponentd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.KeepLargestConnectedComponent`.
     """
+
+    backend = KeepLargestConnectedComponent.backend
 
     def __init__(
         self,
@@ -215,9 +227,11 @@ class KeepLargestConnectedComponentd(MapTransform):
             applied_labels: Labels for applying the connected component on.
                 If only one channel. The pixel whose value is not in this list will remain unchanged.
                 If the data is in one-hot format, this is the channel indices to apply transform.
-            independent: consider several labels as a whole or independent, default is `True`.
-                Example use case would be segment label 1 is liver and label 2 is liver tumor, in that case
-                you want this "independent" to be specified as False.
+            independent: whether to treat ``applied_labels`` as a union of foreground labels.
+                If ``True``, the connected component analysis will be performed on each foreground label independently
+                and return the intersection of the largest components.
+                If ``False``, the analysis will be performed on the union of foreground labels.
+                default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
@@ -227,7 +241,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -239,11 +253,10 @@ class LabelFilterd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelFilter`.
     """
 
+    backend = LabelFilter.backend
+
     def __init__(
-        self,
-        keys: KeysCollection,
-        applied_labels: Union[Sequence[int], int],
-        allow_missing_keys: bool = False,
+        self, keys: KeysCollection, applied_labels: Union[Sequence[int], int], allow_missing_keys: bool = False
     ) -> None:
         """
         Args:
@@ -256,7 +269,7 @@ class LabelFilterd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelFilter(applied_labels)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -267,6 +280,8 @@ class FillHolesd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.FillHoles`.
     """
+
+    backend = FillHoles.backend
 
     def __init__(
         self,
@@ -291,7 +306,7 @@ class FillHolesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = FillHoles(applied_labels=applied_labels, connectivity=connectivity)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -302,6 +317,8 @@ class LabelToContourd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelToContour`.
     """
+
+    backend = LabelToContour.backend
 
     def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace", allow_missing_keys: bool = False) -> None:
         """
@@ -315,7 +332,7 @@ class LabelToContourd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelToContour(kernel_type=kernel_type)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -328,10 +345,12 @@ class Ensembled(MapTransform):
 
     """
 
+    backend = list(set(VoteEnsemble.backend) & set(MeanEnsemble.backend))
+
     def __init__(
         self,
         keys: KeysCollection,
-        ensemble: Callable[[Union[Sequence[torch.Tensor], torch.Tensor]], torch.Tensor],
+        ensemble: Callable[[Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]], NdarrayOrTensor],
         output_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -357,14 +376,16 @@ class Ensembled(MapTransform):
             raise ValueError("Incompatible values: len(self.keys) > 1 and output_key=None.")
         self.output_key = output_key if output_key is not None else self.keys[0]
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        items: Union[List[torch.Tensor], torch.Tensor]
-        if len(self.keys) == 1:
+        items: Union[List[NdarrayOrTensor], NdarrayOrTensor]
+        if len(self.keys) == 1 and self.keys[0] in d:
             items = d[self.keys[0]]
         else:
             items = [d[key] for key in self.key_iterator(d)]
-        d[self.output_key] = self.ensemble(items)
+
+        if len(items) > 0:
+            d[self.output_key] = self.ensemble(items)
 
         return d
 
@@ -374,11 +395,13 @@ class MeanEnsembled(Ensembled):
     Dictionary-based wrapper of :py:class:`monai.transforms.MeanEnsemble`.
     """
 
+    backend = MeanEnsemble.backend
+
     def __init__(
         self,
         keys: KeysCollection,
         output_key: Optional[str] = None,
-        weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None,
+        weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None,
     ) -> None:
         """
         Args:
@@ -406,6 +429,8 @@ class VoteEnsembled(Ensembled):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.VoteEnsemble`.
     """
+
+    backend = VoteEnsemble.backend
 
     def __init__(
         self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None
@@ -455,6 +480,8 @@ class ProbNMSd(MapTransform):
 
     """
 
+    backend = ProbNMS.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -466,13 +493,10 @@ class ProbNMSd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.prob_nms = ProbNMS(
-            spatial_dims=spatial_dims,
-            sigma=sigma,
-            prob_threshold=prob_threshold,
-            box_size=box_size,
+            spatial_dims=spatial_dims, sigma=sigma, prob_threshold=prob_threshold, box_size=box_size
         )
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]):
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.prob_nms(d[key])
@@ -596,7 +620,7 @@ class Invertd(MapTransform):
             self.device,
             self.post_func,
         ):
-            transform_key = f"{orig_key}{InverseKeys.KEY_SUFFIX}"
+            transform_key = InvertibleTransform.trace_key(orig_key)
             if transform_key not in d:
                 warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
                 continue
@@ -604,19 +628,14 @@ class Invertd(MapTransform):
             transform_info = d[transform_key]
             if nearest_interp:
                 transform_info = convert_inverse_interp_mode(
-                    trans_info=deepcopy(transform_info),
-                    mode="nearest",
-                    align_corners=None,
+                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
                 )
 
             input = d[key]
             if isinstance(input, torch.Tensor):
                 input = input.detach()
             # construct the input dict data for BatchInverseTransform
-            input_dict = {
-                orig_key: input,
-                transform_key: transform_info,
-            }
+            input_dict = {orig_key: input, transform_key: transform_info}
             orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
             if orig_meta_key in d:
@@ -646,7 +665,7 @@ class SaveClassificationd(MapTransform):
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         saver: Optional[CSVSaver] = None,
-        output_dir: str = "./",
+        output_dir: PathLike = "./",
         filename: str = "predictions.csv",
         overwrite: bool = True,
         flush: bool = True,

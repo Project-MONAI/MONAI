@@ -26,10 +26,7 @@ class TestEnsureTyped(unittest.TestCase):
         for test_data in test_datas:
             for dtype in ("tensor", "NUMPY"):
                 result = EnsureTyped(
-                    keys="data",
-                    data_type=dtype,
-                    dtype=np.float32 if dtype == "NUMPY" else None,
-                    device="cpu",
+                    keys="data", data_type=dtype, dtype=np.float32 if dtype == "NUMPY" else None, device="cpu"
                 )({"data": test_data})["data"]
                 if dtype == "NUMPY":
                     self.assertTrue(result.dtype == np.float32)
@@ -64,12 +61,14 @@ class TestEnsureTyped(unittest.TestCase):
 
     def test_list_tuple(self):
         for dtype in ("tensor", "numpy"):
-            result = EnsureTyped(keys="data", data_type=dtype)({"data": [[1, 2], [3, 4]]})["data"]
+            result = EnsureTyped(keys="data", data_type=dtype, wrap_sequence=False)({"data": [[1, 2], [3, 4]]})["data"]
             self.assertTrue(isinstance(result, list))
             self.assertTrue(isinstance(result[0][1], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result[1][0], torch.as_tensor(3))
             # tuple of numpy arrays
-            result = EnsureTyped(keys="data", data_type=dtype)({"data": (np.array([1, 2]), np.array([3, 4]))})["data"]
+            result = EnsureTyped(keys="data", data_type=dtype, wrap_sequence=False)(
+                {"data": (np.array([1, 2]), np.array([3, 4]))}
+            )["data"]
             self.assertTrue(isinstance(result, tuple))
             self.assertTrue(isinstance(result[0], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result[1], torch.as_tensor([3, 4]))

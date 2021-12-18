@@ -116,9 +116,7 @@ def compute_froc_curve_data(
 
 
 def compute_froc_score(
-    fps_per_image: np.ndarray,
-    total_sensitivity: np.ndarray,
-    eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
+    fps_per_image: np.ndarray, total_sensitivity: np.ndarray, eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8)
 ):
     """
     This function is modified from the official evaluation code of

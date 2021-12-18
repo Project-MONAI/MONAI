@@ -27,15 +27,7 @@ cached_path = optional_import("transformers.file_utils", name="cached_path")[0]
 BertEmbeddings = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")[0]
 BertLayer = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")[0]
 
-__all__ = [
-    "BertPreTrainedModel",
-    "BertAttention",
-    "BertOutput",
-    "BertMixedLayer",
-    "Pooler",
-    "MultiModal",
-    "Transchex",
-]
+__all__ = ["BertPreTrainedModel", "BertAttention", "BertOutput", "BertMixedLayer", "Pooler", "MultiModal", "Transchex"]
 
 
 class BertPreTrainedModel(nn.Module):
@@ -134,10 +126,7 @@ class BertAttention(nn.Module):
     https://github.com/huggingface/transformers
     """
 
-    def __init__(
-        self,
-        config,
-    ) -> None:
+    def __init__(self, config) -> None:
         super().__init__()
         self.num_attention_heads = config.num_attention_heads
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
@@ -194,10 +183,7 @@ class BertMixedLayer(nn.Module):
     https://github.com/huggingface/transformers
     """
 
-    def __init__(
-        self,
-        config,
-    ) -> None:
+    def __init__(self, config) -> None:
         super().__init__()
         self.att = BertAttention(config)
         self.output = BertOutput(config)
@@ -213,10 +199,7 @@ class Pooler(nn.Module):
     https://github.com/huggingface/transformers
     """
 
-    def __init__(
-        self,
-        hidden_size,
-    ) -> None:
+    def __init__(self, hidden_size) -> None:
         super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.activation = nn.Tanh()
@@ -234,11 +217,7 @@ class MultiModal(BertPreTrainedModel):
     """
 
     def __init__(
-        self,
-        num_language_layers: int,
-        num_vision_layers: int,
-        num_mixed_layers: int,
-        bert_config: dict,  # type: ignore
+        self, num_language_layers: int, num_vision_layers: int, num_mixed_layers: int, bert_config: dict  # type: ignore
     ) -> None:
         """
         Args:
@@ -314,7 +293,8 @@ class Transchex(torch.nn.Module):
             num_vision_layers: number of vision transformer layers.
             num_mixed_layers: number of mixed transformer layers.
             drop_out: faction of the input units to drop.
-            bert_config: configuration for bert language transformer encoder.
+
+        The other parameters are part of the `bert_config` to `MultiModal.from_pretrained`.
 
         Examples:
 

@@ -103,7 +103,7 @@ class TestSpatialTransformerCore(DistTestCase):
     def tearDown(self):
         set_determinism(seed=None)
 
-    @TimedCall(seconds=60)
+    @TimedCall(seconds=100)
     def test_training(self):
         """
         check that the quality AffineTransform backpropagation

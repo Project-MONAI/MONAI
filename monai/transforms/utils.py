@@ -38,9 +38,9 @@ from monai.transforms.utils_pytorch_numpy_unification import (
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
-    InverseKeys,
     NumpyPadMode,
     PytorchPadMode,
+    TraceKeys,
     deprecated_arg,
     ensure_tuple,
     ensure_tuple_rep,
@@ -149,31 +149,43 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
 
 
 def rescale_array(
-    arr: NdarrayOrTensor, minv: float = 0.0, maxv: float = 1.0, dtype: Union[DtypeLike, torch.dtype] = np.float32
+    arr: NdarrayOrTensor,
+    minv: Optional[float] = 0.0,
+    maxv: Optional[float] = 1.0,
+    dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
 ) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
+    If either `minv` or `maxv` is None, it returns `(a - min_a) / (max_a - min_a)`.
+
+    Args:
+        arr: input array to rescale.
+        minv: minimum value of target rescaled array.
+        maxv: maxmum value of target rescaled array.
+        dtype: if not None, convert input array to dtype before computation.
+
     """
     if dtype is not None:
         arr, *_ = convert_data_type(arr, dtype=dtype)
-
     mina = arr.min()
     maxa = arr.max()
 
     if mina == maxa:
-        return arr * minv
+        return arr * minv if minv is not None else arr
 
     norm = (arr - mina) / (maxa - mina)  # normalize the array first
+    if (minv is None) or (maxv is None):
+        return norm
     return (norm * (maxv - minv)) + minv  # rescale by minv and maxv, which is the normalized array by default
 
 
 def rescale_instance_array(
-    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32
+    arr: np.ndarray, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, dtype: DtypeLike = np.float32
 ) -> np.ndarray:
     """
     Rescale each array slice along the first dimension of `arr` independently.
     """
-    out: np.ndarray = np.zeros(arr.shape, dtype)
+    out: np.ndarray = np.zeros(arr.shape, dtype or arr.dtype)
     for i in range(arr.shape[0]):
         out[i] = rescale_array(arr[i], minv, maxv, dtype)
 
@@ -184,16 +196,12 @@ def rescale_array_int_max(arr: np.ndarray, dtype: DtypeLike = np.uint16) -> np.n
     """
     Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`.
     """
-    info: np.iinfo = np.iinfo(dtype)
-    return np.asarray(rescale_array(arr, info.min, info.max), dtype=dtype)
+    info: np.iinfo = np.iinfo(dtype or arr.dtype)
+    return np.asarray(rescale_array(arr, info.min, info.max), dtype=dtype or arr.dtype)
 
 
 def copypaste_arrays(
-    src_shape,
-    dest_shape,
-    srccenter: Sequence[int],
-    destcenter: Sequence[int],
-    dims: Sequence[Optional[int]],
+    src_shape, dest_shape, srccenter: Sequence[int], destcenter: Sequence[int], dims: Sequence[Optional[int]]
 ) -> Tuple[Tuple[slice, ...], Tuple[slice, ...]]:
     """
     Calculate the slices to copy a sliced area of array in `src_shape` into array in `dest_shape`.
@@ -270,9 +278,7 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
 
 
 def map_binary_to_indices(
-    label: NdarrayOrTensor,
-    image: Optional[NdarrayOrTensor] = None,
-    image_threshold: float = 0.0,
+    label: NdarrayOrTensor, image: Optional[NdarrayOrTensor] = None, image_threshold: float = 0.0
 ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Compute the foreground and background of input label data, return the indices after fattening.
@@ -406,19 +412,25 @@ def correct_crop_centers(
     centers: List[Union[int, torch.Tensor]],
     spatial_size: Union[Sequence[int], int],
     label_spatial_shape: Sequence[int],
+    allow_smaller: bool = False,
 ):
     """
-    Utility to correct the crop center if the crop size is bigger than the image size.
+    Utility to correct the crop center if the crop size and centers are not compatible with the image size.
 
     Args:
         centers: pre-computed crop centers of every dim, will correct based on the valid region.
         spatial_size: spatial size of the ROIs to be sampled.
         label_spatial_shape: spatial shape of the original label data to compare with ROI.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     """
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
-    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
-        raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+    if any(np.subtract(label_spatial_shape, spatial_size) < 0):
+        if not allow_smaller:
+            raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+        spatial_size = tuple(min(l, s) for l, s in zip(label_spatial_shape, spatial_size))
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(spatial_size, 2)
@@ -430,16 +442,12 @@ def correct_crop_centers(
         # need this because np.random.randint does not work with same start and end
         if valid_s == valid_end[i]:
             valid_end[i] += 1
-
-    for i, c in enumerate(centers):
-        center_i = c
-        if c < valid_start[i]:
-            center_i = valid_start[i]
-        if c >= valid_end[i]:
-            center_i = valid_end[i] - 1
-        centers[i] = center_i
-
-    return centers
+    valid_centers = []
+    for c, v_s, v_e in zip(centers, valid_start, valid_end):
+        _c = int(convert_data_type(c, np.ndarray)[0])  # type: ignore
+        center_i = min(max(_c, v_s), v_e - 1)
+        valid_centers.append(int(center_i))
+    return valid_centers
 
 
 def generate_pos_neg_label_crop_centers(
@@ -450,6 +458,7 @@ def generate_pos_neg_label_crop_centers(
     fg_indices: NdarrayOrTensor,
     bg_indices: NdarrayOrTensor,
     rand_state: Optional[np.random.RandomState] = None,
+    allow_smaller: bool = False,
 ) -> List[List[int]]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
@@ -463,6 +472,9 @@ def generate_pos_neg_label_crop_centers(
         fg_indices: pre-computed foreground indices in 1 dimension.
         bg_indices: pre-computed background indices in 1 dimension.
         rand_state: numpy randomState object to align with other modules.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     Raises:
         ValueError: When the proposed roi is larger than the image.
@@ -491,7 +503,7 @@ def generate_pos_neg_label_crop_centers(
         idx = indices_to_use[random_int]
         center = unravel_index(idx, label_spatial_shape)
         # shift center to range of valid centers
-        centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape))
+        centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
     return centers
 
@@ -503,6 +515,7 @@ def generate_label_classes_crop_centers(
     indices: Sequence[NdarrayOrTensor],
     ratios: Optional[List[Union[float, int]]] = None,
     rand_state: Optional[np.random.RandomState] = None,
+    allow_smaller: bool = False,
 ) -> List[List[int]]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
@@ -516,6 +529,9 @@ def generate_label_classes_crop_centers(
         ratios: ratios of every class in the label to generate crop centers, including background class.
             if None, every class will have the same ratio to generate crop centers.
         rand_state: numpy randomState object to align with other modules.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
 
     """
     if rand_state is None:
@@ -543,7 +559,7 @@ def generate_label_classes_crop_centers(
         center = unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
-        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
+        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape, allow_smaller))
 
     return centers
 
@@ -857,7 +873,7 @@ def generate_spatial_bounding_box(
     margin: Union[Sequence[int], int] = 0,
 ) -> Tuple[List[int], List[int]]:
     """
-    generate the spatial bounding box of foreground in the image with start-end positions.
+    generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
     And it can also add margin to every dim of the bounding box.
     The output format of the coordinates is:
@@ -899,12 +915,13 @@ def generate_spatial_bounding_box(
         min_d = max(arg_max[0] - margin[di], 0)
         max_d = arg_max[-1] + margin[di] + 1
 
-        box_start[di], box_end[di] = min_d, max_d
+        box_start[di] = min_d.detach().cpu().item() if isinstance(min_d, torch.Tensor) else min_d  # type: ignore
+        box_end[di] = max_d.detach().cpu().item() if isinstance(max_d, torch.Tensor) else max_d  # type: ignore
 
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Optional[int] = None) -> torch.Tensor:
+def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Optional[int] = None) -> NdarrayOrTensor:
     """
     Gets the largest connected component mask of an image.
 
@@ -914,13 +931,13 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """
-    img_arr = img.detach().cpu().numpy()
-    largest_cc = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
+    img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
+    largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
     img_arr = measure.label(img_arr, connectivity=connectivity)
     if img_arr.max() != 0:
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
-
-    return torch.as_tensor(largest_cc, device=img.device)
+    largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
+    return largest_cc
 
 
 def fill_holes(
@@ -1086,9 +1103,7 @@ def extreme_points_to_image(
 
 
 def map_spatial_axes(
-    img_ndim: int,
-    spatial_axes: Optional[Union[Sequence[int], int]] = None,
-    channel_first: bool = True,
+    img_ndim: int, spatial_axes: Optional[Union[Sequence[int], int]] = None, channel_first: bool = True
 ) -> List[int]:
     """
     Utility to map the spatial axes to real axes in channel first/last shape.
@@ -1175,7 +1190,7 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
 def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_corners: Optional[bool] = None):
     """
     Change the interpolation mode when inverting spatial transforms, default to "nearest".
-    This function modifies trans_info's `InverseKeys.EXTRA_INFO`.
+    This function modifies trans_info's `TraceKeys.EXTRA_INFO`.
 
     See also: :py:class:`monai.transform.inverse.InvertibleTransform`
 
@@ -1188,21 +1203,21 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
     interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
 
     # set to string for DataLoader collation
-    align_corners_ = "none" if align_corners is None else align_corners
+    align_corners_ = TraceKeys.NONE if align_corners is None else align_corners
 
     for item in ensure_tuple(trans_info):
-        if InverseKeys.EXTRA_INFO in item:
-            orig_mode = item[InverseKeys.EXTRA_INFO].get("mode", None)
+        if TraceKeys.EXTRA_INFO in item:
+            orig_mode = item[TraceKeys.EXTRA_INFO].get("mode", None)
             if orig_mode is not None:
                 if orig_mode[0] in interp_modes:
-                    item[InverseKeys.EXTRA_INFO]["mode"] = [mode for _ in range(len(mode))]
+                    item[TraceKeys.EXTRA_INFO]["mode"] = [mode for _ in range(len(mode))]
                 elif orig_mode in interp_modes:
-                    item[InverseKeys.EXTRA_INFO]["mode"] = mode
-            if "align_corners" in item[InverseKeys.EXTRA_INFO]:
-                if issequenceiterable(item[InverseKeys.EXTRA_INFO]["align_corners"]):
-                    item[InverseKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
+                    item[TraceKeys.EXTRA_INFO]["mode"] = mode
+            if "align_corners" in item[TraceKeys.EXTRA_INFO]:
+                if issequenceiterable(item[TraceKeys.EXTRA_INFO]["align_corners"]):
+                    item[TraceKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
                 else:
-                    item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners_
+                    item[TraceKeys.EXTRA_INFO]["align_corners"] = align_corners_
     return trans_info
 
 
@@ -1227,12 +1242,7 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
 
 
 def equalize_hist(
-    img: NdarrayOrTensor,
-    mask: Optional[NdarrayOrTensor] = None,
-    num_bins: int = 256,
-    min: int = 0,
-    max: int = 255,
-    dtype: DtypeLike = np.float32,
+    img: np.ndarray, mask: Optional[np.ndarray] = None, num_bins: int = 256, min: int = 0, max: int = 255
 ) -> np.ndarray:
     """
     Utility to equalize input image based on the histogram.
@@ -1247,17 +1257,11 @@ def equalize_hist(
             https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
         min: the min value to normalize input image, default to `0`.
         max: the max value to normalize input image, default to `255`.
-        dtype: data type of the output, default to `float32`.
 
     """
-    img_np: np.ndarray
-    img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
-    mask_np: Optional[np.ndarray] = None
-    if mask is not None:
-        mask_np, *_ = convert_data_type(mask, np.ndarray)  # type: ignore
 
-    orig_shape = img_np.shape
-    hist_img = img_np[np.array(mask_np, dtype=bool)] if mask_np is not None else img_np
+    orig_shape = img.shape
+    hist_img = img[np.array(mask, dtype=bool)] if mask is not None else img
     if has_skimage:
         hist, bins = exposure.histogram(hist_img.flatten(), num_bins)
     else:
@@ -1269,9 +1273,8 @@ def equalize_hist(
     cum = rescale_array(arr=cum, minv=min, maxv=max)
 
     # apply linear interpolation
-    img_np = np.interp(img_np.flatten(), bins, cum)
-
-    return img_np.reshape(orig_shape).astype(dtype)
+    img = np.interp(img.flatten(), bins, cum)
+    return img.reshape(orig_shape)
 
 
 class Fourier:
@@ -1423,10 +1426,7 @@ def get_transform_backends():
                 "Transform",
             ]
         ):
-            backends[n] = [
-                TransformBackends.TORCH in obj.backend,
-                TransformBackends.NUMPY in obj.backend,
-            ]
+            backends[n] = [TransformBackends.TORCH in obj.backend, TransformBackends.NUMPY in obj.backend]
     return backends
 
 

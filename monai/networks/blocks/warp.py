@@ -30,11 +30,7 @@ class Warp(nn.Module):
     Warp an image with given dense displacement field (DDF).
     """
 
-    def __init__(
-        self,
-        mode=GridSampleMode.BILINEAR.value,
-        padding_mode=GridSamplePadMode.BORDER.value,
-    ):
+    def __init__(self, mode=GridSampleMode.BILINEAR.value, padding_mode=GridSamplePadMode.BORDER.value):
         """
         For pytorch native APIs, the possible values are:
 
@@ -123,13 +119,7 @@ class Warp(nn.Module):
             )
 
         # using csrc resampling
-        return grid_pull(
-            image,
-            grid,
-            bound=self._padding_mode,
-            extrapolate=True,
-            interpolation=self._interp_mode,
-        )
+        return grid_pull(image, grid, bound=self._padding_mode, extrapolate=True, interpolation=self._interp_mode)
 
 
 class DVF2DDF(nn.Module):
@@ -143,10 +133,7 @@ class DVF2DDF(nn.Module):
     """
 
     def __init__(
-        self,
-        num_steps: int = 7,
-        mode=GridSampleMode.BILINEAR.value,
-        padding_mode=GridSamplePadMode.ZEROS.value,
+        self, num_steps: int = 7, mode=GridSampleMode.BILINEAR.value, padding_mode=GridSamplePadMode.ZEROS.value
     ):
         super().__init__()
         if num_steps <= 0:

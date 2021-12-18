@@ -10,7 +10,8 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
 import torch.distributed as dist
@@ -20,7 +21,7 @@ from torch.utils.data.distributed import DistributedSampler
 from monai.config import IgniteInfo
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
 from monai.transforms import Decollated, Transform
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils import ensure_tuple, is_scalar, min_version, optional_import
 
 from .utils import engine_apply_transform
 
@@ -35,6 +36,18 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
     EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
+
+
+class BaseWorkflow(ABC):
+    """
+    Base class for any MONAI style workflow.
+    `run()` is designed to execute the train, evaluation or inference logic.
+
+    """
+
+    @abstractmethod
+    def run(self, *args, **kwargs):
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
@@ -54,9 +67,13 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         epoch_length: number of iterations for one epoch, default to `len(data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch: function to parse image and label for every iteration.
+        prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
+            from `engine.state.batch` for every iteration, for more details please refer to:
+            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
         iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+            and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
+            if not provided, use `self._iteration()` instead. for more details please refer to:
+            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_metric: compute metric when every iteration completed, and save average value to
@@ -94,7 +111,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable] = None,
+        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
         postprocessing: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
@@ -202,9 +219,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         def _run_postprocessing(engine: Engine) -> None:
             if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
                 engine.state.batch, engine.state.output = engine_apply_transform(
-                    batch=engine.state.batch,
-                    output=engine.state.output,
-                    transform=posttrans,
+                    batch=engine.state.batch, output=engine.state.output, transform=posttrans
                 )
             else:
                 for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
@@ -218,7 +233,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         if not isinstance(k_metric, dict):
             raise TypeError(f"key_metric must be None or a dict but is {type(k_metric).__name__}.")
         self.state.key_metric_name = list(k_metric.keys())[0]
-        metrics = k_metric
+        metrics = dict(k_metric)
         if add_metrics is not None and len(add_metrics) > 0:
             if not isinstance(add_metrics, dict):
                 raise TypeError(f"additional metrics must be None or a dict but is {type(add_metrics).__name__}.")
@@ -231,6 +246,13 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             key_metric_name = engine.state.key_metric_name  # type: ignore
             if key_metric_name is not None:
                 current_val_metric = engine.state.metrics[key_metric_name]
+                if not is_scalar(current_val_metric):
+                    warnings.warn(
+                        "key metric is not a scalar value, skip the metric comparison with the current best metric."
+                        "please set other metrics as the key metric, or change the `reduction` mode to 'mean'."
+                    )
+                    return
+
                 if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):  # type: ignore
                     self.logger.info(f"Got new best metric of {key_metric_name}: {current_val_metric}")
                     engine.state.best_metric = current_val_metric  # type: ignore

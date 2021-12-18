@@ -26,7 +26,7 @@ _, has_cim = optional_import("cucim", name="CuImage")
 _, has_osl = optional_import("openslide")
 
 FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
-base_name, extension = os.path.splitext(os.path.basename(FILE_URL))
+base_name, extension = FILE_URL.split("id=")[1], ".tiff"
 FILE_NAME = "temp_" + base_name
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", FILE_NAME + extension)
 
@@ -50,28 +50,12 @@ def prepare_data():
 
 
 TEST_CASE_0 = [
-    {
-        "data": [
-            {"image": FILE_PATH, "mask": MASK1},
-        ],
-        "patch_size": 1,
-        "image_reader_name": "cuCIM",
-    },
-    [
-        {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": FILE_NAME,
-            "mask_location": [100, 100],
-        },
-    ],
+    {"data": [{"image": FILE_PATH, "mask": MASK1}], "patch_size": 1, "image_reader_name": "cuCIM"},
+    [{"image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8), "name": FILE_NAME, "mask_location": [100, 100]}],
 ]
 
 TEST_CASE_1 = [
-    {
-        "data": [{"image": FILE_PATH, "mask": MASK2}],
-        "patch_size": 1,
-        "image_reader_name": "cuCIM",
-    },
+    {"data": [{"image": FILE_PATH, "mask": MASK2}], "patch_size": 1, "image_reader_name": "cuCIM"},
     [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
@@ -87,11 +71,7 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {
-        "data": [{"image": FILE_PATH, "mask": MASK4}],
-        "patch_size": 1,
-        "image_reader_name": "cuCIM",
-    },
+    {"data": [{"image": FILE_PATH, "mask": MASK4}], "patch_size": 1, "image_reader_name": "cuCIM"},
     [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
@@ -117,35 +97,21 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [
-    {
-        "data": [
-            {"image": FILE_PATH, "mask": MASK1},
-        ],
-        "patch_size": 2,
-        "image_reader_name": "cuCIM",
-    },
+    {"data": [{"image": FILE_PATH, "mask": MASK1}], "patch_size": 2, "image_reader_name": "cuCIM"},
     [
         {
             "image": np.array(
-                [
-                    [[243, 243], [243, 243]],
-                    [[243, 243], [243, 243]],
-                    [[243, 243], [243, 243]],
-                ],
-                dtype=np.uint8,
+                [[[243, 243], [243, 243]], [[243, 243], [243, 243]], [[243, 243], [243, 243]]], dtype=np.uint8
             ),
             "name": FILE_NAME,
             "mask_location": [100, 100],
-        },
+        }
     ],
 ]
 
 TEST_CASE_4 = [
     {
-        "data": [
-            {"image": FILE_PATH, "mask": MASK1},
-            {"image": FILE_PATH, "mask": MASK2},
-        ],
+        "data": [{"image": FILE_PATH, "mask": MASK1}, {"image": FILE_PATH, "mask": MASK2}],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
     },
@@ -170,28 +136,12 @@ TEST_CASE_4 = [
 
 
 TEST_CASE_OPENSLIDE_0 = [
-    {
-        "data": [
-            {"image": FILE_PATH, "mask": MASK1},
-        ],
-        "patch_size": 1,
-        "image_reader_name": "OpenSlide",
-    },
-    [
-        {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": FILE_NAME,
-            "mask_location": [100, 100],
-        },
-    ],
+    {"data": [{"image": FILE_PATH, "mask": MASK1}], "patch_size": 1, "image_reader_name": "OpenSlide"},
+    [{"image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8), "name": FILE_NAME, "mask_location": [100, 100]}],
 ]
 
 TEST_CASE_OPENSLIDE_1 = [
-    {
-        "data": [{"image": FILE_PATH, "mask": MASK2}],
-        "patch_size": 1,
-        "image_reader_name": "OpenSlide",
-    },
+    {"data": [{"image": FILE_PATH, "mask": MASK2}], "patch_size": 1, "image_reader_name": "OpenSlide"},
     [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
@@ -212,27 +162,14 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
         prepare_data()
         download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     @skipUnless(has_cim, "Requires CuCIM")
     @skip_if_quick
     def test_read_patches_cucim(self, input_parameters, expected):
         dataset = MaskedInferenceWSIDataset(**input_parameters)
         self.compare_samples_expected(dataset, expected)
 
-    @parameterized.expand(
-        [
-            TEST_CASE_OPENSLIDE_0,
-            TEST_CASE_OPENSLIDE_1,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_OPENSLIDE_0, TEST_CASE_OPENSLIDE_1])
     @skipUnless(has_osl, "Requires OpenSlide")
     @skip_if_quick
     def test_read_patches_openslide(self, input_parameters, expected):
