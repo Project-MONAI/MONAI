@@ -135,7 +135,7 @@ def load_net_with_metadata(
             extra_files[f] = ""
 
     jit_obj = torch.jit.load(filename_prefix_or_stream, map_location, extra_files)
-    
+
     extra_files = dict(extra_files.items())  # compatibility with ExtraFilesMap
 
     if METADATA_FILENAME in extra_files:
