@@ -14,12 +14,12 @@ import unittest
 import numpy as np
 
 from monai.transforms.intensity.array import ScaleIntensityRangePercentiles
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
     def test_scaling(self):
-        img = self.imt
+        img = self.imt[0]
         lower = 10
         upper = 99
         b_min = 0
@@ -27,13 +27,14 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
 
         a_min = np.percentile(img, lower)
         a_max = np.percentile(img, upper)
-        expected = (img - a_min) / (a_max - a_min)
-        expected = (expected * (b_max - b_min)) + b_min
-        scaler = ScaleIntensityRangePercentiles(lower=lower, upper=upper, b_min=b_min, b_max=b_max)
-        self.assertTrue(np.allclose(expected, scaler(img)))
+        expected = (((img - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min).astype(np.uint8)
+        scaler = ScaleIntensityRangePercentiles(lower=lower, upper=upper, b_min=b_min, b_max=b_max, dtype=np.uint8)
+        for p in TEST_NDARRAYS:
+            result = scaler(p(img))
+            assert_allclose(result, p(expected), rtol=1e-4)
 
     def test_relative_scaling(self):
-        img = self.imt
+        img = self.imt[0]
         lower = 10
         upper = 99
         b_min = 100
@@ -47,13 +48,42 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
         expected_img = (img - expected_a_min) / (expected_a_max - expected_a_min)
         expected_img = (expected_img * (expected_b_max - expected_b_min)) + expected_b_min
 
-        self.assertTrue(np.allclose(expected_img, scaler(img)))
+        for p in TEST_NDARRAYS:
+            result = scaler(p(img))
+            assert_allclose(result, p(expected_img), rtol=1e-3)
+
+        scaler = ScaleIntensityRangePercentiles(
+            lower=lower, upper=upper, b_min=b_min, b_max=b_max, relative=True, clip=True
+        )
+        for p in TEST_NDARRAYS:
+            result = scaler(p(img))
+            assert_allclose(result, p(np.clip(expected_img, expected_b_min, expected_b_max)), rtol=1e-4)
 
     def test_invalid_instantiation(self):
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=-10, upper=99, b_min=0, b_max=255)
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=101, upper=99, b_min=0, b_max=255)
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=30, upper=-20, b_min=0, b_max=255)
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=30, upper=900, b_min=0, b_max=255)
+
+    def test_channel_wise(self):
+        img = self.imt[0]
+        lower = 10
+        upper = 99
+        b_min = 0
+        b_max = 255
+        scaler = ScaleIntensityRangePercentiles(
+            lower=lower, upper=upper, b_min=b_min, b_max=b_max, channel_wise=True, dtype=np.uint8
+        )
+        expected = []
+        for c in img:
+            a_min = np.percentile(c, lower)
+            a_max = np.percentile(c, upper)
+            expected.append(((c - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min)
+        expected = np.stack(expected).astype(np.uint8)
+
+        for p in TEST_NDARRAYS:
+            result = scaler(p(img))
+            assert_allclose(result, p(expected), rtol=1e-4)
 
 
 if __name__ == "__main__":

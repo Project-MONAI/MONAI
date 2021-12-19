@@ -22,6 +22,7 @@ from monai.utils.enums import CommonKeys
 class Interaction:
     """
     Ignite process_function used to introduce interactions (simulation of clicks) for Deepgrow Training/Evaluation.
+    For more details please refer to: https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
     This implementation is based on:
 
         Sakinis et al., Interactive segmentation of medical images through

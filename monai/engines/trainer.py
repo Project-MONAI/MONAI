@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -26,7 +26,7 @@ from monai.engines.utils import (
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import PT_BEFORE_1_7, min_version, optional_import
+from monai.utils import min_version, optional_import, pytorch_after
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
@@ -75,9 +75,13 @@ class SupervisedTrainer(Trainer):
         epoch_length: number of iterations for one epoch, default to `len(train_data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch: function to parse image and label for current iteration.
+        prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
+            from `engine.state.batch` for every iteration, for more details please refer to:
+            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
         iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+            and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
+            if not provided, use `self._iteration()` instead. for more details please refer to:
+            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
         inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
@@ -115,7 +119,7 @@ class SupervisedTrainer(Trainer):
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable] = None,
+        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
         inferer: Optional[Inferer] = None,
         postprocessing: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
@@ -172,7 +176,7 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -180,7 +184,7 @@ class SupervisedTrainer(Trainer):
         else:
             inputs, targets, args, kwargs = batch
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}  # type: ignore
 
         def _compute_pred_loss():
             engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
@@ -190,7 +194,7 @@ class SupervisedTrainer(Trainer):
 
         self.network.train()
         # `set_to_none` only work from PyTorch 1.7.0
-        if PT_BEFORE_1_7:
+        if not pytorch_after(1, 7):
             self.optimizer.zero_grad()
         else:
             self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
@@ -198,13 +202,13 @@ class SupervisedTrainer(Trainer):
         if self.amp and self.scaler is not None:
             with torch.cuda.amp.autocast():
                 _compute_pred_loss()
-            self.scaler.scale(engine.state.output[Keys.LOSS]).backward()
+            self.scaler.scale(engine.state.output[Keys.LOSS]).backward()  # type: ignore
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.scaler.step(self.optimizer)
             self.scaler.update()
         else:
             _compute_pred_loss()
-            engine.state.output[Keys.LOSS].backward()
+            engine.state.output[Keys.LOSS].backward()  # type: ignore
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.optimizer.step()
         engine.fire_event(IterationEvents.MODEL_COMPLETED)
@@ -241,12 +245,16 @@ class GanTrainer(Trainer):
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
         d_prepare_batch: callback function to prepare batchdata for D inferer.
-            Defaults to return ``GanKeys.REALS`` in batchdata dict.
+            Defaults to return ``GanKeys.REALS`` in batchdata dict. for more details please refer to:
+            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
         g_prepare_batch: callback function to create batch of latent input for G inferer.
-            Defaults to return random latents.
+            Defaults to return random latents. for more details please refer to:
+            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
         g_update_latents: Calculate G loss with new latent codes. Defaults to ``True``.
         iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
+            and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
+            if not provided, use `self._iteration()` instead. for more details please refer to:
+            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_train_metric: compute metric when every iteration completed, and save average value to
@@ -286,7 +294,7 @@ class GanTrainer(Trainer):
         d_prepare_batch: Callable = default_prepare_batch,
         g_prepare_batch: Callable = default_make_latent,
         g_update_latents: bool = True,
-        iteration_update: Optional[Callable] = None,
+        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
         postprocessing: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
@@ -345,18 +353,21 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
         batch_size = self.data_loader.batch_size  # type: ignore
-        g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
+        g_input = self.g_prepare_batch(
+            num_latents=batch_size,
+            latent_size=self.latent_shape,
+            device=engine.state.device,  # type: ignore
+            non_blocking=engine.non_blocking,  # type: ignore
+        )
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
-        d_total_loss = torch.zeros(
-            1,
-        )
+        d_total_loss = torch.zeros(1)
         for _ in range(self.d_train_steps):
             # `set_to_none` only work from PyTorch 1.7.0
-            if PT_BEFORE_1_7:
+            if not pytorch_after(1, 7):
                 self.d_optimizer.zero_grad()
             else:
                 self.d_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
@@ -367,9 +378,14 @@ class GanTrainer(Trainer):
 
         # Train Generator
         if self.g_update_latents:
-            g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
+            g_input = self.g_prepare_batch(
+                num_latents=batch_size,
+                latent_size=self.latent_shape,
+                device=engine.state.device,  # type: ignore
+                non_blocking=engine.non_blocking,  # type: ignore
+            )
         g_output = self.g_inferer(g_input, self.g_network)
-        if PT_BEFORE_1_7:
+        if not pytorch_after(1, 7):
             self.g_optimizer.zero_grad()
         else:
             self.g_optimizer.zero_grad(set_to_none=self.optim_set_to_none)

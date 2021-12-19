@@ -18,19 +18,9 @@ from parameterized import parameterized
 
 from monai.transforms import SaveImage
 
-TEST_CASE_1 = [
-    torch.randint(0, 255, (1, 2, 3, 4)),
-    {"filename_or_obj": "testfile0.nii.gz"},
-    ".nii.gz",
-    False,
-]
+TEST_CASE_1 = [torch.randint(0, 255, (1, 2, 3, 4)), {"filename_or_obj": "testfile0.nii.gz"}, ".nii.gz", False]
 
-TEST_CASE_2 = [
-    torch.randint(0, 255, (1, 2, 3, 4)),
-    None,
-    ".nii.gz",
-    False,
-]
+TEST_CASE_2 = [torch.randint(0, 255, (1, 2, 3, 4)), None, ".nii.gz", False]
 
 
 class TestSaveImage(unittest.TestCase):
