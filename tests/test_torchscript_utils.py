@@ -86,6 +86,23 @@ class TestTorchscript(unittest.TestCase):
         self.assertEqual(meta, test_compare)
         self.assertEqual(extra_files, {})
 
+    def test_save_load_more_extra_files(self):
+        """Save then load extra file data from a torchscript file."""
+        m = torch.jit.script(TestModule())
+
+        test_metadata = {"foo": [1, 2], "bar": "string"}
+
+        more_extra_files = {"test.txt": b"This is test data"}
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            save_net_with_metadata(m, f"{tempdir}/test", meta_values=test_metadata, more_extra_files=more_extra_files)
+
+            self.assertTrue(os.path.isfile(f"{tempdir}/test.pt"))
+
+            _, _, loaded_extra_files = load_net_with_metadata(f"{tempdir}/test.pt", more_extra_files=("test.txt",))
+
+            self.assertEqual(more_extra_files["test.txt"], loaded_extra_files["test.txt"])
+
 
 if __name__ == "__main__":
     unittest.main()

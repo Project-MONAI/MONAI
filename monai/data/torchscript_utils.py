@@ -18,6 +18,7 @@ import torch
 
 from monai.config import get_config_values
 from monai.utils import JITMetadataKeys
+from monai.utils.module import pytorch_after
 
 METADATA_FILENAME = "metadata.json"
 
@@ -64,7 +65,7 @@ def save_net_with_metadata(
         include_config_vals: if True, MONAI, Pytorch, and Numpy versions are included in metadata.
         append_timestamp: if True, a timestamp for "now" is appended to the file's name before the extension.
         meta_values: metadata values to store with the object, not limited just to keys in `JITMetadataKeys`.
-        more_extra_files: other extra file data items to include in bundle.
+        more_extra_files: other extra file data items to include in bundle, see `_extra_files` of `torch.jit.save`. 
     """
 
     now = datetime.datetime.now()
@@ -79,10 +80,19 @@ def save_net_with_metadata(
 
     json_data = json.dumps(metadict)
 
-    extra_files = {METADATA_FILENAME: json_data.encode()}
+    # Pytorch>1.6 can use dictionaries directly, otherwise need to use special map object
+    if pytorch_after(1, 6):
+        extra_files = {METADATA_FILENAME: json_data.encode()}
 
-    if more_extra_files is not None:
-        extra_files.update(more_extra_files)
+        if more_extra_files is not None:
+            extra_files.update(more_extra_files)
+    else:
+        extra_files = torch._C.ExtraFilesMap()
+        extra_files[METADATA_FILENAME] = json_data.encode()
+        
+        if more_extra_files is not None:
+            for k, v in more_extra_files.items():
+                extra_files[k] = v
 
     if isinstance(filename_prefix_or_stream, str):
         filename_no_ext, ext = os.path.splitext(filename_prefix_or_stream)
@@ -109,7 +119,7 @@ def load_net_with_metadata(
     Args:
         filename_prefix_or_stream: filename or file-like stream object.
         map_location: network map location as in `torch.jit.load`.
-        more_extra_files: other extra file data names to load from bundle.
+        more_extra_files: other extra file data names to load from bundle, see `_extra_files` of `torch.jit.load`.
     Returns:
         Triple containing loaded object, metadata dict, and extra files dict containing other file data if present
     """
