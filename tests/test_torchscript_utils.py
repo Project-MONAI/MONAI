@@ -18,6 +18,7 @@ import torch
 from monai.config import get_config_values
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.utils import JITMetadataKeys
+from monai.utils.module import pytorch_after
 
 
 class TestModule(torch.nn.Module):
@@ -101,7 +102,10 @@ class TestTorchscript(unittest.TestCase):
 
             _, _, loaded_extra_files = load_net_with_metadata(f"{tempdir}/test.pt", more_extra_files=("test.txt",))
 
-            self.assertEqual(more_extra_files["test.txt"], loaded_extra_files["test.txt"])
+            if pytorch_after(1, 6):
+                self.assertEqual(more_extra_files["test.txt"], loaded_extra_files["test.txt"])
+            else:
+                self.assertEqual(more_extra_files["test.txt"].decode(), loaded_extra_files["test.txt"])
 
 
 if __name__ == "__main__":

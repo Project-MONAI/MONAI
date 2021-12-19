@@ -87,7 +87,7 @@ def save_net_with_metadata(
         if more_extra_files is not None:
             extra_files.update(more_extra_files)
     else:
-        extra_files = torch._C.ExtraFilesMap()  # ignore: attr-defined
+        extra_files = torch._C.ExtraFilesMap()  # type:ignore[attr-defined]
         extra_files[METADATA_FILENAME] = json_data.encode()
 
         if more_extra_files is not None:
@@ -128,13 +128,15 @@ def load_net_with_metadata(
         extra_files = {f: "" for f in more_extra_files}
         extra_files[METADATA_FILENAME] = ""
     else:
-        extra_files = torch._C.ExtraFilesMap()  # ignore: attr-defined
+        extra_files = torch._C.ExtraFilesMap()  # type:ignore[attr-defined]
         extra_files[METADATA_FILENAME] = ""
 
         for f in more_extra_files:
             extra_files[f] = ""
 
     jit_obj = torch.jit.load(filename_prefix_or_stream, map_location, extra_files)
+    
+    extra_files = dict(extra_files.items())  # compatibility with ExtraFilesMap
 
     if METADATA_FILENAME in extra_files:
         json_data = extra_files[METADATA_FILENAME]
