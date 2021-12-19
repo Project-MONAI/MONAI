@@ -65,7 +65,7 @@ def save_net_with_metadata(
         include_config_vals: if True, MONAI, Pytorch, and Numpy versions are included in metadata.
         append_timestamp: if True, a timestamp for "now" is appended to the file's name before the extension.
         meta_values: metadata values to store with the object, not limited just to keys in `JITMetadataKeys`.
-        more_extra_files: other extra file data items to include in bundle, see `_extra_files` of `torch.jit.save`.
+        more_extra_files: other extra file data items to include in bundle, see `_extra_files` of `torch.jit.save`. 
     """
 
     now = datetime.datetime.now()
@@ -123,8 +123,16 @@ def load_net_with_metadata(
     Returns:
         Triple containing loaded object, metadata dict, and extra files dict containing other file data if present
     """
-    extra_files = {f: "" for f in more_extra_files}
-    extra_files[METADATA_FILENAME] = ""
+    # Pytorch>1.6 can use dictionaries directly, otherwise need to use special map object
+    if pytorch_after(1, 7):
+        extra_files = {f: "" for f in more_extra_files}
+        extra_files[METADATA_FILENAME] = ""
+    else:
+        extra_files = torch._C.ExtraFilesMap()
+        extra_files[METADATA_FILENAME] = ""
+
+        for f in more_extra_files:
+            extra_files[f] = ""
 
     jit_obj = torch.jit.load(filename_prefix_or_stream, map_location, extra_files)
     json_data = json.loads(extra_files.pop(METADATA_FILENAME, "{}"))
