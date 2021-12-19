@@ -135,6 +135,13 @@ def load_net_with_metadata(
             extra_files[f] = ""
 
     jit_obj = torch.jit.load(filename_prefix_or_stream, map_location, extra_files)
-    json_data = json.loads(extra_files.pop(METADATA_FILENAME, "{}"))
 
-    return jit_obj, json_data, extra_files
+    if METADATA_FILENAME in extra_files:
+        json_data = extra_files[METADATA_FILENAME]
+        del extra_files[METADATA_FILENAME]
+    else:
+        json_data = "{}"
+
+    json_data_dict = json.loads(json_data)
+
+    return jit_obj, json_data_dict, extra_files
