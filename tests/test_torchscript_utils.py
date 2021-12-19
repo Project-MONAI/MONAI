@@ -102,7 +102,7 @@ class TestTorchscript(unittest.TestCase):
 
             _, _, loaded_extra_files = load_net_with_metadata(f"{tempdir}/test.pt", more_extra_files=("test.txt",))
 
-            if pytorch_after(1, 6):
+            if pytorch_after(1, 7):
                 self.assertEqual(more_extra_files["test.txt"], loaded_extra_files["test.txt"])
             else:
                 self.assertEqual(more_extra_files["test.txt"].decode(), loaded_extra_files["test.txt"])
