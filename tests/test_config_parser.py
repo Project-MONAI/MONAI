@@ -20,13 +20,13 @@ from monai.transforms import LoadImaged
 TEST_CASES = [
     # test MONAI components
     [
-        dict(pkgs=["torch", "monai"], modules=["transforms"]),
+        dict(pkgs=["torch.nn", "monai"], modules=["transforms"]),
         {"name": "LoadImaged", "args": {"keys": ["image"]}},
         LoadImaged,
     ],
     # test non-monai modules
     [
-        dict(pkgs=["torch", "monai"], modules=["optim"]),
+        dict(pkgs=["torch.optim", "monai"], modules=["adam"]),
         {"name": "Adam", "args": {"params": torch.nn.PReLU().parameters(), "lr": 1e-4}},
         torch.optim.Adam,
     ],
@@ -34,7 +34,7 @@ TEST_CASES = [
     [dict(pkgs=[], modules=[]), {"path": "monai.transforms.LoadImaged", "args": {"keys": ["image"]}}, LoadImaged],
     # test `disabled`
     [
-        dict(pkgs=["torch", "monai"], modules=["transforms"]),
+        dict(pkgs=["torch.utils", "monai"], modules=["transforms"]),
         {"name": "LoadImaged", "disabled": True, "args": {"keys": ["image"]}},
         None,
     ],
