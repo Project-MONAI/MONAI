@@ -44,6 +44,7 @@ doIsortFormat=false
 doIsortFix=false
 doFlake8Format=false
 doClangFormat=false
+doCopyRight=false
 doPytypeFormat=false
 doMypyFormat=false
 doCleanup=false
@@ -238,6 +239,7 @@ do
             doFlake8Format=true
             doPytypeFormat=true
             doMypyFormat=true
+            doCopyRight=true
         ;;
         --disttests)
             doDistTests=true
@@ -250,6 +252,7 @@ do
             doBlackFix=true
             doIsortFormat=true
             doBlackFormat=true
+            doCopyRight=true
         ;;
         --clangformat)
             doClangFormat=true
@@ -341,18 +344,21 @@ compile_cpp
 # unconditionally report on the state of monai
 print_version
 
-# check copyright headers
-find "$(pwd)/monai" "$(pwd)/tests" -type f \
-  ! -wholename "*_version.py" -and -name "*.py" -or -name "*.cpp" -or -name "*.cu" -or -name "*.h" |\
-  while read -r fname; do
-    if ! grep "http://www.apache.org/licenses/LICENSE-2.0" "$fname" > /dev/null; then
-        print_error_msg "Missing the license header in file: $fname"
-        echo "Please add the licensing header to the file."
-        echo "  See also: https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md#checking-the-coding-style"
-        echo ""
-        exit 1
-    fi
-done
+if [ $doCopyRight = true ]
+then
+    # check copyright headers
+    find "$(pwd)/monai" "$(pwd)/tests" -type f \
+      ! -wholename "*_version.py" -and -name "*.py" -or -name "*.cpp" -or -name "*.cu" -or -name "*.h" |\
+      while read -r fname; do
+        if ! grep "http://www.apache.org/licenses/LICENSE-2.0" "$fname" > /dev/null; then
+            print_error_msg "Missing the license header in file: $fname"
+            echo "Please add the licensing header to the file."
+            echo "  See also: https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md#checking-the-coding-style"
+            echo ""
+            exit 1
+        fi
+    done
+fi
 
 
 if [ $doIsortFormat = true ]
