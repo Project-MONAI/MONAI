@@ -17,18 +17,25 @@ from parameterized import parameterized
 
 from monai.transforms import (
     Compose,
+    CuCIM,
     Flip,
     FlipD,
     RandAdjustContrast,
+    RandCuCIM,
     RandFlip,
     Randomizable,
     Rotate90,
+    ToCupy,
+    TorchVision,
     ToTensor,
     ToTensorD,
 )
 from monai.utils import Range, optional_import
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
+_, has_cp = optional_import("cupy")
+_, has_tvt = optional_import("torchvision.transforms")
+_, has_cut = optional_import("cucim.core.operations.expose.transform")
 
 
 TEST_CASE_ARRAY_0 = [np.random.randn(3, 3)]
@@ -40,10 +47,12 @@ TEST_CASE_DICT_1 = [{"image": np.random.randn(3, 10, 10)}]
 TEST_CASE_TORCH_0 = [torch.randn(3, 3)]
 TEST_CASE_TORCH_1 = [torch.randn(3, 10, 10)]
 
+TEST_CASE_WRAPPER = [np.random.randn(3, 10, 10)]
 
+
+@unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
 class TestNVTXRangeDecorator(unittest.TestCase):
     @parameterized.expand([TEST_CASE_ARRAY_0, TEST_CASE_ARRAY_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_tranform_array(self, input):
         transforms = Compose([Range("random flip")(Flip()), Range()(ToTensor())])
         # Apply transforms
@@ -65,11 +74,10 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         self.assertIsInstance(output2, torch.Tensor)
         self.assertIsInstance(output3, torch.Tensor)
         np.testing.assert_equal(output.numpy(), output1.numpy())
-        np.testing.assert_equal(output.numpy(), output1.numpy())
+        np.testing.assert_equal(output.numpy(), output2.numpy())
         np.testing.assert_equal(output.numpy(), output3.numpy())
 
     @parameterized.expand([TEST_CASE_DICT_0, TEST_CASE_DICT_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_tranform_dict(self, input):
         transforms = Compose([Range("random flip dict")(FlipD(keys="image")), Range()(ToTensorD("image"))])
         # Apply transforms
@@ -94,8 +102,32 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         np.testing.assert_equal(output.numpy(), output2.numpy())
         np.testing.assert_equal(output.numpy(), output3.numpy())
 
+    @parameterized.expand([TEST_CASE_WRAPPER])
+    @unittest.skipUnless(has_cp, "Requires CuPy.")
+    @unittest.skipUnless(has_cut, "Requires cuCIM transforms.")
+    @unittest.skipUnless(has_tvt, "Requires torchvision transforms.")
+    def test_wrapper_tranforms(self, input):
+        transform_list = [
+            ToTensor(),
+            TorchVision(name="RandomHorizontalFlip", p=1.0),
+            ToCupy(),
+            CuCIM(name="image_flip", spatial_axis=-1),
+            RandCuCIM(name="rand_image_rotate_90", prob=1.0, max_k=1, spatial_axis=(-2, -1)),
+        ]
+
+        transforms = Compose(transform_list)
+        transforms_range = Compose([Range()(t) for t in transform_list])
+
+        # Apply transforms
+        output = transforms(input)
+
+        # Apply transforms with Range
+        output_r = transforms_range(input)
+
+        # Check the outputs
+        np.testing.assert_equal(output.get(), output_r.get())
+
     @parameterized.expand([TEST_CASE_ARRAY_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_tranform_randomized(self, input):
         # Compose deterministic and randomized transforms
         transforms = Compose(
@@ -136,7 +168,6 @@ class TestNVTXRangeDecorator(unittest.TestCase):
                 break
 
     @parameterized.expand([TEST_CASE_TORCH_0, TEST_CASE_TORCH_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_network(self, input):
         # Create a network
         model = torch.nn.Sequential(torch.nn.ReLU(), torch.nn.Sigmoid())
@@ -164,7 +195,6 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         np.testing.assert_equal(output.numpy(), output3.numpy())
 
     @parameterized.expand([TEST_CASE_TORCH_0, TEST_CASE_TORCH_1])
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_loss(self, input):
         # Create a network and loss
         model = torch.nn.Sigmoid()
@@ -194,7 +224,6 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         np.testing.assert_equal(output.numpy(), output2.numpy())
         np.testing.assert_equal(output.numpy(), output3.numpy())
 
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_context_manager(self):
         model = torch.nn.Sigmoid()
         loss = torch.nn.BCELoss()
