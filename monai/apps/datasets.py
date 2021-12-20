@@ -51,6 +51,12 @@ class MedNISTDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
+        progress: whether to display a progress bar.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cached content
+            (for example, randomly crop from the cached image and deepcopy the crop region)
+            or if every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -75,6 +81,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
+        progress: bool = True,
+        copy_cache: bool = True,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -97,7 +105,14 @@ class MedNISTDataset(Randomizable, CacheDataset):
         if transform == ():
             transform = LoadImaged("image")
         CacheDataset.__init__(
-            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
+            self,
+            data=data,
+            transform=transform,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_workers=num_workers,
+            progress=progress,
+            copy_cache=copy_cache,
         )
 
     def randomize(self, data: List[int]) -> None:
@@ -177,6 +192,12 @@ class DecathlonDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
+        progress: whether to display a progress bar.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cached content
+            (for example, randomly crop from the cached image and deepcopy the crop region)
+            or if every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -241,6 +262,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
+        progress: bool = True,
+        copy_cache: bool = True,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -277,7 +300,14 @@ class DecathlonDataset(Randomizable, CacheDataset):
         if transform == ():
             transform = LoadImaged(["image", "label"])
         CacheDataset.__init__(
-            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
+            self,
+            data=data,
+            transform=transform,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_workers=num_workers,
+            progress=progress,
+            copy_cache=copy_cache,
         )
 
     def get_indices(self) -> np.ndarray:

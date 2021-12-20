@@ -45,6 +45,7 @@ TEST_CASE_0 = [
         "cache_num": 2,
         "num_init_workers": 1,
         "num_replace_workers": 1,
+        "copy_cache": False,
     },
     [
         {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0]]])},

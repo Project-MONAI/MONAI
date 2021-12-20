@@ -47,6 +47,7 @@ class TestDecathlonDataset(unittest.TestCase):
                 transform=transform,
                 section="validation",
                 download=True,
+                copy_cache=False,
             )
         except (ContentTooShortError, HTTPError, RuntimeError) as e:
             print(str(e))
