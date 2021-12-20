@@ -155,16 +155,23 @@ class ITKReader(ImageReader):
 
         series_name: the name of the DICOM series if there are multiple ones.
             used when loading DICOM series.
+        reverse_indexing: whether to use a reversed spatial indexing convention for the returned data array.
+            If ``False``, the spatial indexing follows the numpy convention;
+            otherwise, the spatial indexing convention is reversed to be compatible with ITK. Default is ``False``.
+            This option does not affect the metadata.
         kwargs: additional args for `itk.imread` API. more details about available args:
             https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itk/support/extras.py
 
     """
 
-    def __init__(self, channel_dim: Optional[int] = None, series_name: str = "", **kwargs):
+    def __init__(
+        self, channel_dim: Optional[int] = None, series_name: str = "", reverse_indexing: bool = False, **kwargs
+    ):
         super().__init__()
         self.kwargs = kwargs
         self.channel_dim = channel_dim
         self.series_name = series_name
+        self.reverse_indexing = reverse_indexing
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
@@ -308,19 +315,21 @@ class ITKReader(ImageReader):
 
         Following PyTorch conventions, the returned array data has contiguous channels,
         e.g. for an RGB image, all red channel image pixels are contiguous in memory.
-        The first axis of the returned array is the channel axis.
+        The last axis of the returned array is the channel axis.
+
+        See also:
+
+            - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Modules/Bridge/NumPy/wrapping/PyBuffer.i.in
 
         Args:
             img: an ITK image object loaded from an image file.
 
         """
-        channels = img.GetNumberOfComponentsPerPixel()
-        np_data = itk.array_view_from_image(img).T
-        if channels == 1:
-            return np_data
-        if channels != np_data.shape[0]:
-            warnings.warn("itk_img.GetNumberOfComponentsPerPixel != numpy data channels")
-        return np.moveaxis(np_data, 0, -1)  # channel last is compatible with `write_nifti`
+        np_img = itk.array_view_from_image(img, keep_axes=False)
+        if img.GetNumberOfComponentsPerPixel() == 1:  # handling spatial images
+            return np_img if self.reverse_indexing else np_img.T
+        # handling multi-channel images
+        return np_img if self.reverse_indexing else np.moveaxis(np_img.T, 0, -1)
 
 
 @require_pkg(pkg_name="nibabel")

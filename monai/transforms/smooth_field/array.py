@@ -214,9 +214,6 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        img_min = img.min()
-        img_max = img.max()
-
         field = self.sfield()
         rfield, *_ = convert_to_dst_type(field, img)
 
