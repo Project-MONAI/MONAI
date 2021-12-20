@@ -647,6 +647,8 @@ Spatial
 
 `GridDistortion`
 """"""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GridDistortion.png
+    :alt: example of GridDistortion
 .. autoclass:: GridDistortion
     :members:
     :special-members: __call__
@@ -735,12 +737,16 @@ Smooth Field
 
 `RandSmoothFieldAdjustContrast`
 """""""""""""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustContrast.png
+    :alt: example of RandSmoothFieldAdjustContrast
 .. autoclass:: RandSmoothFieldAdjustContrast
     :members:
     :special-members: __call__
 
 `RandSmoothFieldAdjustIntensity`
 """"""""""""""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustIntensity.png
+    :alt: example of RandSmoothFieldAdjustIntensity
 .. autoclass:: RandSmoothFieldAdjustIntensity
     :members:
     :special-members: __call__
@@ -1521,6 +1527,8 @@ Spatial (Dict)
 
 `GridDistortiond`
 """""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GridDistortiond.png
+    :alt: example of GridDistortiond
 .. autoclass:: GridDistortiond
     :members:
     :special-members: __call__
@@ -1538,12 +1546,16 @@ Smooth Field (Dict)
 
 `RandSmoothFieldAdjustContrastd`
 """"""""""""""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustContrastd.png
+    :alt: example of RandSmoothFieldAdjustContrastd
 .. autoclass:: RandSmoothFieldAdjustContrastd
     :members:
     :special-members: __call__
 
 `RandSmoothFieldAdjustIntensityd`
 """""""""""""""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustIntensityd.png
+    :alt: example of RandSmoothFieldAdjustIntensityd
 .. autoclass:: RandSmoothFieldAdjustIntensityd
     :members:
     :special-members: __call__
