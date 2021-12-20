@@ -55,9 +55,11 @@ class TestConfigParser(unittest.TestCase):
             # test `disabled` works fine
             self.assertEqual(result, output_type)
 
-    @skip_if_windows
+
+@skip_if_windows
+class TestConfigParserExternal(unittest.TestCase):
     @parameterized.expand([TEST_CASE_4])
-    def test_non_monai(self, input_param, test_input, output_type):
+    def test_type(self, input_param, test_input, output_type):
         configer = ConfigParser(**input_param)
         result = configer.build_component(test_input)
         self.assertTrue(isinstance(result, output_type))
