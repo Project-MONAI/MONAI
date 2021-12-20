@@ -70,6 +70,7 @@ for spatial_dims in range(2, 4):
                             "init_filters": init_filters,
                             "out_channels": out_channels,
                             "upsample_mode": upsample_mode,
+                            "act": ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
                             "input_image_size": ([16] * spatial_dims),
                             "vae_estimate_std": vae_estimate_std,
                         },
@@ -88,7 +89,7 @@ class TestResNet(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             SegResNet(spatial_dims=4)
 
     def test_script(self):

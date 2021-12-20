@@ -20,9 +20,7 @@ from monai.handlers import HausdorffDistance
 
 
 def create_spherical_seg_3d(
-    radius: float = 20.0,
-    centre: Tuple[int, int, int] = (49, 49, 49),
-    im_shape: Tuple[int, int, int] = (99, 99, 99),
+    radius: float = 20.0, centre: Tuple[int, int, int] = (49, 49, 49), im_shape: Tuple[int, int, int] = (99, 99, 99)
 ) -> np.ndarray:
     """
     Return a 3D image with a sphere inside. Voxel values will be
@@ -90,6 +88,21 @@ class TestHandlerHausdorffDistance(unittest.TestCase):
             y_pred = TEST_SAMPLE_1[0]
             y = torch.ones((1, 1, 10, 10, 10))
             hd_metric.update([y_pred, y])
+
+    def test_reduction(self):
+        hd_metric = HausdorffDistance(include_background=True, reduction="mean_channel")
+
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        hd_metric.attach(engine, "hausdorff_distance")
+
+        y_pred, y = TEST_SAMPLE_1
+        hd_metric.update([y_pred, y])
+        y_pred, y = TEST_SAMPLE_2
+        hd_metric.update([y_pred, y])
+        torch.testing.assert_allclose(hd_metric.compute().float(), torch.tensor([10.0, 0.0]))
 
 
 if __name__ == "__main__":
