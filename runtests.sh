@@ -341,6 +341,19 @@ compile_cpp
 # unconditionally report on the state of monai
 print_version
 
+# check copyright headers
+find "$(pwd)/monai" "$(pwd)/tests" -type f \
+  ! -wholename "*_version.py" -and -name "*.py" -or -name "*.cpp" -or -name "*.cu" -or -name "*.h" |\
+  while read -r fname; do
+    if ! grep "http://www.apache.org/licenses/LICENSE-2.0" "$fname" > /dev/null; then
+        print_error_msg "Missing the license header in file: $fname"
+        echo "Please add the licensing header to the file."
+        echo "  See also: https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md#checking-the-coding-style"
+        echo ""
+        exit 1
+    fi
+done
+
 
 if [ $doIsortFormat = true ]
 then
