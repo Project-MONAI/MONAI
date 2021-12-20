@@ -145,7 +145,10 @@ from monai.transforms.intensity.dictionary import (
 )
 from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour
 from monai.transforms.post.dictionary import AsDiscreted, KeepLargestConnectedComponentd, LabelFilterd, LabelToContourd
+from monai.transforms.smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity
+from monai.transforms.smooth_field.dictionary import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
 from monai.transforms.spatial.array import (
+    GridDistortion,
     Rand2DElastic,
     RandAffine,
     RandAxisFlip,
@@ -155,6 +158,7 @@ from monai.transforms.spatial.array import (
     Spacing,
 )
 from monai.transforms.spatial.dictionary import (
+    GridDistortiond,
     Rand2DElasticd,
     RandAffined,
     RandAxisFlipd,
@@ -668,9 +672,37 @@ if __name__ == "__main__":
     create_transform_im(
         KeepLargestConnectedComponentd, dict(keys=CommonKeys.LABEL, applied_labels=1), data_binary, is_post=True, ndim=2
     )
+    create_transform_im(
+        GridDistortion, dict(num_cells=3, distort_steps=[(1.5,) * 4] * 3, mode="nearest", padding_mode="zeros"), data
+    )
+    create_transform_im(
+        GridDistortiond,
+        dict(
+            keys=keys, num_cells=3, distort_steps=[(1.5,) * 4] * 3, mode=["bilinear", "nearest"], padding_mode="zeros"
+        ),
+        data,
+    )
     create_transform_im(RandGridDistortion, dict(num_cells=3, prob=1.0, distort_limit=(-0.1, 0.1)), data)
     create_transform_im(
         RandGridDistortiond,
         dict(keys=keys, num_cells=4, prob=1.0, distort_limit=(-0.2, 0.2), mode=["bilinear", "nearest"]),
+        data,
+    )
+    create_transform_im(
+        RandSmoothFieldAdjustContrast, dict(spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0), data
+    )
+    create_transform_im(
+        RandSmoothFieldAdjustContrastd,
+        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0),
+        data,
+    )
+    create_transform_im(
+        RandSmoothFieldAdjustIntensity,
+        dict(spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0, gamma=(0.5, 4.5)),
+        data,
+    )
+    create_transform_im(
+        RandSmoothFieldAdjustIntensityd,
+        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0, gamma=(0.5, 4.5)),
         data,
     )
