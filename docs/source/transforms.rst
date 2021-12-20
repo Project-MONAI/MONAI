@@ -723,13 +723,6 @@ Spatial
     :members:
     :special-members: __call__
 
-`AddCoordinateChannels`
-"""""""""""""""""""""""
-.. autoclass:: AddCoordinateChannels
-    :members:
-    :special-members: __call__
-
-
 Smooth Field
 ^^^^^^^^^^^^
 
@@ -926,6 +919,12 @@ Utility
 `RandCuCIM`
 """""""""""
 .. autoclass:: RandCuCIM
+    :members:
+    :special-members: __call__
+
+`AddCoordinateChannels`
+"""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannels
     :members:
     :special-members: __call__
 
@@ -1513,12 +1512,6 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
-`AddCoordinateChannelsd`
-""""""""""""""""""""""""
-.. autoclass:: AddCoordinateChannelsd
-    :members:
-    :special-members: __call__
-
 `GridDistortiond`
 """""""""""""""""
 .. autoclass:: GridDistortiond
@@ -1752,6 +1745,12 @@ Utility (Dict)
 `RandCuCIMd`
 """"""""""""
 .. autoclass:: RandCuCIMd
+    :members:
+    :special-members: __call__
+
+`AddCoordinateChannelsd`
+""""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannelsd
     :members:
     :special-members: __call__
 

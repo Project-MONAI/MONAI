@@ -56,6 +56,7 @@ __all__ = [
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
+    "AddCoordinateChannels",
     "EnsureChannelFirst",
     "EnsureType",
     "RepeatChannel",
@@ -1254,3 +1255,46 @@ class RandCuCIM(CuCIM, RandomizableTransform):
         if not self._do_transform:
             return data
         return super().__call__(data)
+
+
+class AddCoordinateChannels(Transform):
+    """
+    Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
+    to allow feeding of the patch's location into the network.
+
+    This can be seen as a input-only version of CoordConv:
+
+    Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, spatial_channels: Sequence[int]) -> None:
+        """
+        Args:
+            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
+                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
+                coordinates of the input's three spatial dimensions (0 is reserved for the channel dimension).
+        """
+        self.spatial_channels = spatial_channels
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: data to be transformed, assuming `img` is channel first.
+        """
+        if max(self.spatial_channels) > img.ndim - 1:
+            raise ValueError(
+                f"input has {img.ndim-1} spatial dimensions, cannot add AddCoordinateChannels channel for "
+                f"dim {max(self.spatial_channels)}."
+            )
+        if 0 in self.spatial_channels:
+            raise ValueError("cannot add AddCoordinateChannels channel for dimension 0, as 0 is channel dim.")
+
+        spatial_dims = img.shape[1:]
+        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing="ij"))
+        coord_channels, *_ = convert_to_dst_type(coord_channels, img)  # type: ignore
+        # only keep required dimensions. need to subtract 1 since im will be 0-based
+        # but user input is 1-based (because channel dim is 0)
+        coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
+        return concatenate((img, coord_channels), axis=0)

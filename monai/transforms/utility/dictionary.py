@@ -30,6 +30,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
+    AddCoordinateChannels,
     AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
@@ -69,6 +70,9 @@ __all__ = [
     "AddChannelD",
     "AddChannelDict",
     "AddChanneld",
+    "AddCoordinateChannelsD",
+    "AddCoordinateChannelsDict",
+    "AddCoordinateChannelsd",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
     "AddExtremePointsChanneld",
@@ -1589,6 +1593,34 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
         return super().__call__(data)
 
 
+class AddCoordinateChannelsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddCoordinateChannels`.
+    """
+
+    backend = AddCoordinateChannels.backend
+
+    def __init__(self, keys: KeysCollection, spatial_channels: Sequence[int], allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            allow_missing_keys: don't raise exception if key is missing.
+            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
+                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
+                coordinates of the input's three spatial dimensions. It is assumed dimension 0 is the channel.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.add_coordinate_channels = AddCoordinateChannels(spatial_channels)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.add_coordinate_channels(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -1627,3 +1659,4 @@ IntensityStatsD = IntensityStatsDict = IntensityStatsd
 ToDeviceD = ToDeviceDict = ToDeviced
 CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
+AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
