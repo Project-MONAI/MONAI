@@ -32,6 +32,14 @@ class TestGetEquivalentDtype(unittest.TestCase):
         out_dtype = get_equivalent_dtype(input_dtype, type(im))
         self.assertEqual(out_dtype, im.dtype)
 
+    def test_native_type(self):
+        """the get_equivalent_dtype currently doesn't change the build-in type"""
+        n_type = [float, int, bool]
+        for n in n_type:
+            for im_dtype in DTYPES:
+                out_dtype = get_equivalent_dtype(n, type(im_dtype))
+                self.assertEqual(out_dtype, n)
+
 
 if __name__ == "__main__":
     unittest.main()

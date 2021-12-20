@@ -24,11 +24,7 @@ for dropout_rate in np.linspace(0, 1, 4):
         for mlp_dim in [512, 1028, 2048, 3072]:
 
             test_case = [
-                {
-                    "hidden_size": hidden_size,
-                    "mlp_dim": mlp_dim,
-                    "dropout_rate": dropout_rate,
-                },
+                {"hidden_size": hidden_size, "mlp_dim": mlp_dim, "dropout_rate": dropout_rate},
                 (2, 512, hidden_size),
                 (2, 512, hidden_size),
             ]
