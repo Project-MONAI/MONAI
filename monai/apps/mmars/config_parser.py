@@ -36,18 +36,17 @@ class ModuleScanner:
     def _create_classes_table(self):
         class_table = {}
         for pkg in self.pkgs:
-            package = __import__(pkg)
+            package = importlib.import_module(pkg)
 
             for _, modname, _ in pkgutil.walk_packages(path=package.__path__, prefix=package.__name__ + "."):
-                if modname.startswith(pkg):
-                    if any(name in modname for name in self.modules):
-                        try:
-                            module = importlib.import_module(modname)
-                            for name, obj in inspect.getmembers(module):
-                                if inspect.isclass(obj) and obj.__module__ == modname:
-                                    class_table[name] = modname
-                        except ModuleNotFoundError:
-                            pass
+                if any(name in modname for name in self.modules):
+                    try:
+                        module = importlib.import_module(modname)
+                        for name, obj in inspect.getmembers(module):
+                            if inspect.isclass(obj) and obj.__module__ == modname:
+                                class_table[name] = modname
+                    except ModuleNotFoundError:
+                        pass
         return class_table
 
     def get_module_name(self, class_name):

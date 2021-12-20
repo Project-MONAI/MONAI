@@ -16,7 +16,6 @@ from parameterized import parameterized
 
 from monai.apps import ConfigParser
 from monai.transforms import LoadImaged
-from tests.utils import skip_if_windows
 
 TEST_CASE_1 = [
     dict(pkgs=["monai"], modules=["transforms"]),
@@ -44,25 +43,17 @@ TEST_CASE_4 = [
 
 
 class TestConfigParser(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_type(self, input_param, test_input, output_type):
         configer = ConfigParser(**input_param)
         result = configer.build_component(test_input)
         if result is not None:
             self.assertTrue(isinstance(result, output_type))
-            self.assertEqual(result.keys[0], "image")
+            if isinstance(result, LoadImaged):
+                self.assertEqual(result.keys[0], "image")
         else:
             # test `disabled` works fine
             self.assertEqual(result, output_type)
-
-
-@skip_if_windows
-class TestConfigParserExternal(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_4])
-    def test_type(self, input_param, test_input, output_type):
-        configer = ConfigParser(**input_param)
-        result = configer.build_component(test_input)
-        self.assertTrue(isinstance(result, output_type))
 
 
 if __name__ == "__main__":
