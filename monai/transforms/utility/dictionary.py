@@ -62,7 +62,7 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
-from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
+from monai.utils import convert_to_numpy, deprecated_arg, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
@@ -1596,23 +1596,28 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
 class AddCoordinateChannelsd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AddCoordinateChannels`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        spatial_dims: the spatial dimensions that are to have their coordinates encoded in a channel and
+            appended to the input image. E.g., `(0, 1, 2)` represents `H, W, D` dims and append three channels
+            to the input image, encoding the coordinates of the input's three spatial dimensions.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    .. deprecated:: 0.8.0
+        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
+
     """
 
     backend = AddCoordinateChannels.backend
 
-    def __init__(self, keys: KeysCollection, spatial_channels: Sequence[int], allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            allow_missing_keys: don't raise exception if key is missing.
-            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
-                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
-                coordinates of the input's three spatial dimensions. It is assumed dimension 0 is the channel.
-
-        """
+    @deprecated_arg(
+        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
+    )
+    def __init__(self, keys: KeysCollection, spatial_dims: Sequence[int], allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.add_coordinate_channels = AddCoordinateChannels(spatial_channels)
+        self.add_coordinate_channels = AddCoordinateChannels(spatial_dims=spatial_dims)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

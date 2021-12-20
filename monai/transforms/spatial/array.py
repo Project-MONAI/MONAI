@@ -33,7 +33,6 @@ from monai.transforms.utils import (
     create_translate,
     map_spatial_axes,
 )
-from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,

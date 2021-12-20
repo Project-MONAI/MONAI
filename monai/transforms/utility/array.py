@@ -37,6 +37,7 @@ from monai.utils import (
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
+    deprecated_arg,
     ensure_tuple,
     look_up_option,
     min_version,
@@ -1265,36 +1266,35 @@ class AddCoordinateChannels(Transform):
     This can be seen as a input-only version of CoordConv:
 
     Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
+
+    Args:
+        spatial_dims: the spatial dimensions that are to have their coordinates encoded in a channel and
+            appended to the input image. E.g., `(0, 1, 2)` represents `H, W, D` dims and append three channels
+            to the input image, encoding the coordinates of the input's three spatial dimensions.
+
+    .. deprecated:: 0.8.0
+        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, spatial_channels: Sequence[int]) -> None:
-        """
-        Args:
-            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
-                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
-                coordinates of the input's three spatial dimensions (0 is reserved for the channel dimension).
-        """
-        self.spatial_channels = spatial_channels
+    @deprecated_arg(
+        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
+    )
+    def __init__(self, spatial_dims: Sequence[int]) -> None:
+        self.spatial_dims = spatial_dims
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel first.
         """
-        if max(self.spatial_channels) > img.ndim - 1:
-            raise ValueError(
-                f"input has {img.ndim-1} spatial dimensions, cannot add AddCoordinateChannels channel for "
-                f"dim {max(self.spatial_channels)}."
-            )
-        if 0 in self.spatial_channels:
-            raise ValueError("cannot add AddCoordinateChannels channel for dimension 0, as 0 is channel dim.")
+        if max(self.spatial_dims) > img.ndim - 2 or min(self.spatial_dims) < 0:
+            raise ValueError(f"`spatial_dims` values must be within [0, {img.ndim - 2}]")
 
-        spatial_dims = img.shape[1:]
-        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing="ij"))
+        spatial_size = img.shape[1:]
+        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_size), indexing="ij"))
         coord_channels, *_ = convert_to_dst_type(coord_channels, img)  # type: ignore
-        # only keep required dimensions. need to subtract 1 since im will be 0-based
-        # but user input is 1-based (because channel dim is 0)
-        coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
+        coord_channels = coord_channels[list(self.spatial_dims)]
         return concatenate((img, coord_channels), axis=0)
