@@ -22,7 +22,7 @@ from parameterized import parameterized
 from monai.apps import RemoteMMARKeys, download_mmar, get_model_spec, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick
+from tests.utils import skip_if_quick
 
 TEST_CASES = [["clara_pt_prostate_mri_segmentation_1"], ["clara_pt_covid19_ct_lesion_segmentation_1"]]
 TEST_EXTRACT_CASES = [
@@ -104,7 +104,6 @@ TEST_EXTRACT_CASES = [
 class TestMMMARDownload(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skip_if_quick
-    @SkipIfBeforePyTorchVersion((1, 6))
     def test_download(self, idx):
         try:
             # test model specification

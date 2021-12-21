@@ -258,9 +258,9 @@ def set_determinism(
         torch.backends.cudnn.deterministic = _flag_deterministic
         torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
     if use_deterministic_algorithms is not None:
-        if hasattr(torch, "use_deterministic_algorithms"):
+        if hasattr(torch, "use_deterministic_algorithms"):  # `use_deterministic_algorithms` is new in torch 1.8.0
             torch.use_deterministic_algorithms(use_deterministic_algorithms)
-        elif hasattr(torch, "set_deterministic"):
+        elif hasattr(torch, "set_deterministic"):  # `set_deterministic` is new in torch 1.7.0
             torch.set_deterministic(use_deterministic_algorithms)  # type: ignore
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
