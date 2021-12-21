@@ -13,6 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
+from copy import deepcopy
 from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
@@ -245,16 +246,17 @@ class OneOf(Compose):
         if not isinstance(data, Mapping):
             raise RuntimeError("Inverse only implemented for Mapping (dictionary) data")
 
+        d = deepcopy(dict(data))
         # loop until we get an index and then break (since they'll all be the same)
         key = self.__class__.__name__
-        if self.trace_key(key) not in data:
+        if self.trace_key(key) not in d:
             raise RuntimeError("can not find the index of transform have been applied.")
 
         # get the index of the applied OneOf transform
-        index = self.get_most_recent_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
+        index = self.get_most_recent_transform(d, key)[TraceKeys.EXTRA_INFO]["index"]
         # and then remove the OneOf transform
-        self.pop_transform(data, key)
+        self.pop_transform(d, key)
 
         _transform = self.transforms[index]
         # apply the inverse
-        return _transform.inverse(data) if isinstance(_transform, InvertibleTransform) else data
+        return _transform.inverse(d) if isinstance(_transform, InvertibleTransform) else d

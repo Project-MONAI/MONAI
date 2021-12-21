@@ -150,31 +150,29 @@ class TestOneOf(unittest.TestCase):
     @parameterized.expand(TEST_INVERSES)
     def test_inverse(self, transform, invertible):
         data = {k: (i + 1) * 10.0 for i, k in enumerate(KEYS)}
+        key = OneOf.__name__
         fwd_data = transform(data)
-
-        if invertible:
-            for k in KEYS:
-                t = fwd_data[TraceableTransform.trace_key(k)][-1]
-                # make sure the OneOf index was stored
-                self.assertEqual(t[TraceKeys.CLASS_NAME], OneOf.__name__)
-                # make sure index exists and is in bounds
-                self.assertTrue(0 <= t[TraceKeys.EXTRA_INFO]["index"] < len(transform))
+        t = fwd_data[TraceableTransform.trace_key(key)][-1]
+        # make sure the OneOf index was stored
+        self.assertEqual(t[TraceKeys.CLASS_NAME], key)
+        # make sure index exists and is in bounds
+        self.assertTrue(0 <= t[TraceKeys.EXTRA_INFO]["index"] < len(transform))
 
         # call the inverse
         fwd_inv_data = transform.inverse(fwd_data)
 
-        if invertible:
-            for k in KEYS:
-                # check transform was removed
-                self.assertTrue(
-                    len(fwd_inv_data[TraceableTransform.trace_key(k)]) < len(fwd_data[TraceableTransform.trace_key(k)])
-                )
-                # check data is same as original (and different from forward)
-                self.assertEqual(fwd_inv_data[k], data[k])
+        # check transform was removed
+        self.assertTrue(
+            len(fwd_inv_data[TraceableTransform.trace_key(key)]) < len(fwd_data[TraceableTransform.trace_key(key)])
+        )
+        # check data is same as original (and different from forward)
+        for k, v in data.items():
+            if invertible:
+                self.assertEqual(fwd_inv_data[k], v)
                 self.assertNotEqual(fwd_inv_data[k], fwd_data[k])
-        else:
-            # if not invertible, should not change the data
-            self.assertDictEqual(fwd_data, fwd_inv_data)
+            else:
+                # if not invertible, should not change the data
+                self.assertEqual(fwd_inv_data[k], fwd_data[k])
 
     def test_inverse_compose(self):
         transform = Compose(
