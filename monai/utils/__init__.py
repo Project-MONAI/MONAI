@@ -24,6 +24,7 @@ from .enums import (
     GridSamplePadMode,
     InterpolateMode,
     InverseKeys,
+    JITMetadataKeys,
     LossReduction,
     Method,
     MetricReduction,
