@@ -12,9 +12,18 @@
 import unittest
 from copy import deepcopy
 
+import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import InvertibleTransform, OneOf, TraceableTransform, Transform
+from monai.transforms import (
+    InvertibleTransform,
+    OneOf,
+    RandScaleIntensityd,
+    RandShiftIntensityd,
+    Resized,
+    TraceableTransform,
+    Transform,
+)
 from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform
 from monai.utils.enums import TraceKeys
@@ -166,6 +175,25 @@ class TestOneOf(unittest.TestCase):
         else:
             # if not invertible, should not change the data
             self.assertDictEqual(fwd_data, fwd_inv_data)
+
+    def test_inverse_compose(self):
+        transform = Compose(
+            [
+                Resized(keys="img", spatial_size=[100, 100, 100]),
+                OneOf(
+                    [
+                        RandScaleIntensityd(keys="img", factors=0.5, prob=1.0),
+                        RandShiftIntensityd(keys="img", offsets=0.5, prob=1.0),
+                    ]
+                ),
+            ]
+        )
+        transform.set_random_state(seed=0)
+        result = transform({"img": np.ones((1, 101, 102, 103))})
+
+        result = transform.inverse(result)
+        # invert to the original spatial shape
+        self.assertTupleEqual(result["img"].shape, (1, 101, 102, 103))
 
     def test_one_of(self):
         p = OneOf((A(), B(), C()), (1, 2, 1))
