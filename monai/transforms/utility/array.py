@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,6 +37,7 @@ from monai.utils import (
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
+    deprecated_arg,
     ensure_tuple,
     look_up_option,
     min_version,
@@ -56,6 +57,7 @@ __all__ = [
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
+    "AddCoordinateChannels",
     "EnsureChannelFirst",
     "EnsureType",
     "RepeatChannel",
@@ -1254,3 +1256,45 @@ class RandCuCIM(CuCIM, RandomizableTransform):
         if not self._do_transform:
             return data
         return super().__call__(data)
+
+
+class AddCoordinateChannels(Transform):
+    """
+    Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
+    to allow feeding of the patch's location into the network.
+
+    This can be seen as a input-only version of CoordConv:
+
+    Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
+
+    Args:
+        spatial_dims: the spatial dimensions that are to have their coordinates encoded in a channel and
+            appended to the input image. E.g., `(0, 1, 2)` represents `H, W, D` dims and append three channels
+            to the input image, encoding the coordinates of the input's three spatial dimensions.
+
+    .. deprecated:: 0.8.0
+        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    @deprecated_arg(
+        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
+    )
+    def __init__(self, spatial_dims: Sequence[int]) -> None:
+        self.spatial_dims = spatial_dims
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: data to be transformed, assuming `img` is channel first.
+        """
+        if max(self.spatial_dims) > img.ndim - 2 or min(self.spatial_dims) < 0:
+            raise ValueError(f"`spatial_dims` values must be within [0, {img.ndim - 2}]")
+
+        spatial_size = img.shape[1:]
+        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_size), indexing="ij"))
+        coord_channels, *_ = convert_to_dst_type(coord_channels, img)  # type: ignore
+        coord_channels = coord_channels[list(self.spatial_dims)]
+        return concatenate((img, coord_channels), axis=0)
