@@ -200,7 +200,7 @@ def get_gpu_info() -> OrderedDict:
 
     if num_gpus > 0:
         _dict_append(output, "Current device", torch.cuda.current_device)
-        if hasattr(torch.cuda, "get_arch_list"):  # get_arch_list is new in torch 1.7.1
+        if hasattr(torch.cuda, "get_arch_list"):  # `get_arch_list` is new in torch 1.7.1
             _dict_append(output, "Library compiled for CUDA architectures", torch.cuda.get_arch_list)
 
     for gpu in range(num_gpus):
