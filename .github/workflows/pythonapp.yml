@@ -94,9 +94,9 @@ jobs:
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
-        python setup.py develop  # test no compile installation
-        python setup.py develop --uninstall
-        BUILD_MONAI=1 python setup.py develop  # compile the cpp extensions
+        python -m pip install --no-build-isolation --editable .  # test no compile installation
+        python -m pip uninstall monai -y
+        BUILD_MONAI=1 python -m pip install --no-build-isolation --editable .  # compile the cpp extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |

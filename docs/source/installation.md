@@ -49,7 +49,7 @@ python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
 
 ## From GitHub
 (_If you have installed the
-PyPI release version using ``pip install monai``, please run ``pip uninstall
+PyPI release version using ``python -m pip install monai``, please run ``python -m pip uninstall
 monai`` before using the commands from this section. Because ``pip`` by
 default prefers the milestone release_.)
 
@@ -85,20 +85,23 @@ This command will create a ``MONAI/`` folder in your current directory.
 You can install it by running:
 ```bash
 cd MONAI/
-python setup.py develop
+python -m pip install -e .
 ```
 or, to build with MONAI Cpp/CUDA extensions and install:
 ```bash
 cd MONAI/
-BUILD_MONAI=1 python setup.py develop
+BUILD_MONAI=1 python -m pip install -e .
 # for MacOS
-BUILD_MONAI=1 CC=clang CXX=clang++ python setup.py develop
+BUILD_MONAI=1 CC=clang CXX=clang++ python -m pip install -e .
 ```
+
+In the above commands, if the system environment already has a version of Pytorch installed,
+`--no-build-isolation` might be preferred when using `pip install`.
 
 To uninstall the package please run:
 ```bash
 cd MONAI/
-python setup.py develop --uninstall
+python -m pip uninstall monai
 
 # to further clean up the MONAI/ folder (Bash script)
 ./runtests.sh --clean

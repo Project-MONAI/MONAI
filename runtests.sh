@@ -67,7 +67,7 @@ function print_usage {
     echo "./runtests.sh -f                      # run coding style and static type checking."
     echo "./runtests.sh --quick --unittests     # run minimal unit tests, for quick verification during code developments."
     echo "./runtests.sh --autofix               # run automatic code formatting using \"isort\" and \"black\"."
-    echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
+    echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} -m pip install -e $(pwd)\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
@@ -123,12 +123,12 @@ function compile_cpp {
     echo "Compiling and installing MONAI cpp extensions..."
     # depends on setup.py behaviour for building
     # currently setup.py uses environment variables: BUILD_MONAI and FORCE_CUDA
-    ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
+    ${cmdPrefix}${PY_EXE} -m pip uninstall -y monai
     if [[ "$OSTYPE" == "darwin"* ]];
     then  # clang for mac os
-        CC=clang CXX=clang++ ${cmdPrefix}${PY_EXE} setup.py develop --user
+        CC=clang CXX=clang++ ${cmdPrefix}${PY_EXE} -m pip install --no-build-isolation -e $(pwd)
     else
-        ${cmdPrefix}${PY_EXE} setup.py develop --user
+        ${cmdPrefix}${PY_EXE} -m pip install --no-build-isolation -e $(pwd)
     fi
 }
 
@@ -150,7 +150,7 @@ function clean_py {
 
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
-    ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
+    ${cmdPrefix}${PY_EXE} -m pip uninstall -y monai
 
     # remove temporary files (in the directory of this script)
     TO_CLEAN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"

@@ -58,7 +58,7 @@ jobs:
         python -m pip install torch==1.10.1
         python -m pip install -r requirements-min.txt
         python -m pip list
-        BUILD_MONAI=0 python setup.py develop  # no compile of extensions
+        BUILD_MONAI=0 python -m pip install --no-build-isolation --editable .  # no compile of extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
@@ -104,7 +104,7 @@ jobs:
         python -m pip install torch==1.10.1
         python -m pip install -r requirements-min.txt
         python -m pip list
-        BUILD_MONAI=0 python setup.py develop  # no compile of extensions
+        BUILD_MONAI=0 python -m pip install --no-build-isolation --editable .  # no compile of extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
@@ -159,7 +159,7 @@ jobs:
         fi
         python -m pip install -r requirements-min.txt
         python -m pip list
-        BUILD_MONAI=0 python setup.py develop  # no compile of extensions
+        BUILD_MONAI=0 python -m pip install --no-build-isolation --editable .  # no compile of extensions
       shell: bash
     - name: Run quick tests (pytorch ${{ matrix.pytorch-version }})
       run: |
