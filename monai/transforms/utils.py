@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -1306,7 +1306,7 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
-            if hasattr(torch.fft, "fftshift"):
+            if hasattr(torch.fft, "fftshift"):  # `fftshift` is new in torch 1.8.0
                 k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
             else:
                 # if using old PyTorch, will convert to numpy array and return
@@ -1339,7 +1339,7 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         out: NdarrayOrTensor
         if isinstance(k, torch.Tensor):
-            if hasattr(torch.fft, "ifftshift"):
+            if hasattr(torch.fft, "ifftshift"):  # `ifftshift` is new in torch 1.8.0
                 out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
             else:
                 # if using old PyTorch, will convert to numpy array and return

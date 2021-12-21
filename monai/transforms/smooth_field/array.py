@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -213,9 +213,6 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
 
         if not self._do_transform:
             return img
-
-        img_min = img.min()
-        img_max = img.max()
 
         field = self.sfield()
         rfield, *_ = convert_to_dst_type(field, img)
