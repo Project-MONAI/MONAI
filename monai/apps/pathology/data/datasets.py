@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -64,7 +64,7 @@ class PatchWSIDataset(Dataset):
         self.patch_size = ensure_tuple_rep(patch_size, 2)
 
         self.image_path_list = list({x["image"] for x in self.data})
-        self.image_reader_name = image_reader_name
+        self.image_reader_name = image_reader_name.lower()
         self.image_reader = WSIReader(image_reader_name)
         self.wsi_object_dict = None
         if self.image_reader_name != "openslide":
@@ -190,7 +190,7 @@ class MaskedInferenceWSIDataset(Dataset):
         self.patch_size = ensure_tuple_rep(patch_size, 2)
 
         # set up whole slide image reader
-        self.image_reader_name = image_reader_name
+        self.image_reader_name = image_reader_name.lower()
         self.image_reader = WSIReader(image_reader_name)
 
         # process data and create a list of dictionaries containing all required data and metadata
@@ -293,11 +293,7 @@ class MaskedInferenceWSIDataset(Dataset):
         location_on_image = sample["image_locations"][patch_num]
         location_on_mask = sample["mask_locations"][patch_num]
 
-        image, _ = self.image_reader.get_data(
-            img=sample["image"],
-            location=location_on_image,
-            size=self.patch_size,
-        )
+        image, _ = self.image_reader.get_data(img=sample["image"], location=location_on_image, size=self.patch_size)
         processed_sample = {"image": image, "name": sample["name"], "mask_location": location_on_mask}
         return processed_sample
 

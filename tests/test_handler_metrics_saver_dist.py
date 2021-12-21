@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -52,10 +52,7 @@ class DistributedMetricsSaver(DistTestCase):
             @engine.on(Events.EPOCH_COMPLETED)
             def _save_metrics0(engine):
                 engine.state.metrics = {"metric1": 1, "metric2": 2}
-                engine.state.metric_details = {
-                    "metric3": torch.tensor([[1, 2]]),
-                    "metric4": torch.tensor([[5, 6]]),
-                }
+                engine.state.metric_details = {"metric3": torch.tensor([[1, 2]]), "metric4": torch.tensor([[5, 6]])}
 
         if dist.get_rank() == 1:
             # different ranks have different data length

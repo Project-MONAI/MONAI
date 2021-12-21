@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -168,10 +168,7 @@ TEST_CASE_9 = [
 ]
 
 TEST_CASE_10 = [
-    {
-        "y": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))],
-        "y_pred": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))],
-    },
+    {"y": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))], "y_pred": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))]},
     [[1.0000, 1.0000], [1.0000, 1.0000]],
 ]
 

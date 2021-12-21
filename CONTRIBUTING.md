@@ -65,7 +65,7 @@ python -m pip install -U -r requirements-dev.txt
 
 License information: all source code files should start with this paragraph:
 ```
-# Copyright <Year> MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -289,9 +289,9 @@ When major features are ready for a milestone, to prepare for a new release:
   repository's artifacts (e.g. the file at https://github.com/Project-MONAI/MONAI/actions/runs/66570977).
 - Check the release test at [TestPyPI](https://test.pypi.org/project/monai/), download the artifacts when the CI finishes.
 - Optionally run [the cron testing jobs](https://github.com/Project-MONAI/MONAI/blob/dev/.github/workflows/cron.yml) on `releasing/[version number]`.
+- Rebase `releasing/[version number]` to `main`, make sure all the test pipelines succeed.
 - Once the release candidate is verified, tag and push a milestone, for example, `git push origin 0.1.0`.
   The tag must be with the latest commit of `releasing/[version number]`.
-- Rebase `releasing/[version number]` to `main`, make sure all the test pipelines succeed.
 - Upload the packages to [PyPI](https://pypi.org/project/monai/).
   This could be done manually by ``twine upload dist/*``, given the artifacts are unzipped to the folder ``dist/``.
 - Merge `releasing/[version number]` to `dev`, this step must make sure that the tagging commit unchanged on `dev`.
