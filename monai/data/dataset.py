@@ -1314,22 +1314,23 @@ class CSVDataset(Dataset):
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
         col_groups: Optional[Dict[str, Sequence[str]]] = None,
         transform: Optional[Callable] = None,
-        **kwargs,
+        **kwargs_read_csv: Optional[Dict] = {},
+        **kwargs_merge: Optional[Dict] = {},
     ):
         srcs = (src,) if not isinstance(src, (tuple, list)) else src
         dfs: List = []
         for i in srcs:
             if isinstance(i, str):
-                dfs.append(pd.read_csv(i))
+                dfs.append(pd.read_csv(i, **kwargs_read_csv))
             elif isinstance(i, pd.DataFrame):
                 dfs.append(i)
             else:
                 raise ValueError("`src` must be file path or pandas `DataFrame`.")
 
-        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
-        kwargs.pop("filename", None)
+        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs_merge`
+        kwargs_merge.pop("filename", None)
 
         data = convert_tables_to_dicts(
-            dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
+            dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs_merge
         )
         super().__init__(data=data, transform=transform)
