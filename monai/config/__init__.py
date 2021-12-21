@@ -12,7 +12,9 @@
 from .deviceconfig import (
     USE_COMPILED,
     IgniteInfo,
+    get_config_values,
     get_gpu_info,
+    get_optional_config_values,
     get_system_info,
     print_config,
     print_debug_info,
