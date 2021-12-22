@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 import os
 import shutil
 import unittest
+from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import DecathlonDataset
@@ -59,6 +60,8 @@ class TestDecathlonDataset(unittest.TestCase):
             root_dir=testing_dir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
         )
         _test_dataset(data)
+        self.assertTrue(data[0]["image_meta_dict"]["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
+        self.assertTrue(data[0]["label_meta_dict"]["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
         # test validation without transforms
         data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (36, 47, 44))
@@ -69,17 +72,14 @@ class TestDecathlonDataset(unittest.TestCase):
 
         # test dataset properties
         data = DecathlonDataset(
-            root_dir=testing_dir,
-            task="Task04_Hippocampus",
-            section="validation",
-            download=False,
+            root_dir=Path(testing_dir), task="Task04_Hippocampus", section="validation", download=False
         )
         properties = data.get_properties(keys="labels")
         self.assertDictEqual(properties["labels"], {"0": "background", "1": "Anterior", "2": "Posterior"})
 
         shutil.rmtree(os.path.join(testing_dir, "Task04_Hippocampus"))
         try:
-            data = DecathlonDataset(
+            DecathlonDataset(
                 root_dir=testing_dir,
                 task="Task04_Hippocampus",
                 transform=transform,

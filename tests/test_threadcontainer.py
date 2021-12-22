@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -79,7 +79,7 @@ class TestThreadContainer(unittest.TestCase):
         # a third non-image key is added to test that this is correctly ignored when plotting
         data = {CommonKeys.IMAGE: img, CommonKeys.LABEL: img, "Not Image Data": ["This isn't an image"]}
 
-        loader = DataLoader([data] * 10)
+        loader = DataLoader([data] * 20, batch_size=2)
 
         trainer = SupervisedTrainer(
             device=torch.device("cpu"),
@@ -102,7 +102,7 @@ class TestThreadContainer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/threadcontainer_plot_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/threadcontainer_plot_test.png", tempimg, 1e-2)
+            comp = compare_images(f"{testing_dir}/threadcontainer_plot_test.png", tempimg, 5e-2)
 
             self.assertIsNone(comp, comp)  # None indicates test passed
 

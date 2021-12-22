@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -141,7 +141,7 @@ class GridPatchDataset(IterableDataset):
         try:
             iter_end = len(self.dataset)  # TODO: support iterable self.dataset
         except TypeError:
-            raise NotImplementedError("image dataset must implement `len()`.")
+            raise NotImplementedError("image dataset must implement `len()`.") from None
 
         if worker_info is not None:
             # split workload
