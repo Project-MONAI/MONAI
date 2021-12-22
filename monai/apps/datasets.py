@@ -51,7 +51,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
-        progress: whether to display a progress bar when computing the transform cache content.
+        progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cached content
             (for example, randomly crop from the cached image and deepcopy the crop region)
@@ -95,7 +95,14 @@ class MedNISTDataset(Randomizable, CacheDataset):
         dataset_dir = root_dir / self.dataset_folder_name
         self.num_class = 0
         if download:
-            download_and_extract(self.resource, tarfile_name, root_dir, self.md5)
+            download_and_extract(
+                url=self.resource,
+                filepath=tarfile_name,
+                output_dir=root_dir,
+                hash_val=self.md5,
+                hash_type="md5",
+                progress=progress,
+            )
 
         if not dataset_dir.is_dir():
             raise RuntimeError(
@@ -192,7 +199,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
-        progress: whether to display a progress bar when computing the transform cache content.
+        progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cached content
             (for example, randomly crop from the cached image and deepcopy the crop region)
@@ -276,7 +283,14 @@ class DecathlonDataset(Randomizable, CacheDataset):
         dataset_dir = root_dir / task
         tarfile_name = f"{dataset_dir}.tar"
         if download:
-            download_and_extract(self.resource[task], tarfile_name, root_dir, self.md5[task])
+            download_and_extract(
+                url=self.resource[task],
+                filepath=tarfile_name,
+                output_dir=root_dir,
+                hash_val=self.md5[task],
+                hash_type="md5",
+                progress=progress,
+            )
 
         if not dataset_dir.exists():
             raise RuntimeError(
