@@ -315,7 +315,7 @@ class DistCall:
         backend: Optional[str] = None,
         daemon: Optional[bool] = None,
         method: Optional[str] = "spawn",
-        min_gpu_memory=2048,
+        min_gpu_memory=9000,
         verbose: bool = False,
     ):
         """
@@ -415,7 +415,7 @@ class DistCall:
             )(obj)
         for i in range(self.nproc_per_node):  # check free memory for the current node
             free_mem = get_gpu_memory(i)
-            if get_gpu_memory(i) < self.min_gpu_memory:
+            if free_mem < self.min_gpu_memory:
                 return unittest.skipIf(
                     True,
                     f"Skipping distributed tests because it requires at least {self.min_gpu_memory}MB gpu memory "
