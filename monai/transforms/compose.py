@@ -236,7 +236,9 @@ class OneOf(Compose):
         data = apply_transform(_transform, data, self.map_items, self.unpack_items)
         # if the data is a mapping (dictionary), append the OneOf transform to the end
         if isinstance(data, Mapping):
-            self.push_transform(data, self.__class__.__name__, extra_info={"index": index})
+            for key in data.keys():
+                if self.trace_key(key) in data:
+                    self.push_transform(data, key, extra_info={"index": index})
         return data
 
     def inverse(self, data):
@@ -246,14 +248,16 @@ class OneOf(Compose):
             raise RuntimeError("Inverse only implemented for Mapping (dictionary) data")
 
         # loop until we get an index and then break (since they'll all be the same)
-        key = self.__class__.__name__
-        if self.trace_key(key) not in data:
-            raise RuntimeError("can not find the index of transform have been applied.")
-
-        # get the index of the applied OneOf transform
-        index = self.get_most_recent_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
-        # and then remove the OneOf transform
-        self.pop_transform(data, key)
+        index = None
+        for key in data.keys():
+            if self.trace_key(key) in data:
+                # get the index of the applied OneOf transform
+                index = self.get_most_recent_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
+                # and then remove the OneOf transform
+                self.pop_transform(data, key)
+        if index is None:
+            # no invertible transforms have been applied
+            return data
 
         _transform = self.transforms[index]
         # apply the inverse
