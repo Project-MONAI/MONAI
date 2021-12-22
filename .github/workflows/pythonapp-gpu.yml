@@ -20,22 +20,24 @@ jobs:
       matrix:
         environment:
           - "PT17+CUDA102"
-          - "PT17+CUDA110"
           - "PT18+CUDA102"
+          - "PT18+CUDA110"
           - "PT19+CUDA114"
           - "PT110+CUDA115"
           - "PT110+CUDA102"
         include:
+          # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
           - environment: PT17+CUDA102
             pytorch: "torch==1.7.1 torchvision==0.8.2"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          - environment: PT17+CUDA110
-            # we explicitly set pytorch to -h to avoid pip install error
-            pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:20.09-py3"
           - environment: PT18+CUDA102
             pytorch: "torch==1.8.1 torchvision==0.9.1"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT18+CUDA110
+            # we explicitly set pytorch to -h to avoid pip install error
+            # 21.02: 1.8.0a0+52ea372
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:21.02-py3"
           - environment: PT19+CUDA114
             # we explicitly set pytorch to -h to avoid pip install error
             # 21.10: 1.10.0a0+0aef44c
@@ -43,7 +45,6 @@ jobs:
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
           - environment: PT110+CUDA115
             # we explicitly set pytorch to -h to avoid pip install error
-            # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
             # 21.12: 1.11.0a0+b6df043
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:21.12-py3"
