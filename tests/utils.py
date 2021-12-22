@@ -659,9 +659,9 @@ def get_gpu_memory(idx=0) -> float:
         p1 = Popen(bash_string.split(), stdout=PIPE)
         output, error = p1.communicate()
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
-        return np.asarray(free_memory, dtype=float).ravel()[0]
+        return float(np.asarray(free_memory, dtype=float).ravel()[0])
     except (TypeError, IndexError, OSError, ValueError):
-        return 0.0
+        return float(0.0)
 
 
 TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
