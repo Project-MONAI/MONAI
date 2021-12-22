@@ -51,7 +51,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
-        progress: whether to display a progress bar.
+        progress: whether to display a progress bar when computing the transform cache content.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cached content
             (for example, randomly crop from the cached image and deepcopy the crop region)
@@ -192,7 +192,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
-        progress: whether to display a progress bar.
+        progress: whether to display a progress bar when computing the transform cache content.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cached content
             (for example, randomly crop from the cached image and deepcopy the crop region)
