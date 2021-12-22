@@ -186,6 +186,28 @@ def skip_if_windows(obj):
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
 
 
+class SkipIfGPUMemoryLessThan:
+    """
+    Skip the unit tests if the GPU memory is less than a given amount.
+    """
+
+    def __init__(self, required_mb=1000, idx=0):
+        """
+        Args:
+            required_mb: minimum GPU memory size in MB
+            idx: device index
+
+        """
+        self.required_mb = required_mb
+        self.idx = idx
+
+    def __call__(self, obj):
+        return unittest.skipIf(
+            get_gpu_memory(self.idx) < self.required_mb,
+            f"Skipping because GPU has less than {self.required_mb} MB of memory on device {self.idx}.",
+        )(obj)
+
+
 class SkipIfBeforePyTorchVersion:
     """Decorator to be used if test should be skipped
     with PyTorch versions older than that given."""
@@ -292,6 +314,7 @@ class DistCall:
         backend: Optional[str] = None,
         daemon: Optional[bool] = None,
         method: Optional[str] = "spawn",
+        min_gpu_memory=2048,
         verbose: bool = False,
     ):
         """
@@ -311,6 +334,7 @@ class DistCall:
                 When daemon=None, the initial value is inherited from the creating process.
             method: set the method which should be used to start a child process.
                 method can be 'fork', 'spawn' or 'forkserver'.
+            min_gpu_memory: minimum amount of GPU memory per process (in megabytes) required to run the test.
             verbose: whether to print NCCL debug info.
         """
         self.nnodes = int(nnodes)
@@ -333,6 +357,7 @@ class DistCall:
         self.timeout = datetime.timedelta(0, timeout)
         self.daemon = daemon
         self.method = method
+        self.min_gpu_memory = min_gpu_memory / self.nproc_per_node
         self.verbose = verbose
 
     def run_process(self, func, local_rank, args, kwargs, results):
@@ -387,6 +412,14 @@ class DistCall:
                 f"Skipping distributed tests because it requires {self.nnodes} devices "
                 f"but got {torch.cuda.device_count()}",
             )(obj)
+        for i in range(self.nproc_per_node):  # check free memory for the current node
+            free_mem = get_gpu_memory(i)
+            if get_gpu_memory(i) < self.min_gpu_memory:
+                return unittest.skipIf(
+                    True,
+                    f"Skipping distributed tests because it requires at least {self.min_gpu_memory}MB gpu memory "
+                    f"but got {free_mem}MB on gpu {i}",
+                )(obj)
 
         _cache_original_func(obj)
 
@@ -614,6 +647,21 @@ def query_memory(n=2):
     except (TypeError, IndexError, OSError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join(f"{int(x)}" for x in ids)
+
+
+def get_gpu_memory(idx=0) -> float:
+    """
+    Return the amount of GPU free memory in MB.
+    """
+    bash_string = f"nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits --id={idx}"
+
+    try:
+        p1 = Popen(bash_string.split(), stdout=PIPE)
+        output, error = p1.communicate()
+        free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
+        return np.asarray(free_memory, dtype=float).ravel()[0]
+    except (TypeError, IndexError, OSError):
+        return 0.0
 
 
 TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
