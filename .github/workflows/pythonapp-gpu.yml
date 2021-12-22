@@ -23,7 +23,7 @@ jobs:
           - "PT17+CUDA110"
           - "PT18+CUDA102"
           - "PT18+CUDA110"
-          - "PT19+CUDA114"
+          - "PT110+CUDA115"
           - "PT110+CUDA102"
         include:
           - environment: PT17+CUDA102
@@ -40,7 +40,7 @@ jobs:
             # we explicitly set pytorch to -h to avoid pip install error
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:21.02-py3"
-          - environment: PT19+CUDA114
+          - environment: PT110+CUDA115
             # we explicitly set pytorch to -h to avoid pip install error
             # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
             # 21.12: 1.11.0a0+b6df043
