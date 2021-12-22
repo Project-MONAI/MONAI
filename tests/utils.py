@@ -202,9 +202,10 @@ class SkipIfGPUMemoryLessThan:
         self.idx = idx
 
     def __call__(self, obj):
+        _mem = get_gpu_memory(self.idx)
         return unittest.skipIf(
-            get_gpu_memory(self.idx) < self.required_mb,
-            f"Skipping because GPU has less than {self.required_mb} MB of memory on device {self.idx}.",
+            _mem < self.required_mb,
+            f"Skipping because GPU has less than {self.required_mb} MB of memory on device {self.idx} (avail. {_mem}).",
         )(obj)
 
 
