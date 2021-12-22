@@ -15,7 +15,7 @@ import sys
 from ._version import get_versions
 
 PY_REQUIRED_MAJOR = 3
-PY_REQUIRED_MINOR = 6
+PY_REQUIRED_MINOR = 7
 
 version_dict = get_versions()
 __version__: str = version_dict.get("version", "0+unknown")
