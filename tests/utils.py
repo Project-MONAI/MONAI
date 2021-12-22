@@ -660,7 +660,7 @@ def get_gpu_memory(idx=0) -> float:
         output, error = p1.communicate()
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
         return np.asarray(free_memory, dtype=float).ravel()[0]
-    except (TypeError, IndexError, OSError):
+    except (TypeError, IndexError, OSError, ValueError):
         return 0.0
 
 
