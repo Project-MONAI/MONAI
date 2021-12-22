@@ -440,6 +440,7 @@ class DistCall:
             for p in processes:
                 p.join()
                 assert results.get(), "Distributed call failed."
+            _del_original_func(obj)
 
         return _wrapper
 
@@ -521,6 +522,7 @@ class TimedCall:
             finally:
                 p.join()
 
+            _del_original_func(obj)
             res = None
             try:
                 res = results.get(block=False)
@@ -544,6 +546,15 @@ def _cache_original_func(obj) -> None:
     """cache the original function by name, so that the decorator doesn't shadow it."""
     global _original_funcs
     _original_funcs[obj.__name__] = obj
+
+
+def _del_original_func(obj):
+    """pop the original function from cache."""
+    global _original_funcs
+    _original_funcs.pop(obj.__name__, None)
+    if torch.cuda.is_available():  # clean up the cached function
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
 
 
 def _call_original_func(name, module, *args, **kwargs):
