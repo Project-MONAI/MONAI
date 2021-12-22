@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,7 +42,7 @@ __all__ = [
 def moveaxis(x: NdarrayOrTensor, src: int, dst: int) -> NdarrayOrTensor:
     """`moveaxis` for pytorch and numpy, using `permute` for pytorch ver < 1.8"""
     if isinstance(x, torch.Tensor):
-        if hasattr(torch, "moveaxis"):
+        if hasattr(torch, "moveaxis"):  # `moveaxis` is new in torch 1.8.0
             return torch.moveaxis(x, src, dst)
         return _moveaxis_with_permute(x, src, dst)  # type: ignore
     if isinstance(x, np.ndarray):
@@ -110,7 +110,7 @@ def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None) -> Union[Ndarra
         result = np.percentile(x, q, axis=dim)
     else:
         q = torch.tensor(q, device=x.device)
-        if hasattr(torch, "quantile"):
+        if hasattr(torch, "quantile"):  # `quantile` is new in torch 1.7.0
             result = torch.quantile(x, q / 100.0, dim=dim)
         else:
             # Note that ``kthvalue()`` works one-based, i.e., the first sorted value
@@ -222,7 +222,7 @@ def ravel(x: NdarrayOrTensor):
         Return a contiguous flattened array/tensor.
     """
     if isinstance(x, torch.Tensor):
-        if hasattr(torch, "ravel"):
+        if hasattr(torch, "ravel"):  # `ravel` is new in torch 1.8.0
             return x.ravel()
         return x.flatten().contiguous()
     return np.ravel(x)
@@ -268,7 +268,7 @@ def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
     """
     if isinstance(a, torch.Tensor) and isinstance(b, torch.Tensor):
         # is torch and has torch.maximum (pt>1.6)
-        if hasattr(torch, "maximum"):
+        if hasattr(torch, "maximum"):  # `maximum` is new in torch 1.7.0
             return torch.maximum(a, b)
         return torch.stack((a, b)).max(dim=0)[0]
     return np.maximum(a, b)
