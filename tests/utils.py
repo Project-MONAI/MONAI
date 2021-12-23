@@ -221,7 +221,7 @@ def has_cupy():
     cp, has_cp = optional_import("cupy")
     if not has_cp:
         return False
-    try:
+    try:  # test cupy installation with a basic example
         x = cp.arange(6, dtype="f").reshape(2, 3)
         y = cp.arange(3, dtype="f")
         kernel = cp.ElementwiseKernel(
