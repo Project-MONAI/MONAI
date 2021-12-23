@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import DenseNet121, Densenet169, DenseNet264, densenet201
 from monai.utils import optional_import
-from tests.utils import SkipIfGPUMemoryLessThan, skip_if_quick, test_script_save
+from tests.utils import skip_if_quick, test_script_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -90,7 +90,6 @@ class TestPretrainedDENSENET(unittest.TestCase):
 
     @parameterized.expand([TEST_PRETRAINED_2D_CASE_3])
     @skipUnless(has_torchvision, "Requires `torchvision` package.")
-    @SkipIfGPUMemoryLessThan(1024)
     def test_pretrain_consistency(self, model, input_param, input_shape):
         example = torch.randn(input_shape).to(device)
         net = model(**input_param).to(device)
