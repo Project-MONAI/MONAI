@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -100,13 +100,7 @@ class TestExtractHEStainsD(unittest.TestCase):
             result = ExtractHEStainsD([key])({key: image})
             np.testing.assert_array_equal(result[key][:, 0], result[key][:, 1])
 
-    @parameterized.expand(
-        [
-            EXTRACT_STAINS_TEST_CASE_00,
-            EXTRACT_STAINS_TEST_CASE_4,
-            EXTRACT_STAINS_TEST_CASE_5,
-        ]
-    )
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_00, EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
     def test_result_value(self, image, expected_data):
         """
         Test that an input image returns an expected stain matrix.

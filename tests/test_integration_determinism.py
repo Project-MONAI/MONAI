@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,7 +41,7 @@ def run_test(batch_size=64, train_steps=200, device="cuda:0"):
             return train_steps
 
     net = UNet(
-        dimensions=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2
+        spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2
     ).to(device)
 
     loss = DiceLoss(sigmoid=True)
@@ -81,7 +81,7 @@ class TestDeterminism(DistTestCase):
         loss, step = run_test(device=self.device)
         print(f"Deterministic loss {loss} at training step {step}")
         np.testing.assert_allclose(step, 4)
-        np.testing.assert_allclose(loss, 0.535927, rtol=1e-4)
+        np.testing.assert_allclose(loss, 0.536134, rtol=1e-4)
 
 
 if __name__ == "__main__":

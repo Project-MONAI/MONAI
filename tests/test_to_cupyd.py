@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -67,10 +67,10 @@ class TestToCupyd(unittest.TestCase):
     @skipUnless(has_cp, "CuPy is required.")
     def test_list_tuple(self):
         test_data = [[1, 2], [3, 4]]
-        result = ToCupyd(keys="img")({"img": test_data})["img"]
+        result = ToCupyd(keys="img", wrap_sequence=True)({"img": test_data})["img"]
         cp.testing.assert_allclose(result, cp.asarray(test_data))
         test_data = ((1, 2), (3, 4))
-        result = ToCupyd(keys="img")({"img": test_data})["img"]
+        result = ToCupyd(keys="img", wrap_sequence=True)({"img": test_data})["img"]
         cp.testing.assert_allclose(result, cp.asarray(test_data))
 
 
