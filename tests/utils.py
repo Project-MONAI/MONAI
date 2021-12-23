@@ -353,9 +353,9 @@ class DistCall:
             if torch.cuda.is_available():
                 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
                 nvsmi = nvidia_smi.getInstance()
-                print("local rank: ", local_rank, nvsmi.DeviceQuery('serial')["gpu"][local_rank])
-                print("local rank: ", local_rank, nvsmi.DeviceQuery('pci.bus_id')["gpu"][local_rank])
                 print("local rank: ", local_rank, nvsmi.DeviceQuery('index')["gpu"][local_rank])
+                print("serial, local rank: ", local_rank, nvsmi.DeviceQuery('serial')["gpu"][local_rank])
+                print("PCI bus ID, local rank: ", local_rank, nvsmi.DeviceQuery('pci.bus_id')["gpu"][local_rank])
                 torch.cuda.set_device(int(local_rank))
 
             dist.init_process_group(
