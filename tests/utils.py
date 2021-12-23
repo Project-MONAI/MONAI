@@ -353,6 +353,7 @@ class DistCall:
                 from pynvml.smi import nvidia_smi
 
                 nvsmi = nvidia_smi.getInstance()
+                print("GPU count: ", nvsmi.DeviceQuery("count"))
                 print("local rank: ", local_rank, nvsmi.DeviceQuery("index")["gpu"][local_rank])
                 print("GPU serial, local rank: ", local_rank, nvsmi.DeviceQuery("serial")["gpu"][local_rank])
                 print("PCI bus ID, local rank: ", local_rank, nvsmi.DeviceQuery("pci.bus_id")["gpu"][local_rank])
