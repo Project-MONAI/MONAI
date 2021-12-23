@@ -186,7 +186,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             self._register_decollate()
 
         if postprocessing is not None:
-            # tips: MONAI transforms expect `channel-first` data, if `decollate=False`, may not work here
+            # tips: if `decollate=False` and `postprocessing` is MONAI transforms, it may not work well
+            # because all the MONAI transforms expect `channel-first` data
             self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)
