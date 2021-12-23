@@ -214,6 +214,27 @@ class SkipIfAtLeastPyTorchVersion:
         )(obj)
 
 
+def has_cupy():
+    """
+    Returns True if the user has installed a version of cupy.
+    """
+    cp, has_cp = optional_import("cupy")
+    if not has_cp:
+        return False
+    try:
+        x = cp.arange(6, dtype="f").reshape(2, 3)
+        y = cp.arange(3, dtype="f")
+        kernel = cp.ElementwiseKernel(
+            "float32 x, float32 y", "float32 z", """ if (x - 2 > y) { z = x * y; } else { z = x + y; } """, "my_kernel"
+        )
+        return kernel(x, y)[0, 0] == 0
+    except Exception:
+        return False
+
+
+HAS_CUPY = has_cupy()
+
+
 def make_nifti_image(array: NdarrayOrTensor, affine=None):
     """
     Create a temporary nifti image on the disk and return the image name.
