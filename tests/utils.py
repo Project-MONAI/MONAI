@@ -25,7 +25,6 @@ from functools import partial
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
 from urllib.error import HTTPError, URLError
-from pynvml.smi import nvidia_smi
 
 import numpy as np
 import torch
@@ -351,11 +350,12 @@ class DistCall:
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)
 
             if torch.cuda.is_available():
-                os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+                from pynvml.smi import nvidia_smi
+
                 nvsmi = nvidia_smi.getInstance()
-                print("local rank: ", local_rank, nvsmi.DeviceQuery('index')["gpu"][local_rank])
-                print("serial, local rank: ", local_rank, nvsmi.DeviceQuery('serial')["gpu"][local_rank])
-                print("PCI bus ID, local rank: ", local_rank, nvsmi.DeviceQuery('pci.bus_id')["gpu"][local_rank])
+                print("local rank: ", local_rank, nvsmi.DeviceQuery("index")["gpu"][local_rank])
+                print("GPU serial, local rank: ", local_rank, nvsmi.DeviceQuery("serial")["gpu"][local_rank])
+                print("PCI bus ID, local rank: ", local_rank, nvsmi.DeviceQuery("pci.bus_id")["gpu"][local_rank])
                 torch.cuda.set_device(int(local_rank))
 
             dist.init_process_group(
