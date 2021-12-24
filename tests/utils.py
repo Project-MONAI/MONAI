@@ -371,8 +371,7 @@ class DistCall:
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)
 
             if torch.cuda.is_available():
-                os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-                torch.cuda.set_device(int(local_rank))
+                torch.cuda.set_device(int(local_rank))  # using device ids from CUDA_VISIBILE_DEVICES
 
             dist.init_process_group(
                 backend=self.backend,
@@ -427,6 +426,7 @@ class DistCall:
             for p in processes:
                 p.join()
                 assert results.get(), "Distributed call failed."
+            _del_original_func(obj)
 
         return _wrapper
 
@@ -508,6 +508,7 @@ class TimedCall:
             finally:
                 p.join()
 
+            _del_original_func(obj)
             res = None
             try:
                 res = results.get(block=False)
@@ -531,6 +532,15 @@ def _cache_original_func(obj) -> None:
     """cache the original function by name, so that the decorator doesn't shadow it."""
     global _original_funcs
     _original_funcs[obj.__name__] = obj
+
+
+def _del_original_func(obj):
+    """pop the original function from cache."""
+    global _original_funcs
+    _original_funcs.pop(obj.__name__, None)
+    if torch.cuda.is_available():  # clean up the cached function
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
 
 
 def _call_original_func(name, module, *args, **kwargs):
@@ -621,7 +631,7 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
 
 def query_memory(n=2):
     """
-    Find best n idle devices and return a string of device ids.
+    Find best n idle devices and return a string of device ids using the `nvidia-smi` command.
     """
     bash_string = "nvidia-smi --query-gpu=power.draw,temperature.gpu,memory.used --format=csv,noheader,nounits"
 
