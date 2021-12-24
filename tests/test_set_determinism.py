@@ -40,6 +40,8 @@ class TestSetDeterminism(unittest.TestCase):
         self.assertEqual(seed, get_seed())
         a = np.random.randint(seed)
         b = torch.randint(seed, (1,))
+        # tset when global flag support is disabled
+        torch.backends.disable_global_flags()
         set_determinism(seed=seed)
         c = np.random.randint(seed)
         d = torch.randint(seed, (1,))
