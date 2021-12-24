@@ -16,10 +16,10 @@ from parameterized import parameterized
 
 from monai.transforms import RandCuCIM
 from monai.utils import optional_import, set_determinism
-from tests.utils import skip_if_no_cuda
+from tests.utils import HAS_CUPY, skip_if_no_cuda
 
 _, has_cut = optional_import("cucim.core.operations.expose.transform")
-cp, has_cp = optional_import("cupy")
+cp, _ = optional_import("cupy")
 
 set_determinism(seed=0)
 
@@ -74,7 +74,7 @@ TEST_CASE_RAND_ZOOM_2 = [
 
 
 @skip_if_no_cuda
-@unittest.skipUnless(has_cp, "CuPy is required.")
+@unittest.skipUnless(HAS_CUPY, "CuPy is required.")
 @unittest.skipUnless(has_cut, "cuCIM transforms are required.")
 class TestRandCuCIM(unittest.TestCase):
     @parameterized.expand(
