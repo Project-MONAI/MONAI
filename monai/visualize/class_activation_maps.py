@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,7 @@ import torch.nn.functional as F
 
 from monai.config import NdarrayTensor
 from monai.transforms import ScaleIntensity
-from monai.utils import ensure_tuple, get_torch_version_tuple
+from monai.utils import ensure_tuple, pytorch_after
 from monai.visualize.visualizer import default_upsampler
 
 __all__ = ["CAM", "GradCAM", "GradCAMpp", "ModelWithHooks", "default_normalizer"]
@@ -80,13 +80,13 @@ class ModelWithHooks:
                 continue
             _registered.append(name)
             if self.register_backward:
-                if get_torch_version_tuple() < (1, 8):
-                    mod.register_backward_hook(self.backward_hook(name))
-                else:
+                if pytorch_after(1, 8):
                     if "inplace" in mod.__dict__ and mod.__dict__["inplace"]:
                         # inplace=True causes errors for register_full_backward_hook
                         mod.__dict__["inplace"] = False
                     mod.register_full_backward_hook(self.backward_hook(name))
+                else:
+                    mod.register_backward_hook(self.backward_hook(name))
             if self.register_forward:
                 mod.register_forward_hook(self.forward_hook(name))
         if len(_registered) != len(self.target_layers):
@@ -137,6 +137,11 @@ class ModelWithHooks:
             self.score = self.class_score(logits, self.class_idx)
             self.model.zero_grad()
             self.score.sum().backward(retain_graph=retain_graph)
+            for layer in self.target_layers:
+                if layer not in self.gradients:
+                    raise RuntimeError(
+                        f"Backward hook for {layer} is not triggered; `requires_grad` of {layer} should be `True`."
+                    )
             grad = tuple(self.gradients[layer] for layer in self.target_layers)
         if train:
             self.model.train()
@@ -220,6 +225,8 @@ class CAM(CAMBase):
     Examples
 
     .. code-block:: python
+
+        import torch
 
         # densenet 2d
         from monai.networks.nets import DenseNet121
@@ -318,6 +325,8 @@ class GradCAM(CAMBase):
     Examples
 
     .. code-block:: python
+
+        import torch
 
         # densenet 2d
         from monai.networks.nets import DenseNet121

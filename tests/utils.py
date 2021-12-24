@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,10 +22,9 @@ import traceback
 import unittest
 import warnings
 from functools import partial
-from io import BytesIO
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
-from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.error import HTTPError, URLError
 
 import numpy as np
 import torch
@@ -35,13 +34,15 @@ from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.utils import ensure_tuple, optional_import, set_determinism
-from monai.utils.misc import is_module_ver_at_least
-from monai.utils.module import version_leq
+from monai.networks import convert_to_torchscript
+from monai.utils import optional_import
+from monai.utils.module import pytorch_after, version_leq
+from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
+_tf32_enabled = None
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -57,29 +58,77 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
     return copy.deepcopy(data)
 
 
-def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
+def assert_allclose(
+    actual: NdarrayOrTensor,
+    desired: NdarrayOrTensor,
+    type_test: bool = True,
+    device_test: bool = False,
+    *args,
+    **kwargs,
+):
     """
-    Assert that all values of two data objects are close.
+    Assert that types and all values of two data objects are close.
 
     Args:
-        a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
-        b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
+        actual: Pytorch Tensor or numpy array for comparison.
+        desired: Pytorch Tensor or numpy array to compare against.
+        type_test: whether to test that `actual` and `desired` are both numpy arrays or torch tensors.
+        device_test: whether to test the device property.
+        args: extra arguments to pass on to `np.testing.assert_allclose`.
+        kwargs: extra arguments to pass on to `np.testing.assert_allclose`.
+
+
     """
-    a = a.cpu() if isinstance(a, torch.Tensor) else a
-    b = b.cpu() if isinstance(b, torch.Tensor) else b
-    np.testing.assert_allclose(a, b, *args, **kwargs)
+    if type_test:
+        # check both actual and desired are of the same type
+        np.testing.assert_equal(isinstance(actual, np.ndarray), isinstance(desired, np.ndarray), "numpy type")
+        np.testing.assert_equal(isinstance(actual, torch.Tensor), isinstance(desired, torch.Tensor), "torch type")
+
+    if isinstance(desired, torch.Tensor) or isinstance(actual, torch.Tensor):
+        if device_test:
+            np.testing.assert_equal(str(actual.device), str(desired.device), "torch device check")  # type: ignore
+        actual = actual.cpu().numpy() if isinstance(actual, torch.Tensor) else actual
+        desired = desired.cpu().numpy() if isinstance(desired, torch.Tensor) else desired
+    np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
 def test_pretrained_networks(network, input_param, device):
     try:
-        net = network(**input_param).to(device)
-    except (URLError, HTTPError, ContentTooShortError) as e:
-        raise unittest.SkipTest(e)
-    return net
+        return network(**input_param).to(device)
+    except (URLError, HTTPError) as e:
+        raise unittest.SkipTest(e) from e
 
 
 def test_is_quick():
     return os.environ.get(quick_test_var, "").lower() == "true"
+
+
+def is_tf32_env():
+    """
+    The environment variable NVIDIA_TF32_OVERRIDE=0 will override any defaults
+    or programmatic configuration of NVIDIA libraries, and consequently,
+    cuBLAS will not accelerate FP32 computations with TF32 tensor cores.
+    """
+    global _tf32_enabled
+    if _tf32_enabled is None:
+        _tf32_enabled = False
+        if (
+            torch.cuda.is_available()
+            and not version_leq(f"{torch.version.cuda}", "10.100")
+            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
+            and torch.cuda.device_count() > 0  # at least 11.0
+        ):
+            try:
+                # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
+                g_gpu = torch.Generator(device="cuda")
+                g_gpu.manual_seed(2147483647)
+                a_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
+                b_full = torch.randn(1024, 1024, dtype=torch.double, device="cuda", generator=g_gpu)
+                _tf32_enabled = (a_full.float() @ b_full.float() - a_full @ b_full).abs().max().item() > 0.001  # 0.1713
+            except BaseException:
+                pass
+        print(f"tf32 enabled: {_tf32_enabled}")
+    return _tf32_enabled
 
 
 def skip_if_quick(obj):
@@ -143,7 +192,7 @@ class SkipIfBeforePyTorchVersion:
 
     def __init__(self, pytorch_version_tuple):
         self.min_version = pytorch_version_tuple
-        self.version_too_old = not is_module_ver_at_least(torch, pytorch_version_tuple)
+        self.version_too_old = not pytorch_after(*pytorch_version_tuple)
 
     def __call__(self, obj):
         return unittest.skipIf(
@@ -157,8 +206,7 @@ class SkipIfAtLeastPyTorchVersion:
 
     def __init__(self, pytorch_version_tuple):
         self.max_version = pytorch_version_tuple
-        test_ver = ".".join(map(str, self.max_version))
-        self.version_too_new = version_leq(test_ver, torch.__version__)
+        self.version_too_new = pytorch_after(*pytorch_version_tuple)
 
     def __call__(self, obj):
         return unittest.skipIf(
@@ -166,11 +214,15 @@ class SkipIfAtLeastPyTorchVersion:
         )(obj)
 
 
-def make_nifti_image(array, affine=None):
+def make_nifti_image(array: NdarrayOrTensor, affine=None):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
     """
+    if isinstance(array, torch.Tensor):
+        array, *_ = convert_data_type(array, np.ndarray)
+    if isinstance(affine, torch.Tensor):
+        affine, *_ = convert_data_type(affine, np.ndarray)
     if affine is None:
         affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)
@@ -524,54 +576,26 @@ class TorchImageTestCase3D(NumpyImageTestCase3D):
         self.segn = torch.tensor(self.segn)
 
 
-def test_script_save(net, *inputs, eval_nets=True, device=None, rtol=1e-4):
+def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
     """
     Test the ability to save `net` as a Torchscript object, reload it, and apply inference. The value `inputs` is
-    forward-passed through the original and loaded copy of the network and their results returned. Both `net` and its
-    reloaded copy are set to evaluation mode if `eval_nets` is True. The forward pass for both is done without
-    gradient accumulation.
+    forward-passed through the original and loaded copy of the network and their results returned.
+    The forward pass for both is done without gradient accumulation.
 
     The test will be performed with CUDA if available, else CPU.
     """
-    if True:
-        device = "cpu"
-    else:
-        # TODO: It would be nice to be able to use GPU if
-        # available, but this currently causes CI failures.
-        if not device:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # Convert to device
-    inputs = [i.to(device) for i in inputs]
-
-    scripted = torch.jit.script(net.cpu())
-    buffer = scripted.save_to_buffer()
-    reloaded_net = torch.jit.load(BytesIO(buffer)).to(device)
-    net.to(device)
-
-    if eval_nets:
-        net.eval()
-        reloaded_net.eval()
-
-    with torch.no_grad():
-        set_determinism(seed=0)
-        result1 = net(*inputs)
-        result2 = reloaded_net(*inputs)
-        set_determinism(seed=None)
-
-    # convert results to tuples if needed to allow iterating over pairs of outputs
-    result1 = ensure_tuple(result1)
-    result2 = ensure_tuple(result2)
-
-    for i, (r1, r2) in enumerate(zip(result1, result2)):
-        if None not in (r1, r2):  # might be None
-            np.testing.assert_allclose(
-                r1.detach().cpu().numpy(),
-                r2.detach().cpu().numpy(),
-                rtol=rtol,
-                atol=0,
-                err_msg=f"failed on comparison number: {i}",
-            )
+    # TODO: would be nice to use GPU if available, but it currently causes CI failures.
+    device = "cpu"
+    with tempfile.TemporaryDirectory() as tempdir:
+        convert_to_torchscript(
+            model=net,
+            filename_or_obj=os.path.join(tempdir, "model.ts"),
+            verify=True,
+            inputs=inputs,
+            device=device,
+            rtol=rtol,
+            atol=atol,
+        )
 
 
 def query_memory(n=2):
@@ -587,7 +611,7 @@ def query_memory(n=2):
         free_memory = np.asarray(free_memory, dtype=float).T
         free_memory[1] += free_memory[0]  # combine 0/1 column measures
         ids = np.lexsort(free_memory)[:n]
-    except (FileNotFoundError, TypeError, IndexError):
+    except (TypeError, IndexError, OSError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join(f"{int(x)}" for x in ids)
 

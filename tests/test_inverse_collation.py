@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,15 +48,11 @@ TESTS_3D = [
     for t in [
         RandFlipd(keys=KEYS, prob=0.5, spatial_axis=[1, 2]),
         RandAxisFlipd(keys=KEYS, prob=0.5),
-        RandRotate90d(keys=KEYS, spatial_axes=(1, 2)),
+        Compose([RandRotate90d(keys=KEYS, spatial_axes=(1, 2)), ToTensord(keys=KEYS)]),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
         RandAffined(
-            keys=KEYS,
-            prob=0.5,
-            rotate_range=np.pi,
-            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            as_tensor_output=False,
+            keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         ),
     ]
 ]
@@ -67,15 +63,11 @@ TESTS_2D = [
     for t in [
         RandFlipd(keys=KEYS, prob=0.5, spatial_axis=[1]),
         RandAxisFlipd(keys=KEYS, prob=0.5),
-        RandRotate90d(keys=KEYS, prob=0.5, spatial_axes=(0, 1)),
+        Compose([RandRotate90d(keys=KEYS, prob=0.5, spatial_axes=(0, 1)), ToTensord(keys=KEYS)]),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
         RandAffined(
-            keys=KEYS,
-            prob=0.5,
-            rotate_range=np.pi,
-            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-            as_tensor_output=False,
+            keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         ),
     ]
 ]
@@ -91,12 +83,12 @@ class TestInverseCollation(unittest.TestCase):
         set_determinism(seed=0)
 
         b_size = 11
-        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_3d(101, 100, 107)]
+        im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107))
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.data_3d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
         b_size = 8
-        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10)]
+        im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10))
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.data_2d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
@@ -107,17 +99,14 @@ class TestInverseCollation(unittest.TestCase):
 
     @parameterized.expand(TESTS_2D + TESTS_3D)
     def test_collation(self, _, transform, collate_fn, ndim):
-        if ndim == 3:
-            data = self.data_3d
-        else:
-            data = self.data_2d
+        data = self.data_3d if ndim == 3 else self.data_2d
         if collate_fn:
             modified_transform = transform
         else:
             modified_transform = Compose([transform, ResizeWithPadOrCropd(KEYS, 100), ToTensord(KEYS)])
 
         # num workers = 0 for mac or gpu transforms
-        num_workers = 0 if sys.platform == "darwin" or torch.cuda.is_available() else 2
+        num_workers = 0 if sys.platform != "linux" or torch.cuda.is_available() else 2
 
         dataset = CacheDataset(data, transform=modified_transform, progress=False)
         loader = DataLoader(dataset, num_workers, batch_size=self.batch_size, collate_fn=collate_fn)

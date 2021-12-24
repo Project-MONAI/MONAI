@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,10 +19,7 @@ from parameterized import parameterized
 from monai.transforms import SaveImaged
 
 TEST_CASE_1 = [
-    {
-        "img": torch.randint(0, 255, (1, 2, 3, 4)),
-        "img_meta_dict": {"filename_or_obj": "testfile0.nii.gz"},
-    },
+    {"img": torch.randint(0, 255, (1, 2, 3, 4)), "img_meta_dict": {"filename_or_obj": "testfile0.nii.gz"}},
     ".nii.gz",
     False,
 ]

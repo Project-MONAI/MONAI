@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,13 +34,7 @@ TEST_CASE_2 = [[0, 1, 2], Events.EPOCH_COMPLETED]
 
 class TestHandlerGarbageCollector(unittest.TestCase):
     @skipUnless(has_ignite, "Requires ignite")
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_content(self, data, trigger_event):
         # set up engine
         gb_count_dict = {}
