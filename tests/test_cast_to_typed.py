@@ -17,8 +17,9 @@ from parameterized import parameterized
 
 from monai.transforms import CastToTyped
 from monai.utils import optional_import
+from tests.utils import HAS_CUPY
 
-cp, has_cp = optional_import("cupy")
+cp, _ = optional_import("cupy")
 
 TEST_CASE_1 = [
     {"keys": ["img"], "dtype": np.float64},
@@ -58,7 +59,7 @@ class TestCastToTyped(unittest.TestCase):
             self.assertEqual(v.dtype, expected_type[k])
 
     @parameterized.expand(TESTS_CUPY)
-    @unittest.skipUnless(has_cp, "Requires CuPy")
+    @unittest.skipUnless(HAS_CUPY, "Requires CuPy")
     def test_type_cupy(self, input_param, input_data, expected_type):
         input_data = {k: cp.asarray(v) for k, v in input_data.items()}
 

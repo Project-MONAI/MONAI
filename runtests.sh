@@ -567,7 +567,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_((?!integration).)"
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration).*(?<!_dist)$"  # excluding integration/dist tests
 fi
 
 # distributed test only
@@ -575,7 +575,11 @@ if [ $doDistTests = true ]
 then
     echo "${separator}${blue}run distributed unit test cases${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_.*_dist$"
+    for i in tests/test_*_dist.py
+    do
+        echo "$i"
+        ${cmdPrefix}${cmd} "$i"
+    done
 fi
 
 # network training/inference/eval integration tests
