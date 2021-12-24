@@ -17,13 +17,13 @@ import torch
 
 from monai.transforms import ToCupyd
 from monai.utils import optional_import
-from tests.utils import skip_if_no_cuda
+from tests.utils import HAS_CUPY, skip_if_no_cuda
 
-cp, has_cp = optional_import("cupy")
+cp, _ = optional_import("cupy")
 
 
+@skipUnless(HAS_CUPY, "CuPy is required.")
 class TestToCupyd(unittest.TestCase):
-    @skipUnless(has_cp, "CuPy is required.")
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]])
         test_data = cp.rot90(test_data)
@@ -33,7 +33,6 @@ class TestToCupyd(unittest.TestCase):
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data)
 
-    @skipUnless(has_cp, "CuPy is required.")
     def test_numpy_input(self):
         test_data = np.array([[1, 2], [3, 4]])
         test_data = np.rot90(test_data)
@@ -43,7 +42,6 @@ class TestToCupyd(unittest.TestCase):
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data)
 
-    @skipUnless(has_cp, "CuPy is required.")
     def test_tensor_input(self):
         test_data = torch.tensor([[1, 2], [3, 4]])
         test_data = test_data.rot90()
@@ -53,7 +51,6 @@ class TestToCupyd(unittest.TestCase):
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data.numpy())
 
-    @skipUnless(has_cp, "CuPy is required.")
     @skip_if_no_cuda
     def test_tensor_cuda_input(self):
         test_data = torch.tensor([[1, 2], [3, 4]]).cuda()
@@ -64,7 +61,6 @@ class TestToCupyd(unittest.TestCase):
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data.cpu().numpy())
 
-    @skipUnless(has_cp, "CuPy is required.")
     def test_list_tuple(self):
         test_data = [[1, 2], [3, 4]]
         result = ToCupyd(keys="img", wrap_sequence=True)({"img": test_data})["img"]
