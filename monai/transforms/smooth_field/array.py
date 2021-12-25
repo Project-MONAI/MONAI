@@ -14,6 +14,8 @@
 from typing import Any, Optional, Sequence, Union
 
 import numpy as np
+import torch
+from torch.nn.functional import grid_sample, interpolate
 
 import monai
 from monai.transforms.spatial.array import Resize
@@ -21,55 +23,116 @@ from monai.transforms.transform import Randomizable, RandomizableTransform, Tran
 from monai.transforms.utils import rescale_array
 from monai.utils import InterpolateMode, ensure_tuple
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_to_dst_type
+from monai.utils.module import look_up_option
+from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
-__all__ = ["SmoothField", "RandSmoothFieldAdjustContrast", "RandSmoothFieldAdjustIntensity"]
+__all__ = ["SmoothField", "RandSmoothFieldAdjustContrast", "RandSmoothFieldAdjustIntensity", "RandSmoothDeform"]
 
 
 class SmoothField(Randomizable):
     """
-    Generate a smooth field array by defining a smaller randomized field and then resizing to the desired size. This
-    exploits interpolation to create a smoothly varying field used for other applications.
+    Generate a smooth field array by defining a smaller randomized field and then reinterpolating to the desired size. 
+    
+    This exploits interpolation to create a smoothly varying field used for other applications. An initial randomized 
+    field is defined with `rand_size` dimensions with `pad` number of values padding it along each dimension using 
+    `pad_val` as the value. If `spatial_size` is given this is interpolated to that size, otherwise if None the random 
+    array is produced uninterpolated. The output is always a Pytorch tensor allocated on the specified device.
 
     Args:
-        spatial_size: final output size of the array
         rand_size: size of the randomized field to start from
-        padder: optional transform to add padding to the randomized field
-        mode: interpolation mode to use when upsampling
-        align_corners: if True align the corners when upsampling field
+        pad: number of pixels/voxels along the edges of the field to pad with `pad_val`
+        pad_val: value with which to pad field edges
         low: low value for randomized field
         high: high value for randomized field
         channels: number of channels of final output
+        spatial_size: final output size of the array, None to produce original uninterpolated field
+        mode: interpolation mode for resizing the field
+        align_corners: if True align the corners when upsampling field
+        device: Pytorch device to define field on
     """
 
     def __init__(
         self,
-        spatial_size: Union[Sequence[int], int],
         rand_size: Union[Sequence[int], int],
-        padder: Optional[Transform] = None,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
+        pad: int = 0,
+        pad_val: float = 0,
         low: float = -1.0,
         high: float = 1.0,
         channels: int = 1,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        mode: Union[monai.utils.InterpolateMode, str] = monai.utils.InterpolateMode.AREA,
+        align_corners: Optional[bool] = None,
+        device: Optional[torch.device] = None,
     ):
-        self.resizer: Transform = Resize(spatial_size, mode=mode, align_corners=align_corners)
-        self.rand_size: tuple = ensure_tuple(rand_size)
-        self.padder: Optional[Transform] = padder
-        self.field: Optional[np.ndarray] = None
-        self.low: float = low
-        self.high: float = high
-        self.channels: int = channels
+        self.rand_size = ensure_tuple(rand_size)
+        self.pad = pad
+        self.low = low
+        self.high = high
+        self.channels = channels
+        self.mode = mode
+        self.align_corners = align_corners
+        self.device = device
+
+        self.spatial_size = None
+        self.spatial_zoom = None
+
+        if low >= high:
+            raise ValueError("Value for `low` must be less than `high` otherwise field will be zeros")
+
+        self.total_rand_size = tuple(rs + self.pad * 2 for rs in self.rand_size)
+
+        self.field = torch.ones((1, self.channels) + self.total_rand_size, device=self.device) * pad_val
+
+        self.crand_size = (self.channels,) + self.rand_size
+
+        pad_slice = slice(None) if self.pad == 0 else slice(self.pad, -self.pad)
+        self.rand_slices = (0, slice(None)) + (pad_slice,) * len(self.rand_size)
+
+        self.set_spatial_size(spatial_size)
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self.field = self.R.uniform(self.low, self.high, (self.channels,) + self.rand_size)  # type: ignore
-        if self.padder is not None:
-            self.field = self.padder(self.field)
+        self.field[self.rand_slices] = torch.from_numpy(self.R.uniform(self.low, self.high, self.crand_size))
 
-    def __call__(self):
-        resized_field = self.resizer(self.field)
+    def set_spatial_size(self, spatial_size: Optional[Union[Sequence[int], int]]) -> None:
+        """
+        Set the `spatial_size` and `spatial_zoom` attributes used for interpolating the field to the given
+        dimension, or not interpolate at all if None.
+        
+        Args:
+            spatial_size: new size to interpolate to, or None to not interpolate
+        """
+        if spatial_size is None:
+            self.spatial_size = None
+            self.spatial_zoom = None
+        else:
+            self.spatial_size = tuple(spatial_size)
+            self.spatial_zoom = tuple(s / f for s, f in zip(self.spatial_size, self.total_rand_size))
 
-        return rescale_array(resized_field, self.field.min(), self.field.max())
+    def __call__(self, randomize=True):
+        if randomize:
+            self.randomize()
+
+        field = self.field.to(self.device).clone()
+
+        if self.spatial_zoom is not None:
+            resized_field = interpolate(  # type: ignore
+                input=field,  # type: ignore
+                scale_factor=self.spatial_zoom,
+                mode=look_up_option(self.mode, monai.utils.InterpolateMode).value,
+                align_corners=self.align_corners,
+                recompute_scale_factor=False,
+            )
+
+            mina = resized_field.min()
+            maxa = resized_field.max()
+            minv = self.field.min()
+            maxv = self.field.max()
+
+            # faster than rescale_array (?)
+            norm_field = (resized_field.squeeze(0) - mina).div_(maxa - mina)
+            field = norm_field.mul_(maxv - minv).add_(minv)
+
+        return field
 
 
 class RandSmoothFieldAdjustContrast(RandomizableTransform):
@@ -80,11 +143,12 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
     Args:
         spatial_size: size of input array's spatial dimensions
         rand_size: size of the randomized field to start from
-        padder: optional transform to add padding to the randomized field
+        pad: number of pixels/voxels along the edges of the field to pad with 1
         mode: interpolation mode to use when upsampling
         align_corners: if True align the corners when upsampling field
         prob: probability transform is applied
         gamma: (min, max) range for exponential field
+        device: Pytorch device to define field on
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -93,11 +157,12 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         self,
         spatial_size: Union[Sequence[int], int],
         rand_size: Union[Sequence[int], int],
-        padder: Optional[Transform] = None,
+        pad: int = 0,
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.5, 4.5),
+        device: Optional[torch.device] = None,
     ):
         super().__init__(prob)
 
@@ -109,7 +174,18 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
 
             self.gamma = (min(gamma), max(gamma))
 
-        self.sfield = SmoothField(spatial_size, rand_size, padder, mode, align_corners, self.gamma[0], self.gamma[1])
+        self.sfield = SmoothField(
+            rand_size=rand_size,
+            pad=pad,
+            pad_val=1,
+            low=self.gamma[0],
+            high=self.gamma[1],
+            channels=1,
+            spatial_size=spatial_size,
+            mode=mode,
+            align_corners=align_corners,
+            device=device,
+        )
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -146,7 +222,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
 
         out = (img * img_rng) + img_min  # rescale back to the original image value range
 
-        out, *_ = convert_to_dst_type(out, img, img.dtype)
+        out, *_ = convert_to_dst_type(out, img)
 
         return out
 
@@ -159,11 +235,12 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
     Args:
         spatial_size: size of input array
         rand_size: size of the randomized field to start from
-        padder: optional transform to add padding to the randomized field
+        pad: number of pixels/voxels along the edges of the field to pad with 1
         mode: interpolation mode to use when upsampling
         align_corners: if True align the corners when upsampling field
         prob: probability transform is applied
         gamma: (min, max) range of intensity multipliers
+        device: Pytorch device to define field on
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -172,11 +249,12 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         self,
         spatial_size: Union[Sequence[int], int],
         rand_size: Union[Sequence[int], int],
-        padder: Optional[Transform] = None,
+        pad: int = 0,
         mode: Union[monai.utils.InterpolateMode, str] = monai.utils.InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.1, 1.0),
+        device: Optional[torch.device] = None,
     ):
         super().__init__(prob)
 
@@ -188,7 +266,18 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
 
             self.gamma = (min(gamma), max(gamma))
 
-        self.sfield = SmoothField(spatial_size, rand_size, padder, mode, align_corners, self.gamma[0], self.gamma[1])
+        self.sfield = SmoothField(
+            rand_size=rand_size,
+            pad=pad,
+            pad_val=1,
+            low=self.gamma[0],
+            high=self.gamma[1],
+            channels=1,
+            spatial_size=spatial_size,
+            mode=mode,
+            align_corners=align_corners,
+            device=device,
+        )
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -221,6 +310,105 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         rfield, *_ = convert_to_dst_type(field, img)
 
         out = img * rfield
-        out, *_ = convert_to_dst_type(out, img, img.dtype)
+        out, *_ = convert_to_dst_type(out, img)
+
+        return out
+
+
+class RandSmoothDeform(RandomizableTransform):
+    """
+    Deform an image using a random smooth field and scipy.ndimage.map_coordinates.
+    
+    Args:
+        spatial_size: input array size to which deformation grid is interpolated
+        rand_size: size of the randomized field to start from
+        pad: number of pixels/voxels along the edges of the field to pad with 0
+        field_mode: interpolation mode to use when upsampling the deformation field
+        align_corners: if True align the corners when upsampling field
+        prob: probability transform is applied
+        def_range: (min, max) value of the deformation range in pixel/voxel units
+        grid_dtype: type for the deformation grid calculated from the field
+        grid_mode: interpolation mode used for sampling input using deformation grid
+        grid_align_corners: if True align the corners when sampling the deformation grid
+        device: Pytorch device to define field on
+    """
+
+    def __init__(
+        self,
+        spatial_size: Union[Sequence[int], int],
+        rand_size: Union[Sequence[int], int],
+        pad: int = 0,
+        field_mode: Union[monai.utils.InterpolateMode, str] = monai.utils.InterpolateMode.AREA,
+        align_corners: Optional[bool] = None,
+        prob: float = 0.1,
+        def_range: float = 1.0,
+        grid_dtype=torch.float32,
+        grid_mode: Union[monai.utils.GridSampleMode, str] = monai.utils.GridSampleMode.NEAREST,
+        grid_align_corners: Optional[bool] = False,
+        device: Optional[torch.device] = None,
+    ):
+        super().__init__(prob)
+
+        self.grid_dtype = grid_dtype
+        self.grid_mode = grid_mode
+        self.def_range = def_range
+        self.device = device
+        self.grid_align_corners = grid_align_corners
+        self.grid_padding_mode = "border"
+
+        self.sfield = SmoothField(
+            spatial_size=spatial_size,
+            rand_size=rand_size,
+            pad=pad,
+            low=-def_range,
+            high=def_range,
+            channels=len(rand_size),
+            mode=field_mode,
+            align_corners=align_corners,
+            device=device,
+        )
+
+        grid_space = spatial_size if spatial_size is not None else self.sfield.field.shape[2:]
+        grid_ranges = [torch.linspace(-1, 1, d) for d in grid_space]
+        self.grid = torch.stack(torch.meshgrid(*grid_ranges, indexing="ij")).unsqueeze(0).to(self.device, self.grid_dtype)
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "Randomizable":
+        super().set_random_state(seed, state)
+        self.sfield.set_random_state(seed, state)
+        return self
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+
+        if self._do_transform:
+            self.sfield.randomize()
+
+    def __call__(self, img: np.ndarray, randomize: bool = True, device: Optional[torch.device] = None):
+        if randomize:
+            self.randomize()
+
+        if not self._do_transform:
+            return img
+
+        device = device if device is not None else self.device
+
+        field = self.sfield()
+
+        dgrid = self.grid + field.to(self.grid_dtype)
+        dgrid = dgrid.moveaxis(1, -1)
+
+        img_t = convert_to_tensor(img[None], torch.float32, device)
+
+        out = grid_sample(
+            input=img_t,
+            grid=dgrid,
+            mode=self.grid_mode.value,
+            align_corners=self.grid_align_corners,
+            padding_mode=self.grid_padding_mode,
+        )
+
+        out, *_ = convert_to_dst_type(out.squeeze(0), img)
 
         return out
