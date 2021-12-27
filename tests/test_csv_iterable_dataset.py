@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import tempfile
 import unittest
 
 import numpy as np
+import pandas as pd
 
 from monai.data import CSVIterableDataset, DataLoader
 from monai.transforms import ToNumpyd
@@ -58,6 +59,7 @@ class TestCSVIterableDataset(unittest.TestCase):
             filepath1 = os.path.join(tempdir, "test_data1.csv")
             filepath2 = os.path.join(tempdir, "test_data2.csv")
             filepath3 = os.path.join(tempdir, "test_data3.csv")
+            filepaths = [filepath1, filepath2, filepath3]
             prepare_csv_file(test_data1, filepath1)
             prepare_csv_file(test_data2, filepath2)
             prepare_csv_file(test_data3, filepath3)
@@ -81,18 +83,20 @@ class TestCSVIterableDataset(unittest.TestCase):
                     )
                     break
             self.assertEqual(count, 3)
+            dataset.close()
 
             # test reset iterables
-            dataset.reset(filename=filepath3)
+            dataset.reset(src=filepath3)
             count = 0
             for i, item in enumerate(dataset):
                 count += 1
                 if i == 4:
                     self.assertEqual(item["meta_0"], False)
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test multiple CSV files, join tables with kwargs
-            dataset = CSVIterableDataset([filepath1, filepath2, filepath3], on="subject_id", shuffle=False)
+            dataset = CSVIterableDataset(filepaths, on="subject_id", shuffle=False)
             count = 0
             for item in dataset:
                 count += 1
@@ -120,13 +124,11 @@ class TestCSVIterableDataset(unittest.TestCase):
                         },
                     )
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test selected columns and chunk size
             dataset = CSVIterableDataset(
-                filename=[filepath1, filepath2, filepath3],
-                chunksize=2,
-                col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"],
-                shuffle=False,
+                src=filepaths, chunksize=2, col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"], shuffle=False
             )
             count = 0
             for item in dataset:
@@ -143,10 +145,11 @@ class TestCSVIterableDataset(unittest.TestCase):
                         },
                     )
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test group columns
             dataset = CSVIterableDataset(
-                filename=[filepath1, filepath2, filepath3],
+                src=filepaths,
                 col_names=["subject_id", "image", *[f"ehr_{i}" for i in range(11)], "meta_0", "meta_1", "meta_2"],
                 col_groups={"ehr": [f"ehr_{i}" for i in range(11)], "meta12": ["meta_1", "meta_2"]},
                 shuffle=False,
@@ -161,12 +164,13 @@ class TestCSVIterableDataset(unittest.TestCase):
                     )
                     np.testing.assert_allclose(item["meta12"], [False, True])
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test transform
             dataset = CSVIterableDataset(
                 chunksize=2,
                 buffer_size=4,
-                filename=[filepath1, filepath2, filepath3],
+                src=filepaths,
                 col_groups={"ehr": [f"ehr_{i}" for i in range(5)]},
                 transform=ToNumpyd(keys="ehr"),
                 shuffle=True,
@@ -185,6 +189,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                 self.assertTrue(isinstance(item["ehr"], np.ndarray))
                 np.testing.assert_allclose(np.around(item["ehr"], 4), exp)
             self.assertEqual(count, 5)
+            dataset.close()
 
             # test multiple processes loading
             dataset = CSVIterableDataset(filepath1, transform=ToNumpyd(keys="label"), shuffle=False)
@@ -200,6 +205,45 @@ class TestCSVIterableDataset(unittest.TestCase):
                     np.testing.assert_allclose(item["label"], [4])
                     self.assertListEqual(item["image"], ["./imgs/s000002.png"])
             self.assertEqual(count, 3)
+            dataset.close()
+
+            # test iterable stream
+            iters = pd.read_csv(filepath1, chunksize=1000)
+            dataset = CSVIterableDataset(src=iters, shuffle=False)
+            count = 0
+            for item in dataset:
+                count += 1
+                if count == 3:
+                    self.assertDictEqual(
+                        {k: round(v, 4) if not isinstance(v, str) else v for k, v in item.items()},
+                        {
+                            "subject_id": "s000002",
+                            "label": 4,
+                            "image": "./imgs/s000002.png",
+                            "ehr_0": 3.7725,
+                            "ehr_1": 4.2118,
+                            "ehr_2": 4.6353,
+                        },
+                    )
+                    break
+            self.assertEqual(count, 3)
+            dataset.close()
+
+            # test multiple iterable streams, join tables with kwargs
+            iters = [pd.read_csv(i, chunksize=1000) for i in filepaths]
+            dataset = CSVIterableDataset(src=iters, on="subject_id", shuffle=False)
+            count = 0
+            for item in dataset:
+                count += 1
+                if count == 4:
+                    self.assertEqual(item["subject_id"], "s000003")
+                    self.assertEqual(item["label"], 1)
+                    self.assertEqual(round(item["ehr_0"], 4), 3.3333)
+                    self.assertEqual(item["meta_0"], False)
+            self.assertEqual(count, 5)
+            # manually close the pre-loaded iterables instead of `dataset.close()`
+            for i in iters:
+                i.close()
 
 
 if __name__ == "__main__":

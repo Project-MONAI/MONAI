@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,7 @@ from typing import Callable, Union
 
 from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import ConfusionMatrixMetric
-from monai.metrics.utils import MetricReduction
+from monai.utils.enums import MetricReduction
 
 
 class ConfusionMatrix(IgniteMetric):
@@ -44,8 +44,9 @@ class ConfusionMatrix(IgniteMetric):
                 and you can also input those names instead.
             compute_sample: when reducing, if ``True``, each sample's metric will be computed based on each confusion matrix first.
                 if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
-            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-                ``"mean_channel"``, ``"sum_channel"``}
+            reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.

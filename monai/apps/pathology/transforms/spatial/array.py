@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,10 @@ import numpy as np
 import torch
 from numpy.lib.stride_tricks import as_strided
 
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import Randomizable, Transform
+from monai.utils import convert_data_type, convert_to_dst_type
+from monai.utils.enums import TransformBackends
 
 __all__ = ["SplitOnGrid", "TileOnGrid"]
 
@@ -26,7 +29,7 @@ class SplitOnGrid(Transform):
     This transform works only with torch.Tensor inputs.
 
     Args:
-        grid_shape: a tuple or an integer define the shape of the grid upon which to extract patches.
+        grid_size: a tuple or an integer define the shape of the grid upon which to extract patches.
             If it's an integer, the value will be repeated for each dimension. Default is 2x2
         patch_size: a tuple or an integer that defines the output patch sizes.
             If it's an integer, the value will be repeated for each dimension.
@@ -34,6 +37,8 @@ class SplitOnGrid(Transform):
 
     Note: the shape of the input image is inferred based on the first image used.
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self, grid_size: Union[int, Tuple[int, int]] = (2, 2), patch_size: Optional[Union[int, Tuple[int, int]]] = None
@@ -50,17 +55,42 @@ class SplitOnGrid(Transform):
         else:
             self.patch_size = patch_size
 
-    def __call__(self, image: torch.Tensor) -> torch.Tensor:
+    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
         if self.grid_size == (1, 1) and self.patch_size is None:
-            return torch.stack([image])
+            if isinstance(image, torch.Tensor):
+                return torch.stack([image])
+            elif isinstance(image, np.ndarray):
+                return np.stack([image])
+            else:
+                raise ValueError(f"Input type [{type(image)}] is not supported.")
+
         patch_size, steps = self.get_params(image.shape[1:])
-        patches = (
-            image.unfold(1, patch_size[0], steps[0])
-            .unfold(2, patch_size[1], steps[1])
-            .flatten(1, 2)
-            .transpose(0, 1)
-            .contiguous()
-        )
+        patches: NdarrayOrTensor
+        if isinstance(image, torch.Tensor):
+            patches = (
+                image.unfold(1, patch_size[0], steps[0])
+                .unfold(2, patch_size[1], steps[1])
+                .flatten(1, 2)
+                .transpose(0, 1)
+                .contiguous()
+            )
+        elif isinstance(image, np.ndarray):
+            x_step, y_step = steps
+            c_stride, x_stride, y_stride = image.strides
+            n_channels = image.shape[0]
+            patches = as_strided(
+                image,
+                shape=(*self.grid_size, n_channels, patch_size[0], patch_size[1]),
+                strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
+                writeable=False,
+            )
+            # flatten the first two dimensions
+            patches = patches.reshape(np.prod(patches.shape[:2]), *patches.shape[2:])
+            # make it a contiguous array
+            patches = np.ascontiguousarray(patches)
+        else:
+            raise ValueError(f"Input type [{type(image)}] is not supported.")
+
         return patches
 
     def get_params(self, image_size):
@@ -100,6 +130,8 @@ class TileOnGrid(Randomizable, Transform):
             Defaults to ``min`` (which assumes background is high value)
 
     """
+
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -157,37 +189,39 @@ class TileOnGrid(Randomizable, Transform):
         else:
             self.random_idxs = np.array((0,))
 
-    def __call__(self, image: np.ndarray) -> np.ndarray:
+    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
+        img_np: np.ndarray
+        img_np, *_ = convert_data_type(image, np.ndarray)  # type: ignore
 
         # add random offset
-        self.randomize(img_size=image.shape)
+        self.randomize(img_size=img_np.shape)
 
         if self.random_offset and (self.offset[0] > 0 or self.offset[1] > 0):
-            image = image[:, self.offset[0] :, self.offset[1] :]
+            img_np = img_np[:, self.offset[0] :, self.offset[1] :]
 
         # pad to full size, divisible by tile_size
         if self.pad_full:
-            c, h, w = image.shape
+            c, h, w = img_np.shape
             pad_h = (self.tile_size - h % self.tile_size) % self.tile_size
             pad_w = (self.tile_size - w % self.tile_size) % self.tile_size
-            image = np.pad(
-                image,
+            img_np = np.pad(
+                img_np,
                 [[0, 0], [pad_h // 2, pad_h - pad_h // 2], [pad_w // 2, pad_w - pad_w // 2]],
                 constant_values=self.background_val,
             )
 
         # extact tiles
-        xstep, ystep = self.step, self.step
-        xsize, ysize = self.tile_size, self.tile_size
-        clen, xlen, ylen = image.shape
-        cstride, xstride, ystride = image.strides
+        x_step, y_step = self.step, self.step
+        h_tile, w_tile = self.tile_size, self.tile_size
+        c_image, h_image, w_image = img_np.shape
+        c_stride, x_stride, y_stride = img_np.strides
         llw = as_strided(
-            image,
-            shape=((xlen - xsize) // xstep + 1, (ylen - ysize) // ystep + 1, clen, xsize, ysize),
-            strides=(xstride * xstep, ystride * ystep, cstride, xstride, ystride),
+            img_np,
+            shape=((h_image - h_tile) // x_step + 1, (w_image - w_tile) // y_step + 1, c_image, h_tile, w_tile),
+            strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
             writeable=False,
         )
-        image = llw.reshape(-1, clen, xsize, ysize)
+        img_np = llw.reshape(-1, c_image, h_tile, w_tile)
 
         # if keeping all patches
         if self.tile_count is None:
@@ -196,32 +230,34 @@ class TileOnGrid(Randomizable, Transform):
             thresh = 0.999 * 3 * self.background_val * self.tile_size * self.tile_size
             if self.filter_mode == "min":
                 # default, keep non-background tiles (small values)
-                idxs = np.argwhere(image.sum(axis=(1, 2, 3)) < thresh)
-                image = image[idxs.reshape(-1)]
+                idxs = np.argwhere(img_np.sum(axis=(1, 2, 3)) < thresh)
+                img_np = img_np[idxs.reshape(-1)]
             elif self.filter_mode == "max":
-                idxs = np.argwhere(image.sum(axis=(1, 2, 3)) >= thresh)
-                image = image[idxs.reshape(-1)]
+                idxs = np.argwhere(img_np.sum(axis=(1, 2, 3)) >= thresh)
+                img_np = img_np[idxs.reshape(-1)]
 
         else:
-            if len(image) > self.tile_count:
+            if len(img_np) > self.tile_count:
 
                 if self.filter_mode == "min":
                     # default, keep non-background tiles (smallest values)
-                    idxs = np.argsort(image.sum(axis=(1, 2, 3)))[: self.tile_count]
-                    image = image[idxs]
+                    idxs = np.argsort(img_np.sum(axis=(1, 2, 3)))[: self.tile_count]
+                    img_np = img_np[idxs]
                 elif self.filter_mode == "max":
-                    idxs = np.argsort(image.sum(axis=(1, 2, 3)))[-self.tile_count :]
-                    image = image[idxs]
+                    idxs = np.argsort(img_np.sum(axis=(1, 2, 3)))[-self.tile_count :]
+                    img_np = img_np[idxs]
                 else:
                     # random subset (more appropriate for WSIs without distinct background)
                     if self.random_idxs is not None:
-                        image = image[self.random_idxs]
+                        img_np = img_np[self.random_idxs]
 
-            elif len(image) < self.tile_count:
-                image = np.pad(
-                    image,
-                    [[0, self.tile_count - len(image)], [0, 0], [0, 0], [0, 0]],
+            elif len(img_np) < self.tile_count:
+                img_np = np.pad(
+                    img_np,
+                    [[0, self.tile_count - len(img_np)], [0, 0], [0, 0], [0, 0]],
                     constant_values=self.background_val,
                 )
+
+        image, *_ = convert_to_dst_type(src=img_np, dst=image, dtype=image.dtype)
 
         return image

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -381,7 +381,7 @@ class HilbertTransform(nn.Module):
 
     Args:
         axis: Axis along which to apply Hilbert transform. Default 2 (first spatial dimension).
-        N: Number of Fourier components (i.e. FFT size). Default: ``x.shape[axis]``.
+        n: Number of Fourier components (i.e. FFT size). Default: ``x.shape[axis]``.
     """
 
     def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:

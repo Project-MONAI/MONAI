@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +16,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms import TileOnGrid
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES = []
 for tile_count in [16, 64]:
@@ -38,6 +39,10 @@ for tile_size in [8, 16]:
     for step in [4, 8]:
         TEST_CASES.append([{"tile_count": 16, "step": step, "tile_size": tile_size}])
 
+TESTS = []
+for p in TEST_NDARRAYS:
+    for tc in TEST_CASES:
+        TESTS.append([p, *tc])
 
 TEST_CASES2 = []
 for tile_count in [16, 64]:
@@ -55,6 +60,11 @@ for tile_count in [16, 64]:
                         }
                     ]
                 )
+
+TESTS2 = []
+for p in TEST_NDARRAYS:
+    for tc in TEST_CASES2:
+        TESTS2.append([p, *tc])
 
 
 def make_image(
@@ -104,25 +114,27 @@ def make_image(
 
 
 class TestTileOnGrid(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
-    def test_tile_patch_single_call(self, input_parameters):
+    @parameterized.expand(TESTS)
+    def test_tile_patch_single_call(self, in_type, input_parameters):
 
         img, tiles = make_image(**input_parameters)
+        input_img = in_type(img)
 
         tiler = TileOnGrid(**input_parameters)
-        output = tiler(img)
-        np.testing.assert_equal(output, tiles)
+        output = tiler(input_img)
+        assert_allclose(output, tiles, type_test=False)
 
-    @parameterized.expand(TEST_CASES2)
-    def test_tile_patch_random_call(self, input_parameters):
+    @parameterized.expand(TESTS2)
+    def test_tile_patch_random_call(self, in_type, input_parameters):
 
         img, tiles = make_image(**input_parameters, seed=123)
+        input_img = in_type(img)
 
         tiler = TileOnGrid(**input_parameters)
         tiler.set_random_state(seed=123)
 
-        output = tiler(img)
-        np.testing.assert_equal(output, tiles)
+        output = tiler(input_img)
+        assert_allclose(output, tiles, type_test=False)
 
 
 if __name__ == "__main__":

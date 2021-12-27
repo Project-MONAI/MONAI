@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -44,6 +44,7 @@ from monai.transforms.intensity.array import (
     RandScaleIntensity,
     RandShiftIntensity,
     RandStdShiftIntensity,
+    SavitzkyGolaySmooth,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
@@ -73,6 +74,7 @@ __all__ = [
     "RandAdjustContrastd",
     "ScaleIntensityRangePercentilesd",
     "MaskIntensityd",
+    "SavitzkyGolaySmoothd",
     "GaussianSmoothd",
     "RandGaussianSmoothd",
     "GaussianSharpend",
@@ -115,6 +117,8 @@ __all__ = [
     "ScaleIntensityRangePercentilesDict",
     "MaskIntensityD",
     "MaskIntensityDict",
+    "SavitzkyGolaySmoothD",
+    "SavitzkyGolaySmoothDict",
     "GaussianSmoothD",
     "GaussianSmoothDict",
     "RandGaussianSmoothD",
@@ -655,8 +659,8 @@ class NormalizeIntensityd(MapTransform):
         subtrahend: the amount to subtract by (usually the mean)
         divisor: the amount to divide by (usually the standard deviation)
         nonzero: whether only normalize non-zero values.
-        channel_wise: if using calculated mean and std, calculate on each channel separately
-            or calculate on the entire image directly.
+        channel_wise: if True, calculate on each channel separately, otherwise, calculate on
+            the entire image directly. default to False.
         dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -844,6 +848,8 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
         relative: whether to scale to the corresponding percentiles of [b_min, b_max]
+        channel_wise: if True, compute intensity percentile and normalize every channel separately.
+            default to False.
         dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -859,11 +865,12 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: Optional[float],
         clip: bool = False,
         relative: bool = False,
+        channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative, dtype)
+        self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative, channel_wise, dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -911,6 +918,43 @@ class MaskIntensityd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key], d[self.mask_key]) if self.mask_key is not None else self.converter(d[key])
+        return d
+
+
+class SavitzkyGolaySmoothd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.SavitzkyGolaySmooth`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        window_length: length of the filter window, must be a positive odd integer.
+        order: order of the polynomial to fit to each window, must be less than ``window_length``.
+        axis: optional axis along which to apply the filter kernel. Default 1 (first spatial dimension).
+        mode: optional padding mode, passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'``
+            or ``'circular'``. default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    backend = SavitzkyGolaySmooth.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        window_length: int,
+        order: int,
+        axis: int = 1,
+        mode: str = "zeros",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = SavitzkyGolaySmooth(window_length=window_length, order=order, axis=axis, mode=mode)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
         return d
 
 
@@ -1623,6 +1667,7 @@ AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd
 MaskIntensityD = MaskIntensityDict = MaskIntensityd
+SavitzkyGolaySmoothD = SavitzkyGolaySmoothDict = SavitzkyGolaySmoothd
 GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
 RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend

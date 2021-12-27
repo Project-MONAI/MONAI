@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -39,7 +39,7 @@ class TestPlot2dOr3dImage(unittest.TestCase):
     def test_tb_image(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:
             writer = SummaryWriter(log_dir=tempdir)
-            plot_2d_or_3d_image(torch.zeros(shape), 0, writer, max_channels=20)
+            plot_2d_or_3d_image(torch.zeros(shape), 0, writer, max_channels=3, frame_dim=-1)
             writer.flush()
             writer.close()
             self.assertTrue(len(glob.glob(tempdir)) > 0)

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -293,7 +293,8 @@ class Transchex(torch.nn.Module):
             num_vision_layers: number of vision transformer layers.
             num_mixed_layers: number of mixed transformer layers.
             drop_out: faction of the input units to drop.
-            bert_config: configuration for bert language transformer encoder.
+
+        The other parameters are part of the `bert_config` to `MultiModal.from_pretrained`.
 
         Examples:
 

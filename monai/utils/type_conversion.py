@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -59,7 +59,7 @@ def dtype_torch_to_numpy(dtype):
 def dtype_numpy_to_torch(dtype):
     """Convert a numpy dtype to its torch equivalent."""
     # np dtypes can be given as np.float32 and np.dtype(np.float32) so unify them
-    dtype = np.dtype(dtype) if isinstance(dtype, type) else dtype
+    dtype = np.dtype(dtype) if isinstance(dtype, (type, str)) else dtype
     return look_up_option(dtype, _np_to_torch_dtype)
 
 
@@ -151,8 +151,8 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
             will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
             for dictionary, list or tuple, convert every item to a numpy array if applicable.
         dtype: target data type when converting to numpy array.
-        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
-            If `True`, then `[1, 2]` -> `array([1, 2])`.
+        wrap_sequence: if `False`, then lists will recursively call this function.
+            E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
     """
     if isinstance(data, torch.Tensor):
         data = data.detach().to(dtype=get_equivalent_dtype(dtype, torch.Tensor), device="cpu").numpy()
@@ -175,19 +175,19 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
     return data
 
 
-def convert_to_cupy(data, dtype, wrap_sequence: bool = False):
+def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool = False):
     """
     Utility to convert the input data to a cupy array. If passing a dictionary, list or tuple,
     recursively check every item and convert it to cupy array.
 
     Args:
         data: input data can be PyTorch Tensor, numpy array, cupy array, list, dictionary, int, float, bool, str, etc.
-            Tensor, numpy array, cupy array, float, int, bool are converted to cupy arrays
-
+            Tensor, numpy array, cupy array, float, int, bool are converted to cupy arrays,
             for dictionary, list or tuple, convert every item to a numpy array if applicable.
-        dtype: target data type when converting to Cupy array.
-        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
-            If `True`, then `[1, 2]` -> `array([1, 2])`.
+        dtype: target data type when converting to Cupy array, tt must be an argument of `numpy.dtype`,
+            for more details: https://docs.cupy.dev/en/stable/reference/generated/cupy.array.html.
+        wrap_sequence: if `False`, then lists will recursively call this function.
+            E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
     """
 
     # direct calls
@@ -227,8 +227,8 @@ def convert_data_type(
         dtype: dtype of output data. Converted to correct library type (e.g.,
             `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
             If left blank, it remains unchanged.
-        wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
-            If `True`, then `[1, 2]` -> `array([1, 2])`.
+        wrap_sequence: if `False`, then lists will recursively call this function.
+            E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
     Returns:
         modified data, orig_type, orig_device
 

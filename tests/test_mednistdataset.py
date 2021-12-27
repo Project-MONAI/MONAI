@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,7 +43,9 @@ class TestMedNISTDataset(unittest.TestCase):
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
 
         try:  # will start downloading if testing_dir doesn't have the MedNIST files
-            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=True)
+            data = MedNISTDataset(
+                root_dir=testing_dir, transform=transform, section="test", download=True, copy_cache=False
+            )
         except (ContentTooShortError, HTTPError, RuntimeError) as e:
             print(str(e))
             if isinstance(e, RuntimeError):

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,6 +32,8 @@ def matshow3d(
     title: Optional[str] = None,
     figsize=(10, 10),
     frames_per_row: Optional[int] = None,
+    frame_dim: int = -3,
+    channel_dim: Optional[int] = None,
     vmin=None,
     vmax=None,
     every_n: int = 1,
@@ -46,13 +48,20 @@ def matshow3d(
     Create a 3D volume figure as a grid of images.
 
     Args:
-        volume: 3D volume to display. Higher dimensional arrays will be reshaped into (-1, H, W).
+        volume: 3D volume to display. data shape can be `BCHWD`, `CHWD` or `HWD`.
+            Higher dimensional arrays will be reshaped into (-1, H, W, [C]), `C` depends on `channel_dim` arg.
             A list of channel-first (C, H[, W, D]) arrays can also be passed in,
             in which case they will be displayed as a padded and stacked volume.
         fig: matplotlib figure to use. If None, a new figure will be created.
         title: title of the figure.
         figsize: size of the figure.
         frames_per_row: number of frames to display in each row. If None, sqrt(firstdim) will be used.
+        frame_dim: for higher dimensional arrays, which dimension from (`-1`, `-2`, `-3`) is moved to
+            the `-3` dimension. dim and reshape to (-1, H, W) shape to construct frames, default to `-3`.
+        channel_dim: if not None, explicitly specify the channel dimension to be transposed to the
+            last dimensionas shape (-1, H, W, C). this can be used to plot RGB color image.
+            if None, the channel dimension will be flattened with `frame_dim` and `batch_dim` as shape (-1, H, W).
+            note that it can only support 3D input image. default is None.
         vmin: `vmin` for the matplotlib `imshow`.
         vmax: `vmax` for the matplotlib `imshow`.
         every_n: factor to subsample the frames so that only every n-th frame is displayed.
@@ -85,6 +94,10 @@ def matshow3d(
 
     """
     vol: np.ndarray = convert_data_type(data=volume, output_type=np.ndarray)[0]  # type: ignore
+    if channel_dim is not None:
+        if channel_dim not in [0, 1] or vol.shape[channel_dim] not in [1, 3, 4]:
+            raise ValueError("channel_dim must be: None, 0 or 1, and channels of image must be 1, 3 or 4.")
+
     if isinstance(vol, (list, tuple)):
         # a sequence of channel-first volumes
         if not isinstance(vol[0], np.ndarray):
@@ -94,8 +107,13 @@ def matshow3d(
         vol = np.concatenate([pad(v) for v in vol], axis=0)
     else:  # ndarray
         while len(vol.shape) < 3:
-            vol = np.expand_dims(vol, 0)  # so that we display 1d and 2d as well
-    if len(vol.shape) > 3:
+            vol = np.expand_dims(vol, 0)  # so that we display 2d as well
+
+    if channel_dim is not None:
+        vol = np.moveaxis(vol, frame_dim, -4)  # move the expected dim to construct frames with `B` dim
+        vol = vol.reshape((-1, vol.shape[-3], vol.shape[-2], vol.shape[-1]))
+    else:
+        vol = np.moveaxis(vol, frame_dim, -3)
         vol = vol.reshape((-1, vol.shape[-2], vol.shape[-1]))
     vmin = np.nanmin(vol) if vmin is None else vmin
     vmax = np.nanmax(vol) if vmax is None else vmax
@@ -107,9 +125,15 @@ def matshow3d(
     # create the grid of frames
     cols = max(min(len(vol), frames_per_row), 1)
     rows = int(np.ceil(len(vol) / cols))
-    width = [[0, cols * rows - len(vol)]] + [[margin, margin]] * (len(vol.shape) - 1)
+    width = [[0, cols * rows - len(vol)]]
+    if channel_dim is not None:
+        width += [[0, 0]]  # add pad width for the channel dim
+    width += [[margin, margin]] * 2
     vol = np.pad(vol.astype(dtype, copy=False), width, mode="constant", constant_values=fill_value)
     im = np.block([[vol[i * cols + j] for j in range(cols)] for i in range(rows)])
+    if channel_dim is not None:
+        # move channel dim to the end
+        im = np.moveaxis(im, 0, -1)
 
     # figure related configurations
     if fig is None:
@@ -119,6 +143,7 @@ def matshow3d(
     ax = fig.axes[0]
     ax.matshow(im, vmin=vmin, vmax=vmax, interpolation=interpolation, **kwargs)
     ax.axis("off")
+
     if title is not None:
         ax.set_title(title)
     if figsize is not None:
@@ -132,7 +157,7 @@ def blend_images(
     image: NdarrayOrTensor, label: NdarrayOrTensor, alpha: float = 0.5, cmap: str = "hsv", rescale_arrays: bool = True
 ):
     """
-    Blend a image and a label. Both should have the shape CHW[D].
+    Blend an image and a label. Both should have the shape CHW[D].
     The image may have C==1 or 3 channels (greyscale or RGB).
     The label is expected to have C==1.
 

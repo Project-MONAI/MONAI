@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -146,9 +146,8 @@ class PrepareBatch(ABC):
 
 class PrepareBatchDefault(PrepareBatch):
     """
-    Default prepare_batch method to return `image` and `label` only,
-    it's consistent with `default_prerpare_batch` API.
-
+    Default prepare batch method to return `image` and `label` only,
+    it's to be consistent with `default_prepare_batch` API.
     """
 
     def __call__(
@@ -162,14 +161,14 @@ class PrepareBatchDefault(PrepareBatch):
 
 class PrepareBatchExtraInput(PrepareBatch):
     """
-    Customized prepare_batch for trainer or evalutor that support extra input data for network.
+    Customized prepare_batch for trainer or evaluator that support extra input data for network.
     Extra items are specified by the `extra_keys` parameter.
 
     Args:
         extra_keys: if a string or list provided, every item is the key of extra data in current batch,
-            and will pass the extra data to the network(*args) in order.
-            if a dict provided, every `{k, v}` pair is the key of extra data in current batch,
-            `k` the param name in network, `v` is the key of extra data in current batch,
+            and will pass the extra data to the `network(*args)` in order.
+            If a dictionary is provided, every `{k, v}` pair is the key of extra data in current batch,
+            `k` is the param name in network, `v` is the key of extra data in current batch,
             and will pass the `{k1: batch[v1], k2: batch[v2], ...}` as kwargs to the network.
 
     """

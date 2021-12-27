@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -52,7 +52,7 @@ class ExtractHEStains(Transform):
         """Perform Stain Deconvolution and return stain matrix for the image.
 
         Args:
-            img: uint8 RGB image to perform stain deconvolution on
+            image: uint8 RGB image to perform stain deconvolution on
 
         Return:
             he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)

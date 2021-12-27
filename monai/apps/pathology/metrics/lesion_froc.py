@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -147,7 +147,7 @@ class LesionFROC:
             total_tp_probs.extend(tp_probs)
             total_num_targets += num_targets
 
-        return (np.array(total_fp_probs), np.array(total_tp_probs), total_num_targets, num_images)
+        return np.array(total_fp_probs), np.array(total_tp_probs), total_num_targets, num_images
 
     def evaluate(self):
         """

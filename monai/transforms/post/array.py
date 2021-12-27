@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -179,7 +179,7 @@ class AsDiscrete(Transform):
         self.to_onehot = to_onehot
 
         if isinstance(threshold, bool):  # for backward compatibility
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threashold=value` instead.")
+            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
             threshold = logit_thresh if threshold else None
         self.threshold = threshold
 
@@ -211,7 +211,7 @@ class AsDiscrete(Transform):
                 Defaults to ``self.argmax``.
             to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
                 Defaults to ``self.to_onehot``.
-            threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold value.
+            threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold value.
                 Defaults to ``self.threshold``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
@@ -229,7 +229,7 @@ class AsDiscrete(Transform):
             warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
             to_onehot = num_classes if to_onehot else None
         if isinstance(threshold, bool):
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threashold=value` instead.")
+            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
             threshold = logit_thresh if threshold else None
 
         img_t: torch.Tensor
@@ -237,13 +237,13 @@ class AsDiscrete(Transform):
         if argmax or self.argmax:
             img_t = torch.argmax(img_t, dim=0, keepdim=True)
 
-        to_onehot = to_onehot or self.to_onehot
+        to_onehot = self.to_onehot if to_onehot is None else to_onehot
         if to_onehot is not None:
             if not isinstance(to_onehot, int):
                 raise AssertionError("the number of classes for One-Hot must be an integer.")
             img_t = one_hot(img_t, num_classes=to_onehot, dim=0)
 
-        threshold = threshold or self.threshold
+        threshold = self.threshold if threshold is None else threshold
         if threshold is not None:
             img_t = img_t >= threshold
 
@@ -405,7 +405,7 @@ class LabelFilter:
             raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
         if isinstance(img, torch.Tensor):
-            if hasattr(torch, "isin"):
+            if hasattr(torch, "isin"):  # `isin` is new in torch 1.10.0
                 appl_lbls = torch.as_tensor(self.applied_labels, device=img.device)
                 return torch.where(torch.isin(img, appl_lbls), img, torch.tensor(0.0).to(img))
             else:

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -73,7 +73,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial ndimensions, {``1``, ``2``, ``3``}. Defaults to 3.
+            spatial_dims: number of spatial dimensions, {``1``, ``2``, ``3``}. Defaults to 3.
             kernel_size: kernel spatial size, must be odd.
             kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}

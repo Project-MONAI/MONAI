@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,6 +45,7 @@ def run_testsuit():
         "test_deepgrow_interaction",
         "test_deepgrow_transforms",
         "test_detect_envelope",
+        "test_dints_network",
         "test_efficientnet",
         "test_ensemble_evaluator",
         "test_ensure_channel_first",

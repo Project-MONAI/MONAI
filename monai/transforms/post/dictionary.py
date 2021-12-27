@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -173,18 +173,26 @@ class AsDiscreted(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
-        self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
+        to_onehot_ = ensure_tuple_rep(to_onehot, len(self.keys))
+        num_classes = ensure_tuple_rep(num_classes, len(self.keys))
+        self.to_onehot = []
+        for flag, val in zip(to_onehot_, num_classes):
+            if isinstance(flag, bool):
+                warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
+                self.to_onehot.append(val if flag else None)
+            else:
+                self.to_onehot.append(flag)
 
-        if True in self.to_onehot or False in self.to_onehot:  # backward compatibility
-            warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-            num_classes = ensure_tuple_rep(num_classes, len(self.keys))
-            self.to_onehot = tuple(val if flag else None for flag, val in zip(self.to_onehot, num_classes))
+        threshold_ = ensure_tuple_rep(threshold, len(self.keys))
+        logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
+        self.threshold = []
+        for flag, val in zip(threshold_, logit_thresh):
+            if isinstance(flag, bool):
+                warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
+                self.threshold.append(val if flag else None)
+            else:
+                self.threshold.append(flag)
 
-        self.threshold = ensure_tuple_rep(threshold, len(self.keys))
-        if True in self.threshold or False in self.threshold:  # backward compatibility
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-            logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
-            self.threshold = tuple(val if flag else None for flag, val in zip(self.threshold, logit_thresh))
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 

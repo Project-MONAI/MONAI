@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -74,7 +74,7 @@ class TorchVisionFCModel(NetAdapter):
         )
 
 
-@deprecated(since="0.6.0", removed="0.8.0", msg_suffix="Please consider using `TorchVisionFCModel` instead.")
+@deprecated(since="0.6.0", removed="0.9.0", msg_suffix="Please consider using `TorchVisionFCModel` instead.")
 class TorchVisionFullyConvModel(TorchVisionFCModel):
     """
     Customize TorchVision models to replace fully connected layer by convolutional layer.

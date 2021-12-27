@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -178,6 +178,7 @@ def plot_engine_status(
         window_fraction: for metric plot, what fraction of the graph value length to use as the running average window
         image_fn: callable converting tensors keyed to a name in the Engine to a tuple of images to plot
         fig: Figure object to plot into, reuse from previous plotting for flicker-free refreshing
+        selected_inst: index of the instance to show in the image plot
 
     Returns:
         Figure object (or `fig` if given), list of Axes objects for graph and images

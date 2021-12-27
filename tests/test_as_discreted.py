@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -50,6 +50,32 @@ for p in TEST_NDARRAYS:
             {"keys": "pred", "rounding": "torchrounding"},
             {"pred": p([[[0.123, 1.345], [2.567, 3.789]]])},
             {"pred": p([[[0.0, 1.0], [3.0, 4.0]]])},
+            (1, 2, 2),
+        ]
+    )
+
+    # test compatible with previous versions
+    TEST_CASES.append(
+        [
+            {
+                "keys": ["pred", "label"],
+                "argmax": False,
+                "to_onehot": None,
+                "threshold": [True, None],
+                "logit_thresh": 0.6,
+            },
+            {"pred": p([[[0.0, 1.0], [2.0, 3.0]]]), "label": p([[[0, 1], [1, 1]]])},
+            {"pred": p([[[0.0, 1.0], [1.0, 1.0]]]), "label": p([[[0.0, 1.0], [1.0, 1.0]]])},
+            (1, 2, 2),
+        ]
+    )
+
+    # test threshold = 0.0
+    TEST_CASES.append(
+        [
+            {"keys": ["pred", "label"], "argmax": False, "to_onehot": None, "threshold": [0.0, None]},
+            {"pred": p([[[0.0, -1.0], [-2.0, 3.0]]]), "label": p([[[0, 1], [1, 1]]])},
+            {"pred": p([[[1.0, 0.0], [0.0, 1.0]]]), "label": p([[[0.0, 1.0], [1.0, 1.0]]])},
             (1, 2, 2),
         ]
     )

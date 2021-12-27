@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -143,14 +143,14 @@ class StatsHandler:
         else:
             self._default_iteration_print(engine)
 
-    def exception_raised(self, engine: Engine, e: Exception) -> None:
+    def exception_raised(self, _engine: Engine, e: Exception) -> None:
         """
         Handler for train or validation/evaluation exception raised Event.
         Print the exception information and traceback. This callback may be skipped because the logic
         with Ignite can only trigger the first attached handler for `EXCEPTION_RAISED` event.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            _engine: Ignite Engine, unused argument.
             e: the exception caught in Ignite during engine.run().
 
         """

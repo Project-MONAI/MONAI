@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +18,7 @@ from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
 from monai.utils import deprecated_arg, ensure_tuple_rep
 
-__all__ = ["BasicUNet", "BasicUnet", "Basicunet"]
+__all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 
 
 class TwoConv(nn.Sequential):

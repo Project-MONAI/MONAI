@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,6 +75,7 @@ TEST_BASIC = [
     [[None, None], [None, None]],
     [["test"], ["test"]],
     [[], []],
+    [[("ch1", "ch2"), ("ch3",)], [["ch1", "ch3"], ["ch2", None]]],  # default pad None
 ]
 
 
@@ -207,6 +208,16 @@ class TestBasicDeCollate(unittest.TestCase):
         out = decollate_batch(test_case, detach=False)
         self.assertEqual(out[0]["out"], "test")
 
+        test_case = {
+            "image": torch.tensor([[[1, 2, 3]], [[3, 4, 5]]]),
+            "label": torch.tensor([[[5]], [[7]]]),
+            "out": ["test"],
+        }
+        out = decollate_batch(test_case, detach=False, pad=False)
+        self.assertEqual(len(out), 1)  # no padding
+        out = decollate_batch(test_case, detach=False, pad=True, fill_value=0)
+        self.assertEqual(out[1]["out"], 0)  # verify padding fill_value
+
     def test_decollated(self):
         test_case = {
             "image": torch.tensor([[[1, 2]], [[3, 4]]]),
@@ -233,12 +244,16 @@ class TestBasicDeCollate(unittest.TestCase):
             torch.tensor([[[1, 2]], [[3, 4]]]),
             {"out": ["test", "test"]},
             {"scl_slope": torch.Tensor((0.0, 0.0))},
+            {"out2": ["test1"]},
             0.85,
+            [],
         ]
-        transform = Decollated(keys=None, detach=False)
+        transform = Decollated(keys=None, detach=False, fill_value=-1)
         out = transform(test_case)
-        # the 4th item in the list is scalar loss value
-        self.assertEqual(out[1][3], 0.85)
+
+        self.assertEqual(out[0][-2], 0.85)  # scalar replicates
+        self.assertEqual(out[1][-2], 0.85)  # scalar replicates
+        self.assertEqual(out[1][-3], -1)  # fill value for the dictionary item
         self.assertEqual(out[0][1]["out"], "test")
         self.assertEqual(out[0][2]["scl_slope"], 0.0)
         self.assertTrue(isinstance(out[0][2]["scl_slope"], torch.Tensor))

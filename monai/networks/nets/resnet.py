@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,14 +29,14 @@ def get_inplanes():
 
 
 def get_avgpool():
-    return [(0), (1), (1, 1), (1, 1, 1)]
+    return [0, 1, (1, 1), (1, 1, 1)]
 
 
 def get_conv1(conv1_t_size: int, conv1_t_stride: int):
     return (
-        [(0), (conv1_t_size), (conv1_t_size, 7), (conv1_t_size, 7, 7)],
-        [(0), (conv1_t_stride), (conv1_t_stride, 2), (conv1_t_stride, 2, 2)],
-        [(0), (conv1_t_size // 2), (conv1_t_size // 2, 3), (conv1_t_size // 2, 3, 3)],
+        [0, conv1_t_size, (conv1_t_size, 7), (conv1_t_size, 7, 7)],
+        [0, conv1_t_stride, (conv1_t_stride, 2), (conv1_t_stride, 2, 2)],
+        [0, (conv1_t_size // 2), (conv1_t_size // 2, 3), (conv1_t_size // 2, 3, 3)],
     )
 
 
@@ -154,6 +154,7 @@ class ResNet(nn.Module):
     ResNet based on: `Deep Residual Learning for Image Recognition <https://arxiv.org/pdf/1512.03385.pdf>`_
     and `Can Spatiotemporal 3D CNNs Retrace the History of 2D CNNs and ImageNet? <https://arxiv.org/pdf/1711.09577.pdf>`_.
     Adapted from `<https://github.com/kenshohara/3D-ResNets-PyTorch/tree/master/models>`_.
+
     Args:
         block: which ResNet block to use, either Basic or Bottleneck.
         layers: how many layers to use.

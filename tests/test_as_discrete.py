@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,6 +41,16 @@ for p in TEST_NDARRAYS:
             {"argmax": False, "to_onehot": None, "threshold": 0.6},
             p([[[0.0, 1.0], [2.0, 3.0]]]),
             p([[[0.0, 1.0], [1.0, 1.0]]]),
+            (1, 2, 2),
+        ]
+    )
+
+    # test threshold = 0.0
+    TEST_CASES.append(
+        [
+            {"argmax": False, "to_onehot": None, "threshold": 0.0},
+            p([[[0.0, -1.0], [-2.0, 3.0]]]),
+            p([[[1.0, 0.0], [0.0, 1.0]]]),
             (1, 2, 2),
         ]
     )

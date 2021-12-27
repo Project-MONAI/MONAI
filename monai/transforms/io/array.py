@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -204,8 +204,10 @@ class LoadImage(Transform):
                         break
 
         if img is None or reader is None:
+            if isinstance(filename, tuple) and len(filename) == 1:
+                filename = filename[0]
             raise RuntimeError(
-                f"can not find a suitable reader for file: {filename}.\n"
+                f"cannot find a suitable reader for file: {filename}.\n"
                 "    Please install the reader libraries, see also the installation instructions:\n"
                 "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
                 f"   The current registered: {self.readers}.\n"

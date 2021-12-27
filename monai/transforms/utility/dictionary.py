@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,6 +30,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
+    AddCoordinateChannels,
     AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
@@ -61,7 +62,7 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
-from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
+from monai.utils import convert_to_numpy, deprecated_arg, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
@@ -69,6 +70,9 @@ __all__ = [
     "AddChannelD",
     "AddChannelDict",
     "AddChanneld",
+    "AddCoordinateChannelsD",
+    "AddCoordinateChannelsDict",
+    "AddCoordinateChannelsd",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
     "AddExtremePointsChanneld",
@@ -592,6 +596,8 @@ class ToCupyd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         dtype: data type specifier. It is inferred from the input by default.
+            if not None, must be an argument of `numpy.dtype`, for more details:
+            https://docs.cupy.dev/en/stable/reference/generated/cupy.array.html.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
         allow_missing_keys: don't raise exception if key is missing.
@@ -600,7 +606,11 @@ class ToCupyd(MapTransform):
     backend = ToCupy.backend
 
     def __init__(
-        self, keys: KeysCollection, dtype=None, wrap_sequence: bool = True, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        dtype: Optional[np.dtype] = None,
+        wrap_sequence: bool = True,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.converter = ToCupy(dtype=dtype, wrap_sequence=wrap_sequence)
@@ -1319,6 +1329,7 @@ class TorchVisiond(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
+        self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1358,6 +1369,7 @@ class RandTorchVisiond(Randomizable, MapTransform):
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
+        self.name = name
         self.trans = TorchVision(name, *args, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1519,6 +1531,7 @@ class CuCIMd(MapTransform):
 
     def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
+        self.name = name
         self.trans = CuCIM(name, *args, **kwargs)
 
     def __call__(self, data):
@@ -1555,7 +1568,7 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
           Users can call `ToCuPy` transform to convert a numpy array or torch tensor to cupy array.
         - If the cuCIM transform is already randomized the `apply_prob` argument has nothing to do with
           the randomness of the underlying cuCIM transform. `apply_prob` defines if the transform (either randomized
-          or non-randomized) being applied randomly, so it can apply non-randomized tranforms randomly but be careful
+          or non-randomized) being applied randomly, so it can apply non-randomized transforms randomly but be careful
           with setting `apply_prob` to anything than 1.0 when using along with cuCIM's randomized transforms.
         - If the random factor of the underlying cuCIM transform is not derived from `self.R`,
           the results may not be deterministic. See Also: :py:class:`monai.transforms.Randomizable`.
@@ -1578,6 +1591,39 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
         if not self._do_transform:
             return dict(data)
         return super().__call__(data)
+
+
+class AddCoordinateChannelsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddCoordinateChannels`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        spatial_dims: the spatial dimensions that are to have their coordinates encoded in a channel and
+            appended to the input image. E.g., `(0, 1, 2)` represents `H, W, D` dims and append three channels
+            to the input image, encoding the coordinates of the input's three spatial dimensions.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    .. deprecated:: 0.8.0
+        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
+
+    """
+
+    backend = AddCoordinateChannels.backend
+
+    @deprecated_arg(
+        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
+    )
+    def __init__(self, keys: KeysCollection, spatial_dims: Sequence[int], allow_missing_keys: bool = False) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.add_coordinate_channels = AddCoordinateChannels(spatial_dims=spatial_dims)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.add_coordinate_channels(d[key])
+        return d
 
 
 IdentityD = IdentityDict = Identityd
@@ -1618,3 +1664,4 @@ IntensityStatsD = IntensityStatsDict = IntensityStatsd
 ToDeviceD = ToDeviceDict = ToDeviced
 CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
+AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd

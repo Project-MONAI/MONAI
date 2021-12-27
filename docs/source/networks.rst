@@ -21,7 +21,7 @@ Blocks
     :members:
 
 `CRF`
-~~~~~~~~~~~~~
+~~~~~
 .. autoclass:: CRF
     :members:
 
@@ -72,6 +72,8 @@ Blocks
 .. autoclass:: UnetBasicBlock
     :members:
 .. autoclass:: UnetUpBlock
+    :members:
+.. autoclass:: UnetOutBlock
     :members:
 
 `SegResnet Block`
@@ -188,6 +190,26 @@ Blocks
 .. autoclass:: PatchEmbeddingBlock
     :members:
 
+`FactorizedIncreaseBlock`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FactorizedIncreaseBlock
+    :members:
+
+`FactorizedReduceBlock`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FactorizedReduceBlock
+    :members:
+
+`P3DActiConvNormBlock`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: P3DActiConvNormBlock
+    :members:
+
+`ActiConvNormBlock`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ActiConvNormBlock
+    :members:
+
 `Warp`
 ~~~~~~
 .. autoclass:: Warp
@@ -232,6 +254,11 @@ Layers
 `Conv`
 ~~~~~~
 .. automodule:: monai.networks.layers.Conv
+  :members:
+
+`Pad`
+~~~~~
+.. automodule:: monai.networks.layers.Pad
   :members:
 
 `Pool`
@@ -280,7 +307,7 @@ Layers
     :members:
 
 `PHLFilter`
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
 .. autoclass:: PHLFilter
 
 `GaussianMixtureModel`
@@ -366,6 +393,11 @@ Nets
 .. autoclass:: EfficientNet
   :members:
 
+`BlockArgs`
+~~~~~~~~~~~
+.. autoclass:: BlockArgs
+  :members:
+
 `EfficientNetBN`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: EfficientNetBN
@@ -384,6 +416,11 @@ Nets
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
+  :members:
+
+`ResNet`
+~~~~~~~~
+.. autoclass:: ResNet
   :members:
 
 `SENet`
@@ -493,6 +530,11 @@ Nets
 .. autoclass:: FullyConnectedNet
   :members:
 
+`VarFullyConnectedNet`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: VarFullyConnectedNet
+  :members:
+
 `Generator`
 ~~~~~~~~~~~
 .. autoclass:: Generator
@@ -541,6 +583,26 @@ Nets
 `MILModel`
 ~~~~~~~~~~
 .. autoclass:: MILModel
+  :members:
+
+`DiNTS`
+~~~~~~~
+.. autoclass:: DiNTS
+  :members:
+
+`TopologyConstruction for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologyConstruction
+  :members:
+
+`TopologyInstance for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologyInstance
+  :members:
+
+`TopologySearch for DiNTS`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TopologySearch
   :members:
 
 Utilities
