@@ -22,10 +22,14 @@ from monai.transforms.smooth_field.array import (
     RandSmoothFieldAdjustIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform, Transform
-from monai.utils import GridSampleMode, InterpolateMode
+from monai.utils import ensure_tuple_rep, GridSampleMode, InterpolateMode
 from monai.utils.enums import TransformBackends
 
 __all__ = ["RandSmoothFieldAdjustContrastd", "RandSmoothFieldAdjustIntensityd", "RandSmoothDeformd"]
+
+
+InterpolateModeType = Union[InterpolateMode, str]
+GridSampleModeType = Union[GridSampleMode, str]
 
 
 class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
@@ -54,27 +58,29 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         spatial_size: Union[Sequence[int], int],
         rand_size: Union[Sequence[int], int],
         pad: int = 0,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.5, 4.5),
         apply_same_field: bool = True,
-        device: Optional[torch.device] = None
+        device: Optional[torch.device] = None,
     ):
         RandomizableTransform.__init__(self, prob)
         MapTransform.__init__(self, keys)
+
+        self.apply_same_field = apply_same_field
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
         self.trans = RandSmoothFieldAdjustContrast(
             spatial_size=spatial_size,
             rand_size=rand_size,
             pad=pad,
-            mode=mode,
+            mode=self.mode[0],
             align_corners=align_corners,
             prob=1.0,
             gamma=gamma,
-            device=device
+            device=device,
         )
-        self.apply_same_field = apply_same_field
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -97,10 +103,11 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
 
         d = dict(data)
 
-        for key in self.key_iterator(d):
+        for idx, key in enumerate(self.key_iterator(d)):
             if not self.apply_same_field:
                 self.randomize()  # new field for every key
 
+            self.trans.set_mode(self.mode[idx % len(self.mode)])
             d[key] = self.trans(d[key], False)
 
         return d
@@ -132,27 +139,29 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         spatial_size: Union[Sequence[int], int],
         rand_size: Union[Sequence[int], int],
         pad: int = 0,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.1, 1.0),
         apply_same_field: bool = True,
-        device: Optional[torch.device] = None
+        device: Optional[torch.device] = None,
     ):
         RandomizableTransform.__init__(self, prob)
         MapTransform.__init__(self, keys)
+
+        self.apply_same_field = apply_same_field
+        self.mode = ensure_tuple_rep(mode,len(self.keys))
 
         self.trans = RandSmoothFieldAdjustIntensity(
             spatial_size=spatial_size,
             rand_size=rand_size,
             pad=pad,
-            mode=mode,
+            mode=self.mode[0],
             align_corners=align_corners,
             prob=1.0,
             gamma=gamma,
-            device=device
+            device=device,
         )
-        self.apply_same_field = apply_same_field
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -173,15 +182,16 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
 
         d = dict(data)
 
-        for key in self.key_iterator(d):
+        for idx, key in enumerate(self.key_iterator(d)):
             if not self.apply_same_field:
                 self.randomize()  # new field for every key
 
+            self.trans.set_mode(self.mode[idx % len(self.mode)])
             d[key] = self.trans(d[key], False)
 
         return d
 
-    
+
 class RandSmoothDeformd(RandomizableTransform, MapTransform):
     """
     Dictionary version of RandSmoothDeform.
@@ -201,6 +211,7 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         apply_same_field: if True, apply the same field to each key, otherwise randomize individually
         device: Pytorch device to define field on
     """
+
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
@@ -209,35 +220,37 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         spatial_size: Union[Sequence[int], int],
         rand_size: Union[Sequence[int], int],
         pad: int = 0,
-        field_mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        field_mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         def_range: float = 1.0,
         grid_dtype=torch.float32,
-        grid_mode: Union[GridSampleMode, str] = GridSampleMode.NEAREST,
+        grid_mode: Union[GridSampleModeType, Sequence[GridSampleModeType]] = GridSampleMode.NEAREST,
         grid_align_corners: Optional[bool] = False,
         apply_same_field: bool = True,
-        device: Optional[torch.device] = None,        
+        device: Optional[torch.device] = None,
     ):
         RandomizableTransform.__init__(self, prob)
         MapTransform.__init__(self, keys)
-        
-        self.trans=RandSmoothDeform(
+
+        self.field_mode = ensure_tuple_rep(field_mode,len(self.keys))
+        self.grid_mode = ensure_tuple_rep(grid_mode,len(self.keys))
+        self.apply_same_field = apply_same_field
+
+        self.trans = RandSmoothDeform(
             rand_size=rand_size,
             spatial_size=spatial_size,
             pad=pad,
-            field_mode=field_mode,
+            field_mode=self.field_mode[0],
             align_corners=align_corners,
             prob=1.0,
             def_range=def_range,
             grid_dtype=grid_dtype,
-            grid_mode=grid_mode,
+            grid_mode=self.grid_mode[0],
             grid_align_corners=grid_align_corners,
-            device=device
+            device=device,
         )
-        
-        self.apply_same_field=apply_same_field
-        
+
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandSmoothFieldAdjustIntensityd":
@@ -248,7 +261,7 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
         self.trans.randomize()
-        
+
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
         self.randomize()
 
@@ -257,10 +270,13 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
 
         d = dict(data)
 
-        for key in self.key_iterator(d):
+        for idx, key in enumerate(self.key_iterator(d)):
             if not self.apply_same_field:
                 self.randomize()  # new field for every key
 
-            d[key] = self.trans(d[key], False)
+            self.trans.set_field_mode(self.field_mode[idx % len(self.field_mode)])
+            self.trans.set_grid_mode(self.grid_mode[idx % len(self.grid_mode)])
+
+            d[key] = self.trans(d[key], False, self.trans.device)
 
         return d

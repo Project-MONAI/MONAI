@@ -108,7 +108,10 @@ class SmoothField(Randomizable):
             self.spatial_size = tuple(spatial_size)
             self.spatial_zoom = tuple(s / f for s, f in zip(self.spatial_size, self.total_rand_size))
 
-    def __call__(self, randomize=True):
+    def set_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+        self.mode = mode
+
+    def __call__(self, randomize=False):
         if randomize:
             self.randomize()
 
@@ -199,6 +202,9 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
 
         if self._do_transform:
             self.sfield.randomize()
+
+    def set_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+        self.sfield.set_mode(mode)
 
     def __call__(self, img: np.ndarray, randomize: bool = True):
         """
@@ -291,6 +297,9 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
 
         if self._do_transform:
             self.sfield.randomize()
+
+    def set_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+        self.sfield.set_mode(mode)
 
     def __call__(self, img: np.ndarray, randomize: bool = True):
         """
@@ -385,6 +394,12 @@ class RandSmoothDeform(RandomizableTransform):
         if self._do_transform:
             self.sfield.randomize()
 
+    def set_field_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+        self.sfield.set_mode(mode)
+
+    def set_grid_mode(self, mode: Union[monai.utils.GridSampleMode, str]) -> None:
+        self.grid_mode = mode
+
     def __call__(self, img: np.ndarray, randomize: bool = True, device: Optional[torch.device] = None):
         if randomize:
             self.randomize()
@@ -404,7 +419,7 @@ class RandSmoothDeform(RandomizableTransform):
         out = grid_sample(
             input=img_t,
             grid=dgrid,
-            mode=self.grid_mode.value,
+            mode=look_up_option(self.grid_mode, monai.utils.GridSampleMode).value,
             align_corners=self.grid_align_corners,
             padding_mode=self.grid_padding_mode,
         )
