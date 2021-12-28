@@ -41,7 +41,7 @@ for arr_type, shape in product(TEST_NDARRAYS, INPUT_SHAPES):
 
     TESTS_CONTRAST.append(
         (
-            {"keys": (KEY,), "spatial_size": shape[1:], "rand_size": rand_size, "prob": 1.0, "device": device,},
+            {"keys": (KEY,), "spatial_size": shape[1:], "rand_size": rand_size, "prob": 1.0, "device": device},
             {KEY: in_arr},
             {KEY: exp_arr},
         )

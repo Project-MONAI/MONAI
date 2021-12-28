@@ -22,7 +22,7 @@ from monai.transforms.smooth_field.array import (
     RandSmoothFieldAdjustIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform, Transform
-from monai.utils import ensure_tuple_rep, GridSampleMode, InterpolateMode
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple_rep
 from monai.utils.enums import TransformBackends
 
 __all__ = ["RandSmoothFieldAdjustContrastd", "RandSmoothFieldAdjustIntensityd", "RandSmoothDeformd"]
@@ -34,8 +34,11 @@ GridSampleModeType = Union[GridSampleMode, str]
 
 class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
     """
-    Dictionary version of RandSmoothFieldAdjustContrast. The field is randomized once per invocation by default so the
-    same field is applied to every selected key.
+    Dictionary version of RandSmoothFieldAdjustContrast.
+
+    The field is randomized once per invocation by default so the same field is applied to every selected key. The
+    `mode` parameter specifying interpolation mode for the field can be a single value or a sequence of values with
+    one for each key in `keys`.
 
     Args:
         keys: key names to apply the augment to
@@ -115,8 +118,11 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
 
 class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
     """
-    Dictionary version of RandSmoothFieldAdjustIntensity. The field is randomized once per invocation by default so
-    the same field is applied to every selected key.
+    Dictionary version of RandSmoothFieldAdjustIntensity.
+
+    The field is randomized once per invocation by default so the same field is applied to every selected key. The
+    `mode` parameter specifying interpolation mode for the field can be a single value or a sequence of values with
+    one for each key in `keys`.
 
     Args:
         keys: key names to apply the augment to
@@ -150,7 +156,7 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys)
 
         self.apply_same_field = apply_same_field
-        self.mode = ensure_tuple_rep(mode,len(self.keys))
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
         self.trans = RandSmoothFieldAdjustIntensity(
             spatial_size=spatial_size,
@@ -195,7 +201,11 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
 class RandSmoothDeformd(RandomizableTransform, MapTransform):
     """
     Dictionary version of RandSmoothDeform.
-    
+
+    The field is randomized once per invocation by default so the same field is applied to every selected key. The
+    `field_mode` parameter specifying interpolation mode for the field can be a single value or a sequence of values
+    with one for each key in `keys`. Similarly the `grid_mode` parameter can be one value or one per key.
+
     Args:
         keys: key names to apply the augment to
         spatial_size: input array size to which deformation grid is interpolated
@@ -204,9 +214,10 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         field_mode: interpolation mode to use when upsampling the deformation field
         align_corners: if True align the corners when upsampling field
         prob: probability transform is applied
-        def_range: (min, max) value of the deformation range in pixel/voxel units
+        def_range: value of the deformation range in image size fractions
         grid_dtype: type for the deformation grid calculated from the field
         grid_mode: interpolation mode used for sampling input using deformation grid
+        grid_padding_mode: padding mode used for sampling input using deformation grid
         grid_align_corners: if True align the corners when sampling the deformation grid
         apply_same_field: if True, apply the same field to each key, otherwise randomize individually
         device: Pytorch device to define field on
@@ -223,9 +234,10 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         field_mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
-        def_range: float = 1.0,
+        def_range: Union[Sequence[float], float] = 1.0,
         grid_dtype=torch.float32,
         grid_mode: Union[GridSampleModeType, Sequence[GridSampleModeType]] = GridSampleMode.NEAREST,
+        grid_padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         grid_align_corners: Optional[bool] = False,
         apply_same_field: bool = True,
         device: Optional[torch.device] = None,
@@ -233,8 +245,8 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         MapTransform.__init__(self, keys)
 
-        self.field_mode = ensure_tuple_rep(field_mode,len(self.keys))
-        self.grid_mode = ensure_tuple_rep(grid_mode,len(self.keys))
+        self.field_mode = ensure_tuple_rep(field_mode, len(self.keys))
+        self.grid_mode = ensure_tuple_rep(grid_mode, len(self.keys))
         self.apply_same_field = apply_same_field
 
         self.trans = RandSmoothDeform(
@@ -247,6 +259,7 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
             def_range=def_range,
             grid_dtype=grid_dtype,
             grid_mode=self.grid_mode[0],
+            grid_padding_mode=grid_padding_mode,
             grid_align_corners=grid_align_corners,
             device=device,
         )
