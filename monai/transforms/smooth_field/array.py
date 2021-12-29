@@ -444,7 +444,7 @@ class RandSmoothDeform(RandomizableTransform):
         field = self.sfield()
 
         dgrid = self.grid + field.to(self.grid_dtype)
-        dgrid = moveaxis(dgrid, 1, -1)
+        dgrid = moveaxis(dgrid, 1, -1)  # type: ignore
 
         img_t = convert_to_tensor(img[None], torch.float32, device)
 
