@@ -225,7 +225,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         img_rng = img_max - img_min
 
         field = self.sfield()
-        rfield, *_ = convert_to_dst_type(field, img) 
+        rfield, *_ = convert_to_dst_type(field, img)
 
         # everything below here is to be computed using the destination type (numpy, tensor, etc.)
 
