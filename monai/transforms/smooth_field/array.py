@@ -402,12 +402,12 @@ class RandSmoothDeform(RandomizableTransform):
 
         grid_space = spatial_size if spatial_size is not None else self.sfield.field.shape[2:]
         grid_ranges = [torch.linspace(-1, 1, d) for d in grid_space]
-        
+
         if pytorch_after(1, 10):
             grid = torch.meshgrid(*grid_ranges, indexing="ij")
         else:
             grid = torch.meshgrid(*grid_ranges)
-        
+
         self.grid = torch.stack(grid).unsqueeze(0).to(self.device, self.grid_dtype)
 
     def set_random_state(
