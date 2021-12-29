@@ -20,6 +20,7 @@ from torch.nn.functional import grid_sample, interpolate
 import monai
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import Randomizable, RandomizableTransform
+from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
 from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option, pytorch_after
@@ -443,7 +444,7 @@ class RandSmoothDeform(RandomizableTransform):
         field = self.sfield()
 
         dgrid = self.grid + field.to(self.grid_dtype)
-        dgrid = dgrid.moveaxis(1, -1)
+        dgrid = moveaxis(dgrid, 1, -1)
 
         img_t = convert_to_tensor(img[None], torch.float32, device)
 
