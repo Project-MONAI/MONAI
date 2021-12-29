@@ -156,19 +156,19 @@ function clean_py {
     TO_CLEAN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
     echo "Removing temporary files in ${TO_CLEAN}"
 
-    find ${TO_CLEAN}/monai -type f -name "*.py[co]" -delete
-    find ${TO_CLEAN}/monai -type f -name "*.so" -delete
-    find ${TO_CLEAN}/monai -type d -name "__pycache__" -delete
-    find ${TO_CLEAN} -maxdepth 1 -type f -name ".coverage.*" -delete
+    ${cmdPrefix}find ${TO_CLEAN}/monai -type f -name "*.py[co]" -delete
+    ${cmdPrefix}find ${TO_CLEAN}/monai -type f -name "*.so" -delete
+    ${cmdPrefix}find ${TO_CLEAN}/monai -type d -name "__pycache__" -delete
+    ${cmdPrefix}find ${TO_CLEAN} -maxdepth 1 -type f -name ".coverage.*" -delete
 
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".eggs" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "monai.egg-info" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "build" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "dist" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".coverage" -exec rm -r "{}" +
-    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "__pycache__" -exec rm -r "{}" +
+    ${cmdPrefix}find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".eggs" -exec rm -r "{}" +
+    ${cmdPrefix}find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "monai.egg-info" -exec rm -r "{}" +
+    ${cmdPrefix}find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "build" -exec rm -r "{}" +
+    ${cmdPrefix}find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "dist" -exec rm -r "{}" +
+    ${cmdPrefix}find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
+    ${cmdPrefix}find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
+    ${cmdPrefix}find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".coverage" -exec rm -r "{}" +
+    ${cmdPrefix}find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "__pycache__" -exec rm -r "{}" +
 }
 
 function torch_validate {
@@ -364,7 +364,8 @@ then
         ! -wholename "*_version.py" -and -name "*.py" -or -name "*.cpp" -or -name "*.cu" -or -name "*.h")"
     if [[ ${copyright_bad} -eq 0 ]];
     then
-        echo "${green}Source code copyright headers checked ($copyright_all).${noColor}"
+        echo "${separator}Source code copyright headers checked ($copyright_all)."
+        echo "${green}passed!${noColor}"
     else
         echo "Please add the licensing header to the file ($copyright_bad of $copyright_all files)."
         echo "  See also: https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md#checking-the-coding-style"
