@@ -15,13 +15,14 @@ from typing import Any, Hashable, Mapping, Optional, Sequence, Union
 import numpy as np
 import torch
 
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.config import KeysCollection
 from monai.transforms.smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,
     RandSmoothFieldAdjustIntensity,
 )
-from monai.transforms.transform import MapTransform, RandomizableTransform, Transform
+from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple_rep
 from monai.utils.enums import TransformBackends
 
@@ -58,8 +59,8 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size: Union[Sequence[int], int],
-        rand_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int],
+        rand_size: Sequence[int],
         pad: int = 0,
         mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
@@ -98,7 +99,7 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         if self._do_transform:
             self.trans.randomize()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
 
         if not self._do_transform:
@@ -142,8 +143,8 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size: Union[Sequence[int], int],
-        rand_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int],
+        rand_size: Sequence[int],
         pad: int = 0,
         mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
@@ -180,7 +181,7 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         super().randomize(None)
         self.trans.randomize()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
 
         if not self._do_transform:
@@ -228,8 +229,8 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        spatial_size: Union[Sequence[int], int],
-        rand_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int],
+        rand_size: Sequence[int],
         pad: int = 0,
         field_mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
@@ -266,7 +267,7 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandSmoothFieldAdjustIntensityd":
+    ) -> "RandSmoothDeformd":
         super().set_random_state(seed, state)
         self.trans.set_random_state(seed, state)
         return self
@@ -275,7 +276,7 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         super().randomize(None)
         self.trans.randomize()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
 
         if not self._do_transform:

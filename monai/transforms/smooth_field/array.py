@@ -19,9 +19,7 @@ from torch.nn.functional import grid_sample, interpolate
 
 import monai
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.transforms.spatial.array import Resize
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
-from monai.transforms.utils import rescale_array
+from monai.transforms.transform import Randomizable, RandomizableTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple
 from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
@@ -54,18 +52,18 @@ class SmoothField(Randomizable):
 
     def __init__(
         self,
-        rand_size: Union[Sequence[int], int],
+        rand_size: Sequence[int],
         pad: int = 0,
         pad_val: float = 0,
         low: float = -1.0,
         high: float = 1.0,
         channels: int = 1,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Optional[Sequence[int]] = None,
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         device: Optional[torch.device] = None,
     ):
-        self.rand_size = ensure_tuple(rand_size)
+        self.rand_size = tuple(rand_size)
         self.pad = pad
         self.low = low
         self.high = high
@@ -74,8 +72,8 @@ class SmoothField(Randomizable):
         self.align_corners = align_corners
         self.device = device
 
-        self.spatial_size = None
-        self.spatial_zoom = None
+        self.spatial_size: Optional[Sequence[int]] = None
+        self.spatial_zoom: Optional[Sequence[float]] = None
 
         if low >= high:
             raise ValueError("Value for `low` must be less than `high` otherwise field will be zeros")
@@ -94,7 +92,7 @@ class SmoothField(Randomizable):
     def randomize(self, data: Optional[Any] = None) -> None:
         self.field[self.rand_slices] = torch.from_numpy(self.R.uniform(self.low, self.high, self.crand_size))
 
-    def set_spatial_size(self, spatial_size: Optional[Union[Sequence[int], int]]) -> None:
+    def set_spatial_size(self, spatial_size: Optional[Sequence[int]]) -> None:
         """
         Set the `spatial_size` and `spatial_zoom` attributes used for interpolating the field to the given
         dimension, or not interpolate at all if None.
@@ -164,8 +162,8 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
 
     def __init__(
         self,
-        spatial_size: Union[Sequence[int], int],
-        rand_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int],
+        rand_size: Sequence[int],
         pad: int = 0,
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
@@ -212,7 +210,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
     def set_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
         self.sfield.set_mode(mode)
 
-    def __call__(self, img: np.ndarray, randomize: bool = True) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, if `randomize` randomizing the smooth field otherwise reusing the previous.
         """
@@ -227,12 +225,12 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         img_rng = img_max - img_min
 
         field = self.sfield()
-        field, *_ = convert_to_dst_type(field, img)
+        rfield, *_ = convert_to_dst_type(field, img) 
 
         # everything below here is to be computed using the destination type (numpy, tensor, etc.)
 
-        img = (img - img_min) / max(img_rng, 1e-10)  # rescale to unit values
-        img = img ** field  # contrast is changed by raising image data to a power, in this case the field
+        img = (img - img_min) / (img_rng + 1e-10)  # rescale to unit values
+        img = img ** rfield  # contrast is changed by raising image data to a power, in this case the field
 
         out = (img * img_rng) + img_min  # rescale back to the original image value range
 
@@ -264,8 +262,8 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
 
     def __init__(
         self,
-        spatial_size: Union[Sequence[int], int],
-        rand_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int],
+        rand_size: Sequence[int],
         pad: int = 0,
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
@@ -312,7 +310,7 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
     def set_mode(self, mode: Union[InterpolateMode, str]) -> None:
         self.sfield.set_mode(mode)
 
-    def __call__(self, img: np.ndarray, randomize: bool = True) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, if `randomize` randomizing the smooth field otherwise reusing the previous.
         """
@@ -360,8 +358,8 @@ class RandSmoothDeform(RandomizableTransform):
 
     def __init__(
         self,
-        spatial_size: Union[Sequence[int], int],
-        rand_size: Union[Sequence[int], int],
+        spatial_size: Sequence[int],
+        rand_size: Sequence[int],
         pad: int = 0,
         field_mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
@@ -427,7 +425,7 @@ class RandSmoothDeform(RandomizableTransform):
         self.grid_mode = mode
 
     def __call__(
-        self, img: np.ndarray, randomize: bool = True, device: Optional[torch.device] = None
+        self, img: NdarrayOrTensor, randomize: bool = True, device: Optional[torch.device] = None
     ) -> NdarrayOrTensor:
         if randomize:
             self.randomize()
@@ -452,6 +450,6 @@ class RandSmoothDeform(RandomizableTransform):
             padding_mode=look_up_option(self.grid_padding_mode, GridSamplePadMode).value,
         )
 
-        out, *_ = convert_to_dst_type(out.squeeze(0), img)
+        out_t, *_ = convert_to_dst_type(out.squeeze(0), img)
 
-        return out
+        return out_t

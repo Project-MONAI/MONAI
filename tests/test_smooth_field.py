@@ -37,7 +37,7 @@ for arr_type, shape in product(TEST_NDARRAYS, INPUT_SHAPES):
     device = torch.device("cpu")
 
     if isinstance(in_arr, torch.Tensor) and in_arr.get_device() >= 0:
-        device = in_arr.get_device()
+        device = torch.device(in_arr.get_device())
 
     TESTS_CONTRAST.append(
         (
