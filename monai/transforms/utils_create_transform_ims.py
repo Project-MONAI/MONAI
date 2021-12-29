@@ -145,8 +145,16 @@ from monai.transforms.intensity.dictionary import (
 )
 from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour
 from monai.transforms.post.dictionary import AsDiscreted, KeepLargestConnectedComponentd, LabelFilterd, LabelToContourd
-from monai.transforms.smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity
-from monai.transforms.smooth_field.dictionary import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
+from monai.transforms.smooth_field.array import (
+    RandSmoothDeform,
+    RandSmoothFieldAdjustContrast,
+    RandSmoothFieldAdjustIntensity,
+)
+from monai.transforms.smooth_field.dictionary import (
+    RandSmoothDeformd,
+    RandSmoothFieldAdjustContrastd,
+    RandSmoothFieldAdjustIntensityd,
+)
 from monai.transforms.spatial.array import (
     GridDistortion,
     Rand2DElastic,
@@ -388,9 +396,7 @@ def get_images(data, is_label=False):
     return out, shape_str
 
 
-def create_transform_im(
-    transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, seed=0, is_post=False
-):
+def create_transform_im(transform, transform_args, data, ndim=3, colorbar=False, update_doc=True, seed=0, is_post=False):
     """Create an image with the before and after of the transform.
     Also update the transform's documentation to point to this image."""
 
@@ -511,9 +517,7 @@ if __name__ == "__main__":
     create_transform_im(ScaleIntensity, dict(minv=0, maxv=10), data, colorbar=True)
     create_transform_im(ScaleIntensityd, dict(keys=CommonKeys.IMAGE, minv=0, maxv=10), data, colorbar=True)
     create_transform_im(RandScaleIntensity, dict(prob=1.0, factors=(5, 10)), data, colorbar=True)
-    create_transform_im(
-        RandScaleIntensityd, dict(keys=CommonKeys.IMAGE, prob=1.0, factors=(5, 10)), data, colorbar=True
-    )
+    create_transform_im(RandScaleIntensityd, dict(keys=CommonKeys.IMAGE, prob=1.0, factors=(5, 10)), data, colorbar=True)
     create_transform_im(DivisiblePad, dict(k=64), data)
     create_transform_im(DivisiblePadd, dict(keys=keys, k=64), data)
     create_transform_im(CropForeground, dict(), data)
@@ -539,9 +543,7 @@ if __name__ == "__main__":
     create_transform_im(ShiftIntensity, dict(offset=1), data, colorbar=True)
     create_transform_im(ShiftIntensityd, dict(keys=CommonKeys.IMAGE, offset=1), data, colorbar=True)
     create_transform_im(RandShiftIntensity, dict(prob=1.0, offsets=(10, 20)), data, colorbar=True)
-    create_transform_im(
-        RandShiftIntensityd, dict(keys=CommonKeys.IMAGE, prob=1.0, offsets=(10, 20)), data, colorbar=True
-    )
+    create_transform_im(RandShiftIntensityd, dict(keys=CommonKeys.IMAGE, prob=1.0, offsets=(10, 20)), data, colorbar=True)
     create_transform_im(StdShiftIntensity, dict(factor=10), data, colorbar=True)
     create_transform_im(StdShiftIntensityd, dict(keys=CommonKeys.IMAGE, factor=10), data, colorbar=True)
     create_transform_im(RandStdShiftIntensity, dict(prob=1.0, factors=(5, 10)), data, colorbar=True)
@@ -629,9 +631,7 @@ if __name__ == "__main__":
     )
     create_transform_im(
         RandCropByLabelClasses,
-        dict(
-            spatial_size=(100, 100, 100), label=data[CommonKeys.LABEL] > 0, num_classes=2, ratios=[0, 1], num_samples=4
-        ),
+        dict(spatial_size=(100, 100, 100), label=data[CommonKeys.LABEL] > 0, num_classes=2, ratios=[0, 1], num_samples=4),
         data,
     )
     create_transform_im(
@@ -655,9 +655,7 @@ if __name__ == "__main__":
     create_transform_im(AsDiscrete, dict(to_onehot=None, threshold=10), data, is_post=True, colorbar=True)
     create_transform_im(AsDiscreted, dict(keys=CommonKeys.LABEL, to_onehot=None, threshold=10), data, is_post=True)
     create_transform_im(LabelFilter, dict(applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True)
-    create_transform_im(
-        LabelFilterd, dict(keys=CommonKeys.LABEL, applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True
-    )
+    create_transform_im(LabelFilterd, dict(keys=CommonKeys.LABEL, applied_labels=(1, 2, 3, 4, 5, 6)), data, is_post=True)
     create_transform_im(LabelToContour, dict(), data, is_post=True)
     create_transform_im(LabelToContourd, dict(keys=CommonKeys.LABEL), data, is_post=True)
     create_transform_im(Spacing, dict(pixdim=(5, 5, 5), image_only=True), data)
@@ -677,9 +675,7 @@ if __name__ == "__main__":
     )
     create_transform_im(
         GridDistortiond,
-        dict(
-            keys=keys, num_cells=3, distort_steps=[(1.5,) * 4] * 3, mode=["bilinear", "nearest"], padding_mode="zeros"
-        ),
+        dict(keys=keys, num_cells=3, distort_steps=[(1.5,) * 4] * 3, mode=["bilinear", "nearest"], padding_mode="zeros"),
         data,
     )
     create_transform_im(RandGridDistortion, dict(num_cells=3, prob=1.0, distort_limit=(-0.1, 0.1)), data)
@@ -689,20 +685,31 @@ if __name__ == "__main__":
         data,
     )
     create_transform_im(
-        RandSmoothFieldAdjustContrast, dict(spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0), data
+        RandSmoothFieldAdjustContrast, dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0), data
     )
     create_transform_im(
         RandSmoothFieldAdjustContrastd,
-        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0),
+        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0),
         data,
     )
     create_transform_im(
         RandSmoothFieldAdjustIntensity,
-        dict(spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0, gamma=(0.5, 4.5)),
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, gamma=(0.5, 4.5)),
         data,
     )
     create_transform_im(
         RandSmoothFieldAdjustIntensityd,
-        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0, gamma=(0.5, 4.5)),
+        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, gamma=(0.5, 4.5)),
+        data,
+    )
+
+    create_transform_im(
+        RandSmoothDeform,
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05,grid_mode="blinear"),
+        data,
+    )
+    create_transform_im(
+        RandSmoothDeformd,
+        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05,grid_mode="blinear"),
         data,
     )

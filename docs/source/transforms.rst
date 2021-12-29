@@ -746,6 +746,8 @@ Smooth Field
 
 `RandSmoothDeform`
 """"""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothDeform.png
+    :alt: example of RandSmoothDeform
 .. autoclass:: RandSmoothDeform
     :members:
     :special-members: __call__
@@ -1561,6 +1563,8 @@ Smooth Field (Dict)
 
 `RandSmoothDeformd`
 """""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothDeformd.png
+    :alt: example of RandSmoothDeformd
 .. autoclass:: RandSmoothDeformd
     :members:
     :special-members: __call__
