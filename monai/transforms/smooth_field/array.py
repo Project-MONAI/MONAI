@@ -355,7 +355,7 @@ class RandSmoothDeform(RandomizableTransform):
         device: Pytorch device to define field on
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,
