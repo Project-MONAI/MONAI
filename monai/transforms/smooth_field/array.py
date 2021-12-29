@@ -22,7 +22,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import Randomizable, RandomizableTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
 from monai.utils.enums import TransformBackends
-from monai.utils.module import look_up_option
+from monai.utils.module import look_up_option, pytorch_after
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 __all__ = ["SmoothField", "RandSmoothFieldAdjustContrast", "RandSmoothFieldAdjustIntensity", "RandSmoothDeform"]
@@ -402,7 +402,12 @@ class RandSmoothDeform(RandomizableTransform):
 
         grid_space = spatial_size if spatial_size is not None else self.sfield.field.shape[2:]
         grid_ranges = [torch.linspace(-1, 1, d) for d in grid_space]
-        grid = torch.meshgrid(*grid_ranges, indexing="ij")
+        
+        if pytorch_after(1, 10):
+            grid = torch.meshgrid(*grid_ranges, indexing="ij")
+        else:
+            grid = torch.meshgrid(*grid_ranges)
+        
         self.grid = torch.stack(grid).unsqueeze(0).to(self.device, self.grid_dtype)
 
     def set_random_state(
