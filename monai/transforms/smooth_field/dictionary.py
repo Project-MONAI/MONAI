@@ -15,8 +15,8 @@ from typing import Any, Hashable, Mapping, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
 from monai.config import KeysCollection
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,
