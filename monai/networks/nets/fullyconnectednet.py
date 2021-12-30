@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,9 +30,24 @@ def _get_adn_layer(
 
 class FullyConnectedNet(nn.Sequential):
     """
-    Plain full-connected layer neural network
+    Simple full-connected layer neural network composed of a sequence of linear layers with PReLU activation and
+    dropout.  The network accepts input with `in_channels` channels, has output with `out_channels` channels, and
+    hidden layer output channels given in `hidden_channels`. If `bias` is True then linear units have a bias term.
 
-    The network uses dropout and, by default, PReLU activation
+    Args:
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        hidden_channels: number of output channels for each hidden layer.
+        dropout: dropout ratio. Defaults to no dropout.
+        act: activation type and arguments. Defaults to PReLU.
+        bias: whether to have a bias term in linear units. Defaults to True.
+        adn_ordering: order of operations in :py:class:`monai.networks.blocks.ADN`.
+
+    Examples::
+
+        # accepts 4 values and infers 3 values as output, has 3 hidden layers with 10, 20, 10 values as output
+        net = FullyConnectedNet(4, 3, [10, 20, 10], dropout=0.2)
+
     """
 
     def __init__(
@@ -53,8 +68,11 @@ class FullyConnectedNet(nn.Sequential):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.hidden_channels = list(hidden_channels)
+        self.act = act
+        self.dropout = dropout
+        self.adn_ordering = adn_ordering
+
         self.add_module("flatten", nn.Flatten())
-        self.adn_layer = _get_adn_layer(act, dropout, adn_ordering)
 
         prev_channels = self.in_channels
         for i, c in enumerate(hidden_channels):
@@ -64,13 +82,34 @@ class FullyConnectedNet(nn.Sequential):
         self.add_module("output", nn.Linear(prev_channels, out_channels, bias))
 
     def _get_layer(self, in_channels: int, out_channels: int, bias: bool) -> nn.Sequential:
-        seq = nn.Sequential(nn.Linear(in_channels, out_channels, bias))
-        seq.add_module("ADN", self.adn_layer)
+        seq = nn.Sequential(
+            nn.Linear(in_channels, out_channels, bias), _get_adn_layer(self.act, self.dropout, self.adn_ordering)
+        )
         return seq
 
 
 class VarFullyConnectedNet(nn.Module):
-    """Variational fully-connected network."""
+    """
+    Variational fully-connected network. This is composed of an encode layer, reparameterization layer, and then a
+    decode layer.
+
+    Args:
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        latent_size: number of latent variables to use.
+        encode_channels: number of output channels for each hidden layer of the encode half.
+        decode_channels: number of output channels for each hidden layer of the decode half.
+        dropout: dropout ratio. Defaults to no dropout.
+        act: activation type and arguments. Defaults to PReLU.
+        bias: whether to have a bias term in linear units. Defaults to True.
+        adn_ordering: order of operations in :py:class:`monai.networks.blocks.ADN`.
+
+    Examples::
+
+        # accepts inputs with 4 values, uses a latent space of 2 variables, and produces outputs of 3 values
+        net = VarFullyConnectedNet(4, 3, 2, [5, 10], [10, 5])
+
+    """
 
     def __init__(
         self,

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -81,8 +81,4 @@ class DataLoader(_TorchDataLoader):
         if "worker_init_fn" not in kwargs:
             kwargs.update({"worker_init_fn": worker_init_fn})
 
-        super().__init__(  # type: ignore[call-overload]
-            dataset=dataset,
-            num_workers=num_workers,
-            **kwargs,
-        )
+        super().__init__(dataset=dataset, num_workers=num_workers, **kwargs)  # type: ignore[call-overload]

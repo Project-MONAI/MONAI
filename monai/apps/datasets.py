@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import sys
+from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 
 from monai.apps.utils import download_and_extract
+from monai.config.type_definitions import PathLike
 from monai.data import (
     CacheDataset,
     load_decathlon_datalist,
@@ -50,6 +51,12 @@ class MedNISTDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
+        progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cached content
+            (for example, randomly crop from the cached image and deepcopy the crop region)
+            or if every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -64,7 +71,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
     def __init__(
         self,
-        root_dir: str,
+        root_dir: PathLike,
         section: str,
         transform: Union[Sequence[Callable], Callable] = (),
         download: bool = False,
@@ -74,20 +81,30 @@ class MedNISTDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
+        progress: bool = True,
+        copy_cache: bool = True,
     ) -> None:
-        if not os.path.isdir(root_dir):
+        root_dir = Path(root_dir)
+        if not root_dir.is_dir():
             raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
         self.val_frac = val_frac
         self.test_frac = test_frac
         self.set_random_state(seed=seed)
-        tarfile_name = os.path.join(root_dir, self.compressed_file_name)
-        dataset_dir = os.path.join(root_dir, self.dataset_folder_name)
+        tarfile_name = root_dir / self.compressed_file_name
+        dataset_dir = root_dir / self.dataset_folder_name
         self.num_class = 0
         if download:
-            download_and_extract(self.resource, tarfile_name, root_dir, self.md5)
+            download_and_extract(
+                url=self.resource,
+                filepath=tarfile_name,
+                output_dir=root_dir,
+                hash_val=self.md5,
+                hash_type="md5",
+                progress=progress,
+            )
 
-        if not os.path.exists(dataset_dir):
+        if not dataset_dir.is_dir():
             raise RuntimeError(
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
@@ -95,7 +112,14 @@ class MedNISTDataset(Randomizable, CacheDataset):
         if transform == ():
             transform = LoadImaged("image")
         CacheDataset.__init__(
-            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
+            self,
+            data=data,
+            transform=transform,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_workers=num_workers,
+            progress=progress,
+            copy_cache=copy_cache,
         )
 
     def randomize(self, data: List[int]) -> None:
@@ -105,21 +129,16 @@ class MedNISTDataset(Randomizable, CacheDataset):
         """Get number of classes."""
         return self.num_class
 
-    def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
         """
         Raises:
             ValueError: When ``section`` is not one of ["training", "validation", "test"].
 
         """
-        class_names = sorted((x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x))))
+        dataset_dir = Path(dataset_dir)
+        class_names = sorted(f"{x.name}" for x in dataset_dir.iterdir() if x.is_dir())  # folder name as the class name
         self.num_class = len(class_names)
-        image_files = [
-            [
-                os.path.join(dataset_dir, class_names[i], x)
-                for x in os.listdir(os.path.join(dataset_dir, class_names[i]))
-            ]
-            for i in range(self.num_class)
-        ]
+        image_files = [[f"{x}" for x in (dataset_dir / class_names[i]).iterdir()] for i in range(self.num_class)]
         num_each = [len(image_files[i]) for i in range(self.num_class)]
         image_files_list = []
         image_class = []
@@ -145,13 +164,9 @@ class MedNISTDataset(Randomizable, CacheDataset):
             raise ValueError(
                 f'Unsupported section: {self.section}, available options are ["training", "validation", "test"].'
             )
-
+        # the types of label and class name should be compatible with the pytorch dataloader
         return [
-            {
-                "image": image_files_list[i],
-                "label": image_class[i],
-                "class_name": class_name[i],
-            }
+            {"image": image_files_list[i], "label": image_class[i], "class_name": class_name[i]}
             for i in section_indices
         ]
 
@@ -184,6 +199,12 @@ class DecathlonDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
+        progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cached content
+            (for example, randomly crop from the cached image and deepcopy the crop region)
+            or if every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -238,7 +259,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
     def __init__(
         self,
-        root_dir: str,
+        root_dir: PathLike,
         task: str,
         section: str,
         transform: Union[Sequence[Callable], Callable] = (),
@@ -248,20 +269,30 @@ class DecathlonDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
+        progress: bool = True,
+        copy_cache: bool = True,
     ) -> None:
-        if not os.path.isdir(root_dir):
+        root_dir = Path(root_dir)
+        if not root_dir.is_dir():
             raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
         self.val_frac = val_frac
         self.set_random_state(seed=seed)
         if task not in self.resource:
             raise ValueError(f"Unsupported task: {task}, available options are: {list(self.resource.keys())}.")
-        dataset_dir = os.path.join(root_dir, task)
+        dataset_dir = root_dir / task
         tarfile_name = f"{dataset_dir}.tar"
         if download:
-            download_and_extract(self.resource[task], tarfile_name, root_dir, self.md5[task])
+            download_and_extract(
+                url=self.resource[task],
+                filepath=tarfile_name,
+                output_dir=root_dir,
+                hash_val=self.md5[task],
+                hash_type="md5",
+                progress=progress,
+            )
 
-        if not os.path.exists(dataset_dir):
+        if not dataset_dir.exists():
             raise RuntimeError(
                 f"Cannot find dataset directory: {dataset_dir}, please use download=True to download it."
             )
@@ -279,11 +310,18 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "numTraining",
             "numTest",
         ]
-        self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
+        self._properties = load_decathlon_properties(dataset_dir / "dataset.json", property_keys)
         if transform == ():
             transform = LoadImaged(["image", "label"])
         CacheDataset.__init__(
-            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
+            self,
+            data=data,
+            transform=transform,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_workers=num_workers,
+            progress=progress,
+            copy_cache=copy_cache,
         )
 
     def get_indices(self) -> np.ndarray:
@@ -308,9 +346,11 @@ class DecathlonDataset(Randomizable, CacheDataset):
             return {key: self._properties[key] for key in ensure_tuple(keys)}
         return {}
 
-    def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
+        # the types of the item in data list should be compatible with the dataloader
+        dataset_dir = Path(dataset_dir)
         section = "training" if self.section in ["training", "validation"] else "test"
-        datalist = load_decathlon_datalist(os.path.join(dataset_dir, "dataset.json"), True, section)
+        datalist = load_decathlon_datalist(dataset_dir / "dataset.json", True, section)
         return self._split_datalist(datalist)
 
     def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
@@ -349,14 +389,15 @@ class CrossValidation:
             root_dir="./",
             task="Task09_Spleen",
             section="training",
+            transform=train_transform,
             download=True,
         )
         dataset_fold0_train = cvdataset.get_dataset(folds=[1, 2, 3, 4])
-        dataset_fold0_val = cvdataset.get_dataset(folds=0)
+        dataset_fold0_val = cvdataset.get_dataset(folds=0, transform=val_transform, download=False)
         # execute training for fold 0 ...
 
-        dataset_fold1_train = cvdataset.get_dataset(folds=[1])
-        dataset_fold1_val = cvdataset.get_dataset(folds=[0, 2, 3, 4])
+        dataset_fold1_train = cvdataset.get_dataset(folds=[0, 2, 3, 4])
+        dataset_fold1_val = cvdataset.get_dataset(folds=1, transform=val_transform, download=False)
         # execute training for fold 1 ...
 
         ...
@@ -366,13 +407,7 @@ class CrossValidation:
 
     """
 
-    def __init__(
-        self,
-        dataset_cls,
-        nfolds: int = 5,
-        seed: int = 0,
-        **dataset_params,
-    ) -> None:
+    def __init__(self, dataset_cls, nfolds: int = 5, seed: int = 0, **dataset_params) -> None:
         if not hasattr(dataset_cls, "_split_datalist"):
             raise ValueError("dataset class must have _split_datalist API.")
         self.dataset_cls = dataset_cls
@@ -380,20 +415,24 @@ class CrossValidation:
         self.seed = seed
         self.dataset_params = dataset_params
 
-    def get_dataset(self, folds: Union[Sequence[int], int]):
+    def get_dataset(self, folds: Union[Sequence[int], int], **dataset_params):
         """
         Generate dataset based on the specified fold indice in the cross validation group.
 
         Args:
             folds: index of folds for training or validation, if a list of values, concatenate the data.
+            dataset_params: other additional parameters for the dataset_cls base class, will override
+                the same parameters in `self.dataset_params`.
 
         """
         nfolds = self.nfolds
         seed = self.seed
+        dataset_params_ = dict(self.dataset_params)
+        dataset_params_.update(dataset_params)
 
         class _NsplitsDataset(self.dataset_cls):  # type: ignore
             def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
                 data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=True, seed=seed)
                 return select_cross_validation_folds(partitions=data, folds=folds)
 
-        return _NsplitsDataset(**self.dataset_params)
+        return _NsplitsDataset(**dataset_params_)

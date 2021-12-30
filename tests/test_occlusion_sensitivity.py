@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,47 +29,27 @@ model_3d.eval()
 
 # 2D w/ bounding box
 TEST_CASE_0 = [
-    {
-        "nn_module": model_2d,
-    },
-    {
-        "x": torch.rand(1, 1, 48, 64).to(device),
-        "b_box": [-1, -1, 2, 40, 1, 62],
-    },
+    {"nn_module": model_2d},
+    {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [-1, -1, 2, 40, 1, 62]},
     (1, 1, 39, 62, out_channels_2d),
     (1, 1, 39, 62),
 ]
 # 3D w/ bounding box and stride
 TEST_CASE_1 = [
     {"nn_module": model_3d, "n_batch": 10, "stride": (2, 1, 2), "mask_size": (16, 15, 14)},
-    {
-        "x": torch.rand(1, 1, 6, 6, 6).to(device),
-        "b_box": [-1, -1, 2, 3, -1, -1, -1, -1],
-    },
+    {"x": torch.rand(1, 1, 6, 6, 6).to(device), "b_box": [-1, -1, 2, 3, -1, -1, -1, -1]},
     (1, 1, 2, 6, 6, out_channels_3d),
     (1, 1, 2, 6, 6),
 ]
 
 TEST_CASE_FAIL_0 = [  # 2D should fail, since 3 stride values given
-    {
-        "nn_module": model_2d,
-        "n_batch": 10,
-        "stride": (2, 2, 2),
-    },
-    {
-        "x": torch.rand(1, 1, 48, 64).to(device),
-        "b_box": [-1, -1, 2, 3, -1, -1],
-    },
+    {"nn_module": model_2d, "n_batch": 10, "stride": (2, 2, 2)},
+    {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [-1, -1, 2, 3, -1, -1]},
 ]
 
 TEST_CASE_FAIL_1 = [  # 2D should fail, since stride is not a factor of image size
-    {
-        "nn_module": model_2d,
-        "stride": 3,
-    },
-    {
-        "x": torch.rand(1, 1, 48, 64).to(device),
-    },
+    {"nn_module": model_2d, "stride": 3},
+    {"x": torch.rand(1, 1, 48, 64).to(device)},
 ]
 
 
