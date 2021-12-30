@@ -115,7 +115,7 @@ class SmoothField(Randomizable):
         if randomize:
             self.randomize()
 
-        field = self.field.to(self.device).clone()
+        field = self.field.clone()
 
         if self.spatial_zoom is not None:
             resized_field = interpolate(  # type: ignore
@@ -131,7 +131,7 @@ class SmoothField(Randomizable):
             minv = self.field.min()
             maxv = self.field.max()
 
-            # faster than rescale_array (?)
+            # faster than rescale_array, this uses in-place operations and doesn't perform unneeded range checks
             norm_field = (resized_field.squeeze(0) - mina).div_(maxa - mina)
             field = norm_field.mul_(maxv - minv).add_(minv)
 
