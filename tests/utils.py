@@ -97,6 +97,10 @@ def test_pretrained_networks(network, input_param, device):
         return network(**input_param).to(device)
     except (URLError, HTTPError) as e:
         raise unittest.SkipTest(e) from e
+    except RuntimeError as r_error:
+        if "unexpected EOF" in f"{r_error}":  # The file might be corrupted.
+            raise unittest.SkipTest(f"{r_error}") from r_error
+        raise
 
 
 def test_is_quick():
