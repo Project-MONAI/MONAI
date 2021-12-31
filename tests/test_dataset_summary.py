@@ -44,7 +44,16 @@ class TestDatasetSummary(unittest.TestCase):
                 data=data_dicts, transform=LoadImaged(keys=["image", "label"], meta_keys=["test1", "test2"])
             )
 
-            calculator = DatasetSummary(dataset, num_workers=4, meta_key="test1")
+            # test **kwargs of `DatasetSummary` for `DataLoader`
+            def _test_collate(batch):
+                elem = batch[0]
+                elem_type = type(elem)
+                if isinstance(elem, np.ndarray):
+                    return np.stack(batch, 0)
+                elif isinstance(elem, dict):
+                    return elem_type({key: _test_collate([d[key] for d in batch]) for key in elem})
+
+            calculator = DatasetSummary(dataset, num_workers=4, meta_key="test1", collate_fn=_test_collate)
 
             target_spacing = calculator.get_target_spacing()
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))

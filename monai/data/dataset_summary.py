@@ -18,6 +18,8 @@ import torch
 from monai.config import KeysCollection
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
+from monai.transforms import concatenate
+from monai.utils import convert_data_type
 
 
 class DatasetSummary:
@@ -98,8 +100,8 @@ class DatasetSummary:
             self.collect_meta_data()
         if spacing_key not in self.all_meta_data[0]:
             raise ValueError("The provided spacing_key is not in self.all_meta_data.")
-
-        all_spacings = torch.cat([data[spacing_key][:, 1:4] for data in self.all_meta_data], dim=0).numpy()
+        all_spacings = concatenate(to_cat=[data[spacing_key][:, 1:4] for data in self.all_meta_data], axis=0)
+        all_spacings, *_ = convert_data_type(data=all_spacings, output_type=np.ndarray, wrap_sequence=True)
 
         target_spacing = np.median(all_spacings, axis=0)
         if max(target_spacing) / min(target_spacing) >= anisotropic_threshold:
@@ -132,6 +134,8 @@ class DatasetSummary:
                 image, label = data[self.image_key], data[self.label_key]
             else:
                 image, label = data
+            image, *_ = convert_data_type(data=image, output_type=torch.Tensor)
+            label, *_ = convert_data_type(data=label, output_type=torch.Tensor)
 
             voxel_max.append(image.max().item())
             voxel_min.append(image.min().item())
@@ -175,6 +179,8 @@ class DatasetSummary:
                 image, label = data[self.image_key], data[self.label_key]
             else:
                 image, label = data
+            image, *_ = convert_data_type(data=image, output_type=torch.Tensor)
+            label, *_ = convert_data_type(data=label, output_type=torch.Tensor)
 
             intensities = image[torch.where(label > foreground_threshold)].tolist()
             if sampling_flag:
