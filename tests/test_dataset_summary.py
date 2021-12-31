@@ -40,9 +40,11 @@ class TestDatasetSummary(unittest.TestCase):
                 {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
+            dataset = Dataset(
+                data=data_dicts, transform=LoadImaged(keys=["image", "label"], meta_keys=["test1", "test2"])
+            )
 
-            calculator = DatasetSummary(dataset, num_workers=4)
+            calculator = DatasetSummary(dataset, num_workers=4, meta_key="test1")
 
             target_spacing = calculator.get_target_spacing()
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))
@@ -74,7 +76,7 @@ class TestDatasetSummary(unittest.TestCase):
 
             dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
 
-            calculator = DatasetSummary(dataset, num_workers=4)
+            calculator = DatasetSummary(dataset, num_workers=4, meta_key_postfix="meta_dict")
 
             target_spacing = calculator.get_target_spacing(anisotropic_threshold=4.0, percentile=20.0)
             np.testing.assert_allclose(target_spacing, (1.0, 1.0, 1.8))
