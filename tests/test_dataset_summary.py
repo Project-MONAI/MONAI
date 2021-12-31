@@ -22,6 +22,15 @@ from monai.transforms import LoadImaged
 from monai.utils import set_determinism
 
 
+def test_collate(batch):
+    elem = batch[0]
+    elem_type = type(elem)
+    if isinstance(elem, np.ndarray):
+        return np.stack(batch, 0)
+    elif isinstance(elem, dict):
+        return elem_type({key: test_collate([d[key] for d in batch]) for key in elem})
+
+
 class TestDatasetSummary(unittest.TestCase):
     def test_spacing_intensity(self):
         set_determinism(seed=0)
@@ -45,15 +54,7 @@ class TestDatasetSummary(unittest.TestCase):
             )
 
             # test **kwargs of `DatasetSummary` for `DataLoader`
-            def _test_collate(batch):
-                elem = batch[0]
-                elem_type = type(elem)
-                if isinstance(elem, np.ndarray):
-                    return np.stack(batch, 0)
-                elif isinstance(elem, dict):
-                    return elem_type({key: _test_collate([d[key] for d in batch]) for key in elem})
-
-            calculator = DatasetSummary(dataset, num_workers=4, meta_key="test1", collate_fn=_test_collate)
+            calculator = DatasetSummary(dataset, num_workers=4, meta_key="test1", collate_fn=test_collate)
 
             target_spacing = calculator.get_target_spacing()
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))
