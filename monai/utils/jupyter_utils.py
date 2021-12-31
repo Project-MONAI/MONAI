@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,10 +16,13 @@ Matplotlib produce common plots for metrics and images.
 
 from enum import Enum
 from threading import RLock, Thread
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+
+from monai.config import IgniteInfo
+from monai.utils.module import min_version, optional_import
 
 try:
     import matplotlib.pyplot as plt
@@ -28,14 +31,11 @@ try:
 except ImportError:
     has_matplotlib = False
 
-try:
+if TYPE_CHECKING:
     from ignite.engine import Engine, Events
-
-    has_ignite = True
-except ImportError:
-    Engine = object
-    Events = object
-    has_ignite = False
+else:
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
 LOSS_NAME = "loss"
 
@@ -128,7 +128,7 @@ def plot_metric_images(
         else:
             im.imshow(np.squeeze(imagemap[n]), cmap="gray")
 
-        im.set_title("%s\n%.3g -> %.3g" % (n, imagemap[n].min(), imagemap[n].max()))
+        im.set_title(f"{n}\n{imagemap[n].min():.3g} -> {imagemap[n].max():.3g}")
         im.axis("off")
         axes.append(im)
 
@@ -161,6 +161,7 @@ def plot_engine_status(
     window_fraction: int = 20,
     image_fn: Optional[Callable] = tensor_to_images,
     fig=None,
+    selected_inst: int = 0,
 ) -> Tuple:
     """
     Plot the status of the given Engine with its logger. The plot will consist of a graph of loss values and metrics
@@ -177,6 +178,7 @@ def plot_engine_status(
         window_fraction: for metric plot, what fraction of the graph value length to use as the running average window
         image_fn: callable converting tensors keyed to a name in the Engine to a tuple of images to plot
         fig: Figure object to plot into, reuse from previous plotting for flicker-free refreshing
+        selected_inst: index of the instance to show in the image plot
 
     Returns:
         Figure object (or `fig` if given), list of Axes objects for graph and images
@@ -189,22 +191,36 @@ def plot_engine_status(
     graphmap = {LOSS_NAME: logger.loss}
     graphmap.update(logger.metrics)
 
-    imagemap = {}
+    imagemap: Dict = {}
     if image_fn is not None and engine.state is not None and engine.state.batch is not None:
         for src in (engine.state.batch, engine.state.output):
+            label = "Batch" if src is engine.state.batch else "Output"
+            batch_selected_inst = selected_inst  # selected batch index, set to 0 when src is decollated
+
+            # if the src object is a list of elements, ie. a decollated batch, select an element and keep it as
+            # a dictionary of tensors with a batch dimension added
             if isinstance(src, list):
-                for i, s in enumerate(src):
-                    if isinstance(s, dict):
-                        for k, v in s.items():
-                            if isinstance(v, torch.Tensor):
-                                image = image_fn(k, v)
-                                if image is not None:
-                                    imagemap[f"{k}_{i}"] = image
-                    elif isinstance(s, torch.Tensor):
-                        label = "Batch" if src is engine.state.batch else "Output"
-                        image = image_fn(label, s)
+                selected_dict = src[selected_inst]  # select this element
+                batch_selected_inst = 0  # set the selection to be the single index in the batch dimension
+                # store each tensor that is interpretable as an image with an added batch dimension
+                src = {k: v[None] for k, v in selected_dict.items() if isinstance(v, torch.Tensor) and v.ndim >= 3}
+
+            # images will be generated from the batch item selected above only, or from the single item given as `src`
+
+            if isinstance(src, dict):
+                for k, v in src.items():
+                    if isinstance(v, torch.Tensor) and v.ndim >= 4:
+                        image = image_fn(k, v[batch_selected_inst])
+
+                        # if we have images add each one separately to the map
                         if image is not None:
-                            imagemap[f"{label}_{i}"] = image
+                            for i, im in enumerate(image):
+                                imagemap[f"{k}_{i}"] = im
+
+            elif isinstance(src, torch.Tensor):
+                image = image_fn(label, src)
+                if image is not None:
+                    imagemap[f"{label}_{i}"] = image
 
     axes = plot_metric_images(fig, title, graphmap, imagemap, yscale, avg_keys, window_fraction)
 

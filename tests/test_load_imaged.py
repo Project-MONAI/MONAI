@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -81,12 +81,7 @@ class TestConsistency(unittest.TestCase):
     def _cmp(self, filename, shape, ch_shape, reader_1, reader_2, outname, ext):
         data_dict = {"img": filename}
         keys = data_dict.keys()
-        xforms = Compose(
-            [
-                LoadImaged(keys, reader=reader_1),
-                EnsureChannelFirstD(keys),
-            ]
-        )
+        xforms = Compose([LoadImaged(keys, reader=reader_1), EnsureChannelFirstD(keys)])
         img_dict = xforms(data_dict)  # load dicom with itk
         self.assertTupleEqual(img_dict["img"].shape, ch_shape)
         self.assertTupleEqual(tuple(img_dict["img_meta_dict"]["spatial_shape"]), shape)
@@ -97,12 +92,7 @@ class TestConsistency(unittest.TestCase):
             )
             save_xform(img_dict)  # save to nifti
 
-            new_xforms = Compose(
-                [
-                    LoadImaged(keys, reader=reader_2),
-                    EnsureChannelFirstD(keys),
-                ]
-            )
+            new_xforms = Compose([LoadImaged(keys, reader=reader_2), EnsureChannelFirstD(keys)])
             out = new_xforms({"img": os.path.join(tempdir, outname)})  # load nifti with itk
             self.assertTupleEqual(out["img"].shape, ch_shape)
             self.assertTupleEqual(tuple(out["img_meta_dict"]["spatial_shape"]), shape)
