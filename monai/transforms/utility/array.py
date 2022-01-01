@@ -789,7 +789,7 @@ class LabelToMask(Transform):
         if img.shape[0] > 1:
             data = img[[*select_labels]]
         else:
-            where = np.where if isinstance(img, np.ndarray) else torch.where
+            where: Callable = np.where if isinstance(img, np.ndarray) else torch.where  # type: ignore
             if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
                 data = where(in1d(img, select_labels), True, False).reshape(img.shape)
             # pre pytorch 1.8.0, need to use 1/0 instead of True/False
