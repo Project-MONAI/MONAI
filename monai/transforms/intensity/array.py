@@ -443,6 +443,7 @@ class ScaleIntensity(Transform):
             ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
 
         """
+        ret: NdarrayOrTensor
         if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
@@ -591,7 +592,7 @@ class RandBiasField(RandomizableTransform):
             axis=0,
         )
         img_np, *_ = convert_data_type(img, np.ndarray)
-        out = img_np * np.exp(_bias_fields)
+        out: NdarrayOrTensor = img_np * np.exp(_bias_fields)
         out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype or img.dtype)
         return out
 

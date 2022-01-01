@@ -122,7 +122,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             copy_cache=copy_cache,
         )
 
-    def randomize(self, data: List[int]) -> None:
+    def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
     def get_num_classes(self) -> int:
@@ -331,7 +331,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         """
         return self.indices
 
-    def randomize(self, data: List[int]) -> None:
+    def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
     def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):
