@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,12 +41,7 @@ TEST_CASES_3D = [
 
 
 class TestPathologyProbNMS(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASES_2D,
-            TEST_CASES_3D,
-        ]
-    )
+    @parameterized.expand([TEST_CASES_2D, TEST_CASES_3D])
     def test_output(self, class_args, call_args, probs_map, expected):
         nms = PathologyProbNMS(**class_args)
         output = nms(probs_map, **call_args)

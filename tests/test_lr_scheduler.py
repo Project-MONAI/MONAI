@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,7 @@ from monai.optimizers.lr_scheduler import WarmupCosineSchedule
 
 class SchedulerTestNet(torch.nn.Module):
     def __init__(self):
-        super(SchedulerTestNet, self).__init__()
+        super().__init__()
         self.conv1 = torch.nn.Conv2d(1, 1, 1)
         self.conv2 = torch.nn.Conv2d(1, 1, 1)
 
@@ -28,13 +28,7 @@ class SchedulerTestNet(torch.nn.Module):
 
 
 TEST_CASE_LRSCHEDULER = [
-    [
-        {
-            "warmup_steps": 2,
-            "t_total": 10,
-        },
-        [0.000, 0.500, 1.00, 0.962, 0.854, 0.691, 0.500, 0.309, 0.146, 0.038],
-    ]
+    [{"warmup_steps": 2, "t_total": 10}, [0.000, 0.500, 1.00, 0.962, 0.854, 0.691, 0.500, 0.309, 0.146, 0.038]]
 ]
 
 
@@ -47,11 +41,11 @@ class TestLRSCHEDULER(unittest.TestCase):
         self.assertEqual(len([scheduler.get_last_lr()[0]]), 1)
         lrs_1 = []
         for _ in range(input_param["t_total"]):
-            lrs_1.append(float("{:.3f}".format(scheduler.get_last_lr()[0])))
+            lrs_1.append(float(f"{scheduler.get_last_lr()[0]:.3f}"))
             optimizer.step()
             scheduler.step()
         for a, b in zip(lrs_1, expected_lr):
-            self.assertEqual(a, b, msg="LR is wrong ! expected {}, got {}".format(b, a))
+            self.assertEqual(a, b, msg=f"LR is wrong ! expected {b}, got {a}")
 
 
 if __name__ == "__main__":

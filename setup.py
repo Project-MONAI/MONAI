@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -53,11 +53,7 @@ finally:
 
 def torch_parallel_backend():
     try:
-        match = re.search(
-            "^ATen parallel backend: (?P<backend>.*)$",
-            torch._C._parallel_info(),
-            re.MULTILINE,
-        )
+        match = re.search("^ATen parallel backend: (?P<backend>.*)$", torch._C._parallel_info(), re.MULTILINE)
         if match is None:
             return None
         backend = match.group("backend")

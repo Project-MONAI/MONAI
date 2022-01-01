@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,17 +15,19 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
+from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
 
 def write_nifti(
-    data: np.ndarray,
+    data: NdarrayOrTensor,
     file_name: str,
-    affine: Optional[np.ndarray] = None,
+    affine: Optional[NdarrayOrTensor] = None,
     target_affine: Optional[np.ndarray] = None,
     resample: bool = True,
     output_spatial_shape: Union[Sequence[int], np.ndarray, None] = None,
@@ -96,13 +98,17 @@ def write_nifti(
             If None, use the data type of input data.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
     """
+    if isinstance(data, torch.Tensor):
+        data, *_ = convert_data_type(data, np.ndarray)
+    if isinstance(affine, torch.Tensor):
+        affine, *_ = convert_data_type(affine, np.ndarray)
     if not isinstance(data, np.ndarray):
-        raise AssertionError("input data must be numpy array.")
+        raise AssertionError("input data must be numpy array or torch tensor.")
     dtype = dtype or data.dtype
     sr = min(data.ndim, 3)
     if affine is None:
         affine = np.eye(4, dtype=np.float64)
-    affine = to_affine_nd(sr, affine)
+    affine = to_affine_nd(sr, affine)  # type: ignore
 
     if target_affine is None:
         target_affine = affine
@@ -110,7 +116,7 @@ def write_nifti(
 
     if np.allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
@@ -122,7 +128,7 @@ def write_nifti(
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
     if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, _affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, _affine))  # type: ignore
         nib.save(results_img, file_name)
         return
 
@@ -138,11 +144,11 @@ def write_nifti(
         while len(output_spatial_shape_) < 3:
             output_spatial_shape_ = output_spatial_shape_ + [1]
         spatial_shape, channel_shape = data.shape[:3], data.shape[3:]
-        data_np = data.reshape(list(spatial_shape) + [-1])
+        data_np: np.ndarray = data.reshape(list(spatial_shape) + [-1])  # type: ignore
         data_np = np.moveaxis(data_np, -1, 0)  # channel first for pytorch
         data_torch = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data_np).astype(dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
+            torch.as_tensor(np.ascontiguousarray(data_np, dtype=dtype)).unsqueeze(0),
+            torch.as_tensor(np.ascontiguousarray(transform, dtype=dtype)),
             spatial_size=output_spatial_shape_[:3],
         )
         data_np = data_torch.squeeze(0).detach().cpu().numpy()
@@ -152,12 +158,12 @@ def write_nifti(
         while len(output_spatial_shape_) < len(data.shape):
             output_spatial_shape_ = output_spatial_shape_ + [1]
         data_torch = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data).astype(dtype)[None, None]),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
+            torch.as_tensor(np.ascontiguousarray(data, dtype=dtype)[None, None]),
+            torch.as_tensor(np.ascontiguousarray(transform, dtype=dtype)),
             spatial_size=output_spatial_shape_[: len(data.shape)],
         )
         data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
 
-    results_img = nib.Nifti1Image(data_np.astype(output_dtype), to_affine_nd(3, target_affine))
+    results_img = nib.Nifti1Image(data_np.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return
