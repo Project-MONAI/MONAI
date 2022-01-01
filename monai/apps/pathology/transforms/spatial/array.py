@@ -60,7 +60,7 @@ class SplitOnGrid(Transform):
             if isinstance(image, torch.Tensor):
                 return torch.stack([image])
             elif isinstance(image, np.ndarray):
-                return np.stack([image])
+                return np.stack([image])  # type: ignore
             else:
                 raise ValueError(f"Input type [{type(image)}] is not supported.")
 

@@ -101,7 +101,7 @@ def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None) -> Union[Ndarra
         Resulting value (scalar)
     """
     if np.isscalar(q):
-        if not 0 <= q <= 100:
+        if not 0 <= q <= 100:  # type: ignore
             raise ValueError
     elif any(q < 0) or any(q > 100):
         raise ValueError
@@ -134,7 +134,7 @@ def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
         if x is not None:
             result = np.where(condition, x, y)
         else:
-            result = np.where(condition)
+            result = np.where(condition)  # type: ignore
     else:
         if x is not None:
             x = torch.as_tensor(x, device=condition.device)
