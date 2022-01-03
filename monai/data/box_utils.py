@@ -72,7 +72,7 @@ def get_dimension(
     bbox: torch.Tensor = None, image_size: Union[Sequence[int], torch.Tensor, np.ndarray] = None, mode: str = None
 ) -> int:
     """
-    Get spatial dimension for the giving setting. 
+    Get spatial dimension for the giving setting.
     Missing input is allowed. But at least one of the input value should be given.
     Returns: spatial_dimension
     """
@@ -129,7 +129,7 @@ def point_interp(point1: Union[Sequence, torch.Tensor, np.ndarray], zoom: Union[
     # compute new point
     point2 = deepcopy(point1)
     _zoom = monai.utils.misc.ensure_tuple_rep(zoom, spatial_dims)
-    for axis in range(0,spatial_dims):        
+    for axis in range(0,spatial_dims):
         point2[axis] = point1[axis]*_zoom[axis]
     return point2
 
@@ -181,7 +181,7 @@ def split_into_corners(bbox: torch.Tensor, mode: str):
             xmax,
             ymin,
             ymax,
-            zmin,            
+            zmin,
             zmax,
         )
     elif mode == "xyxy":
@@ -193,13 +193,13 @@ def split_into_corners(bbox: torch.Tensor, mode: str):
             ymax
         )
     elif mode == "xyzwhd":
-        xmin, ymin, zmin, w, h, d = = bbox.split(1, dim=-1)         
+        xmin, ymin, zmin, w, h, d = = bbox.split(1, dim=-1)
         return (
             xmin,
             xmin + (w - TO_REMOVE).clamp(min=0),
             ymin,
             ymin + (h - TO_REMOVE).clamp(min=0),
-            zmin,            
+            zmin,
             zmin + (d - TO_REMOVE).clamp(min=0),
         )
     elif mode == "xywh":
@@ -270,7 +270,7 @@ def box_area(bbox: torch.Tensor, mode: str = None) -> torch.tensor:
     Returns:
         area: 1-D tensor
     """
-    
+
     if mode == None:
         mode = get_standard_mode( int(bbox.shape[1] / 2) )
     check_standard_mode(mode)
