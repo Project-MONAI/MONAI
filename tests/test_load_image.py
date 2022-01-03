@@ -254,6 +254,15 @@ class TestLoadImage(unittest.TestCase):
         out = LoadImage()("test", reader=_MiniReader(is_compatible=False))
         self.assertEqual(out[1]["name"], "my test")
 
+    def test_itk_meta(self):
+        """test metadata from a directory"""
+        out, meta = LoadImage(reader="ITKReader", pixel_type=itk.UC, series_meta=True)("tests/testing_data/CT_DICOM")
+        idx = "0008|103e"
+        label = itk.GDCMImageIO.GetLabelFromTag(idx, "")[1]
+        val = meta[idx]
+        expected = "Series Description=Routine Brain "
+        self.assertEqual(f"{label}={val}", expected)
+
 
 if __name__ == "__main__":
     unittest.main()
