@@ -17,14 +17,14 @@ import torch
 
 import point_utils
 
-SUPPORT_MODE = ["xxyy","xxyyzz","xyxy", "xyzxyz", "xywh", "xyzwhd"]
-STANDARD_MODE = ["xxyy","xxyyzz"] # [2d_mode, 3d_mode]
+SUPPORT_MODE = ["xxyy", "xxyyzz", "xyxy", "xyzxyz", "xywh", "xyzwhd"]
+STANDARD_MODE = ["xxyy", "xxyyzz"]  # [2d_mode, 3d_mode]
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
 #      i.e., when x_min=1, x_max=2, we have w = 1
 #   if in 'xxyy','xxyyzz' mode, the bottom-right corner is included in the box,
 #       i.e., when x_min=1, x_max=2, we have w = 2
-TO_REMOVE = 0 # x_max-x_min = w -TO_REMOVE
+TO_REMOVE = 0  # x_max-x_min = w -TO_REMOVE
 
 """
 The following variables share the same definition across the functions in this file.
@@ -43,6 +43,7 @@ def check_support_mode(mode):
         raise ValueError("mode should be a string in {}.".format(SUPPORT_MODE))
     return
 
+
 def check_standard_mode(mode):
     """
     Check if the mode is supported
@@ -50,6 +51,7 @@ def check_standard_mode(mode):
     if mode not in STANDARD_MODE:
         raise ValueError("Standard mode should be a string in {}.".format(STANDARD_MODE))
     return
+
 
 def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
     """
@@ -68,11 +70,12 @@ def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> l
         in_sequence_list = list(in_sequence_list)
     return in_sequence_list
 
+
 def get_dimension(
     bbox: torch.Tensor = None, image_size: Union[Sequence[int], torch.Tensor, np.ndarray] = None, mode: str = None
 ) -> int:
     """
-    Get spatial dimension for the giving setting. 
+    Get spatial dimension for the giving setting.
     Missing input is allowed. But at least one of the input value should be given.
     Returns: spatial_dimension
     """
@@ -110,7 +113,10 @@ def get_standard_mode(spatial_dims: int) -> str:
     else:
         ValueError("Images should have 2 or 3 dimensions, got {}".format(spatial_dims))
 
-def point_interp(point1: Union[Sequence, torch.Tensor, np.ndarray], zoom: Union[Sequence[float], float]) -> Union[Sequence, torch.Tensor, np.ndarray]:
+
+def point_interp(
+    point1: Union[Sequence, torch.Tensor, np.ndarray], zoom: Union[Sequence[float], float]
+) -> Union[Sequence, torch.Tensor, np.ndarray]:
     """
     Convert point position from one pixel/voxel size to another pixel/voxel size
     Args:
@@ -129,9 +135,10 @@ def point_interp(point1: Union[Sequence, torch.Tensor, np.ndarray], zoom: Union[
     # compute new point
     point2 = deepcopy(point1)
     _zoom = monai.utils.misc.ensure_tuple_rep(zoom, spatial_dims)
-    for axis in range(0,spatial_dims):        
-        point2[axis] = point1[axis]*_zoom[axis]
+    for axis in range(0, spatial_dims):
+        point2[axis] = point1[axis] * _zoom[axis]
     return point2
+
 
 def box_interp(bbox1: torch.Tensor, zoom: Union[Sequence[float], float], mode1: str = None) -> torch.Tensor:
     """
@@ -144,22 +151,23 @@ def box_interp(bbox1: torch.Tensor, zoom: Union[Sequence[float], float], mode1: 
     Returns:
         bbox2: returned bbox has the same mode as bbox1
     """
-    if mode1 == None:
-        mode1 = get_standard_mode( int(bbox1.shape[1] / 2) )
+    if mode1 is None:
+        mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
     check_support_mode(mode1)
     spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
 
     mode_standard = get_standard_mode(spatial_dims)
     bbox1_standard = box_convert_mode(bbox1=bbox1, mode1=mode1, mode2=mode_standard)
 
-    corner_lt = point_utils.point_interp(bbox1_standard[:,::2],zoom)
-    corner_rb = point_utils.point_interp(bbox1_standard[:, 1::2],zoom)
+    corner_lt = point_utils.point_interp(bbox1_standard[:, ::2], zoom)
+    corner_rb = point_utils.point_interp(bbox1_standard[:, 1::2], zoom)
 
     bbox2_standard_interp = deepcopy(bbox2_standard)
-    bbox2_standard_interp[:,::2] = corner_lt
-    bbox2_standard_interp[:,1::2] = corner_rb
+    bbox2_standard_interp[:, ::2] = corner_lt
+    bbox2_standard_interp[:, 1::2] = corner_rb
 
     return box_convert_mode(bbox1=bbox2_standard_interp, mode1=mode_standard, mode2=mode1)
+
 
 def split_into_corners(bbox: torch.Tensor, mode: str):
     """
@@ -181,30 +189,25 @@ def split_into_corners(bbox: torch.Tensor, mode: str):
             xmax,
             ymin,
             ymax,
-            zmin,            
+            zmin,
             zmax,
         )
     elif mode == "xyxy":
         xmin, ymin, xmax, ymax = bbox.split(1, dim=-1)
-        return (
-            xmin,
-            xmax,
-            ymin,
-            ymax
-        )
+        return (xmin, xmax, ymin, ymax)
     elif mode == "xyzwhd":
-        xmin, ymin, zmin, w, h, d = = bbox.split(1, dim=-1)         
+        xmin, ymin, zmin, w, h, d = bbox.split(1, dim=-1)
         return (
             xmin,
             xmin + (w - TO_REMOVE).clamp(min=0),
             ymin,
             ymin + (h - TO_REMOVE).clamp(min=0),
-            zmin,            
+            zmin,
             zmin + (d - TO_REMOVE).clamp(min=0),
         )
     elif mode == "xywh":
         xmin, ymin, w, h = bbox.split(1, dim=-1)
-        return (xmin, xmin + (w - TO_REMOVE).clamp(min=0), ymin, ymin + (h - TO_REMOVE).clamp(min=0) )
+        return (xmin, xmin + (w - TO_REMOVE).clamp(min=0), ymin, ymin + (h - TO_REMOVE).clamp(min=0))
     else:
         raise RuntimeError("Should not be here")
 
@@ -239,7 +242,7 @@ def box_convert_mode(bbox1: torch.Tensor, mode1: str, mode2: str) -> torch.Tenso
                 (xmin, ymin, zmin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE, zmax - zmin + TO_REMOVE), dim=-1
             )
         else:
-            raise ValueError("We support only bbox mode in "+str(SUPPORT_MODE)+", got {}".format(mode2))
+            raise ValueError("We support only bbox mode in " + str(SUPPORT_MODE) + ", got {}".format(mode2))
     elif spatial_dims == 2:
         xmin, xmax, ymin, ymax = split_into_corners(deepcopy(bbox1), mode1)
         if mode2 == "xyxy":
@@ -247,7 +250,7 @@ def box_convert_mode(bbox1: torch.Tensor, mode1: str, mode2: str) -> torch.Tenso
         elif mode2 == "xywh":
             bbox2 = torch.cat((xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=-1)
         else:
-            raise ValueError("We support only bbox mode in "+str(SUPPORT_MODE)+", got {}".format(mode2))
+            raise ValueError("We support only bbox mode in " + str(SUPPORT_MODE) + ", got {}".format(mode2))
     else:
         raise ValueError("Images should have 2 or 3 dimensions, got {}".format(spatial_dims))
 
@@ -270,21 +273,24 @@ def box_area(bbox: torch.Tensor, mode: str = None) -> torch.tensor:
     Returns:
         area: 1-D tensor
     """
-    
-    if mode == None:
-        mode = get_standard_mode( int(bbox.shape[1] / 2) )
+
+    if mode is None:
+        mode = get_standard_mode(int(bbox.shape[1] / 2))
     check_standard_mode(mode)
     spatial_dims = get_dimension(bbox=bbox, mode=mode)
 
     area = bbox[:, 1] - bbox[:, 0] + TO_REMOVE
     for axis in range(1, spatial_dims):
-        area = area * (bbox[:, 2*axis +1] - bbox[:, 2*axis] + TO_REMOVE)
+        area = area * (bbox[:, 2 * axis + 1] - bbox[:, 2 * axis] + TO_REMOVE)
 
     return area
 
 
 def box_clip_to_image(
-    bbox: torch.Tensor, image_size: Union[Sequence[int], torch.Tensor, np.ndarray], mode: str = None, remove_empty: bool = True
+    bbox: torch.Tensor,
+    image_size: Union[Sequence[int], torch.Tensor, np.ndarray],
+    mode: str = None,
+    remove_empty: bool = True,
 ) -> dict:
     """
     This function makes sure the bounding boxes are within the image.
@@ -293,8 +299,8 @@ def box_clip_to_image(
     Returns:
         updated box
     """
-    if mode == None:
-        mode = get_standard_mode( int(bbox.shape[1] / 2) )
+    if mode is None:
+        mode = get_standard_mode(int(bbox.shape[1] / 2))
     check_standard_mode(mode)
     spatial_dims = get_dimension(bbox=bbox, image_size=image_size, mode=mode)
     new_bbox = deepcopy(bbox)
@@ -307,8 +313,8 @@ def box_clip_to_image(
 
     # 2. makes sure the bounding boxes are within the image
     for axis in range(0, spatial_dims):
-        new_bbox[:, 2*axis].clamp_(min=0, max=image_size[axis] - TO_REMOVE)
-        new_bbox[:, 2*axis + 1].clamp_(min=0, max=image_size[axis] - TO_REMOVE)
+        new_bbox[:, 2 * axis].clamp_(min=0, max=image_size[axis] - TO_REMOVE)
+        new_bbox[:, 2 * axis + 1].clamp_(min=0, max=image_size[axis] - TO_REMOVE)
 
     # 3. remove the boxes that are actually empty
     if remove_empty:
@@ -344,10 +350,10 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
       https://github.com/chainer/chainercv/blob/master/chainercv/utils/bbox/bbox_iou.py
     """
 
-    if mode1 == None:
-        mode1 = get_standard_mode( int(bbox1.shape[1] / 2) )
-    if mode2 == None:
-        mode2 = get_standard_mode( int(bbox2.shape[1] / 2) )
+    if mode1 is None:
+        mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
+    if mode2 is None:
+        mode2 = get_standard_mode(int(bbox2.shape[1] / 2))
     check_standard_mode(mode1)
     check_standard_mode(mode2)
     spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
@@ -361,9 +367,7 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
 
     # get the left top and right bottom points for the NxM combinations
     lt = torch.max(bbox1[:, None, ::2], bbox2[:, ::2])  # [N,M,spatial_dims] left top
-    rb = torch.min(
-        bbox1_corner[:, None, 1::2], bbox2_corner[:, 1::2]
-    )  # [N,M,spatial_dims] right bottom
+    rb = torch.min(bbox1_corner[:, None, 1::2], bbox2_corner[:, 1::2])  # [N,M,spatial_dims] right bottom
     # compute size for the intersection region for the NxM combinations
     wh = (rb - lt + TO_REMOVE).clamp(min=0)  # [N,M,spatial_dims]
     inter = wh[:, :, 0]  # [N,M]
