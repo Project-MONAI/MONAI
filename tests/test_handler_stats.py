@@ -144,10 +144,13 @@ class TestHandlerStats(unittest.TestCase):
                 output_str = f.read()
                 grep = re.compile(f".*{key_to_handler}.*")
                 has_key_word = re.compile(f".*{key_to_print}.*")
+                content_count = 0
                 for idx, line in enumerate(output_str.split("\n")):
                     if grep.match(line):
                         if idx in [1, 2, 3, 6, 7, 8]:
+                            content_count += 1
                             self.assertTrue(has_key_word.match(line))
+                self.assertTrue(content_count > 0)
 
     def test_exception(self):
         # set up engine

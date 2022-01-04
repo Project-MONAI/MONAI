@@ -73,13 +73,11 @@ class TestHandlerLrSchedule(unittest.TestCase):
 
             with open(filename) as f:
                 output_str = f.read()
-                grep = re.compile(".*learning rate.*")
+                grep = re.compile(".*Current learning rate.*")
                 content_count = 0
                 for line in output_str.split("\n"):
-                    print("!!!!!!!", line)
                     if grep.match(line):
                         content_count += 1
-                        print("!!!!count:", content_count)
                 self.assertTrue(content_count > 0)
 
         for scheduler in schedulers:
