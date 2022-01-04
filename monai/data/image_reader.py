@@ -160,7 +160,7 @@ class ITKReader(ImageReader):
             otherwise, the spatial indexing convention is reversed to be compatible with ITK. Default is ``False``.
             This option does not affect the metadata.
         series_meta: whether to load the metadata of the DICOM series (using the metadata from the first slice).
-            This flag is checked only when loading DICOM series.
+            This flag is checked only when loading DICOM series. Default is ``False``.
         kwargs: additional args for `itk.imread` API. more details about available args:
             https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itk/support/extras.py
 
@@ -235,7 +235,7 @@ class ITKReader(ImageReader):
                     _reader.Update()
                     _meta = _reader.GetMetaDataDictionaryArray()
                     if len(_meta) > 0:
-                        # using the first slice's meta. this could be improved to filter unnecessary tags.
+                        # TODO: using the first slice's meta. this could be improved to filter unnecessary tags.
                         _obj.SetMetaDataDictionary(_meta[0])
                 img_.append(_obj)
             else:
