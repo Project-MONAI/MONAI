@@ -61,7 +61,7 @@ class TestHandlerLrSchedule(unittest.TestCase):
             def _reduce_on_step():
                 optimizer = torch.optim.SGD(net.parameters(), test_lr)
                 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=gamma)
-                handler = LrScheduleHandler(lr_scheduler, logger_handler=file_saver)
+                handler = LrScheduleHandler(lr_scheduler, name="test_logging", logger_handler=file_saver)
                 handler.attach(train_engine)
                 return handler
 
