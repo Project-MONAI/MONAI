@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -39,23 +39,13 @@ TEST_CASE_1 = [
 ]
 # 2D
 TEST_CASE_2 = [
-    {
-        "model": "senet2d",
-        "shape": (2, 3, 64, 64),
-        "feature_shape": (2, 1, 2, 2),
-        "target_layers": "layer4",
-    },
+    {"model": "senet2d", "shape": (2, 3, 64, 64), "feature_shape": (2, 1, 2, 2), "target_layers": "layer4"},
     (2, 1, 64, 64),
 ]
 
 # 3D
 TEST_CASE_3 = [
-    {
-        "model": "senet3d",
-        "shape": (2, 3, 8, 8, 48),
-        "feature_shape": (2, 1, 1, 1, 2),
-        "target_layers": "layer4",
-    },
+    {"model": "senet3d", "shape": (2, 3, 8, 8, 48), "feature_shape": (2, 1, 1, 1, 2), "target_layers": "layer4"},
     (2, 1, 8, 8, 48),
 ]
 

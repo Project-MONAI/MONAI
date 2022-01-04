@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,8 +15,11 @@ from typing import List, Optional
 import numpy as np
 import torch
 
+from monai.config import KeysCollection
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
+from monai.transforms import concatenate
+from monai.utils import convert_data_type
 
 
 class DatasetSummary:
@@ -38,6 +41,7 @@ class DatasetSummary:
         dataset: Dataset,
         image_key: Optional[str] = "image",
         label_key: Optional[str] = "label",
+        meta_key: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         num_workers: int = 0,
         **kwargs,
@@ -47,11 +51,16 @@ class DatasetSummary:
             dataset: dataset from which to load the data.
             image_key: key name of images (default: ``image``).
             label_key: key name of labels (default: ``label``).
+            meta_key: explicitly indicate the key of the corresponding meta data dictionary.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                if None, will try to construct meta_keys by `{image_key}_{meta_key_postfix}`.
             meta_key_postfix: use `{image_key}_{meta_key_postfix}` to fetch the meta data from dict,
                 the meta data is a dictionary object (default: ``meta_dict``).
             num_workers: how many subprocesses to use for data loading.
                 ``0`` means that the data will be loaded in the main process (default: ``0``).
-            kwargs: other parameters (except batch_size) for DataLoader (this class forces to use ``batch_size=1``).
+            kwargs: other parameters (except `batch_size` and `num_workers`) for DataLoader,
+                this class forces to use ``batch_size=1``.
 
         """
 
@@ -59,18 +68,17 @@ class DatasetSummary:
 
         self.image_key = image_key
         self.label_key = label_key
-        if image_key:
-            self.meta_key = "{}_{}".format(image_key, meta_key_postfix)
+        self.meta_key = meta_key or f"{image_key}_{meta_key_postfix}"
         self.all_meta_data: List = []
 
     def collect_meta_data(self):
         """
         This function is used to collect the meta data for all images of the dataset.
         """
-        if not self.meta_key:
-            raise ValueError("To collect meta data for the dataset, `meta_key` should exist.")
 
         for data in self.data_loader:
+            if self.meta_key not in data:
+                raise ValueError(f"To collect meta data for the dataset, key `{self.meta_key}` must exist in `data`.")
             self.all_meta_data.append(data[self.meta_key])
 
     def get_target_spacing(self, spacing_key: str = "pixdim", anisotropic_threshold: int = 3, percentile: float = 10.0):
@@ -78,8 +86,8 @@ class DatasetSummary:
         Calculate the target spacing according to all spacings.
         If the target spacing is very anisotropic,
         decrease the spacing value of the maximum axis according to percentile.
-        So far, this function only supports NIFTI images which store spacings in headers with key "pixdim". After loading
-        with `monai.DataLoader`, "pixdim" is in the form of `torch.Tensor` with size `(batch_size, 8)`.
+        So far, this function only supports NIFTI images which store spacings in headers with key "pixdim".
+        After loading with `monai.DataLoader`, "pixdim" is in the form of `torch.Tensor` with size `(batch_size, 8)`.
 
         Args:
             spacing_key: key of spacing in meta data (default: ``pixdim``).
@@ -92,8 +100,8 @@ class DatasetSummary:
             self.collect_meta_data()
         if spacing_key not in self.all_meta_data[0]:
             raise ValueError("The provided spacing_key is not in self.all_meta_data.")
-
-        all_spacings = torch.cat([data[spacing_key][:, 1:4] for data in self.all_meta_data], dim=0).numpy()
+        all_spacings = concatenate(to_cat=[data[spacing_key][:, 1:4] for data in self.all_meta_data], axis=0)
+        all_spacings, *_ = convert_data_type(data=all_spacings, output_type=np.ndarray, wrap_sequence=True)
 
         target_spacing = np.median(all_spacings, axis=0)
         if max(target_spacing) / min(target_spacing) >= anisotropic_threshold:
@@ -126,6 +134,8 @@ class DatasetSummary:
                 image, label = data[self.image_key], data[self.label_key]
             else:
                 image, label = data
+            image, *_ = convert_data_type(data=image, output_type=torch.Tensor)
+            label, *_ = convert_data_type(data=label, output_type=torch.Tensor)
 
             voxel_max.append(image.max().item())
             voxel_min.append(image.min().item())
@@ -169,6 +179,8 @@ class DatasetSummary:
                 image, label = data[self.image_key], data[self.label_key]
             else:
                 image, label = data
+            image, *_ = convert_data_type(data=image, output_type=torch.Tensor)
+            label, *_ = convert_data_type(data=label, output_type=torch.Tensor)
 
             intensities = image[torch.where(label > foreground_threshold)].tolist()
             if sampling_flag:

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import download_and_extract, download_url, extractall
@@ -23,8 +24,8 @@ class TestDownloadAndExtract(unittest.TestCase):
     def test_actions(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         url = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
-        filepath = os.path.join(testing_dir, "MedNIST.tar.gz")
-        output_dir = testing_dir
+        filepath = Path(testing_dir) / "MedNIST.tar.gz"
+        output_dir = Path(testing_dir)
         md5_value = "0bc7306e7427e00ad1c5526a6677552d"
         try:
             download_and_extract(url, filepath, output_dir, md5_value)
@@ -37,14 +38,15 @@ class TestDownloadAndExtract(unittest.TestCase):
             return  # skipping this test due the network connection errors
 
         wrong_md5 = "0"
-        try:
-            download_url(url, filepath, wrong_md5)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, RuntimeError):
-                # FIXME: skip MD5 check as current downloading method may fail
-                self.assertTrue(str(e).startswith("md5 check"))
-            return  # skipping this test due the network connection errors
+        with self.assertLogs(logger="monai.apps", level="ERROR"):
+            try:
+                download_url(url, filepath, wrong_md5)
+            except (ContentTooShortError, HTTPError, RuntimeError) as e:
+                print(str(e))
+                if isinstance(e, RuntimeError):
+                    # FIXME: skip MD5 check as current downloading method may fail
+                    self.assertTrue(str(e).startswith("md5 check"))
+                return  # skipping this test due the network connection errors
 
         try:
             extractall(filepath, output_dir, wrong_md5)

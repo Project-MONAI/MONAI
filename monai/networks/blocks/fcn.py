@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,7 +36,7 @@ class GCN(nn.Module):
             planes: number of output channels.
             ks: kernel size for one dimension. Defaults to 7.
         """
-        super(GCN, self).__init__()
+        super().__init__()
 
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
         self.conv_l1 = conv2d_type(in_channels=inplanes, out_channels=planes, kernel_size=(ks, 1), padding=(ks // 2, 0))
@@ -67,7 +67,7 @@ class Refine(nn.Module):
         Args:
             planes: number of input channels.
         """
-        super(Refine, self).__init__()
+        super().__init__()
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
@@ -116,7 +116,7 @@ class FCN(nn.Module):
     def __init__(
         self, out_channels: int = 1, upsample_mode: str = "bilinear", pretrained: bool = True, progress: bool = True
     ):
-        super(FCN, self).__init__()
+        super().__init__()
 
         conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
@@ -154,12 +154,7 @@ class FCN(nn.Module):
         self.transformer = self.conv2d_type(in_channels=256, out_channels=64, kernel_size=1)
 
         if self.upsample_mode == "transpose":
-            self.up_conv = UpSample(
-                dimensions=2,
-                in_channels=self.out_channels,
-                scale_factor=2,
-                mode="deconv",
-            )
+            self.up_conv = UpSample(spatial_dims=2, in_channels=self.out_channels, scale_factor=2, mode="deconv")
 
     def forward(self, x: torch.Tensor):
         """
@@ -195,14 +190,7 @@ class FCN(nn.Module):
         fs2 = self.refine7(F.interpolate(fs1, fm2.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm3)
         fs3 = self.refine8(F.interpolate(fs2, pool_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm4)
         fs4 = self.refine9(F.interpolate(fs3, conv_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm5)
-        return self.refine10(
-            F.interpolate(
-                fs4,
-                org_input.size()[2:],
-                mode=self.upsample_mode,
-                align_corners=True,
-            )
-        )
+        return self.refine10(F.interpolate(fs4, org_input.size()[2:], mode=self.upsample_mode, align_corners=True))
 
 
 class MCFCN(FCN):
@@ -231,12 +219,12 @@ class MCFCN(FCN):
         pretrained: bool = True,
         progress: bool = True,
     ):
-        super(MCFCN, self).__init__(
+        super().__init__(
             out_channels=out_channels, upsample_mode=upsample_mode, pretrained=pretrained, progress=progress
         )
 
         self.init_proj = Convolution(
-            dimensions=2,
+            spatial_dims=2,
             in_channels=in_channels,
             out_channels=3,
             kernel_size=1,
@@ -251,4 +239,4 @@ class MCFCN(FCN):
             x: in shape (batch, in_channels, spatial_1, spatial_2).
         """
         x = self.init_proj(x)
-        return super(MCFCN, self).forward(x)
+        return super().forward(x)

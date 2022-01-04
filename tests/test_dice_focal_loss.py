@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,11 +24,7 @@ class TestDiceFocalLoss(unittest.TestCase):
         label = torch.randint(low=0, high=2, size=size)
         pred = torch.randn(size)
         for reduction in ["sum", "mean", "none"]:
-            common_params = {
-                "include_background": True,
-                "to_onehot_y": False,
-                "reduction": reduction,
-            }
+            common_params = {"include_background": True, "to_onehot_y": False, "reduction": reduction}
             for focal_weight in [None, torch.tensor([1.0, 1.0, 2.0]), (3, 2.0, 1)]:
                 for lambda_focal in [0.5, 1.0, 1.5]:
                     dice_focal = DiceFocalLoss(
@@ -46,11 +42,7 @@ class TestDiceFocalLoss(unittest.TestCase):
         label = torch.argmax(label, dim=1, keepdim=True)
         pred = torch.randn(size)
         for reduction in ["sum", "mean", "none"]:
-            common_params = {
-                "include_background": False,
-                "to_onehot_y": True,
-                "reduction": reduction,
-            }
+            common_params = {"include_background": False, "to_onehot_y": True, "reduction": reduction}
             for focal_weight in [2.0, torch.tensor([1.0, 2.0]), (2.0, 1)]:
                 for lambda_focal in [0.5, 1.0, 1.5]:
                     dice_focal = DiceFocalLoss(focal_weight=focal_weight, lambda_focal=lambda_focal, **common_params)
