@@ -795,7 +795,7 @@ class DataStatsd(MapTransform):
                 additional info from input data. it also can be a sequence of string, each element
                 corresponds to a key in ``keys``.
             logger_handler: add additional handler to output data: save to file, etc.
-                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+                all the existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html.
                 the handler should have a logging level of at least `INFO`.
             allow_missing_keys: don't raise exception if key is missing.
 
