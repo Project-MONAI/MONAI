@@ -50,7 +50,7 @@ class TestHandlerLrSchedule(unittest.TestCase):
             lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=1)
             handler = LrScheduleHandler(lr_scheduler, step_transform=lambda x: val_engine.state.metrics["val_loss"])
             handler.attach(train_engine)
-            return lr_scheduler
+            return handler
 
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_lr.log")
@@ -63,13 +63,13 @@ class TestHandlerLrSchedule(unittest.TestCase):
                 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=gamma)
                 handler = LrScheduleHandler(lr_scheduler, logger_handler=file_saver)
                 handler.attach(train_engine)
-                return lr_scheduler
+                return handler
 
             schedulers = _reduce_lr_on_plateau(), _reduce_on_step()
 
             train_engine.run(data, max_epochs=5)
             file_saver.close()
-            train_engine.logger.removeHandler(file_saver)
+            schedulers[1].logger.removeHandler(file_saver)
 
             with open(filename) as f:
                 output_str = f.read()
@@ -81,7 +81,7 @@ class TestHandlerLrSchedule(unittest.TestCase):
                 self.assertTrue(content_count > 0)
 
         for scheduler in schedulers:
-            np.testing.assert_allclose(scheduler._last_lr[0], 0.001)
+            np.testing.assert_allclose(scheduler.lr_scheduler._last_lr[0], 0.001)
 
 
 if __name__ == "__main__":
