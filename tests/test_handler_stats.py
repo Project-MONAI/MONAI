@@ -146,6 +146,7 @@ class TestHandlerStats(unittest.TestCase):
                 has_key_word = re.compile(f".*{key_to_print}.*")
                 content_count = 0
                 for idx, line in enumerate(output_str.split("\n")):
+                    print("!!!!!!!!", line)  # for temp test
                     if grep.match(line):
                         if idx in [1, 2, 3, 6, 7, 8]:
                             content_count += 1
