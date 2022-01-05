@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -90,7 +90,6 @@ def print_config(file=sys.stdout):
         print(f"{k} version: {v}", file=file, flush=True)
     print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}")
     print(f"MONAI rev id: {monai.__revision_id__}")
-    print(f"MONAI __file__: {monai.__file__}")
 
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
@@ -201,7 +200,8 @@ def get_gpu_info() -> OrderedDict:
 
     if num_gpus > 0:
         _dict_append(output, "Current device", torch.cuda.current_device)
-        _dict_append(output, "Library compiled for CUDA architectures", torch.cuda.get_arch_list)
+        if hasattr(torch.cuda, "get_arch_list"):  # get_arch_list is new in torch 1.7.1
+            _dict_append(output, "Library compiled for CUDA architectures", torch.cuda.get_arch_list)
 
     for gpu in range(num_gpus):
         gpu_info = torch.cuda.get_device_properties(gpu)

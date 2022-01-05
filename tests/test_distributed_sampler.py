@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,47 +12,36 @@
 import unittest
 
 import numpy as np
-import torch
 import torch.distributed as dist
 
-from monai.data import DistributedWeightedRandomSampler
+from monai.data import DistributedSampler
 from tests.utils import DistCall, DistTestCase
 
 
-class DistributedWeightedRandomSamplerTest(DistTestCase):
+class DistributedSamplerTest(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
-    def test_sampling(self):
+    def test_even(self):
         data = [1, 2, 3, 4, 5]
-        weights = [1, 2, 3, 4, 5]
-        sampler = DistributedWeightedRandomSampler(
-            weights=weights, dataset=data, shuffle=False, generator=torch.Generator().manual_seed(0)
-        )
+        sampler = DistributedSampler(dataset=data, shuffle=False)
         samples = np.array([data[i] for i in list(sampler)])
-
+        self.assertEqual(dist.get_rank(), sampler.rank)
         if dist.get_rank() == 0:
-            np.testing.assert_allclose(samples, np.array([5, 5, 5]))
+            np.testing.assert_allclose(samples, np.array([1, 3, 5]))
 
         if dist.get_rank() == 1:
-            np.testing.assert_allclose(samples, np.array([1, 4, 4]))
+            np.testing.assert_allclose(samples, np.array([2, 4, 1]))
 
     @DistCall(nnodes=1, nproc_per_node=2)
-    def test_num_samples(self):
+    def test_uneven(self):
         data = [1, 2, 3, 4, 5]
-        weights = [1, 2, 3, 4, 5]
-        sampler = DistributedWeightedRandomSampler(
-            weights=weights,
-            num_samples_per_rank=5,
-            dataset=data,
-            shuffle=False,
-            generator=torch.Generator().manual_seed(123),
-        )
+        sampler = DistributedSampler(dataset=data, shuffle=False, even_divisible=False)
         samples = np.array([data[i] for i in list(sampler)])
-
+        self.assertEqual(dist.get_rank(), sampler.rank)
         if dist.get_rank() == 0:
-            np.testing.assert_allclose(samples, np.array([3, 1, 5, 1, 5]))
+            np.testing.assert_allclose(samples, np.array([1, 3, 5]))
 
         if dist.get_rank() == 1:
-            np.testing.assert_allclose(samples, np.array([4, 2, 4, 2, 4]))
+            np.testing.assert_allclose(samples, np.array([2, 4]))
 
 
 if __name__ == "__main__":

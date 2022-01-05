@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -61,7 +61,7 @@ class TestContrastiveLoss(unittest.TestCase):
 
     def test_ill_shape(self):
         loss = ContrastiveLoss(temperature=0.5, batch_size=1)
-        with self.assertRaisesRegex(ValueError, ""):
+        with self.assertRaisesRegex(AssertionError, ""):
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
     def test_with_cuda(self):

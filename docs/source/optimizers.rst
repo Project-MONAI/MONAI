@@ -6,11 +6,6 @@ Optimizers
 ==========
 .. currentmodule:: monai.optimizers
 
-`LearningRateFinder`
---------------------
-.. autoclass:: LearningRateFinder
-    :members:
-
 `Novograd`
 ----------
 .. autoclass:: Novograd
@@ -19,18 +14,3 @@ Optimizers
 `Generate parameter groups`
 ---------------------------
 .. autofunction:: generate_param_groups
-
-`ExponentialLR`
----------------
-.. autoclass:: ExponentialLR
-    :members:
-
-`LinearLR`
-----------
-.. autoclass:: LinearLR
-    :members:
-
-`WarmupCosineSchedule`
-----------------------
-.. autoclass:: WarmupCosineSchedule
-    :members:

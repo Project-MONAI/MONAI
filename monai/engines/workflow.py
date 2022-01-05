@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,8 +10,7 @@
 # limitations under the License.
 
 import warnings
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
 import torch.distributed as dist
@@ -20,7 +19,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from monai.config import IgniteInfo
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
-from monai.transforms import Decollated
+from monai.transforms import Decollated, Transform
 from monai.utils import ensure_tuple, is_scalar, min_version, optional_import
 
 from .utils import engine_apply_transform
@@ -36,18 +35,6 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
     EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
-
-
-class BaseWorkflow(ABC):
-    """
-    Base class for any MONAI style workflow.
-    `run()` is designed to execute the train, evaluation or inference logic.
-
-    """
-
-    @abstractmethod
-    def run(self, *args, **kwargs):
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
@@ -67,13 +54,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         epoch_length: number of iterations for one epoch, default to `len(data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
-            from `engine.state.batch` for every iteration, for more details please refer to:
-            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
+        prepare_batch: function to parse image and label for every iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
-            if not provided, use `self._iteration()` instead. for more details please refer to:
-            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_metric: compute metric when every iteration completed, and save average value to
@@ -111,7 +94,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
+        iteration_update: Optional[Callable] = None,
         postprocessing: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
@@ -186,8 +169,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             self._register_decollate()
 
         if postprocessing is not None:
-            # tips: if `decollate=False` and `postprocessing` is MONAI transforms, it may not work well
-            # because all the MONAI transforms expect `channel-first` data
+            if not decollate and isinstance(postprocessing, Transform):
+                warnings.warn("MONAI transforms expect `channel-first` data, `decollate=False` may not work here.")
             self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)

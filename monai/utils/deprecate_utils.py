@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import inspect
-import sys
 import warnings
 from functools import wraps
 from types import FunctionType
@@ -63,7 +62,7 @@ def deprecated(
 
     # if version_val.startswith("0+"):
     #     # version unknown, set version_val to a large value (assuming the latest version)
-    #     version_val = f"{sys.maxsize}"
+    #     version_val = "100"
     if since is not None and removed is not None and not version_leq(since, removed):
         raise ValueError(f"since must be less or equal to removed, got since={since}, removed={removed}.")
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
@@ -145,8 +144,6 @@ def deprecated_arg(
         msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead.
         version_val: (used for testing) version to compare since and removed against, default is MONAI version.
         new_name: name of position or keyword argument to replace the deprecated argument.
-            if it is specified and the signature of the decorated function has a `kwargs`, the value to the
-            deprecated argument `name` will be removed.
 
     Returns:
         Decorated callable which warns or raises exception when deprecated argument used.
@@ -154,7 +151,7 @@ def deprecated_arg(
 
     if version_val.startswith("0+") or not f"{version_val}".strip()[0].isdigit():
         # version unknown, set version_val to a large value (assuming the latest version)
-        version_val = f"{sys.maxsize}"
+        version_val = "100"
     if since is not None and removed is not None and not version_leq(since, removed):
         raise ValueError(f"since must be less or equal to removed, got since={since}, removed={removed}.")
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
@@ -200,13 +197,9 @@ def deprecated_arg(
                     # multiple values for new_name using both args and kwargs
                     kwargs.pop(new_name, None)
             binding = sig.bind(*args, **kwargs).arguments
+
             positional_found = name in binding
-            kw_found = False
-            for k, param in sig.parameters.items():
-                if param.kind == inspect.Parameter.VAR_KEYWORD and k in binding and name in binding[k]:
-                    kw_found = True
-                    # if the deprecated arg is found in the **kwargs, it should be removed
-                    kwargs.pop(name, None)
+            kw_found = "kwargs" in binding and name in binding["kwargs"]
 
             if positional_found or kw_found:
                 if is_removed:

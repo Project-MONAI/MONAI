@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,14 +38,12 @@ doNetTests=false
 doDryRun=false
 doZooTests=false
 doUnitTests=false
-doBuild=false
 doBlackFormat=false
 doBlackFix=false
 doIsortFormat=false
 doIsortFix=false
 doFlake8Format=false
 doClangFormat=false
-doCopyRight=false
 doPytypeFormat=false
 doMypyFormat=false
 doCleanup=false
@@ -57,8 +55,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
-    echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--list_tests]"
-    echo "            [--copyright] [--build] [--clean] [--help] [--version]"
+    echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -89,12 +86,10 @@ function print_usage {
     echo "    -q, --quick       : skip long running unit tests and integration tests"
     echo "    -m, --min         : only run minimal unit tests which do not require optional packages"
     echo "    --net             : perform integration testing"
-    echo "    -b, --build       : compile and install the source code folder an editable release."
     echo "    --list_tests      : list unit tests and exit"
     echo ""
     echo "Misc. options:"
     echo "    --dryrun          : display the commands to the screen without running"
-    echo "    --copyright       : check whether every source code has a copyright header"
     echo "    -f, --codeformat  : shorthand to run all code style and static analysis tests"
     echo "    -c, --clean       : clean temporary files from tests and exit"
     echo "    -h, --help        : show this help message and exit"
@@ -108,7 +103,7 @@ function print_usage {
 }
 
 function check_import {
-    echo "Python: ${PY_EXE}"
+    echo "python: ${PY_EXE}"
     ${cmdPrefix}${PY_EXE} -c "import monai"
 }
 
@@ -243,7 +238,6 @@ do
             doFlake8Format=true
             doPytypeFormat=true
             doMypyFormat=true
-            doCopyRight=true
         ;;
         --disttests)
             doDistTests=true
@@ -256,7 +250,6 @@ do
             doBlackFix=true
             doIsortFormat=true
             doBlackFormat=true
-            doCopyRight=true
         ;;
         --clangformat)
             doClangFormat=true
@@ -276,12 +269,6 @@ do
         -j|--jobs)
             NUM_PARALLEL=$2
             shift
-        ;;
-        --copyright)
-            doCopyRight=true
-        ;;
-        -b|--build)
-            doBuild=true
         ;;
         -c|--clean)
             doCleanup=true
@@ -327,14 +314,6 @@ else
     check_import
 fi
 
-if [ $doBuild = true ]
-then
-    echo "${separator}${blue}compile and install${noColor}"
-    # try to compile MONAI cpp
-    compile_cpp
-
-    echo "${green}done! (to uninstall and clean up, please use \"./runtests.sh --clean\")${noColor}"
-fi
 
 if [ $doCleanup = true ]
 then
@@ -356,32 +335,11 @@ then
     exit
 fi
 
+# try to compile MONAI cpp
+compile_cpp
+
 # unconditionally report on the state of monai
 print_version
-
-if [ $doCopyRight = true ]
-then
-    # check copyright headers
-    copyright_bad=0
-    copyright_all=0
-    while read -r fname; do
-        copyright_all=$((copyright_all + 1))
-        if ! grep "http://www.apache.org/licenses/LICENSE-2.0" "$fname" > /dev/null; then
-            print_error_msg "Missing the license header in file: $fname"
-            copyright_bad=$((copyright_bad + 1))
-        fi
-    done <<< "$(find "$(pwd)/monai" "$(pwd)/tests" -type f \
-        ! -wholename "*_version.py" -and -name "*.py" -or -name "*.cpp" -or -name "*.cu" -or -name "*.h")"
-    if [[ ${copyright_bad} -eq 0 ]];
-    then
-        echo "${green}Source code copyright headers checked ($copyright_all).${noColor}"
-    else
-        echo "Please add the licensing header to the file ($copyright_bad of $copyright_all files)."
-        echo "  See also: https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md#checking-the-coding-style"
-        echo ""
-        exit 1
-    fi
-fi
 
 
 if [ $doIsortFormat = true ]
@@ -577,7 +535,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration).*(?<!_dist)$"  # excluding integration/dist tests
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_((?!integration).)"
 fi
 
 # distributed test only
@@ -585,11 +543,7 @@ if [ $doDistTests = true ]
 then
     echo "${separator}${blue}run distributed unit test cases${noColor}"
     torch_validate
-    for i in tests/test_*_dist.py
-    do
-        echo "$i"
-        ${cmdPrefix}${cmd} "$i"
-    done
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_.*_dist$"
 fi
 
 # network training/inference/eval integration tests

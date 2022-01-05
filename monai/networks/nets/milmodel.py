@@ -1,14 +1,3 @@
-# Copyright (c) MONAI Consortium
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#     http://www.apache.org/licenses/LICENSE-2.0
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 from typing import Dict, Optional, Union, cast
 
 import torch
@@ -22,24 +11,23 @@ models, _ = optional_import("torchvision.models")
 class MILModel(nn.Module):
     """
     Multiple Instance Learning (MIL) model, with a backbone classification model.
-    Currently, it only works for 2D images, a typical use case is for classification of the
+    Currently, it only works for 2D images, typical use case is for classification of the
     digital pathology whole slide images. The expected shape of input data is `[B, N, C, H, W]`,
-    where `B` is the batch_size of PyTorch Dataloader and `N` is the number of instances
+    where `B` is the batch_size of PyTorch Dataloader and `N` is the number of the instances
     extracted from every original image in the batch. A tutorial example is available at:
     https://github.com/Project-MONAI/tutorials/tree/master/pathology/multiple_instance_learning.
 
     Args:
         num_classes: number of output classes.
-        mil_mode: MIL algorithm, available values (Defaults to ``"att"``):
-
-            - ``"mean"`` - average features from all instances, equivalent to pure CNN (non MIL).
-            - ``"max"`` - retain only the instance with the max probability for loss calculation.
-            - ``"att"`` - attention based MIL https://arxiv.org/abs/1802.04712.
-            - ``"att_trans"`` - transformer MIL https://arxiv.org/abs/2111.01556.
-            - ``"att_trans_pyramid"`` - transformer pyramid MIL https://arxiv.org/abs/2111.01556.
-
+        mil_mode: MIL algorithm, available values:
+            "mean" - average features from all instances, equivalent to pure CNN (non MIL).
+            "max - retain only the instance with the max probability for loss calculation.
+            "att" - attention based MIL https://arxiv.org/abs/1802.04712.
+            "att_trans" - transformer MIL https://arxiv.org/abs/2111.01556.
+            "att_trans_pyramid" - transformer pyramid MIL https://arxiv.org/abs/2111.01556.
+            Defaults to ``att``.
         pretrained: init backbone with pretrained weights, defaults to ``True``.
-        backbone: Backbone classifier CNN (either ``None``, a ``nn.Module`` that returns features,
+        backbone: Backbone classifier CNN (either None, nn.Module that returns features,
             or a string name of a torchvision model).
             Defaults to ``None``, in which case ResNet50 is used.
         backbone_num_features: Number of output features of the backbone CNN

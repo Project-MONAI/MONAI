@@ -24,8 +24,3 @@ Occlusion sensitivity
 
 .. automodule:: monai.visualize.occlusion_sensitivity
   :members:
-
-Utilities
----------
-.. automodule:: monai.visualize.utils
-  :members:

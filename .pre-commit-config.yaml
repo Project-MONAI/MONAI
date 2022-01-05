@@ -9,7 +9,7 @@ ci:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.1.0
+    rev: v4.0.1
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
@@ -23,10 +23,10 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.31.0
+    rev: v2.29.0
     hooks:
       - id: pyupgrade
-        args: [--py37-plus]
+        args: [--py36-plus]
         name: Upgrade code
         exclude: |
           (?x)^(
@@ -35,7 +35,7 @@ repos:
           )$
 
   - repo: https://github.com/asottile/yesqa
-    rev: v1.3.0
+    rev: v1.2.3
     hooks:
       - id: yesqa
         name: Unused noqa

@@ -11,20 +11,19 @@ Multi-GPU data parallel
 .. automodule:: monai.engines.multi_gpu_supervised_trainer
   :members:
 
+
 Workflows
 ---------
 
-.. currentmodule:: monai.engines
-
-`BaseWorkflow`
-~~~~~~~~~~~~~~
-.. autoclass:: BaseWorkflow
-    :members:
+.. automodule:: monai.engines.workflow
+.. currentmodule:: monai.engines.workflow
 
 `Workflow`
 ~~~~~~~~~~
 .. autoclass:: Workflow
     :members:
+
+.. currentmodule:: monai.engines
 
 `Trainer`
 ~~~~~~~~~
@@ -55,8 +54,3 @@ Workflows
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: EnsembleEvaluator
     :members:
-
-Utilities
----------
-.. automodule:: monai.engines.utils
-  :members:

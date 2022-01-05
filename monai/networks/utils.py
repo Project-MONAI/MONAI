@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -458,13 +458,11 @@ def convert_to_torchscript(
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
-        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
-            https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
     model.eval()
     with torch.no_grad():
-        script_module = torch.jit.script(model, **kwargs)
+        script_module = torch.jit.script(model)
         if filename_or_obj is not None:
             if not pytorch_after(1, 7):
                 torch.jit.save(m=script_module, f=filename_or_obj)

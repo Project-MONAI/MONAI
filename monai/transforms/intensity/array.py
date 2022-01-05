@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -129,10 +129,10 @@ class RandRicianNoise(RandomizableTransform):
     """
     Add Rician noise to image.
     Rician noise in MRI is the result of performing a magnitude operation on complex
-    data with Gaussian noise of the same variance in both channels, as described in
-    `Noise in Magnitude Magnetic Resonance Images <https://doi.org/10.1002/cmr.a.20124>`_.
-    This transform is adapted from `DIPY <https://github.com/dipy/dipy>`_.
-    See also: `The rician distribution of noisy mri data <https://doi.org/10.1002/mrm.1910340618>`_.
+    data with Gaussian noise of the same variance in both channels, as described in `Noise in Magnitude
+    Magnetic Resonance Images <https://doi.org/10.1002/cmr.a.20124>`_. This transform is adapted from
+    `DIPY<https://github.com/dipy/dipy>`_. See also: `The rician distribution of noisy mri data
+    <https://doi.org/10.1002/mrm.1910340618>`_.
 
     Args:
         prob: Probability to add Rician noise.
@@ -443,7 +443,6 @@ class ScaleIntensity(Transform):
             ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
 
         """
-        ret: NdarrayOrTensor
         if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
@@ -592,7 +591,7 @@ class RandBiasField(RandomizableTransform):
             axis=0,
         )
         img_np, *_ = convert_data_type(img, np.ndarray)
-        out: NdarrayOrTensor = img_np * np.exp(_bias_fields)
+        out = img_np * np.exp(_bias_fields)
         out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype or img.dtype)
         return out
 
@@ -609,8 +608,8 @@ class NormalizeIntensity(Transform):
         subtrahend: the amount to subtract by (usually the mean).
         divisor: the amount to divide by (usually the standard deviation).
         nonzero: whether only normalize non-zero values.
-        channel_wise: if True, calculate on each channel separately, otherwise, calculate on
-            the entire image directly. default to False.
+        channel_wise: if using calculated mean and std, calculate on each channel separately
+            or calculate on the entire image directly.
         dtype: output data type, if None, same as input image. defaults to float32.
     """
 
@@ -920,8 +919,6 @@ class ScaleIntensityRangePercentiles(Transform):
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
         relative: whether to scale to the corresponding percentiles of [b_min, b_max].
-        channel_wise: if True, compute intensity percentile and normalize every channel separately.
-            default to False.
         dtype: output data type, if None, same as input image. defaults to float32.
     """
 
@@ -935,7 +932,6 @@ class ScaleIntensityRangePercentiles(Transform):
         b_max: Optional[float],
         clip: bool = False,
         relative: bool = False,
-        channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
     ) -> None:
         if lower < 0.0 or lower > 100.0:
@@ -948,10 +944,12 @@ class ScaleIntensityRangePercentiles(Transform):
         self.b_max = b_max
         self.clip = clip
         self.relative = relative
-        self.channel_wise = channel_wise
         self.dtype = dtype
 
-    def _normalize(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        """
         a_min: float = percentile(img, self.lower)  # type: ignore
         a_max: float = percentile(img, self.upper)  # type: ignore
         b_min = self.b_min
@@ -967,18 +965,6 @@ class ScaleIntensityRangePercentiles(Transform):
             a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=self.clip, dtype=self.dtype
         )
         img = scalar(img)
-        return img
-
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        """
-        Apply the transform to `img`.
-        """
-        if self.channel_wise:
-            for i, d in enumerate(img):
-                img[i] = self._normalize(img=d)  # type: ignore
-        else:
-            img = self._normalize(img=img)
-
         return img
 
 

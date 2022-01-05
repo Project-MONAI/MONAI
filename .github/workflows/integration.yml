@@ -34,7 +34,7 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.10.1+cu111 torchvision==0.11.2+cu111 -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.10.0+cu111 torchvision==0.11.1+cu111 -f https://download.pytorch.org/whl/torch_stable.html
         python -m pip install -r requirements-dev.txt
     - name: Run integration tests
       run: |
@@ -46,8 +46,8 @@ jobs:
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --build --net
-        BUILD_MONAI=1 ./runtests.sh --build --unittests --disttests
+        BUILD_MONAI=1 ./runtests.sh --net
+        BUILD_MONAI=1 ./runtests.sh --unittests
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Add reaction

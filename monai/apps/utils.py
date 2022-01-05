@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,6 @@ import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
-from urllib.parse import urlparse
 from urllib.request import urlretrieve
 
 from monai.config.type_definitions import PathLike
@@ -186,7 +185,7 @@ def download_url(
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_name = Path(tmp_dir, _basename(filepath))
-        if urlparse(url).netloc == "drive.google.com":
+        if url.startswith("https://drive.google.com"):
             if not has_gdown:
                 raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
             gdown.download(url, f"{tmp_name}", quiet=not progress)

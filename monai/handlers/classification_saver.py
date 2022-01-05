@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -98,14 +98,7 @@ class ClassificationSaver:
         if not engine.has_event_handler(self._finalize, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self._finalize)
 
-    def _started(self, _engine: Engine) -> None:
-        """
-        Initialize internal buffers.
-
-        Args:
-            _engine: Ignite Engine, unused argument.
-
-        """
+    def _started(self, engine: Engine) -> None:
         self._outputs = []
         self._filenames = []
 
@@ -127,12 +120,12 @@ class ClassificationSaver:
                 o = o.detach()
             self._outputs.append(o)
 
-    def _finalize(self, _engine: Engine) -> None:
+    def _finalize(self, engine: Engine) -> None:
         """
         All gather classification results from ranks and save to CSV file.
 
         Args:
-            _engine: Ignite Engine, unused argument.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         ws = idist.get_world_size()
         if self.save_rank >= ws:
