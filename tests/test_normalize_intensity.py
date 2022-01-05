@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -41,7 +41,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             p,
-            {"nonzero": False, "channel_wise": True, "subtrahend": [1, 2, 3], "dtype": np.float32},
+            {"nonzero": False, "channel_wise": True, "subtrahend": [1, 2, 3]},
             p(np.ones((3, 2, 2))),
             p(np.array([[[0.0, 0.0], [0.0, 0.0]], [[-1.0, -1.0], [-1.0, -1.0]], [[-2.0, -2.0], [-2.0, -2.0]]])),
         ]
@@ -49,7 +49,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             p,
-            {"nonzero": True, "channel_wise": True, "subtrahend": [1, 2, 3], "divisor": [0, 0, 2], "dtype": "float32"},
+            {"nonzero": True, "channel_wise": True, "subtrahend": [1, 2, 3], "divisor": [0, 0, 2]},
             p(np.ones((3, 2, 2))),
             p(np.array([[[0.0, 0.0], [0.0, 0.0]], [[-1.0, -1.0], [-1.0, -1.0]], [[-1.0, -1.0], [-1.0, -1.0]]])),
         ]
@@ -57,7 +57,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             p,
-            {"nonzero": True, "channel_wise": False, "subtrahend": 2, "divisor": 0, "dtype": torch.float32},
+            {"nonzero": True, "channel_wise": False, "subtrahend": 2, "divisor": 0},
             p(np.ones((3, 2, 2))),
             p(np.ones((3, 2, 2)) * -1.0),
         ]

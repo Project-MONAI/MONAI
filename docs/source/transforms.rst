@@ -43,11 +43,6 @@ Generic Interfaces
 .. autoclass:: InvertibleTransform
     :members:
 
-`TraceableTransform`
-^^^^^^^^^^^^^^^^^^^^
-.. autoclass:: TraceableTransform
-    :members:
-
 `BatchInverseTransform`
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: BatchInverseTransform
@@ -68,12 +63,6 @@ Vanilla Transforms
 
 Crop and Pad
 ^^^^^^^^^^^^
-
-`PadListDataCollate`
-""""""""""""""""""""
-.. autoclass:: PadListDataCollate
-    :members:
-    :special-members: __call__
 
 `Pad`
 """""
@@ -324,8 +313,6 @@ Intensity
 
 `SavitzkyGolaySmooth`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SavitzkyGolaySmooth.png
-    :alt: example of SavitzkyGolaySmooth
 .. autoclass:: SavitzkyGolaySmooth
     :members:
     :special-members: __call__
@@ -405,14 +392,6 @@ Intensity
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandKSpaceSpikeNoise.png
     :alt: example of RandKSpaceSpikeNoise
 .. autoclass:: RandKSpaceSpikeNoise
-    :members:
-    :special-members: __call__
-
-`RandRicianNoise`
-"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRicianNoise.png
-    :alt: example of RandRicianNoise
-.. autoclass:: RandRicianNoise
     :members:
     :special-members: __call__
 
@@ -647,8 +626,6 @@ Spatial
 
 `GridDistortion`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GridDistortion.png
-    :alt: example of GridDistortion
 .. autoclass:: GridDistortion
     :members:
     :special-members: __call__
@@ -725,30 +702,25 @@ Spatial
     :members:
     :special-members: __call__
 
+`AddCoordinateChannels`
+"""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannels
+    :members:
+    :special-members: __call__
+
+
 Smooth Field
 ^^^^^^^^^^^^
 
 `RandSmoothFieldAdjustContrast`
 """""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustContrast.png
-    :alt: example of RandSmoothFieldAdjustContrast
 .. autoclass:: RandSmoothFieldAdjustContrast
     :members:
     :special-members: __call__
 
 `RandSmoothFieldAdjustIntensity`
 """"""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustIntensity.png
-    :alt: example of RandSmoothFieldAdjustIntensity
 .. autoclass:: RandSmoothFieldAdjustIntensity
-    :members:
-    :special-members: __call__
-
-`RandSmoothDeform`
-""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothDeform.png
-    :alt: example of RandSmoothDeform
-.. autoclass:: RandSmoothDeform
     :members:
     :special-members: __call__
 
@@ -858,12 +830,6 @@ Utility
     :members:
     :special-members: __call__
 
-`RemoveRepeatedChannel`
-"""""""""""""""""""""""
-.. autoclass:: RemoveRepeatedChannel
-    :members:
-    :special-members: __call__
-
 `LabelToMask`
 """""""""""""
 .. autoclass:: LabelToMask
@@ -933,12 +899,6 @@ Utility
 `RandCuCIM`
 """""""""""
 .. autoclass:: RandCuCIM
-    :members:
-    :special-members: __call__
-
-`AddCoordinateChannels`
-"""""""""""""""""""""""
-.. autoclass:: AddCoordinateChannels
     :members:
     :special-members: __call__
 
@@ -1190,14 +1150,6 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
-`RandRicianNoised`
-""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRicianNoised.png
-    :alt: example of RandRicianNoised
-.. autoclass:: RandRicianNoised
-    :members:
-    :special-members: __call__
-
 `ScaleIntensityRangePercentilesd`
 """""""""""""""""""""""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ScaleIntensityRangePercentilesd.png
@@ -1227,14 +1179,6 @@ Intensity (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/MaskIntensityd.png
     :alt: example of MaskIntensityd
 .. autoclass:: MaskIntensityd
-    :members:
-    :special-members: __call__
-
-`SavitzkyGolaySmoothd`
-""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SavitzkyGolaySmoothd.png
-    :alt: example of SavitzkyGolaySmoothd
-.. autoclass:: SavitzkyGolaySmoothd
     :members:
     :special-members: __call__
 
@@ -1526,10 +1470,14 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`AddCoordinateChannelsd`
+""""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannelsd
+    :members:
+    :special-members: __call__
+
 `GridDistortiond`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GridDistortiond.png
-    :alt: example of GridDistortiond
 .. autoclass:: GridDistortiond
     :members:
     :special-members: __call__
@@ -1547,25 +1495,13 @@ Smooth Field (Dict)
 
 `RandSmoothFieldAdjustContrastd`
 """"""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustContrastd.png
-    :alt: example of RandSmoothFieldAdjustContrastd
 .. autoclass:: RandSmoothFieldAdjustContrastd
     :members:
     :special-members: __call__
 
 `RandSmoothFieldAdjustIntensityd`
 """""""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustIntensityd.png
-    :alt: example of RandSmoothFieldAdjustIntensityd
 .. autoclass:: RandSmoothFieldAdjustIntensityd
-    :members:
-    :special-members: __call__
-
-`RandSmoothDeformd`
-"""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothDeformd.png
-    :alt: example of RandSmoothDeformd
-.. autoclass:: RandSmoothDeformd
     :members:
     :special-members: __call__
 
@@ -1629,12 +1565,6 @@ Utility (Dict)
 `ToNumpyd`
 """"""""""
 .. autoclass:: ToNumpyd
-    :members:
-    :special-members: __call__
-
-`ToPIL`
-"""""""
-.. autoclass:: ToPIL
     :members:
     :special-members: __call__
 
@@ -1776,20 +1706,9 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
-`AddCoordinateChannelsd`
-""""""""""""""""""""""""
-.. autoclass:: AddCoordinateChannelsd
-    :members:
-    :special-members: __call__
-
 Transform Adaptors
 ------------------
 .. automodule:: monai.transforms.adaptors
-
-`FunctionSignature`
-^^^^^^^^^^^^^^^^^^^
-.. autoclass:: FunctionSignature
-    :members:
 
 `adaptor`
 ^^^^^^^^^

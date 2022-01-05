@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -256,9 +256,12 @@ class OneOf(Compose):
                 # and then remove the OneOf transform
                 self.pop_transform(data, key)
         if index is None:
-            # no invertible transforms have been applied
-            return data
+            raise RuntimeError("No invertible transforms have been applied")
 
+        # if applied transform is not InvertibleTransform, throw error
         _transform = self.transforms[index]
+        if not isinstance(_transform, InvertibleTransform):
+            raise RuntimeError(f"Applied OneOf transform is not invertible (applied index: {index}).")
+
         # apply the inverse
-        return _transform.inverse(data) if isinstance(_transform, InvertibleTransform) else data
+        return _transform.inverse(data)

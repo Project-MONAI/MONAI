@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,9 +12,7 @@
 from .deviceconfig import (
     USE_COMPILED,
     IgniteInfo,
-    get_config_values,
     get_gpu_info,
-    get_optional_config_values,
     get_system_info,
     print_config,
     print_debug_info,

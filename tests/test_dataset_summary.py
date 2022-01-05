@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,15 +22,6 @@ from monai.transforms import LoadImaged
 from monai.utils import set_determinism
 
 
-def test_collate(batch):
-    elem = batch[0]
-    elem_type = type(elem)
-    if isinstance(elem, np.ndarray):
-        return np.stack(batch, 0)
-    elif isinstance(elem, dict):
-        return elem_type({key: test_collate([d[key] for d in batch]) for key in elem})
-
-
 class TestDatasetSummary(unittest.TestCase):
     def test_spacing_intensity(self):
         set_determinism(seed=0)
@@ -49,12 +40,9 @@ class TestDatasetSummary(unittest.TestCase):
                 {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            dataset = Dataset(
-                data=data_dicts, transform=LoadImaged(keys=["image", "label"], meta_keys=["test1", "test2"])
-            )
+            dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
 
-            # test **kwargs of `DatasetSummary` for `DataLoader`
-            calculator = DatasetSummary(dataset, num_workers=4, meta_key="test1", collate_fn=test_collate)
+            calculator = DatasetSummary(dataset, num_workers=4)
 
             target_spacing = calculator.get_target_spacing()
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))
@@ -86,7 +74,7 @@ class TestDatasetSummary(unittest.TestCase):
 
             dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
 
-            calculator = DatasetSummary(dataset, num_workers=4, meta_key_postfix="meta_dict")
+            calculator = DatasetSummary(dataset, num_workers=4)
 
             target_spacing = calculator.get_target_spacing(anisotropic_threshold=4.0, percentile=20.0)
             np.testing.assert_allclose(target_spacing, (1.0, 1.0, 1.8))

@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -51,12 +51,6 @@ class MedNISTDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
-        progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
-        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
-            default to `True`. if the random transforms don't modify the cached content
-            (for example, randomly crop from the cached image and deepcopy the crop region)
-            or if every cache item is only used once in a `multi-processing` environment,
-            may set `copy=False` for better performance.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -81,8 +75,6 @@ class MedNISTDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
-        progress: bool = True,
-        copy_cache: bool = True,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -95,14 +87,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         dataset_dir = root_dir / self.dataset_folder_name
         self.num_class = 0
         if download:
-            download_and_extract(
-                url=self.resource,
-                filepath=tarfile_name,
-                output_dir=root_dir,
-                hash_val=self.md5,
-                hash_type="md5",
-                progress=progress,
-            )
+            download_and_extract(self.resource, tarfile_name, root_dir, self.md5)
 
         if not dataset_dir.is_dir():
             raise RuntimeError(
@@ -112,17 +97,10 @@ class MedNISTDataset(Randomizable, CacheDataset):
         if transform == ():
             transform = LoadImaged("image")
         CacheDataset.__init__(
-            self,
-            data=data,
-            transform=transform,
-            cache_num=cache_num,
-            cache_rate=cache_rate,
-            num_workers=num_workers,
-            progress=progress,
-            copy_cache=copy_cache,
+            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
         )
 
-    def randomize(self, data: np.ndarray) -> None:
+    def randomize(self, data: List[int]) -> None:
         self.R.shuffle(data)
 
     def get_num_classes(self) -> int:
@@ -199,12 +177,6 @@ class DecathlonDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
-        progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
-        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
-            default to `True`. if the random transforms don't modify the cached content
-            (for example, randomly crop from the cached image and deepcopy the crop region)
-            or if every cache item is only used once in a `multi-processing` environment,
-            may set `copy=False` for better performance.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -269,8 +241,6 @@ class DecathlonDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
-        progress: bool = True,
-        copy_cache: bool = True,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -283,14 +253,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         dataset_dir = root_dir / task
         tarfile_name = f"{dataset_dir}.tar"
         if download:
-            download_and_extract(
-                url=self.resource[task],
-                filepath=tarfile_name,
-                output_dir=root_dir,
-                hash_val=self.md5[task],
-                hash_type="md5",
-                progress=progress,
-            )
+            download_and_extract(self.resource[task], tarfile_name, root_dir, self.md5[task])
 
         if not dataset_dir.exists():
             raise RuntimeError(
@@ -314,14 +277,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         if transform == ():
             transform = LoadImaged(["image", "label"])
         CacheDataset.__init__(
-            self,
-            data=data,
-            transform=transform,
-            cache_num=cache_num,
-            cache_rate=cache_rate,
-            num_workers=num_workers,
-            progress=progress,
-            copy_cache=copy_cache,
+            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
         )
 
     def get_indices(self) -> np.ndarray:
@@ -331,7 +287,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         """
         return self.indices
 
-    def randomize(self, data: np.ndarray) -> None:
+    def randomize(self, data: List[int]) -> None:
         self.R.shuffle(data)
 
     def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):

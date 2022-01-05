@@ -21,7 +21,7 @@ Blocks
     :members:
 
 `CRF`
-~~~~~
+~~~~~~~~~~~~~
 .. autoclass:: CRF
     :members:
 
@@ -72,8 +72,6 @@ Blocks
 .. autoclass:: UnetBasicBlock
     :members:
 .. autoclass:: UnetUpBlock
-    :members:
-.. autoclass:: UnetOutBlock
     :members:
 
 `SegResnet Block`
@@ -256,11 +254,6 @@ Layers
 .. automodule:: monai.networks.layers.Conv
   :members:
 
-`Pad`
-~~~~~
-.. automodule:: monai.networks.layers.Pad
-  :members:
-
 `Pool`
 ~~~~~~
 .. automodule:: monai.networks.layers.Pool
@@ -307,7 +300,7 @@ Layers
     :members:
 
 `PHLFilter`
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 .. autoclass:: PHLFilter
 
 `GaussianMixtureModel`
@@ -393,11 +386,6 @@ Nets
 .. autoclass:: EfficientNet
   :members:
 
-`BlockArgs`
-~~~~~~~~~~~
-.. autoclass:: BlockArgs
-  :members:
-
 `EfficientNetBN`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: EfficientNetBN
@@ -416,11 +404,6 @@ Nets
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
-  :members:
-
-`ResNet`
-~~~~~~~~
-.. autoclass:: ResNet
   :members:
 
 `SENet`
@@ -528,11 +511,6 @@ Nets
 `FullyConnectedNet`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: FullyConnectedNet
-  :members:
-
-`VarFullyConnectedNet`
-~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: VarFullyConnectedNet
   :members:
 
 `Generator`

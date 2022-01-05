@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -873,7 +873,7 @@ def generate_spatial_bounding_box(
     margin: Union[Sequence[int], int] = 0,
 ) -> Tuple[List[int], List[int]]:
     """
-    generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
+    generate the spatial bounding box of foreground in the image with start-end positions.
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
     And it can also add margin to every dim of the bounding box.
     The output format of the coordinates is:
@@ -1306,7 +1306,7 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
-            if hasattr(torch.fft, "fftshift"):  # `fftshift` is new in torch 1.8.0
+            if hasattr(torch.fft, "fftshift"):
                 k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
             else:
                 # if using old PyTorch, will convert to numpy array and return
@@ -1339,7 +1339,7 @@ class Fourier:
         dims = tuple(range(-spatial_dims, 0))
         out: NdarrayOrTensor
         if isinstance(k, torch.Tensor):
-            if hasattr(torch.fft, "ifftshift"):  # `ifftshift` is new in torch 1.8.0
+            if hasattr(torch.fft, "ifftshift"):
                 out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
             else:
                 # if using old PyTorch, will convert to numpy array and return

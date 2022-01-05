@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -60,8 +60,8 @@ KeysCollection = Union[Collection[Hashable], Hashable]
 # container must be iterable.
 IndexSelection = Union[Iterable[int], int]
 
-#: Type of datatypes: Adapted from https://github.com/numpy/numpy/blob/v1.21.4/numpy/typing/_dtype_like.py#L121
-DtypeLike = Union[np.dtype, type, str, None]
+#: Type of datatypes: Adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like.py
+DtypeLike = Union[np.dtype, type, None]
 
 #: NdarrayTensor
 #

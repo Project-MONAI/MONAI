@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -82,8 +82,7 @@ class StatsHandler:
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
             key_var_format: a formatting string to control the output string format of key: value.
             logger_handler: add additional handler to handle the stats data: save to file, etc.
-                all the existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html.
-                the handler should have a logging level of at least `INFO`.
+                Add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
         """
 
         self.epoch_print_logger = epoch_print_logger
@@ -144,14 +143,14 @@ class StatsHandler:
         else:
             self._default_iteration_print(engine)
 
-    def exception_raised(self, _engine: Engine, e: Exception) -> None:
+    def exception_raised(self, engine: Engine, e: Exception) -> None:
         """
         Handler for train or validation/evaluation exception raised Event.
         Print the exception information and traceback. This callback may be skipped because the logic
         with Ignite can only trigger the first attached handler for `EXCEPTION_RAISED` event.
 
         Args:
-            _engine: Ignite Engine, unused argument.
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
             e: the exception caught in Ignite during engine.run().
 
         """

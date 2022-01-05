@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -122,10 +122,6 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
         progress: whether to display a progress bar when caching for the first epoch.
-        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
-            default to `True`. if the random transforms don't modify the cache content
-            or every cache item is only used once in a `multi-processing` environment,
-            may set `copy=False` for better performance.
 
     """
 
@@ -143,7 +139,6 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         num_init_workers: Optional[int] = None,
         num_replace_workers: Optional[int] = None,
         progress: bool = True,
-        copy_cache: bool = True,
     ):
         patch_wsi_dataset = PatchWSIDataset(
             data=data,
@@ -162,7 +157,6 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             num_replace_workers=num_replace_workers,
             progress=progress,
             shuffle=False,
-            copy_cache=copy_cache,
         )
 
 

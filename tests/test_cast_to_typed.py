@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,9 +17,8 @@ from parameterized import parameterized
 
 from monai.transforms import CastToTyped
 from monai.utils import optional_import
-from tests.utils import HAS_CUPY
 
-cp, _ = optional_import("cupy")
+cp, has_cp = optional_import("cupy")
 
 TEST_CASE_1 = [
     {"keys": ["img"], "dtype": np.float64},
@@ -59,7 +58,7 @@ class TestCastToTyped(unittest.TestCase):
             self.assertEqual(v.dtype, expected_type[k])
 
     @parameterized.expand(TESTS_CUPY)
-    @unittest.skipUnless(HAS_CUPY, "Requires CuPy")
+    @unittest.skipUnless(has_cp, "Requires CuPy")
     def test_type_cupy(self, input_param, input_data, expected_type):
         input_data = {k: cp.asarray(v) for k, v in input_data.items()}
 

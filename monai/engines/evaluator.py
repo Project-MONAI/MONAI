@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -45,13 +45,9 @@ class Evaluator(Workflow):
         epoch_length: number of iterations for one epoch, default to `len(val_data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
-            from `engine.state.batch` for every iteration, for more details please refer to:
-            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
+        prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
-            if not provided, use `self._iteration()` instead. for more details please refer to:
-            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_val_metric: compute metric when every iteration completed, and save average value to
@@ -84,7 +80,7 @@ class Evaluator(Workflow):
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
+        iteration_update: Optional[Callable] = None,
         postprocessing: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
@@ -151,13 +147,9 @@ class SupervisedEvaluator(Evaluator):
         epoch_length: number of iterations for one epoch, default to `len(val_data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
-            from `engine.state.batch` for every iteration, for more details please refer to:
-            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
+        prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
-            if not provided, use `self._iteration()` instead. for more details please refer to:
-            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
@@ -192,7 +184,7 @@ class SupervisedEvaluator(Evaluator):
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
+        iteration_update: Optional[Callable] = None,
         inferer: Optional[Inferer] = None,
         postprocessing: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
@@ -283,13 +275,9 @@ class EnsembleEvaluator(Evaluator):
             the length must exactly match the number of networks.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
-        prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
-            from `engine.state.batch` for every iteration, for more details please refer to:
-            https://pytorch.org/ignite/generated/ignite.engine.create_supervised_trainer.html.
+        prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
-            and `engine.state.batch` as inputs, return data will be stored in `engine.state.output`.
-            if not provided, use `self._iteration()` instead. for more details please refer to:
-            https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html.
+            and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
         postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
@@ -325,7 +313,7 @@ class EnsembleEvaluator(Evaluator):
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
+        iteration_update: Optional[Callable] = None,
         inferer: Optional[Inferer] = None,
         postprocessing: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,

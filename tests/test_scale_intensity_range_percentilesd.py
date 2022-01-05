@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,14 +27,15 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
 
         a_min = np.percentile(img, lower)
         a_max = np.percentile(img, upper)
-        expected = (((img - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min).astype(np.uint8)
+        expected = (img - a_min) / (a_max - a_min)
+        expected = (expected * (b_max - b_min)) + b_min
 
         for p in TEST_NDARRAYS:
             data = {"img": p(img)}
             scaler = ScaleIntensityRangePercentilesd(
-                keys=data.keys(), lower=lower, upper=upper, b_min=b_min, b_max=b_max, dtype=np.uint8
+                keys=data.keys(), lower=lower, upper=upper, b_min=b_min, b_max=b_max
             )
-            assert_allclose(p(expected), scaler(data)["img"], rtol=1e-4)
+            assert_allclose(p(expected), scaler(data)["img"])
 
     def test_relative_scaling(self):
         img = self.imt
@@ -73,26 +74,6 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
         with self.assertRaises(ValueError):
             s = ScaleIntensityRangePercentilesd(keys=["img"], lower=30, upper=90, b_min=None, b_max=20, relative=True)
             s(self.imt)
-
-    def test_channel_wise(self):
-        img = self.imt
-        lower = 10
-        upper = 99
-        b_min = 0
-        b_max = 255
-        scaler = ScaleIntensityRangePercentilesd(
-            keys="img", lower=lower, upper=upper, b_min=b_min, b_max=b_max, channel_wise=True, dtype=np.uint8
-        )
-        expected = []
-        for c in img:
-            a_min = np.percentile(c, lower)
-            a_max = np.percentile(c, upper)
-            expected.append((((c - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min).astype(np.uint8))
-        expected = np.stack(expected)
-
-        for p in TEST_NDARRAYS:
-            data = {"img": p(img)}
-            assert_allclose(scaler(data)["img"], p(expected), rtol=1e-4)
 
 
 if __name__ == "__main__":

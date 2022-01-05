@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,13 +17,13 @@ import torch
 
 from monai.transforms import ToNumpyd
 from monai.utils import optional_import
-from tests.utils import HAS_CUPY, assert_allclose, skip_if_no_cuda
+from tests.utils import assert_allclose, skip_if_no_cuda
 
-cp, _ = optional_import("cupy")
+cp, has_cp = optional_import("cupy")
 
 
 class TestToNumpyd(unittest.TestCase):
-    @skipUnless(HAS_CUPY, "CuPy is required.")
+    @skipUnless(has_cp, "CuPy is required.")
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]])
         test_data = cp.rot90(test_data)

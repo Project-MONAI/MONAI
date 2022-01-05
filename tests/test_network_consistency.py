@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,7 @@ from parameterized.parameterized import parameterized
 import monai.networks.nets as nets
 from monai.utils import set_determinism
 
-extra_test_data_dir = os.environ.get("MONAI_EXTRA_TEST_DATA")
+extra_test_data_dir = os.environ.get("MONAI_EXTRA_TEST_DATA", None)
 
 TESTS = []
 if extra_test_data_dir is not None:
@@ -60,8 +60,8 @@ class TestNetworkConsistency(unittest.TestCase):
         json_file.close()
 
         # Create model
-        model = getattr(nets, net_name)(**model_params)
-        model.load_state_dict(loaded_data["model"], strict=False)
+        model = nets.__dict__[net_name](**model_params)
+        model.load_state_dict(loaded_data["model"])
         model.eval()
 
         in_data = loaded_data["in_data"]

@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -405,7 +405,7 @@ class LabelFilter:
             raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
         if isinstance(img, torch.Tensor):
-            if hasattr(torch, "isin"):  # `isin` is new in torch 1.10.0
+            if hasattr(torch, "isin"):
                 appl_lbls = torch.as_tensor(self.applied_labels, device=img.device)
                 return torch.where(torch.isin(img, appl_lbls), img, torch.tensor(0.0).to(img))
             else:

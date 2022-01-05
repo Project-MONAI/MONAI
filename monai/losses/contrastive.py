@@ -1,4 +1,4 @@
-# Copyright (c) MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
-from monai.utils import deprecated_arg
+from monai.utils import LossReduction
 
 
 class ContrastiveLoss(_Loss):
@@ -29,23 +31,19 @@ class ContrastiveLoss(_Loss):
 
     """
 
-    @deprecated_arg(name="reduction", since="0.8", msg_suffix="`reduction` is no longer supported.")
-    def __init__(self, temperature: float = 0.5, batch_size: int = 1, reduction="sum") -> None:
+    def __init__(
+        self, temperature: float = 0.5, batch_size: int = 1, reduction: Union[LossReduction, str] = LossReduction.SUM
+    ) -> None:
         """
         Args:
             temperature: Can be scaled between 0 and 1 for learning from negative samples, ideally set to 0.5.
-            batch_size: The number of samples.
 
         Raises:
-            ValueError: When an input of dimension length > 2 is passed
-            ValueError: When input and target are of different shapes
-
-        .. deprecated:: 0.8.0
-
-            `reduction` is no longer supported.
+            AssertionError: When an input of dimension length > 2 is passed
+            AssertionError: When input and target are of different shapes
 
         """
-        super().__init__()
+        super().__init__(reduction=LossReduction(reduction).value)
 
         self.batch_size = batch_size
         self.temperature = temperature
@@ -55,15 +53,18 @@ class ContrastiveLoss(_Loss):
         Args:
             input: the shape should be B[F].
             target: the shape should be B[F].
+
+        Raises:
+            ValueError: When ``self.reduction`` is not one of ["sum", "none"].
         """
         if len(target.shape) > 2 or len(input.shape) > 2:
-            raise ValueError(
+            raise AssertionError(
                 f"Either target or input has dimensions greater than 2 where target "
                 f"shape is ({target.shape}) and input shape is ({input.shape})"
             )
 
         if target.shape != input.shape:
-            raise ValueError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
+            raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         temperature_tensor = torch.tensor(self.temperature).to(input.device)
 
@@ -85,4 +86,6 @@ class ContrastiveLoss(_Loss):
 
         loss_partial = -torch.log(nominator / torch.sum(denominator, dim=1))
 
-        return torch.sum(loss_partial) / (2 * self.batch_size)
+        if self.reduction == LossReduction.SUM.value:
+            return torch.sum(loss_partial) / (2 * self.batch_size)
+        raise ValueError(f"Unsupported reduction: {self.reduction}, " f'available options are ["mean", "sum", "none"].')
