@@ -45,18 +45,19 @@ class TestHandlerStats(unittest.TestCase):
         # set up testing handler
         stats_handler = StatsHandler(name=key_to_handler, logger_handler=log_handler)
         stats_handler.attach(engine)
+        stats_handler.logger.setLevel(logging.INFO)
 
         engine.run(range(3), max_epochs=2)
 
         # check logging output
         output_str = log_stream.getvalue()
         log_handler.close()
-        grep = re.compile(f".*{key_to_handler}.*")
         has_key_word = re.compile(f".*{key_to_print}.*")
-        for idx, line in enumerate(output_str.split("\n")):
-            if grep.match(line):
-                if idx in [5, 10]:
-                    self.assertTrue(has_key_word.match(line))
+        content_count = 0
+        for line in output_str.split("\n"):
+            if has_key_word.match(line):
+                content_count += 1
+        self.assertTrue(content_count > 0)
 
     def test_loss_print(self):
         log_stream = StringIO()
@@ -74,18 +75,19 @@ class TestHandlerStats(unittest.TestCase):
         # set up testing handler
         stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=log_handler)
         stats_handler.attach(engine)
+        stats_handler.logger.setLevel(logging.INFO)
 
         engine.run(range(3), max_epochs=2)
 
         # check logging output
         output_str = log_stream.getvalue()
         log_handler.close()
-        grep = re.compile(f".*{key_to_handler}.*")
         has_key_word = re.compile(f".*{key_to_print}.*")
-        for idx, line in enumerate(output_str.split("\n")):
-            if grep.match(line):
-                if idx in [1, 2, 3, 6, 7, 8]:
-                    self.assertTrue(has_key_word.match(line))
+        content_count = 0
+        for line in output_str.split("\n"):
+            if has_key_word.match(line):
+                content_count += 1
+        self.assertTrue(content_count > 0)
 
     def test_loss_dict(self):
         log_stream = StringIO()
@@ -102,21 +104,22 @@ class TestHandlerStats(unittest.TestCase):
 
         # set up testing handler
         stats_handler = StatsHandler(
-            name=key_to_handler, output_transform=lambda x: {key_to_print: x}, logger_handler=log_handler
+            name=key_to_handler, output_transform=lambda x: {key_to_print: x[0]}, logger_handler=log_handler
         )
         stats_handler.attach(engine)
+        stats_handler.logger.setLevel(logging.INFO)
 
         engine.run(range(3), max_epochs=2)
 
         # check logging output
         output_str = log_stream.getvalue()
         log_handler.close()
-        grep = re.compile(f".*{key_to_handler}.*")
         has_key_word = re.compile(f".*{key_to_print}.*")
-        for idx, line in enumerate(output_str.split("\n")):
-            if grep.match(line):
-                if idx in [1, 2, 3, 6, 7, 8]:
-                    self.assertTrue(has_key_word.match(line))
+        content_count = 0
+        for line in output_str.split("\n"):
+            if has_key_word.match(line):
+                content_count += 1
+        self.assertTrue(content_count > 0)
 
     def test_loss_file(self):
         key_to_handler = "test_logging"
@@ -191,17 +194,19 @@ class TestHandlerStats(unittest.TestCase):
             name=key_to_handler, state_attributes=["test1", "test2", "test3"], logger_handler=log_handler
         )
         stats_handler.attach(engine)
+        stats_handler.logger.setLevel(logging.INFO)
 
         engine.run(range(3), max_epochs=2)
 
         # check logging output
         output_str = log_stream.getvalue()
         log_handler.close()
-        grep = re.compile(f".*{key_to_handler}.*")
         has_key_word = re.compile(".*State values.*")
-        for idx, line in enumerate(output_str.split("\n")):
-            if grep.match(line) and idx in [5, 10]:
-                self.assertTrue(has_key_word.match(line))
+        content_count = 0
+        for line in output_str.split("\n"):
+            if has_key_word.match(line):
+                content_count += 1
+        self.assertTrue(content_count > 0)
 
 
 if __name__ == "__main__":
