@@ -217,6 +217,10 @@ def box_convert_mode(bbox1: torch.Tensor, mode1: str, mode2: str) -> torch.Tenso
     This function converts the bbox1 in mode 1 to the mode2
     """
     # 1. check whether the bbox and the new mode is valid
+    if mode1 is None:
+        mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
+    if mode2 is None:
+        mode2 = get_standard_mode(int(bbox1.shape[1] / 2))
     check_support_mode(mode1)
     check_support_mode(mode2)
 
