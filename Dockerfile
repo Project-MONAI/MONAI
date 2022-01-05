@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,7 @@
 
 # To build with a different base image
 # please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:21.10-py3
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:21.12-py3
 FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"

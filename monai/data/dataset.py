@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,7 +32,7 @@ from torch.utils.data import Subset
 
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
 from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
-from monai.utils import MAX_SEED, ensure_tuple, get_seed, look_up_option, min_version, optional_import
+from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
@@ -95,6 +95,56 @@ class Dataset(_TorchDataset):
             # dataset[[1, 3, 4]]
             return Subset(dataset=self, indices=index)
         return self._transform(index)
+
+
+class DatasetFunc(Dataset):
+    """
+    Execute function on the input dataset and leverage the output to act as a new Dataset.
+    It can be used to load / fetch the basic dataset items, like the list of `image, label` paths.
+    Or chain together to execute more complicated logic, like `partition_dataset`, `resample_datalist`, etc.
+    The `data` arg of `Dataset` will be applied to the first arg of callable `func`.
+    Usage example::
+
+        data_list = DatasetFunc(
+            data="path to file",
+            func=monai.data.load_decathlon_datalist,
+            data_list_key="validation",
+            base_dir="path to base dir",
+        )
+        # partition dataset for every rank
+        data_partition = DatasetFunc(
+            data=data_list,
+            func=lambda **kwargs: monai.data.partition_dataset(**kwargs)[torch.distributed.get_rank()],
+            num_partitions=torch.distributed.get_world_size(),
+        )
+        dataset = Dataset(data=data_partition, transform=transforms)
+
+    Args:
+        data: input data for the func to process, will apply to `func` as the first arg.
+        func: callable function to generate dataset items.
+        kwargs: other arguments for the `func` except for the first arg.
+
+    """
+
+    def __init__(self, data: Any, func: Callable, **kwargs) -> None:
+        super().__init__(data=None, transform=None)  # type:ignore
+        self.src = data
+        self.func = func
+        self.kwargs = kwargs
+        self.reset()
+
+    def reset(self, data: Optional[Any] = None, func: Optional[Callable] = None, **kwargs):
+        """
+        Reset the dataset items with specified `func`.
+
+        Args:
+            data: if not None, execute `func` on it, default to `self.src`.
+            func: if not None, execute the `func` with specified `kwargs`, default to `self.func`.
+            kwargs: other arguments for the `func` except for the first arg.
+
+        """
+        src = self.src if data is None else data
+        self.data = self.func(src, **self.kwargs) if func is None else func(src, **kwargs)
 
 
 class PersistentDataset(Dataset):
@@ -1222,8 +1272,9 @@ class CSVDataset(Dataset):
         ]
 
     Args:
-        filename: the filename of expected CSV file to load. if providing a list
-            of filenames, it will load all the files and join tables.
+        src: if provided the filename of CSV file, it can be a str, URL, path object or file-like object to load.
+            also support to provide pandas `DataFrame` directly, will skip loading from filename.
+            if provided a list of filenames or pandas `DataFrame`, it will join the tables.
         row_indices: indices of the expected rows to load. it should be a list,
             every item can be a int number or a range `[start, end)` for the indices.
             for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
@@ -1249,11 +1300,15 @@ class CSVDataset(Dataset):
         transform: transform to apply on the loaded items of a dictionary data.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
+    .. deprecated:: 0.8.0
+        ``filename`` is deprecated, use ``src`` instead.
+
     """
 
+    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def __init__(
         self,
-        filename: Union[str, Sequence[str]],
+        src: Optional[Union[str, Sequence[str]]] = None,  # also can be `DataFrame` or sequense of `DataFrame`
         row_indices: Optional[Sequence[Union[int, str]]] = None,
         col_names: Optional[Sequence[str]] = None,
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
@@ -1261,8 +1316,19 @@ class CSVDataset(Dataset):
         transform: Optional[Callable] = None,
         **kwargs,
     ):
-        files = ensure_tuple(filename)
-        dfs = [pd.read_csv(f) for f in files]
+        srcs = (src,) if not isinstance(src, (tuple, list)) else src
+        dfs: List = []
+        for i in srcs:
+            if isinstance(i, str):
+                dfs.append(pd.read_csv(i))
+            elif isinstance(i, pd.DataFrame):
+                dfs.append(i)
+            else:
+                raise ValueError("`src` must be file path or pandas `DataFrame`.")
+
+        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
+        kwargs.pop("filename", None)
+
         data = convert_tables_to_dicts(
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,12 +17,12 @@ import torch
 
 from monai.transforms import ToCupy
 from monai.utils import optional_import
-from tests.utils import skip_if_no_cuda
+from tests.utils import HAS_CUPY, skip_if_no_cuda
 
-cp, has_cp = optional_import("cupy")
+cp, _ = optional_import("cupy")
 
 
-@skipUnless(has_cp, "CuPy is required.")
+@skipUnless(HAS_CUPY, "CuPy is required.")
 class TestToCupy(unittest.TestCase):
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]], dtype=cp.float32)

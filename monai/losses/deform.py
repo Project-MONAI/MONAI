@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -52,9 +52,12 @@ class BendingEnergyLoss(_Loss):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
-    def __init__(self, reduction: Union[LossReduction, str] = LossReduction.MEAN) -> None:
+    def __init__(self, normalize: bool = False, reduction: Union[LossReduction, str] = LossReduction.MEAN) -> None:
         """
         Args:
+            normalize:
+                Whether to divide out spatial sizes in order to make the computation roughly
+                invariant to image scale (i.e. vector field sampling resolution). Defaults to False.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
@@ -63,6 +66,7 @@ class BendingEnergyLoss(_Loss):
                 - ``"sum"``: the output will be summed.
         """
         super().__init__(reduction=LossReduction(reduction).value)
+        self.normalize = normalize
 
     def forward(self, pred: torch.Tensor) -> torch.Tensor:
         """
@@ -74,20 +78,35 @@ class BendingEnergyLoss(_Loss):
 
         """
         if pred.ndim not in [3, 4, 5]:
-            raise ValueError(f"expecting 3-d, 4-d or 5-d pred, instead got pred of shape {pred.shape}")
+            raise ValueError(f"Expecting 3-d, 4-d or 5-d pred, instead got pred of shape {pred.shape}")
         for i in range(pred.ndim - 2):
             if pred.shape[-i - 1] <= 4:
-                raise ValueError("all spatial dimensions must > 4, got pred of shape {pred.shape}")
+                raise ValueError(f"All spatial dimensions must be > 4, got spatial dimensions {pred.shape[2:]}")
+        if pred.shape[1] != pred.ndim - 2:
+            raise ValueError(
+                f"Number of vector components, {pred.shape[1]}, does not match number of spatial dimensions, {pred.ndim-2}"
+            )
 
         # first order gradient
         first_order_gradient = [spatial_gradient(pred, dim) for dim in range(2, pred.ndim)]
 
+        # spatial dimensions in a shape suited for broadcasting below
+        if self.normalize:
+            spatial_dims = torch.tensor(pred.shape, device=pred.device)[2:].reshape((1, -1) + (pred.ndim - 2) * (1,))
+
         energy = torch.tensor(0)
         for dim_1, g in enumerate(first_order_gradient):
             dim_1 += 2
-            energy = spatial_gradient(g, dim_1) ** 2 + energy
+            if self.normalize:
+                g *= pred.shape[dim_1] / spatial_dims
+                energy = energy + (spatial_gradient(g, dim_1) * pred.shape[dim_1]) ** 2
+            else:
+                energy = energy + spatial_gradient(g, dim_1) ** 2
             for dim_2 in range(dim_1 + 1, pred.ndim):
-                energy = 2 * spatial_gradient(g, dim_2) ** 2 + energy
+                if self.normalize:
+                    energy = energy + 2 * (spatial_gradient(g, dim_2) * pred.shape[dim_2]) ** 2
+                else:
+                    energy = energy + 2 * spatial_gradient(g, dim_2) ** 2
 
         if self.reduction == LossReduction.MEAN.value:
             energy = torch.mean(energy)  # the batch and channel average

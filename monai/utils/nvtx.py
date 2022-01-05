@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -62,8 +62,15 @@ class Range:
         # Define the name to be associated to the range if not provided
         if self.name is None:
             name = type(obj).__name__
+            # If CuCIM or TorchVision transform wrappers are being used,
+            # append the underlying transform to the name for more clarity
+            if "CuCIM" in name or "TorchVision" in name:
+                name = f"{name}_{obj.name}"
             self.name_counter[name] += 1
-            self.name = f"{name}_{self.name_counter[name]}"
+            if self.name_counter[name] > 1:
+                self.name = f"{name}_{self.name_counter[name]}"
+            else:
+                self.name = name
 
         # Define the methods to be wrapped if not provided
         if self.methods is None:

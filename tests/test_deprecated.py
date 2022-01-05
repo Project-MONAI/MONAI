@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,7 +29,7 @@ class TestDeprecatedRC(unittest.TestCase):
         def foo2():
             pass
 
-        print(foo2())
+        foo2()  # should not raise any warnings
 
     def test_warning_milestone(self):
         """Test deprecated decorator with `since` and `removed` set for a milestone version"""
@@ -172,7 +172,7 @@ class TestDeprecated(unittest.TestCase):
         """Test deprecated_arg decorator with just `since` set."""
 
         @deprecated_arg("b", since=self.prev_version, version_val=self.test_version)
-        def afoo2(a, **kwargs):
+        def afoo2(a, **kw):
             pass
 
         afoo2(1)  # ok when no b provided
@@ -235,6 +235,19 @@ class TestDeprecated(unittest.TestCase):
 
         self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
 
+    def test_arg_except3_unknown(self):
+        """
+        Test deprecated_arg decorator raises exception with `removed` set in the past.
+        with unknown version and kwargs
+        """
+
+        @deprecated_arg("b", removed=self.prev_version, version_val="0+untagged.1.g3131155")
+        def afoo4(a, b=None, **kwargs):
+            pass
+
+        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
+        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2, c=3))
+
     def test_replacement_arg(self):
         """
         Test deprecated arg being replaced.
@@ -245,9 +258,35 @@ class TestDeprecated(unittest.TestCase):
             return a
 
         self.assertEqual(afoo4(b=2), 2)
-        # self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
         self.assertEqual(afoo4(1, b=2), 1)  # new name is in use
         self.assertEqual(afoo4(a=1, b=2), 1)  # prefers the new arg
+
+    def test_replacement_arg1(self):
+        """
+        Test deprecated arg being replaced with kwargs.
+        """
+
+        @deprecated_arg("b", new_name="a", since=self.prev_version, version_val=self.test_version)
+        def afoo4(a, *args, **kwargs):
+            return a
+
+        self.assertEqual(afoo4(b=2), 2)
+        self.assertEqual(afoo4(1, b=2, c=3), 1)  # new name is in use
+        self.assertEqual(afoo4(a=1, b=2, c=3), 1)  # prefers the new arg
+
+    def test_replacement_arg2(self):
+        """
+        Test deprecated arg (with a default value) being replaced.
+        """
+
+        @deprecated_arg("b", new_name="a", since=self.prev_version, version_val=self.test_version)
+        def afoo4(a, b=None, **kwargs):
+            return a, kwargs
+
+        self.assertEqual(afoo4(b=2, c=3), (2, {"c": 3}))
+        self.assertEqual(afoo4(1, b=2, c=3), (1, {"c": 3}))  # new name is in use
+        self.assertEqual(afoo4(a=1, b=2, c=3), (1, {"c": 3}))  # prefers the new arg
+        self.assertEqual(afoo4(1, 2, c=3), (1, {"c": 3}))  # prefers the new positional arg
 
 
 if __name__ == "__main__":

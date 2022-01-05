@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +17,7 @@ from .dataset import (
     CacheNTransDataset,
     CSVDataset,
     Dataset,
+    DatasetFunc,
     LMDBDataset,
     NPZDictItemDataset,
     PersistentDataset,
@@ -42,6 +43,7 @@ from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
 from .test_time_augmentation import TestTimeAugmentation
 from .thread_buffer import ThreadBuffer, ThreadDataLoader
+from .torchscript_utils import load_net_with_metadata, save_net_with_metadata
 from .utils import (
     compute_importance_map,
     compute_shape_offset,

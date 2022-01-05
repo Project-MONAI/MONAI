@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -146,30 +146,30 @@ class LearningRateFinder:
     and what is the optimal learning rate.
 
     Example (fastai approach):
-        >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
-        >>> lr_finder.range_test(data_loader, end_lr=100, num_iter=100)
-        >>> lr_finder.get_steepest_gradient()
-        >>> lr_finder.plot() # to inspect the loss-learning rate graph
+    >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
+    >>> lr_finder.range_test(data_loader, end_lr=100, num_iter=100)
+    >>> lr_finder.get_steepest_gradient()
+    >>> lr_finder.plot() # to inspect the loss-learning rate graph
 
     Example (Leslie Smith's approach):
-        >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
-        >>> lr_finder.range_test(train_loader, val_loader=val_loader, end_lr=1, num_iter=100, step_mode="linear")
+    >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
+    >>> lr_finder.range_test(train_loader, val_loader=val_loader, end_lr=1, num_iter=100, step_mode="linear")
 
     Gradient accumulation is supported; example:
-        >>> train_data = ...    # prepared dataset
-        >>> desired_bs, real_bs = 32, 4         # batch size
-        >>> accumulation_steps = desired_bs // real_bs     # required steps for accumulation
-        >>> data_loader = torch.utils.data.DataLoader(train_data, batch_size=real_bs, shuffle=True)
-        >>> acc_lr_finder = LearningRateFinder(net, optimizer, criterion)
-        >>> acc_lr_finder.range_test(data_loader, end_lr=10, num_iter=100, accumulation_steps=accumulation_steps)
+    >>> train_data = ...    # prepared dataset
+    >>> desired_bs, real_bs = 32, 4         # batch size
+    >>> accumulation_steps = desired_bs // real_bs     # required steps for accumulation
+    >>> data_loader = torch.utils.data.DataLoader(train_data, batch_size=real_bs, shuffle=True)
+    >>> acc_lr_finder = LearningRateFinder(net, optimizer, criterion)
+    >>> acc_lr_finder.range_test(data_loader, end_lr=10, num_iter=100, accumulation_steps=accumulation_steps)
 
     By default, image will be extracted from data loader with x["image"] and x[0], depending on whether
     batch data is a dictionary or not (and similar behaviour for extracting the label). If your data loader
     returns something other than this, pass a callable function to extract it, e.g.:
-        >>> image_extractor = lambda x: x["input"]
-        >>> label_extractor = lambda x: x[100]
-        >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
-        >>> lr_finder.range_test(train_loader, val_loader, image_extractor, label_extractor)
+    >>> image_extractor = lambda x: x["input"]
+    >>> label_extractor = lambda x: x[100]
+    >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
+    >>> lr_finder.range_test(train_loader, val_loader, image_extractor, label_extractor)
 
     References:
     Modified from: https://github.com/davidtvs/pytorch-lr-finder.

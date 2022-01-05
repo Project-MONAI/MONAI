@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,6 +28,7 @@ __all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_su
 def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor]):
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
+
     Args:
         y_pred: predictions. As for classification tasks,
             `y_pred` should has the shape [BN] where N is larger than 1. As for segmentation tasks,
@@ -35,6 +36,7 @@ def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarr
         y: ground truth, the first dim is batch.
 
     """
+
     y = y[:, 1:] if y.shape[1] > 1 else y
     y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
     return y_pred, y
