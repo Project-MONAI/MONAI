@@ -82,7 +82,8 @@ class StatsHandler:
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
             key_var_format: a formatting string to control the output string format of key: value.
             logger_handler: add additional handler to handle the stats data: save to file, etc.
-                Add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+                all the existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html.
+                the handler should have a logging level of at least `INFO`.
         """
 
         self.epoch_print_logger = epoch_print_logger
