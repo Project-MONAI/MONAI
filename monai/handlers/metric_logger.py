@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,6 +57,9 @@ class MetricLogger:
 
     Args:
         loss_transform: Converts the `output` value from the trainer's state into a loss value
+            `engine.state` and `loss_transform` inherit from the ignite concept:
+            https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
         metric_transform: Converts the metric value coming from the trainer/evaluator's state into a storable value
         evaluator: Optional evaluator to consume metric results from at the end of its evaluation run
     """
