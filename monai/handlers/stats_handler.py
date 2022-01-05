@@ -109,7 +109,6 @@ class StatsHandler:
         """
         if self._name is None:
             self.logger = engine.logger
-        self.logger.setLevel(logging.INFO)
         if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
         if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):

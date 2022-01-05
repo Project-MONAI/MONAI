@@ -136,21 +136,18 @@ class TestHandlerStats(unittest.TestCase):
             # set up testing handler
             stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=handler)
             stats_handler.attach(engine)
+            stats_handler.logger.setLevel(logging.INFO)
 
             engine.run(range(3), max_epochs=2)
             handler.close()
             stats_handler.logger.removeHandler(handler)
             with open(filename) as f:
                 output_str = f.read()
-                grep = re.compile(f".*{key_to_handler}.*")
                 has_key_word = re.compile(f".*{key_to_print}.*")
                 content_count = 0
-                for idx, line in enumerate(output_str.split("\n")):
-                    print("!!!!!!!!", line)  # for temp test
-                    if grep.match(line):
-                        if idx in [1, 2, 3, 6, 7, 8]:
-                            content_count += 1
-                            self.assertTrue(has_key_word.match(line))
+                for line in output_str.split("\n"):
+                    if has_key_word.match(line):
+                        content_count += 1
                 self.assertTrue(content_count > 0)
 
     def test_exception(self):

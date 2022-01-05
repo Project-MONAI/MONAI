@@ -75,8 +75,6 @@ class LrScheduleHandler:
         """
         if self._name is None:
             self.logger = engine.logger
-        if self.print_lr:
-            self.logger.setLevel(logging.INFO)
         if self.epoch_level:
             engine.add_event_handler(Events.EPOCH_COMPLETED, self)
         else:

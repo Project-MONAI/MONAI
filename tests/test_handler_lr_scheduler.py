@@ -53,6 +53,8 @@ class TestHandlerLrSchedule(unittest.TestCase):
             return handler
 
         with tempfile.TemporaryDirectory() as tempdir:
+            key_to_handler = "test_log_lr"
+            key_to_print = "Current learning rate"
             filename = os.path.join(tempdir, "test_lr.log")
             # test with additional logging handler
             file_saver = logging.FileHandler(filename, mode="w")
@@ -61,8 +63,9 @@ class TestHandlerLrSchedule(unittest.TestCase):
             def _reduce_on_step():
                 optimizer = torch.optim.SGD(net.parameters(), test_lr)
                 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=gamma)
-                handler = LrScheduleHandler(lr_scheduler, name="test_logging", logger_handler=file_saver)
+                handler = LrScheduleHandler(lr_scheduler, name=key_to_handler, logger_handler=file_saver)
                 handler.attach(train_engine)
+                handler.logger.setLevel(logging.INFO)
                 return handler
 
             schedulers = _reduce_lr_on_plateau(), _reduce_on_step()
@@ -73,10 +76,10 @@ class TestHandlerLrSchedule(unittest.TestCase):
 
             with open(filename) as f:
                 output_str = f.read()
-                grep = re.compile(".*Current learning rate.*")
+                has_key_word = re.compile(f".*{key_to_print}.*")
                 content_count = 0
                 for line in output_str.split("\n"):
-                    if grep.match(line):
+                    if has_key_word.match(line):
                         content_count += 1
                 self.assertTrue(content_count > 0)
 
