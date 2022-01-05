@@ -20,7 +20,7 @@ from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
-from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.deprecate_utils import deprecated, deprecated_arg
 from monai.utils.misc import ensure_tuple, set_determinism
 from monai.utils.module import pytorch_after
 
@@ -93,17 +93,15 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     return labels
 
 
-def slice_channels(tensor: torch.Tensor, dim: int = 1, *slicevals: int) -> torch.Tensor:
-    """Slice several channels of input Tensor on specified `dim`.
-
-    Args:
-        tensor: input Tensor data to slice.
-        dim: expected dimension index to slice channels, default to `1`.
-        slicevals: channel indices to slice.
+@deprecated(since="0.8.0", msg_suffix="use `monai.utils.misc.sample_slices` instead.")
+def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:
+    """
+    .. deprecated:: 0.8.0
+        Use `monai.utils.misc.sample_slices` instead.
 
     """
     slices = [slice(None)] * len(tensor.shape)
-    slices[dim] = slicevals  # type: ignore
+    slices[1] = slice(*slicevals)
 
     return tensor[slices]
 

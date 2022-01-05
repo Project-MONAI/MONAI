@@ -22,6 +22,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.utils.module import version_leq
 
 __all__ = [
@@ -44,6 +45,7 @@ __all__ = [
     "ImageMetaKey",
     "is_module_ver_at_least",
     "has_option",
+    "sample_slices",
 ]
 
 _seed = None
@@ -366,3 +368,18 @@ def is_module_ver_at_least(module, version):
     """
     test_ver = ".".join(map(str, version))
     return module.__version__ != test_ver and version_leq(test_ver, module.__version__)
+
+
+def sample_slices(data: NdarrayOrTensor, dim: int = 1, *slicevals: int) -> NdarrayOrTensor:
+    """sample several slices of input numpy array or Tensor on specified `dim`.
+
+    Args:
+        data: input data to sample slices, can be numpy array or PyTorch Tensor.
+        dim: expected dimension index to sample slices, default to `1`.
+        slicevals: indices of slice to sample.
+
+    """
+    slices = [slice(None)] * len(data.shape)
+    slices[dim] = slicevals  # type: ignore
+
+    return data[tuple(slices)]
