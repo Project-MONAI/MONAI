@@ -93,9 +93,17 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     return labels
 
 
-def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:
+def slice_channels(tensor: torch.Tensor, dim: int = 1, *slicevals: int) -> torch.Tensor:
+    """Slice several channels of input Tensor on specified `dim`.
+
+    Args:
+        tensor: input Tensor data to slice.
+        dim: expected dimension index to slice channels, default to `1`.
+        slicevals: channel indices to slice.
+
+    """
     slices = [slice(None)] * len(tensor.shape)
-    slices[1] = slice(*slicevals)
+    slices[dim] = slicevals  # type: ignore
 
     return tensor[slices]
 
