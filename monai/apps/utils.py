@@ -21,6 +21,7 @@ import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import urlretrieve
 
 from monai.config.type_definitions import PathLike
@@ -185,7 +186,7 @@ def download_url(
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_name = Path(tmp_dir, _basename(filepath))
-        if url.startswith("https://drive.google.com"):
+        if urlparse(url).netloc == "drive.google.com":
             if not has_gdown:
                 raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
             gdown.download(url, f"{tmp_name}", quiet=not progress)
