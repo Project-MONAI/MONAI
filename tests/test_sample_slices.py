@@ -17,18 +17,16 @@ from parameterized import parameterized
 from monai.utils import sample_slices
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TEST_CASE_1 = [torch.tensor([[[0, 2], [1, 0]]]), 1, (1,), (1, 1, 2), torch.tensor([[[1, 0]]])]
+TEST_CASE_1 = [torch.tensor([[[0, 2], [1, 0]]]), 1, (1,), torch.tensor([[[1, 0]]])]
 
-TEST_CASE_2 = [torch.tensor([[[0, 2], [1, 0], [4, 5]]]), 1, (0, 2), (1, 2, 2), torch.tensor([[[0, 2], [4, 5]]])]
+TEST_CASE_2 = [torch.tensor([[[0, 2], [1, 0], [4, 5]]]), 1, (0, 2), torch.tensor([[[0, 2], [4, 5]]])]
 
 
 class TestSampleSlices(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_shape(self, input_data, dim, vals, expected_shape, expected_result):
+    def test_shape(self, input_data, dim, vals, expected_result):
         for p in TEST_NDARRAYS:
             result = sample_slices(p(input_data), dim, *vals)
-
-            self.assertEqual(result.shape, expected_shape)
             assert_allclose(p(expected_result), result)
 
 
