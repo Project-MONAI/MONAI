@@ -11,47 +11,25 @@
 
 import unittest
 
-import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.networks import one_hot
 from monai.utils import sample_slices
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TEST_CASE_1 = [  # single channel 2D, batch 2, shape (2, 1, 2, 2)
-    {"labels": torch.tensor([[[[0, 1], [1, 2]]], [[[2, 1], [1, 0]]]]), "num_classes": 3},
-    0,
-    (1,),
-    (1, 3, 2, 2),
-]
+TEST_CASE_1 = [torch.tensor([[[0, 2], [1, 0]]]), 1, (1,), (1, 1, 2), torch.tensor([[[1, 0]]])]
 
-TEST_CASE_2 = [  # single channel 1D, batch 2, shape (2, 1, 4)
-    {"labels": torch.tensor([[[1, 2, 2, 0]], [[2, 1, 0, 1]]]), "num_classes": 3},
-    1,
-    (1, 2),
-    (2, 2, 4),
-    np.array([[[1, 0, 0, 0], [0, 1, 1, 0]], [[0, 1, 0, 1], [1, 0, 0, 0]]]),
-]
-
-TEST_CASE_3 = [  # single channel 2D, batch 2, shape (2, 1, 2, 2)
-    {"labels": torch.tensor([[[[0, 1], [1, 2]]], [[[2, 1], [1, 0]]]]), "num_classes": 3},
-    0,
-    (),  # select no channels
-    (0, 3, 2, 2),
-]
+TEST_CASE_2 = [torch.tensor([[[0, 2], [1, 0], [4, 5]]]), 1, (0, 2), (1, 2, 2), torch.tensor([[[0, 2], [4, 5]]])]
 
 
 class TestSampleSlices(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_shape(self, input_data, dim, vals, expected_shape, expected_result=None):
-        onehot = one_hot(**input_data)
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_shape(self, input_data, dim, vals, expected_shape, expected_result):
         for p in TEST_NDARRAYS:
-            result = sample_slices(p(onehot), dim, *vals)
+            result = sample_slices(p(input_data), dim, *vals)
 
             self.assertEqual(result.shape, expected_shape)
-            if expected_result is not None:
-                assert_allclose(p(expected_result), result)
+            assert_allclose(p(expected_result), result)
 
 
 if __name__ == "__main__":
