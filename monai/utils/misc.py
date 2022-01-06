@@ -370,16 +370,19 @@ def is_module_ver_at_least(module, version):
     return module.__version__ != test_ver and version_leq(test_ver, module.__version__)
 
 
-def sample_slices(data: NdarrayOrTensor, dim: int = 1, *slicevals: int) -> NdarrayOrTensor:
+def sample_slices(data: NdarrayOrTensor, dim: int = 1, as_indices: bool = True, *slicevals: int) -> NdarrayOrTensor:
     """sample several slices of input numpy array or Tensor on specified `dim`.
 
     Args:
         data: input data to sample slices, can be numpy array or PyTorch Tensor.
         dim: expected dimension index to sample slices, default to `1`.
-        slicevals: indices of slice to sample.
+        as_indices: if `True`, `slicevals` arg will be treated as the expected indices of slice, like: `1, 3, 5`
+            means `data[..., [1, 3, 5], ...]`, if `False`, `slicevals` arg will be treated as args for `slice` func,
+            like: `1, None` means `data[..., [1:], ...]`, `1, 5` means `data[..., [1: 5], ...]`.
+        slicevals: indices of slices or start and end indices of expected slices, depends on `as_indices` flag.
 
     """
     slices = [slice(None)] * len(data.shape)
-    slices[dim] = slicevals  # type: ignore
+    slices[dim] = slicevals if as_indices else slice(*slicevals)  # type: ignore
 
     return data[tuple(slices)]
