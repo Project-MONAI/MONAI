@@ -119,8 +119,9 @@ class WSIReaderTests:
 
         @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_5])
         def test_read_region(self, file_path, patch_info, expected_img):
-            reader = WSIReader(self.backend)
-            with reader.read(file_path) as img_obj:
+            kwargs = {"name": None, "offset": None} if self.backend == "tifffile" else {}
+            reader = WSIReader(self.backend, **kwargs)
+            with reader.read(file_path, **kwargs) as img_obj:
                 if self.backend == "tifffile":
                     with self.assertRaises(ValueError):
                         reader.get_data(img_obj, **patch_info)[0]
