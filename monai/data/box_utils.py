@@ -15,14 +15,12 @@ from typing import Sequence, Union
 import numpy as np
 import torch
 
-import point_utils
-
 SUPPORT_MODE = ["xxyy", "xxyyzz", "xyxy", "xyzxyz", "xywh", "xyzwhd"]
 STANDARD_MODE = ["xxyy", "xxyyzz"]  # [2d_mode, 3d_mode]
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
 #      i.e., when x_min=1, x_max=2, we have w = 1
-#   if in 'xxyy','xxyyzz' mode, the bottom-right corner is included in the box,
+# TO_REMOVE = 1  if in 'xxyy','xxyyzz' mode, the bottom-right corner is included in the box,
 #       i.e., when x_min=1, x_max=2, we have w = 2
 TO_REMOVE = 0  # x_max-x_min = w -TO_REMOVE
 

@@ -157,13 +157,11 @@ class BoxConvertToStandardd(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
     def __init__(
-            self,
-            box_keys: KeysCollection,
-            box_mode: str,
-            allow_missing_keys: bool = False,
+        self,
+        box_keys: KeysCollection,
+        box_mode: str,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(box_keys, allow_missing_keys)
         self.converter = BoxConvertToStandard(mode=box_mode)
@@ -203,15 +201,13 @@ class BoxClipToImaged(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = BoxFlip.backend
-
     def __init__(
-            self,
-            box_keys: KeysCollection,
-            image_key: str,
-            box_mode: str = None,
-            remove_empty: bool = True,
-            allow_missing_keys: bool = False,
+        self,
+        box_keys: KeysCollection,
+        image_key: str,
+        box_mode: str = None,
+        remove_empty: bool = True,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(box_keys, allow_missing_keys)
         self.image_key = image_key
@@ -245,16 +241,14 @@ class BoxFlipd(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = BoxFlip.backend
-
     def __init__(
-            self,
-            box_keys: KeysCollection,
-            image_key: str,
-            spatial_axis: Optional[Union[Sequence[int], int]] = None,
-            box_mode: str = None,
-            remove_empty: bool = True,
-            allow_missing_keys: bool = False,
+        self,
+        box_keys: KeysCollection,
+        image_key: str,
+        spatial_axis: Optional[Union[Sequence[int], int]] = None,
+        box_mode: str = None,
+        remove_empty: bool = True,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(box_keys, allow_missing_keys)
         self.flipper = BoxFlip(spatial_axis=spatial_axis, mode=box_mode, remove_empty=remove_empty)
@@ -302,17 +296,17 @@ class Spacingd(MapTransform, InvertibleTransform):
     backend = Spacing.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            pixdim: Union[Sequence[float], float],
-            diagonal: bool = False,
-            mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-            padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
-            align_corners: Union[Sequence[bool], bool] = False,
-            dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
-            meta_keys: Optional[KeysCollection] = None,
-            meta_key_postfix: str = "meta_dict",
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        pixdim: Union[Sequence[float], float],
+        diagonal: bool = False,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
+        align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = "meta_dict",
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -377,11 +371,11 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(
-            self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
+        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
     ) -> Dict[Hashable, NdarrayOrTensor]:
         d: Dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, meta_key, meta_key_postfix in self.key_iterator(
-                d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
         ):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
             # create metadata if necessary
@@ -464,14 +458,14 @@ class Orientationd(MapTransform, InvertibleTransform):
     backend = Orientation.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            axcodes: Optional[str] = None,
-            as_closest_canonical: bool = False,
-            labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
-            meta_keys: Optional[KeysCollection] = None,
-            meta_key_postfix: str = "meta_dict",
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        axcodes: Optional[str] = None,
+        as_closest_canonical: bool = False,
+        labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = "meta_dict",
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -512,7 +506,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(
-            self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
+        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
     ) -> Dict[Hashable, NdarrayOrTensor]:
         d: Dict = dict(data)
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
@@ -554,8 +548,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
     backend = Rotate90.backend
 
     def __init__(
-            self, keys: KeysCollection, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1),
-            allow_missing_keys: bool = False
+        self, keys: KeysCollection, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1), allow_missing_keys: bool = False
     ) -> None:
         """
         Args:
@@ -601,12 +594,12 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
     backend = Rotate90.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            prob: float = 0.1,
-            max_k: int = 3,
-            spatial_axes: Tuple[int, int] = (0, 1),
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        max_k: int = 3,
+        spatial_axes: Tuple[int, int] = (0, 1),
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -693,13 +686,13 @@ class Resized(MapTransform, InvertibleTransform):
     backend = Resize.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            spatial_size: Union[Sequence[int], int],
-            size_mode: str = "all",
-            mode: InterpolateModeSequence = InterpolateMode.AREA,
-            align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        spatial_size: Union[Sequence[int], int],
+        size_mode: str = "all",
+        mode: InterpolateModeSequence = InterpolateMode.AREA,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -750,19 +743,19 @@ class Affined(MapTransform, InvertibleTransform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            keys: KeysCollection,
-            rotate_params: Optional[Union[Sequence[float], float]] = None,
-            shear_params: Optional[Union[Sequence[float], float]] = None,
-            translate_params: Optional[Union[Sequence[float], float]] = None,
-            scale_params: Optional[Union[Sequence[float], float]] = None,
-            affine: Optional[NdarrayOrTensor] = None,
-            spatial_size: Optional[Union[Sequence[int], int]] = None,
-            mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-            padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
-            as_tensor_output: bool = True,
-            device: Optional[torch.device] = None,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        rotate_params: Optional[Union[Sequence[float], float]] = None,
+        shear_params: Optional[Union[Sequence[float], float]] = None,
+        translate_params: Optional[Union[Sequence[float], float]] = None,
+        scale_params: Optional[Union[Sequence[float], float]] = None,
+        affine: Optional[NdarrayOrTensor] = None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -874,20 +867,20 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            keys: KeysCollection,
-            spatial_size: Optional[Union[Sequence[int], int]] = None,
-            prob: float = 0.1,
-            rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-            padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
-            cache_grid: bool = False,
-            as_tensor_output: bool = True,
-            device: Optional[torch.device] = None,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        prob: float = 0.1,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
+        cache_grid: bool = False,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -960,7 +953,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandAffined":
         self.rand_affine.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -1041,21 +1034,21 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            keys: KeysCollection,
-            spacing: Union[Tuple[float, float], float],
-            magnitude_range: Tuple[float, float],
-            spatial_size: Optional[Union[Tuple[int, int], int]] = None,
-            prob: float = 0.1,
-            rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-            padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
-            as_tensor_output: bool = False,
-            device: Optional[torch.device] = None,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        spacing: Union[Tuple[float, float], float],
+        magnitude_range: Tuple[float, float],
+        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
+        prob: float = 0.1,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -1128,7 +1121,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "Rand2DElasticd":
         self.rand_2d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -1175,21 +1168,21 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            keys: KeysCollection,
-            sigma_range: Tuple[float, float],
-            magnitude_range: Tuple[float, float],
-            spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
-            prob: float = 0.1,
-            rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-            mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-            padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
-            as_tensor_output: bool = False,
-            device: Optional[torch.device] = None,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        sigma_range: Tuple[float, float],
+        magnitude_range: Tuple[float, float],
+        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
+        prob: float = 0.1,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -1264,7 +1257,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "Rand3DElasticd":
         self.rand_3d_elastic.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -1312,10 +1305,10 @@ class Flipd(MapTransform, InvertibleTransform):
     backend = Flip.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            spatial_axis: Optional[Union[Sequence[int], int]] = None,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        spatial_axis: Optional[Union[Sequence[int], int]] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
@@ -1356,18 +1349,18 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     backend = RandFlip.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            prob: float = 0.1,
-            spatial_axis: Optional[Union[Sequence[int], int]] = None,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        spatial_axis: Optional[Union[Sequence[int], int]] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.flipper = RandFlip(prob=1.0, spatial_axis=spatial_axis)
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandFlipd":
         super().set_random_state(seed, state)
         self.flipper.set_random_state(seed, state)
@@ -1418,7 +1411,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.flipper = RandAxisFlip(prob=1.0)
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandAxisFlipd":
         super().set_random_state(seed, state)
         self.flipper.set_random_state(seed, state)
@@ -1485,15 +1478,15 @@ class Rotated(MapTransform, InvertibleTransform):
     backend = Rotate.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            angle: Union[Sequence[float], float],
-            keep_size: bool = True,
-            mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-            padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
-            align_corners: Union[Sequence[bool], bool] = False,
-            dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        angle: Union[Sequence[float], float],
+        keep_size: bool = True,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
+        align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate(angle=angle, keep_size=keep_size)
@@ -1506,7 +1499,7 @@ class Rotated(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-                d, self.mode, self.padding_mode, self.align_corners, self.dtype
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             orig_size = d[key].shape[1:]
             d[key] = self.rotator(
@@ -1596,18 +1589,18 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
     backend = RandRotate.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            range_x: Union[Tuple[float, float], float] = 0.0,
-            range_y: Union[Tuple[float, float], float] = 0.0,
-            range_z: Union[Tuple[float, float], float] = 0.0,
-            prob: float = 0.1,
-            keep_size: bool = True,
-            mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
-            padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
-            align_corners: Union[Sequence[bool], bool] = False,
-            dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        range_x: Union[Tuple[float, float], float] = 0.0,
+        range_y: Union[Tuple[float, float], float] = 0.0,
+        range_z: Union[Tuple[float, float], float] = 0.0,
+        prob: float = 0.1,
+        keep_size: bool = True,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
+        align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
+        allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -1618,7 +1611,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandRotated":
         super().set_random_state(seed, state)
         self.rand_rotate.set_random_state(seed, state)
@@ -1631,7 +1624,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random rotate angle
         self.rand_rotate.randomize()
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-                d, self.mode, self.padding_mode, self.align_corners, self.dtype
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             if self._do_transform:
                 d[key], rot_mat = self.rand_rotate(
@@ -1726,15 +1719,15 @@ class Zoomd(MapTransform, InvertibleTransform):
     backend = Zoom.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            zoom: Union[Sequence[float], float],
-            mode: InterpolateModeSequence = InterpolateMode.AREA,
-            padding_mode: PadModeSequence = NumpyPadMode.EDGE,
-            align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
-            keep_size: bool = True,
-            allow_missing_keys: bool = False,
-            **kwargs,
+        self,
+        keys: KeysCollection,
+        zoom: Union[Sequence[float], float],
+        mode: InterpolateModeSequence = InterpolateMode.AREA,
+        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
+        keep_size: bool = True,
+        allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -1745,7 +1738,7 @@ class Zoomd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners in self.key_iterator(
-                d, self.mode, self.padding_mode, self.align_corners
+            d, self.mode, self.padding_mode, self.align_corners
         ):
             self.push_transform(
                 d,
@@ -1826,17 +1819,17 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
     backend = RandZoom.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            prob: float = 0.1,
-            min_zoom: Union[Sequence[float], float] = 0.9,
-            max_zoom: Union[Sequence[float], float] = 1.1,
-            mode: InterpolateModeSequence = InterpolateMode.AREA,
-            padding_mode: PadModeSequence = NumpyPadMode.EDGE,
-            align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
-            keep_size: bool = True,
-            allow_missing_keys: bool = False,
-            **kwargs,
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        min_zoom: Union[Sequence[float], float] = 0.9,
+        max_zoom: Union[Sequence[float], float] = 1.1,
+        mode: InterpolateModeSequence = InterpolateMode.AREA,
+        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
+        keep_size: bool = True,
+        allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -1846,7 +1839,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandZoomd":
         super().set_random_state(seed, state)
         self.rand_zoom.set_random_state(seed, state)
@@ -1863,7 +1856,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random zoom factor
         self.rand_zoom.randomize(d[first_key])  # type: ignore
         for key, mode, padding_mode, align_corners in self.key_iterator(
-                d, self.mode, self.padding_mode, self.align_corners
+            d, self.mode, self.padding_mode, self.align_corners
         ):
             if self._do_transform:
                 d[key] = self.rand_zoom(
@@ -1944,14 +1937,14 @@ class GridDistortiond(MapTransform):
     backend = GridDistortion.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            num_cells: Union[Tuple[int], int],
-            distort_steps: List[Tuple],
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-            device: Optional[torch.device] = None,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        num_cells: Union[Tuple[int], int],
+        distort_steps: List[Tuple],
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -1992,15 +1985,15 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
     backend = RandGridDistortion.backend
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            num_cells: Union[Tuple[int], int] = 5,
-            prob: float = 0.1,
-            distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-            device: Optional[torch.device] = None,
-            allow_missing_keys: bool = False,
+        self,
+        keys: KeysCollection,
+        num_cells: Union[Tuple[int], int] = 5,
+        prob: float = 0.1,
+        distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -2031,7 +2024,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandGridDistortiond":
         super().set_random_state(seed, state)
         self.rand_grid_distortion.set_random_state(seed, state)
@@ -2053,6 +2046,9 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         return d
 
 
+BoxConvertToStandardD = BoxConvertToStandardDict = BoxConvertToStandardd
+BoxClipToImageD = BoxClipToImageDict = BoxClipToImaged
+BoxFlipD = BoxFlipDict = BoxFlipd
 SpacingD = SpacingDict = Spacingd
 OrientationD = OrientationDict = Orientationd
 Rotate90D = Rotate90Dict = Rotate90d

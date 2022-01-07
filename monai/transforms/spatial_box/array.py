@@ -124,7 +124,7 @@ class BoxConvertToStandard(Transform):
     def __init__(self, mode: str) -> None:
         self.converter = BoxConvertMode(mode1=mode, mode2=None)
 
-    def __call__(self, bbox: NdarrayOrTensor) -> Tensor:
+    def __call__(self, bbox: NdarrayOrTensor) -> NdarrayOrTensor:
         # convert bbox to torch tensor
         return self.converter(bbox)
 
@@ -136,13 +136,17 @@ class BoxClipToImage(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self,
-                 mode: str = None,
-                 remove_empty: bool = True, ) -> None:
+    def __init__(
+        self,
+        mode: str = None,
+        remove_empty: bool = True,
+    ) -> None:
         self.mode = mode
         self.remove_empty = remove_empty
 
-    def __call__(self, bbox: NdarrayOrTensor, image_size: Union[Sequence[int], torch.Tensor, np.ndarray]) -> NdarrayOrTensor:
+    def __call__(
+        self, bbox: NdarrayOrTensor, image_size: Union[Sequence[int], torch.Tensor, np.ndarray]
+    ) -> NdarrayOrTensor:
         # convert bbox to torch tensor
         if isinstance(bbox, np.ndarray):
             bbox_tensor = torch.from_numpy(bbox)
@@ -170,15 +174,16 @@ class BoxFlip(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None, mode: str = None,
-                 remove_empty: bool = True) -> None:
+    def __init__(
+        self, spatial_axis: Optional[Union[Sequence[int], int]] = None, mode: str = None, remove_empty: bool = True
+    ) -> None:
         self.spatial_axis = spatial_axis
         self.mode = mode
         self.remove_empty = remove_empty
 
-    def __call__(self, bbox: NdarrayOrTensor, image_size: Union[Sequence[int], torch.Tensor, np.ndarray]) -> NdarrayOrTensor:
+    def __call__(
+        self, bbox: NdarrayOrTensor, image_size: Union[Sequence[int], torch.Tensor, np.ndarray]
+    ) -> NdarrayOrTensor:
         # convert bbox to torch tensor
         if isinstance(bbox, np.ndarray):
             bbox_tensor = torch.from_numpy(bbox)
@@ -210,14 +215,14 @@ class Spacing(Transform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-            self,
-            pixdim: Union[Sequence[float], float],
-            diagonal: bool = False,
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-            align_corners: bool = False,
-            dtype: DtypeLike = np.float64,
-            image_only: bool = False,
+        self,
+        pixdim: Union[Sequence[float], float],
+        diagonal: bool = False,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        align_corners: bool = False,
+        dtype: DtypeLike = np.float64,
+        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -262,14 +267,14 @@ class Spacing(Transform):
         self.image_only = image_only
 
     def __call__(
-            self,
-            data_array: NdarrayOrTensor,
-            affine: Optional[NdarrayOrTensor] = None,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-            align_corners: Optional[bool] = None,
-            dtype: DtypeLike = None,
-            output_spatial_shape: Optional[np.ndarray] = None,
+        self,
+        data_array: NdarrayOrTensor,
+        affine: Optional[NdarrayOrTensor] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        align_corners: Optional[bool] = None,
+        dtype: DtypeLike = None,
+        output_spatial_shape: Optional[np.ndarray] = None,
     ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
         """
         Args:
@@ -360,11 +365,11 @@ class Orientation(Transform):
     backend = [TransformBackends.NUMPY]
 
     def __init__(
-            self,
-            axcodes: Optional[str] = None,
-            as_closest_canonical: bool = False,
-            labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
-            image_only: bool = False,
+        self,
+        axcodes: Optional[str] = None,
+        as_closest_canonical: bool = False,
+        labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
+        image_only: bool = False,
     ) -> None:
         """
         Args:
@@ -395,7 +400,7 @@ class Orientation(Transform):
         self.image_only = image_only
 
     def __call__(
-            self, data_array: NdarrayOrTensor, affine: Optional[NdarrayOrTensor] = None
+        self, data_array: NdarrayOrTensor, affine: Optional[NdarrayOrTensor] = None
     ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
         """
         original orientation of `data_array` is defined by `affine`.
@@ -508,11 +513,11 @@ class Resize(Transform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-            self,
-            spatial_size: Union[Sequence[int], int],
-            size_mode: str = "all",
-            mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-            align_corners: Optional[bool] = None,
+        self,
+        spatial_size: Union[Sequence[int], int],
+        size_mode: str = "all",
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        align_corners: Optional[bool] = None,
     ) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
@@ -520,10 +525,10 @@ class Resize(Transform):
         self.align_corners = align_corners
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            mode: Optional[Union[InterpolateMode, str]] = None,
-            align_corners: Optional[bool] = None,
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        align_corners: Optional[bool] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -593,13 +598,13 @@ class Rotate(Transform, ThreadUnsafe):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-            self,
-            angle: Union[Sequence[float], float],
-            keep_size: bool = True,
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-            align_corners: bool = False,
-            dtype: Union[DtypeLike, torch.dtype] = np.float64,
+        self,
+        angle: Union[Sequence[float], float],
+        keep_size: bool = True,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        align_corners: bool = False,
+        dtype: Union[DtypeLike, torch.dtype] = np.float64,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
@@ -610,12 +615,12 @@ class Rotate(Transform, ThreadUnsafe):
         self._rotation_matrix: Optional[NdarrayOrTensor] = None
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-            align_corners: Optional[bool] = None,
-            dtype: Union[DtypeLike, torch.dtype] = None,
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        align_corners: Optional[bool] = None,
+        dtype: Union[DtypeLike, torch.dtype] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -719,13 +724,13 @@ class Zoom(Transform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-            self,
-            zoom: Union[Sequence[float], float],
-            mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-            padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
-            align_corners: Optional[bool] = None,
-            keep_size: bool = True,
-            **kwargs,
+        self,
+        zoom: Union[Sequence[float], float],
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
+        align_corners: Optional[bool] = None,
+        keep_size: bool = True,
+        **kwargs,
     ) -> None:
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
@@ -735,11 +740,11 @@ class Zoom(Transform):
         self.kwargs = kwargs
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            mode: Optional[Union[InterpolateMode, str]] = None,
-            padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-            align_corners: Optional[bool] = None,
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        align_corners: Optional[bool] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -902,16 +907,16 @@ class RandRotate(RandomizableTransform):
     backend = Rotate.backend
 
     def __init__(
-            self,
-            range_x: Union[Tuple[float, float], float] = 0.0,
-            range_y: Union[Tuple[float, float], float] = 0.0,
-            range_z: Union[Tuple[float, float], float] = 0.0,
-            prob: float = 0.1,
-            keep_size: bool = True,
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-            align_corners: bool = False,
-            dtype: Union[DtypeLike, torch.dtype] = np.float64,
+        self,
+        range_x: Union[Tuple[float, float], float] = 0.0,
+        range_y: Union[Tuple[float, float], float] = 0.0,
+        range_z: Union[Tuple[float, float], float] = 0.0,
+        prob: float = 0.1,
+        keep_size: bool = True,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        align_corners: bool = False,
+        dtype: Union[DtypeLike, torch.dtype] = np.float64,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)
@@ -943,14 +948,14 @@ class RandRotate(RandomizableTransform):
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-            align_corners: Optional[bool] = None,
-            dtype: Union[DtypeLike, torch.dtype] = None,
-            randomize: bool = True,
-            get_matrix: bool = False,
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        align_corners: Optional[bool] = None,
+        dtype: Union[DtypeLike, torch.dtype] = None,
+        randomize: bool = True,
+        get_matrix: bool = False,
     ):
         """
         Args:
@@ -1095,15 +1100,15 @@ class RandZoom(RandomizableTransform):
     backend = Zoom.backend
 
     def __init__(
-            self,
-            prob: float = 0.1,
-            min_zoom: Union[Sequence[float], float] = 0.9,
-            max_zoom: Union[Sequence[float], float] = 1.1,
-            mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-            padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
-            align_corners: Optional[bool] = None,
-            keep_size: bool = True,
-            **kwargs,
+        self,
+        prob: float = 0.1,
+        min_zoom: Union[Sequence[float], float] = 0.9,
+        max_zoom: Union[Sequence[float], float] = 1.1,
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
+        align_corners: Optional[bool] = None,
+        keep_size: bool = True,
+        **kwargs,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.min_zoom = ensure_tuple(min_zoom)
@@ -1131,12 +1136,12 @@ class RandZoom(RandomizableTransform):
             self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            mode: Optional[Union[InterpolateMode, str]] = None,
-            padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-            align_corners: Optional[bool] = None,
-            randomize: bool = True,
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        align_corners: Optional[bool] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1208,14 +1213,14 @@ class AffineGrid(Transform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            rotate_params: Optional[Union[Sequence[float], float]] = None,
-            shear_params: Optional[Union[Sequence[float], float]] = None,
-            translate_params: Optional[Union[Sequence[float], float]] = None,
-            scale_params: Optional[Union[Sequence[float], float]] = None,
-            as_tensor_output: bool = True,
-            device: Optional[torch.device] = None,
-            affine: Optional[NdarrayOrTensor] = None,
+        self,
+        rotate_params: Optional[Union[Sequence[float], float]] = None,
+        shear_params: Optional[Union[Sequence[float], float]] = None,
+        translate_params: Optional[Union[Sequence[float], float]] = None,
+        scale_params: Optional[Union[Sequence[float], float]] = None,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
+        affine: Optional[NdarrayOrTensor] = None,
     ) -> None:
         self.rotate_params = rotate_params
         self.shear_params = shear_params
@@ -1225,7 +1230,7 @@ class AffineGrid(Transform):
         self.affine = affine
 
     def __call__(
-            self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[NdarrayOrTensor] = None
+        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[NdarrayOrTensor] = None
     ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
         The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
@@ -1284,13 +1289,13 @@ class RandAffineGrid(Randomizable, Transform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            rotate_range: RandRange = None,
-            shear_range: RandRange = None,
-            translate_range: RandRange = None,
-            scale_range: RandRange = None,
-            as_tensor_output: bool = True,
-            device: Optional[torch.device] = None,
+        self,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
     ) -> None:
         """
         Args:
@@ -1359,7 +1364,7 @@ class RandAffineGrid(Randomizable, Transform):
         self.scale_params = self._get_rand_param(self.scale_range, 1.0)
 
     def __call__(
-            self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[NdarrayOrTensor] = None
+        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[NdarrayOrTensor] = None
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1394,11 +1399,11 @@ class RandDeformGrid(Randomizable, Transform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-            self,
-            spacing: Union[Sequence[float], float],
-            magnitude_range: Tuple[float, float],
-            as_tensor_output: bool = True,
-            device: Optional[torch.device] = None,
+        self,
+        spacing: Union[Sequence[float], float],
+        magnitude_range: Tuple[float, float],
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
     ) -> None:
         """
         Args:
@@ -1444,11 +1449,11 @@ class Resample(Transform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-            as_tensor_output: bool = True,
-            device: Optional[torch.device] = None,
+        self,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
     ) -> None:
         """
         computes output image using values from `img`, locations from `grid` using pytorch.
@@ -1472,11 +1477,11 @@ class Resample(Transform):
         self.device = device
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            grid: Optional[NdarrayOrTensor] = None,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        self,
+        img: NdarrayOrTensor,
+        grid: Optional[NdarrayOrTensor] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1548,18 +1553,18 @@ class Affine(Transform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            rotate_params: Optional[Union[Sequence[float], float]] = None,
-            shear_params: Optional[Union[Sequence[float], float]] = None,
-            translate_params: Optional[Union[Sequence[float], float]] = None,
-            scale_params: Optional[Union[Sequence[float], float]] = None,
-            affine: Optional[NdarrayOrTensor] = None,
-            spatial_size: Optional[Union[Sequence[int], int]] = None,
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
-            as_tensor_output: bool = True,
-            device: Optional[torch.device] = None,
-            image_only: bool = False,
+        self,
+        rotate_params: Optional[Union[Sequence[float], float]] = None,
+        shear_params: Optional[Union[Sequence[float], float]] = None,
+        translate_params: Optional[Union[Sequence[float], float]] = None,
+        scale_params: Optional[Union[Sequence[float], float]] = None,
+        affine: Optional[NdarrayOrTensor] = None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
+        image_only: bool = False,
     ) -> None:
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
@@ -1618,11 +1623,11 @@ class Affine(Transform):
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            spatial_size: Optional[Union[Sequence[int], int]] = None,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        self,
+        img: NdarrayOrTensor,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor]]:
         """
         Args:
@@ -1657,18 +1662,18 @@ class RandAffine(RandomizableTransform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            prob: float = 0.1,
-            rotate_range: RandRange = None,
-            shear_range: RandRange = None,
-            translate_range: RandRange = None,
-            scale_range: RandRange = None,
-            spatial_size: Optional[Union[Sequence[int], int]] = None,
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
-            cache_grid: bool = False,
-            as_tensor_output: bool = True,
-            device: Optional[torch.device] = None,
+        self,
+        prob: float = 0.1,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
+        cache_grid: bool = False,
+        as_tensor_output: bool = True,
+        device: Optional[torch.device] = None,
     ) -> None:
         """
         Args:
@@ -1769,7 +1774,7 @@ class RandAffine(RandomizableTransform):
         """
         ndim = len(spatial_size)
         if spatial_size != fall_back_tuple(spatial_size, [1] * ndim) or spatial_size != fall_back_tuple(
-                spatial_size, [2] * ndim
+            spatial_size, [2] * ndim
         ):
             raise RuntimeError(f"spatial_size should not be dynamic, got {spatial_size}.")
         return (
@@ -1779,7 +1784,7 @@ class RandAffine(RandomizableTransform):
         )
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandAffine":
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -1792,12 +1797,12 @@ class RandAffine(RandomizableTransform):
         self.rand_affine_grid.randomize()
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            spatial_size: Optional[Union[Sequence[int], int]] = None,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-            randomize: bool = True,
+        self,
+        img: NdarrayOrTensor,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1845,19 +1850,19 @@ class Rand2DElastic(RandomizableTransform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            spacing: Union[Tuple[float, float], float],
-            magnitude_range: Tuple[float, float],
-            prob: float = 0.1,
-            rotate_range: RandRange = None,
-            shear_range: RandRange = None,
-            translate_range: RandRange = None,
-            scale_range: RandRange = None,
-            spatial_size: Optional[Union[Tuple[int, int], int]] = None,
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
-            as_tensor_output: bool = False,
-            device: Optional[torch.device] = None,
+        self,
+        spacing: Union[Tuple[float, float], float],
+        magnitude_range: Tuple[float, float],
+        prob: float = 0.1,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
     ) -> None:
         """
         Args:
@@ -1927,7 +1932,7 @@ class Rand2DElastic(RandomizableTransform):
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "Rand2DElastic":
         self.deform_grid.set_random_state(seed, state)
         self.rand_affine_grid.set_random_state(seed, state)
@@ -1942,12 +1947,12 @@ class Rand2DElastic(RandomizableTransform):
         self.rand_affine_grid.randomize()
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            spatial_size: Optional[Union[Tuple[int, int], int]] = None,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-            randomize: bool = True,
+        self,
+        img: NdarrayOrTensor,
+        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1998,19 +2003,19 @@ class Rand3DElastic(RandomizableTransform):
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
-            self,
-            sigma_range: Tuple[float, float],
-            magnitude_range: Tuple[float, float],
-            prob: float = 0.1,
-            rotate_range: RandRange = None,
-            shear_range: RandRange = None,
-            translate_range: RandRange = None,
-            scale_range: RandRange = None,
-            spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
-            as_tensor_output: bool = False,
-            device: Optional[torch.device] = None,
+        self,
+        sigma_range: Tuple[float, float],
+        magnitude_range: Tuple[float, float],
+        prob: float = 0.1,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
     ) -> None:
         """
         Args:
@@ -2086,7 +2091,7 @@ class Rand3DElastic(RandomizableTransform):
         self.sigma = 1.0
 
     def set_random_state(
-            self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "Rand3DElastic":
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
@@ -2102,12 +2107,12 @@ class Rand3DElastic(RandomizableTransform):
         self.rand_affine_grid.randomize()
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-            randomize: bool = True,
+        self,
+        img: NdarrayOrTensor,
+        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -2189,12 +2194,12 @@ class GridDistortion(Transform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-            self,
-            num_cells: Union[Tuple[int], int],
-            distort_steps: Sequence[Sequence[float]],
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-            device: Optional[torch.device] = None,
+        self,
+        num_cells: Union[Tuple[int], int],
+        distort_steps: Sequence[Sequence[float]],
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
     ) -> None:
         """
         Grid distortion transform. Refer to:
@@ -2220,11 +2225,11 @@ class GridDistortion(Transform):
         self.device = device
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            distort_steps: Optional[Sequence[Sequence]] = None,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        self,
+        img: NdarrayOrTensor,
+        distort_steps: Optional[Sequence[Sequence]] = None,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -2274,13 +2279,13 @@ class RandGridDistortion(RandomizableTransform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-            self,
-            num_cells: Union[Tuple[int], int] = 5,
-            prob: float = 0.1,
-            distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-            device: Optional[torch.device] = None,
+        self,
+        num_cells: Union[Tuple[int], int] = 5,
+        prob: float = 0.1,
+        distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        device: Optional[torch.device] = None,
     ) -> None:
         """
         Random grid distortion transform. Refer to:
@@ -2322,11 +2327,11 @@ class RandGridDistortion(RandomizableTransform):
         )
 
     def __call__(
-            self,
-            img: NdarrayOrTensor,
-            mode: Optional[Union[GridSampleMode, str]] = None,
-            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-            randomize: bool = True,
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
