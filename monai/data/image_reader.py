@@ -711,16 +711,17 @@ class WSIReader(ImageReader):
         backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "TiffFile".
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
+        kwargs: additional args for backend reading API in `read()`, more details in `cuCIM`, `TiffFile`, `OpenSlide`:
+            https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
+            https://scikit-image.org/docs/0.14.x/api/skimage.external.tifffile.html#skimage.external.tifffile.TiffFile.
+            https://openslide.org/api/python/#openslide.OpenSlide.
 
     Note:
         While "cuCIM" and "OpenSlide" backends both can load patches from large whole slide images
         without loading the entire image into memory, "TiffFile" backend needs to load the entire image into memory
         before extracting any patch; thus, memory consideration is needed when using "TiffFile" backend for
         patch extraction.
-        kwargs: additional args for backend reading API in `read()`, more details in `cuCIM`, `TiffFile`, `OpenSlide`:
-            https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
-            https://scikit-image.org/docs/0.14.x/api/skimage.external.tifffile.html#skimage.external.tifffile.TiffFile.
-            https://openslide.org/api/python/#openslide.OpenSlide.
+
     """
 
     def __init__(self, backend: str = "OpenSlide", level: int = 0, **kwargs):
