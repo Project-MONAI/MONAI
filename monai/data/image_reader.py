@@ -713,7 +713,7 @@ class WSIReader(ImageReader):
             This is overridden if the level argument is provided in `get_data`.
         kwargs: additional args for backend reading API in `read()`, more details in `cuCIM`, `TiffFile`, `OpenSlide`:
             https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
-            https://scikit-image.org/docs/0.14.x/api/skimage.external.tifffile.html#skimage.external.tifffile.TiffFile.
+            https://github.com/cgohlke/tifffile.
             https://openslide.org/api/python/#openslide.OpenSlide.
 
     Note:
@@ -761,8 +761,7 @@ class WSIReader(ImageReader):
             kwargs: additional args for backend reading API in `read()`, will override `self.kwargs` for existing keys.
                 more details in `cuCIM`, `TiffFile`, `OpenSlide`:
                 https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
-                https://scikit-image.org/docs/0.14.x/api/skimage.external.tifffile.html
-                #skimage.external.tifffile.TiffFile.
+                https://github.com/cgohlke/tifffile.
                 https://openslide.org/api/python/#openslide.OpenSlide.
 
         Returns:
