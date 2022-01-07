@@ -711,20 +711,26 @@ class WSIReader(ImageReader):
         backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "TiffFile".
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
+        kwargs: additional args for backend reading API in `read()`, more details in `cuCIM`, `TiffFile`, `OpenSlide`:
+            https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
+            https://github.com/cgohlke/tifffile.
+            https://openslide.org/api/python/#openslide.OpenSlide.
 
     Note:
         While "cuCIM" and "OpenSlide" backends both can load patches from large whole slide images
         without loading the entire image into memory, "TiffFile" backend needs to load the entire image into memory
         before extracting any patch; thus, memory consideration is needed when using "TiffFile" backend for
         patch extraction.
+
     """
 
-    def __init__(self, backend: str = "OpenSlide", level: int = 0):
+    def __init__(self, backend: str = "OpenSlide", level: int = 0, **kwargs):
         super().__init__()
         self.backend = backend.lower()
         func = require_pkg(self.backend)(self._set_reader)
         self.wsi_reader = func(self.backend)
         self.level = level
+        self.kwargs = kwargs
 
     @staticmethod
     def _set_reader(backend: str):
@@ -752,6 +758,11 @@ class WSIReader(ImageReader):
 
         Args:
             data: file name or a list of file names to read.
+            kwargs: additional args for backend reading API in `read()`, will override `self.kwargs` for existing keys.
+                more details in `cuCIM`, `TiffFile`, `OpenSlide`:
+                https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
+                https://github.com/cgohlke/tifffile.
+                https://openslide.org/api/python/#openslide.OpenSlide.
 
         Returns:
             image object or list of image objects
@@ -760,8 +771,10 @@ class WSIReader(ImageReader):
         img_: List = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            img = self.wsi_reader(name)
+            img = self.wsi_reader(name, **kwargs_)
             if self.backend == "openslide":
                 img.shape = (img.dimensions[1], img.dimensions[0], 3)
             img_.append(img)
