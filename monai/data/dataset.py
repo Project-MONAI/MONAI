@@ -671,7 +671,7 @@ class CacheDataset(Dataset):
         num_workers: Optional[int] = None,
         progress: bool = True,
         copy_cache: bool = True,
-        ascontiguous: bool = True,
+        as_contiguous: bool = True,
     ) -> None:
         """
         Args:
@@ -689,7 +689,7 @@ class CacheDataset(Dataset):
                 (for example, randomly crop from the cached image and deepcopy the crop region)
                 or if every cache item is only used once in a `multi-processing` environment,
                 may set `copy=False` for better performance.
-            ascontiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
                 it may help improve the performance of following logic.
 
         """
@@ -698,7 +698,7 @@ class CacheDataset(Dataset):
         super().__init__(data=data, transform=transform)
         self.progress = progress
         self.copy_cache = copy_cache
-        self.ascontiguous = ascontiguous
+        self.as_contiguous = as_contiguous
         self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
         self.num_workers = num_workers
         if self.num_workers is not None:
@@ -745,7 +745,7 @@ class CacheDataset(Dataset):
                 break
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = apply_transform(_xform, item)
-        if self.ascontiguous:
+        if self.as_contiguous:
             item = as_contiguous(item)
         return item
 
@@ -836,6 +836,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             default to `True`. if the random transforms don't modify the cache content
             or every cache item is only used once in a `multi-processing` environment,
             may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
+
     """
 
     def __init__(
@@ -851,6 +854,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         shuffle: bool = True,
         seed: int = 0,
         copy_cache: bool = True,
+        as_contiguous: bool = True,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
@@ -858,7 +862,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             self.randomize(data)
         self.shuffle = shuffle
 
-        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache)
+        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache, as_contiguous)
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):

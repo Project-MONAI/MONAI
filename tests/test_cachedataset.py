@@ -60,7 +60,7 @@ class TestCacheDataset(unittest.TestCase):
                     "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
                 },
             ]
-            dataset = CacheDataset(data=test_data, transform=transform, cache_rate=0.5, ascontiguous=True)
+            dataset = CacheDataset(data=test_data, transform=transform, cache_rate=0.5, as_contiguous=True)
             data1 = dataset[0]
             data2 = dataset[1]
             data3 = dataset[0:-1]
