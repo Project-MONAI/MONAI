@@ -27,8 +27,8 @@ jobs:
       name: Config pagefile (Windows only)
       uses: al-cheb/configure-pagefile-action@v1.2
       with:
-        minimum-size: 8
-        maximum-size: 16
+        minimum-size: 24
+        maximum-size: 48
         disk-root: "D:"
     - uses: actions/checkout@v2
     - uses: conda-incubator/setup-miniconda@v2
