@@ -30,6 +30,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.apps.utils import download_url
 from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
@@ -631,6 +632,14 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
             rtol=rtol,
             atol=atol,
         )
+
+
+def download_url_or_skip_test(*args, **kwargs):
+    """``download_url`` and skip the tests if any downloading error occurs."""
+    try:
+        download_url(*args, **kwargs)
+    except (ContentTooShortError, HTTPError, RuntimeError) as e:
+        raise unittest.SkipTest(f"error while downloading: {e}") from e
 
 
 def query_memory(n=2):
