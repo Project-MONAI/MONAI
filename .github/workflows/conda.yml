@@ -36,10 +36,10 @@ jobs:
       run: |
         conda info
         conda list
+        conda env create --file environment-dev.yml
     - name: Test env(CPU ${{ runner.os }})
       shell: bash -l {0}
       run: |
-        conda env create --file environment-dev.yml
         conda activate monai
         $(pwd)/runtests.sh --build --unittests
         conda deactivate
