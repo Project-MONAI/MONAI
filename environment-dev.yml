@@ -42,7 +42,6 @@ dependencies:
   - einops
   - transformers
   - mlflow
-  - matplotlib!=3.5.0
   - tensorboardX
   - pip
   - pip:
@@ -55,3 +54,4 @@ dependencies:
     - cucim>=21.8.2; platform_system == "Linux"
     - imagecodecs; platform_system == "Linux"
     - tifffile; platform_system == "Linux"
+    - matplotlib!=3.5.0
