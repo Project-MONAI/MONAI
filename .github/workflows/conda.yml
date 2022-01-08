@@ -1,0 +1,45 @@
+name: conda
+
+on:
+  schedule:
+    - cron: "0 3 * * *"  # at 02:00 UTC
+  # Allows you to run this workflow manually from the Actions tab
+  push:
+    branches:
+      - conda-test
+  workflow_dispatch:
+
+concurrency:
+  # automatically cancel the previously triggered workflows when there's a newer version
+  group: conda-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cron-conda:
+    if: github.repository == 'Project-MONAI/MONAI'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macOS-latest, ubuntu-latest]
+        python-version: ["3.7"]
+    runs-on: ${{ matrix.os }}
+    env:
+      QUICKTEST: True
+    steps:
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+    - name: Install env (CPU ${{ runner.os }})
+      shell: bash -l {0}
+      run: |
+        conda info
+        conda list
+    - name: Test env(CPU ${{ runner.os }})
+      shell: bash -l {0}
+      run: |
+        conda env create --file environment-dev.yml
+        conda activate monai
+        $(pwd)/runtests.sh --build --unittests
+        conda deactivate
