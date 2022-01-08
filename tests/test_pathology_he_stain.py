@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -73,12 +73,7 @@ NORMALIZE_STAINS_TEST_CASE_4 = [
 
 class TestExtractHEStains(unittest.TestCase):
     @parameterized.expand(
-        [
-            NEGATIVE_VALUE_TEST_CASE,
-            INVALID_VALUE_TEST_CASE,
-            EXTRACT_STAINS_TEST_CASE_0,
-            EXTRACT_STAINS_TEST_CASE_1,
-        ]
+        [NEGATIVE_VALUE_TEST_CASE, INVALID_VALUE_TEST_CASE, EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_1]
     )
     def test_transparent_image(self, image):
         """
@@ -112,13 +107,7 @@ class TestExtractHEStains(unittest.TestCase):
             result = ExtractHEStains()(image)
             np.testing.assert_array_equal(result[:, 0], result[:, 1])
 
-    @parameterized.expand(
-        [
-            EXTRACT_STAINS_TEST_CASE_00,
-            EXTRACT_STAINS_TEST_CASE_4,
-            EXTRACT_STAINS_TEST_CASE_5,
-        ]
-    )
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_00, EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
     def test_result_value(self, image, expected_data):
         """
         Test that an input image returns an expected stain matrix.
@@ -156,12 +145,7 @@ class TestExtractHEStains(unittest.TestCase):
 
 class TestNormalizeHEStains(unittest.TestCase):
     @parameterized.expand(
-        [
-            NEGATIVE_VALUE_TEST_CASE,
-            INVALID_VALUE_TEST_CASE,
-            NORMALIZE_STAINS_TEST_CASE_0,
-            NORMALIZE_STAINS_TEST_CASE_1,
-        ]
+        [NEGATIVE_VALUE_TEST_CASE, INVALID_VALUE_TEST_CASE, NORMALIZE_STAINS_TEST_CASE_0, NORMALIZE_STAINS_TEST_CASE_1]
     )
     def test_transparent_image(self, image):
         """

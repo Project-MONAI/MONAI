@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,34 +11,46 @@
 
 import unittest
 
-import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import ConvertToMultiChannelBasedOnBratsClasses
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TEST_CASE_1 = [
-    np.array([[0, 1, 2], [1, 2, 4], [0, 1, 4]]),
-    np.array([[[0, 1, 0], [1, 0, 1], [0, 1, 1]], [[0, 1, 1], [1, 1, 1], [0, 1, 1]], [[0, 0, 0], [0, 0, 1], [0, 0, 1]]]),
-]
-
-TEST_CASE_2 = [
-    np.array([[[[0, 1], [1, 2]], [[2, 4], [4, 4]]]]),
-    np.array(
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.extend(
         [
-            [[[0, 1], [1, 0]], [[0, 1], [1, 1]]],
-            [[[0, 1], [1, 1]], [[1, 1], [1, 1]]],
-            [[[0, 0], [0, 0]], [[0, 1], [1, 1]]],
+            [
+                p([[0, 1, 2], [1, 2, 4], [0, 1, 4]]),
+                p(
+                    [
+                        [[0, 1, 0], [1, 0, 1], [0, 1, 1]],
+                        [[0, 1, 1], [1, 1, 1], [0, 1, 1]],
+                        [[0, 0, 0], [0, 0, 1], [0, 0, 1]],
+                    ]
+                ),
+            ],
+            [
+                p([[[[0, 1], [1, 2]], [[2, 4], [4, 4]]]]),
+                p(
+                    [
+                        [[[0, 1], [1, 0]], [[0, 1], [1, 1]]],
+                        [[[0, 1], [1, 1]], [[1, 1], [1, 1]]],
+                        [[[0, 0], [0, 0]], [[0, 1], [1, 1]]],
+                    ]
+                ),
+            ],
         ]
-    ),
-]
+    )
 
 
 class TestConvertToMultiChannel(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand(TESTS)
     def test_type_shape(self, data, expected_result):
         result = ConvertToMultiChannelBasedOnBratsClasses()(data)
-        np.testing.assert_equal(result, expected_result)
-        self.assertEqual(f"{result.dtype}", "bool")
+        assert_allclose(result, expected_result)
+        self.assertTrue(result.dtype in (bool, torch.bool))
 
 
 if __name__ == "__main__":
