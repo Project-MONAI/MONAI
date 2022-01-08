@@ -238,7 +238,7 @@ def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]):
         axis: axis to perform `any` over
 
     Returns:
-        Return a contiguous flattened array/tensor.
+        Return a bool or an array/tensor.
     """
     if isinstance(x, np.ndarray):
         return np.any(x, axis)

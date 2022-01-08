@@ -174,7 +174,7 @@ def dense_patch_slices(
             start_idx -= max(start_idx + patch_size[dim] - image_size[dim], 0)
             dim_starts.append(start_idx)
         starts.append(dim_starts)
-    out = np.asarray([x.flatten() for x in np.meshgrid(*starts, indexing="ij")]).T
+    out = np.asarray([x.reshape(-1) for x in np.meshgrid(*starts, indexing="ij")]).T
     return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
 
 

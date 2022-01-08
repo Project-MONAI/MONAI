@@ -30,7 +30,6 @@ from monai.transforms.utils_pytorch_numpy_unification import (
     cumsum,
     isfinite,
     nonzero,
-    ravel,
     searchsorted,
     unravel_index,
     where,
@@ -297,10 +296,10 @@ def map_binary_to_indices(
     # Prepare fg/bg indices
     if label.shape[0] > 1:
         label = label[1:]  # for One-Hot format data, remove the background channel
-    label_flat = ravel(any_np_pt(label, 0))  # in case label has multiple dimensions
+    label_flat = any_np_pt(label, 0).reshape(-1)  # in case label has multiple dimensions
     fg_indices = nonzero(label_flat)
     if image is not None:
-        img_flat = ravel(any_np_pt(image > image_threshold, 0))
+        img_flat = any_np_pt(image > image_threshold, 0).reshape(-1)
         img_flat, *_ = convert_to_dst_type(img_flat, label, dtype=img_flat.dtype)
         bg_indices = nonzero(img_flat & ~label_flat)
     else:
@@ -339,7 +338,7 @@ def map_classes_to_indices(
     """
     img_flat: Optional[NdarrayOrTensor] = None
     if image is not None:
-        img_flat = ravel((image > image_threshold).any(0))
+        img_flat = (image > image_threshold).any(0).reshape(-1)
 
     indices: List[NdarrayOrTensor] = []
     # assuming the first dimension is channel
@@ -352,7 +351,7 @@ def map_classes_to_indices(
         num_classes_ = num_classes
 
     for c in range(num_classes_):
-        label_flat = ravel(any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0))
+        label_flat = any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0).reshape(-1)
         label_flat = img_flat & label_flat if img_flat is not None else label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
         cls_indices, *_ = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))
@@ -392,7 +391,7 @@ def weighted_patch_samples(
     s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
     v = w[s]  # weight map in the 'valid' mode
     v_size = v.shape
-    v = ravel(v)
+    v = v.reshape(-1)
     if (v < 0).any():
         v -= v.min()  # shifting to non-negative
     v = cumsum(v)
@@ -1263,9 +1262,9 @@ def equalize_hist(
     orig_shape = img.shape
     hist_img = img[np.array(mask, dtype=bool)] if mask is not None else img
     if has_skimage:
-        hist, bins = exposure.histogram(hist_img.flatten(), num_bins)
+        hist, bins = exposure.histogram(hist_img.reshape(-1), num_bins)
     else:
-        hist, bins = np.histogram(hist_img.flatten(), num_bins)
+        hist, bins = np.histogram(hist_img.reshape(-1), num_bins)
         bins = (bins[:-1] + bins[1:]) / 2
 
     cum = hist.cumsum()
@@ -1273,7 +1272,7 @@ def equalize_hist(
     cum = rescale_array(arr=cum, minv=min, maxv=max)
 
     # apply linear interpolation
-    img = np.interp(img.flatten(), bins, cum)
+    img = np.interp(img.reshape(-1), bins, cum)
     return img.reshape(orig_shape)
 
 
