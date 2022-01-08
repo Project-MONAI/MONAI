@@ -50,7 +50,7 @@ dependencies:
     # OS-specific needs to be done via pip:
     #   https://github.com/conda/conda/issues/8089
     - pytype>=2020.6.1; platform_system != "Windows"
-    - openslide-python==1.1.2; platform_system != "Windows"
+    - openslide-python==1.1.2
     - cucim>=21.8.2; platform_system == "Linux"
     - imagecodecs; platform_system == "Linux"
     - tifffile; platform_system == "Linux"
