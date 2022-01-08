@@ -31,7 +31,7 @@ from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
-from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, ascontiguous
+from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, as_contiguous
 from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
@@ -733,20 +733,6 @@ class CacheDataset(Dataset):
                 )
             return list(p.imap(self._load_cache_item, range(self.cache_num)))
 
-    def _ascontiguous(self, data):
-        """
-        Check and ensure data or items in data to be contuguous in memory.
-
-        """
-        if isinstance(data, (np.ndarray, torch.Tensor)):
-            return ascontiguous(data)
-        elif isinstance(data, dict):
-            return {k: self._ascontiguous(v) for k, v in data.items()}
-        elif isinstance(data, (list, tuple)):
-            return [self._ascontiguous(i) for i in data]
-        else:
-            return data
-
     def _load_cache_item(self, idx: int):
         """
         Args:
@@ -760,7 +746,7 @@ class CacheDataset(Dataset):
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = apply_transform(_xform, item)
         if self.ascontiguous:
-            item = self._ascontiguous(item)
+            item = as_contiguous(item)
         return item
 
     def _transform(self, index: int):

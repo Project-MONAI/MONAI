@@ -515,6 +515,7 @@ from .utility.dictionary import (
 from .utils import (
     Fourier,
     allow_missing_keys_mode,
+    as_contiguous,
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
     convert_pad_mode,
@@ -552,7 +553,7 @@ from .utils import (
 )
 from .utils_pytorch_numpy_unification import (
     any_np_pt,
-    ascontiguous,
+    ascontiguousarray,
     clip,
     concatenate,
     cumsum,

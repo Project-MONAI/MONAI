@@ -36,7 +36,7 @@ __all__ = [
     "searchsorted",
     "repeat",
     "isnan",
-    "ascontiguous",
+    "ascontiguousarray",
 ]
 
 
@@ -324,7 +324,7 @@ def isnan(x: NdarrayOrTensor):
     return torch.isnan(x)
 
 
-def ascontiguous(x: NdarrayOrTensor):
+def ascontiguousarray(x: NdarrayOrTensor):
     """`np.ascontiguousarray` with equivalent implementation for torch (`contiguous`).
 
     Args:

@@ -27,6 +27,7 @@ from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform, apply_transform
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
+    ascontiguousarray,
     cumsum,
     isfinite,
     nonzero,
@@ -98,6 +99,7 @@ __all__ = [
     "get_transform_backends",
     "print_transform_backends",
     "convert_pad_mode",
+    "as_contiguous",
 ]
 
 
@@ -1494,6 +1496,21 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadM
             mode = "edge"
         return look_up_option(mode, NumpyPadMode)
     raise ValueError(f"unsupported data type: {type(dst)}.")
+
+
+def as_contiguous(data):
+    """
+    Check and ensure data or items in data to be contuguous in memory.
+
+    """
+    if isinstance(data, (np.ndarray, torch.Tensor)):
+        return ascontiguousarray(data)
+    elif isinstance(data, dict):
+        return {k: as_contiguous(v) for k, v in data.items()}
+    elif isinstance(data, (list, tuple)):
+        return [as_contiguous(i) for i in data]
+    else:
+        return data
 
 
 if __name__ == "__main__":
