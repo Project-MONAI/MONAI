@@ -321,3 +321,9 @@ def isnan(x: NdarrayOrTensor):
     if isinstance(x, np.ndarray):
         return np.isnan(x)
     return torch.isnan(x)
+
+
+def ascontiguous(x: NdarrayOrTensor):
+    if isinstance(x, np.ndarray):
+        return np.ascontiguousarray(x)
+    return x.contiguous()
