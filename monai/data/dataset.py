@@ -734,6 +734,10 @@ class CacheDataset(Dataset):
             return list(p.imap(self._load_cache_item, range(self.cache_num)))
 
     def _ascontiguous(self, data):
+        """
+        Check and ensure data or items in data to be contuguous in memory.
+
+        """
         if isinstance(data, (np.ndarray, torch.Tensor)):
             return ascontiguous(data)
         elif isinstance(data, dict):
