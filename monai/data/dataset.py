@@ -352,7 +352,7 @@ class PersistentDataset(Dataset):
                     # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
                     try:
                         shutil.move(temp_hash_file, hashfile)
-                    except FileExistsError:
+                    except (FileExistsError, PermissionError):  # project-monai/monai issue 3613
                         pass
         return _item_transformed
 
