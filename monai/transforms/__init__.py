@@ -552,6 +552,7 @@ from .utils import (
 )
 from .utils_pytorch_numpy_unification import (
     any_np_pt,
+    ascontiguous,
     clip,
     concatenate,
     cumsum,

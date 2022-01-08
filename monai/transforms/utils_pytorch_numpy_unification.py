@@ -36,6 +36,7 @@ __all__ = [
     "searchsorted",
     "repeat",
     "isnan",
+    "ascontiguous",
 ]
 
 

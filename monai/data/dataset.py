@@ -31,7 +31,7 @@ from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
-from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
+from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, ascontiguous
 from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
@@ -671,6 +671,7 @@ class CacheDataset(Dataset):
         num_workers: Optional[int] = None,
         progress: bool = True,
         copy_cache: bool = True,
+        ascontiguous: bool = True,
     ) -> None:
         """
         Args:
@@ -688,12 +689,16 @@ class CacheDataset(Dataset):
                 (for example, randomly crop from the cached image and deepcopy the crop region)
                 or if every cache item is only used once in a `multi-processing` environment,
                 may set `copy=False` for better performance.
+            ascontiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+                it may help improve the performance of following logic.
+
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.progress = progress
         self.copy_cache = copy_cache
+        self.ascontiguous = ascontiguous
         self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
         self.num_workers = num_workers
         if self.num_workers is not None:
@@ -728,6 +733,16 @@ class CacheDataset(Dataset):
                 )
             return list(p.imap(self._load_cache_item, range(self.cache_num)))
 
+    def _ascontiguous(self, data):
+        if isinstance(data, (np.ndarray, torch.Tensor)):
+            return ascontiguous(data)
+        elif isinstance(data, dict):
+            return {k: self._ascontiguous(v) for k, v in data.items()}
+        elif isinstance(data, (list, tuple)):
+            return [self._ascontiguous(i) for i in data]
+        else:
+            return data
+
     def _load_cache_item(self, idx: int):
         """
         Args:
@@ -740,6 +755,8 @@ class CacheDataset(Dataset):
                 break
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = apply_transform(_xform, item)
+        if self.ascontiguous:
+            item = self._ascontiguous(item)
         return item
 
     def _transform(self, index: int):
