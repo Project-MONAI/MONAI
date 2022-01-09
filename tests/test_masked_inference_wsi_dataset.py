@@ -18,9 +18,8 @@ from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.apps.pathology.data import MaskedInferenceWSIDataset
-from monai.apps.utils import download_url
 from monai.utils import optional_import
-from tests.utils import skip_if_quick
+from tests.utils import download_url_or_skip_test, skip_if_quick
 
 _, has_cim = optional_import("cucim", name="CuImage")
 _, has_osl = optional_import("openslide")
@@ -160,7 +159,7 @@ TEST_CASE_OPENSLIDE_1 = [
 class TestMaskedInferenceWSIDataset(unittest.TestCase):
     def setUp(self):
         prepare_data()
-        download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
+        download_url_or_skip_test(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     @skipUnless(has_cim, "Requires CuCIM")
