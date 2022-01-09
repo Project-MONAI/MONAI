@@ -31,7 +31,7 @@ from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
-from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, as_contiguous
+from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, convert_to_contiguous
 from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
@@ -746,7 +746,7 @@ class CacheDataset(Dataset):
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = apply_transform(_xform, item)
         if self.as_contiguous:
-            item = as_contiguous(item, memory_format=torch.contiguous_format)
+            item = convert_to_contiguous(item, memory_format=torch.contiguous_format)
         return item
 
     def _transform(self, index: int):

@@ -99,7 +99,7 @@ __all__ = [
     "get_transform_backends",
     "print_transform_backends",
     "convert_pad_mode",
-    "as_contiguous",
+    "convert_to_contiguous",
 ]
 
 
@@ -1498,7 +1498,7 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadM
     raise ValueError(f"unsupported data type: {type(dst)}.")
 
 
-def as_contiguous(data, **kwargs):
+def convert_to_contiguous(data, **kwargs):
     """
     Check and ensure the numpy array or PyTorch Tensor in data to be contuguous in memory.
 
@@ -1510,12 +1510,11 @@ def as_contiguous(data, **kwargs):
     """
     if isinstance(data, (np.ndarray, torch.Tensor)):
         return ascontiguousarray(data, **kwargs)
-    elif isinstance(data, dict):
-        return {k: as_contiguous(v, **kwargs) for k, v in data.items()}
-    elif isinstance(data, (list, tuple)):
-        return [as_contiguous(i, **kwargs) for i in data]
-    else:
-        return data
+    if isinstance(data, dict):
+        return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
+    if isinstance(data, (list, tuple)):
+        return [convert_to_contiguous(i, **kwargs) for i in data]
+    return data
 
 
 if __name__ == "__main__":
