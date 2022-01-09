@@ -174,12 +174,23 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
             loss.forward(chn_input, chn_target)
 
     def test_differentiability(self):
-        input = torch.ones((1, 1, 1, 3))
+        prediction = torch.ones((1, 1, 1, 3))
         target = torch.ones((1, 1, 1, 3))
-        input.requires_grad = True
+        prediction.requires_grad = True
         target.requires_grad = True
-        loss_module = GeneralizedDiceLoss()
-        loss = loss_module(input, target)
+
+        generalized_dice_loss = GeneralizedDiceLoss()
+        loss = generalized_dice_loss(prediction, target)
+        self.assertNotEqual(loss.grad_fn, None)
+
+    def test_batch(self):
+        prediction = torch.zeros(2, 3, 3, 3)
+        target = torch.zeros(2, 3, 3, 3)
+        prediction.requires_grad = True
+        target.requires_grad = True
+
+        generalized_dice_loss = GeneralizedDiceLoss(batch=True)
+        loss = generalized_dice_loss(prediction, target)
         self.assertNotEqual(loss.grad_fn, None)
 
     @SkipIfBeforePyTorchVersion((1, 7, 0))
