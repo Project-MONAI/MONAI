@@ -27,8 +27,8 @@ jobs:
       name: Config pagefile (Windows only)
       uses: al-cheb/configure-pagefile-action@v1.2
       with:
-        minimum-size: 24
-        maximum-size: 48
+        minimum-size: 8
+        maximum-size: 16
         disk-root: "D:"
     - uses: actions/checkout@v2
     - uses: conda-incubator/setup-miniconda@v2
@@ -41,6 +41,13 @@ jobs:
         conda info
         conda list
         conda env create --file environment-dev.yml
+    - if: runner.os == 'windows'
+      name: Windows only install
+      shell: bash -l {0}
+      run: |
+        conda activate monai
+        conda install pytorch torchvision torchaudio cpuonly -c pytorch
+        conda deactivate
     - name: Test env(CPU ${{ runner.os }})
       shell: bash -l {0}
       run: |
