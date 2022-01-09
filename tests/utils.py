@@ -638,8 +638,12 @@ def download_url_or_skip_test(*args, **kwargs):
     """``download_url`` and skip the tests if any downloading error occurs."""
     try:
         download_url(*args, **kwargs)
-    except (ContentTooShortError, HTTPError, RuntimeError) as e:
+    except (ContentTooShortError, HTTPError) as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except RuntimeError as rt_e:
+        if "network issue" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        raise rt_e
 
 
 def query_memory(n=2):
