@@ -173,6 +173,15 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
             loss = GeneralizedDiceLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
 
+    def test_differentiability(self):
+        input = torch.ones((1, 1, 1, 3))
+        target = torch.ones((1, 1, 1, 3))
+        input.requires_grad = True
+        target.requires_grad = True
+        loss_module = GeneralizedDiceLoss()
+        loss = loss_module(input, target)
+        self.assertNotEqual(loss.grad_fn, None)
+
     @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):
         loss = GeneralizedDiceLoss()
