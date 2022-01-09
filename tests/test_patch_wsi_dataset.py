@@ -18,8 +18,8 @@ from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.apps.pathology.data import PatchWSIDataset
-from monai.apps.utils import download_url
 from monai.utils import optional_import
+from tests.utils import download_url_or_skip_test
 
 _cucim, has_cim = optional_import("cucim")
 has_cim = has_cim and hasattr(_cucim, "CuImage")
@@ -108,7 +108,7 @@ TEST_CASE_OPENSLIDE_1 = [
 
 class TestPatchWSIDataset(unittest.TestCase):
     def setUp(self):
-        download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
+        download_url_or_skip_test(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     @skipUnless(has_cim, "Requires CuCIM")
