@@ -349,9 +349,12 @@ class GeneralizedDiceLoss(_Loss):
 
         w = self.w_func(ground_o.float())
         infs = torch.isinf(w)
-        w[infs] = 0.0
-        max_values = torch.max(w, dim=1)[0].unsqueeze(dim=1)
-        w = w + infs * max_values
+        if self.batch:
+            w[infs] = torch.max(w)
+        else:
+            w[infs] = 0.0
+            max_values = torch.max(w, dim=1)[0].unsqueeze(dim=1)
+            w = w + infs * max_values
 
         final_reduce_dim = 0 if self.batch else 1
         numer = 2.0 * (intersection * w).sum(final_reduce_dim, keepdim=True) + self.smooth_nr
