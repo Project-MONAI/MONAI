@@ -46,7 +46,7 @@ jobs:
       shell: bash -l {0}
       run: |
         conda activate monai
-        conda install pytorch torchvision torchaudio cpuonly -c pytorch
+        conda install pytorch torchvision torchaudio cpuonly -c pytorch -c conda-forge
         conda deactivate
     - name: Test env(CPU ${{ runner.os }})
       shell: bash -l {0}
