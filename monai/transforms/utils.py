@@ -1498,17 +1498,22 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadM
     raise ValueError(f"unsupported data type: {type(dst)}.")
 
 
-def as_contiguous(data):
+def as_contiguous(data, **kwargs):
     """
-    Check and ensure data or items in data to be contuguous in memory.
+    Check and ensure the numpy array or PyTorch Tensor in data to be contuguous in memory.
+
+    Args:
+        data: input data to convert, will recursively convert the numpy array or PyTorch Tensor in dict and sequence.
+        kwargs: if `x` is PyTorch Tensor, additional args for `torch.contiguous`, more details:
+            https://pytorch.org/docs/stable/generated/torch.Tensor.contiguous.html#torch.Tensor.contiguous.
 
     """
     if isinstance(data, (np.ndarray, torch.Tensor)):
-        return ascontiguousarray(data)
+        return ascontiguousarray(data, **kwargs)
     elif isinstance(data, dict):
-        return {k: as_contiguous(v) for k, v in data.items()}
+        return {k: as_contiguous(v, **kwargs) for k, v in data.items()}
     elif isinstance(data, (list, tuple)):
-        return [as_contiguous(i) for i in data]
+        return [as_contiguous(i, **kwargs) for i in data]
     else:
         return data
 

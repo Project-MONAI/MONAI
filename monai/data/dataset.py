@@ -746,7 +746,7 @@ class CacheDataset(Dataset):
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = apply_transform(_xform, item)
         if self.as_contiguous:
-            item = as_contiguous(item)
+            item = as_contiguous(item, memory_format=torch.contiguous_format)
         return item
 
     def _transform(self, index: int):
