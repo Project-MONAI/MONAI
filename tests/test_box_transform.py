@@ -15,23 +15,21 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import BoxClipToImaged, BoxConvertToStandardd, BoxFlipd
-from tests.utils import TEST_NDARRAYS
 
 # this script test box_convert_mode, box_convert_standard_mode, and box_area
 TESTS = []
-for p in TEST_NDARRAYS:
-    bbox = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]
-    image_size = [1, 5, 6, 4]
-    image = np.zeros(image_size)
-    TESTS.append(
-        [
-            {"box_keys": "bbox", "box_mode": "xyzwhd"},
-            {"bbox": np.array(bbox), "image": image},
-            [[0, 0, 0, 0, 0, 0], [0, 2, 1, 3, 0, 3], [0, 2, 1, 3, 1, 4]],
-            [[0, 2, 1, 3, 0, 3], [0, 2, 1, 3, 1, 4]],
-            [[0, 2, 1, 3, 1, 4], [0, 2, 1, 3, 0, 3]],
-        ]
-    )
+bbox = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]
+image_size = [1, 5, 6, 4]
+image = np.zeros(image_size)
+TESTS.append(
+    [
+        {"box_keys": "bbox", "box_mode": "xyzwhd"},
+        {"bbox": np.array(bbox), "image": image},
+        [[0, 0, 0, 0, 0, 0], [0, 2, 1, 3, 0, 3], [0, 2, 1, 3, 1, 4]],
+        [[0, 2, 1, 3, 0, 3], [0, 2, 1, 3, 1, 4]],
+        [[0, 2, 1, 3, 1, 4], [0, 2, 1, 3, 0, 3]],
+    ]
+)
 
 
 class TestBoxTransform(unittest.TestCase):

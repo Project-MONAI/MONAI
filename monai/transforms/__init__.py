@@ -533,6 +533,7 @@ from .utils import (
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
     convert_pad_mode,
+    convert_to_contiguous,
     copypaste_arrays,
     create_control_grid,
     create_grid,

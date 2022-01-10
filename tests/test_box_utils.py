@@ -120,6 +120,5 @@ class TestCreateBoxList(unittest.TestCase):
         self.assertEqual(box_area(result_standard_clip).tolist(), list(filter(lambda num: num > 0, expected_area)))
 
 
-
 if __name__ == "__main__":
     unittest.main()
