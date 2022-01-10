@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 TEST_CASE_0 = [  # single channel 2D, batch 4, no residual
     {
-        "dimensions": 2,
+        "spatial_dims": 2,
         "in_channels": 1,
         "out_channels": 1,
         "channels": (4, 8, 16),
@@ -35,20 +35,14 @@ TEST_CASE_0 = [  # single channel 2D, batch 4, no residual
 ]
 
 TEST_CASE_1 = [  # single channel 2D, batch 4
-    {
-        "dimensions": 2,
-        "in_channels": 1,
-        "out_channels": 1,
-        "channels": (4, 8, 16),
-        "strides": (2, 2, 2),
-    },
+    {"spatial_dims": 2, "in_channels": 1, "out_channels": 1, "channels": (4, 8, 16), "strides": (2, 2, 2)},
     (1, 1, 128, 128),
     (1, 1, 128, 128),
 ]
 
 TEST_CASE_2 = [  # 3-channel 2D, batch 4, LeakyReLU activation
     {
-        "dimensions": 2,
+        "spatial_dims": 2,
         "in_channels": 3,
         "out_channels": 3,
         "channels": (4, 8, 16),
@@ -60,13 +54,7 @@ TEST_CASE_2 = [  # 3-channel 2D, batch 4, LeakyReLU activation
 ]
 
 TEST_CASE_3 = [  # 4-channel 3D, batch 4
-    {
-        "dimensions": 3,
-        "in_channels": 4,
-        "out_channels": 3,
-        "channels": (4, 8, 16),
-        "strides": (2, 2, 2),
-    },
+    {"spatial_dims": 3, "in_channels": 4, "out_channels": 3, "channels": (4, 8, 16), "strides": (2, 2, 2)},
     (1, 4, 128, 128, 128),
     (1, 3, 128, 128, 128),
 ]
@@ -75,7 +63,7 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 
 TEST_CASE_FAIL = {  # 2-channel 2D, should fail because of stride/channel mismatch.
-    "dimensions": 2,
+    "spatial_dims": 2,
     "in_channels": 2,
     "out_channels": 2,
     "channels": (4, 8, 16),
@@ -92,7 +80,7 @@ class TestAutoEncoder(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):
-        net = AutoEncoder(dimensions=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2, 2))
+        net = AutoEncoder(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2, 2))
         test_data = torch.randn(2, 1, 32, 32)
         test_script_save(net, test_data)
 

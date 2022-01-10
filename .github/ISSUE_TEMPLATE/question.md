@@ -1,7 +1,7 @@
 ---
-name: Question
-about: Question relating to MONAI
-title: ''
+name: Question (please use the Discussion tab)
+about: https://github.com/Project-MONAI/MONAI/discussions
+title: 'Please use MONAI Discussion tab for questions'
 labels: ''
 assignees: ''
 ---

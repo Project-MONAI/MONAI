@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,35 +15,17 @@ from parameterized import parameterized
 
 from monai.data import is_supported_format
 
-TEST_CASE_1 = [
-    {"filename": "testfile.nii.gz", "suffixes": ["nii", "nii.gz"]},
-    True,
-]
+TEST_CASE_1 = [{"filename": "testfile.nii.gz", "suffixes": ["nii", "nii.gz"]}, True]
 
-TEST_CASE_2 = [
-    {"filename": "./testfile.nii.gz", "suffixes": ["nii", "nii.gz"]},
-    True,
-]
+TEST_CASE_2 = [{"filename": "./testfile.nii.gz", "suffixes": ["nii", "nii.gz"]}, True]
 
-TEST_CASE_3 = [
-    {"filename": "./test.data/file.nii.gz", "suffixes": ["nii", "nii.gz"]},
-    True,
-]
+TEST_CASE_3 = [{"filename": "./test.data/file.nii.gz", "suffixes": ["nii", "nii.gz"]}, True]
 
-TEST_CASE_4 = [
-    {"filename": "./test.data/file.nii", "suffixes": ["nii", "nii.gz"]},
-    True,
-]
+TEST_CASE_4 = [{"filename": "./test.data/file.nii", "suffixes": ["nii", "nii.gz"]}, True]
 
-TEST_CASE_5 = [
-    {"filename": "C:\\documents\\testfile.nii.gz", "suffixes": ["nii", "nii.gz"]},
-    True,
-]
+TEST_CASE_5 = [{"filename": "C:\\documents\\testfile.nii.gz", "suffixes": ["nii", "nii.gz"]}, True]
 
-TEST_CASE_6 = [
-    {"filename": "1.3.12.2.1107.5.4.4.145.nii.gz", "suffixes": ["nii.gz"]},
-    True,
-]
+TEST_CASE_6 = [{"filename": "1.3.12.2.1107.5.4.4.145.nii.gz", "suffixes": ["nii.gz"]}, True]
 
 
 class TestIsSupportedFormat(unittest.TestCase):

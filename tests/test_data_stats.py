@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,6 +11,7 @@
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -126,7 +127,7 @@ TEST_CASE_7 = [
 
 TEST_CASE_8 = [
     np.array([[0, 1], [1, 2]]),
-    "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)\n"
+    "test data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)\n"
     "Value: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
@@ -159,9 +160,10 @@ class TestDataStats(unittest.TestCase):
             for h in _logger.handlers[:]:
                 h.close()
                 _logger.removeHandler(h)
-            with open(filename, "r") as f:
+            with open(filename) as f:
                 content = f.read()
-            self.assertEqual(content, expected_print)
+            if sys.platform != "win32":
+                self.assertEqual(content, expected_print)
 
 
 if __name__ == "__main__":

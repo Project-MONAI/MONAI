@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,7 +28,7 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import TraceKeys
 
 __all__ = ["Compose", "OneOf"]
 
@@ -173,15 +173,15 @@ class Compose(Randomizable, InvertibleTransform):
 
 class OneOf(Compose):
     """
-    ``OneOf`` provides the ability to radomly choose one transform out of a
-    list of callables with predfined probabilities for each.
+    ``OneOf`` provides the ability to randomly choose one transform out of a
+    list of callables with pre-defined probabilities for each.
 
     Args:
         transforms: sequence of callables.
         weights: probabilities corresponding to each callable in transforms.
             Probabilities are normalized to sum to one.
 
-    OneOf inherits from Compose and uses args map_items and unpack_items in
+    ``OneOf`` inherits from ``Compose`` and uses args ``map_items`` and ``unpack_items`` in
     the same way.
     """
 
@@ -204,14 +204,13 @@ class OneOf(Compose):
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
             return weights
-        else:
-            weights = np.array(weights)
-            if np.any(weights < 0):
-                raise AssertionError("Probabilities must be greater than or equal to zero.")
-            if np.all(weights == 0):
-                raise AssertionError("At least one probability must be greater than zero.")
-            weights = weights / weights.sum()
-            return list(weights)
+        weights = np.array(weights)
+        if np.any(weights < 0):
+            raise AssertionError("Probabilities must be greater than or equal to zero.")
+        if np.all(weights == 0):
+            raise AssertionError("At least one probability must be greater than zero.")
+        weights = weights / weights.sum()
+        return list(weights)
 
     def flatten(self):
         transforms = []
@@ -232,16 +231,15 @@ class OneOf(Compose):
     def __call__(self, data):
         if len(self.transforms) == 0:
             return data
-        else:
-            index = self.R.multinomial(1, self.weights).argmax()
-            _transform = self.transforms[index]
-            data = apply_transform(_transform, data, self.map_items, self.unpack_items)
-            # if the data is a mapping (dictionary), append the OneOf transform to the end
-            if isinstance(data, Mapping):
-                for key in data.keys():
-                    if key + InverseKeys.KEY_SUFFIX in data:
-                        self.push_transform(data, key, extra_info={"index": index})
-            return data
+        index = self.R.multinomial(1, self.weights).argmax()
+        _transform = self.transforms[index]
+        data = apply_transform(_transform, data, self.map_items, self.unpack_items)
+        # if the data is a mapping (dictionary), append the OneOf transform to the end
+        if isinstance(data, Mapping):
+            for key in data.keys():
+                if self.trace_key(key) in data:
+                    self.push_transform(data, key, extra_info={"index": index})
+        return data
 
     def inverse(self, data):
         if len(self.transforms) == 0:
@@ -252,18 +250,15 @@ class OneOf(Compose):
         # loop until we get an index and then break (since they'll all be the same)
         index = None
         for key in data.keys():
-            if key + InverseKeys.KEY_SUFFIX in data:
+            if self.trace_key(key) in data:
                 # get the index of the applied OneOf transform
-                index = self.get_most_recent_transform(data, key)[InverseKeys.EXTRA_INFO]["index"]
+                index = self.get_most_recent_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
                 # and then remove the OneOf transform
                 self.pop_transform(data, key)
         if index is None:
-            raise RuntimeError("No invertible transforms have been applied")
+            # no invertible transforms have been applied
+            return data
 
-        # if applied transform is not InvertibleTransform, throw error
         _transform = self.transforms[index]
-        if not isinstance(_transform, InvertibleTransform):
-            raise RuntimeError(f"Applied OneOf transform is not invertible (applied index: {index}).")
-
         # apply the inverse
-        return _transform.inverse(data)
+        return _transform.inverse(data) if isinstance(_transform, InvertibleTransform) else data

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,14 +42,32 @@ TEST_CASE_2 = [  # 2D, batch 2, 1 input channel
     (2, 3),
 ]
 
+TEST_CASE_2_A = [  # 2D, batch 2, 1 input channel, shortcut type A
+    {"pretrained": False, "spatial_dims": 2, "n_input_channels": 1, "num_classes": 3, "shortcut_type": "A"},
+    (2, 1, 32, 64),
+    (2, 3),
+]
+
 TEST_CASE_3 = [  # 1D, batch 1, 2 input channels
     {"pretrained": False, "spatial_dims": 1, "n_input_channels": 2, "num_classes": 3},
     (1, 2, 32),
     (1, 3),
 ]
 
+TEST_CASE_3_A = [  # 1D, batch 1, 2 input channels
+    {"pretrained": False, "spatial_dims": 1, "n_input_channels": 2, "num_classes": 3, "shortcut_type": "A"},
+    (1, 2, 32),
+    (1, 3),
+]
+
+TEST_CASE_4 = [  # 2D, batch 2, 1 input channel
+    {"pretrained": False, "spatial_dims": 2, "n_input_channels": 1, "num_classes": 3, "feed_forward": False},
+    (2, 1, 32, 64),
+    ((2, 512), (2, 2048)),
+]
+
 TEST_CASES = []
-for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]:
+for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
 
@@ -64,7 +82,10 @@ class TestResNet(unittest.TestCase):
         net = model(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
-            self.assertEqual(result.shape, expected_shape)
+            if input_param.get("feed_forward", True):
+                self.assertEqual(result.shape, expected_shape)
+            else:
+                self.assertTrue(result.shape in expected_shape)
 
     @parameterized.expand(TEST_SCRIPT_CASES)
     def test_script(self, model, input_param, input_shape, expected_shape):
