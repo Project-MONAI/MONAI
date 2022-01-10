@@ -10,6 +10,21 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
+from .box.array import BoxClipToImage, BoxConvertToStandard, BoxFlip
+from .box.dictionary import (
+    BoxClipToImaged,
+    BoxClipToImageD,
+    BoxClipToImageDict,
+    BoxConvertModed,
+    BoxConvertModeD,
+    BoxConvertModeDict,
+    BoxConvertToStandardd,
+    BoxConvertToStandardD,
+    BoxConvertToStandardDict,
+    BoxFlipD,
+    BoxFlipd,
+    BoxFlipDict,
+)
 from .compose import Compose, OneOf
 from .croppad.array import (
     BorderPad,
@@ -518,7 +533,6 @@ from .utils import (
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
     convert_pad_mode,
-    convert_to_contiguous,
     copypaste_arrays,
     create_control_grid,
     create_grid,
@@ -553,7 +567,6 @@ from .utils import (
 )
 from .utils_pytorch_numpy_unification import (
     any_np_pt,
-    ascontiguousarray,
     clip,
     concatenate,
     cumsum,
