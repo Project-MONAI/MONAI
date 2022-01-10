@@ -205,6 +205,7 @@ class PersistentDataset(Dataset):
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
+        temp_buffer: bool = True,
     ) -> None:
         """
         Args:
@@ -232,6 +233,9 @@ class PersistentDataset(Dataset):
             pickle_protocol: can be specified to override the default protocol, default to `2`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            temp_buffer: whether to save the cache content in system temp dir first, some enviroments
+                may have tempdir issue: https://docs.python.org/3/library/tempfile.html#tempfile.gettempdir.
+                if False, save the cache content in `cache_dir` as `<filename>.temp` first. default to True.
 
         """
         if not isinstance(transform, Compose):
@@ -241,6 +245,7 @@ class PersistentDataset(Dataset):
         self.hash_func = hash_func
         self.pickle_module = pickle_module
         self.pickle_protocol = pickle_protocol
+        self.temp_buffer = temp_buffer
         if self.cache_dir is not None:
             if not self.cache_dir.exists():
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -336,24 +341,32 @@ class PersistentDataset(Dataset):
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is not None:
-            # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
-            #       to make the cache more robust to manual killing of parent process
-            #       which may leave partially written cache files in an incomplete state
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                temp_hash_file = Path(tmpdirname) / hashfile.name
+
+            def _save_to_file(temp_file, hash_file, data):
                 torch.save(
-                    obj=_item_transformed,
-                    f=temp_hash_file,
+                    obj=data,
+                    f=temp_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
                 )
-                if temp_hash_file.is_file() and not hashfile.is_file():
+                if temp_file.is_file() and not hash_file.is_file():
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
                     # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
                     try:
-                        shutil.move(temp_hash_file, hashfile)
+                        shutil.move(temp_file, hash_file)
                     except FileExistsError:
                         pass
+
+            # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
+            #       to make the cache more robust to manual killing of parent process
+            #       which may leave partially written cache files in an incomplete state
+            if self.temp_buffer:
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    temp_hash_file = Path(tmpdirname) / hashfile.name
+                    _save_to_file(temp_hash_file, hashfile, _item_transformed)
+            else:
+                temp_hash_file = self.cache_dir / f"{hashfile.name}.temp"
+                _save_to_file(temp_hash_file, hashfile, _item_transformed)
         return _item_transformed
 
     def _transform(self, index: int):
