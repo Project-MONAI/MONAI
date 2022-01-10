@@ -82,7 +82,9 @@ def clip(a: NdarrayOrTensor, a_min, a_max) -> NdarrayOrTensor:
     return result
 
 
-def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None, **kwargs) -> Union[NdarrayOrTensor, float, int]:
+def percentile(
+    x: NdarrayOrTensor, q, dim: Optional[int] = None, keepdim: bool = False, **kwargs
+) -> Union[NdarrayOrTensor, float, int]:
     """`np.percentile` with equivalent implementation for torch.
 
     Pytorch uses `quantile`, but this functionality is only available from v1.7.
@@ -97,8 +99,9 @@ def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None, **kwargs) -> Un
         q: percentile to compute (should in range 0 <= q <= 100)
         dim: the dim along which the percentiles are computed. default is to compute the percentile
             along a flattened version of the array. only work for numpy array or Tensor with PyTorch >= 1.7.0.
-        kwargs: if `x` is PyTorch Tensor, additional args for `torch.quantile`, more details:
-            https://pytorch.org/docs/stable/generated/torch.quantile.html.
+        keepdim: whether the output data has dim retained or not.
+        kwargs: if `x` is numpy array, additional args for `np.percentile`, more details:
+            https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
 
     Returns:
         Resulting value (scalar)
@@ -110,11 +113,11 @@ def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None, **kwargs) -> Un
         raise ValueError
     result: Union[NdarrayOrTensor, float, int]
     if isinstance(x, np.ndarray):
-        result = np.percentile(x, q, axis=dim)
+        result = np.percentile(x, q, axis=dim, keepdims=keepdim, **kwargs)
     else:
         q = torch.tensor(q, device=x.device)
         if hasattr(torch, "quantile"):  # `quantile` is new in torch 1.7.0
-            result = torch.quantile(x, q / 100.0, dim=dim, **kwargs)
+            result = torch.quantile(x, q / 100.0, dim=dim, keepdim=keepdim)
         else:
             # Note that ``kthvalue()`` works one-based, i.e., the first sorted value
             # corresponds to k=1, not k=0. Thus, we need the `1 +`.
