@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -46,7 +46,9 @@ class _GridPull(torch.autograd.Function):
             return None, grads[0], None, None, None
 
 
-def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", bound="zero", extrapolate: bool = True):
+def grid_pull(
+    input: torch.Tensor, grid: torch.Tensor, interpolation="linear", bound="zero", extrapolate: bool = True
+) -> torch.Tensor:
     """
     Sample an image with respect to a deformation field.
 
@@ -112,8 +114,9 @@ def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
         _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i)
         for i in ensure_tuple(interpolation)
     ]
-
-    return _GridPull.apply(input, grid, interpolation, bound, extrapolate)
+    out: torch.Tensor
+    out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)  # type: ignore
+    return out
 
 
 class _GridPush(torch.autograd.Function):
