@@ -334,5 +334,9 @@ def ascontiguousarray(x: NdarrayOrTensor, **kwargs):
 
     """
     if isinstance(x, np.ndarray):
+        if x.ndim == 0:
+            return x
         return np.ascontiguousarray(x)
-    return x.contiguous(**kwargs)
+    if isinstance(x, torch.Tensor):
+        return x.contiguous(**kwargs)
+    return x
