@@ -1,3 +1,14 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import json
 import logging
 from typing import Dict, Hashable, Mapping, Tuple
@@ -15,12 +26,7 @@ distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="di
 
 
 class DiscardAddGuidanced(MapTransform):
-    def __init__(
-        self,
-        keys: KeysCollection,
-        probability: float = 1.0,
-        allow_missing_keys: bool = False,
-    ):
+    def __init__(self, keys: KeysCollection, probability: float = 1.0, allow_missing_keys: bool = False):
         """
         Discard positive and negative points randomly or Add the two channels for inference time
 
@@ -54,11 +60,7 @@ class ResizeGuidanceCustomd(Transform):
     Resize the guidance based on cropped vs resized image.
     """
 
-    def __init__(
-        self,
-        guidance: str,
-        ref_image: str,
-    ) -> None:
+    def __init__(self, guidance: str, ref_image: str) -> None:
         self.guidance = guidance
         self.ref_image = ref_image
 
@@ -69,8 +71,8 @@ class ResizeGuidanceCustomd(Transform):
         factor = np.divide(current_shape, d["image_meta_dict"]["dim"][1:4])
         pos_clicks, neg_clicks = d["foreground"], d["background"]
 
-        pos = np.multiply(pos_clicks, factor).astype(int).tolist() if len(pos_clicks) else []
-        neg = np.multiply(neg_clicks, factor).astype(int).tolist() if len(neg_clicks) else []
+        pos = np.multiply(pos_clicks, factor).astype(int, copy=False).tolist() if len(pos_clicks) else []
+        neg = np.multiply(neg_clicks, factor).astype(int, copy=False).tolist() if len(neg_clicks) else []
 
         d[self.guidance] = [pos, neg]
         return d
@@ -156,7 +158,7 @@ class ClickRatioAddRandomGuidanced(Randomizable, Transform):
             guidance[0].append([-1] * len(neg))
             guidance[1].append(neg)
 
-        return json.dumps(np.asarray(guidance).astype(int).tolist())
+        return json.dumps(np.asarray(guidance, dtype=int).tolist())
 
     def __call__(self, data):
         d = dict(data)

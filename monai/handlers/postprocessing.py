@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -63,9 +63,7 @@ class PostProcessing:
         """
         if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
             engine.state.batch, engine.state.output = engine_apply_transform(
-                batch=engine.state.batch,
-                output=engine.state.output,
-                transform=self.transform,
+                batch=engine.state.batch, output=engine.state.output, transform=self.transform
             )
         else:
             for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):

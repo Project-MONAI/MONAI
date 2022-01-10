@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_0 = [  # single channel 2D, batch 16, no residual
     {
-        "dimensions": 2,
+        "spatial_dims": 2,
         "in_channels": 1,
         "out_channels": 3,
         "channels": (16, 32, 64),
@@ -36,7 +36,7 @@ TEST_CASE_0 = [  # single channel 2D, batch 16, no residual
 
 TEST_CASE_1 = [  # single channel 2D, batch 16
     {
-        "dimensions": 2,
+        "spatial_dims": 2,
         "in_channels": 1,
         "out_channels": 3,
         "channels": (16, 32, 64),
@@ -49,7 +49,7 @@ TEST_CASE_1 = [  # single channel 2D, batch 16
 
 TEST_CASE_2 = [  # single channel 3D, batch 16
     {
-        "dimensions": 3,
+        "spatial_dims": 3,
         "in_channels": 1,
         "out_channels": 3,
         "channels": (16, 32, 64),
@@ -62,7 +62,7 @@ TEST_CASE_2 = [  # single channel 3D, batch 16
 
 TEST_CASE_3 = [  # 4-channel 3D, batch 16
     {
-        "dimensions": 3,
+        "spatial_dims": 3,
         "in_channels": 4,
         "out_channels": 3,
         "channels": (16, 32, 64),
@@ -75,7 +75,7 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 16
 
 TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalization
     {
-        "dimensions": 3,
+        "spatial_dims": 3,
         "in_channels": 4,
         "out_channels": 3,
         "channels": (16, 32, 64),
@@ -89,7 +89,7 @@ TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalization
 
 TEST_CASE_5 = [  # 4-channel 3D, batch 16, LeakyReLU activation
     {
-        "dimensions": 3,
+        "spatial_dims": 3,
         "in_channels": 4,
         "out_channels": 3,
         "channels": (16, 32, 64),
@@ -103,7 +103,7 @@ TEST_CASE_5 = [  # 4-channel 3D, batch 16, LeakyReLU activation
 
 TEST_CASE_6 = [  # 4-channel 3D, batch 16, LeakyReLU activation explicit
     {
-        "dimensions": 3,
+        "spatial_dims": 3,
         "in_channels": 4,
         "out_channels": 3,
         "channels": (16, 32, 64),
@@ -120,7 +120,7 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_C
 ILL_CASES = [
     [
         {  # len(channels) < 2
-            "dimensions": 2,
+            "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 3,
             "channels": (16,),
@@ -130,7 +130,7 @@ ILL_CASES = [
     ],
     [
         {  # len(strides) < len(channels) - 1
-            "dimensions": 2,
+            "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 3,
             "channels": (8, 8, 8),
@@ -139,8 +139,8 @@ ILL_CASES = [
         }
     ],
     [
-        {  # len(kernel_size) = 3, dimensions = 2
-            "dimensions": 2,
+        {  # len(kernel_size) = 3, spatial_dims = 2
+            "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 3,
             "channels": (8, 8, 8),
@@ -149,8 +149,8 @@ ILL_CASES = [
         }
     ],
     [
-        {  # len(up_kernel_size) = 2, dimensions = 3
-            "dimensions": 3,
+        {  # len(up_kernel_size) = 2, spatial_dims = 3
+            "spatial_dims": 3,
             "in_channels": 1,
             "out_channels": 3,
             "channels": (8, 8, 8),
@@ -170,13 +170,15 @@ class TestUNET(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):
-        net = UNet(dimensions=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0)
+        net = UNet(
+            spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0
+        )
         test_data = torch.randn(16, 1, 32, 32)
         test_script_save(net, test_data)
 
     def test_script_without_running_stats(self):
         net = UNet(
-            dimensions=2,
+            spatial_dims=2,
             in_channels=1,
             out_channels=3,
             channels=(16, 32, 64),
@@ -188,13 +190,7 @@ class TestUNET(unittest.TestCase):
         test_script_save(net, test_data)
 
     def test_ill_input_shape(self):
-        net = UNet(
-            dimensions=2,
-            in_channels=1,
-            out_channels=3,
-            channels=(16, 32, 64),
-            strides=(2, 2),
-        )
+        net = UNet(spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2))
         with eval_mode(net):
             with self.assertRaisesRegex(RuntimeError, "Sizes of tensors must match"):
                 net.forward(torch.randn(2, 1, 16, 5))

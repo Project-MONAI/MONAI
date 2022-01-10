@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,9 +21,18 @@ from monai.data.test_time_augmentation import TestTimeAugmentation
 from monai.data.utils import pad_list_data_collate
 from monai.losses import DiceLoss
 from monai.networks.nets import UNet
-from monai.transforms import Activations, AddChanneld, AsDiscrete, Compose, CropForegroundd, DivisiblePadd, RandAffined
+from monai.transforms import (
+    Activations,
+    AddChanneld,
+    AsDiscrete,
+    Compose,
+    CropForegroundd,
+    DivisiblePadd,
+    RandAffined,
+    RandScaleIntensityd,
+)
 from monai.transforms.croppad.dictionary import SpatialPadd
-from monai.transforms.spatial.dictionary import Rand2DElasticd, RandFlipd, Spacingd
+from monai.transforms.spatial.dictionary import RandFlipd, Spacingd
 from monai.utils import optional_import, set_determinism
 from tests.utils import TEST_NDARRAYS
 
@@ -46,13 +55,13 @@ class TestTestTimeAugmentation(unittest.TestCase):
             create_test_image_2d, *input_size, rad_max=7, num_seg_classes=1, num_objs=1
         )
         data = []
-        for _ in range(num_examples):
+        for i in range(num_examples):
             im, label = custom_create_test_image_2d()
             d = {}
-            d["image"] = data_type(im)
+            d["image"] = data_type(im[:, i:])
             d["image_meta_dict"] = {"affine": np.eye(4)}
             if include_label:
-                d["label"] = data_type(label)
+                d["label"] = data_type(label[:, i:])
                 d["label_meta_dict"] = {"affine": np.eye(4)}
             data.append(d)
         return data[0] if num_examples == 1 else data
@@ -113,12 +122,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
             epoch_loss /= len(train_loader)
 
-        post_trans = Compose(
-            [
-                Activations(sigmoid=True),
-                AsDiscrete(threshold_values=True),
-            ]
-        )
+        post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
 
         def inferrer_fn(x):
             return post_trans(model(x))
@@ -137,10 +141,20 @@ class TestTestTimeAugmentation(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             TestTimeAugmentation(transforms, None, None, None)
 
-    def test_fail_random_but_not_invertible(self):
-        transforms = Compose([AddChanneld("im"), Rand2DElasticd("im", None, None)])
-        with self.assertRaises(RuntimeError):
-            TestTimeAugmentation(transforms, None, None, None)
+    def test_warn_random_but_has_no_invertible(self):
+        transforms = Compose(
+            [AddChanneld("image"), RandFlipd("image", prob=1.0), RandScaleIntensityd("image", 0.1, prob=1.0)]
+        )
+        with self.assertWarns(UserWarning):
+            tta = TestTimeAugmentation(transforms, 5, 0, orig_key="image")
+            tta(self.get_data(1, (20, 20), data_type=np.float32))
+
+    def test_warn_random_but_all_not_invertible(self):
+        """test with no invertible stack"""
+        transforms = Compose([AddChanneld("image"), RandScaleIntensityd("image", 0.1, prob=1.0)])
+        with self.assertWarns(UserWarning):
+            tta = TestTimeAugmentation(transforms, 1, 0, orig_key="image")
+            tta(self.get_data(1, (20, 20), data_type=np.float32))
 
     def test_single_transform(self):
         for p in TEST_NDARRAYS:
@@ -155,7 +169,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     @unittest.skipUnless(has_nib, "Requires nibabel")
     def test_requires_meta_dict(self):
-        transforms = Compose([RandFlipd("image"), Spacingd("image", pixdim=1.0)])
+        transforms = Compose([AddChanneld("image"), RandFlipd("image"), Spacingd("image", pixdim=1.1)])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 

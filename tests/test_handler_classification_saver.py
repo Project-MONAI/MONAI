@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,7 +45,7 @@ class TestHandlerClassificationSaver(unittest.TestCase):
             def _test_file(filename):
                 filepath = os.path.join(tempdir, filename)
                 self.assertTrue(os.path.exists(filepath))
-                with open(filepath, "r") as f:
+                with open(filepath) as f:
                     reader = csv.reader(f)
                     i = 0
                     for row in reader:

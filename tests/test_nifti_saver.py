@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,12 +36,7 @@ class TestNiftiSaver(unittest.TestCase):
     def test_saved_resize_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            saver = NiftiSaver(
-                output_dir=tempdir,
-                output_postfix="seg",
-                output_ext=".nii.gz",
-                dtype=np.float32,
-            )
+            saver = NiftiSaver(output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz", dtype=np.float32)
 
             meta_data = {
                 "filename_or_obj": ["testfile" + str(i) + ".nii" for i in range(8)],
@@ -56,12 +51,7 @@ class TestNiftiSaver(unittest.TestCase):
     def test_saved_3d_resize_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            saver = NiftiSaver(
-                output_dir=tempdir,
-                output_postfix="seg",
-                output_ext=".nii.gz",
-                dtype=np.float32,
-            )
+            saver = NiftiSaver(output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz", dtype=np.float32)
 
             meta_data = {
                 "filename_or_obj": ["testfile" + str(i) + ".nii.gz" for i in range(8)],
@@ -73,6 +63,25 @@ class TestNiftiSaver(unittest.TestCase):
             for i in range(8):
                 filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
                 self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
+
+    def test_saved_3d_no_resize_content(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            saver = NiftiSaver(
+                output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz", dtype=np.float32, resample=False
+            )
+
+            meta_data = {
+                "filename_or_obj": ["testfile" + str(i) + ".nii.gz" for i in range(8)],
+                "spatial_shape": [(10, 10, 2)] * 8,
+                "affine": [np.diag(np.ones(4)) * 5] * 8,
+                "original_affine": [np.diag(np.ones(4)) * 1.0] * 8,
+            }
+            saver.save_batch(torch.randint(0, 255, (8, 8, 1, 2, 2)), meta_data)
+            for i in range(8):
+                filepath = os.path.join(tempdir, "testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
+                img, _ = LoadImage("nibabelreader")(filepath)
+                self.assertEqual(img.shape, (1, 2, 2, 8))
 
     def test_squeeze_end_dims(self):
         with tempfile.TemporaryDirectory() as tempdir:
