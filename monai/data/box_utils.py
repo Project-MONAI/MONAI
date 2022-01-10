@@ -15,6 +15,8 @@ from typing import Sequence, Union
 import numpy as np
 import torch
 
+from monai.utils.module import look_up_option
+
 SUPPORT_MODE = ["xxyy", "xxyyzz", "xyxy", "xyzxyz", "xywh", "xyzwhd"]
 STANDARD_MODE = ["xxyy", "xxyyzz"]  # [2d_mode, 3d_mode]
 
@@ -31,24 +33,6 @@ Args:
     mode: choose from SUPPORT_MODE. If mode is not given, these funcs will assume mode is STANDARD_MODE
     image_size: Length of 2 or 3. Data format is list, or np.ndarray, or tensor of int
 """
-
-
-def check_support_mode(mode):
-    """
-    Check if the mode is supported
-    """
-    if mode not in SUPPORT_MODE:
-        raise ValueError(f"mode should be a string in {SUPPORT_MODE}.")
-    return
-
-
-def check_standard_mode(mode):
-    """
-    Check if the mode is supported
-    """
-    if mode not in STANDARD_MODE:
-        raise ValueError(f"Standard mode should be a string in {STANDARD_MODE}.")
-    return
 
 
 def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
@@ -88,9 +72,9 @@ def get_dimension(
     if len(spatial_dims) == 0:
         raise ValueError("At least one of bbox, image_size, and mode needs to be non-empty.")
     elif len(spatial_dims) == 1:
-        if spatial_dims[0] not in [2, 3]:
-            raise ValueError(f"Images should have 2 or 3 dimensions, got {spatial_dims[0]}")
-        return int(spatial_dims[0])
+        spatial_dims = int(spatial_dims[0])
+        spatial_dims = look_up_option(spatial_dims,supported=[2,3])
+        return int(spatial_dims)
     else:
         raise ValueError("The dimension of bbox, image_size, mode should match with each other.")
 
@@ -127,8 +111,7 @@ def point_interp(
     """
     # make sure the spatial dimensions of the inputs match with each other
     spatial_dims = len(point1)
-    if spatial_dims not in [2, 3]:
-        raise ValueError(f"Images should have 2 or 3 dimensions, got {spatial_dims}")
+    spatial_dims = look_up_option(spatial_dims,supported=[2,3])
 
     # compute new point
     point2 = deepcopy(point1)
@@ -151,7 +134,7 @@ def box_interp(bbox1: torch.Tensor, zoom: Union[Sequence[float], float], mode1: 
     """
     if mode1 is None:
         mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
-    check_support_mode(mode1)
+    mode1 = look_up_option(mode1,supported=SUPPORT_MODE)
     spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
 
     mode_standard = get_standard_mode(spatial_dims)
@@ -177,7 +160,7 @@ def split_into_corners(bbox: torch.Tensor, mode: str):
         xmin for example, is a Nx1 tensor
 
     """
-    check_support_mode(mode)
+    mode = look_up_option(mode,supported=SUPPORT_MODE)
     if mode in STANDARD_MODE:
         return bbox.split(1, dim=-1)
     elif mode == "xyzxyz":
@@ -219,8 +202,8 @@ def box_convert_mode(bbox1: torch.Tensor, mode1: str, mode2: str) -> torch.Tenso
         mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
     if mode2 is None:
         mode2 = get_standard_mode(int(bbox1.shape[1] / 2))
-    check_support_mode(mode1)
-    check_support_mode(mode2)
+    mode1 = look_up_option(mode1,supported=SUPPORT_MODE)
+    mode2 = look_up_option(mode2,supported=SUPPORT_MODE)
 
     spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
     if len(mode1) != len(mode2):
@@ -263,7 +246,7 @@ def box_convert_standard_mode(bbox: torch.Tensor, mode: str) -> torch.Tensor:
     """
     This function convert the bbox in mode 1 to 'xyxy' or 'xyzxyz'
     """
-    check_support_mode(mode)
+    mode = look_up_option(mode,supported=SUPPORT_MODE)
     spatial_dims = get_dimension(bbox=bbox, mode=mode)
     mode_standard = get_standard_mode(spatial_dims)
     return box_convert_mode(bbox1=bbox, mode1=mode, mode2=mode_standard)
@@ -278,7 +261,7 @@ def box_area(bbox: torch.Tensor, mode: str = None) -> torch.tensor:
 
     if mode is None:
         mode = get_standard_mode(int(bbox.shape[1] / 2))
-    check_standard_mode(mode)
+    mode = look_up_option(mode,supported=STANDARD_MODE)
     spatial_dims = get_dimension(bbox=bbox, mode=mode)
 
     area = bbox[:, 1] - bbox[:, 0] + TO_REMOVE
@@ -303,7 +286,7 @@ def box_clip_to_image(
     """
     if mode is None:
         mode = get_standard_mode(int(bbox.shape[1] / 2))
-    check_standard_mode(mode)
+    mode = look_up_option(mode,supported=STANDARD_MODE)
     spatial_dims = get_dimension(bbox=bbox, image_size=image_size, mode=mode)
     new_bbox = deepcopy(bbox)
     if bbox.shape[0] == 0:
@@ -356,8 +339,8 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
         mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
     if mode2 is None:
         mode2 = get_standard_mode(int(bbox2.shape[1] / 2))
-    check_standard_mode(mode1)
-    check_standard_mode(mode2)
+    mode1 = look_up_option(mode1,supported=STANDARD_MODE)
+    mode2 = look_up_option(mode2,supported=STANDARD_MODE)
     spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
 
     # we do computation on cpu
