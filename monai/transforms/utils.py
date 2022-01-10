@@ -14,7 +14,7 @@ import random
 import warnings
 from contextlib import contextmanager
 from inspect import getmembers, isclass
-from typing import Any, Callable, Hashable, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -1508,11 +1508,11 @@ def convert_to_contiguous(data, **kwargs):
             https://pytorch.org/docs/stable/generated/torch.Tensor.contiguous.html#torch.Tensor.contiguous.
 
     """
-    if isinstance(data, (np.ndarray, torch.Tensor)):
+    if isinstance(data, (np.ndarray, torch.Tensor, str, bytes)):
         return ascontiguousarray(data, **kwargs)
-    if isinstance(data, dict):
+    if isinstance(data, Mapping):
         return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
-    if isinstance(data, (list, tuple)):
+    if isinstance(data, Sequence):
         return [convert_to_contiguous(i, **kwargs) for i in data]
     return data
 
