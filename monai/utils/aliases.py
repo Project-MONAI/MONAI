@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -70,8 +70,8 @@ def resolve_name(name):
         try:
             mod = importlib.import_module(modname)
             obj = getattr(mod, declname, None)
-        except ModuleNotFoundError:
-            raise ValueError(f"Module {modname!r} not found.")
+        except ModuleNotFoundError as not_found_err:
+            raise ValueError(f"Module {modname!r} not found.") from not_found_err
 
         if obj is None:
             raise ValueError(f"Module {modname!r} does not have member {declname!r}.")

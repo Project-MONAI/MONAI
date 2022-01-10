@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -59,7 +59,7 @@ class TestPatchDataset(unittest.TestCase):
         np.testing.assert_allclose(
             item[0],
             np.array(
-                [[[1.779992, 2.779992, 3.779992], [5.779992, 6.779992, 7.779992], [9.779992, 10.779992, 11.779992]]]
+                [[[1.338681, 2.338681, 3.338681], [5.338681, 6.338681, 7.338681], [9.338681, 10.338681, 11.338681]]]
             ),
             rtol=1e-5,
         )
@@ -71,9 +71,9 @@ class TestPatchDataset(unittest.TestCase):
                 np.array(
                     [
                         [
-                            [5.025618, 6.025618, 7.025618],
-                            [9.025618, 10.025618, 11.025618],
-                            [13.025618, 14.025618, 15.025618],
+                            [4.957847, 5.957847, 6.957847],
+                            [8.957847, 9.957847, 10.957847],
+                            [12.957847, 13.957847, 14.957847],
                         ]
                     ]
                 ),

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,8 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.utils.module import get_torch_version_tuple, version_leq
+from monai.config.type_definitions import NdarrayOrTensor
+from monai.utils.module import version_leq
 
 __all__ = [
     "zip_with",
@@ -43,6 +44,8 @@ __all__ = [
     "copy_to_device",
     "ImageMetaKey",
     "is_module_ver_at_least",
+    "has_option",
+    "sample_slices",
 ]
 
 _seed = None
@@ -88,7 +91,7 @@ def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
     Returns a tuple of `vals`.
     """
     if not issequenceiterable(vals):
-        vals = (vals,)
+        return (vals,)
 
     return tuple(vals)
 
@@ -97,8 +100,8 @@ def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> Tuple[Any, ...]:
     """
     Returns a copy of `tup` with `dim` values by either shortened or padded with `pad_val` as necessary.
     """
-    tup = ensure_tuple(tup) + (pad_val,) * dim
-    return tuple(tup[:dim])
+    new_tup = ensure_tuple(tup) + (pad_val,) * dim
+    return new_tup[:dim]
 
 
 def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
@@ -250,19 +253,21 @@ def set_determinism(
         for func in additional_settings:
             func(seed)
 
+    if torch.backends.flags_frozen():
+        warnings.warn("PyTorch global flag support of backends is disabled, enable it to set global `cudnn` flags.")
+        torch.backends.__allow_nonbracketed_mutation_flag = True
+
     if seed is not None:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
     else:  # restore the original flags
         torch.backends.cudnn.deterministic = _flag_deterministic
         torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
-
     if use_deterministic_algorithms is not None:
-        torch_ver = get_torch_version_tuple()
-        if torch_ver >= (1, 9):
+        if hasattr(torch, "use_deterministic_algorithms"):  # `use_deterministic_algorithms` is new in torch 1.8.0
             torch.use_deterministic_algorithms(use_deterministic_algorithms)
-        elif torch_ver >= (1, 7):
-            torch.set_deterministic(use_deterministic_algorithms)  # beta feature
+        elif hasattr(torch, "set_deterministic"):  # `set_deterministic` is new in torch 1.7.0
+            torch.set_deterministic(use_deterministic_algorithms)  # type: ignore
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
 
@@ -279,9 +284,7 @@ def list_to_dict(items):
     def _parse_var(s):
         items = s.split("=", maxsplit=1)
         key = items[0].strip(" \n\r\t'")
-        value = None
-        if len(items) > 1:
-            value = items[1].strip(" \n\r\t'")
+        value = items[1].strip(" \n\r\t'") if len(items) > 1 else None
         return key, value
 
     d = {}
@@ -302,10 +305,7 @@ def list_to_dict(items):
 
 
 def copy_to_device(
-    obj: Any,
-    device: Optional[Union[str, torch.device]],
-    non_blocking: bool = True,
-    verbose: bool = False,
+    obj: Any, device: Optional[Union[str, torch.device]], non_blocking: bool = True, verbose: bool = False
 ) -> Any:
     """
     Copy object or tuple/list/dictionary of objects to ``device``.
@@ -314,7 +314,7 @@ def copy_to_device(
         obj: object or tuple/list/dictionary of objects to move to ``device``.
         device: move ``obj`` to this device. Can be a string (e.g., ``cpu``, ``cuda``,
             ``cuda:0``, etc.) or of type ``torch.device``.
-        non_blocking_transfer: when `True`, moves data to device asynchronously if
+        non_blocking: when `True`, moves data to device asynchronously if
             possible, e.g., moving CPU Tensors with pinned memory to CUDA devices.
         verbose: when `True`, will print a warning for any elements of incompatible type
             not copied to ``device``.
@@ -368,3 +368,21 @@ def is_module_ver_at_least(module, version):
     """
     test_ver = ".".join(map(str, version))
     return module.__version__ != test_ver and version_leq(test_ver, module.__version__)
+
+
+def sample_slices(data: NdarrayOrTensor, dim: int = 1, as_indices: bool = True, *slicevals: int) -> NdarrayOrTensor:
+    """sample several slices of input numpy array or Tensor on specified `dim`.
+
+    Args:
+        data: input data to sample slices, can be numpy array or PyTorch Tensor.
+        dim: expected dimension index to sample slices, default to `1`.
+        as_indices: if `True`, `slicevals` arg will be treated as the expected indices of slice, like: `1, 3, 5`
+            means `data[..., [1, 3, 5], ...]`, if `False`, `slicevals` arg will be treated as args for `slice` func,
+            like: `1, None` means `data[..., [1:], ...]`, `1, 5` means `data[..., [1: 5], ...]`.
+        slicevals: indices of slices or start and end indices of expected slices, depends on `as_indices` flag.
+
+    """
+    slices = [slice(None)] * len(data.shape)
+    slices[dim] = slicevals if as_indices else slice(*slicevals)  # type: ignore
+
+    return data[tuple(slices)]

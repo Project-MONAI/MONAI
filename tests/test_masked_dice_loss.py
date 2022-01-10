@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -67,7 +67,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        [[0.296529, 0.415136], [0.599976, 0.428559]],
+        [[[0.296529], [0.415136]], [[0.599976], [0.428559]]],
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "softmax": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
@@ -94,26 +94,17 @@ TEST_CASES = [
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        },
+        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.307576,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "squared_pred": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        },
+        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.178337,
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "jaccard": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        },
+        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.470451,
     ],
 ]

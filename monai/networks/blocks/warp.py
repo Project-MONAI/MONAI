@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,11 +30,7 @@ class Warp(nn.Module):
     Warp an image with given dense displacement field (DDF).
     """
 
-    def __init__(
-        self,
-        mode=GridSampleMode.BILINEAR.value,
-        padding_mode=GridSamplePadMode.BORDER.value,
-    ):
+    def __init__(self, mode=GridSampleMode.BILINEAR.value, padding_mode=GridSamplePadMode.BORDER.value):
         """
         For pytorch native APIs, the possible values are:
 
@@ -50,7 +46,7 @@ class Warp(nn.Module):
 
         See also: :py:class:`monai.networks.layers.grid_pull`
         """
-        super(Warp, self).__init__()
+        super().__init__()
         # resolves _interp_mode for different methods
 
         if USE_COMPILED:
@@ -123,13 +119,7 @@ class Warp(nn.Module):
             )
 
         # using csrc resampling
-        return grid_pull(
-            image,
-            grid,
-            bound=self._padding_mode,
-            extrapolate=True,
-            interpolation=self._interp_mode,
-        )
+        return grid_pull(image, grid, bound=self._padding_mode, extrapolate=True, interpolation=self._interp_mode)
 
 
 class DVF2DDF(nn.Module):
@@ -143,12 +133,9 @@ class DVF2DDF(nn.Module):
     """
 
     def __init__(
-        self,
-        num_steps: int = 7,
-        mode=GridSampleMode.BILINEAR.value,
-        padding_mode=GridSamplePadMode.ZEROS.value,
+        self, num_steps: int = 7, mode=GridSampleMode.BILINEAR.value, padding_mode=GridSamplePadMode.ZEROS.value
     ):
-        super(DVF2DDF, self).__init__()
+        super().__init__()
         if num_steps <= 0:
             raise ValueError(f"expecting positive num_steps, got {num_steps}")
         self.num_steps = num_steps

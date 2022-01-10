@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -91,7 +91,7 @@ class TestSegLossIntegration(unittest.TestCase):
         # define a one layer model
         class OnelayerNet(nn.Module):
             def __init__(self):
-                super(OnelayerNet, self).__init__()
+                super().__init__()
                 self.layer_1 = nn.Linear(num_voxels, 200)
                 self.acti = nn.ReLU()
                 self.layer_2 = nn.Linear(200, num_voxels * num_classes)
