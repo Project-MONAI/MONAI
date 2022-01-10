@@ -974,8 +974,8 @@ class ScaleIntensityRangePercentiles(Transform):
         Apply the transform to `img`.
         """
         if self.channel_wise:
-            for i, d in enumerate(img):
-                img[i] = self._normalize(img=d)  # type: ignore
+            out = [self._normalize(img=d) for d in img]
+            img = torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
         else:
             img = self._normalize(img=img)
 
