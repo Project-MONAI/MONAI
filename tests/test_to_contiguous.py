@@ -30,13 +30,14 @@ class TestToContiguous(unittest.TestCase):
 
     def test_decollation_seq(self):
         tochange = torch.zeros(2, 3, 4).transpose(0, 1)
-        test_dict = [[[1]], np.array(0), np.array([0]), torch.tensor(1.0), [[tochange]]]
+        test_dict = [[[1]], np.array(0), np.array([0]), torch.tensor(1.0), [[tochange]], "test_string"]
         output = convert_to_contiguous(test_dict)
         self.assertEqual(output[0], [[1]])
         assert_allclose(output[1], np.array(0))
         assert_allclose(output[2], np.array([0]))
         assert_allclose(output[3], torch.tensor(1.0))
         self.assertTrue(output[4][0][0].is_contiguous())
+        self.assertEqual(output[5], "test_string")
 
 
 if __name__ == "__main__":

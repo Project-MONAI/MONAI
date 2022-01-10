@@ -1508,7 +1508,7 @@ def convert_to_contiguous(data, **kwargs):
             https://pytorch.org/docs/stable/generated/torch.Tensor.contiguous.html#torch.Tensor.contiguous.
 
     """
-    if isinstance(data, (np.ndarray, torch.Tensor)):
+    if isinstance(data, (np.ndarray, torch.Tensor, str, bytes)):
         return ascontiguousarray(data, **kwargs)
     if isinstance(data, Mapping):
         return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
