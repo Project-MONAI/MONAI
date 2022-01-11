@@ -40,7 +40,11 @@ class TestGridPatchDataset(unittest.TestCase):
         n_workers = 0 if sys.platform == "win32" else 2
         for item in DataLoader(result, batch_size=3, num_workers=n_workers):
             output.append("".join(item))
-        expected = ["d", "dfo", "hel", "low", "oba", "orl", "orl", "r", "vwx", "yzw"]
+        if sys.platform == "win32":
+            expected = ["ar", "ell", "ldf", "oob", "owo", "rld", "vwx", "wor", "yzh"]
+        else:
+            expected = ["d", "dfo", "hel", "low", "oba", "orl", "orl", "r", "vwx", "yzw"]
+
         self.assertEqual(sorted(output), sorted(expected))
         self.assertEqual(len("".join(expected)), len("".join(test_dataset)))
 
