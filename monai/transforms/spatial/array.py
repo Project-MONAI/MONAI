@@ -22,6 +22,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
+from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
@@ -2103,7 +2104,7 @@ class GridDistortion(Transform):
             ranges = ranges - (dim_size - 1.0) / 2.0
             all_ranges.append(ranges)
 
-        coords = torch.meshgrid(*all_ranges)
+        coords = meshgrid_ij(*all_ranges)
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
         return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore
