@@ -335,7 +335,9 @@ class PersistentDataset(Dataset):
                     raise e
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
-        if hashfile is not None:
+        if hashfile is None:
+            return _item_transformed
+        try:
             # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
             #       to make the cache more robust to manual killing of parent process
             #       which may leave partially written cache files in an incomplete state
@@ -354,6 +356,8 @@ class PersistentDataset(Dataset):
                         shutil.move(temp_hash_file, hashfile)
                     except FileExistsError:
                         pass
+        except PermissionError:  # project-monai/monai issue #3613
+            pass
         return _item_transformed
 
     def _transform(self, index: int):
