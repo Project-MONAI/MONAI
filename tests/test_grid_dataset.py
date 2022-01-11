@@ -34,19 +34,16 @@ class TestGridPatchDataset(unittest.TestCase):
 
     def test_shape(self):
         # test Iterable input data
-        test_dataset = iter(["vwxyz", "helloworld", "worldfoobar"])
+        test_dataset = iter(["vwxyz", "worldfoobar", "helloworld"])
         result = GridPatchDataset(data=test_dataset, patch_iter=identity_generator, with_coordinates=False)
         output = []
         n_workers = 0 if sys.platform == "win32" else 2
         for item in DataLoader(result, batch_size=3, num_workers=n_workers):
             output.append("".join(item))
-        if sys.platform == "win32":
-            expected = ["ar", "ell", "ldf", "oob", "owo", "rld", "vwx", "wor", "yzh"]
-        else:
-            expected = ["d", "dfo", "hel", "low", "oba", "orl", "orl", "r", "vwx", "yzw"]
+        expected = ["vwx", "wor", "yzh", "ldf", "ell", "oob", "owo", "ar", "rld"]
 
         self.assertEqual(sorted(output), sorted(expected))
-        self.assertEqual(len("".join(expected)), len("".join(test_dataset)))
+        self.assertEqual(len("".join(expected)), len("".join(list(test_dataset))))
 
     def test_loading_array(self):
         set_determinism(seed=1234)
