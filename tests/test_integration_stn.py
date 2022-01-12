@@ -103,7 +103,7 @@ class TestSpatialTransformerCore(DistTestCase):
     def tearDown(self):
         set_determinism(seed=None)
 
-    @TimedCall(seconds=100)
+    @TimedCall(seconds=100, skip_timing=not torch.cuda.is_available())
     def test_training(self):
         """
         check that the quality AffineTransform backpropagation
