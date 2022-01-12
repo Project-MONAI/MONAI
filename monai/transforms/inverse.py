@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -8,18 +8,80 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from typing import Hashable, Optional, Tuple
+import os
+from typing import Hashable, Mapping, Optional, Tuple
 
 import torch
 
-from monai.transforms.transform import RandomizableTransform, Transform
-from monai.utils.enums import InverseKeys
+from monai.transforms.transform import Transform
+from monai.utils.enums import TraceKeys
 
-__all__ = ["InvertibleTransform"]
+__all__ = ["TraceableTransform", "InvertibleTransform"]
 
 
-class InvertibleTransform(Transform):
+class TraceableTransform(Transform):
+    """
+    Maintains a stack of applied transforms. The stack is inserted as pairs of
+    `trace_key: list of transforms` to each data dictionary.
+
+    The ``__call__`` method of this transform class must be implemented so
+    that the transformation information for each key is stored when
+    ``__call__`` is called. If the transforms were applied to keys "image" and
+    "label", there will be two extra keys in the dictionary: "image_transforms"
+    and "label_transforms" (based on `TraceKeys.KEY_SUFFIX`). Each list
+    contains a list of the transforms applied to that key.
+
+    The information in ``data[key_transform]`` will be compatible with the
+    default collate since it only stores strings, numbers and arrays.
+
+    `tracing` could be enabled by `self.set_tracing` or setting
+    `MONAI_TRACE_TRANSFORM` when initializing the class.
+    """
+
+    tracing = False if os.environ.get("MONAI_TRACE_TRANSFORM", "1") == "0" else True
+
+    def set_tracing(self, tracing: bool) -> None:
+        """Set whether to trace transforms."""
+        self.tracing = tracing
+
+    @staticmethod
+    def trace_key(key: Hashable = None):
+        """The key to store the stack of applied transforms."""
+        if key is None:
+            return TraceKeys.KEY_SUFFIX
+        return str(key) + TraceKeys.KEY_SUFFIX
+
+    def push_transform(
+        self, data: Mapping, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
+    ) -> None:
+        """PUsh to a stack of applied transforms for that key."""
+        if not self.tracing:
+            return
+        info = {TraceKeys.CLASS_NAME: self.__class__.__name__, TraceKeys.ID: id(self)}
+        if orig_size is not None:
+            info[TraceKeys.ORIG_SIZE] = orig_size
+        elif key in data and hasattr(data[key], "shape"):
+            info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
+        if extra_info is not None:
+            info[TraceKeys.EXTRA_INFO] = extra_info
+        # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
+        if hasattr(self, "_do_transform"):  # RandomizableTransform
+            info[TraceKeys.DO_TRANSFORM] = self._do_transform  # type: ignore
+        # If this is the first, create list
+        if self.trace_key(key) not in data:
+            if not isinstance(data, dict):
+                data = dict(data)
+            data[self.trace_key(key)] = []
+        data[self.trace_key(key)].append(info)
+
+    def pop_transform(self, data: Mapping, key: Hashable = None):
+        """Remove the most recent applied transform."""
+        if not self.tracing:
+            return
+        return data.get(self.trace_key(key), []).pop()
+
+
+class InvertibleTransform(TraceableTransform):
     """Classes for invertible transforms.
 
     This class exists so that an ``invert`` method can be implemented. This allows, for
@@ -27,28 +89,21 @@ class InvertibleTransform(Transform):
     and after be returned to their original size before saving to file for comparison in
     an external viewer.
 
-    When the ``__call__`` method is called, the transformation information for each key is
-    stored. If the transforms were applied to keys "image" and "label", there will be two
-    extra keys in the dictionary: "image_transforms" and "label_transforms". Each list
-    contains a list of the transforms applied to that key. When the ``inverse`` method is
-    called, the inverse is called on each key individually, which allows for different
-    parameters being passed to each label (e.g., different interpolation for image and
-    label).
+    When the ``inverse`` method is called:
 
-    When the ``inverse`` method is called, the inverse transforms are applied in a last-
-    in-first-out order. As the inverse is applied, its entry is removed from the list
-    detailing the applied transformations. That is to say that during the forward pass,
-    the list of applied transforms grows, and then during the inverse it shrinks back
-    down to an empty list.
+        - the inverse is called on each key individually, which allows for
+          different parameters being passed to each label (e.g., different
+          interpolation for image and label).
 
-    The information in ``data[key_transform]`` will be compatible with the default collate
-    since it only stores strings, numbers and arrays.
+        - the inverse transforms are applied in a last- in-first-out order. As
+          the inverse is applied, its entry is removed from the list detailing
+          the applied transformations. That is to say that during the forward
+          pass, the list of applied transforms grows, and then during the
+          inverse it shrinks back down to an empty list.
 
     We currently check that the ``id()`` of the transform is the same in the forward and
     inverse directions. This is a useful check to ensure that the inverses are being
-    processed in the correct order. However, this may cause issues if the ``id()`` of the
-    object changes (such as multiprocessing on Windows). If you feel this issue affects
-    you, please raise a GitHub issue.
+    processed in the correct order.
 
     Note to developers: When converting a transform to an invertible transform, you need to:
 
@@ -63,54 +118,24 @@ class InvertibleTransform(Transform):
 
     """
 
-    def push_transform(
-        self,
-        data: dict,
-        key: Hashable,
-        extra_info: Optional[dict] = None,
-        orig_size: Optional[Tuple] = None,
-    ) -> None:
-        """Append to list of applied transforms for that key."""
-        key_transform = str(key) + InverseKeys.KEY_SUFFIX
-        info = {
-            InverseKeys.CLASS_NAME: self.__class__.__name__,
-            InverseKeys.ID: id(self),
-        }
-        if orig_size is not None:
-            info[InverseKeys.ORIG_SIZE] = orig_size
-        elif hasattr(data[key], "shape"):
-            info[InverseKeys.ORIG_SIZE] = data[key].shape[1:]
-        if extra_info is not None:
-            info[InverseKeys.EXTRA_INFO] = extra_info
-        # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
-        if isinstance(self, RandomizableTransform):
-            info[InverseKeys.DO_TRANSFORM] = self._do_transform
-        # If this is the first, create list
-        if key_transform not in data:
-            data[key_transform] = []
-        data[key_transform].append(info)
-
-    def check_transforms_match(self, transform: dict) -> None:
+    def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""
-        if transform[InverseKeys.ID] == id(self):
+        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
+        xform_id = transform.get(TraceKeys.ID, "")
+        if xform_id == id(self):
             return
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
-        if (
-            torch.multiprocessing.get_start_method() in ("spawn", None)
-            and transform[InverseKeys.CLASS_NAME] == self.__class__.__name__
-        ):
+        if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
             return
-        raise RuntimeError("Should inverse most recently applied invertible transform first")
+        raise RuntimeError(f"Error inverting the most recently applied invertible transform {xform_name} {xform_id}.")
 
-    def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
+    def get_most_recent_transform(self, data: Mapping, key: Hashable = None):
         """Get most recent transform."""
-        transform = dict(data[str(key) + InverseKeys.KEY_SUFFIX][-1])
+        if not self.tracing:
+            raise RuntimeError("Transform Tracing must be enabled to get the most recent transform.")
+        transform = data[self.trace_key(key)][-1]
         self.check_transforms_match(transform)
         return transform
-
-    def pop_transform(self, data: dict, key: Hashable) -> None:
-        """Remove most recent transform."""
-        data[str(key) + InverseKeys.KEY_SUFFIX].pop()
 
     def inverse(self, data: dict) -> dict:
         """
