@@ -216,18 +216,19 @@ class KeepLargestConnectedComponentd(MapTransform):
         self,
         keys: KeysCollection,
         applied_labels: Union[Sequence[int], int],
+        is_onehot: bool,
         independent: bool = True,
         connectivity: Optional[int] = None,
-        single_channel_onehot: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            applied_labels: Labels for applying the connected component on.
-                If only one channel. The pixel whose value is not in this list will remain unchanged.
-                If the data is in one-hot format, this is the channel indices to apply transform.
+            applied_labels: Labels for applying the connected component analysis on.
+                If not OneHot. The pixel whose value is in this list will be analyzed.
+                If the data is in OneHot format, this is used to determine which channels to apply.
+            is_onehot: if `True`, treat the input data as OneHot format data, otherwise, not OneHot format data.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
                 and return the intersection of the largest components.
@@ -237,17 +238,12 @@ class KeepLargestConnectedComponentd(MapTransform):
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used. for more details:
                 https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
-            single_channel_onehot: if `True`, treat single channel input data as One-Hot format. in some user cases,
-                all the data are One-Hot format, but maybe some data only has 1 channel. default to `False`.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
         self.converter = KeepLargestConnectedComponent(
-            applied_labels=applied_labels,
-            independent=independent,
-            connectivity=connectivity,
-            single_channel_onehot=single_channel_onehot,
+            applied_labels=applied_labels, is_onehot=is_onehot, independent=independent, connectivity=connectivity
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

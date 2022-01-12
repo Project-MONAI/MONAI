@@ -262,21 +262,19 @@ class KeepLargestConnectedComponent(Transform):
     This transform can be used as a post-processing step to clean up over-segment areas in model output.
 
     The input is assumed to be a channel-first PyTorch Tensor:
-      1) With shape (1, spatial_dim1[, spatial_dim2, ...]) and the values correspond to expected labels.
-      2) With shape (C, spatial_dim1[, spatial_dim2, ...]) and the values should be 0, 1 on each labels.
-
-    Note:
-        For not one-hot data, 0 will be treated as background and the over-segment pixels will be set to 0.
-        For one-hot data, the over-segment pixels will be set to 0 in its channel.
+      1) For not OneHot format data, the values correspond to expected labels,
+      0 will be treated as background and the over-segment pixels will be set to 0.
+      2) For OneHot format data, the values should be 0, 1 on each labels,
+      the over-segment pixels will be set to 0 in its channel.
 
     For example:
-    Use KeepLargestConnectedComponent with applied_labels=[1], connectivity=1::
+    Use with applied_labels=[1], is_onehot=False, connectivity=1::
 
        [1, 0, 0]         [0, 0, 0]
        [0, 1, 1]    =>   [0, 1 ,1]
        [0, 1, 1]         [0, 1, 1]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=1::
+    Use with applied_labels=[1, 2], is_onehot=False, independent=False, connectivity=1::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -284,7 +282,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [1, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=True, connectivity=1::
+    Use with applied_labels=[1, 2], is_onehot=False, independent=True, connectivity=1::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -292,7 +290,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [0, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=2::
+    Use with applied_labels=[1, 2], is_onehot=False, independent=False, connectivity=2::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -307,15 +305,16 @@ class KeepLargestConnectedComponent(Transform):
     def __init__(
         self,
         applied_labels: Union[Sequence[int], int],
+        is_onehot: bool,
         independent: bool = True,
         connectivity: Optional[int] = None,
-        single_channel_onehot: bool = False,
     ) -> None:
         """
         Args:
             applied_labels: Labels for applying the connected component analysis on.
-                If only one channel. The pixel whose value is in this list will be analyzed.
-                If the data is in one-hot format, this is used to determine which channels to apply.
+                If not OneHot. The pixel whose value is in this list will be analyzed.
+                If the data is in OneHot format, this is used to determine which channels to apply.
+            is_onehot: if `True`, treat the input data as OneHot format data, otherwise, not OneHot format data.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
                 and return the intersection of the largest components.
@@ -325,15 +324,13 @@ class KeepLargestConnectedComponent(Transform):
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used. for more details:
                 https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
-            single_channel_onehot: if `True`, treat single channel input data as One-Hot format. in some user cases,
-                all the data are One-Hot format, but maybe some data only has 1 channel. default to `False`.
 
         """
         super().__init__()
         self.applied_labels = ensure_tuple(applied_labels)
+        self.is_onehot = is_onehot
         self.independent = independent
         self.connectivity = connectivity
-        self.single_channel_onehot = single_channel_onehot
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -344,17 +341,16 @@ class KeepLargestConnectedComponent(Transform):
             An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
 
-        is_onehot = img.shape[0] > 1 or self.single_channel_onehot
         if self.independent:
             for i in self.applied_labels:
-                foreground = img[i] > 0 if is_onehot else img[0] == i
+                foreground = img[i] > 0 if self.is_onehot else img[0] == i
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                if is_onehot:
+                if self.is_onehot:
                     img[i][foreground != mask] = 0
                 else:
                     img[0][foreground != mask] = 0
             return img
-        if not is_onehot:  # not one-hot, union of labels
+        if not self.is_onehot:  # not one-hot, union of labels
             labels, *_ = convert_to_dst_type(self.applied_labels, dst=img, wrap_sequence=True)
             foreground = (img[..., None] == labels).any(-1)[0]
             mask = get_largest_connected_component_mask(foreground, self.connectivity)
