@@ -145,8 +145,16 @@ from monai.transforms.intensity.dictionary import (
 )
 from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour
 from monai.transforms.post.dictionary import AsDiscreted, KeepLargestConnectedComponentd, LabelFilterd, LabelToContourd
-from monai.transforms.smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity
-from monai.transforms.smooth_field.dictionary import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
+from monai.transforms.smooth_field.array import (
+    RandSmoothDeform,
+    RandSmoothFieldAdjustContrast,
+    RandSmoothFieldAdjustIntensity,
+)
+from monai.transforms.smooth_field.dictionary import (
+    RandSmoothDeformd,
+    RandSmoothFieldAdjustContrastd,
+    RandSmoothFieldAdjustIntensityd,
+)
 from monai.transforms.spatial.array import (
     GridDistortion,
     Rand2DElastic,
@@ -689,20 +697,38 @@ if __name__ == "__main__":
         data,
     )
     create_transform_im(
-        RandSmoothFieldAdjustContrast, dict(spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0), data
+        RandSmoothFieldAdjustContrast, dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0), data
     )
     create_transform_im(
         RandSmoothFieldAdjustContrastd,
-        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0),
+        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0),
         data,
     )
     create_transform_im(
         RandSmoothFieldAdjustIntensity,
-        dict(spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0, gamma=(0.5, 4.5)),
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, gamma=(0.5, 4.5)),
         data,
     )
     create_transform_im(
         RandSmoothFieldAdjustIntensityd,
-        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0, gamma=(0.5, 4.5)),
+        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, gamma=(0.5, 4.5)),
+        data,
+    )
+
+    create_transform_im(
+        RandSmoothDeform,
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="blinear"),
+        data,
+    )
+    create_transform_im(
+        RandSmoothDeformd,
+        dict(
+            keys=keys,
+            spatial_size=(217, 217, 217),
+            rand_size=(10, 10, 10),
+            prob=1.0,
+            def_range=0.05,
+            grid_mode="blinear",
+        ),
         data,
     )

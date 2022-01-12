@@ -20,7 +20,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from monai.config import IgniteInfo
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
-from monai.transforms import Decollated, Transform
+from monai.transforms import Decollated
 from monai.utils import ensure_tuple, is_scalar, min_version, optional_import
 
 from .utils import engine_apply_transform
@@ -186,8 +186,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             self._register_decollate()
 
         if postprocessing is not None:
-            if not decollate and isinstance(postprocessing, Transform):
-                warnings.warn("MONAI transforms expect `channel-first` data, `decollate=False` may not work here.")
+            # tips: if `decollate=False` and `postprocessing` is MONAI transforms, it may not work well
+            # because all the MONAI transforms expect `channel-first` data
             self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)

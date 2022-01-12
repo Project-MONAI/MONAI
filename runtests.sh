@@ -38,6 +38,7 @@ doNetTests=false
 doDryRun=false
 doZooTests=false
 doUnitTests=false
+doBuild=false
 doBlackFormat=false
 doBlackFix=false
 doIsortFormat=false
@@ -57,7 +58,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--list_tests]"
-    echo "            [--copyright] [--clean] [--help] [--version]"
+    echo "            [--copyright] [--build] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -88,6 +89,7 @@ function print_usage {
     echo "    -q, --quick       : skip long running unit tests and integration tests"
     echo "    -m, --min         : only run minimal unit tests which do not require optional packages"
     echo "    --net             : perform integration testing"
+    echo "    -b, --build       : compile and install the source code folder an editable release."
     echo "    --list_tests      : list unit tests and exit"
     echo ""
     echo "Misc. options:"
@@ -106,7 +108,7 @@ function print_usage {
 }
 
 function check_import {
-    echo "python: ${PY_EXE}"
+    echo "Python: ${PY_EXE}"
     ${cmdPrefix}${PY_EXE} -c "import monai"
 }
 
@@ -278,6 +280,9 @@ do
         --copyright)
             doCopyRight=true
         ;;
+        -b|--build)
+            doBuild=true
+        ;;
         -c|--clean)
             doCleanup=true
         ;;
@@ -322,6 +327,14 @@ else
     check_import
 fi
 
+if [ $doBuild = true ]
+then
+    echo "${separator}${blue}compile and install${noColor}"
+    # try to compile MONAI cpp
+    compile_cpp
+
+    echo "${green}done! (to uninstall and clean up, please use \"./runtests.sh --clean\")${noColor}"
+fi
 
 if [ $doCleanup = true ]
 then
@@ -342,9 +355,6 @@ then
     echo "${green}done!${noColor}"
     exit
 fi
-
-# try to compile MONAI cpp
-compile_cpp
 
 # unconditionally report on the state of monai
 print_version
@@ -567,7 +577,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_((?!integration).)"
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration).*(?<!_dist)$"  # excluding integration/dist tests
 fi
 
 # distributed test only
@@ -575,7 +585,11 @@ if [ $doDistTests = true ]
 then
     echo "${separator}${blue}run distributed unit test cases${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_.*_dist$"
+    for i in tests/test_*_dist.py
+    do
+        echo "$i"
+        ${cmdPrefix}${cmd} "$i"
+    done
 fi
 
 # network training/inference/eval integration tests

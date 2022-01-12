@@ -14,7 +14,7 @@ import random
 import warnings
 from contextlib import contextmanager
 from inspect import getmembers, isclass
-from typing import Any, Callable, Hashable, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -27,6 +27,7 @@ from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform, apply_transform
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
+    ascontiguousarray,
     cumsum,
     isfinite,
     nonzero,
@@ -98,6 +99,7 @@ __all__ = [
     "get_transform_backends",
     "print_transform_backends",
     "convert_pad_mode",
+    "convert_to_contiguous",
 ]
 
 
@@ -1494,6 +1496,25 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadM
             mode = "edge"
         return look_up_option(mode, NumpyPadMode)
     raise ValueError(f"unsupported data type: {type(dst)}.")
+
+
+def convert_to_contiguous(data, **kwargs):
+    """
+    Check and ensure the numpy array or PyTorch Tensor in data to be contuguous in memory.
+
+    Args:
+        data: input data to convert, will recursively convert the numpy array or PyTorch Tensor in dict and sequence.
+        kwargs: if `x` is PyTorch Tensor, additional args for `torch.contiguous`, more details:
+            https://pytorch.org/docs/stable/generated/torch.Tensor.contiguous.html#torch.Tensor.contiguous.
+
+    """
+    if isinstance(data, (np.ndarray, torch.Tensor, str, bytes)):
+        return ascontiguousarray(data, **kwargs)
+    if isinstance(data, Mapping):
+        return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
+    if isinstance(data, Sequence):
+        return [convert_to_contiguous(i, **kwargs) for i in data]
+    return data
 
 
 if __name__ == "__main__":
