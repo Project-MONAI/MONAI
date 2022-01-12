@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,13 +16,22 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import CastToType
+from monai.utils import optional_import
 from monai.utils.type_conversion import get_equivalent_dtype
-from tests.utils import TEST_NDARRAYS
+from tests.utils import HAS_CUPY, TEST_NDARRAYS
+
+cp, _ = optional_import("cupy")
 
 TESTS = []
 for p in TEST_NDARRAYS:
     for out_dtype in (np.float64, torch.float64):
         TESTS.append([out_dtype, p(np.array([[0, 1], [1, 2]], dtype=np.float32)), out_dtype])
+
+TESTS_CUPY = [
+    [np.float32, np.array([[0, 1], [1, 2]], dtype=np.float32), np.float32],
+    [np.float32, np.array([[0, 1], [1, 2]], dtype=np.uint8), np.float32],
+    [np.uint8, np.array([[0, 1], [1, 2]], dtype=np.float32), np.uint8],
+]
 
 
 class TestCastToType(unittest.TestCase):
@@ -33,6 +42,19 @@ class TestCastToType(unittest.TestCase):
         self.assertEqual(result.dtype, get_equivalent_dtype(expected_type, type(result)))
 
         result = CastToType()(input_data, out_dtype)
+        self.assertEqual(result.dtype, get_equivalent_dtype(expected_type, type(result)))
+
+    @parameterized.expand(TESTS_CUPY)
+    @unittest.skipUnless(HAS_CUPY, "Requires CuPy")
+    def test_type_cupy(self, out_dtype, input_data, expected_type):
+        input_data = cp.asarray(input_data)
+
+        result = CastToType(dtype=out_dtype)(input_data)
+        self.assertTrue(isinstance(result, cp.ndarray))
+        self.assertEqual(result.dtype, get_equivalent_dtype(expected_type, type(result)))
+
+        result = CastToType()(input_data, out_dtype)
+        self.assertTrue(isinstance(result, cp.ndarray))
         self.assertEqual(result.dtype, get_equivalent_dtype(expected_type, type(result)))
 
 

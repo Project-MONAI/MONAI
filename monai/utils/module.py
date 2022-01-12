@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -8,12 +8,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import enum
+import os
+import re
 import sys
 import warnings
+from functools import wraps
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
+from types import FunctionType
 from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
 
 import torch
@@ -29,12 +34,13 @@ __all__ = [
     "look_up_option",
     "min_version",
     "optional_import",
+    "require_pkg",
     "load_submodules",
     "get_full_type_name",
     "get_package_version",
     "get_torch_version_tuple",
-    "PT_BEFORE_1_7",
     "version_leq",
+    "pytorch_after",
 ]
 
 
@@ -136,9 +142,7 @@ def damerau_levenshtein_distance(s1: str, s2: str):
         for j, s2j in enumerate(s2):
             cost = 0 if s1i == s2j else 1
             d[(i, j)] = min(
-                d[(i - 1, j)] + 1,  # deletion
-                d[(i, j - 1)] + 1,  # insertion
-                d[(i - 1, j - 1)] + cost,  # substitution
+                d[(i - 1, j)] + 1, d[(i, j - 1)] + 1, d[(i - 1, j - 1)] + cost  # deletion  # insertion  # substitution
             )
             if i and j and s1i == s2[j - 1] and s1[i - 1] == s2j:
                 d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
@@ -349,6 +353,45 @@ def optional_import(
     return _LazyRaise(), False
 
 
+def require_pkg(
+    pkg_name: str, version: str = "", version_checker: Callable[..., bool] = min_version, raise_error: bool = True
+):
+    """
+    Decorator function to check the required package installation.
+
+    Args:
+        pkg_name: required package name, like: "itk", "nibabel", etc.
+        version: required version string used by the version_checker.
+        version_checker: a callable to check the module version, defaults to `monai.utils.min_version`.
+        raise_error: if True, raise `OptionalImportError` error if the required package is not installed
+            or the version doesn't match requirement, if False, print the error in a warning.
+
+    """
+
+    def _decorator(obj):
+        is_func = isinstance(obj, FunctionType)
+        call_obj = obj if is_func else obj.__init__
+        _, has = optional_import(module=pkg_name, version=version, version_checker=version_checker)
+
+        @wraps(call_obj)
+        def _wrapper(*args, **kwargs):
+            if not has:
+                err_msg = f"required package `{pkg_name}` is not installed or the version doesn't match requirement."
+                if raise_error:
+                    raise OptionalImportError(err_msg)
+                else:
+                    warnings.warn(err_msg)
+
+            return call_obj(*args, **kwargs)
+
+        if is_func:
+            return _wrapper
+        obj.__init__ = _wrapper
+        return obj
+
+    return _decorator
+
+
 def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
     """
     Try to load package and get version. If not found, return `default`.
@@ -364,17 +407,25 @@ def get_torch_version_tuple():
     Returns:
         tuple of ints represents the pytorch major/minor version.
     """
-    return tuple((int(x) for x in torch.__version__.split(".")[:2]))
+    return tuple(int(x) for x in torch.__version__.split(".")[:2])
 
 
-def version_leq(lhs, rhs):
-    """Returns True if version `lhs` is earlier or equal to `rhs`."""
+def version_leq(lhs: str, rhs: str):
+    """
+    Returns True if version `lhs` is earlier or equal to `rhs`.
 
+    Args:
+        lhs: version name to compare with `rhs`, return True if earlier or equal to `rhs`.
+        rhs: version name to compare with `lhs`, return True if later or equal to `lhs`.
+
+    """
+
+    lhs, rhs = str(lhs), str(rhs)
     ver, has_ver = optional_import("pkg_resources", name="parse_version")
     if has_ver:
         return ver(lhs) <= ver(rhs)
 
-    def _try_cast(val):
+    def _try_cast(val: str):
         val = val.strip()
         try:
             m = match("(\\d+)(.*)", val)
@@ -390,10 +441,10 @@ def version_leq(lhs, rhs):
     rhs = rhs.split("+", 1)[0]
 
     # parse the version strings in this basic way without `packaging` package
-    lhs = map(_try_cast, lhs.split("."))
-    rhs = map(_try_cast, rhs.split("."))
+    lhs_ = map(_try_cast, lhs.split("."))
+    rhs_ = map(_try_cast, rhs.split("."))
 
-    for l, r in zip(lhs, rhs):
+    for l, r in zip(lhs_, rhs_):
         if l != r:
             if isinstance(l, int) and isinstance(r, int):
                 return l < r
@@ -402,7 +453,51 @@ def version_leq(lhs, rhs):
     return True
 
 
-try:
-    PT_BEFORE_1_7 = torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0")
-except (AttributeError, TypeError):
-    PT_BEFORE_1_7 = True
+def pytorch_after(major, minor, patch=0, current_ver_string=None) -> bool:
+    """
+    Compute whether the current pytorch version is after or equal to the specified version.
+    The current system pytorch version is determined by `torch.__version__` or
+    via system environment variable `PYTORCH_VER`.
+
+    Args:
+        major: major version number to be compared with
+        minor: minor version number to be compared with
+        patch: patch version number to be compared with
+        current_ver_string: if None, `torch.__version__` will be used.
+
+    Returns:
+        True if the current pytorch version is greater than or equal to the specified version.
+    """
+
+    try:
+        if current_ver_string is None:
+            _env_var = os.environ.get("PYTORCH_VER", "")
+            current_ver_string = _env_var if _env_var else torch.__version__
+        ver, has_ver = optional_import("pkg_resources", name="parse_version")
+        if has_ver:
+            return ver(".".join((f"{major}", f"{minor}", f"{patch}"))) <= ver(f"{current_ver_string}")  # type: ignore
+        parts = f"{current_ver_string}".split("+", 1)[0].split(".", 3)
+        while len(parts) < 3:
+            parts += ["0"]
+        c_major, c_minor, c_patch = parts[:3]
+    except (AttributeError, ValueError, TypeError):
+        c_major, c_minor = get_torch_version_tuple()
+        c_patch = "0"
+    c_mn = int(c_major), int(c_minor)
+    mn = int(major), int(minor)
+    if c_mn != mn:
+        return c_mn > mn
+    is_prerelease = ("a" in f"{c_patch}".lower()) or ("rc" in f"{c_patch}".lower())
+    c_p = 0
+    try:
+        p_reg = re.search(r"\d+", f"{c_patch}")
+        if p_reg:
+            c_p = int(p_reg.group())
+    except (AttributeError, TypeError, ValueError):
+        is_prerelease = True
+    patch = int(patch)
+    if c_p != patch:
+        return c_p > patch  # type: ignore
+    if is_prerelease:
+        return False
+    return True

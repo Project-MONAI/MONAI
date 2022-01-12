@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,16 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Optional, Sequence, Union
-
-import numpy as np
-import torch
-from torch.utils.data import IterableDataset
+from typing import Callable, Dict, Iterable, Optional, Sequence, Union
 
 from monai.data.dataset import Dataset
+from monai.data.iterable_dataset import IterableDataset
 from monai.data.utils import iter_patch
 from monai.transforms import apply_transform
-from monai.utils import NumpyPadMode, ensure_tuple, look_up_option
+from monai.utils import NumpyPadMode, deprecated_arg, ensure_tuple, look_up_option
 
 __all__ = ["PatchDataset", "GridPatchDataset", "PatchIter"]
 
@@ -96,7 +93,7 @@ class GridPatchDataset(IterableDataset):
         patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)
 
         # construct the dataset
-        ds = GridPatchDataset(dataset=images,
+        ds = GridPatchDataset(data=images,
                               patch_iter=patch_iter,
                               transform=patch_intensity)
         # use the grid patch dataset
@@ -108,49 +105,34 @@ class GridPatchDataset(IterableDataset):
         #     coordinates: tensor([[[0, 1], [0, 2], [0, 2]],
         #                          [[0, 1], [2, 4], [0, 2]]])
 
+    Args:
+        data: the data source to read image data from.
+        patch_iter: converts an input image (item from dataset) into a iterable of image patches.
+            `patch_iter(dataset[idx])` must yield a tuple: (patches, coordinates).
+            see also: :py:class:`monai.data.PatchIter`.
+        transform: a callable data transform operates on the patches.
+        with_coordinates: whether to yield the coordinates of each patch, default to `True`.
+
+    .. deprecated:: 0.8.0
+        ``dataset`` is deprecated, use ``data`` instead.
+
     """
 
+    @deprecated_arg(name="dataset", new_name="data", since="0.8", msg_suffix="please use `data` instead.")
     def __init__(
         self,
-        dataset: Sequence,
+        data: Union[Iterable, Sequence],
         patch_iter: Callable,
         transform: Optional[Callable] = None,
         with_coordinates: bool = True,
     ) -> None:
-        """
-        Initializes this dataset in terms of the image dataset, patch generator, and an optional transform.
-
-        Args:
-            dataset: the dataset to read image data from.
-            patch_iter: converts an input image (item from dataset) into a iterable of image patches.
-                `patch_iter(dataset[idx])` must yield a tuple: (patches, coordinates).
-                see also: :py:class:`monai.data.PatchIter`.
-            transform: a callable data transform operates on the patches.
-            with_coordinates: whether to yield the coordinates of each patch, default to `True`.
-
-        """
-
-        self.dataset = dataset
+        super().__init__(data=data, transform=None)
         self.patch_iter = patch_iter
         self.transform = transform
         self.with_coordinates = with_coordinates
 
     def __iter__(self):
-        worker_info = torch.utils.data.get_worker_info()
-        iter_start, iter_end = 0, 1
-        try:
-            iter_end = len(self.dataset)  # TODO: support iterable self.dataset
-        except TypeError:
-            raise NotImplementedError("image dataset must implement `len()`.")
-
-        if worker_info is not None:
-            # split workload
-            per_worker = int(np.ceil((iter_end - iter_start) / float(worker_info.num_workers)))
-            iter_start += worker_info.id * per_worker
-            iter_end = min(iter_start + per_worker, iter_end)
-
-        for index in range(iter_start, iter_end):
-            image = self.dataset[index]
+        for image in super().__iter__():
             if not self.with_coordinates:
                 for patch, *_ in self.patch_iter(image):  # patch_iter to yield at least 1 item: patch
                     out_patch = (
@@ -204,20 +186,24 @@ class PatchDataset(Dataset):
 
         >>> torch.Size([2, 1, 3, 3])
 
+    .. deprecated:: 0.8.0
+        ``dataset`` is deprecated, use ``data`` instead.
+
     """
 
+    @deprecated_arg(name="dataset", new_name="data", since="0.8", msg_suffix="please use `data` instead.")
     def __init__(
-        self, dataset: Sequence, patch_func: Callable, samples_per_image: int = 1, transform: Optional[Callable] = None
+        self, data: Sequence, patch_func: Callable, samples_per_image: int = 1, transform: Optional[Callable] = None
     ) -> None:
         """
         Args:
-            dataset: an image dataset to extract patches from.
+            data: an image dataset to extract patches from.
             patch_func: converts an input image (item from dataset) into a sequence of image patches.
                 patch_func(dataset[idx]) must return a sequence of patches (length `samples_per_image`).
             samples_per_image: `patch_func` should return a sequence of `samples_per_image` elements.
             transform: transform applied to each patch.
         """
-        super().__init__(data=dataset, transform=transform)
+        super().__init__(data=data, transform=transform)
 
         self.patch_func = patch_func
         if samples_per_image <= 0:

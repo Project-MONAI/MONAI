@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -53,11 +53,7 @@ for bound in bounds:
                         "interpolation": interp,
                         "bound": bound,
                     },
-                    {
-                        "val": torch.tensor([[expected_val]]),
-                        "device": device,
-                        "grad": torch.tensor(expected_grad),
-                    },
+                    {"val": torch.tensor([[expected_val]]), "device": device, "grad": torch.tensor(expected_grad)},
                 ]
                 TEST_1D_GP.append(test_case)
 
@@ -85,7 +81,7 @@ class TestGridPull(unittest.TestCase):
             grads = grads[0]
         else:
             grads = torch.cat(grads, dim=0)
-        self.assertTrue("{}".format(result.device).startswith(expected["device"]))
+        self.assertTrue(f"{result.device}".startswith(expected["device"]))
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected["val"].cpu().numpy(), rtol=1e-4, atol=1e-4)
         np.testing.assert_allclose(grads.detach().cpu().numpy(), expected["grad"].cpu().numpy(), rtol=1e-4, atol=1e-4)
 

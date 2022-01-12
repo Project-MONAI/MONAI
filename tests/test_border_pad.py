@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,17 +18,9 @@ from monai.transforms import BorderPad
 from monai.utils import NumpyPadMode
 from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    {"spatial_border": 2, "mode": "constant"},
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 12, 12, 8)),
-]
+TEST_CASE_1 = [{"spatial_border": 2, "mode": "constant"}, np.zeros((3, 8, 8, 4)), np.zeros((3, 12, 12, 8))]
 
-TEST_CASE_2 = [
-    {"spatial_border": [1, 2, 3], "mode": "constant"},
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 10, 12, 10)),
-]
+TEST_CASE_2 = [{"spatial_border": [1, 2, 3], "mode": "constant"}, np.zeros((3, 8, 8, 4)), np.zeros((3, 10, 12, 10))]
 
 TEST_CASE_3 = [
     {"spatial_border": [1, 2, 3, 4, 5, 6], "mode": "constant"},

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -167,7 +167,7 @@ class OcclusionSensitivity:
             upsampler: An upsampling method to upsample the output image. Default is
                 N-dimensional linear (bilinear, trilinear, etc.) depending on num spatial
                 dimensions of input.
-            verbose: Use ``tdqm.trange`` output (if available).
+            verbose: Use ``tqdm.trange`` output (if available).
         """
 
         self.nn_module = nn_module
@@ -265,9 +265,7 @@ class OcclusionSensitivity:
         return sensitivity_ims, output_im_shape
 
     def __call__(  # type: ignore
-        self,
-        x: torch.Tensor,
-        b_box: Optional[Sequence] = None,
+        self, x: torch.Tensor, b_box: Optional[Sequence] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
