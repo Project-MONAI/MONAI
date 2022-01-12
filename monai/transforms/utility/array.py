@@ -202,6 +202,7 @@ class EnsureChannelFirst(Transform):
             strict_check: whether to raise an error when the meta information is insufficient.
         """
         self.strict_check = strict_check
+        self.add_channel = AddChannel()
 
     def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
@@ -223,7 +224,7 @@ class EnsureChannelFirst(Transform):
             warnings.warn(msg)
             return img
         if channel_dim == "no_channel":
-            return AddChannel()(img)
+            return self.add_channel(img)
         return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
