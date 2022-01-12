@@ -15,7 +15,6 @@ import numpy as np
 
 from monai.transforms.spatial.array import Resize
 from monai.utils import InterpolateMode, ensure_tuple_rep, look_up_option, optional_import
-from monai.utils.enums import CommonKeys
 
 Image, _ = optional_import("PIL", name="Image")
 
