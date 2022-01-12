@@ -402,7 +402,7 @@ def weighted_patch_samples(
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
         r, *_ = convert_to_dst_type(r_state.random(n_samples), v)  # type: ignore
-        idx = searchsorted(v, r * v[-1], right=True)
+        idx = searchsorted(v, r * v[-1], right=True)  # type: ignore
     idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
@@ -411,7 +411,7 @@ def weighted_patch_samples(
 
 
 def correct_crop_centers(
-    centers: List[Union[int, torch.Tensor]],
+    centers: Union[NdarrayOrTensor, List[NdarrayOrTensor]],
     spatial_size: Union[Sequence[int], int],
     label_spatial_shape: Sequence[int],
     allow_smaller: bool = False,
