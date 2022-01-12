@@ -100,6 +100,14 @@ class Compose(Randomizable, InvertibleTransform):
         Alternatively, one can create a class with a `__call__` function that
         calls your pre-processing functions taking into account that not all of
         them are called on the labels.
+
+    Args:
+        transforms: sequence of callables.
+        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
+            defaults to `True`.
+        unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
+            defaults to `False`.
+
     """
 
     def __init__(
@@ -180,9 +188,11 @@ class OneOf(Compose):
         transforms: sequence of callables.
         weights: probabilities corresponding to each callable in transforms.
             Probabilities are normalized to sum to one.
+        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
+            defaults to `True`.
+        unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
+            defaults to `False`.
 
-    ``OneOf`` inherits from ``Compose`` and uses args ``map_items`` and ``unpack_items`` in
-    the same way.
     """
 
     def __init__(
