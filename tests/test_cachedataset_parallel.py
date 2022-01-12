@@ -19,10 +19,11 @@ from parameterized import parameterized
 
 from monai.data import CacheDataset
 from monai.transforms import Compose, LoadImaged
+from monai.utils.enums import CommonKeys
 
-TEST_CASE_1 = [0, 5, Compose([LoadImaged(keys=["image", "label", "extra"])])]
+TEST_CASE_1 = [0, 5, Compose([LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"])])]
 
-TEST_CASE_2 = [4, 5, Compose([LoadImaged(keys=["image", "label", "extra"])])]
+TEST_CASE_2 = [4, 5, Compose([LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"])])]
 
 TEST_CASE_3 = [4, 5, None]
 
@@ -37,8 +38,8 @@ class TestCacheDatasetParallel(unittest.TestCase):
             nib.save(test_image, os.path.join(tempdir, "test_extra1.nii.gz"))
             test_data = [
                 {
-                    "image": os.path.join(tempdir, "test_image1.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label1.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image1.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label1.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
                 }
             ] * dataset_size

@@ -66,6 +66,7 @@ from monai.transforms import (
     convert_inverse_interp_mode,
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
+from monai.utils.enums import CommonKeys
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
@@ -74,7 +75,7 @@ if TYPE_CHECKING:
 else:
     _, has_nib = optional_import("nibabel")
 
-KEYS = ["image", "label"]
+KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
 
 TESTS: List[Tuple] = []
 
@@ -89,7 +90,7 @@ for name in ("1D even", "1D odd"):
             partial(ResizeWithPadOrCropd, spatial_size=20 + val),
             partial(CenterSpatialCropd, roi_size=10 + val),
             partial(CenterScaleCropd, roi_scale=0.8),
-            partial(CropForegroundd, source_key="label"),
+            partial(CropForegroundd, source_key=CommonKeys.LABEL),
             partial(SpatialCropd, roi_center=10, roi_size=10 + val),
             partial(SpatialCropd, roi_center=11, roi_size=10 + val),
             partial(SpatialCropd, roi_start=val, roi_end=17),
@@ -158,9 +159,11 @@ TESTS.append(("CenterSpatialCropd 2d", "2D", 0, CenterSpatialCropd(KEYS, roi_siz
 
 TESTS.append(("CenterSpatialCropd 3d", "3D", 0, CenterSpatialCropd(KEYS, roi_size=[95, 97, 98])))
 
-TESTS.append(("CropForegroundd 2d", "2D", 0, CropForegroundd(KEYS, source_key="label", margin=2)))
+TESTS.append(("CropForegroundd 2d", "2D", 0, CropForegroundd(KEYS, source_key=CommonKeys.LABEL, margin=2)))
 
-TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="label", k_divisible=[5, 101, 2])))
+TESTS.append(
+    ("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key=CommonKeys.LABEL, k_divisible=[5, 101, 2]))
+)
 
 
 TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
@@ -278,15 +281,19 @@ TESTS.append(
         "RandCropByLabelClassesd 2d",
         "2D",
         1e-7,
-        RandCropByLabelClassesd(KEYS, "label", (99, 96), ratios=[1, 2, 3, 4, 5], num_classes=5, num_samples=10),
+        RandCropByLabelClassesd(
+            KEYS, CommonKeys.LABEL, (99, 96), ratios=[1, 2, 3, 4, 5], num_classes=5, num_samples=10
+        ),
     )
 )
 
-TESTS.append(("RandCropByPosNegLabeld 2d", "2D", 1e-7, RandCropByPosNegLabeld(KEYS, "label", (99, 96), num_samples=10)))
+TESTS.append(
+    ("RandCropByPosNegLabeld 2d", "2D", 1e-7, RandCropByPosNegLabeld(KEYS, CommonKeys.LABEL, (99, 96), num_samples=10))
+)
 
 TESTS.append(("RandSpatialCropSamplesd 2d", "2D", 1e-7, RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=10)))
 
-TESTS.append(("RandWeightedCropd 2d", "2D", 1e-7, RandWeightedCropd(KEYS, "label", (90, 91), num_samples=10)))
+TESTS.append(("RandWeightedCropd 2d", "2D", 1e-7, RandWeightedCropd(KEYS, CommonKeys.LABEL, (90, 91), num_samples=10)))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
@@ -294,10 +301,14 @@ TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
 
 NUM_SAMPLES = 5
 N_SAMPLES_TESTS = [
-    [RandCropByLabelClassesd(KEYS, "label", (110, 99), [1, 2, 3, 4, 5], num_classes=5, num_samples=NUM_SAMPLES)],
-    [RandCropByPosNegLabeld(KEYS, "label", (110, 99), num_samples=NUM_SAMPLES)],
+    [
+        RandCropByLabelClassesd(
+            KEYS, CommonKeys.LABEL, (110, 99), [1, 2, 3, 4, 5], num_classes=5, num_samples=NUM_SAMPLES
+        )
+    ],
+    [RandCropByPosNegLabeld(KEYS, CommonKeys.LABEL, (110, 99), num_samples=NUM_SAMPLES)],
     [RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=NUM_SAMPLES, random_size=False)],
-    [RandWeightedCropd(KEYS, "label", (90, 91), num_samples=NUM_SAMPLES)],
+    [RandWeightedCropd(KEYS, CommonKeys.LABEL, (90, 91), num_samples=NUM_SAMPLES)],
 ]
 
 
@@ -360,8 +371,8 @@ class TestInverse(unittest.TestCase):
             im_1d = np.pad(np.arange(size), 5)[None]
             name = "1D even" if size % 2 == 0 else "1D odd"
             self.all_data[name] = {
-                "image": np.array(im_1d, copy=True),
-                "label": np.array(im_1d, copy=True),
+                CommonKeys.IMAGE: np.array(im_1d, copy=True),
+                CommonKeys.LABEL: np.array(im_1d, copy=True),
                 "other": np.array(im_1d, copy=True),
             }
 
@@ -369,8 +380,8 @@ class TestInverse(unittest.TestCase):
         im_3d_fname, seg_3d_fname = (make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107))
 
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
-        self.all_data["2D"] = load_ims({"image": im_2d_fname, "label": seg_2d_fname})
-        self.all_data["3D"] = load_ims({"image": im_3d_fname, "label": seg_3d_fname})
+        self.all_data["2D"] = load_ims({CommonKeys.IMAGE: im_2d_fname, CommonKeys.LABEL: seg_2d_fname})
+        self.all_data["3D"] = load_ims({CommonKeys.IMAGE: im_3d_fname, CommonKeys.LABEL: seg_3d_fname})
 
     def tearDown(self):
         set_determinism(seed=None)
@@ -432,11 +443,11 @@ class TestInverse(unittest.TestCase):
     @skipUnless(torch.multiprocessing.get_start_method() == "spawn", "requires spawn")
     def test_fail(self):
 
-        t1 = SpatialPadd("image", [10, 5])
+        t1 = SpatialPadd(CommonKeys.IMAGE, [10, 5])
         data = t1(self.all_data["2D"])
 
         # Check that error is thrown when inverse are used out of order.
-        t2 = ResizeWithPadOrCropd("image", [10, 5])
+        t2 = ResizeWithPadOrCropd(CommonKeys.IMAGE, [10, 5])
         with self.assertRaises(RuntimeError):
             t2.inverse(data)
 
@@ -446,7 +457,7 @@ class TestInverse(unittest.TestCase):
         test_data = []
         for _ in range(20):
             image, label = create_test_image_2d(100, 101)
-            test_data.append({"image": image, "label": label.astype(np.float32)})
+            test_data.append({CommonKeys.IMAGE: image, CommonKeys.LABEL: label.astype(np.float32)})
 
         batch_size = 10
         # num workers = 0 for mac
@@ -462,12 +473,12 @@ class TestInverse(unittest.TestCase):
 
         data = first(loader)
         self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
-        self.assertEqual(data["image"].shape[0], batch_size * NUM_SAMPLES)
+        self.assertEqual(data[CommonKeys.IMAGE].shape[0], batch_size * NUM_SAMPLES)
 
-        labels = data["label"].to(device)
+        labels = data[CommonKeys.LABEL].to(device)
         segs = model(labels).detach().cpu()
-        label_transform_key = TraceableTransform.trace_key("label")
-        segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
+        label_transform_key = TraceableTransform.trace_key(CommonKeys.LABEL)
+        segs_dict = {CommonKeys.LABEL: segs, label_transform_key: data[label_transform_key]}
 
         segs_dict_decollated = decollate_batch(segs_dict)
         # inverse of individual segmentation
@@ -476,16 +487,16 @@ class TestInverse(unittest.TestCase):
         convert_inverse_interp_mode(seg_dict, mode="nearest", align_corners=None)
 
         with allow_missing_keys_mode(transforms):
-            inv_seg = transforms.inverse(seg_dict)["label"]
+            inv_seg = transforms.inverse(seg_dict)[CommonKeys.LABEL]
         self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
         self.assertEqual(len(seg_dict["label_transforms"]), num_invertible_transforms)
-        self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
+        self.assertEqual(inv_seg.shape[1:], test_data[0][CommonKeys.LABEL].shape)
 
         # Inverse of batch
         batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation, detach=True)
         with allow_missing_keys_mode(transforms):
             inv_batch = batch_inverter(segs_dict)
-        self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
+        self.assertEqual(inv_batch[0][CommonKeys.LABEL].shape[1:], test_data[0][CommonKeys.LABEL].shape)
 
 
 if __name__ == "__main__":

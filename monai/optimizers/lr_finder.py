@@ -24,6 +24,7 @@ from torch.utils.data import DataLoader
 from monai.networks.utils import eval_mode
 from monai.optimizers.lr_scheduler import ExponentialLR, LinearLR
 from monai.utils import StateCacher, copy_to_device, optional_import
+from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
@@ -127,13 +128,13 @@ class ValDataLoaderIter(DataLoaderIter):
 
 def default_image_extractor(x: Any) -> torch.Tensor:
     """Default callable for getting image from batch data."""
-    out: torch.Tensor = x["image"] if isinstance(x, dict) else x[0]
+    out: torch.Tensor = x[CommonKeys.IMAGE] if isinstance(x, dict) else x[0]
     return out
 
 
 def default_label_extractor(x: Any) -> torch.Tensor:
     """Default callable for getting label from batch data."""
-    out: torch.Tensor = x["label"] if isinstance(x, dict) else x[1]
+    out: torch.Tensor = x[CommonKeys.LABEL] if isinstance(x, dict) else x[1]
     return out
 
 
@@ -163,7 +164,7 @@ class LearningRateFinder:
     >>> acc_lr_finder = LearningRateFinder(net, optimizer, criterion)
     >>> acc_lr_finder.range_test(data_loader, end_lr=10, num_iter=100, accumulation_steps=accumulation_steps)
 
-    By default, image will be extracted from data loader with x["image"] and x[0], depending on whether
+    By default, image will be extracted from data loader with x[CommonKeys.IMAGE] and x[0], depending on whether
     batch data is a dictionary or not (and similar behaviour for extracting the label). If your data loader
     returns something other than this, pass a callable function to extract it, e.g.:
     >>> image_extractor = lambda x: x["input"]
@@ -269,9 +270,9 @@ class LearningRateFinder:
             train_loader: training set data loader.
             val_loader: validation data loader (if desired).
             image_extractor: callable function to get the image from a batch of data.
-                Default: `x["image"] if isinstance(x, dict) else x[0]`.
+                Default: `x[CommonKeys.IMAGE] if isinstance(x, dict) else x[0]`.
             label_extractor: callable function to get the label from a batch of data.
-                Default: `x["label"] if isinstance(x, dict) else x[1]`.
+                Default: `x[CommonKeys.LABEL] if isinstance(x, dict) else x[1]`.
             start_lr : the starting learning rate for the range test.
                 The default is the optimizer's learning rate.
             end_lr: the maximum learning rate to test. The test may stop earlier than

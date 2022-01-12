@@ -76,8 +76,8 @@ class TestCuCIMDict(unittest.TestCase):
         ]
     )
     def test_tramsforms_numpy_single(self, params, input, expected):
-        input = {"image": input}
-        output = CuCIMd(keys="image", **params)(input)["image"]
+        input = {CommonKeys.IMAGE: input}
+        output = CuCIMd(keys=CommonKeys.IMAGE, **params)(input)[CommonKeys.IMAGE]
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
@@ -93,9 +93,9 @@ class TestCuCIMDict(unittest.TestCase):
         ]
     )
     def test_tramsforms_numpy_batch(self, params, input, expected):
-        input = {"image": input[cp.newaxis, ...]}
+        input = {CommonKeys.IMAGE: input[cp.newaxis, ...]}
         expected = expected[cp.newaxis, ...]
-        output = CuCIMd(keys="image", **params)(input)["image"]
+        output = CuCIMd(keys=CommonKeys.IMAGE, **params)(input)[CommonKeys.IMAGE]
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
@@ -111,9 +111,9 @@ class TestCuCIMDict(unittest.TestCase):
         ]
     )
     def test_tramsforms_cupy_single(self, params, input, expected):
-        input = {"image": cp.asarray(input)}
+        input = {CommonKeys.IMAGE: cp.asarray(input)}
         expected = cp.asarray(expected)
-        output = CuCIMd(keys="image", **params)(input)["image"]
+        output = CuCIMd(keys=CommonKeys.IMAGE, **params)(input)[CommonKeys.IMAGE]
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
@@ -129,9 +129,9 @@ class TestCuCIMDict(unittest.TestCase):
         ]
     )
     def test_tramsforms_cupy_batch(self, params, input, expected):
-        input = {"image": cp.asarray(input)[cp.newaxis, ...]}
+        input = {CommonKeys.IMAGE: cp.asarray(input)[cp.newaxis, ...]}
         expected = cp.asarray(expected)[cp.newaxis, ...]
-        output = CuCIMd(keys="image", **params)(input)["image"]
+        output = CuCIMd(keys=CommonKeys.IMAGE, **params)(input)[CommonKeys.IMAGE]
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)

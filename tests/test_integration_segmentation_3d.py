@@ -167,8 +167,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 )
                 writer.add_scalar("val_mean_dice", metric, epoch + 1)
                 # plot the last model output as GIF image in TensorBoard with the corresponding image and label
-                plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag="image")
-                plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag="label")
+                plot_2d_or_3d_image(val_images, epoch + 1, writer, index=0, tag=CommonKeys.IMAGE)
+                plot_2d_or_3d_image(val_labels, epoch + 1, writer, index=0, tag=CommonKeys.LABEL)
                 plot_2d_or_3d_image(val_outputs, epoch + 1, writer, index=0, tag="output")
     print(f"train completed, best_metric: {best_metric:0.4f}  at epoch: {best_metric_epoch}")
     writer.close()

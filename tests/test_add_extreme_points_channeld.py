@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import AddExtremePointsChanneld
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 IMG_CHANNEL = 3
@@ -26,7 +27,7 @@ for p in TEST_NDARRAYS:
             [
                 {
                     "img": p(np.zeros((IMG_CHANNEL, 4, 3))),
-                    "label": q(np.array([[[0, 1, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0]]])),
+                    CommonKeys.LABEL: q(np.array([[[0, 1, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0]]])),
                 },
                 p(
                     np.array(
@@ -45,7 +46,7 @@ for p in TEST_NDARRAYS:
             [
                 {
                     "img": p(np.zeros((IMG_CHANNEL, 4, 3))),
-                    "label": q(np.array([[[0, 1, 0], [1, 1, 1], [0, 1, 0], [0, 1, 0]]])),
+                    CommonKeys.LABEL: q(np.array([[[0, 1, 0], [1, 1, 1], [0, 1, 0], [0, 1, 0]]])),
                 },
                 p(
                     np.array(
@@ -65,7 +66,7 @@ class TestAddExtremePointsChanneld(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_correct_results(self, input_data, expected):
         add_extreme_points_channel = AddExtremePointsChanneld(
-            keys="img", label_key="label", sigma=1.0, rescale_min=0.0, rescale_max=1.0
+            keys="img", label_key=CommonKeys.LABEL, sigma=1.0, rescale_min=0.0, rescale_max=1.0
         )
         result = add_extreme_points_channel(input_data)
         assert_allclose(result["img"][IMG_CHANNEL], expected, rtol=1e-4)

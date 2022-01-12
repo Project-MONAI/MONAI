@@ -64,11 +64,13 @@ class TestPNGSaver(unittest.TestCase):
             )
 
             meta_data = {
-                "filename_or_obj": [os.path.join("test", "testfile" + str(i), "image" + ".jpg") for i in range(8)]
+                "filename_or_obj": [
+                    os.path.join("test", "testfile" + str(i), CommonKeys.IMAGE + ".jpg") for i in range(8)
+                ]
             }
             saver.save_batch(torch.randint(1, 200, (8, 1, 2, 2)), meta_data)
             for i in range(8):
-                filepath = os.path.join("testfile" + str(i), "image", "image" + "_seg.png")
+                filepath = os.path.join("testfile" + str(i), CommonKeys.IMAGE, CommonKeys.IMAGE + "_seg.png")
                 self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
 
 

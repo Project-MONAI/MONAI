@@ -46,11 +46,13 @@ class TestDatasetSummary(unittest.TestCase):
             train_images = sorted(glob.glob(os.path.join(tempdir, "img*.nii.gz")))
             train_labels = sorted(glob.glob(os.path.join(tempdir, "seg*.nii.gz")))
             data_dicts = [
-                {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
+                {CommonKeys.IMAGE: image_name, CommonKeys.LABEL: label_name}
+                for image_name, label_name in zip(train_images, train_labels)
             ]
 
             dataset = Dataset(
-                data=data_dicts, transform=LoadImaged(keys=["image", "label"], meta_keys=["test1", "test2"])
+                data=data_dicts,
+                transform=LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], meta_keys=["test1", "test2"]),
             )
 
             # test **kwargs of `DatasetSummary` for `DataLoader`
@@ -81,12 +83,13 @@ class TestDatasetSummary(unittest.TestCase):
             train_images = sorted(glob.glob(os.path.join(tempdir, "img*.nii.gz")))
             train_labels = sorted(glob.glob(os.path.join(tempdir, "seg*.nii.gz")))
             data_dicts = [
-                {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
+                {CommonKeys.IMAGE: image_name, CommonKeys.LABEL: label_name}
+                for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
+            dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]))
 
-            calculator = DatasetSummary(dataset, num_workers=4, meta_key_postfix="meta_dict")
+            calculator = DatasetSummary(dataset, num_workers=4, meta_key_postfix=DictPostFixes.META)
 
             target_spacing = calculator.get_target_spacing(anisotropic_threshold=4.0, percentile=20.0)
             np.testing.assert_allclose(target_spacing, (1.0, 1.0, 1.8))

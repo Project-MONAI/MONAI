@@ -15,10 +15,11 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import ConvertToMultiChannelBasedOnBratsClassesd
+from monai.utils.enums import CommonKeys
 
 TEST_CASE = [
-    {"keys": "label"},
-    {"label": np.array([[0, 1, 2], [1, 2, 4], [0, 1, 4]])},
+    {"keys": CommonKeys.LABEL},
+    {CommonKeys.LABEL: np.array([[0, 1, 2], [1, 2, 4], [0, 1, 4]])},
     np.array([[[0, 1, 0], [1, 0, 1], [0, 1, 1]], [[0, 1, 1], [1, 1, 1], [0, 1, 1]], [[0, 0, 0], [0, 0, 1], [0, 0, 1]]]),
 ]
 
@@ -27,7 +28,7 @@ class TestConvertToMultiChanneld(unittest.TestCase):
     @parameterized.expand([TEST_CASE])
     def test_type_shape(self, keys, data, expected_result):
         result = ConvertToMultiChannelBasedOnBratsClassesd(**keys)(data)
-        np.testing.assert_equal(result["label"], expected_result)
+        np.testing.assert_equal(result[CommonKeys.LABEL], expected_result)
 
 
 if __name__ == "__main__":

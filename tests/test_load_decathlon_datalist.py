@@ -26,8 +26,8 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
                 "description": "Spleen Segmentation",
                 "labels": {"0": "background", "1": "spleen"},
                 "training": [
-                    {"image": "spleen_19.nii.gz", "label": "spleen_19.nii.gz"},
-                    {"image": "spleen_31.nii.gz", "label": "spleen_31.nii.gz"},
+                    {CommonKeys.IMAGE: "spleen_19.nii.gz", CommonKeys.LABEL: "spleen_19.nii.gz"},
+                    {CommonKeys.IMAGE: "spleen_31.nii.gz", CommonKeys.LABEL: "spleen_31.nii.gz"},
                 ],
                 "test": ["spleen_15.nii.gz", "spleen_23.nii.gz"],
             }
@@ -36,8 +36,8 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
             result = load_decathlon_datalist(file_path, True, "training", tempdir)
-            self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
-            self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
+            self.assertEqual(result[0][CommonKeys.IMAGE], os.path.join(tempdir, "spleen_19.nii.gz"))
+            self.assertEqual(result[0][CommonKeys.LABEL], os.path.join(tempdir, "spleen_19.nii.gz"))
 
     def test_cls_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -45,7 +45,10 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
                 "name": "ChestXRay",
                 "description": "Chest X-ray classification",
                 "labels": {"0": "background", "1": "chest"},
-                "training": [{"image": "chest_19.nii.gz", "label": 0}, {"image": "chest_31.nii.gz", "label": 1}],
+                "training": [
+                    {CommonKeys.IMAGE: "chest_19.nii.gz", CommonKeys.LABEL: 0},
+                    {CommonKeys.IMAGE: "chest_31.nii.gz", CommonKeys.LABEL: 1},
+                ],
                 "test": ["chest_15.nii.gz", "chest_23.nii.gz"],
             }
             json_str = json.dumps(test_data)
@@ -53,8 +56,8 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
             result = load_decathlon_datalist(file_path, False, "training", tempdir)
-            self.assertEqual(result[0]["image"], os.path.join(tempdir, "chest_19.nii.gz"))
-            self.assertEqual(result[0]["label"], 0)
+            self.assertEqual(result[0][CommonKeys.IMAGE], os.path.join(tempdir, "chest_19.nii.gz"))
+            self.assertEqual(result[0][CommonKeys.LABEL], 0)
 
     def test_seg_no_basedir(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -64,12 +67,12 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
                 "labels": {"0": "background", "1": "spleen"},
                 "training": [
                     {
-                        "image": os.path.join(tempdir, "spleen_19.nii.gz"),
-                        "label": os.path.join(tempdir, "spleen_19.nii.gz"),
+                        CommonKeys.IMAGE: os.path.join(tempdir, "spleen_19.nii.gz"),
+                        CommonKeys.LABEL: os.path.join(tempdir, "spleen_19.nii.gz"),
                     },
                     {
-                        "image": os.path.join(tempdir, "spleen_31.nii.gz"),
-                        "label": os.path.join(tempdir, "spleen_31.nii.gz"),
+                        CommonKeys.IMAGE: os.path.join(tempdir, "spleen_31.nii.gz"),
+                        CommonKeys.LABEL: os.path.join(tempdir, "spleen_31.nii.gz"),
                     },
                 ],
                 "test": [os.path.join(tempdir, "spleen_15.nii.gz"), os.path.join(tempdir, "spleen_23.nii.gz")],
@@ -79,8 +82,8 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
             result = load_decathlon_datalist(file_path, True, "training", None)
-            self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
-            self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
+            self.assertEqual(result[0][CommonKeys.IMAGE], os.path.join(tempdir, "spleen_19.nii.gz"))
+            self.assertEqual(result[0][CommonKeys.LABEL], os.path.join(tempdir, "spleen_19.nii.gz"))
 
     def test_seg_no_labels(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -95,7 +98,7 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
             result = load_decathlon_datalist(file_path, True, "test", tempdir)
-            self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_15.nii.gz"))
+            self.assertEqual(result[0][CommonKeys.IMAGE], os.path.join(tempdir, "spleen_15.nii.gz"))
 
     def test_additional_items(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -107,8 +110,8 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
                 "description": "Spleen Segmentation",
                 "labels": {"0": "background", "1": "spleen"},
                 "training": [
-                    {"image": "spleen_19.nii.gz", "label": "spleen_19.nii.gz", "mask": "spleen mask"},
-                    {"image": "spleen_31.nii.gz", "label": "spleen_31.nii.gz", "mask": "mask31.txt"},
+                    {CommonKeys.IMAGE: "spleen_19.nii.gz", CommonKeys.LABEL: "spleen_19.nii.gz", "mask": "spleen mask"},
+                    {CommonKeys.IMAGE: "spleen_31.nii.gz", CommonKeys.LABEL: "spleen_31.nii.gz", "mask": "mask31.txt"},
                 ],
                 "test": ["spleen_15.nii.gz", "spleen_23.nii.gz"],
             }
@@ -117,8 +120,8 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
             with open(file_path, "w") as json_file:
                 json_file.write(json_str)
             result = load_decathlon_datalist(file_path, True, "training", Path(tempdir))
-            self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
-            self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
+            self.assertEqual(result[0][CommonKeys.IMAGE], os.path.join(tempdir, "spleen_19.nii.gz"))
+            self.assertEqual(result[0][CommonKeys.LABEL], os.path.join(tempdir, "spleen_19.nii.gz"))
             self.assertEqual(result[1]["mask"], os.path.join(tempdir, "mask31.txt"))
             self.assertEqual(result[0]["mask"], "spleen mask")
 

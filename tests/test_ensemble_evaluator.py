@@ -26,7 +26,7 @@ class TestEnsembleEvaluator(unittest.TestCase):
                 return 8
 
             def __getitem__(self, index):
-                return {"image": torch.tensor([index]), "label": torch.zeros(1)}
+                return {CommonKeys.IMAGE: torch.tensor([index]), CommonKeys.LABEL: torch.zeros(1)}
 
         val_loader = torch.utils.data.DataLoader(TestDataset())
 

@@ -95,7 +95,7 @@ class Compose(Randomizable, InvertibleTransform):
         Both are then typically augmented through the use of random rotations,
         flips, and deformations.
         Compose can be used with a series of transforms that take a dictionary
-        that contains 'image' and 'label' entries. This might require wrapping
+        that contains CommonKeys.IMAGE and CommonKeys.LABEL entries. This might require wrapping
         `torchvision` transforms before passing them to compose.
         Alternatively, one can create a class with a `__call__` function that
         calls your pre-processing functions taking into account that not all of

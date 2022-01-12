@@ -17,6 +17,7 @@ import numpy as np
 
 from monai.transforms import AsChannelFirstd, Compose, LoadImaged, Orientationd, Spacingd
 from monai.utils import GridSampleMode
+from monai.utils.enums import CommonKeys
 
 
 def create_dataset(
@@ -24,8 +25,8 @@ def create_dataset(
     output_dir: str,
     dimension: int,
     pixdim,
-    image_key: str = "image",
-    label_key: str = "label",
+    image_key: str = CommonKeys.IMAGE,
+    label_key: str = CommonKeys.LABEL,
     base_dir=None,
     limit: int = 0,
     relative_path: bool = False,
@@ -40,13 +41,13 @@ def create_dataset(
         datalist: A list of data dictionary. Each entry should at least contain 'image_key': <image filename>.
             For example, typical input data can be a list of dictionaries::
 
-                [{'image': <image filename>, 'label': <label filename>}]
+                [{CommonKeys.IMAGE: <image filename>, CommonKeys.LABEL: <label filename>}]
 
         output_dir: target directory to store the training data for Deepgrow Training
         pixdim: output voxel spacing.
         dimension: dimension for Deepgrow training.  It can be 2 or 3.
-        image_key: image key in input datalist. Defaults to 'image'.
-        label_key: label key in input datalist. Defaults to 'label'.
+        image_key: image key in input datalist. Defaults to CommonKeys.IMAGE.
+        label_key: label key in input datalist. Defaults to CommonKeys.LABEL.
         base_dir: base directory in case related path is used for the keys in datalist.  Defaults to None.
         limit: limit number of inputs for pre-processing.  Defaults to 0 (no limit).
         relative_path: output keys values should be based on relative path.  Defaults to False.
@@ -62,18 +63,18 @@ def create_dataset(
     Example::
 
         datalist = create_dataset(
-            datalist=[{'image': 'img1.nii', 'label': 'label1.nii'}],
+            datalist=[{CommonKeys.IMAGE: 'img1.nii', CommonKeys.LABEL: 'label1.nii'}],
             base_dir=None,
             output_dir=output_2d,
             dimension=2,
-            image_key='image',
-            label_key='label',
+            image_key=CommonKeys.IMAGE,
+            label_key=CommonKeys.LABEL,
             pixdim=(1.0, 1.0),
             limit=0,
             relative_path=True
         )
 
-        print(datalist[0]["image"], datalist[0]["label"])
+        print(datalist[0][CommonKeys.IMAGE], datalist[0][CommonKeys.LABEL])
     """
 
     if dimension not in [2, 3]:
@@ -165,7 +166,7 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
         # Test Data
         if vol_label is None:
             data_list.append(
-                {"image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file}
+                {CommonKeys.IMAGE: image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file}
             )
             continue
 
@@ -186,8 +187,8 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
             label_count += 1
             data_list.append(
                 {
-                    "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
-                    "label": label_file.replace(dataset_dir + os.pathsep, "") if relative_path else label_file,
+                    CommonKeys.IMAGE: image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
+                    CommonKeys.LABEL: label_file.replace(dataset_dir + os.pathsep, "") if relative_path else label_file,
                     "region": int(idx),
                 }
             )
@@ -234,7 +235,9 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
 
     # Test Data
     if vol_label is None:
-        data_list.append({"image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file})
+        data_list.append(
+            {CommonKeys.IMAGE: image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file}
+        )
     else:
         # For all Labels
         unique_labels = np.unique(vol_label.flatten())
@@ -253,8 +256,8 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
             label_count += 1
             data_list.append(
                 {
-                    "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
-                    "label": label_file.replace(dataset_dir + os.pathsep, "") if relative_path else label_file,
+                    CommonKeys.IMAGE: image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
+                    CommonKeys.LABEL: label_file.replace(dataset_dir + os.pathsep, "") if relative_path else label_file,
                     "region": int(idx),
                 }
             )

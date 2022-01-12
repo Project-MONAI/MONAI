@@ -16,6 +16,7 @@ import skimage.transform
 from parameterized import parameterized
 
 from monai.transforms import Resized
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 10, 15)]
@@ -25,7 +26,12 @@ TEST_CASE_1 = [{"keys": "img", "spatial_size": 15, "mode": "area"}, (6, 10, 15)]
 TEST_CASE_2 = [{"keys": "img", "spatial_size": 6, "mode": "trilinear", "align_corners": True}, (2, 4, 6)]
 
 TEST_CASE_3 = [
-    {"keys": ["img", "label"], "spatial_size": 6, "mode": ["trilinear", "nearest"], "align_corners": [True, None]},
+    {
+        "keys": ["img", CommonKeys.LABEL],
+        "spatial_size": 6,
+        "mode": ["trilinear", "nearest"],
+        "align_corners": [True, None],
+    },
     (2, 4, 6),
 ]
 
@@ -64,7 +70,7 @@ class TestResized(NumpyImageTestCase2D):
     def test_longest_shape(self, input_param, expected_shape):
         input_data = {
             "img": np.random.randint(0, 2, size=[3, 4, 7, 10]),
-            "label": np.random.randint(0, 2, size=[3, 4, 7, 10]),
+            CommonKeys.LABEL: np.random.randint(0, 2, size=[3, 4, 7, 10]),
         }
         input_param["size_mode"] = "longest"
         rescaler = Resized(**input_param)

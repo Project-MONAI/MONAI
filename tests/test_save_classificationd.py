@@ -28,15 +28,21 @@ class TestSaveClassificationd(unittest.TestCase):
             data = [
                 {
                     "pred": torch.zeros(8),
-                    "image_meta_dict": {"filename_or_obj": ["testfile" + str(i) for i in range(8)]},
+                    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {
+                        "filename_or_obj": ["testfile" + str(i) for i in range(8)]
+                    },
                 },
                 {
                     "pred": torch.zeros(8),
-                    "image_meta_dict": {"filename_or_obj": ["testfile" + str(i) for i in range(8, 16)]},
+                    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {
+                        "filename_or_obj": ["testfile" + str(i) for i in range(8, 16)]
+                    },
                 },
                 {
                     "pred": torch.zeros(8),
-                    "image_meta_dict": {"filename_or_obj": ["testfile" + str(i) for i in range(16, 24)]},
+                    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {
+                        "filename_or_obj": ["testfile" + str(i) for i in range(16, 24)]
+                    },
                 },
             ]
 
@@ -44,7 +50,7 @@ class TestSaveClassificationd(unittest.TestCase):
             # set up test transforms
             post_trans = Compose(
                 [
-                    CopyItemsd(keys="image_meta_dict", times=1, names="pred_meta_dict"),
+                    CopyItemsd(keys=f"{CommonKeys.IMAGE}_{DictPostFixes.META}", times=1, names="pred_meta_dict"),
                     # 1st saver saves data into CSV file
                     SaveClassificationd(
                         keys="pred",
@@ -55,7 +61,7 @@ class TestSaveClassificationd(unittest.TestCase):
                         overwrite=True,
                     ),
                     # 2rd saver only saves data into the cache, manually finalize later
-                    SaveClassificationd(keys="pred", saver=saver, meta_key_postfix="meta_dict"),
+                    SaveClassificationd(keys="pred", saver=saver, meta_key_postfix=DictPostFixes.META),
                 ]
             )
             # simulate inference 2 iterations
@@ -72,7 +78,7 @@ class TestSaveClassificationd(unittest.TestCase):
             trans2 = SaveClassificationd(
                 keys="pred",
                 saver=None,
-                meta_keys="image_meta_dict",  # specify meta key, so no need to copy anymore
+                meta_keys=f"{CommonKeys.IMAGE}_{DictPostFixes.META}",  # specify meta key, so no need to copy anymore
                 output_dir=tempdir,
                 filename="predictions1.csv",
                 overwrite=False,

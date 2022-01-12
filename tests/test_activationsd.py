@@ -15,24 +15,25 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Activationsd
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES = []
 for p in TEST_NDARRAYS:
     TEST_CASES.append(
         [
-            {"keys": ["pred", "label"], "sigmoid": False, "softmax": [True, False], "other": None},
-            {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]]), "label": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
-            {"pred": p([[[0.1192, 0.1192]], [[0.8808, 0.8808]]]), "label": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
+            {"keys": ["pred", CommonKeys.LABEL], "sigmoid": False, "softmax": [True, False], "other": None},
+            {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]]), CommonKeys.LABEL: p([[[0.0, 1.0]], [[2.0, 3.0]]])},
+            {"pred": p([[[0.1192, 0.1192]], [[0.8808, 0.8808]]]), CommonKeys.LABEL: p([[[0.0, 1.0]], [[2.0, 3.0]]])},
             (2, 1, 2),
         ]
     )
 
     TEST_CASES.append(
         [
-            {"keys": ["pred", "label"], "sigmoid": False, "softmax": False, "other": [torch.tanh, None]},
-            {"pred": p([[[0.0, 1.0], [2.0, 3.0]]]), "label": p([[[0.0, 1.0], [2.0, 3.0]]])},
-            {"pred": p([[[0.0000, 0.7616], [0.9640, 0.9951]]]), "label": p([[[0.0, 1.0], [2.0, 3.0]]])},
+            {"keys": ["pred", CommonKeys.LABEL], "sigmoid": False, "softmax": False, "other": [torch.tanh, None]},
+            {"pred": p([[[0.0, 1.0], [2.0, 3.0]]]), CommonKeys.LABEL: p([[[0.0, 1.0], [2.0, 3.0]]])},
+            {"pred": p([[[0.0000, 0.7616], [0.9640, 0.9951]]]), CommonKeys.LABEL: p([[[0.0, 1.0], [2.0, 3.0]]])},
             (1, 2, 2),
         ]
     )
@@ -53,9 +54,9 @@ class TestActivationsd(unittest.TestCase):
         result = Activationsd(**input_param)(test_input)
         assert_allclose(result["pred"], output["pred"], rtol=1e-3)
         self.assertTupleEqual(result["pred"].shape, expected_shape)
-        if "label" in result:
-            assert_allclose(result["label"], output["label"], rtol=1e-3)
-            self.assertTupleEqual(result["label"].shape, expected_shape)
+        if CommonKeys.LABEL in result:
+            assert_allclose(result[CommonKeys.LABEL], output[CommonKeys.LABEL], rtol=1e-3)
+            self.assertTupleEqual(result[CommonKeys.LABEL].shape, expected_shape)
 
 
 if __name__ == "__main__":

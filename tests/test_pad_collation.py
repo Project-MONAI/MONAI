@@ -34,6 +34,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
+from monai.utils.enums import CommonKeys
 
 TESTS: List[Tuple] = []
 
@@ -41,10 +42,12 @@ for pad_collate in [
     lambda x: pad_list_data_collate(batch=x, method="end", mode="constant"),
     PadListDataCollate(method="end", mode="constant"),
 ]:
-    TESTS.append((dict, pad_collate, RandSpatialCropd("image", roi_size=[8, 7], random_size=True)))
-    TESTS.append((dict, pad_collate, RandRotated("image", prob=1, range_x=np.pi, keep_size=False)))
-    TESTS.append((dict, pad_collate, RandZoomd("image", prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
-    TESTS.append((dict, pad_collate, Compose([RandRotate90d("image", prob=1, max_k=2), ToTensord("image")])))
+    TESTS.append((dict, pad_collate, RandSpatialCropd(CommonKeys.IMAGE, roi_size=[8, 7], random_size=True)))
+    TESTS.append((dict, pad_collate, RandRotated(CommonKeys.IMAGE, prob=1, range_x=np.pi, keep_size=False)))
+    TESTS.append((dict, pad_collate, RandZoomd(CommonKeys.IMAGE, prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
+    TESTS.append(
+        (dict, pad_collate, Compose([RandRotate90d(CommonKeys.IMAGE, prob=1, max_k=2), ToTensord(CommonKeys.IMAGE)]))
+    )
 
     TESTS.append((list, pad_collate, RandSpatialCrop(roi_size=[8, 7], random_size=True)))
     TESTS.append((list, pad_collate, RandRotate(prob=1, range_x=np.pi, keep_size=False)))
@@ -71,7 +74,7 @@ class TestPadCollation(unittest.TestCase):
         # image is non square to throw rotation errors
         im = np.arange(0, 10 * 9).reshape(1, 10, 9)
         num_elements = 20
-        self.dict_data = [{"image": im} for _ in range(num_elements)]
+        self.dict_data = [{CommonKeys.IMAGE: im} for _ in range(num_elements)]
         self.list_data = [im for _ in range(num_elements)]
         self.list_labels = [random.randint(0, 1) for _ in range(num_elements)]
 

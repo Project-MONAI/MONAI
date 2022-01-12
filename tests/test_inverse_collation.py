@@ -32,6 +32,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import optional_import, set_determinism
+from monai.utils.enums import CommonKeys
 from tests.utils import make_nifti_image
 
 if TYPE_CHECKING:
@@ -40,7 +41,7 @@ if TYPE_CHECKING:
 else:
     _, has_nib = optional_import("nibabel")
 
-KEYS = ["image", "label"]
+KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
 
 TESTS_3D = [
     (t.__class__.__name__ + (" pad_list_data_collate" if collate_fn else " default_collate"), t, collate_fn, 3)
@@ -85,12 +86,12 @@ class TestInverseCollation(unittest.TestCase):
         b_size = 11
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107))
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
-        self.data_3d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
+        self.data_3d = [load_ims({CommonKeys.IMAGE: im_fname, CommonKeys.LABEL: seg_fname}) for _ in range(b_size)]
 
         b_size = 8
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10))
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
-        self.data_2d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
+        self.data_2d = [load_ims({CommonKeys.IMAGE: im_fname, CommonKeys.LABEL: seg_fname}) for _ in range(b_size)]
 
         self.batch_size = 7
 

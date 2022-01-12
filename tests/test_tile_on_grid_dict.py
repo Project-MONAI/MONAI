@@ -126,7 +126,7 @@ class TestTileOnGridDict(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_tile_patch_single_call(self, in_type, input_parameters):
 
-        key = "image"
+        key = CommonKeys.IMAGE
         input_parameters["keys"] = key
 
         img, tiles = make_image(**input_parameters)
@@ -149,7 +149,7 @@ class TestTileOnGridDict(unittest.TestCase):
     @parameterized.expand(TESTS2)
     def test_tile_patch_random_call(self, in_type, input_parameters):
 
-        key = "image"
+        key = CommonKeys.IMAGE
         input_parameters["keys"] = key
 
         random_state = np.random.RandomState(123)

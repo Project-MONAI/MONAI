@@ -21,16 +21,17 @@ from parameterized import parameterized
 
 from monai.data import DataLoader, SmartCacheDataset
 from monai.transforms import Compose, Lambda, LoadImaged
+from monai.utils.enums import CommonKeys
 
-TEST_CASE_1 = [0.1, 0, Compose([LoadImaged(keys=["image", "label", "extra"])])]
+TEST_CASE_1 = [0.1, 0, Compose([LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"])])]
 
-TEST_CASE_2 = [0.1, 4, Compose([LoadImaged(keys=["image", "label", "extra"])])]
+TEST_CASE_2 = [0.1, 4, Compose([LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"])])]
 
-TEST_CASE_3 = [0.1, None, Compose([LoadImaged(keys=["image", "label", "extra"])])]
+TEST_CASE_3 = [0.1, None, Compose([LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"])])]
 
 TEST_CASE_4 = [0.1, 4, None]
 
-TEST_CASE_5 = [0.5, 2, Compose([LoadImaged(keys=["image", "label", "extra"])])]
+TEST_CASE_5 = [0.5, 2, Compose([LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"])])]
 
 
 class TestSmartCacheDataset(unittest.TestCase):
@@ -43,8 +44,8 @@ class TestSmartCacheDataset(unittest.TestCase):
             nib.save(test_image, os.path.join(tempdir, "test_extra1.nii.gz"))
             test_data = [
                 {
-                    "image": os.path.join(tempdir, "test_image1.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label1.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image1.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label1.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
                 }
             ] * 20
@@ -66,15 +67,17 @@ class TestSmartCacheDataset(unittest.TestCase):
                 for _ in range(3):
                     dataset.update_cache()
                     self.assertIsNotNone(dataset[15])
-                    if isinstance(dataset[15]["image"], np.ndarray):
-                        np.testing.assert_allclose(dataset[15]["image"], dataset[15]["label"])
+                    if isinstance(dataset[15][CommonKeys.IMAGE], np.ndarray):
+                        np.testing.assert_allclose(dataset[15][CommonKeys.IMAGE], dataset[15][CommonKeys.LABEL])
                     else:
-                        self.assertIsInstance(dataset[15]["image"], str)
+                        self.assertIsInstance(dataset[15][CommonKeys.IMAGE], str)
                 dataset.shutdown()
 
     def test_update_cache(self):
         # Given
-        test_data = [{"image": f"test_image{i}.nii.gz", "label": f"test_image{i}.nii.gz"} for i in range(40)]
+        test_data = [
+            {CommonKeys.IMAGE: f"test_image{i}.nii.gz", CommonKeys.LABEL: f"test_image{i}.nii.gz"} for i in range(40)
+        ]
         dataset = SmartCacheDataset(
             data=test_data,
             transform=None,
@@ -102,7 +105,7 @@ class TestSmartCacheDataset(unittest.TestCase):
             assert string_new == string_replacement
 
     def test_shuffle(self):
-        test_data = [{"image": f"test_image{i}.nii.gz"} for i in range(20)]
+        test_data = [{CommonKeys.IMAGE: f"test_image{i}.nii.gz"} for i in range(20)]
         dataset = SmartCacheDataset(
             data=test_data,
             transform=None,
@@ -119,11 +122,11 @@ class TestSmartCacheDataset(unittest.TestCase):
             dataset.update_cache()
 
             if i == 0:
-                self.assertEqual(dataset[15]["image"], "test_image18.nii.gz")
+                self.assertEqual(dataset[15][CommonKeys.IMAGE], "test_image18.nii.gz")
             elif i == 1:
-                self.assertEqual(dataset[15]["image"], "test_image13.nii.gz")
+                self.assertEqual(dataset[15][CommonKeys.IMAGE], "test_image13.nii.gz")
             else:
-                self.assertEqual(dataset[15]["image"], "test_image5.nii.gz")
+                self.assertEqual(dataset[15][CommonKeys.IMAGE], "test_image5.nii.gz")
 
         dataset.shutdown()
 

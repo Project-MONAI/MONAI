@@ -21,8 +21,8 @@ from monai.transforms import Activationsd, AsDiscreted, Compose, CopyItemsd
 class TestHandlerDecollateBatch(unittest.TestCase):
     def test_compute(self):
         data = [
-            {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},
-            {"image": torch.tensor([[[[6.0], [8.0]]]]), "filename": ["test2"]},
+            {CommonKeys.IMAGE: torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},
+            {CommonKeys.IMAGE: torch.tensor([[[[6.0], [8.0]]]]), "filename": ["test2"]},
         ]
 
         handlers = [

@@ -58,11 +58,11 @@ class TestTestTimeAugmentation(unittest.TestCase):
         for i in range(num_examples):
             im, label = custom_create_test_image_2d()
             d = {}
-            d["image"] = data_type(im[:, i:])
-            d["image_meta_dict"] = {"affine": np.eye(4)}
+            d[CommonKeys.IMAGE] = data_type(im[:, i:])
+            d[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"] = {"affine": np.eye(4)}
             if include_label:
-                d["label"] = data_type(label[:, i:])
-                d["label_meta_dict"] = {"affine": np.eye(4)}
+                d[CommonKeys.LABEL] = data_type(label[:, i:])
+                d[f"{CommonKeys.LABEL}_{DictPostFixes.META}"] = {"affine": np.eye(4)}
             data.append(d)
         return data[0] if num_examples == 1 else data
 
@@ -75,7 +75,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
     def test_test_time_augmentation(self):
         input_size = (20, 20)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        keys = ["image", "label"]
+        keys = [CommonKeys.IMAGE, CommonKeys.LABEL]
         num_training_ims = 10
         train_data = self.get_data(num_training_ims, input_size)
         test_data = self.get_data(1, input_size)
@@ -94,7 +94,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
                     mode=("bilinear", "nearest"),
                     as_tensor_output=False,
                 ),
-                CropForegroundd(keys, source_key="image"),
+                CropForegroundd(keys, source_key=CommonKeys.IMAGE),
                 DivisiblePadd(keys, 4),
             ]
         )
@@ -112,7 +112,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
             epoch_loss = 0
 
             for batch_data in train_loader:
-                inputs, labels = batch_data["image"].to(device), batch_data["label"].to(device)
+                inputs, labels = batch_data[CommonKeys.IMAGE].to(device), batch_data[CommonKeys.LABEL].to(device)
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = loss_function(outputs, labels)
@@ -143,34 +143,44 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     def test_warn_random_but_has_no_invertible(self):
         transforms = Compose(
-            [AddChanneld("image"), RandFlipd("image", prob=1.0), RandScaleIntensityd("image", 0.1, prob=1.0)]
+            [
+                AddChanneld(CommonKeys.IMAGE),
+                RandFlipd(CommonKeys.IMAGE, prob=1.0),
+                RandScaleIntensityd(CommonKeys.IMAGE, 0.1, prob=1.0),
+            ]
         )
         with self.assertWarns(UserWarning):
-            tta = TestTimeAugmentation(transforms, 5, 0, orig_key="image")
+            tta = TestTimeAugmentation(transforms, 5, 0, orig_key=CommonKeys.IMAGE)
             tta(self.get_data(1, (20, 20), data_type=np.float32))
 
     def test_warn_random_but_all_not_invertible(self):
         """test with no invertible stack"""
-        transforms = Compose([AddChanneld("image"), RandScaleIntensityd("image", 0.1, prob=1.0)])
+        transforms = Compose([AddChanneld(CommonKeys.IMAGE), RandScaleIntensityd(CommonKeys.IMAGE, 0.1, prob=1.0)])
         with self.assertWarns(UserWarning):
-            tta = TestTimeAugmentation(transforms, 1, 0, orig_key="image")
+            tta = TestTimeAugmentation(transforms, 1, 0, orig_key=CommonKeys.IMAGE)
             tta(self.get_data(1, (20, 20), data_type=np.float32))
 
     def test_single_transform(self):
         for p in TEST_NDARRAYS:
-            transforms = RandFlipd(["image", "label"], prob=1.0)
+            transforms = RandFlipd([CommonKeys.IMAGE, CommonKeys.LABEL], prob=1.0)
             tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x)
             tta(self.get_data(1, (20, 20), data_type=p))
 
     def test_image_no_label(self):
-        transforms = RandFlipd(["image"], prob=1.0)
-        tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
+        transforms = RandFlipd([CommonKeys.IMAGE], prob=1.0)
+        tta = TestTimeAugmentation(
+            transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key=CommonKeys.IMAGE
+        )
         tta(self.get_data(1, (20, 20), include_label=False))
 
     @unittest.skipUnless(has_nib, "Requires nibabel")
     def test_requires_meta_dict(self):
-        transforms = Compose([AddChanneld("image"), RandFlipd("image"), Spacingd("image", pixdim=1.1)])
-        tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
+        transforms = Compose(
+            [AddChanneld(CommonKeys.IMAGE), RandFlipd(CommonKeys.IMAGE), Spacingd(CommonKeys.IMAGE, pixdim=1.1)]
+        )
+        tta = TestTimeAugmentation(
+            transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key=CommonKeys.IMAGE
+        )
         tta(self.get_data(1, (20, 20), include_label=False))
 
 

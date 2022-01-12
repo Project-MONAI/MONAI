@@ -74,7 +74,7 @@ class TestExtractHEStainsD(unittest.TestCase):
         since once the transparent pixels are removed, there are no
         remaining pixels to compute eigenvectors.
         """
-        key = "image"
+        key = CommonKeys.IMAGE
         if image is None:
             with self.assertRaises(TypeError):
                 ExtractHEStainsD([key])({key: image})
@@ -92,7 +92,7 @@ class TestExtractHEStainsD(unittest.TestCase):
         we assert that the first column is equal to the second column
         of the returned stain matrix.
         """
-        key = "image"
+        key = CommonKeys.IMAGE
         if image is None:
             with self.assertRaises(TypeError):
                 ExtractHEStainsD([key])({key: image})
@@ -128,7 +128,7 @@ class TestExtractHEStainsD(unittest.TestCase):
         - the resulting extracted stain should be
           [[0.70710677,0.18696113],[0,0],[0.70710677,0.98236734]]
         """
-        key = "image"
+        key = CommonKeys.IMAGE
         if image is None:
             with self.assertRaises(TypeError):
                 ExtractHEStainsD([key])({key: image})
@@ -147,7 +147,7 @@ class TestNormalizeHEStainsD(unittest.TestCase):
         since once the transparent pixels are removed, there are no
         remaining pixels to compute eigenvectors.
         """
-        key = "image"
+        key = CommonKeys.IMAGE
         if image is None:
             with self.assertRaises(TypeError):
                 NormalizeHEStainsD([key])({key: image})
@@ -208,7 +208,7 @@ class TestNormalizeHEStainsD(unittest.TestCase):
           image should be [[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]],
           [[33, 33, 33], [33, 33, 33]]]
         """
-        key = "image"
+        key = CommonKeys.IMAGE
         if image is None:
             with self.assertRaises(TypeError):
                 NormalizeHEStainsD([key])({key: image})

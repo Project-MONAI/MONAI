@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import ClassesToIndicesd, RandCropByLabelClassesd
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS
 
 TESTS = []
@@ -24,18 +25,18 @@ for p in TEST_NDARRAYS:
             # One-Hot label
             {
                 "keys": "img",
-                "label_key": "label",
+                "label_key": CommonKeys.LABEL,
                 "num_classes": None,
                 "spatial_size": [2, 2, -1],
                 "ratios": [1, 1, 1],
                 "num_samples": 2,
-                "image_key": "image",
+                "image_key": CommonKeys.IMAGE,
                 "image_threshold": 0,
             },
             {
                 "img": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "label": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+                CommonKeys.IMAGE: p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+                CommonKeys.LABEL: p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
             },
             list,
             (3, 2, 2, 3),
@@ -47,18 +48,18 @@ for p in TEST_NDARRAYS:
             # Argmax label
             {
                 "keys": "img",
-                "label_key": "label",
+                "label_key": CommonKeys.LABEL,
                 "num_classes": 2,
                 "spatial_size": [2, 2, 2],
                 "ratios": [1, 1],
                 "num_samples": 2,
-                "image_key": "image",
+                "image_key": CommonKeys.IMAGE,
                 "image_threshold": 0,
             },
             {
                 "img": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "label": p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
+                CommonKeys.IMAGE: p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+                CommonKeys.LABEL: p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
             },
             list,
             (3, 2, 2, 2),
@@ -70,19 +71,19 @@ for p in TEST_NDARRAYS:
             # Argmax label
             {
                 "keys": "img",
-                "label_key": "label",
+                "label_key": CommonKeys.LABEL,
                 "num_classes": 2,
                 "spatial_size": [4, 4, 2],
                 "ratios": [1, 1],
                 "num_samples": 2,
-                "image_key": "image",
+                "image_key": CommonKeys.IMAGE,
                 "image_threshold": 0,
                 "allow_smaller": True,
             },
             {
                 "img": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "label": p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
+                CommonKeys.IMAGE: p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+                CommonKeys.LABEL: p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
             },
             list,
             (3, 3, 3, 2),
@@ -94,19 +95,19 @@ for p in TEST_NDARRAYS:
             # Argmax label
             {
                 "keys": "img",
-                "label_key": "label",
+                "label_key": CommonKeys.LABEL,
                 "num_classes": 2,
                 "spatial_size": [4, 4, 4],
                 "ratios": [1, 1],
                 "num_samples": 2,
-                "image_key": "image",
+                "image_key": CommonKeys.IMAGE,
                 "image_threshold": 0,
                 "allow_smaller": True,
             },
             {
                 "img": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "label": p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
+                CommonKeys.IMAGE: p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
+                CommonKeys.LABEL: p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
             },
             list,
             (3, 3, 3, 3),
@@ -121,7 +122,7 @@ class TestRandCropByLabelClassesd(unittest.TestCase):
         self.assertIsInstance(result, expected_type)
         self.assertTupleEqual(result[0]["img"].shape, expected_shape)
         # test with pre-computed indices
-        input_data = ClassesToIndicesd(keys="label", num_classes=input_param["num_classes"])(input_data)
+        input_data = ClassesToIndicesd(keys=CommonKeys.LABEL, num_classes=input_param["num_classes"])(input_data)
         input_param["indices_key"] = "label_cls_indices"
         result = RandCropByLabelClassesd(**input_param)(input_data)
         self.assertIsInstance(result, expected_type)

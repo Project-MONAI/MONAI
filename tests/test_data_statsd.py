@@ -20,6 +20,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import DataStatsd
+from monai.utils.enums import CommonKeys
 
 TEST_CASE_1 = [
     {
@@ -135,7 +136,7 @@ TEST_CASE_7 = [
 TEST_CASE_8 = [
     {
         "keys": ("img", "affine"),
-        "prefix": ("image", "affine"),
+        "prefix": (CommonKeys.IMAGE, "affine"),
         "data_type": True,
         "data_shape": True,
         "value_range": (True, False),

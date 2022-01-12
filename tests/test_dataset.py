@@ -36,56 +36,56 @@ class TestDataset(unittest.TestCase):
             nib.save(test_image, os.path.join(tempdir, "test_extra2.nii.gz"))
             test_data = [
                 {
-                    "image": os.path.join(tempdir, "test_image1.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label1.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image1.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label1.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
                 },
                 {
-                    "image": os.path.join(tempdir, "test_image2.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label2.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image2.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label2.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
                 },
             ]
             test_transform = Compose(
                 [
-                    LoadImaged(keys=["image", "label", "extra"]),
-                    SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
+                    LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"]),
+                    SimulateDelayd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
                 ]
             )
             dataset = Dataset(data=test_data, transform=test_transform)
             data1 = dataset[0]
             data2 = dataset[1]
 
-            self.assertTupleEqual(data1["image"].shape, expected_shape)
-            self.assertTupleEqual(data1["label"].shape, expected_shape)
+            self.assertTupleEqual(data1[CommonKeys.IMAGE].shape, expected_shape)
+            self.assertTupleEqual(data1[CommonKeys.LABEL].shape, expected_shape)
             self.assertTupleEqual(data1["extra"].shape, expected_shape)
-            self.assertTupleEqual(data2["image"].shape, expected_shape)
-            self.assertTupleEqual(data2["label"].shape, expected_shape)
+            self.assertTupleEqual(data2[CommonKeys.IMAGE].shape, expected_shape)
+            self.assertTupleEqual(data2[CommonKeys.LABEL].shape, expected_shape)
             self.assertTupleEqual(data2["extra"].shape, expected_shape)
 
-            dataset = Dataset(data=test_data, transform=LoadImaged(keys=["image", "label", "extra"]))
+            dataset = Dataset(data=test_data, transform=LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"]))
             data1_simple = dataset[0]
             data2_simple = dataset[1]
             data3_simple = dataset[-1]
             data4_simple = dataset[[0, 1]]
 
-            self.assertTupleEqual(data1_simple["image"].shape, expected_shape)
-            self.assertTupleEqual(data1_simple["label"].shape, expected_shape)
+            self.assertTupleEqual(data1_simple[CommonKeys.IMAGE].shape, expected_shape)
+            self.assertTupleEqual(data1_simple[CommonKeys.LABEL].shape, expected_shape)
             self.assertTupleEqual(data1_simple["extra"].shape, expected_shape)
-            self.assertTupleEqual(data2_simple["image"].shape, expected_shape)
-            self.assertTupleEqual(data2_simple["label"].shape, expected_shape)
+            self.assertTupleEqual(data2_simple[CommonKeys.IMAGE].shape, expected_shape)
+            self.assertTupleEqual(data2_simple[CommonKeys.LABEL].shape, expected_shape)
             self.assertTupleEqual(data2_simple["extra"].shape, expected_shape)
-            self.assertTupleEqual(data3_simple["image"].shape, expected_shape)
-            self.assertTupleEqual(data3_simple["label"].shape, expected_shape)
+            self.assertTupleEqual(data3_simple[CommonKeys.IMAGE].shape, expected_shape)
+            self.assertTupleEqual(data3_simple[CommonKeys.LABEL].shape, expected_shape)
             self.assertTupleEqual(data3_simple["extra"].shape, expected_shape)
-            self.assertTupleEqual(data4_simple[0]["image"].shape, expected_shape)
-            self.assertTupleEqual(data4_simple[1]["label"].shape, expected_shape)
+            self.assertTupleEqual(data4_simple[0][CommonKeys.IMAGE].shape, expected_shape)
+            self.assertTupleEqual(data4_simple[1][CommonKeys.LABEL].shape, expected_shape)
             self.assertTupleEqual(data4_simple[-1]["extra"].shape, expected_shape)
 
             data4_list = dataset[0:1]
             self.assertEqual(len(data4_list), 1)
             for d in data4_list:
-                self.assertTupleEqual(d["image"].shape, expected_shape)
+                self.assertTupleEqual(d[CommonKeys.IMAGE].shape, expected_shape)
 
 
 if __name__ == "__main__":

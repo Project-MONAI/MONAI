@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandKSpaceSpikeNoised
+from monai.utils.enums import CommonKeys
 from monai.utils.misc import set_determinism
 from tests.utils import TEST_NDARRAYS
 
@@ -26,7 +27,7 @@ for shape in ((128, 64), (64, 48, 80)):
     for p in TEST_NDARRAYS:
         TESTS.append((shape, p))
 
-KEYS = ["image", "label"]
+KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
 
 
 class TestKSpaceSpikeNoised(unittest.TestCase):

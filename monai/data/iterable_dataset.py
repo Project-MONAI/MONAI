@@ -142,8 +142,8 @@ class CSVIterableDataset(IterableDataset):
     set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::
 
         [
-            {"image": "./image0.nii", "meta_0": 11, "meta_1": 12, "meta_2": 13, "meta": [11, 12, 13]},
-            {"image": "./image1.nii", "meta_0": 21, "meta_1": 22, "meta_2": 23, "meta": [21, 22, 23]},
+            {CommonKeys.IMAGE: "./image0.nii", "meta_0": 11, "meta_1": 12, "meta_2": 13, "meta": [11, 12, 13]},
+            {CommonKeys.IMAGE: "./image1.nii", "meta_0": 21, "meta_1": 22, "meta_2": 23, "meta": [21, 22, 23]},
         ]
 
     Args:
@@ -161,10 +161,10 @@ class CSVIterableDataset(IterableDataset):
 
                 col_types = {
                     "subject_id": {"type": str},
-                    "label": {"type": int, "default": 0},
+                    CommonKeys.LABEL: {"type": int, "default": 0},
                     "ehr_0": {"type": float, "default": 0.0},
                     "ehr_1": {"type": float, "default": 0.0},
-                    "image": {"type": str, "default": None},
+                    CommonKeys.IMAGE: {"type": str, "default": None},
                 }
 
         col_groups: args to group the loaded columns to generate a new column,

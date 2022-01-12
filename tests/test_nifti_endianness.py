@@ -55,13 +55,13 @@ class TestNiftiEndianness(unittest.TestCase):
         nii = nib.Nifti1Image(self.im, np.eye(4), header=hdr)
         nib.save(nii, self.fname)
 
-        data = [self.fname] if use_array else [{"image": self.fname}]
-        tr = LoadImage(image_only=image_only) if use_array else LoadImaged("image", image_only=image_only)
+        data = [self.fname] if use_array else [{CommonKeys.IMAGE: self.fname}]
+        tr = LoadImage(image_only=image_only) if use_array else LoadImaged(CommonKeys.IMAGE, image_only=image_only)
         check_ds = Dataset(data, tr)
         check_loader = DataLoader(check_ds, batch_size=1)
         ret = next(iter(check_loader))
-        if isinstance(ret, dict) and "image_meta_dict" in ret:
-            np.testing.assert_allclose(ret["image_meta_dict"]["spatial_shape"], [[100, 100]])
+        if isinstance(ret, dict) and f"{CommonKeys.IMAGE}_{DictPostFixes.META}" in ret:
+            np.testing.assert_allclose(ret[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["spatial_shape"], [[100, 100]])
 
     def test_switch(self):  # verify data types
         for data in (np.zeros((2, 1)), ("test",), [24, 42], {"foo": "bar"}, True, 42):

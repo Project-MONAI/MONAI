@@ -18,6 +18,7 @@ import numpy as np
 from monai.config import KeysCollection
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.utils import optional_import
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class DiscardAddGuidanced(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d: Dict = dict(data)
         for key in self.key_iterator(d):
-            if key == "image":
+            if key == CommonKeys.IMAGE:
                 d[key] = self._apply(d[key])
             else:
                 print("This transform only applies to the image")
@@ -68,7 +69,7 @@ class ResizeGuidanceCustomd(Transform):
         d = dict(data)
         current_shape = d[self.ref_image].shape[1:]
 
-        factor = np.divide(current_shape, d["image_meta_dict"]["dim"][1:4])
+        factor = np.divide(current_shape, d[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["dim"][1:4])
         pos_clicks, neg_clicks = d["foreground"], d["background"]
 
         pos = np.multiply(pos_clicks, factor).astype(int, copy=False).tolist() if len(pos_clicks) else []

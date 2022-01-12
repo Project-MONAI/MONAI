@@ -19,6 +19,7 @@ from monai.engines import SupervisedEvaluator
 from monai.handlers import StatsHandler, from_engine
 from monai.handlers.nvtx_handlers import MarkHandler, RangeHandler, RangePopHandler, RangePushHandler
 from monai.utils import optional_import
+from monai.utils.enums import CommonKeys
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
@@ -28,8 +29,8 @@ TENSOR_1 = torch.tensor([[[[0.0], [-2.0]], [[-3.0], [4.0]]]])
 
 TENSOR_1_EXPECTED = torch.tensor([[[1.0], [0.5]], [[0.25], [5.0]]])
 
-TEST_CASE_0 = [[{"image": TENSOR_0}], TENSOR_0[0] + 1.0]
-TEST_CASE_1 = [[{"image": TENSOR_1}], TENSOR_1_EXPECTED]
+TEST_CASE_0 = [[{CommonKeys.IMAGE: TENSOR_0}], TENSOR_0[0] + 1.0]
+TEST_CASE_1 = [[{CommonKeys.IMAGE: TENSOR_1}], TENSOR_1_EXPECTED]
 
 
 class TestHandlerDecollateBatch(unittest.TestCase):
@@ -64,7 +65,7 @@ class TestHandlerDecollateBatch(unittest.TestCase):
             # Define the end of range using literal
             RangePopHandler("ITERATION_COMPLETED"),
             # Other handlers
-            StatsHandler(tag_name="train", output_transform=from_engine(["label"], first=True)),
+            StatsHandler(tag_name="train", output_transform=from_engine([CommonKeys.LABEL], first=True)),
         ]
 
         # Set up an engine

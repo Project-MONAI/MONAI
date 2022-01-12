@@ -17,6 +17,7 @@ from parameterized import parameterized
 
 from monai.transforms import CastToTyped
 from monai.utils import optional_import
+from monai.utils.enums import CommonKeys
 from tests.utils import HAS_CUPY
 
 cp, _ = optional_import("cupy")
@@ -39,14 +40,20 @@ TEST_CASE_2 = [
 
 TESTS_CUPY = [
     [
-        {"keys": "image", "dtype": np.uint8},
-        {"image": np.array([[0, 1], [1, 2]], dtype=np.float32), "label": np.array([[0, 1], [1, 1]], dtype=np.float32)},
-        {"image": np.uint8, "label": np.float32},
+        {"keys": CommonKeys.IMAGE, "dtype": np.uint8},
+        {
+            CommonKeys.IMAGE: np.array([[0, 1], [1, 2]], dtype=np.float32),
+            CommonKeys.LABEL: np.array([[0, 1], [1, 1]], dtype=np.float32),
+        },
+        {CommonKeys.IMAGE: np.uint8, CommonKeys.LABEL: np.float32},
     ],
     [
-        {"keys": ["image", "label"], "dtype": np.float32},
-        {"image": np.array([[0, 1], [1, 2]], dtype=np.uint8), "label": np.array([[0, 1], [1, 1]], dtype=np.uint8)},
-        {"image": np.float32, "label": np.float32},
+        {"keys": [CommonKeys.IMAGE, CommonKeys.LABEL], "dtype": np.float32},
+        {
+            CommonKeys.IMAGE: np.array([[0, 1], [1, 2]], dtype=np.uint8),
+            CommonKeys.LABEL: np.array([[0, 1], [1, 1]], dtype=np.uint8),
+        },
+        {CommonKeys.IMAGE: np.float32, CommonKeys.LABEL: np.float32},
     ],
 ]
 

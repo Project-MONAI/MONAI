@@ -43,7 +43,7 @@ from monai.utils import (
     min_version,
     optional_import,
 )
-from monai.utils.enums import TransformBackends
+from monai.utils.enums import CommonKeys, TransformBackends
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype
 

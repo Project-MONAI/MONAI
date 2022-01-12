@@ -27,15 +27,15 @@ TEST_CASE_3 = [{"keys": "meta_dict%0008\\|[0-9]", "sep": "%", "use_re": True}]
 class TestDeleteItemsd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_memory(self, input_param, expected_key_size):
-        input_data = {"image": {}} if "sep" in input_param else {}
+        input_data = {CommonKeys.IMAGE: {}} if "sep" in input_param else {}
         for i in range(50):
             if "sep" in input_param:
-                input_data["image"][str(i)] = [time.time()] * 100000
+                input_data[CommonKeys.IMAGE][str(i)] = [time.time()] * 100000
             else:
                 input_data[str(i)] = [time.time()] * 100000
         result = DeleteItemsd(**input_param)(input_data)
         if "sep" in input_param:
-            self.assertEqual(len(result["image"].keys()), expected_key_size)
+            self.assertEqual(len(result[CommonKeys.IMAGE].keys()), expected_key_size)
         else:
             self.assertEqual(len(result.keys()), expected_key_size)
         self.assertGreaterEqual(
@@ -44,10 +44,10 @@ class TestDeleteItemsd(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_re(self, input_param):
-        input_data = {"image": [1, 2, 3], "meta_dict": {"0008|0005": 1, "0008|1050": 2, "0008test": 3}}
+        input_data = {CommonKeys.IMAGE: [1, 2, 3], DictPostFixes.META: {"0008|0005": 1, "0008|1050": 2, "0008test": 3}}
         result = DeleteItemsd(**input_param)(input_data)
-        self.assertEqual(result["meta_dict"]["0008test"], 3)
-        self.assertTrue(len(result["meta_dict"]), 1)
+        self.assertEqual(result[DictPostFixes.META]["0008test"], 3)
+        self.assertTrue(len(result[DictPostFixes.META]), 1)
 
 
 if __name__ == "__main__":

@@ -40,8 +40,8 @@ class TestHandlerPostProcessing(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_compute(self, input_params, decollate, expected):
         data = [
-            {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},
-            {"image": torch.tensor([[[[6.0], [8.0]]]]), "filename": ["test2"]},
+            {CommonKeys.IMAGE: torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},
+            {CommonKeys.IMAGE: torch.tensor([[[[6.0], [8.0]]]]), "filename": ["test2"]},
         ]
         # set up engine, PostProcessing handler works together with postprocessing transforms of engine
         engine = SupervisedEvaluator(

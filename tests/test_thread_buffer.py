@@ -23,11 +23,11 @@ class TestDataLoader(unittest.TestCase):
         super().setUp()
 
         self.datalist = [
-            {"image": "spleen_19.nii.gz", "label": "spleen_label_19.nii.gz"},
-            {"image": "spleen_31.nii.gz", "label": "spleen_label_31.nii.gz"},
+            {CommonKeys.IMAGE: "spleen_19.nii.gz", CommonKeys.LABEL: "spleen_label_19.nii.gz"},
+            {CommonKeys.IMAGE: "spleen_31.nii.gz", CommonKeys.LABEL: "spleen_label_31.nii.gz"},
         ]
 
-        self.transform = Compose([SimulateDelayd(keys=["image", "label"], delay_time=0.1)])
+        self.transform = Compose([SimulateDelayd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], delay_time=0.1)])
 
     def test_values(self):
         dataset = Dataset(data=self.datalist, transform=self.transform)
@@ -36,22 +36,22 @@ class TestDataLoader(unittest.TestCase):
         tbuffer = ThreadBuffer(dataloader)
 
         for d in tbuffer:
-            self.assertEqual(d["image"][0], "spleen_19.nii.gz")
-            self.assertEqual(d["image"][1], "spleen_31.nii.gz")
-            self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
-            self.assertEqual(d["label"][1], "spleen_label_31.nii.gz")
+            self.assertEqual(d[CommonKeys.IMAGE][0], "spleen_19.nii.gz")
+            self.assertEqual(d[CommonKeys.IMAGE][1], "spleen_31.nii.gz")
+            self.assertEqual(d[CommonKeys.LABEL][0], "spleen_label_19.nii.gz")
+            self.assertEqual(d[CommonKeys.LABEL][1], "spleen_label_31.nii.gz")
 
     def test_dataloader(self):
         dataset = Dataset(data=self.datalist, transform=self.transform)
         dataloader = ThreadDataLoader(dataset=dataset, batch_size=2, num_workers=0)
 
         for d in dataloader:
-            self.assertEqual(d["image"][0], "spleen_19.nii.gz")
-            self.assertEqual(d["image"][1], "spleen_31.nii.gz")
+            self.assertEqual(d[CommonKeys.IMAGE][0], "spleen_19.nii.gz")
+            self.assertEqual(d[CommonKeys.IMAGE][1], "spleen_31.nii.gz")
 
         for d in dataloader:
-            self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
-            self.assertEqual(d["label"][1], "spleen_label_31.nii.gz")
+            self.assertEqual(d[CommonKeys.LABEL][0], "spleen_label_19.nii.gz")
+            self.assertEqual(d[CommonKeys.LABEL][1], "spleen_label_31.nii.gz")
 
     def test_time(self):
         dataset = Dataset(data=self.datalist * 2, transform=self.transform)  # contains data for 2 batches
@@ -85,8 +85,8 @@ class TestDataLoader(unittest.TestCase):
         previous_batch = None
 
         for d in dataloader:
-            self.assertEqual(d["image"][0], "spleen_19.nii.gz")
-            self.assertEqual(d["image"][1], "spleen_31.nii.gz")
+            self.assertEqual(d[CommonKeys.IMAGE][0], "spleen_19.nii.gz")
+            self.assertEqual(d[CommonKeys.IMAGE][1], "spleen_31.nii.gz")
 
             if previous_batch is None:
                 previous_batch = d

@@ -31,23 +31,29 @@ class TestCheckMissingFiles(unittest.TestCase):
 
             datalist = [
                 {
-                    "image": os.path.join(tempdir, "test_image1.nii.gz"),
-                    "label": [os.path.join(tempdir, "test_label1.nii.gz"), os.path.join(tempdir, "test_extra1.nii.gz")],
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image1.nii.gz"),
+                    CommonKeys.LABEL: [
+                        os.path.join(tempdir, "test_label1.nii.gz"),
+                        os.path.join(tempdir, "test_extra1.nii.gz"),
+                    ],
                 },
                 {
-                    "image": Path(os.path.join(tempdir, "test_image2.nii.gz")),
-                    "label": Path(os.path.join(tempdir, "test_label_missing.nii.gz")),
+                    CommonKeys.IMAGE: Path(os.path.join(tempdir, "test_image2.nii.gz")),
+                    CommonKeys.LABEL: Path(os.path.join(tempdir, "test_label_missing.nii.gz")),
                 },
             ]
 
-            missings = check_missing_files(datalist=datalist, keys=["image", "label"])
+            missings = check_missing_files(datalist=datalist, keys=[CommonKeys.IMAGE, CommonKeys.LABEL])
             self.assertEqual(len(missings), 1)
             self.assertEqual(str(missings[0]), os.path.join(tempdir, "test_label_missing.nii.gz"))
 
             # test with missing key and relative path
-            datalist = [{"image": "test_image1.nii.gz", "label": "test_label_missing.nii.gz"}]
+            datalist = [{CommonKeys.IMAGE: "test_image1.nii.gz", CommonKeys.LABEL: "test_label_missing.nii.gz"}]
             missings = check_missing_files(
-                datalist=datalist, keys=["image", "label", "test"], root_dir=tempdir, allow_missing_keys=True
+                datalist=datalist,
+                keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "test"],
+                root_dir=tempdir,
+                allow_missing_keys=True,
             )
             self.assertEqual(f"{missings[0]}", os.path.join(tempdir, "test_label_missing.nii.gz"))
 

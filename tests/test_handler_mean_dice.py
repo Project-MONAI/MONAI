@@ -16,11 +16,16 @@ from ignite.engine import Engine, Events
 from parameterized import parameterized
 
 from monai.handlers import MeanDice, from_engine
+from monai.utils.enums import CommonKeys
 
-TEST_CASE_1 = [{"include_background": True, "output_transform": from_engine(["pred", "label"])}, 0.75, (4, 2)]
-TEST_CASE_2 = [{"include_background": False, "output_transform": from_engine(["pred", "label"])}, 0.66666, (4, 1)]
+TEST_CASE_1 = [{"include_background": True, "output_transform": from_engine(["pred", CommonKeys.LABEL])}, 0.75, (4, 2)]
+TEST_CASE_2 = [
+    {"include_background": False, "output_transform": from_engine(["pred", CommonKeys.LABEL])},
+    0.66666,
+    (4, 1),
+]
 TEST_CASE_3 = [
-    {"reduction": "mean_channel", "output_transform": from_engine(["pred", "label"])},
+    {"reduction": "mean_channel", "output_transform": from_engine(["pred", CommonKeys.LABEL])},
     torch.Tensor([1.0, 0.0, 1.0, 1.0]),
     (4, 2),
 ]
@@ -42,12 +47,12 @@ class TestHandlerMeanDice(unittest.TestCase):
         # test input a list of channel-first tensor
         y_pred = [torch.Tensor([[0], [1]]), torch.Tensor([[1], [0]])]
         y = torch.Tensor([[[0], [1]], [[0], [1]]])
-        engine.state.output = {"pred": y_pred, "label": y}
+        engine.state.output = {"pred": y_pred, CommonKeys.LABEL: y}
         engine.fire_event(Events.ITERATION_COMPLETED)
 
         y_pred = [torch.Tensor([[0], [1]]), torch.Tensor([[1], [0]])]
         y = torch.Tensor([[[0], [1]], [[1], [0]]])
-        engine.state.output = {"pred": y_pred, "label": y}
+        engine.state.output = {"pred": y_pred, CommonKeys.LABEL: y}
         engine.fire_event(Events.ITERATION_COMPLETED)
 
         engine.fire_event(Events.EPOCH_COMPLETED)

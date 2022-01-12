@@ -63,7 +63,7 @@ from monai.transforms.utility.array import (
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import convert_to_numpy, deprecated_arg, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import TraceKeys, TransformBackends
+from monai.utils.enums import DictPostFixes, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -291,7 +291,7 @@ class EnsureChannelFirstd(MapTransform):
         self,
         keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         strict_check: bool = True,
     ) -> None:
         """
@@ -967,9 +967,9 @@ class Lambdad(MapTransform, InvertibleTransform):
     .. code-block:: python
         :emphasize-lines: 2
 
-        input_data={'image': np.zeros((10, 2, 2)), 'label': np.ones((10, 2, 2))}
-        lambd = Lambdad(keys='label', func=lambda x: x[:4, :, :])
-        print(lambd(input_data)['label'].shape)
+        input_data={CommonKeys.IMAGE: np.zeros((10, 2, 2)), CommonKeys.LABEL: np.ones((10, 2, 2))}
+        lambd = Lambdad(keys=CommonKeys.LABEL, func=lambda x: x[:4, :, :])
+        print(lambd(input_data)[CommonKeys.LABEL].shape)
         (4, 2, 2)
 
     Args:
@@ -1459,7 +1459,7 @@ class IntensityStatsd(MapTransform):
         mask_keys: Optional[KeysCollection] = None,
         channel_wise: bool = False,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

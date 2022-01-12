@@ -18,6 +18,7 @@ import numpy as np
 from monai.data import Dataset, SmartCacheDataset
 from monai.data.image_reader import WSIReader
 from monai.utils import ensure_tuple_rep
+from monai.utils.enums import CommonKeys
 
 __all__ = ["PatchWSIDataset", "SmartCachePatchWSIDataset", "MaskedInferenceWSIDataset"]
 
@@ -38,7 +39,7 @@ class PatchWSIDataset(Dataset):
 
     Note:
         The input data has the following form as an example:
-        `[{"image": "path/to/image1.tiff", "location": [200, 500], "label": [0,0,0,1]}]`.
+        `[{CommonKeys.IMAGE: "path/to/image1.tiff", "location": [200, 500], CommonKeys.LABEL: [0,0,0,1]}]`.
 
         This means from "image1.tiff" extract a region centered at the given location `location`
         with the size of `region_size`, and then extract patches with the size of `patch_size`
@@ -63,7 +64,7 @@ class PatchWSIDataset(Dataset):
         self.grid_shape = ensure_tuple_rep(grid_shape, 2)
         self.patch_size = ensure_tuple_rep(patch_size, 2)
 
-        self.image_path_list = list({x["image"] for x in self.data})
+        self.image_path_list = list({x[CommonKeys.IMAGE] for x in self.data})
         self.image_reader_name = image_reader_name.lower()
         self.image_reader = WSIReader(image_reader_name)
         self.wsi_object_dict = None
@@ -80,9 +81,9 @@ class PatchWSIDataset(Dataset):
     def __getitem__(self, index):
         sample = self.data[index]
         if self.image_reader_name == "openslide":
-            img_obj = self.image_reader.read(sample["image"])
+            img_obj = self.image_reader.read(sample[CommonKeys.IMAGE])
         else:
-            img_obj = self.wsi_object_dict[sample["image"]]
+            img_obj = self.wsi_object_dict[sample[CommonKeys.IMAGE]]
         location = [sample["location"][i] - self.region_size[i] // 2 for i in range(len(self.region_size))]
         images, _ = self.image_reader.get_data(
             img=img_obj,
@@ -91,11 +92,13 @@ class PatchWSIDataset(Dataset):
             grid_shape=self.grid_shape,
             patch_size=self.patch_size,
         )
-        labels = np.array(sample["label"], dtype=np.float32)
+        labels = np.array(sample[CommonKeys.LABEL], dtype=np.float32)
         # expand dimensions to have 4 dimension as batch, class, height, and width.
         for _ in range(4 - labels.ndim):
             labels = np.expand_dims(labels, 1)
-        patches = [{"image": images[i], "label": labels[i]} for i in range(len(sample["label"]))]
+        patches = [
+            {CommonKeys.IMAGE: images[i], CommonKeys.LABEL: labels[i]} for i in range(len(sample[CommonKeys.LABEL]))
+        ]
         if self.transform:
             patches = self.transform(patches)
         return patches
@@ -177,7 +180,7 @@ class MaskedInferenceWSIDataset(Dataset):
 
     Args:
         data: a list of sample including the path to the whole slide image and the path to the mask.
-            Like this: `[{"image": "path/to/image1.tiff", "mask": "path/to/mask1.npy}, ...]"`.
+            Like this: `[{CommonKeys.IMAGE: "path/to/image1.tiff", "mask": "path/to/mask1.npy}, ...]"`.
         patch_size: the size of patches to be extracted from the whole slide image for inference.
         transform: transforms to be executed on extracted patches.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
@@ -225,19 +228,19 @@ class MaskedInferenceWSIDataset(Dataset):
 
         Args:
             sample: one sample, a dictionary containing path to the whole slide image and the foreground mask.
-                For example: `{"image": "path/to/image1.tiff", "mask": "path/to/mask1.npy}`
+                For example: `{CommonKeys.IMAGE: "path/to/image1.tiff", "mask": "path/to/mask1.npy}`
 
         Return:
             A dictionary containing:
                 "name": the base name of the whole slide image,
-                "image": the WSIReader image object,
+                CommonKeys.IMAGE: the WSIReader image object,
                 "mask_shape": the size of the foreground mask,
                 "mask_locations": the list of non-zero pixel locations (x, y) on the foreground mask,
                 "image_locations": the list of pixel locations (x, y) on the whole slide image where patches are extracted, and
                 "level": the resolution level of the mask with respect to the whole slide image.
         }
         """
-        image = self.image_reader.read(sample["image"])
+        image = self.image_reader.read(sample[CommonKeys.IMAGE])
         mask = np.load(sample["mask"])
         try:
             level, ratio = self._calculate_mask_level(image, mask)
@@ -252,8 +255,8 @@ class MaskedInferenceWSIDataset(Dataset):
         image_locations = (mask_locations + 0.5) * ratio - np.array(self.patch_size) // 2
 
         return {
-            "name": os.path.splitext(os.path.basename(sample["image"]))[0],
-            "image": image,
+            "name": os.path.splitext(os.path.basename(sample[CommonKeys.IMAGE]))[0],
+            CommonKeys.IMAGE: image,
             "mask_shape": mask.shape,
             "mask_locations": mask_locations.astype(int).tolist(),
             "image_locations": image_locations.astype(int).tolist(),
@@ -303,8 +306,10 @@ class MaskedInferenceWSIDataset(Dataset):
         location_on_image = sample["image_locations"][patch_num]
         location_on_mask = sample["mask_locations"][patch_num]
 
-        image, _ = self.image_reader.get_data(img=sample["image"], location=location_on_image, size=self.patch_size)
-        processed_sample = {"image": image, "name": sample["name"], "mask_location": location_on_mask}
+        image, _ = self.image_reader.get_data(
+            img=sample[CommonKeys.IMAGE], location=location_on_image, size=self.patch_size
+        )
+        processed_sample = {CommonKeys.IMAGE: image, "name": sample["name"], "mask_location": location_on_mask}
         return processed_sample
 
     def __len__(self):

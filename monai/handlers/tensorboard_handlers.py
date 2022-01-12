@@ -310,8 +310,9 @@ class TensorBoardImageHandler(TensorBoardHandler):
             epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.
             batch_transform: a callable that is used to extract `image` and `label` from `ignite.engine.state.batch`,
-                then construct `(image, label)` pair. for example: if `ignite.engine.state.batch` is `{"image": xxx,
-                "label": xxx, "other": xxx}`, `batch_transform` can be `lambda x: (x["image"], x["label"])`.
+                then construct `(image, label)` pair. for example: if `ignite.engine.state.batch` is `{CommonKeys.IMAGE: xxx,
+                CommonKeys.LABEL: xxx, "other": xxx}`, `batch_transform` can be
+                `lambda x: (x[CommonKeys.IMAGE], x[CommonKeys.LABEL])`.
                 will use the result to plot image from `result[0][index]` and plot label from `result[1][index]`.
                 `engine.state` and `batch_transform` inherit from the ignite concept:
                 https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:

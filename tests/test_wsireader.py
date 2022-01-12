@@ -170,16 +170,16 @@ class WSIReaderTests:
         def test_with_dataloader(self, file_path, level, expected_spatial_shape, expected_shape):
             train_transform = Compose(
                 [
-                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
-                    ToTensord(keys=["image"]),
+                    LoadImaged(keys=[CommonKeys.IMAGE], reader=WSIReader, backend=self.backend, level=level),
+                    ToTensord(keys=[CommonKeys.IMAGE]),
                 ]
             )
-            dataset = Dataset([{"image": file_path}], transform=train_transform)
+            dataset = Dataset([{CommonKeys.IMAGE: file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
             data: dict = first(data_loader)
-            for s in data["image_meta_dict"]["spatial_shape"]:
+            for s in data[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["spatial_shape"]:
                 torch.testing.assert_allclose(s, expected_spatial_shape)
-            self.assertTupleEqual(data["image"].shape, expected_shape)
+            self.assertTupleEqual(data[CommonKeys.IMAGE].shape, expected_shape)
 
 
 @skipUnless(has_cucim, "Requires cucim")

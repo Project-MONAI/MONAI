@@ -27,14 +27,20 @@ from monai.apps.deepgrow.transforms import (
     SpatialCropForegroundd,
     SpatialCropGuidanced,
 )
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 IMAGE = np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]])
 LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]])
 
-DATA_1 = {"image": IMAGE, "label": LABEL, "image_meta_dict": {}, "label_meta_dict": {}}
+DATA_1 = {
+    CommonKeys.IMAGE: IMAGE,
+    CommonKeys.LABEL: LABEL,
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {},
+    f"{CommonKeys.LABEL}_{DictPostFixes.META}": {},
+}
 
 DATA_2 = {
-    "image": np.array(
+    CommonKeys.IMAGE: np.array(
         [
             [
                 [[1, 2, 3, 2, 1], [1, 1, 3, 2, 1], [0, 0, 0, 0, 0], [1, 1, 1, 2, 1], [0, 2, 2, 2, 1]],
@@ -42,7 +48,7 @@ DATA_2 = {
             ]
         ]
     ),
-    "label": np.array(
+    CommonKeys.LABEL: np.array(
         [
             [
                 [[0, 0, 1, 0, 0], [0, 1, 1, 1, 0], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 0, 1, 0, 0]],
@@ -54,14 +60,14 @@ DATA_2 = {
 }
 
 DATA_3 = {
-    "image": IMAGE,
-    "label": LABEL,
+    CommonKeys.IMAGE: IMAGE,
+    CommonKeys.LABEL: LABEL,
     "pred": np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]]),
 }
 
 DATA_4 = {
-    "image": IMAGE,
-    "label": LABEL,
+    CommonKeys.IMAGE: IMAGE,
+    CommonKeys.LABEL: LABEL,
     "guidance": np.array([[[1, 0, 2, 2]], [[-1, -1, -1, -1]]]),
     "discrepancy": np.array(
         [
@@ -73,42 +79,42 @@ DATA_4 = {
 }
 
 DATA_5 = {
-    "image": np.arange(25).reshape((1, 5, 5)),
-    "image_meta_dict": {"spatial_shape": [5, 5, 1]},
+    CommonKeys.IMAGE: np.arange(25).reshape((1, 5, 5)),
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"spatial_shape": [5, 5, 1]},
     "foreground": [[2, 2, 0]],
     "background": [],
 }
 
 DATA_6 = {
-    "image": np.arange(25).reshape((1, 5, 5)),
-    "image_meta_dict": {"spatial_shape": [5, 2, 1]},
+    CommonKeys.IMAGE: np.arange(25).reshape((1, 5, 5)),
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"spatial_shape": [5, 2, 1]},
     "foreground": [[2, 1, 0]],
     "background": [[1, 0, 0]],
 }
 
 DATA_7 = {
-    "image": np.arange(500).reshape((5, 10, 10)),
-    "image_meta_dict": {"spatial_shape": [20, 20, 10]},
+    CommonKeys.IMAGE: np.arange(500).reshape((5, 10, 10)),
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"spatial_shape": [20, 20, 10]},
     "foreground": [[10, 14, 6], [10, 14, 8]],
     "background": [[10, 16, 8]],
     "slice": 6,
 }
 
 DATA_8 = {
-    "image": np.arange(500).reshape((1, 5, 10, 10)),
-    "image_meta_dict": {"spatial_shape": [20, 20, 10]},
+    CommonKeys.IMAGE: np.arange(500).reshape((1, 5, 10, 10)),
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"spatial_shape": [20, 20, 10]},
     "guidance": [[[3, 5, 7], [4, 5, 7]], [[4, 5, 8]]],
 }
 
 DATA_9 = {
-    "image": np.arange(1000).reshape((1, 5, 10, 20)),
-    "image_meta_dict": {"foreground_cropped_shape": (1, 10, 20, 40)},
+    CommonKeys.IMAGE: np.arange(1000).reshape((1, 5, 10, 20)),
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"foreground_cropped_shape": (1, 10, 20, 40)},
     "guidance": [[[6, 10, 14], [8, 10, 14]], [[8, 10, 16]]],
 }
 
 DATA_10 = {
-    "image": np.arange(9).reshape((1, 1, 3, 3)),
-    "image_meta_dict": {
+    CommonKeys.IMAGE: np.arange(9).reshape((1, 1, 3, 3)),
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {
         "spatial_shape": [3, 3, 1],
         "foreground_start_coord": np.array([0, 0, 0]),
         "foreground_end_coord": np.array([1, 3, 3]),
@@ -122,8 +128,8 @@ DATA_10 = {
 }
 
 DATA_11 = {
-    "image": np.arange(500).reshape((1, 5, 10, 10)),
-    "image_meta_dict": {
+    CommonKeys.IMAGE: np.arange(500).reshape((1, 5, 10, 10)),
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {
         "spatial_shape": [20, 20, 10],
         "foreground_start_coord": np.array([2, 2, 2]),
         "foreground_end_coord": np.array([4, 4, 4]),
@@ -136,16 +142,20 @@ DATA_11 = {
     "pred": np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]),
 }
 
-DATA_12 = {"image": np.arange(27).reshape(3, 3, 3), "image_meta_dict": {}, "guidance": [[0, 0, 0], [0, 1, 1], 1]}
+DATA_12 = {
+    CommonKeys.IMAGE: np.arange(27).reshape(3, 3, 3),
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {},
+    "guidance": [[0, 0, 0], [0, 1, 1], 1],
+}
 
-FIND_SLICE_TEST_CASE_1 = [{"label": "label", "sids": "sids"}, DATA_1, [0]]
+FIND_SLICE_TEST_CASE_1 = [{CommonKeys.LABEL: CommonKeys.LABEL, "sids": "sids"}, DATA_1, [0]]
 
-FIND_SLICE_TEST_CASE_2 = [{"label": "label", "sids": "sids"}, DATA_2, [0, 1]]
+FIND_SLICE_TEST_CASE_2 = [{CommonKeys.LABEL: CommonKeys.LABEL, "sids": "sids"}, DATA_2, [0, 1]]
 
 CROP_TEST_CASE_1 = [
     {
-        "keys": ["image", "label"],
-        "source_key": "label",
+        "keys": [CommonKeys.IMAGE, CommonKeys.LABEL],
+        "source_key": CommonKeys.LABEL,
         "select_fn": lambda x: x > 0,
         "channel_indices": None,
         "margin": 0,
@@ -157,8 +167,8 @@ CROP_TEST_CASE_1 = [
 
 CROP_TEST_CASE_2 = [
     {
-        "keys": ["image", "label"],
-        "source_key": "label",
+        "keys": [CommonKeys.IMAGE, CommonKeys.LABEL],
+        "source_key": CommonKeys.LABEL,
         "select_fn": lambda x: x > 0,
         "channel_indices": None,
         "margin": 0,
@@ -169,13 +179,13 @@ CROP_TEST_CASE_2 = [
 ]
 
 ADD_INITIAL_POINT_TEST_CASE_1 = [
-    {"label": "label", "guidance": "guidance", "sids": "sids"},
+    {CommonKeys.LABEL: CommonKeys.LABEL, "guidance": "guidance", "sids": "sids"},
     DATA_1,
     "[[[1, 0, 2, 2]], [[-1, -1, -1, -1]]]",
 ]
 
 ADD_GUIDANCE_TEST_CASE_1 = [
-    {"image": "image", "guidance": "guidance"},
+    {CommonKeys.IMAGE: CommonKeys.IMAGE, "guidance": "guidance"},
     DATA_2,
     np.array(
         [
@@ -208,7 +218,7 @@ ADD_GUIDANCE_TEST_CASE_1 = [
 ]
 
 FIND_DISCREPANCY_TEST_CASE_1 = [
-    {"label": "label", "pred": "pred", "discrepancy": "discrepancy"},
+    {CommonKeys.LABEL: CommonKeys.LABEL, "pred": "pred", "discrepancy": "discrepancy"},
     DATA_3,
     np.array(
         [
@@ -225,55 +235,55 @@ ADD_RANDOM_GUIDANCE_TEST_CASE_1 = [
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_1 = [
-    {"ref_image": "image", "dimensions": 3, "guidance": "guidance", "depth_first": True},
+    {"ref_image": CommonKeys.IMAGE, "dimensions": 3, "guidance": "guidance", "depth_first": True},
     DATA_5,
     [[0, 2, 2]],
     [],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_2 = [
-    {"ref_image": "image", "dimensions": 3, "guidance": "guidance", "depth_first": True},
+    {"ref_image": CommonKeys.IMAGE, "dimensions": 3, "guidance": "guidance", "depth_first": True},
     DATA_6,
     [[0, 2, 2]],
     [[0, 1, 0]],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_3 = [
-    {"ref_image": "image", "dimensions": 3, "guidance": "guidance", "depth_first": True},
+    {"ref_image": CommonKeys.IMAGE, "dimensions": 3, "guidance": "guidance", "depth_first": True},
     DATA_7,
     [[3, 5, 7], [4, 5, 7]],
     [[4, 5, 8]],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_4 = [
-    {"ref_image": "image", "dimensions": 2, "guidance": "guidance", "depth_first": True},
+    {"ref_image": CommonKeys.IMAGE, "dimensions": 2, "guidance": "guidance", "depth_first": True},
     DATA_6,
     [[2, 2]],
     [[1, 0]],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_5 = [
-    {"ref_image": "image", "dimensions": 2, "guidance": "guidance", "depth_first": True, "slice_key": "slice"},
+    {"ref_image": CommonKeys.IMAGE, "dimensions": 2, "guidance": "guidance", "depth_first": True, "slice_key": "slice"},
     DATA_7,
     [[5, 7]],
     [],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_6 = [
-    {"ref_image": "image", "dimensions": 2, "guidance": "guidance", "depth_first": True},
+    {"ref_image": CommonKeys.IMAGE, "dimensions": 2, "guidance": "guidance", "depth_first": True},
     DATA_5,
     [[2, 2]],
     [],
 ]
 
 SPATIAL_CROP_GUIDANCE_TEST_CASE_1 = [
-    {"keys": ["image"], "guidance": "guidance", "spatial_size": [1, 4, 4], "margin": 0},
+    {"keys": [CommonKeys.IMAGE], "guidance": "guidance", "spatial_size": [1, 4, 4], "margin": 0},
     DATA_8,
     np.array([[[[357, 358]], [[457, 458]]]]),
 ]
 
 SPATIAL_CROP_GUIDANCE_TEST_CASE_2 = [
-    {"keys": ["image"], "guidance": "guidance", "spatial_size": [2, 2], "margin": 1},
+    {"keys": [CommonKeys.IMAGE], "guidance": "guidance", "spatial_size": [2, 2], "margin": 1},
     DATA_8,
     np.array(
         [
@@ -287,7 +297,7 @@ SPATIAL_CROP_GUIDANCE_TEST_CASE_2 = [
 ]
 
 SPATIAL_CROP_GUIDANCE_TEST_CASE_3 = [
-    {"keys": ["image"], "guidance": "guidance", "spatial_size": [3, 3], "margin": 0},
+    {"keys": [CommonKeys.IMAGE], "guidance": "guidance", "spatial_size": [3, 3], "margin": 0},
     DATA_8,
     np.array(
         [
@@ -303,13 +313,13 @@ SPATIAL_CROP_GUIDANCE_TEST_CASE_3 = [
 ]
 
 RESIZE_GUIDANCE_TEST_CASE_1 = [
-    {"ref_image": "image", "guidance": "guidance"},
+    {"ref_image": CommonKeys.IMAGE, "guidance": "guidance"},
     DATA_9,
     [[[3, 5, 7], [4, 5, 7]], [[4, 5, 8]]],
 ]
 
 RESTORE_LABEL_TEST_CASE_1 = [
-    {"keys": ["pred"], "ref_image": "image", "mode": "nearest"},
+    {"keys": ["pred"], "ref_image": CommonKeys.IMAGE, "mode": "nearest"},
     DATA_10,
     np.array([[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]),
 ]
@@ -324,10 +334,10 @@ RESULT[4:8, 4:8, 4:8] = np.array(
     ]
 )
 
-RESTORE_LABEL_TEST_CASE_2 = [{"keys": ["pred"], "ref_image": "image", "mode": "nearest"}, DATA_11, RESULT]
+RESTORE_LABEL_TEST_CASE_2 = [{"keys": ["pred"], "ref_image": CommonKeys.IMAGE, "mode": "nearest"}, DATA_11, RESULT]
 
 FETCH_2D_SLICE_TEST_CASE_1 = [
-    {"keys": ["image"], "guidance": "guidance"},
+    {"keys": [CommonKeys.IMAGE], "guidance": "guidance"},
     DATA_12,
     np.array([[9, 10, 11], [12, 13, 14], [15, 16, 17]]),
 ]
@@ -344,24 +354,32 @@ class TestSpatialCropForegroundd(unittest.TestCase):
     @parameterized.expand([CROP_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = SpatialCropForegroundd(**arguments)(input_data)
-        np.testing.assert_allclose(result["image"], expected_result)
+        np.testing.assert_allclose(result[CommonKeys.IMAGE], expected_result)
 
     @parameterized.expand([CROP_TEST_CASE_2])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = SpatialCropForegroundd(**arguments)(input_data)
-        np.testing.assert_equal(result["image"].shape, expected_shape)
+        np.testing.assert_equal(result[CommonKeys.IMAGE].shape, expected_shape)
 
     @parameterized.expand([CROP_TEST_CASE_1])
     def test_foreground_position(self, arguments, input_data, _):
         result = SpatialCropForegroundd(**arguments)(input_data)
-        np.testing.assert_allclose(result["image_meta_dict"]["foreground_start_coord"], np.array([0, 1, 1]))
-        np.testing.assert_allclose(result["image_meta_dict"]["foreground_end_coord"], np.array([1, 4, 4]))
+        np.testing.assert_allclose(
+            result[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["foreground_start_coord"], np.array([0, 1, 1])
+        )
+        np.testing.assert_allclose(
+            result[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["foreground_end_coord"], np.array([1, 4, 4])
+        )
 
         arguments["start_coord_key"] = "test_start_coord"
         arguments["end_coord_key"] = "test_end_coord"
         result = SpatialCropForegroundd(**arguments)(input_data)
-        np.testing.assert_allclose(result["image_meta_dict"]["test_start_coord"], np.array([0, 1, 1]))
-        np.testing.assert_allclose(result["image_meta_dict"]["test_end_coord"], np.array([1, 4, 4]))
+        np.testing.assert_allclose(
+            result[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["test_start_coord"], np.array([0, 1, 1])
+        )
+        np.testing.assert_allclose(
+            result[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["test_end_coord"], np.array([1, 4, 4])
+        )
 
 
 class TestAddInitialSeedPointd(unittest.TestCase):
@@ -378,7 +396,7 @@ class TestAddGuidanceSignald(unittest.TestCase):
     @parameterized.expand([ADD_GUIDANCE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = AddGuidanceSignald(**arguments)(input_data)
-        np.testing.assert_allclose(result["image"], expected_result, rtol=1e-5)
+        np.testing.assert_allclose(result[CommonKeys.IMAGE], expected_result, rtol=1e-5)
 
 
 class TestFindDiscrepancyRegionsd(unittest.TestCase):
@@ -421,7 +439,7 @@ class TestSpatialCropGuidanced(unittest.TestCase):
     )
     def test_correct_results(self, arguments, input_data, expected_result):
         result = SpatialCropGuidanced(**arguments)(input_data)
-        np.testing.assert_allclose(result["image"], expected_result)
+        np.testing.assert_allclose(result[CommonKeys.IMAGE], expected_result)
 
 
 class TestResizeGuidanced(unittest.TestCase):
@@ -442,7 +460,7 @@ class TestFetch2DSliced(unittest.TestCase):
     @parameterized.expand([FETCH_2D_SLICE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = Fetch2DSliced(**arguments)(input_data)
-        np.testing.assert_allclose(result["image"], expected_result)
+        np.testing.assert_allclose(result[CommonKeys.IMAGE], expected_result)
 
 
 if __name__ == "__main__":

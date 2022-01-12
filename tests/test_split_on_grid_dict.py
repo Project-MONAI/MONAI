@@ -15,6 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms import SplitOnGridDict
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 A11 = torch.randn(3, 2, 2)
@@ -26,17 +27,29 @@ A1 = torch.cat([A11, A12], 2)
 A2 = torch.cat([A21, A22], 2)
 A = torch.cat([A1, A2], 1)
 
-TEST_CASE_0 = [{"keys": "image", "grid_size": (2, 2)}, {"image": A}, torch.stack([A11, A12, A21, A22])]
-TEST_CASE_1 = [{"keys": "image", "grid_size": (2, 1)}, {"image": A}, torch.stack([A1, A2])]
-TEST_CASE_2 = [{"keys": "image", "grid_size": (1, 2)}, {"image": A1}, torch.stack([A11, A12])]
-TEST_CASE_3 = [{"keys": "image", "grid_size": (1, 2)}, {"image": A2}, torch.stack([A21, A22])]
-TEST_CASE_4 = [{"keys": "image", "grid_size": (1, 1), "patch_size": (2, 2)}, {"image": A}, torch.stack([A11])]
-TEST_CASE_5 = [{"keys": "image", "grid_size": 1, "patch_size": 4}, {"image": A}, torch.stack([A])]
-TEST_CASE_6 = [{"keys": "image", "grid_size": 2, "patch_size": 2}, {"image": A}, torch.stack([A11, A12, A21, A22])]
-TEST_CASE_7 = [{"keys": "image", "grid_size": 1}, {"image": A}, torch.stack([A])]
+TEST_CASE_0 = [
+    {"keys": CommonKeys.IMAGE, "grid_size": (2, 2)},
+    {CommonKeys.IMAGE: A},
+    torch.stack([A11, A12, A21, A22]),
+]
+TEST_CASE_1 = [{"keys": CommonKeys.IMAGE, "grid_size": (2, 1)}, {CommonKeys.IMAGE: A}, torch.stack([A1, A2])]
+TEST_CASE_2 = [{"keys": CommonKeys.IMAGE, "grid_size": (1, 2)}, {CommonKeys.IMAGE: A1}, torch.stack([A11, A12])]
+TEST_CASE_3 = [{"keys": CommonKeys.IMAGE, "grid_size": (1, 2)}, {CommonKeys.IMAGE: A2}, torch.stack([A21, A22])]
+TEST_CASE_4 = [
+    {"keys": CommonKeys.IMAGE, "grid_size": (1, 1), "patch_size": (2, 2)},
+    {CommonKeys.IMAGE: A},
+    torch.stack([A11]),
+]
+TEST_CASE_5 = [{"keys": CommonKeys.IMAGE, "grid_size": 1, "patch_size": 4}, {CommonKeys.IMAGE: A}, torch.stack([A])]
+TEST_CASE_6 = [
+    {"keys": CommonKeys.IMAGE, "grid_size": 2, "patch_size": 2},
+    {CommonKeys.IMAGE: A},
+    torch.stack([A11, A12, A21, A22]),
+]
+TEST_CASE_7 = [{"keys": CommonKeys.IMAGE, "grid_size": 1}, {CommonKeys.IMAGE: A}, torch.stack([A])]
 TEST_CASE_8 = [
-    {"keys": "image", "grid_size": (2, 2), "patch_size": 2},
-    {"image": torch.arange(12).reshape(1, 3, 4).to(torch.float32)},
+    {"keys": CommonKeys.IMAGE, "grid_size": (2, 2), "patch_size": 2},
+    {CommonKeys.IMAGE: torch.arange(12).reshape(1, 3, 4).to(torch.float32)},
     torch.Tensor([[[[0, 1], [4, 5]]], [[[2, 3], [6, 7]]], [[[4, 5], [8, 9]]], [[[6, 7], [10, 11]]]]).to(torch.float32),
 ]
 
@@ -53,18 +66,18 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_8])
 
 TEST_CASE_MC_0 = [
-    {"keys": "image", "grid_size": (2, 2)},
-    [{"image": A}, {"image": A}],
+    {"keys": CommonKeys.IMAGE, "grid_size": (2, 2)},
+    [{CommonKeys.IMAGE: A}, {CommonKeys.IMAGE: A}],
     [torch.stack([A11, A12, A21, A22]), torch.stack([A11, A12, A21, A22])],
 ]
 TEST_CASE_MC_1 = [
-    {"keys": "image", "grid_size": (2, 1)},
-    [{"image": A}, {"image": A}, {"image": A}],
+    {"keys": CommonKeys.IMAGE, "grid_size": (2, 1)},
+    [{CommonKeys.IMAGE: A}, {CommonKeys.IMAGE: A}, {CommonKeys.IMAGE: A}],
     [torch.stack([A1, A2])] * 3,
 ]
 TEST_CASE_MC_2 = [
-    {"keys": "image", "grid_size": (1, 2)},
-    [{"image": A1}, {"image": A2}],
+    {"keys": CommonKeys.IMAGE, "grid_size": (1, 2)},
+    [{CommonKeys.IMAGE: A1}, {CommonKeys.IMAGE: A2}],
     [torch.stack([A11, A12]), torch.stack([A21, A22])],
 ]
 

@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import AddExtremePointsChannel
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 IMG_CHANNEL = 3
@@ -25,7 +26,7 @@ for p in TEST_NDARRAYS:
             [
                 {
                     "img": p(np.zeros((IMG_CHANNEL, 4, 3))),
-                    "label": q(np.array([[[0, 1, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0]]])),
+                    CommonKeys.LABEL: q(np.array([[[0, 1, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0]]])),
                     "sigma": 1.0,
                     "rescale_min": 0.0,
                     "rescale_max": 1.0,
@@ -47,7 +48,7 @@ for p in TEST_NDARRAYS:
             [
                 {
                     "img": p(np.zeros((IMG_CHANNEL, 4, 3))),
-                    "label": q(np.array([[[0, 1, 0], [1, 1, 1], [0, 1, 0], [0, 1, 0]]])),
+                    CommonKeys.LABEL: q(np.array([[[0, 1, 0], [1, 1, 1], [0, 1, 0], [0, 1, 0]]])),
                     "sigma": 1.0,
                     "rescale_min": 0.0,
                     "rescale_max": 1.0,

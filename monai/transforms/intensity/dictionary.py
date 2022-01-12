@@ -56,6 +56,7 @@ from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.enums import DictPostFixes
 
 __all__ = [
     "RandGaussianNoised",
@@ -285,7 +286,7 @@ class ShiftIntensityd(MapTransform):
         offset: float,
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -342,7 +343,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         offsets: Union[Tuple[float, float], float],
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1226,7 +1227,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
     https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
 
     Args:
-        keys: 'image', 'label', or ['image', 'label'] depending on which data
+        keys: CommonKeys.IMAGE, CommonKeys.LABEL, or [CommonKeys.IMAGE, CommonKeys.LABEL] depending on which data
                 you need to transform.
         prob (float): probability of applying the transform.
         alpha (float, List[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
@@ -1284,7 +1285,7 @@ class GibbsNoised(MapTransform):
     https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
 
     Args:
-        keys: 'image', 'label', or ['image', 'label'] depending on which data
+        keys: CommonKeys.IMAGE, CommonKeys.LABEL, or [CommonKeys.IMAGE, CommonKeys.LABEL] depending on which data
                 you need to transform.
         alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
@@ -1326,7 +1327,7 @@ class KSpaceSpikeNoised(MapTransform):
     perspective <https://doi.org/10.1002/jmri.24288>`_.
 
     Args:
-        keys: "image", "label", or ["image", "label"] depending
+        keys: CommonKeys.IMAGE, CommonKeys.LABEL, or [CommonKeys.IMAGE, CommonKeys.LABEL] depending
              on which data you need to transform.
         loc: spatial location for the spikes. For
             images with 3D spatial dimensions, the user can provide (C, X, Y, Z)
@@ -1344,7 +1345,7 @@ class KSpaceSpikeNoised(MapTransform):
 
     Example:
         When working with 4D data,
-        ``KSpaceSpikeNoised("image", loc = ((3,60,64,32), (64,60,32)), k_intensity = (13,14))``
+        ``KSpaceSpikeNoised(CommonKeys.IMAGE, loc = ((3,60,64,32), (64,60,32)), k_intensity = (13,14))``
         will place a spike at `[3, 60, 64, 32]` with `log-intensity = 13`, and
         one spike per channel located respectively at `[: , 64, 60, 32]`
         with `log-intensity = 14`.
@@ -1393,7 +1394,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
     perspective <https://doi.org/10.1002/jmri.24288>`_.
 
     Args:
-        keys: "image", "label", or ["image", "label"] depending
+        keys: CommonKeys.IMAGE, CommonKeys.LABEL, or [CommonKeys.IMAGE, CommonKeys.LABEL] depending
              on which data you need to transform.
         prob: probability to add spike artifact to each item in the
             dictionary provided it is realized that the noise will be applied
@@ -1411,7 +1412,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         To apply `k`-space spikes randomly on the image only, with probability
         0.5, and log-intensity sampled from the interval [13, 15] for each
         channel independently, one uses
-        ``RandKSpaceSpikeNoised("image", prob=0.5, intensity_ranges=(13, 15), channel_wise=True)``.
+        ``RandKSpaceSpikeNoised(CommonKeys.IMAGE, prob=0.5, intensity_ranges=(13, 15), channel_wise=True)``.
     """
 
     backend = RandKSpaceSpikeNoise.backend

@@ -18,11 +18,11 @@ from monai.transforms import Compose, SpatialPad, SpatialPadd, allow_missing_key
 
 class TestWithAllowMissingKeysMode(unittest.TestCase):
     def setUp(self):
-        self.data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
+        self.data = {CommonKeys.IMAGE: np.arange(16, dtype=float).reshape(1, 4, 4)}
 
     def test_map_transform(self):
         for amk in [True, False]:
-            t = SpatialPadd(["image", "label"], 10, allow_missing_keys=amk)
+            t = SpatialPadd([CommonKeys.IMAGE, CommonKeys.LABEL], 10, allow_missing_keys=amk)
             with allow_missing_keys_mode(t):
                 # check state is True
                 self.assertTrue(t.allow_missing_keys)
@@ -37,7 +37,7 @@ class TestWithAllowMissingKeysMode(unittest.TestCase):
 
     def test_compose(self):
         amks = [True, False, True]
-        t = Compose([SpatialPadd(["image", "label"], 10, allow_missing_keys=amk) for amk in amks])
+        t = Compose([SpatialPadd([CommonKeys.IMAGE, CommonKeys.LABEL], 10, allow_missing_keys=amk) for amk in amks])
         with allow_missing_keys_mode(t):
             # check states are all True
             for _t in t.transforms:
@@ -59,7 +59,7 @@ class TestWithAllowMissingKeysMode(unittest.TestCase):
 
     def test_multiple(self):
         orig_states = [True, False]
-        ts = [SpatialPadd(["image", "label"], 10, allow_missing_keys=i) for i in orig_states]
+        ts = [SpatialPadd([CommonKeys.IMAGE, CommonKeys.LABEL], 10, allow_missing_keys=i) for i in orig_states]
         with allow_missing_keys_mode(ts):
             for t in ts:
                 self.assertTrue(t.allow_missing_keys)

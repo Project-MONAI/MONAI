@@ -24,7 +24,7 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance2, LoadImage)
 
         for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", None]:
-            inst = LoadImaged("image", reader=r)
+            inst = LoadImaged(CommonKeys.IMAGE, reader=r)
             self.assertIsInstance(inst, LoadImaged)
 
     @SkipIfNoModule("itk")

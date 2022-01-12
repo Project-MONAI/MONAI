@@ -31,6 +31,7 @@ from monai.transforms import (
     ToTensorD,
 )
 from monai.utils import Range, optional_import
+from monai.utils.enums import CommonKeys
 from tests.utils import HAS_CUPY
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
@@ -41,8 +42,8 @@ _, has_cut = optional_import("cucim.core.operations.expose.transform")
 TEST_CASE_ARRAY_0 = [np.random.randn(3, 3)]
 TEST_CASE_ARRAY_1 = [np.random.randn(3, 10, 10)]
 
-TEST_CASE_DICT_0 = [{"image": np.random.randn(3, 3)}]
-TEST_CASE_DICT_1 = [{"image": np.random.randn(3, 10, 10)}]
+TEST_CASE_DICT_0 = [{CommonKeys.IMAGE: np.random.randn(3, 3)}]
+TEST_CASE_DICT_1 = [{CommonKeys.IMAGE: np.random.randn(3, 10, 10)}]
 
 TEST_CASE_TORCH_0 = [torch.randn(3, 3)]
 TEST_CASE_TORCH_1 = [torch.randn(3, 10, 10)]
@@ -79,9 +80,11 @@ class TestNVTXRangeDecorator(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_DICT_0, TEST_CASE_DICT_1])
     def test_tranform_dict(self, input):
-        transforms = Compose([Range("random flip dict")(FlipD(keys="image")), Range()(ToTensorD("image"))])
+        transforms = Compose(
+            [Range("random flip dict")(FlipD(keys=CommonKeys.IMAGE)), Range()(ToTensorD(CommonKeys.IMAGE))]
+        )
         # Apply transforms
-        output = transforms(input)["image"]
+        output = transforms(input)[CommonKeys.IMAGE]
 
         # Decorate with NVTX Range
         transforms1 = Range()(transforms)
@@ -89,9 +92,9 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         transforms3 = Range(name="Transforms3", methods="__call__")(transforms)
 
         # Apply transforms with Range
-        output1 = transforms1(input)["image"]
-        output2 = transforms2(input)["image"]
-        output3 = transforms3(input)["image"]
+        output1 = transforms1(input)[CommonKeys.IMAGE]
+        output2 = transforms2(input)[CommonKeys.IMAGE]
+        output3 = transforms3(input)[CommonKeys.IMAGE]
 
         # Check the outputs
         self.assertIsInstance(output, torch.Tensor)

@@ -28,19 +28,19 @@ class TestMedNISTDataset(unittest.TestCase):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         transform = Compose(
             [
-                LoadImaged(keys="image"),
-                AddChanneld(keys="image"),
-                ScaleIntensityd(keys="image"),
-                ToTensord(keys=["image", "label"]),
+                LoadImaged(keys=CommonKeys.IMAGE),
+                AddChanneld(keys=CommonKeys.IMAGE),
+                ScaleIntensityd(keys=CommonKeys.IMAGE),
+                ToTensord(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
             ]
         )
 
         def _test_dataset(dataset):
             self.assertEqual(len(dataset), int(MEDNIST_FULL_DATASET_LENGTH * dataset.test_frac))
-            self.assertTrue("image" in dataset[0])
-            self.assertTrue("label" in dataset[0])
-            self.assertTrue("image_meta_dict" in dataset[0])
-            self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
+            self.assertTrue(CommonKeys.IMAGE in dataset[0])
+            self.assertTrue(CommonKeys.LABEL in dataset[0])
+            self.assertTrue(f"{CommonKeys.IMAGE}_{DictPostFixes.META}" in dataset[0])
+            self.assertTupleEqual(dataset[0][CommonKeys.IMAGE].shape, (1, 64, 64))
 
         try:  # will start downloading if testing_dir doesn't have the MedNIST files
             data = MedNISTDataset(
@@ -60,12 +60,12 @@ class TestMedNISTDataset(unittest.TestCase):
         self.assertEqual(data.get_num_classes(), 6)
         _test_dataset(data)
         data = MedNISTDataset(root_dir=testing_dir, section="test", download=False)
-        self.assertTupleEqual(data[0]["image"].shape, (64, 64))
+        self.assertTupleEqual(data[0][CommonKeys.IMAGE].shape, (64, 64))
         # test same dataset length with different random seed
         data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False, seed=42)
         _test_dataset(data)
         self.assertEqual(data[0]["class_name"], "AbdomenCT")
-        self.assertEqual(data[0]["label"].cpu().item(), 0)
+        self.assertEqual(data[0][CommonKeys.LABEL].cpu().item(), 0)
         shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
         try:
             MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)

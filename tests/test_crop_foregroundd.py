@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import CropForegroundd
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_POSITION, TESTS = [], []
@@ -24,8 +25,8 @@ for p in TEST_NDARRAYS:
     TEST_POSITION.append(
         [
             {
-                "keys": ["img", "label"],
-                "source_key": "label",
+                "keys": ["img", CommonKeys.LABEL],
+                "source_key": CommonKeys.LABEL,
                 "select_fn": lambda x: x > 0,
                 "channel_indices": None,
                 "margin": 0,
@@ -34,7 +35,7 @@ for p in TEST_NDARRAYS:
                 "img": p(
                     np.array([[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]])
                 ),
-                "label": p(
+                CommonKeys.LABEL: p(
                     np.array([[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]])
                 ),
             },

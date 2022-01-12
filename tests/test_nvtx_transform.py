@@ -31,14 +31,15 @@ from monai.transforms.nvtx import (
     RangePushD,
 )
 from monai.utils import optional_import
+from monai.utils.enums import CommonKeys
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
 
 TEST_CASE_ARRAY_0 = [np.random.randn(3, 3)]
 TEST_CASE_ARRAY_1 = [np.random.randn(3, 10, 10)]
-TEST_CASE_DICT_0 = [{"image": np.random.randn(3, 3)}]
-TEST_CASE_DICT_1 = [{"image": np.random.randn(3, 10, 10)}]
+TEST_CASE_DICT_0 = [{CommonKeys.IMAGE: np.random.randn(3, 3)}]
+TEST_CASE_DICT_1 = [{CommonKeys.IMAGE: np.random.randn(3, 10, 10)}]
 
 
 class TestNVTXTransforms(unittest.TestCase):
@@ -108,33 +109,33 @@ class TestNVTXTransforms(unittest.TestCase):
             [
                 RandMarkD("Mark: Transforms (p=0) Start!"),
                 RandRangePushD("Range: RandFlipD"),
-                RandFlipD(keys="image", prob=0.0),
+                RandFlipD(keys=CommonKeys.IMAGE, prob=0.0),
                 RandRangePopD(),
                 RangePushD("Range: ToTensorD"),
-                ToTensorD(keys=("image")),
+                ToTensorD(keys=(CommonKeys.IMAGE)),
                 RangePopD(),
                 MarkD("Mark: Transforms (p=0) End!"),
             ]
         )
         output = transforms(input)
-        self.assertIsInstance(output["image"], torch.Tensor)
-        np.testing.assert_array_equal(input["image"], output["image"])
+        self.assertIsInstance(output[CommonKeys.IMAGE], torch.Tensor)
+        np.testing.assert_array_equal(input[CommonKeys.IMAGE], output[CommonKeys.IMAGE])
         # with prob == 1.0
         transforms = Compose(
             [
                 RandMarkD("Mark: Transforms (p=1) Start!"),
                 RandRangePushD("Range: RandFlipD"),
-                RandFlipD(keys="image", prob=1.0),
+                RandFlipD(keys=CommonKeys.IMAGE, prob=1.0),
                 RandRangePopD(),
                 RangePushD("Range: ToTensorD"),
-                ToTensorD(keys=("image")),
+                ToTensorD(keys=(CommonKeys.IMAGE)),
                 RangePopD(),
                 MarkD("Mark: Transforms (p=1) End!"),
             ]
         )
         output = transforms(input)
-        self.assertIsInstance(output["image"], torch.Tensor)
-        np.testing.assert_array_equal(input["image"], Flip()(output["image"].numpy()))
+        self.assertIsInstance(output[CommonKeys.IMAGE], torch.Tensor)
+        np.testing.assert_array_equal(input[CommonKeys.IMAGE], Flip()(output[CommonKeys.IMAGE].numpy()))
 
 
 if __name__ == "__main__":

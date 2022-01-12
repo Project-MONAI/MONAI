@@ -20,12 +20,13 @@ from parameterized import parameterized
 
 from monai.data import PersistentDataset, json_hashing
 from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
+from monai.utils.enums import CommonKeys
 
 TEST_CASE_1 = [
     Compose(
         [
-            LoadImaged(keys=["image", "label", "extra"]),
-            SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
+            LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"]),
+            SimulateDelayd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
         ]
     ),
     (128, 128, 128),
@@ -33,8 +34,8 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     [
-        LoadImaged(keys=["image", "label", "extra"]),
-        SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
+        LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"]),
+        SimulateDelayd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
 ]
@@ -87,13 +88,13 @@ class TestDataset(unittest.TestCase):
             nib.save(test_image, os.path.join(tempdir, "test_extra2.nii.gz"))
             test_data = [
                 {
-                    "image": os.path.join(tempdir, "test_image1.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label1.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image1.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label1.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
                 },
                 {
-                    "image": os.path.join(tempdir, "test_image2.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label2.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image2.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label2.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
                 },
             ]
@@ -109,45 +110,49 @@ class TestDataset(unittest.TestCase):
             data3_postcached = dataset_postcached[0:2]
 
             if transform is None:
-                self.assertEqual(data1_precached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
-                self.assertEqual(data2_precached["label"], os.path.join(tempdir, "test_label2.nii.gz"))
-                self.assertEqual(data1_postcached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
+                self.assertEqual(data1_precached[CommonKeys.IMAGE], os.path.join(tempdir, "test_image1.nii.gz"))
+                self.assertEqual(data2_precached[CommonKeys.LABEL], os.path.join(tempdir, "test_label2.nii.gz"))
+                self.assertEqual(data1_postcached[CommonKeys.IMAGE], os.path.join(tempdir, "test_image1.nii.gz"))
                 self.assertEqual(data2_postcached["extra"], os.path.join(tempdir, "test_extra2.nii.gz"))
             else:
-                self.assertTupleEqual(data1_precached["image"].shape, expected_shape)
-                self.assertTupleEqual(data1_precached["label"].shape, expected_shape)
+                self.assertTupleEqual(data1_precached[CommonKeys.IMAGE].shape, expected_shape)
+                self.assertTupleEqual(data1_precached[CommonKeys.LABEL].shape, expected_shape)
                 self.assertTupleEqual(data1_precached["extra"].shape, expected_shape)
-                self.assertTupleEqual(data2_precached["image"].shape, expected_shape)
-                self.assertTupleEqual(data2_precached["label"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached[CommonKeys.IMAGE].shape, expected_shape)
+                self.assertTupleEqual(data2_precached[CommonKeys.LABEL].shape, expected_shape)
                 self.assertTupleEqual(data2_precached["extra"].shape, expected_shape)
 
-                self.assertTupleEqual(data1_postcached["image"].shape, expected_shape)
-                self.assertTupleEqual(data1_postcached["label"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached[CommonKeys.IMAGE].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached[CommonKeys.LABEL].shape, expected_shape)
                 self.assertTupleEqual(data1_postcached["extra"].shape, expected_shape)
-                self.assertTupleEqual(data2_postcached["image"].shape, expected_shape)
-                self.assertTupleEqual(data2_postcached["label"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached[CommonKeys.IMAGE].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached[CommonKeys.LABEL].shape, expected_shape)
                 self.assertTupleEqual(data2_postcached["extra"].shape, expected_shape)
                 for d in data3_postcached:
-                    self.assertTupleEqual(d["image"].shape, expected_shape)
+                    self.assertTupleEqual(d[CommonKeys.IMAGE].shape, expected_shape)
 
             # update the data to cache
             test_data_new = [
                 {
-                    "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image1_new.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label1_new.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
                 },
                 {
-                    "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image2_new.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label2_new.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
                 },
             ]
             dataset_postcached.set_data(data=test_data_new)
             # test new exchanged cache content
             if transform is None:
-                self.assertEqual(dataset_postcached[0]["image"], os.path.join(tempdir, "test_image1_new.nii.gz"))
-                self.assertEqual(dataset_postcached[0]["label"], os.path.join(tempdir, "test_label1_new.nii.gz"))
+                self.assertEqual(
+                    dataset_postcached[0][CommonKeys.IMAGE], os.path.join(tempdir, "test_image1_new.nii.gz")
+                )
+                self.assertEqual(
+                    dataset_postcached[0][CommonKeys.LABEL], os.path.join(tempdir, "test_label1_new.nii.gz")
+                )
                 self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
 
 

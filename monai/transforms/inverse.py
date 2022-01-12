@@ -26,8 +26,8 @@ class TraceableTransform(Transform):
 
     The ``__call__`` method of this transform class must be implemented so
     that the transformation information for each key is stored when
-    ``__call__`` is called. If the transforms were applied to keys "image" and
-    "label", there will be two extra keys in the dictionary: "image_transforms"
+    ``__call__`` is called. If the transforms were applied to keys CommonKeys.IMAGE and
+    CommonKeys.LABEL, there will be two extra keys in the dictionary: "image_transforms"
     and "label_transforms" (based on `TraceKeys.KEY_SUFFIX`). Each list
     contains a list of the transforms applied to that key.
 

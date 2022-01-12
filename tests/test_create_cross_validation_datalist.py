@@ -26,7 +26,7 @@ class TestCreateCrossValidationDatalist(unittest.TestCase):
                 label = os.path.join(tempdir, f"test_label{i}.nii.gz")
                 Path(image).touch()
                 Path(label).touch()
-                datalist.append({"image": image, "label": label})
+                datalist.append({CommonKeys.IMAGE: image, CommonKeys.LABEL: label})
 
             filename = os.path.join(tempdir, "test_datalist.json")
             result = create_cross_validation_datalist(
@@ -40,7 +40,7 @@ class TestCreateCrossValidationDatalist(unittest.TestCase):
                 shuffle=True,
                 seed=123,
                 check_missing=True,
-                keys=["image", "label"],
+                keys=[CommonKeys.IMAGE, CommonKeys.LABEL],
                 root_dir=None,
                 allow_missing_keys=False,
                 raise_error=True,
@@ -48,8 +48,8 @@ class TestCreateCrossValidationDatalist(unittest.TestCase):
 
             loaded = load_decathlon_datalist(filename, data_list_key="test_train")
             for r, l in zip(result["test_train"], loaded):
-                self.assertEqual(r["image"], l["image"])
-                self.assertEqual(r["label"], l["label"])
+                self.assertEqual(r[CommonKeys.IMAGE], l[CommonKeys.IMAGE])
+                self.assertEqual(r[CommonKeys.LABEL], l[CommonKeys.LABEL])
 
 
 if __name__ == "__main__":

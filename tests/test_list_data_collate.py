@@ -16,11 +16,12 @@ import torch
 from parameterized import parameterized
 
 from monai.data import list_data_collate
+from monai.utils.enums import CommonKeys
 
-a = {"image": np.array([1, 2, 3]), "label": np.array([4, 5, 6])}
-b = {"image": np.array([7, 8, 9]), "label": np.array([10, 11, 12])}
-c = {"image": np.array([13, 14, 15]), "label": np.array([16, 7, 18])}
-d = {"image": np.array([19, 20, 21]), "label": np.array([22, 23, 24])}
+a = {CommonKeys.IMAGE: np.array([1, 2, 3]), CommonKeys.LABEL: np.array([4, 5, 6])}
+b = {CommonKeys.IMAGE: np.array([7, 8, 9]), CommonKeys.LABEL: np.array([10, 11, 12])}
+c = {CommonKeys.IMAGE: np.array([13, 14, 15]), CommonKeys.LABEL: np.array([16, 7, 18])}
+d = {CommonKeys.IMAGE: np.array([19, 20, 21]), CommonKeys.LABEL: np.array([22, 23, 24])}
 TEST_CASE_1 = [[[a, b], [c, d]], dict, torch.Size([4, 3])]  # dataset returns a list of dictionary data
 
 e = (np.array([1, 2, 3]), np.array([4, 5, 6]))
@@ -36,7 +37,7 @@ class TestListDataCollate(unittest.TestCase):
         result = list_data_collate(input_data)
         self.assertIsInstance(result, expected_type)
         if isinstance(result, dict):
-            data = result["image"]
+            data = result[CommonKeys.IMAGE]
         else:
             data = result[0]
         self.assertEqual(data.shape, expected_shape)

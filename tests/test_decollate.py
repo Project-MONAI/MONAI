@@ -38,12 +38,12 @@ from monai.transforms import (
 from monai.transforms.inverse_batch_transform import Decollated
 from monai.transforms.spatial.dictionary import RandAffined, RandRotate90d
 from monai.utils import optional_import, set_determinism
-from monai.utils.enums import TraceKeys
+from monai.utils.enums import CommonKeys, DictPostFixes, TraceKeys
 from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
 
-KEYS = ["image"]
+KEYS = [CommonKeys.IMAGE]
 
 TESTS_DICT: List[Tuple] = []
 TESTS_DICT.append((SpatialPadd(KEYS, 150), RandFlipd(KEYS, prob=1.0, spatial_axis=1)))
@@ -92,7 +92,7 @@ class TestDeCollate(unittest.TestCase):
         set_determinism(seed=0)
 
         im = create_test_image_2d(100, 101)[0]
-        self.data_dict = [{"image": make_nifti_image(im) if has_nib else im} for _ in range(6)]
+        self.data_dict = [{CommonKeys.IMAGE: make_nifti_image(im) if has_nib else im} for _ in range(6)]
         self.data_list = [make_nifti_image(im) if has_nib else im for _ in range(6)]
 
     def tearDown(self) -> None:
@@ -138,7 +138,7 @@ class TestDeCollate(unittest.TestCase):
         t_compose = Compose([AddChanneld(KEYS), Compose(transforms), ToTensord(KEYS)])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = Compose([LoadImaged("image"), t_compose])
+            t_compose = Compose([LoadImaged(CommonKeys.IMAGE), t_compose])
 
         dataset = CacheDataset(self.data_dict, t_compose, progress=False)
         self.check_decollate(dataset=dataset)
@@ -171,10 +171,13 @@ class TestBasicDeCollate(unittest.TestCase):
         self.assertListEqual(expected_out, out)
 
     def test_dict_examples(self):
-        test_case = {"meta": {"out": ["test", "test"]}, "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))}}
+        test_case = {
+            "meta": {"out": ["test", "test"]},
+            f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"scl_slope": torch.Tensor((0.0, 0.0))},
+        }
         out = decollate_batch(test_case)
         self.assertEqual(out[0]["meta"]["out"], "test")
-        self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
+        self.assertEqual(out[0][f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["scl_slope"], 0.0)
 
         test_case = [torch.ones((2, 1, 10, 10)), torch.ones((2, 3, 5, 5))]
         out = decollate_batch(test_case)
@@ -200,8 +203,8 @@ class TestBasicDeCollate(unittest.TestCase):
         self.assertListEqual(test_case, out)
 
         test_case = {
-            "image": torch.tensor([[[1, 2]], [[3, 4]]]),
-            "label": torch.tensor([[[5, 6]], [[7, 8]]]),
+            CommonKeys.IMAGE: torch.tensor([[[1, 2]], [[3, 4]]]),
+            CommonKeys.LABEL: torch.tensor([[[5, 6]], [[7, 8]]]),
             "pred": torch.tensor([[[9, 10]], [[11, 12]]]),
             "out": ["test"],
         }
@@ -209,8 +212,8 @@ class TestBasicDeCollate(unittest.TestCase):
         self.assertEqual(out[0]["out"], "test")
 
         test_case = {
-            "image": torch.tensor([[[1, 2, 3]], [[3, 4, 5]]]),
-            "label": torch.tensor([[[5]], [[7]]]),
+            CommonKeys.IMAGE: torch.tensor([[[1, 2, 3]], [[3, 4, 5]]]),
+            CommonKeys.LABEL: torch.tensor([[[5]], [[7]]]),
             "out": ["test"],
         }
         out = decollate_batch(test_case, detach=False, pad=False)
@@ -220,24 +223,24 @@ class TestBasicDeCollate(unittest.TestCase):
 
     def test_decollated(self):
         test_case = {
-            "image": torch.tensor([[[1, 2]], [[3, 4]]]),
+            CommonKeys.IMAGE: torch.tensor([[[1, 2]], [[3, 4]]]),
             "meta": {"out": ["test", "test"]},
-            "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))},
+            f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"scl_slope": torch.Tensor((0.0, 0.0))},
             "loss": 0.85,
         }
-        transform = Decollated(keys=["meta", "image_meta_dict"], detach=False)
+        transform = Decollated(keys=["meta", f"{CommonKeys.IMAGE}_{DictPostFixes.META}"], detach=False)
         out = transform(test_case)
         self.assertFalse("loss" in out)
         self.assertEqual(out[0]["meta"]["out"], "test")
-        self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
-        self.assertTrue(isinstance(out[0]["image_meta_dict"]["scl_slope"], torch.Tensor))
+        self.assertEqual(out[0][f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["scl_slope"], 0.0)
+        self.assertTrue(isinstance(out[0][f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["scl_slope"], torch.Tensor))
         # decollate all data with keys=None
         transform = Decollated(keys=None, detach=True)
         out = transform(test_case)
         self.assertEqual(out[1]["loss"], 0.85)
         self.assertEqual(out[0]["meta"]["out"], "test")
-        self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
-        self.assertTrue(isinstance(out[0]["image_meta_dict"]["scl_slope"], float))
+        self.assertEqual(out[0][f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["scl_slope"], 0.0)
+        self.assertTrue(isinstance(out[0][f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["scl_slope"], float))
 
         # test list input
         test_case = [

@@ -17,6 +17,7 @@ import torch
 from monai.config import NdarrayTensor
 from monai.transforms import rescale_array
 from monai.utils import convert_data_type, optional_import
+from monai.utils.enums import CommonKeys
 
 PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")

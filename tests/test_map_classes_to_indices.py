@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import map_classes_to_indices
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
@@ -23,9 +24,9 @@ for p in TEST_NDARRAYS:
         [
             # test Argmax data
             {
-                "label": p(np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])),
+                CommonKeys.LABEL: p(np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])),
                 "num_classes": 3,
-                "image": None,
+                CommonKeys.IMAGE: None,
                 "image_threshold": 0.0,
             },
             [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
@@ -35,9 +36,9 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {
-                "label": p(np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])),
+                CommonKeys.LABEL: p(np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])),
                 "num_classes": 3,
-                "image": p(np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]])),
+                CommonKeys.IMAGE: p(np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]])),
                 "image_threshold": 60,
             },
             [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
@@ -48,7 +49,7 @@ for p in TEST_NDARRAYS:
         [
             # test One-Hot data
             {
-                "label": p(
+                CommonKeys.LABEL: p(
                     np.array(
                         [
                             [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
@@ -57,7 +58,7 @@ for p in TEST_NDARRAYS:
                         ]
                     )
                 ),
-                "image": None,
+                CommonKeys.IMAGE: None,
                 "image_threshold": 0.0,
             },
             [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
@@ -67,7 +68,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {
-                "label": p(
+                CommonKeys.LABEL: p(
                     np.array(
                         [
                             [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
@@ -77,7 +78,7 @@ for p in TEST_NDARRAYS:
                     )
                 ),
                 "num_classes": None,
-                "image": p(np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]])),
+                CommonKeys.IMAGE: p(np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]])),
                 "image_threshold": 60,
             },
             [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
@@ -88,9 +89,9 @@ for p in TEST_NDARRAYS:
         [
             # test empty class
             {
-                "label": p(np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])),
+                CommonKeys.LABEL: p(np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])),
                 "num_classes": 5,
-                "image": None,
+                CommonKeys.IMAGE: None,
                 "image_threshold": 0.0,
             },
             [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7]), np.array([]), np.array([])],
@@ -101,7 +102,7 @@ for p in TEST_NDARRAYS:
         [
             # test empty class
             {
-                "label": p(
+                CommonKeys.LABEL: p(
                     np.array(
                         [
                             [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
@@ -112,7 +113,7 @@ for p in TEST_NDARRAYS:
                         ]
                     )
                 ),
-                "image": None,
+                CommonKeys.IMAGE: None,
                 "image_threshold": 0.0,
             },
             [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7]), np.array([]), np.array([])],

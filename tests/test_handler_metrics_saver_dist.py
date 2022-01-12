@@ -21,6 +21,7 @@ from ignite.engine import Engine, Events
 
 from monai.handlers import MetricsSaver
 from monai.utils import evenly_divisible_all_gather
+from monai.utils.enums import CommonKeys, DictPostFixes
 from tests.utils import DistCall, DistTestCase
 
 
@@ -37,7 +38,7 @@ class DistributedMetricsSaver(DistTestCase):
             save_dir=tempdir,
             metrics=["metric1", "metric2"],
             metric_details=["metric3", "metric4"],
-            batch_transform=lambda x: x["image_meta_dict"],
+            batch_transform=lambda x: x[f"{CommonKeys.LABEL}_{DictPostFixes.META}"],
             summary_ops="*",
         )
 
@@ -47,7 +48,7 @@ class DistributedMetricsSaver(DistTestCase):
         engine = Engine(_val_func)
 
         if dist.get_rank() == 0:
-            data = [{"image_meta_dict": {"filename_or_obj": [fnames[0]]}}]
+            data = [{f"{CommonKeys.LABEL}_{DictPostFixes.META}": {"filename_or_obj": [fnames[0]]}}]
 
             @engine.on(Events.EPOCH_COMPLETED)
             def _save_metrics0(engine):
@@ -57,8 +58,8 @@ class DistributedMetricsSaver(DistTestCase):
         if dist.get_rank() == 1:
             # different ranks have different data length
             data = [
-                {"image_meta_dict": {"filename_or_obj": [fnames[1]]}},
-                {"image_meta_dict": {"filename_or_obj": [fnames[2]]}},
+                {f"{CommonKeys.LABEL}_{DictPostFixes.META}": {"filename_or_obj": [fnames[1]]}},
+                {f"{CommonKeys.LABEL}_{DictPostFixes.META}": {"filename_or_obj": [fnames[2]]}},
             ]
 
             @engine.on(Events.EPOCH_COMPLETED)

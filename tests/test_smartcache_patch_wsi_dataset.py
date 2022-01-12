@@ -19,6 +19,7 @@ from parameterized import parameterized
 
 from monai.apps.pathology.data import SmartCachePatchWSIDataset
 from monai.utils import optional_import
+from monai.utils.enums import CommonKeys
 from tests.utils import download_url_or_skip_test
 
 _cucim, has_cim = optional_import("cucim")
@@ -31,10 +32,10 @@ FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + ba
 TEST_CASE_0 = [
     {
         "data": [
-            {"image": FILE_PATH, "location": [0, 0], "label": [0]},
-            {"image": FILE_PATH, "location": [0, 0], "label": [1]},
-            {"image": FILE_PATH, "location": [0, 0], "label": [2]},
-            {"image": FILE_PATH, "location": [0, 0], "label": [3]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [0, 0], CommonKeys.LABEL: [0]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [0, 0], CommonKeys.LABEL: [1]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [0, 0], CommonKeys.LABEL: [2]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [0, 0], CommonKeys.LABEL: [3]},
         ],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
@@ -48,23 +49,23 @@ TEST_CASE_0 = [
         "copy_cache": False,
     },
     [
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[3]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[3]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[3]]])},
+        {CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[3]]])},
+        {CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
     ],
 ]
 
 TEST_CASE_1 = [
     {
         "data": [
-            {"image": FILE_PATH, "location": [0, 0], "label": [[0, 0]]},
-            {"image": FILE_PATH, "location": [0, 0], "label": [[1, 1]]},
-            {"image": FILE_PATH, "location": [0, 0], "label": [[2, 2]]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [0, 0], CommonKeys.LABEL: [[0, 0]]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [0, 0], CommonKeys.LABEL: [[1, 1]]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [0, 0], CommonKeys.LABEL: [[2, 2]]},
         ],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
@@ -77,21 +78,39 @@ TEST_CASE_1 = [
         "num_replace_workers": 1,
     },
     [
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 0]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1, 1]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1, 1]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[2, 2]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[2, 2]]])},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 0]]])},
+        {
+            CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8),
+            CommonKeys.LABEL: np.array([[[0, 0]]]),
+        },
+        {
+            CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8),
+            CommonKeys.LABEL: np.array([[[1, 1]]]),
+        },
+        {
+            CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8),
+            CommonKeys.LABEL: np.array([[[1, 1]]]),
+        },
+        {
+            CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8),
+            CommonKeys.LABEL: np.array([[[2, 2]]]),
+        },
+        {
+            CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8),
+            CommonKeys.LABEL: np.array([[[2, 2]]]),
+        },
+        {
+            CommonKeys.IMAGE: np.array([[[239]], [[239]], [[239]]], dtype=np.uint8),
+            CommonKeys.LABEL: np.array([[[0, 0]]]),
+        },
     ],
 ]
 
 TEST_CASE_2 = [
     {
         "data": [
-            {"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 0]},
-            {"image": FILE_PATH, "location": [10004, 20004], "label": [1, 1, 1, 1]},
-            {"image": FILE_PATH, "location": [10004, 20004], "label": [2, 2, 2, 2]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [10004, 20004], CommonKeys.LABEL: [0, 0, 0, 0]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [10004, 20004], CommonKeys.LABEL: [1, 1, 1, 1]},
+            {CommonKeys.IMAGE: FILE_PATH, "location": [10004, 20004], CommonKeys.LABEL: [2, 2, 2, 2]},
         ],
         "region_size": (8, 8),
         "grid_shape": (2, 2),
@@ -104,30 +123,30 @@ TEST_CASE_2 = [
         "num_replace_workers": 1,
     },
     [
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[2]]])},
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[1]]])},
+        {CommonKeys.IMAGE: np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[2]]])},
+        {CommonKeys.IMAGE: np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
+        {CommonKeys.IMAGE: np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), CommonKeys.LABEL: np.array([[[0]]])},
     ],
 ]
 
@@ -159,10 +178,10 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
 
     def assert_samples_expected(self, samples, expected):
         for i in range(len(samples)):
-            self.assertTupleEqual(samples[i]["label"].shape, expected[i]["label"].shape)
-            self.assertTupleEqual(samples[i]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(samples[i]["label"], expected[i]["label"]))
-            self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
+            self.assertTupleEqual(samples[i][CommonKeys.LABEL].shape, expected[i][CommonKeys.LABEL].shape)
+            self.assertTupleEqual(samples[i][CommonKeys.IMAGE].shape, expected[i][CommonKeys.IMAGE].shape)
+            self.assertIsNone(assert_array_equal(samples[i][CommonKeys.LABEL], expected[i][CommonKeys.LABEL]))
+            self.assertIsNone(assert_array_equal(samples[i][CommonKeys.IMAGE], expected[i][CommonKeys.IMAGE]))
 
 
 if __name__ == "__main__":

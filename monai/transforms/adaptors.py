@@ -46,13 +46,13 @@ identically:
 .. code-block:: python
 
    # single argument
-   adaptor(MyTransform(), 'image')
-   adaptor(MyTransform(), ['image'])
-   adaptor(MyTransform(), {'image': 'image'})
+   adaptor(MyTransform(), CommonKeys.IMAGE)
+   adaptor(MyTransform(), [CommonKeys.IMAGE])
+   adaptor(MyTransform(), {CommonKeys.IMAGE: CommonKeys.IMAGE})
 
    # multiple arguments
-   adaptor(MyTransform(), ['image', 'label'])
-   adaptor(MyTransform(), {'image': 'image', 'label': 'label'})
+   adaptor(MyTransform(), [CommonKeys.IMAGE, CommonKeys.LABEL])
+   adaptor(MyTransform(), {CommonKeys.IMAGE: CommonKeys.IMAGE, CommonKeys.LABEL: CommonKeys.LABEL})
 
 Use of `inputs`
 ---------------
@@ -72,23 +72,23 @@ used to chain transform calls.
     class MyTransform2:
         def __call__(self, img_dict):
             # do stuff to image
-            img_dict["image"] += 1
+            img_dict[CommonKeys.IMAGE] += 1
             return img_dict
 
 
-    xform = Compose([adaptor(MyTransform1(), "image"), MyTransform2()])
-    d = {"image": 1}
+    xform = Compose([adaptor(MyTransform1(), CommonKeys.IMAGE), MyTransform2()])
+    d = {CommonKeys.IMAGE: 1}
     print(xform(d))
 
-    >>> {'image': 3}
+    >>> {CommonKeys.IMAGE: 3}
 
 .. code-block:: python
 
     class MyTransform3:
         def __call__(self, img_dict):
             # do stuff to image
-            img_dict["image"] -= 1
-            img_dict["segment"] = img_dict["image"]
+            img_dict[CommonKeys.IMAGE] -= 1
+            img_dict["segment"] = img_dict[CommonKeys.IMAGE]
             return img_dict
 
 
@@ -100,11 +100,11 @@ used to chain transform calls.
             return img, seg
 
 
-    xform = Compose([MyTransform3(), adaptor(MyTransform4(), ["img", "seg"], {"image": "img", "segment": "seg"})])
-    d = {"image": 1}
+    xform = Compose([MyTransform3(), adaptor(MyTransform4(), ["img", "seg"], {CommonKeys.IMAGE: "img", "segment": "seg"})])
+    d = {CommonKeys.IMAGE: 1}
     print(xform(d))
 
-    >>> {'image': 0, 'segment': 0, 'img': -1, 'seg': -1}
+    >>> {CommonKeys.IMAGE: 0, 'segment': 0, 'img': -1, 'seg': -1}
 
 Inputs:
 

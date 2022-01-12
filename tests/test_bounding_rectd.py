@@ -37,14 +37,14 @@ class TestBoundingRectD(unittest.TestCase):
         test_data = np.random.randint(0, 8, size=input_shape)
         test_data = test_data == 7
         for p in TEST_NDARRAYS:
-            result = BoundingRectD("image")({"image": p(test_data)})
+            result = BoundingRectD(CommonKeys.IMAGE)({CommonKeys.IMAGE: p(test_data)})
             np.testing.assert_allclose(result["image_bbox"], expected)
 
-            result = BoundingRectD("image", "cc")({"image": p(test_data)})
+            result = BoundingRectD(CommonKeys.IMAGE, "cc")({CommonKeys.IMAGE: p(test_data)})
             np.testing.assert_allclose(result["image_cc"], expected)
 
             with self.assertRaises(KeyError):
-                BoundingRectD("image", "cc")({"image": p(test_data), "image_cc": None})
+                BoundingRectD(CommonKeys.IMAGE, "cc")({CommonKeys.IMAGE: p(test_data), "image_cc": None})
 
 
 if __name__ == "__main__":

@@ -20,9 +20,10 @@ from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, PersistentDataset, SmartCacheDataset
 from monai.transforms import Compose, Lambda, LoadImaged, RandLambda, ThreadUnsafe, Transform
+from monai.utils.enums import CommonKeys
 from monai.utils.module import pytorch_after
 
-TEST_CASE_1 = [Compose([LoadImaged(keys=["image", "label", "extra"])]), (128, 128, 128)]
+TEST_CASE_1 = [Compose([LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "extra"])]), (128, 128, 128)]
 
 TEST_CASE_2 = [None, (128, 128, 128)]
 
@@ -50,13 +51,13 @@ class TestCacheDataset(unittest.TestCase):
             nib.save(test_image, os.path.join(tempdir, "test_extra2.nii.gz"))
             test_data = [
                 {
-                    "image": os.path.join(tempdir, "test_image1.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label1.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image1.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label1.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
                 },
                 {
-                    "image": os.path.join(tempdir, "test_image2.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label2.nii.gz"),
+                    CommonKeys.IMAGE: os.path.join(tempdir, "test_image2.nii.gz"),
+                    CommonKeys.LABEL: os.path.join(tempdir, "test_label2.nii.gz"),
                     "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
                 },
             ]
@@ -68,18 +69,18 @@ class TestCacheDataset(unittest.TestCase):
             self.assertEqual(len(data3), 1)
 
         if transform is None:
-            self.assertEqual(data1["image"], os.path.join(tempdir, "test_image1.nii.gz"))
-            self.assertEqual(data2["label"], os.path.join(tempdir, "test_label2.nii.gz"))
-            self.assertEqual(data4["image"], os.path.join(tempdir, "test_image2.nii.gz"))
+            self.assertEqual(data1[CommonKeys.IMAGE], os.path.join(tempdir, "test_image1.nii.gz"))
+            self.assertEqual(data2[CommonKeys.LABEL], os.path.join(tempdir, "test_label2.nii.gz"))
+            self.assertEqual(data4[CommonKeys.IMAGE], os.path.join(tempdir, "test_image2.nii.gz"))
         else:
-            self.assertTupleEqual(data1["image"].shape, expected_shape)
-            self.assertTupleEqual(data1["label"].shape, expected_shape)
+            self.assertTupleEqual(data1[CommonKeys.IMAGE].shape, expected_shape)
+            self.assertTupleEqual(data1[CommonKeys.LABEL].shape, expected_shape)
             self.assertTupleEqual(data1["extra"].shape, expected_shape)
-            self.assertTupleEqual(data2["image"].shape, expected_shape)
-            self.assertTupleEqual(data2["label"].shape, expected_shape)
+            self.assertTupleEqual(data2[CommonKeys.IMAGE].shape, expected_shape)
+            self.assertTupleEqual(data2[CommonKeys.LABEL].shape, expected_shape)
             self.assertTupleEqual(data2["extra"].shape, expected_shape)
             for d in data3:
-                self.assertTupleEqual(d["image"].shape, expected_shape)
+                self.assertTupleEqual(d[CommonKeys.IMAGE].shape, expected_shape)
 
     def test_set_data(self):
         data_list1 = list(range(10))

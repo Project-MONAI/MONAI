@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms import ToPILd
 from monai.utils import optional_import
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 if TYPE_CHECKING:
@@ -30,9 +31,9 @@ else:
     PILImageImage, _ = optional_import("PIL.Image", name="Image")
 
 im = [[1.0, 2.0], [3.0, 4.0]]
-TESTS = [[{"keys": "image"}, {"image": p(im)}] for p in TEST_NDARRAYS]
+TESTS = [[{"keys": CommonKeys.IMAGE}, {CommonKeys.IMAGE: p(im)}] for p in TEST_NDARRAYS]
 if has_pil:
-    TESTS.append([{"keys": "image"}, {"image": pil_image_fromarray(np.array(im))}])
+    TESTS.append([{"keys": CommonKeys.IMAGE}, {CommonKeys.IMAGE: pil_image_fromarray(np.array(im))}])
 
 
 class TestToPIL(unittest.TestCase):

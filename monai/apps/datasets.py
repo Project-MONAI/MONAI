@@ -26,6 +26,7 @@ from monai.data import (
 )
 from monai.transforms import LoadImaged, Randomizable
 from monai.utils import ensure_tuple
+from monai.utils.enums import CommonKeys
 
 __all__ = ["MedNISTDataset", "DecathlonDataset", "CrossValidation"]
 
@@ -113,7 +114,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             )
         data = self._generate_data_list(dataset_dir)
         if transform == ():
-            transform = LoadImaged("image")
+            transform = LoadImaged(CommonKeys.IMAGE)
         CacheDataset.__init__(
             self,
             data=data,
@@ -170,7 +171,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             )
         # the types of label and class name should be compatible with the pytorch dataloader
         return [
-            {"image": image_files_list[i], "label": image_class[i], "class_name": class_name[i]}
+            {CommonKeys.IMAGE: image_files_list[i], CommonKeys.LABEL: image_class[i], "class_name": class_name[i]}
             for i in section_indices
         ]
 
@@ -223,10 +224,10 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
         transform = Compose(
             [
-                LoadImaged(keys=["image", "label"]),
-                AddChanneld(keys=["image", "label"]),
-                ScaleIntensityd(keys="image"),
-                ToTensord(keys=["image", "label"]),
+                LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+                AddChanneld(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+                ScaleIntensityd(keys=CommonKeys.IMAGE),
+                ToTensord(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
             ]
         )
 
@@ -234,7 +235,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             root_dir="./", task="Task09_Spleen", transform=transform, section="validation", seed=12345, download=True
         )
 
-        print(val_data[0]["image"], val_data[0]["label"])
+        print(val_data[0][CommonKeys.IMAGE], val_data[0][CommonKeys.LABEL])
 
     """
 
@@ -319,7 +320,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         ]
         self._properties = load_decathlon_properties(dataset_dir / "dataset.json", property_keys)
         if transform == ():
-            transform = LoadImaged(["image", "label"])
+            transform = LoadImaged([CommonKeys.IMAGE, CommonKeys.LABEL])
         CacheDataset.__init__(
             self,
             data=data,

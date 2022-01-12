@@ -343,15 +343,15 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     .. code-block:: python
 
         batch_data = {
-            "image": torch.rand((2,1,10,10)),
-            "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
+            CommonKeys.IMAGE: torch.rand((2,1,10,10)),
+            f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"scl_slope": torch.Tensor([0.0, 0.0])}
         }
         out = decollate_batch(batch_data)
         print(len(out))
         >>> 2
 
         print(out[0])
-        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
+        >>> {CommonKeys.IMAGE: tensor([[[4.3549e-01...43e-01]]]), f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {'scl_slope': 0.0}}
 
         batch_data = [torch.rand((2,1,10,10)), torch.rand((2,3,5,5))]
         out = decollate_batch(batch_data)
@@ -364,14 +364,14 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         >>> tensor([[[4.3549e-01...43e-01]]])
 
         batch_data = {
-            "image": [1, 2, 3], "meta": [4, 5],  # undetermined batch size
+            CommonKeys.IMAGE: [1, 2, 3], "meta": [4, 5],  # undetermined batch size
         }
         out = decollate_batch(batch_data, pad=True, fill_value=0)
         print(out)
-        >>> [{'image': 1, 'meta': 4}, {'image': 2, 'meta': 5}, {'image': 3, 'meta': 0}]
+        >>> [{CommonKeys.IMAGE: 1, 'meta': 4}, {CommonKeys.IMAGE: 2, 'meta': 5}, {CommonKeys.IMAGE: 3, 'meta': 0}]
         out = decollate_batch(batch_data, pad=False)
         print(out)
-        >>> [{'image': 1, 'meta': 4}, {'image': 2, 'meta': 5}]
+        >>> [{CommonKeys.IMAGE: 1, 'meta': 4}, {CommonKeys.IMAGE: 2, 'meta': 5}]
 
     Args:
         batch: data to be de-collated.
@@ -396,7 +396,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         return list(out_list)
 
     b, non_iterable, deco = _non_zipping_check(batch, detach, pad, fill_value)
-    if b <= 0:  # all non-iterable, single item "batch"? {"image": 1, "label": 1}
+    if b <= 0:  # all non-iterable, single item "batch"? {CommonKeys.IMAGE: 1, CommonKeys.LABEL: 1}
         return deco
     if pad:  # duplicate non-iterable items to the longest batch
         for k in non_iterable:
@@ -1104,7 +1104,7 @@ def convert_tables_to_dicts(
 
                 col_types = {
                     "subject_id": {"type": str},
-                    "label": {"type": int, "default": 0},
+                    CommonKeys.LABEL: {"type": int, "default": 0},
                     "ehr_0": {"type": float, "default": 0.0},
                     "ehr_1": {"type": float, "default": 0.0},
                 }

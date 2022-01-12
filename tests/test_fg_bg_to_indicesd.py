@@ -14,6 +14,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import FgBgToIndicesd
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES = []
@@ -21,8 +22,8 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"keys": "label", "image_key": None, "image_threshold": 0.0, "output_shape": None},
-            {"label": p([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])},
+            {"keys": CommonKeys.LABEL, "image_key": None, "image_threshold": 0.0, "output_shape": None},
+            {CommonKeys.LABEL: p([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])},
             p([1, 2, 3, 5, 6, 7]),
             p([0, 4, 8]),
         ]
@@ -30,8 +31,11 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"keys": "label", "image_key": "image", "image_threshold": 0.0, "output_shape": None},
-            {"label": p([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]), "image": p([[[1, 1, 1], [1, 0, 1], [1, 1, 1]]])},
+            {"keys": CommonKeys.LABEL, "image_key": CommonKeys.IMAGE, "image_threshold": 0.0, "output_shape": None},
+            {
+                CommonKeys.LABEL: p([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]),
+                CommonKeys.IMAGE: p([[[1, 1, 1], [1, 0, 1], [1, 1, 1]]]),
+            },
             p([1, 2, 3, 5, 6, 7]),
             p([0, 8]),
         ]
@@ -39,8 +43,11 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"keys": "label", "image_key": "image", "image_threshold": 1.0, "output_shape": None},
-            {"label": p([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]), "image": p([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]])},
+            {"keys": CommonKeys.LABEL, "image_key": CommonKeys.IMAGE, "image_threshold": 1.0, "output_shape": None},
+            {
+                CommonKeys.LABEL: p([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]]),
+                CommonKeys.IMAGE: p([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),
+            },
             p([1, 2, 3, 5, 6, 7]),
             p([0, 8]),
         ]
@@ -48,8 +55,11 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"keys": "label", "image_key": "image", "image_threshold": 1.0, "output_shape": None},
-            {"label": p([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]), "image": p([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]])},
+            {"keys": CommonKeys.LABEL, "image_key": CommonKeys.IMAGE, "image_threshold": 1.0, "output_shape": None},
+            {
+                CommonKeys.LABEL: p([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]),
+                CommonKeys.IMAGE: p([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),
+            },
             p([1, 2, 3, 5, 6, 7]),
             p([0, 8]),
         ]
@@ -57,8 +67,11 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"keys": "label", "image_key": "image", "image_threshold": 1.0, "output_shape": [3, 3]},
-            {"label": p([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]), "image": p([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]])},
+            {"keys": CommonKeys.LABEL, "image_key": CommonKeys.IMAGE, "image_threshold": 1.0, "output_shape": [3, 3]},
+            {
+                CommonKeys.LABEL: p([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]]),
+                CommonKeys.IMAGE: p([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]]),
+            },
             p([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]]),
             p([[0, 0], [2, 2]]),
         ]

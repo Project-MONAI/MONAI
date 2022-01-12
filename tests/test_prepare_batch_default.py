@@ -27,8 +27,8 @@ class TestPrepareBatchDefault(unittest.TestCase):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         dataloader = [
             {
-                "image": torch.tensor([1, 2]),
-                "label": torch.tensor([3, 4]),
+                CommonKeys.IMAGE: torch.tensor([1, 2]),
+                CommonKeys.LABEL: torch.tensor([3, 4]),
                 "extra1": torch.tensor([5, 6]),
                 "extra2": 16,
                 "extra3": "test",
@@ -46,8 +46,8 @@ class TestPrepareBatchDefault(unittest.TestCase):
         )
         evaluator.run()
         output = evaluator.state.output
-        assert_allclose(output["image"], torch.tensor([1, 2], device=device))
-        assert_allclose(output["label"], torch.tensor([3, 4], device=device))
+        assert_allclose(output[CommonKeys.IMAGE], torch.tensor([1, 2], device=device))
+        assert_allclose(output[CommonKeys.LABEL], torch.tensor([3, 4], device=device))
 
 
 if __name__ == "__main__":

@@ -37,9 +37,10 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
+from monai.utils.enums import CommonKeys
 from tests.utils import make_nifti_image
 
-KEYS = ["image", "label"]
+KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
 
 
 class TestInvertd(unittest.TestCase):
@@ -52,7 +53,7 @@ class TestInvertd(unittest.TestCase):
                 AddChanneld(KEYS),
                 Orientationd(KEYS, "RPS"),
                 Spacingd(KEYS, pixdim=(1.2, 1.01, 0.9), mode=["bilinear", "nearest"], dtype=np.float32),
-                ScaleIntensityd("image", minv=1, maxv=10),
+                ScaleIntensityd(CommonKeys.IMAGE, minv=1, maxv=10),
                 RandFlipd(KEYS, prob=0.5, spatial_axis=[1, 2]),
                 RandAxisFlipd(KEYS, prob=0.5),
                 RandRotate90d(KEYS, spatial_axes=(1, 2)),
@@ -61,16 +62,16 @@ class TestInvertd(unittest.TestCase):
                 RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
                 # test EnsureTensor for complicated dict data and invert it
-                CopyItemsd("image_meta_dict", times=1, names="test_dict"),
+                CopyItemsd(f"{CommonKeys.IMAGE}_{DictPostFixes.META}", times=1, names="test_dict"),
                 # test to support Tensor, Numpy array and dictionary when inverting
-                EnsureTyped(keys=["image", "test_dict"]),
-                ToTensord("image"),
+                EnsureTyped(keys=[CommonKeys.IMAGE, "test_dict"]),
+                ToTensord(CommonKeys.IMAGE),
                 CastToTyped(KEYS, dtype=[torch.uint8, np.uint8]),
-                CopyItemsd("label", times=2, names=["label_inverted", "label_inverted1"]),
-                CopyItemsd("image", times=2, names=["image_inverted", "image_inverted1"]),
+                CopyItemsd(CommonKeys.LABEL, times=2, names=["label_inverted", "label_inverted1"]),
+                CopyItemsd(CommonKeys.IMAGE, times=2, names=["image_inverted", "image_inverted1"]),
             ]
         )
-        data = [{"image": im_fname, "label": seg_fname} for _ in range(12)]
+        data = [{CommonKeys.IMAGE: im_fname, CommonKeys.LABEL: seg_fname} for _ in range(12)]
 
         # num workers = 0 for mac or gpu transforms
         num_workers = 0 if sys.platform != "linux" or torch.cuda.is_available() else 2
@@ -81,9 +82,13 @@ class TestInvertd(unittest.TestCase):
             # `image` was not copied, invert the original value directly
             keys=["image_inverted", "label_inverted", "test_dict"],
             transform=transform,
-            orig_keys=["label", "label", "test_dict"],
+            orig_keys=[CommonKeys.LABEL, CommonKeys.LABEL, "test_dict"],
             meta_keys=["image_inverted_meta_dict", "label_inverted_meta_dict", None],
-            orig_meta_keys=["label_meta_dict", "label_meta_dict", None],
+            orig_meta_keys=[
+                f"{CommonKeys.LABEL}_{DictPostFixes.META}",
+                f"{CommonKeys.LABEL}_{DictPostFixes.META}",
+                None,
+            ],
             nearest_interp=True,
             to_tensor=[True, False, False],
             device="cpu",
@@ -93,28 +98,28 @@ class TestInvertd(unittest.TestCase):
             # `image` was not copied, invert the original value directly
             keys=["image_inverted1", "label_inverted1"],
             transform=transform,
-            orig_keys=["image", "image"],
+            orig_keys=[CommonKeys.IMAGE, CommonKeys.IMAGE],
             meta_keys=["image_inverted1_meta_dict", "label_inverted1_meta_dict"],
-            orig_meta_keys=["image_meta_dict", "image_meta_dict"],
+            orig_meta_keys=[f"{CommonKeys.IMAGE}_{DictPostFixes.META}", f"{CommonKeys.IMAGE}_{DictPostFixes.META}"],
             nearest_interp=[True, False],
             to_tensor=[True, True],
             device="cpu",
         )
 
         expected_keys = [
-            "image",
+            CommonKeys.IMAGE,
             "image_inverted",
             "image_inverted1",
             "image_inverted1_meta_dict",
             "image_inverted_meta_dict",
-            "image_meta_dict",
+            f"{CommonKeys.IMAGE}_{DictPostFixes.META}",
             "image_transforms",
-            "label",
+            CommonKeys.LABEL,
             "label_inverted",
             "label_inverted1",
             "label_inverted1_meta_dict",
             "label_inverted_meta_dict",
-            "label_meta_dict",
+            f"{CommonKeys.LABEL}_{DictPostFixes.META}",
             "label_transforms",
             "test_dict",
             "test_dict_transforms",
@@ -127,8 +132,8 @@ class TestInvertd(unittest.TestCase):
                 item = inverter_1(item)
 
                 self.assertListEqual(sorted(item), expected_keys)
-                self.assertTupleEqual(item["image"].shape[1:], (100, 100, 100))
-                self.assertTupleEqual(item["label"].shape[1:], (100, 100, 100))
+                self.assertTupleEqual(item[CommonKeys.IMAGE].shape[1:], (100, 100, 100))
+                self.assertTupleEqual(item[CommonKeys.LABEL].shape[1:], (100, 100, 100))
                 # check the nearest interpolation mode
                 i = item["image_inverted"]
                 torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
@@ -153,10 +158,10 @@ class TestInvertd(unittest.TestCase):
 
         # check labels match
         reverted = item["label_inverted"].detach().cpu().numpy().astype(np.int32)
-        original = LoadImaged(KEYS)(data[-1])["label"]
+        original = LoadImaged(KEYS)(data[-1])[CommonKeys.LABEL]
         n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
         reverted_name = item["label_inverted_meta_dict"]["filename_or_obj"]
-        original_name = data[-1]["label"]
+        original_name = data[-1][CommonKeys.LABEL]
         self.assertEqual(reverted_name, original_name)
         print("invert diff", reverted.size - n_good)
         # 25300: 2 workers (cpu, non-macos)

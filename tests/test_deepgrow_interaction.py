@@ -37,17 +37,20 @@ def add_one(engine):
 
 class TestInteractions(unittest.TestCase):
     def run_interaction(self, train, compose):
-        data = [{"image": np.ones((1, 2, 2, 2)).astype(np.float32), "label": np.ones((1, 2, 2, 2))} for _ in range(5)]
+        data = [
+            {CommonKeys.IMAGE: np.ones((1, 2, 2, 2)).astype(np.float32), CommonKeys.LABEL: np.ones((1, 2, 2, 2))}
+            for _ in range(5)
+        ]
         network = torch.nn.Linear(2, 2)
         lr = 1e-3
         opt = torch.optim.SGD(network.parameters(), lr)
         loss = torch.nn.L1Loss()
         train_transforms = Compose(
             [
-                FindAllValidSlicesd(label="label", sids="sids"),
-                AddInitialSeedPointd(label="label", guidance="guidance", sids="sids"),
-                AddGuidanceSignald(image="image", guidance="guidance"),
-                ToTensord(keys=("image", "label")),
+                FindAllValidSlicesd(label=CommonKeys.LABEL, sids="sids"),
+                AddInitialSeedPointd(label=CommonKeys.LABEL, guidance="guidance", sids="sids"),
+                AddGuidanceSignald(image=CommonKeys.IMAGE, guidance="guidance"),
+                ToTensord(keys=(CommonKeys.IMAGE, CommonKeys.LABEL)),
             ]
         )
         dataset = Dataset(data, transform=train_transforms)
@@ -55,11 +58,11 @@ class TestInteractions(unittest.TestCase):
 
         iteration_transforms = [
             Activationsd(keys="pred", sigmoid=True),
-            ToNumpyd(keys=["image", "label", "pred"]),
-            FindDiscrepancyRegionsd(label="label", pred="pred", discrepancy="discrepancy"),
+            ToNumpyd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL, "pred"]),
+            FindDiscrepancyRegionsd(label=CommonKeys.LABEL, pred="pred", discrepancy="discrepancy"),
             AddRandomGuidanced(guidance="guidance", discrepancy="discrepancy", probability="probability"),
-            AddGuidanceSignald(image="image", guidance="guidance"),
-            ToTensord(keys=("image", "label")),
+            AddGuidanceSignald(image=CommonKeys.IMAGE, guidance="guidance"),
+            ToTensord(keys=(CommonKeys.IMAGE, CommonKeys.LABEL)),
         ]
         iteration_transforms = Compose(iteration_transforms) if compose else iteration_transforms
 

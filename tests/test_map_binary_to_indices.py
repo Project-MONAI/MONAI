@@ -15,13 +15,18 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import map_binary_to_indices
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
     TESTS.append(
         [
-            {"label": p(np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])), "image": None, "image_threshold": 0.0},
+            {
+                CommonKeys.LABEL: p(np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])),
+                CommonKeys.IMAGE: None,
+                "image_threshold": 0.0,
+            },
             np.array([1, 2, 3, 5, 6, 7]),
             np.array([0, 4, 8]),
         ]
@@ -29,8 +34,8 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {
-                "label": p(np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])),
-                "image": p(np.array([[[1, 1, 1], [1, 0, 1], [1, 1, 1]]])),
+                CommonKeys.LABEL: p(np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])),
+                CommonKeys.IMAGE: p(np.array([[[1, 1, 1], [1, 0, 1], [1, 1, 1]]])),
                 "image_threshold": 0.0,
             },
             np.array([1, 2, 3, 5, 6, 7]),
@@ -40,8 +45,8 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {
-                "label": p(np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])),
-                "image": p(np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]])),
+                CommonKeys.LABEL: p(np.array([[[0, 1, 1], [1, 0, 1], [1, 1, 0]]])),
+                CommonKeys.IMAGE: p(np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]])),
                 "image_threshold": 1.0,
             },
             np.array([1, 2, 3, 5, 6, 7]),
@@ -51,8 +56,8 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {
-                "label": p(np.array([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]])),
-                "image": p(np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]])),
+                CommonKeys.LABEL: p(np.array([[[0, 1, 2], [3, 0, 4], [5, 6, 0]]])),
+                CommonKeys.IMAGE: p(np.array([[[3, 3, 3], [3, 1, 3], [3, 3, 3]]])),
                 "image_threshold": 1.0,
             },
             np.array([1, 2, 3, 5, 6, 7]),

@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Sequence, Union, overload
 from monai.config import KeysCollection, PathLike
 from monai.data.utils import partition_dataset, select_cross_validation_folds
 from monai.utils import ensure_tuple
+from monai.utils.enums import CommonKeys
 
 
 @overload
@@ -75,7 +76,7 @@ def _append_paths(base_dir: PathLike, is_segmentation: bool, items: List[Dict]) 
         if not isinstance(item, dict):
             raise TypeError(f"Every item in items must be a dict but got {type(item).__name__}.")
         for k, v in item.items():
-            if k == "image" or is_segmentation and k == "label":
+            if k == CommonKeys.IMAGE or is_segmentation and k == CommonKeys.LABEL:
                 item[k] = _compute_path(base_dir, v, check_path=False)
             else:
                 # for other items, auto detect whether it's a valid path
@@ -109,8 +110,8 @@ def load_decathlon_datalist(
     .. code-block::
 
         [
-            {'image': '/workspace/data/chest_19.nii.gz',  'label': 0},
-            {'image': '/workspace/data/chest_31.nii.gz',  'label': 1}
+            {CommonKeys.IMAGE: '/workspace/data/chest_19.nii.gz',  CommonKeys.LABEL: 0},
+            {CommonKeys.IMAGE: '/workspace/data/chest_31.nii.gz',  CommonKeys.LABEL: 1}
         ]
 
     """
@@ -123,7 +124,7 @@ def load_decathlon_datalist(
         raise ValueError(f'Data list {data_list_key} not specified in "{data_list_file_path}".')
     expected_data = json_data[data_list_key]
     if data_list_key == "test":
-        expected_data = [{"image": i} for i in expected_data]
+        expected_data = [{CommonKeys.IMAGE: i} for i in expected_data]
 
     if base_dir is None:
         base_dir = data_list_file_path.parent

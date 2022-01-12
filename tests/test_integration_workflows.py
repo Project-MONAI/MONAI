@@ -54,6 +54,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
+from monai.utils.enums import CommonKeys, DictPostFixes
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
@@ -63,28 +64,33 @@ TASK = "integration_workflows"
 def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
-    train_files = [{"image": img, "label": seg} for img, seg in zip(images[:20], segs[:20])]
-    val_files = [{"image": img, "label": seg} for img, seg in zip(images[-20:], segs[-20:])]
+    train_files = [{CommonKeys.IMAGE: img, CommonKeys.LABEL: seg} for img, seg in zip(images[:20], segs[:20])]
+    val_files = [{CommonKeys.IMAGE: img, CommonKeys.LABEL: seg} for img, seg in zip(images[-20:], segs[-20:])]
 
     # define transforms for image and segmentation
     train_transforms = Compose(
         [
-            LoadImaged(keys=["image", "label"]),
-            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
+            LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+            AsChannelFirstd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], channel_dim=-1),
+            ScaleIntensityd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
             RandCropByPosNegLabeld(
-                keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
+                keys=[CommonKeys.IMAGE, CommonKeys.LABEL],
+                label_key=CommonKeys.LABEL,
+                spatial_size=[96, 96, 96],
+                pos=1,
+                neg=1,
+                num_samples=4,
             ),
-            RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=[0, 2]),
-            ToTensord(keys=["image", "label"]),
+            RandRotate90d(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], prob=0.5, spatial_axes=[0, 2]),
+            ToTensord(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
         ]
     )
     val_transforms = Compose(
         [
-            LoadImaged(keys=["image", "label"]),
-            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
-            ToTensord(keys=["image", "label"]),
+            LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+            AsChannelFirstd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], channel_dim=-1),
+            ScaleIntensityd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+            ToTensord(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
         ]
     )
 
@@ -112,7 +118,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     val_postprocessing = Compose(
         [
-            ToTensord(keys=["pred", "label"]),
+            ToTensord(keys=["pred", CommonKeys.LABEL]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -130,7 +136,9 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         StatsHandler(output_transform=lambda x: None),
         TensorBoardStatsHandler(summary_writer=summary_writer, output_transform=lambda x: None),
         TensorBoardImageHandler(
-            log_dir=root_dir, batch_transform=from_engine(["image", "label"]), output_transform=from_engine("pred")
+            log_dir=root_dir,
+            batch_transform=from_engine([CommonKeys.IMAGE, CommonKeys.LABEL]),
+            output_transform=from_engine("pred"),
         ),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net}, save_key_metric=True),
         _TestEvalIterEvents(),
@@ -143,9 +151,9 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
         postprocessing=val_postprocessing,
         key_val_metric={
-            "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
+            "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", CommonKeys.LABEL]))
         },
-        additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
+        additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", CommonKeys.LABEL]))},
         metric_cmp_fn=lambda cur, prev: cur >= prev,  # if greater or equal, treat as new best metric
         val_handlers=val_handlers,
         amp=True if amp else False,
@@ -153,7 +161,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     train_postprocessing = Compose(
         [
-            ToTensord(keys=["pred", "label"]),
+            ToTensord(keys=["pred", CommonKeys.LABEL]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -199,7 +207,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         loss_function=loss,
         inferer=SimpleInferer(),
         postprocessing=train_postprocessing,
-        key_train_metric={"train_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
+        key_train_metric={"train_acc": Accuracy(output_transform=from_engine(["pred", CommonKeys.LABEL]))},
         train_handlers=train_handlers,
         amp=True if amp else False,
         optim_set_to_none=True,
@@ -212,15 +220,15 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_workers=4):
     images = sorted(glob(os.path.join(root_dir, "im*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
-    val_files = [{"image": img, "label": seg} for img, seg in zip(images, segs)]
+    val_files = [{CommonKeys.IMAGE: img, CommonKeys.LABEL: seg} for img, seg in zip(images, segs)]
 
     # define transforms for image and segmentation
     val_transforms = Compose(
         [
-            LoadImaged(keys=["image", "label"]),
-            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            ScaleIntensityd(keys=["image", "label"]),
-            ToTensord(keys=["image", "label"]),
+            LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+            AsChannelFirstd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], channel_dim=-1),
+            ScaleIntensityd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+            ToTensord(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
         ]
     )
 
@@ -240,12 +248,17 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
 
     val_postprocessing = Compose(
         [
-            ToTensord(keys=["pred", "label"]),
+            ToTensord(keys=["pred", CommonKeys.LABEL]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
-            SaveImaged(keys="pred", meta_keys="image_meta_dict", output_dir=root_dir, output_postfix="seg_transform"),
+            SaveImaged(
+                keys="pred",
+                meta_keys=f"{CommonKeys.IMAGE}_{DictPostFixes.META}",
+                output_dir=root_dir,
+                output_postfix="seg_transform",
+            ),
         ]
     )
     val_handlers = [
@@ -254,7 +267,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         SegmentationSaver(
             output_dir=root_dir,
             output_postfix="seg_handler",
-            batch_transform=from_engine("image_meta_dict"),
+            batch_transform=from_engine(f"{CommonKeys.IMAGE}_{DictPostFixes.META}"),
             output_transform=from_engine("pred"),
         ),
     ]
@@ -266,9 +279,9 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
         postprocessing=val_postprocessing,
         key_val_metric={
-            "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
+            "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", CommonKeys.LABEL]))
         },
-        additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
+        additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", CommonKeys.LABEL]))},
         val_handlers=val_handlers,
         amp=True if amp else False,
     )

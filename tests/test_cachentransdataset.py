@@ -19,13 +19,14 @@ from parameterized import parameterized
 
 from monai.data import CacheNTransDataset
 from monai.transforms import LoadImaged, ShiftIntensityd
+from monai.utils.enums import CommonKeys
 
 TEST_CASE_1 = [
     [
-        LoadImaged(keys="image"),
-        ShiftIntensityd(keys="image", offset=1.0),
-        ShiftIntensityd(keys="image", offset=2.0),
-        ShiftIntensityd(keys="image", offset=3.0),
+        LoadImaged(keys=CommonKeys.IMAGE),
+        ShiftIntensityd(keys=CommonKeys.IMAGE, offset=1.0),
+        ShiftIntensityd(keys=CommonKeys.IMAGE, offset=2.0),
+        ShiftIntensityd(keys=CommonKeys.IMAGE, offset=3.0),
     ],
     (128, 128, 128),
 ]
@@ -38,22 +39,22 @@ class TestCacheNTransDataset(unittest.TestCase):
         test_image = nib.Nifti1Image(data_array, np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
             nib.save(test_image, os.path.join(tempdir, "test_image.nii.gz"))
-            test_data = [{"image": os.path.join(tempdir, "test_image.nii.gz")}]
+            test_data = [{CommonKeys.IMAGE: os.path.join(tempdir, "test_image.nii.gz")}]
 
             cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
             dataset_precached = CacheNTransDataset(
                 data=test_data, transform=transform, cache_dir=cache_dir, cache_n_trans=2
             )
             data_precached = dataset_precached[0]
-            self.assertTupleEqual(data_precached["image"].shape, expected_shape)
+            self.assertTupleEqual(data_precached[CommonKeys.IMAGE].shape, expected_shape)
 
             dataset_postcached = CacheNTransDataset(
                 data=test_data, transform=transform, cache_dir=cache_dir, cache_n_trans=2
             )
             data_postcached = dataset_postcached[0]
-            self.assertTupleEqual(data_postcached["image"].shape, expected_shape)
-            np.testing.assert_allclose(data_array + 6.0, data_postcached["image"])
-            np.testing.assert_allclose(data_precached["image"], data_postcached["image"])
+            self.assertTupleEqual(data_postcached[CommonKeys.IMAGE].shape, expected_shape)
+            np.testing.assert_allclose(data_array + 6.0, data_postcached[CommonKeys.IMAGE])
+            np.testing.assert_allclose(data_precached[CommonKeys.IMAGE], data_postcached[CommonKeys.IMAGE])
 
 
 if __name__ == "__main__":

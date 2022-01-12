@@ -95,8 +95,8 @@ For example:
 ```py
 # define a transform chain for pre-processing
 train_transforms = monai.transforms.Compose([
-    LoadImaged(keys=['image', 'label']),
-    RandRotate90d(keys=['image', 'label'], prob=0.2, spatial_axes=[0, 2]),
+    LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+    RandRotate90d(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], prob=0.2, spatial_axes=[0, 2]),
     ... ...
 ])
 # set determinism for reproducibility

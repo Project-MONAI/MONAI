@@ -21,8 +21,9 @@ from parameterized import parameterized
 
 from monai.data import ITKReader
 from monai.transforms import Compose, EnsureChannelFirstD, LoadImaged, SaveImageD
+from monai.utils.enums import CommonKeys
 
-KEYS = ["image", "label", "extra"]
+KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL, "extra"]
 
 TEST_CASE_1 = [{"keys": KEYS}, (128, 128, 128)]
 

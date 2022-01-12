@@ -60,18 +60,18 @@ INVALID_CASES = [ITEST_CASE_1]
 class TestLabelFilter(unittest.TestCase):
     @parameterized.expand(VALID_TESTS)
     def test_correct_results(self, _, args, input_image, expected):
-        converter = LabelFilterd(keys="image", **args)
-        result = converter({"image": input_image})["image"]
+        converter = LabelFilterd(keys=CommonKeys.IMAGE, **args)
+        result = converter({CommonKeys.IMAGE: input_image})[CommonKeys.IMAGE]
         assert_allclose(result, expected)
 
     @parameterized.expand(INVALID_CASES)
     def test_raise_exception(self, _, args, input_image, expected_error):
         with self.assertRaises(expected_error):
-            converter = LabelFilterd(keys="image", **args)
+            converter = LabelFilterd(keys=CommonKeys.IMAGE, **args)
             if isinstance(input_image, torch.Tensor) and torch.cuda.is_available():
-                _ = converter({"image": input_image.cuda()})
+                _ = converter({CommonKeys.IMAGE: input_image.cuda()})
             else:
-                _ = converter({"image": input_image})
+                _ = converter({CommonKeys.IMAGE: input_image})
 
 
 if __name__ == "__main__":

@@ -15,24 +15,25 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.deepedit.transforms import ClickRatioAddRandomGuidanced, DiscardAddGuidanced, ResizeGuidanceCustomd
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 IMAGE = np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]])
 LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]])
 
 DATA_1 = {
-    "image": IMAGE,
-    "label": LABEL,
-    "image_meta_dict": {"dim": IMAGE.shape},
-    "label_meta_dict": {},
+    CommonKeys.IMAGE: IMAGE,
+    CommonKeys.LABEL: LABEL,
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"dim": IMAGE.shape},
+    f"{CommonKeys.LABEL}_{DictPostFixes.META}": {},
     "foreground": [0, 0, 0],
     "background": [0, 0, 0],
 }
 
-DISCARD_ADD_GUIDANCE_TEST_CASE = [{"image": IMAGE, "label": LABEL}, DATA_1, (3, 1, 5, 5)]
+DISCARD_ADD_GUIDANCE_TEST_CASE = [{CommonKeys.IMAGE: IMAGE, CommonKeys.LABEL: LABEL}, DATA_1, (3, 1, 5, 5)]
 
 DATA_2 = {
-    "image": IMAGE,
-    "label": LABEL,
+    CommonKeys.IMAGE: IMAGE,
+    CommonKeys.LABEL: LABEL,
     "guidance": np.array([[[1, 0, 2, 2]], [[-1, -1, -1, -1]]]),
     "discrepancy": np.array(
         [
@@ -50,15 +51,18 @@ CLICK_RATIO_ADD_RANDOM_GUIDANCE_TEST_CASE_1 = [
 ]
 
 DATA_3 = {
-    "image": np.arange(1000).reshape((1, 5, 10, 20)),
-    "image_meta_dict": {"foreground_cropped_shape": (1, 10, 20, 40), "dim": [3, 512, 512, 128]},
+    CommonKeys.IMAGE: np.arange(1000).reshape((1, 5, 10, 20)),
+    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {
+        "foreground_cropped_shape": (1, 10, 20, 40),
+        "dim": [3, 512, 512, 128],
+    },
     "guidance": [[[6, 10, 14], [8, 10, 14]], [[8, 10, 16]]],
     "foreground": [[10, 14, 6], [10, 14, 8]],
     "background": [[10, 16, 8]],
 }
 
 RESIZE_GUIDANCE_TEST_CASE_1 = [
-    {"ref_image": "image", "guidance": "guidance"},
+    {"ref_image": CommonKeys.IMAGE, "guidance": "guidance"},
     DATA_3,
     [[[0, 0, 0], [0, 0, 1]], [[0, 0, 1]]],
 ]
@@ -69,7 +73,7 @@ class TestDiscardAddGuidanced(unittest.TestCase):
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = DiscardAddGuidanced(arguments)
         result = add_fn(input_data)
-        self.assertEqual(result["image"].shape, expected_result)
+        self.assertEqual(result[CommonKeys.IMAGE].shape, expected_result)
 
 
 class TestClickRatioAddRandomGuidanced(unittest.TestCase):

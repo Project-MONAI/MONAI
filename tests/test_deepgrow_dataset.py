@@ -73,9 +73,9 @@ class TestCreateDataset(unittest.TestCase):
                 label[0][1][2] = 1
                 label_file = os.path.join(self.tempdir, f"label{i}.nii.gz")
                 nib.save(nib.Nifti1Image(label, affine), label_file)
-                datalist.append({"image": image_file, "label": label_file})
+                datalist.append({CommonKeys.IMAGE: image_file, CommonKeys.LABEL: label_file})
             else:
-                datalist.append({"image": image_file})
+                datalist.append({CommonKeys.IMAGE: image_file})
 
         return datalist
 

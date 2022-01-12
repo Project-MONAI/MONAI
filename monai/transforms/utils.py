@@ -1153,8 +1153,8 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
 
     .. code-block:: python
 
-        data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
-        t = SpatialPadd(["image", "label"], 10, allow_missing_keys=False)
+        data = {CommonKeys.IMAGE: np.arange(16, dtype=float).reshape(1, 4, 4)}
+        t = SpatialPadd([CommonKeys.IMAGE, CommonKeys.LABEL], 10, allow_missing_keys=False)
         _ = t(data)  # would raise exception
         with allow_missing_keys_mode(t):
             _ = t(data)  # OK!

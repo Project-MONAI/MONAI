@@ -170,7 +170,7 @@ def from_engine(keys: KeysCollection, first: bool = False):
 
         metric = MeanDice(
             include_background=False,
-            output_transform=from_engine(["pred", "label"])
+            output_transform=from_engine(["pred", CommonKeys.LABEL])
         )
 
     Args:

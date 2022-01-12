@@ -16,18 +16,19 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandCropByPosNegLabel
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS
 
 TESTS = []
 TESTS.append(
     [
         {
-            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.LABEL: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "spatial_size": [2, 2, -1],
             "pos": 1,
             "neg": 1,
             "num_samples": 2,
-            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.IMAGE: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "image_threshold": 0,
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
@@ -37,12 +38,12 @@ TESTS.append(
 TESTS.append(
     [
         {
-            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.LABEL: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "spatial_size": [2, 2, 2],
             "pos": 1,
             "neg": 1,
             "num_samples": 2,
-            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.IMAGE: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "image_threshold": 0,
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
@@ -52,18 +53,18 @@ TESTS.append(
 TESTS.append(
     [
         {
-            "label": None,
+            CommonKeys.LABEL: None,
             "spatial_size": [2, 2, 2],
             "pos": 1,
             "neg": 1,
             "num_samples": 2,
-            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.IMAGE: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "image_threshold": 0,
         },
         {
             "img": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.LABEL: np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.IMAGE: np.random.randint(0, 2, size=[3, 3, 3, 3]),
         },
         (3, 2, 2, 2),
     ]
@@ -71,12 +72,12 @@ TESTS.append(
 TESTS.append(
     [
         {
-            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.LABEL: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "spatial_size": [4, 4, 2],
             "pos": 1,
             "neg": 1,
             "num_samples": 2,
-            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.IMAGE: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "allow_smaller": True,
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
@@ -86,12 +87,12 @@ TESTS.append(
 TESTS.append(
     [
         {
-            "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.LABEL: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "spatial_size": [4, 4, 4],
             "pos": 1,
             "neg": 1,
             "num_samples": 2,
-            "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
+            CommonKeys.IMAGE: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "allow_smaller": True,
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
@@ -102,7 +103,7 @@ TESTS.append(
 
 class TestRandCropByPosNegLabel(unittest.TestCase):
     @staticmethod
-    def convert_data_type(im_type, d, keys=("img", "image", "label")):
+    def convert_data_type(im_type, d, keys=("img", CommonKeys.IMAGE, CommonKeys.LABEL)):
         out = deepcopy(d)
         for k, v in out.items():
             if k in keys and isinstance(v, np.ndarray):

@@ -26,56 +26,71 @@ class TestAdaptors(unittest.TestCase):
         def foo(image):
             return image * 2
 
-        it = itertools.product(["image", ["image"]], [None, "image", ["image"], {"image": "image"}])
+        it = itertools.product(
+            [CommonKeys.IMAGE, [CommonKeys.IMAGE]],
+            [None, CommonKeys.IMAGE, [CommonKeys.IMAGE], {CommonKeys.IMAGE: CommonKeys.IMAGE}],
+        )
         for i in it:
-            d = {"image": 2}
+            d = {CommonKeys.IMAGE: 2}
             dres = adaptor(foo, i[0], i[1])(d)
-            self.assertEqual(dres["image"], 4)
+            self.assertEqual(dres[CommonKeys.IMAGE], 4)
 
-        d = {"image": 2}
-        dres = adaptor(foo, "image")(d)
-        self.assertEqual(dres["image"], 4)
+        d = {CommonKeys.IMAGE: 2}
+        dres = adaptor(foo, CommonKeys.IMAGE)(d)
+        self.assertEqual(dres[CommonKeys.IMAGE], 4)
 
-        d = {"image": 2}
-        dres = adaptor(foo, "image", "image")(d)
-        self.assertEqual(dres["image"], 4)
+        d = {CommonKeys.IMAGE: 2}
+        dres = adaptor(foo, CommonKeys.IMAGE, CommonKeys.IMAGE)(d)
+        self.assertEqual(dres[CommonKeys.IMAGE], 4)
 
-        d = {"image": 2}
-        dres = adaptor(foo, "image", {"image": "image"})(d)
-        self.assertEqual(dres["image"], 4)
+        d = {CommonKeys.IMAGE: 2}
+        dres = adaptor(foo, CommonKeys.IMAGE, {CommonKeys.IMAGE: CommonKeys.IMAGE})(d)
+        self.assertEqual(dres[CommonKeys.IMAGE], 4)
 
         d = {"img": 2}
-        dres = adaptor(foo, "img", {"img": "image"})(d)
+        dres = adaptor(foo, "img", {"img": CommonKeys.IMAGE})(d)
         self.assertEqual(dres["img"], 4)
 
         d = {"img": 2}
-        dres = adaptor(foo, ["img"], {"img": "image"})(d)
+        dres = adaptor(foo, ["img"], {"img": CommonKeys.IMAGE})(d)
         self.assertEqual(dres["img"], 4)
 
     def test_multi_in_single_out(self):
         def foo(image, label):
             return image * label
 
-        it = itertools.product(["image", ["image"]], [None, ["image", "label"], {"image": "image", "label": "label"}])
-
-        for i in it:
-            d = {"image": 2, "label": 3}
-            dres = adaptor(foo, i[0], i[1])(d)
-            self.assertEqual(dres["image"], 6)
-            self.assertEqual(dres["label"], 3)
-
         it = itertools.product(
-            ["newimage", ["newimage"]], [None, ["image", "label"], {"image": "image", "label": "label"}]
+            [CommonKeys.IMAGE, [CommonKeys.IMAGE]],
+            [
+                None,
+                [CommonKeys.IMAGE, CommonKeys.LABEL],
+                {CommonKeys.IMAGE: CommonKeys.IMAGE, CommonKeys.LABEL: CommonKeys.LABEL},
+            ],
         )
 
         for i in it:
-            d = {"image": 2, "label": 3}
+            d = {CommonKeys.IMAGE: 2, CommonKeys.LABEL: 3}
             dres = adaptor(foo, i[0], i[1])(d)
-            self.assertEqual(dres["image"], 2)
-            self.assertEqual(dres["label"], 3)
+            self.assertEqual(dres[CommonKeys.IMAGE], 6)
+            self.assertEqual(dres[CommonKeys.LABEL], 3)
+
+        it = itertools.product(
+            ["newimage", ["newimage"]],
+            [
+                None,
+                [CommonKeys.IMAGE, CommonKeys.LABEL],
+                {CommonKeys.IMAGE: CommonKeys.IMAGE, CommonKeys.LABEL: CommonKeys.LABEL},
+            ],
+        )
+
+        for i in it:
+            d = {CommonKeys.IMAGE: 2, CommonKeys.LABEL: 3}
+            dres = adaptor(foo, i[0], i[1])(d)
+            self.assertEqual(dres[CommonKeys.IMAGE], 2)
+            self.assertEqual(dres[CommonKeys.LABEL], 3)
             self.assertEqual(dres["newimage"], 6)
 
-        it = itertools.product(["img", ["img"]], [{"img": "image", "lbl": "label"}])
+        it = itertools.product(["img", ["img"]], [{"img": CommonKeys.IMAGE, "lbl": CommonKeys.LABEL}])
 
         for i in it:
             d = {"img": 2, "lbl": 3}

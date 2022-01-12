@@ -100,18 +100,18 @@ class TestNumpyReader(unittest.TestCase):
             for i in range(4):
                 filepath = os.path.join(tempdir, f"test_data{i}.npz")
                 np.savez(filepath, test_data)
-                datalist.append({"image": filepath})
+                datalist.append({CommonKeys.IMAGE: filepath})
 
                 num_workers = 2 if sys.platform == "linux" else 0
                 loader = DataLoader(
-                    Dataset(data=datalist, transform=LoadImaged(keys="image", reader=NumpyReader())),
+                    Dataset(data=datalist, transform=LoadImaged(keys=CommonKeys.IMAGE, reader=NumpyReader())),
                     batch_size=2,
                     num_workers=num_workers,
                 )
                 for d in loader:
-                    for s in d["image_meta_dict"]["spatial_shape"]:
+                    for s in d[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["spatial_shape"]:
                         torch.testing.assert_allclose(s, torch.as_tensor([3, 4, 5]))
-                    for c in d["image"]:
+                    for c in d[CommonKeys.IMAGE]:
                         torch.testing.assert_allclose(c, test_data)
 
     def test_channel_dim(self):

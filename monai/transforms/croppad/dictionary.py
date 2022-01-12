@@ -52,7 +52,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
-from monai.utils.enums import TraceKeys
+from monai.utils.enums import DictPostFixes, TraceKeys
 
 __all__ = [
     "PadModeSequence",
@@ -755,7 +755,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
         random_center: bool = True,
         random_size: bool = True,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -951,7 +951,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
         num_samples: int = 1,
         center_coord_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1103,7 +1103,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1217,22 +1217,22 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
     cropped images. For example, crop two (3 x 3) arrays from (5 x 5) array with `ratios=[1, 2, 3, 1]`::
 
         cropper = RandCropByLabelClassesd(
-            keys=["image", "label"],
-            label_key="label",
+            keys=[CommonKeys.IMAGE, CommonKeys.LABEL],
+            label_key=CommonKeys.LABEL,
             spatial_size=[3, 3],
             ratios=[1, 2, 3, 1],
             num_classes=4,
             num_samples=2,
         )
         data = {
-            "image": np.array([
+            CommonKeys.IMAGE: np.array([
                 [[0.0, 0.3, 0.4, 0.2, 0.0],
                 [0.0, 0.1, 0.2, 0.1, 0.4],
                 [0.0, 0.3, 0.5, 0.2, 0.0],
                 [0.1, 0.2, 0.1, 0.1, 0.0],
                 [0.0, 0.1, 0.2, 0.1, 0.0]]
             ]),
-            "label": np.array([
+            CommonKeys.LABEL: np.array([
                 [[0, 0, 0, 0, 0],
                 [0, 1, 2, 1, 0],
                 [0, 1, 3, 0, 0],
@@ -1302,7 +1302,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         image_threshold: float = 0.0,
         indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:

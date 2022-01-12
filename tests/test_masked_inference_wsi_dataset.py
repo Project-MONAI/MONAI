@@ -19,6 +19,7 @@ from parameterized import parameterized
 
 from monai.apps.pathology.data import MaskedInferenceWSIDataset
 from monai.utils import optional_import
+from monai.utils.enums import CommonKeys
 from tests.utils import download_url_or_skip_test, skip_if_quick
 
 _, has_cim = optional_import("cucim", name="CuImage")
@@ -49,20 +50,26 @@ def prepare_data():
 
 
 TEST_CASE_0 = [
-    {"data": [{"image": FILE_PATH, "mask": MASK1}], "patch_size": 1, "image_reader_name": "cuCIM"},
-    [{"image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8), "name": FILE_NAME, "mask_location": [100, 100]}],
+    {"data": [{CommonKeys.IMAGE: FILE_PATH, "mask": MASK1}], "patch_size": 1, "image_reader_name": "cuCIM"},
+    [
+        {
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            "name": FILE_NAME,
+            "mask_location": [100, 100],
+        }
+    ],
 ]
 
 TEST_CASE_1 = [
-    {"data": [{"image": FILE_PATH, "mask": MASK2}], "patch_size": 1, "image_reader_name": "cuCIM"},
+    {"data": [{CommonKeys.IMAGE: FILE_PATH, "mask": MASK2}], "patch_size": 1, "image_reader_name": "cuCIM"},
     [
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [100, 101],
         },
@@ -70,25 +77,25 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {"data": [{"image": FILE_PATH, "mask": MASK4}], "patch_size": 1, "image_reader_name": "cuCIM"},
+    {"data": [{CommonKeys.IMAGE: FILE_PATH, "mask": MASK4}], "patch_size": 1, "image_reader_name": "cuCIM"},
     [
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [100, 101],
         },
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [101, 100],
         },
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [101, 101],
         },
@@ -96,10 +103,10 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [
-    {"data": [{"image": FILE_PATH, "mask": MASK1}], "patch_size": 2, "image_reader_name": "cuCIM"},
+    {"data": [{CommonKeys.IMAGE: FILE_PATH, "mask": MASK1}], "patch_size": 2, "image_reader_name": "cuCIM"},
     [
         {
-            "image": np.array(
+            CommonKeys.IMAGE: np.array(
                 [[[243, 243], [243, 243]], [[243, 243], [243, 243]], [[243, 243], [243, 243]]], dtype=np.uint8
             ),
             "name": FILE_NAME,
@@ -110,23 +117,23 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [
     {
-        "data": [{"image": FILE_PATH, "mask": MASK1}, {"image": FILE_PATH, "mask": MASK2}],
+        "data": [{CommonKeys.IMAGE: FILE_PATH, "mask": MASK1}, {CommonKeys.IMAGE: FILE_PATH, "mask": MASK2}],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
     },
     [
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [100, 101],
         },
@@ -135,20 +142,26 @@ TEST_CASE_4 = [
 
 
 TEST_CASE_OPENSLIDE_0 = [
-    {"data": [{"image": FILE_PATH, "mask": MASK1}], "patch_size": 1, "image_reader_name": "OpenSlide"},
-    [{"image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8), "name": FILE_NAME, "mask_location": [100, 100]}],
+    {"data": [{CommonKeys.IMAGE: FILE_PATH, "mask": MASK1}], "patch_size": 1, "image_reader_name": "OpenSlide"},
+    [
+        {
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            "name": FILE_NAME,
+            "mask_location": [100, 100],
+        }
+    ],
 ]
 
 TEST_CASE_OPENSLIDE_1 = [
-    {"data": [{"image": FILE_PATH, "mask": MASK2}], "patch_size": 1, "image_reader_name": "OpenSlide"},
+    {"data": [{CommonKeys.IMAGE: FILE_PATH, "mask": MASK2}], "patch_size": 1, "image_reader_name": "OpenSlide"},
     [
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
-            "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
+            CommonKeys.IMAGE: np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
             "mask_location": [100, 101],
         },
@@ -177,8 +190,8 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
 
     def compare_samples_expected(self, dataset, expected):
         for i in range(len(dataset)):
-            self.assertTupleEqual(dataset[i][0]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(dataset[i][0]["image"], expected[i]["image"]))
+            self.assertTupleEqual(dataset[i][0][CommonKeys.IMAGE].shape, expected[i][CommonKeys.IMAGE].shape)
+            self.assertIsNone(assert_array_equal(dataset[i][0][CommonKeys.IMAGE], expected[i][CommonKeys.IMAGE]))
             self.assertEqual(dataset[i][0]["name"], expected[i]["name"])
             self.assertListEqual(dataset[i][0]["mask_location"], expected[i]["mask_location"])
 

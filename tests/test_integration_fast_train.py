@@ -80,32 +80,34 @@ class IntegrationFastTrain(DistTestCase):
     def test_train_timing(self):
         images = sorted(glob(os.path.join(self.data_dir, "img*.nii.gz")))
         segs = sorted(glob(os.path.join(self.data_dir, "seg*.nii.gz")))
-        train_files = [{"image": img, "label": seg} for img, seg in zip(images[:32], segs[:32])]
-        val_files = [{"image": img, "label": seg} for img, seg in zip(images[-9:], segs[-9:])]
+        train_files = [{CommonKeys.IMAGE: img, CommonKeys.LABEL: seg} for img, seg in zip(images[:32], segs[:32])]
+        val_files = [{CommonKeys.IMAGE: img, CommonKeys.LABEL: seg} for img, seg in zip(images[-9:], segs[-9:])]
 
         device = torch.device("cuda:0")
         # define transforms for train and validation
         train_transforms = Compose(
             [
-                LoadImaged(keys=["image", "label"]),
-                EnsureChannelFirstd(keys=["image", "label"]),
-                Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
-                ScaleIntensityd(keys="image"),
-                CropForegroundd(keys=["image", "label"], source_key="image"),
+                LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+                EnsureChannelFirstd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+                Spacingd(
+                    keys=[CommonKeys.IMAGE, CommonKeys.LABEL], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")
+                ),
+                ScaleIntensityd(keys=CommonKeys.IMAGE),
+                CropForegroundd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], source_key=CommonKeys.IMAGE),
                 # pre-compute foreground and background indexes
                 # and cache them to accelerate training
-                FgBgToIndicesd(keys="label", fg_postfix="_fg", bg_postfix="_bg"),
+                FgBgToIndicesd(keys=CommonKeys.LABEL, fg_postfix="_fg", bg_postfix="_bg"),
                 # change to execute transforms with Tensor data
-                EnsureTyped(keys=["image", "label"]),
+                EnsureTyped(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
                 # move the data to GPU and cache to avoid CPU -> GPU sync in every epoch
-                ToDeviced(keys=["image", "label"], device=device),
+                ToDeviced(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], device=device),
                 # randomly crop out patch samples from big
                 # image based on pos / neg ratio
                 # the image centers of negative samples
                 # must be in valid image area
                 RandCropByPosNegLabeld(
-                    keys=["image", "label"],
-                    label_key="label",
+                    keys=[CommonKeys.IMAGE, CommonKeys.LABEL],
+                    label_key=CommonKeys.LABEL,
                     spatial_size=(64, 64, 64),
                     pos=1,
                     neg=1,
@@ -113,33 +115,42 @@ class IntegrationFastTrain(DistTestCase):
                     fg_indices_key="label_fg",
                     bg_indices_key="label_bg",
                 ),
-                RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=[1, 2]),
-                RandAxisFlipd(keys=["image", "label"], prob=0.5),
-                RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=(1, 2)),
-                RandZoomd(keys=["image", "label"], prob=0.5, min_zoom=0.8, max_zoom=1.2, keep_size=True),
+                RandFlipd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], prob=0.5, spatial_axis=[1, 2]),
+                RandAxisFlipd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], prob=0.5),
+                RandRotate90d(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], prob=0.5, spatial_axes=(1, 2)),
+                RandZoomd(
+                    keys=[CommonKeys.IMAGE, CommonKeys.LABEL], prob=0.5, min_zoom=0.8, max_zoom=1.2, keep_size=True
+                ),
                 RandRotated(
-                    keys=["image", "label"],
+                    keys=[CommonKeys.IMAGE, CommonKeys.LABEL],
                     prob=0.5,
                     range_x=np.pi / 4,
                     mode=("bilinear", "nearest"),
                     align_corners=True,
                 ),
-                RandAffined(keys=["image", "label"], prob=0.5, rotate_range=np.pi / 2, mode=("bilinear", "nearest")),
-                RandGaussianNoised(keys="image", prob=0.5),
-                RandStdShiftIntensityd(keys="image", prob=0.5, factors=0.05, nonzero=True),
+                RandAffined(
+                    keys=[CommonKeys.IMAGE, CommonKeys.LABEL],
+                    prob=0.5,
+                    rotate_range=np.pi / 2,
+                    mode=("bilinear", "nearest"),
+                ),
+                RandGaussianNoised(keys=CommonKeys.IMAGE, prob=0.5),
+                RandStdShiftIntensityd(keys=CommonKeys.IMAGE, prob=0.5, factors=0.05, nonzero=True),
             ]
         )
 
         val_transforms = Compose(
             [
-                LoadImaged(keys=["image", "label"]),
-                EnsureChannelFirstd(keys=["image", "label"]),
-                Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
-                ScaleIntensityd(keys="image"),
-                CropForegroundd(keys=["image", "label"], source_key="image"),
-                EnsureTyped(keys=["image", "label"]),
+                LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+                EnsureChannelFirstd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+                Spacingd(
+                    keys=[CommonKeys.IMAGE, CommonKeys.LABEL], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")
+                ),
+                ScaleIntensityd(keys=CommonKeys.IMAGE),
+                CropForegroundd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], source_key=CommonKeys.IMAGE),
+                EnsureTyped(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
                 # move the data to GPU and cache to avoid CPU -> GPU sync in every epoch
-                ToDeviced(keys=["image", "label"], device=device),
+                ToDeviced(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], device=device),
             ]
         )
 
@@ -190,8 +201,8 @@ class IntegrationFastTrain(DistTestCase):
                 optimizer.zero_grad()
                 # set AMP for training
                 with torch.cuda.amp.autocast():
-                    outputs = model(batch_data["image"])
-                    loss = loss_function(outputs, batch_data["label"])
+                    outputs = model(batch_data[CommonKeys.IMAGE])
+                    loss = loss_function(outputs, batch_data[CommonKeys.LABEL])
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
                 scaler.update()
@@ -211,10 +222,12 @@ class IntegrationFastTrain(DistTestCase):
                         sw_batch_size = 4
                         # set AMP for validation
                         with torch.cuda.amp.autocast():
-                            val_outputs = sliding_window_inference(val_data["image"], roi_size, sw_batch_size, model)
+                            val_outputs = sliding_window_inference(
+                                val_data[CommonKeys.IMAGE], roi_size, sw_batch_size, model
+                            )
 
                         val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
-                        val_labels = [post_label(i) for i in decollate_batch(val_data["label"])]
+                        val_labels = [post_label(i) for i in decollate_batch(val_data[CommonKeys.LABEL])]
                         dice_metric(y_pred=val_outputs, y=val_labels)
 
                     metric = dice_metric.aggregate().item()

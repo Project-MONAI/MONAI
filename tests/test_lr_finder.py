@@ -52,10 +52,10 @@ class TestLRFinder(unittest.TestCase):
 
         self.transforms = Compose(
             [
-                LoadImaged(keys="image"),
-                AddChanneld(keys="image"),
-                ScaleIntensityd(keys="image"),
-                ToTensord(keys="image"),
+                LoadImaged(keys=CommonKeys.IMAGE),
+                AddChanneld(keys=CommonKeys.IMAGE),
+                ScaleIntensityd(keys=CommonKeys.IMAGE),
+                ToTensord(keys=CommonKeys.IMAGE),
             ]
         )
 

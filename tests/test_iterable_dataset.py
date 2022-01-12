@@ -37,9 +37,11 @@ class TestIterableDataset(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             for i in range(6):
                 nib.save(test_image, os.path.join(tempdir, f"test_image{str(i)}.nii.gz"))
-                test_data.append({"image": os.path.join(tempdir, f"test_image{i}.nii.gz")})
+                test_data.append({CommonKeys.IMAGE: os.path.join(tempdir, f"test_image{i}.nii.gz")})
 
-            test_transform = Compose([LoadImaged(keys="image"), SimulateDelayd(keys="image", delay_time=1e-7)])
+            test_transform = Compose(
+                [LoadImaged(keys=CommonKeys.IMAGE), SimulateDelayd(keys=CommonKeys.IMAGE, delay_time=1e-7)]
+            )
 
             data_iterator = _Stream(test_data)
             with self.assertRaises(TypeError):  # Dataset doesn't work
@@ -48,12 +50,12 @@ class TestIterableDataset(unittest.TestCase):
                     pass
             dataset = IterableDataset(data=data_iterator, transform=test_transform)
             for d in dataset:
-                self.assertTupleEqual(d["image"].shape, expected_shape)
+                self.assertTupleEqual(d[CommonKeys.IMAGE].shape, expected_shape)
 
             num_workers = 2 if sys.platform == "linux" else 0
             dataloader = DataLoader(dataset=dataset, batch_size=3, num_workers=num_workers)
             for d in dataloader:
-                self.assertTupleEqual(d["image"].shape[1:], expected_shape)
+                self.assertTupleEqual(d[CommonKeys.IMAGE].shape[1:], expected_shape)
 
 
 if __name__ == "__main__":

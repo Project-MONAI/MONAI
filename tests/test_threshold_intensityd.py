@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import ThresholdIntensityd
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
@@ -22,21 +23,21 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             p,
-            {"keys": ["image", "label", "extra"], "threshold": 5, "above": True, "cval": 0},
+            {"keys": [CommonKeys.IMAGE, CommonKeys.LABEL, "extra"], "threshold": 5, "above": True, "cval": 0},
             (0, 0, 0, 0, 0, 0, 6, 7, 8, 9),
         ]
     )
     TESTS.append(
         [
             p,
-            {"keys": ["image", "label", "extra"], "threshold": 5, "above": False, "cval": 0},
+            {"keys": [CommonKeys.IMAGE, CommonKeys.LABEL, "extra"], "threshold": 5, "above": False, "cval": 0},
             (0, 1, 2, 3, 4, 0, 0, 0, 0, 0),
         ]
     )
     TESTS.append(
         [
             p,
-            {"keys": ["image", "label", "extra"], "threshold": 5, "above": True, "cval": 5},
+            {"keys": [CommonKeys.IMAGE, CommonKeys.LABEL, "extra"], "threshold": 5, "above": True, "cval": 5},
             (5, 5, 5, 5, 5, 5, 6, 7, 8, 9),
         ]
     )
@@ -45,10 +46,14 @@ for p in TEST_NDARRAYS:
 class TestThresholdIntensityd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, in_type, input_param, expected_value):
-        test_data = {"image": in_type(np.arange(10)), "label": in_type(np.arange(10)), "extra": in_type(np.arange(10))}
+        test_data = {
+            CommonKeys.IMAGE: in_type(np.arange(10)),
+            CommonKeys.LABEL: in_type(np.arange(10)),
+            "extra": in_type(np.arange(10)),
+        }
         result = ThresholdIntensityd(**input_param)(test_data)
-        assert_allclose(result["image"], in_type(expected_value))
-        assert_allclose(result["label"], in_type(expected_value))
+        assert_allclose(result[CommonKeys.IMAGE], in_type(expected_value))
+        assert_allclose(result[CommonKeys.LABEL], in_type(expected_value))
         assert_allclose(result["extra"], in_type(expected_value))
 
 

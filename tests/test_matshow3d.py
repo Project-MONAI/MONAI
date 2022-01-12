@@ -28,7 +28,7 @@ pyplot, has_pyplot = optional_import("matplotlib", name="pyplot")
 class TestMatshow3d(unittest.TestCase):
     def test_3d(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        keys = "image"
+        keys = CommonKeys.IMAGE
         xforms = Compose([LoadImaged(keys=keys), AddChanneld(keys=keys), ScaleIntensityd(keys=keys)])
         image_path = os.path.join(testing_dir, "anatomical.nii")
         ims = xforms({keys: image_path})
@@ -44,7 +44,7 @@ class TestMatshow3d(unittest.TestCase):
 
     def test_samples(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        keys = "image"
+        keys = CommonKeys.IMAGE
         xforms = Compose(
             [
                 LoadImaged(keys=keys),
@@ -73,7 +73,7 @@ class TestMatshow3d(unittest.TestCase):
 
     def test_3d_rgb(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        keys = "image"
+        keys = CommonKeys.IMAGE
         xforms = Compose(
             [
                 LoadImaged(keys=keys),

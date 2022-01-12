@@ -162,8 +162,8 @@ class PersistentDataset(Dataset):
     For example, typical input data can be a list of dictionaries::
 
         [{                            {                            {
-            'image': 'image1.nii.gz',    'image': 'image2.nii.gz',    'image': 'image3.nii.gz',
-            'label': 'label1.nii.gz',    'label': 'label2.nii.gz',    'label': 'label3.nii.gz',
+            CommonKeys.IMAGE: 'image1.nii.gz',    CommonKeys.IMAGE: 'image2.nii.gz',    CommonKeys.IMAGE: 'image3.nii.gz',
+            CommonKeys.LABEL: 'label1.nii.gz',    CommonKeys.LABEL: 'label2.nii.gz',    CommonKeys.LABEL: 'label3.nii.gz',
             'extra': 123                 'extra': 456                 'extra': 789
         },                           },                           }]
 
@@ -171,12 +171,12 @@ class PersistentDataset(Dataset):
 
     .. code-block:: python
 
-        [ LoadImaged(keys=['image', 'label']),
-        Orientationd(keys=['image', 'label'], axcodes='RAS'),
-        ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
-        RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', spatial_size=(96, 96, 96),
-                                pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
-        ToTensord(keys=['image', 'label'])]
+        [ LoadImaged(keys=[CommonKeys.IMAGE, CommonKeys.LABEL]),
+        Orientationd(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], axcodes='RAS'),
+        ScaleIntensityRanged(keys=[CommonKeys.IMAGE], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
+        RandCropByPosNegLabeld(keys=[CommonKeys.IMAGE, CommonKeys.LABEL], label_key=CommonKeys.LABEL, spatial_size=(96, 96, 96),
+                                pos=1, neg=1, num_samples=4, image_key=CommonKeys.IMAGE, image_threshold=0),
+        ToTensord(keys=[CommonKeys.IMAGE, CommonKeys.LABEL])]
 
     Upon first use a filename based dataset will be processed by the transform for the
     [LoadImaged, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
@@ -1282,8 +1282,8 @@ class CSVDataset(Dataset):
     set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::
 
         [
-            {"image": "./image0.nii", "meta_0": 11, "meta_1": 12, "meta_2": 13, "meta": [11, 12, 13]},
-            {"image": "./image1.nii", "meta_0": 21, "meta_1": 22, "meta_2": 23, "meta": [21, 22, 23]},
+            {CommonKeys.IMAGE: "./image0.nii", "meta_0": 11, "meta_1": 12, "meta_2": 13, "meta": [11, 12, 13]},
+            {CommonKeys.IMAGE: "./image1.nii", "meta_0": 21, "meta_1": 22, "meta_2": 23, "meta": [21, 22, 23]},
         ]
 
     Args:
@@ -1302,10 +1302,10 @@ class CSVDataset(Dataset):
 
                 col_types = {
                     "subject_id": {"type": str},
-                    "label": {"type": int, "default": 0},
+                    CommonKeys.LABEL: {"type": int, "default": 0},
                     "ehr_0": {"type": float, "default": 0.0},
                     "ehr_1": {"type": float, "default": 0.0},
-                    "image": {"type": str, "default": None},
+                    CommonKeys.IMAGE: {"type": str, "default": None},
                 }
 
         col_groups: args to group the loaded columns to generate a new column,

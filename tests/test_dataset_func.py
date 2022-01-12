@@ -26,8 +26,8 @@ class TestDatasetFunc(unittest.TestCase):
                 "description": "Spleen Segmentation",
                 "labels": {"0": "background", "1": "spleen"},
                 "training": [
-                    {"image": "spleen_19.nii.gz", "label": "spleen_19.nii.gz"},
-                    {"image": "spleen_31.nii.gz", "label": "spleen_31.nii.gz"},
+                    {CommonKeys.IMAGE: "spleen_19.nii.gz", CommonKeys.LABEL: "spleen_19.nii.gz"},
+                    {CommonKeys.IMAGE: "spleen_31.nii.gz", CommonKeys.LABEL: "spleen_31.nii.gz"},
                 ],
                 "test": ["spleen_15.nii.gz", "spleen_23.nii.gz"],
             }
@@ -44,8 +44,8 @@ class TestDatasetFunc(unittest.TestCase):
                 data=data_list, func=lambda x, **kwargs: partition_dataset(x, **kwargs)[0], num_partitions=2
             )
             dataset = Dataset(data=data_partition, transform=None)
-            self.assertEqual(dataset[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
-            self.assertEqual(dataset[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
+            self.assertEqual(dataset[0][CommonKeys.IMAGE], os.path.join(tempdir, "spleen_19.nii.gz"))
+            self.assertEqual(dataset[0][CommonKeys.LABEL], os.path.join(tempdir, "spleen_19.nii.gz"))
 
 
 if __name__ == "__main__":

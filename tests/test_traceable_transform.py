@@ -30,7 +30,7 @@ class TestTraceable(unittest.TestCase):
         a = _TraceTest()
         self.assertEqual(a.trace_key(), expected_key)
 
-        data = {"image": "test"}
+        data = {CommonKeys.IMAGE: "test"}
         data = a(data)  # adds to the stack
         self.assertTrue(isinstance(data[expected_key], list))
         self.assertEqual(data[expected_key][0]["class"], "_TraceTest")

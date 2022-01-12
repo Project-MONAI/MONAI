@@ -27,7 +27,7 @@ class TestCSVIterableDataset(unittest.TestCase):
     def test_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             test_data1 = [
-                ["subject_id", "label", "image", "ehr_0", "ehr_1", "ehr_2"],
+                ["subject_id", CommonKeys.LABEL, CommonKeys.IMAGE, "ehr_0", "ehr_1", "ehr_2"],
                 ["s000000", 5, "./imgs/s000000.png", 2.007843256, 2.29019618, 2.054902077],
                 ["s000001", 0, "./imgs/s000001.png", 6.839215755, 6.474509716, 5.862744808],
                 ["s000002", 4, "./imgs/s000002.png", 3.772548914, 4.211764812, 4.635294437],
@@ -74,8 +74,8 @@ class TestCSVIterableDataset(unittest.TestCase):
                         {k: round(v, 4) if not isinstance(v, str) else v for k, v in item.items()},
                         {
                             "subject_id": "s000002",
-                            "label": 4,
-                            "image": "./imgs/s000002.png",
+                            CommonKeys.LABEL: 4,
+                            CommonKeys.IMAGE: "./imgs/s000002.png",
                             "ehr_0": 3.7725,
                             "ehr_1": 4.2118,
                             "ehr_2": 4.6353,
@@ -105,8 +105,8 @@ class TestCSVIterableDataset(unittest.TestCase):
                         {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in item.items()},
                         {
                             "subject_id": "s000003",
-                            "label": 1,
-                            "image": "./imgs/s000003.png",
+                            CommonKeys.LABEL: 1,
+                            CommonKeys.IMAGE: "./imgs/s000003.png",
                             "ehr_0": 3.3333,
                             "ehr_1": 3.2353,
                             "ehr_2": 3.4000,
@@ -128,7 +128,10 @@ class TestCSVIterableDataset(unittest.TestCase):
 
             # test selected columns and chunk size
             dataset = CSVIterableDataset(
-                src=filepaths, chunksize=2, col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"], shuffle=False
+                src=filepaths,
+                chunksize=2,
+                col_names=["subject_id", CommonKeys.IMAGE, "ehr_1", "ehr_7", "meta_1"],
+                shuffle=False,
             )
             count = 0
             for item in dataset:
@@ -138,7 +141,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                         {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in item.items()},
                         {
                             "subject_id": "s000003",
-                            "image": "./imgs/s000003.png",
+                            CommonKeys.IMAGE: "./imgs/s000003.png",
                             "ehr_1": 3.2353,
                             "ehr_7": 3.6980,
                             "meta_1": False,
@@ -150,7 +153,14 @@ class TestCSVIterableDataset(unittest.TestCase):
             # test group columns
             dataset = CSVIterableDataset(
                 src=filepaths,
-                col_names=["subject_id", "image", *[f"ehr_{i}" for i in range(11)], "meta_0", "meta_1", "meta_2"],
+                col_names=[
+                    "subject_id",
+                    CommonKeys.IMAGE,
+                    *[f"ehr_{i}" for i in range(11)],
+                    "meta_0",
+                    "meta_1",
+                    "meta_2",
+                ],
                 col_groups={"ehr": [f"ehr_{i}" for i in range(11)], "meta12": ["meta_1", "meta_2"]},
                 shuffle=False,
             )
@@ -192,7 +202,7 @@ class TestCSVIterableDataset(unittest.TestCase):
             dataset.close()
 
             # test multiple processes loading
-            dataset = CSVIterableDataset(filepath1, transform=ToNumpyd(keys="label"), shuffle=False)
+            dataset = CSVIterableDataset(filepath1, transform=ToNumpyd(keys=CommonKeys.LABEL), shuffle=False)
             # set num workers = 0 for mac / win
             num_workers = 2 if sys.platform == "linux" else 0
             dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=2)
@@ -202,8 +212,8 @@ class TestCSVIterableDataset(unittest.TestCase):
                 # test the last item which only has 1 data
                 if len(item) == 1:
                     self.assertListEqual(item["subject_id"], ["s000002"])
-                    np.testing.assert_allclose(item["label"], [4])
-                    self.assertListEqual(item["image"], ["./imgs/s000002.png"])
+                    np.testing.assert_allclose(item[CommonKeys.LABEL], [4])
+                    self.assertListEqual(item[CommonKeys.IMAGE], ["./imgs/s000002.png"])
             self.assertEqual(count, 3)
             dataset.close()
 
@@ -218,8 +228,8 @@ class TestCSVIterableDataset(unittest.TestCase):
                         {k: round(v, 4) if not isinstance(v, str) else v for k, v in item.items()},
                         {
                             "subject_id": "s000002",
-                            "label": 4,
-                            "image": "./imgs/s000002.png",
+                            CommonKeys.LABEL: 4,
+                            CommonKeys.IMAGE: "./imgs/s000002.png",
                             "ehr_0": 3.7725,
                             "ehr_1": 4.2118,
                             "ehr_2": 4.6353,
@@ -237,7 +247,7 @@ class TestCSVIterableDataset(unittest.TestCase):
                 count += 1
                 if count == 4:
                     self.assertEqual(item["subject_id"], "s000003")
-                    self.assertEqual(item["label"], 1)
+                    self.assertEqual(item[CommonKeys.LABEL], 1)
                     self.assertEqual(round(item["ehr_0"], 4), 3.3333)
                     self.assertEqual(item["meta_0"], False)
             self.assertEqual(count, 5)

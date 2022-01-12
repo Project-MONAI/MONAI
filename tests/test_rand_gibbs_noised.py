@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandGibbsNoised
+from monai.utils.enums import CommonKeys
 from monai.utils.misc import set_determinism
 from monai.utils.module import optional_import
 from tests.utils import TEST_NDARRAYS
@@ -29,7 +30,7 @@ for shape in ((128, 64), (64, 48, 80)):
     for input_type in TEST_NDARRAYS if has_torch_fft else [np.array]:
         TEST_CASES.append((shape, input_type))
 
-KEYS = ["im", "label"]
+KEYS = ["im", CommonKeys.LABEL]
 
 
 class TestRandGibbsNoised(unittest.TestCase):
