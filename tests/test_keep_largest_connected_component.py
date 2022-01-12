@@ -65,7 +65,7 @@ grid_4 = [
         [0.0, 0.0, 0.0, 0.0, 0.0],
     ],
 ]
-
+grid_5 = [[[0, 0, 1, 0, 0], [0, 1, 1, 1, 1], [1, 1, 1, 0, 0], [1, 1, 0, 1, 0], [1, 1, 0, 0, 1]]]
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -321,6 +321,15 @@ for p in TEST_NDARRAYS:
                     ],
                 ]
             ),
+        ]
+    )
+
+    TESTS.append(
+        [
+            "single_channel_onehot",
+            {"independent": False, "applied_labels": 0, "connectivity": 1, "single_channel_onehot": True},
+            p(grid_5),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 1, 1, 1, 1], [1, 1, 1, 0, 0], [1, 1, 0, 0, 0], [1, 1, 0, 0, 0]]]),
         ]
     )
 

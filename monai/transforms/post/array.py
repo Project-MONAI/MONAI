@@ -266,7 +266,7 @@ class KeepLargestConnectedComponent(Transform):
       2) With shape (C, spatial_dim1[, spatial_dim2, ...]) and the values should be 0, 1 on each labels.
 
     Note:
-        For single channel data, 0 will be treated as background and the over-segment pixels will be set to 0.
+        For not one-hot data, 0 will be treated as background and the over-segment pixels will be set to 0.
         For one-hot data, the over-segment pixels will be set to 0 in its channel.
 
     For example:
@@ -305,7 +305,11 @@ class KeepLargestConnectedComponent(Transform):
     backend = [TransformBackends.NUMPY]
 
     def __init__(
-        self, applied_labels: Union[Sequence[int], int], independent: bool = True, connectivity: Optional[int] = None
+        self,
+        applied_labels: Union[Sequence[int], int],
+        independent: bool = True,
+        connectivity: Optional[int] = None,
+        single_channel_onehot: bool = False,
     ) -> None:
         """
         Args:
@@ -319,12 +323,17 @@ class KeepLargestConnectedComponent(Transform):
                 default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
-                connectivity of ``input.ndim`` is used.
+                connectivity of ``input.ndim`` is used. for more details:
+                https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+            single_channel_onehot: if `True`, treat single channel input data as One-Hot format. in some user cases,
+                all the data are One-Hot format, but maybe some data only has 1 channel. default to `False`.
+
         """
         super().__init__()
         self.applied_labels = ensure_tuple(applied_labels)
         self.independent = independent
         self.connectivity = connectivity
+        self.single_channel_onehot = single_channel_onehot
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -335,7 +344,7 @@ class KeepLargestConnectedComponent(Transform):
             An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
 
-        is_onehot = img.shape[0] > 1
+        is_onehot = img.shape[0] > 1 or self.single_channel_onehot
         if self.independent:
             for i in self.applied_labels:
                 foreground = img[i] > 0 if is_onehot else img[0] == i

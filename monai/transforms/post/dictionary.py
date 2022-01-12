@@ -218,6 +218,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         applied_labels: Union[Sequence[int], int],
         independent: bool = True,
         connectivity: Optional[int] = None,
+        single_channel_onehot: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -234,12 +235,20 @@ class KeepLargestConnectedComponentd(MapTransform):
                 default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
-                connectivity of ``input.ndim`` is used.
+                connectivity of ``input.ndim`` is used. for more details:
+                https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+            single_channel_onehot: if `True`, treat single channel input data as One-Hot format. in some user cases,
+                all the data are One-Hot format, but maybe some data only has 1 channel. default to `False`.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
+        self.converter = KeepLargestConnectedComponent(
+            applied_labels=applied_labels,
+            independent=independent,
+            connectivity=connectivity,
+            single_channel_onehot=single_channel_onehot,
+        )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
