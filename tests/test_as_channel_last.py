@@ -22,6 +22,7 @@ for p in TEST_NDARRAYS:
     TESTS.append([p, {"channel_dim": 0}, (2, 3, 4, 1)])
     TESTS.append([p, {"channel_dim": 1}, (1, 3, 4, 2)])
     TESTS.append([p, {"channel_dim": 3}, (1, 2, 3, 4)])
+    TESTS.append([p, {"channel_dim": (1, 2)}, (1, 4, 2, 3)])
 
 
 class TestAsChannelLast(unittest.TestCase):

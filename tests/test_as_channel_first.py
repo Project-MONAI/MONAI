@@ -23,6 +23,7 @@ for p in TEST_NDARRAYS:
     TESTS.append([p, {"channel_dim": -1}, (4, 1, 2, 3)])
     TESTS.append([p, {"channel_dim": 3}, (4, 1, 2, 3)])
     TESTS.append([p, {"channel_dim": 2}, (3, 1, 2, 4)])
+    TESTS.append([p, {"channel_dim": (1, 2)}, (2, 3, 1, 4)])
 
 
 class TestAsChannelFirst(unittest.TestCase):
@@ -33,7 +34,10 @@ class TestAsChannelFirst(unittest.TestCase):
         self.assertTupleEqual(result.shape, expected_shape)
         if isinstance(test_data, torch.Tensor):
             test_data = test_data.cpu().numpy()
-        expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
+        if isinstance(input_param["channel_dim"], int):
+            expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
+        else:  # sequence
+            expected = np.moveaxis(test_data, input_param["channel_dim"], tuple(range(len(input_param["channel_dim"]))))
         assert_allclose(result, expected, type_test=False)
 
 

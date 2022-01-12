@@ -22,6 +22,7 @@ for p in TEST_NDARRAYS:
     TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": -1}, (4, 1, 2, 3)])
     TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": 3}, (4, 1, 2, 3)])
     TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": 2}, (3, 1, 2, 4)])
+    TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": (2, 3)}, (3, 4, 1, 2)])
 
 
 class TestAsChannelFirstd(unittest.TestCase):

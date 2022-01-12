@@ -213,12 +213,15 @@ class AsChannelFirstd(MapTransform):
 
     backend = AsChannelFirst.backend
 
-    def __init__(self, keys: KeysCollection, channel_dim: int = -1, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, channel_dim: Union[int, Sequence[int]] = -1, allow_missing_keys: bool = False
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             channel_dim: which dimension of input image is the channel, default is the last dimension.
+                if channel_dim is a sequence, the transform will move the channel dimensions to the front.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
@@ -238,12 +241,15 @@ class AsChannelLastd(MapTransform):
 
     backend = AsChannelLast.backend
 
-    def __init__(self, keys: KeysCollection, channel_dim: int = 0, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, channel_dim: Union[int, Sequence[int]] = 0, allow_missing_keys: bool = False
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             channel_dim: which dimension of input image is the channel, default is the first dimension.
+                if channel_dim is a sequence, the transform will move the channel dimensions to the back.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)

@@ -118,20 +118,20 @@ class AsChannelFirst(Transform):
 
     Args:
         channel_dim: which dimension of input image is the channel, default is the last dimension.
+            if channel_dim is a sequence, the transform will move the channel dimensions to the front.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, channel_dim: int = -1) -> None:
-        if not (isinstance(channel_dim, int) and channel_dim >= -1):
-            raise AssertionError("invalid channel dimension.")
-        self.channel_dim = channel_dim
+    def __init__(self, channel_dim: Union[int, Sequence[int]] = -1) -> None:
+        self.channel_dim = ensure_tuple(channel_dim)
+        self.target_dim = tuple(range(len(self.channel_dim)))
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return moveaxis(img, self.channel_dim, 0)
+        return moveaxis(img, self.channel_dim, self.target_dim)
 
 
 class AsChannelLast(Transform):
@@ -147,20 +147,20 @@ class AsChannelLast(Transform):
 
     Args:
         channel_dim: which dimension of input image is the channel, default is the first dimension.
+            if channel_dim is a sequence, the transform will move the channel dimensions to the back.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, channel_dim: int = 0) -> None:
-        if not (isinstance(channel_dim, int) and channel_dim >= -1):
-            raise AssertionError("invalid channel dimension.")
-        self.channel_dim = channel_dim
+    def __init__(self, channel_dim: Union[int, Sequence[int]] = 0) -> None:
+        self.channel_dim = ensure_tuple(channel_dim)
+        self.target_dim = tuple(range(-len(self.channel_dim), 0))
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return moveaxis(img, self.channel_dim, -1)
+        return moveaxis(img, self.channel_dim, self.target_dim)
 
 
 class AddChannel(Transform):
