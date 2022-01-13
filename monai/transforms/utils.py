@@ -402,7 +402,7 @@ def weighted_patch_samples(
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
         r, *_ = convert_to_dst_type(r_state.random(n_samples), v)  # type: ignore
-        idx = searchsorted(v, r * v[-1], right=True)
+        idx = searchsorted(v, r * v[-1], right=True)  # type: ignore
     idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
@@ -929,7 +929,8 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
         img: Image to get largest connected component from. Shape is (spatial_dim1 [, spatial_dim2, ...])
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
-            connectivity of ``input.ndim`` is used.
+            connectivity of ``input.ndim`` is used. for more details:
+            https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
     """
     img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
     largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
