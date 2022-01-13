@@ -150,11 +150,6 @@ GarbageCollector handler
 .. autoclass:: GarbageCollector
     :members:
 
-Transform inverter
-------------------
-.. autoclass:: TransformInverter
-    :members:
-
 Post processing
 ---------------
 .. autoclass:: PostProcessing
@@ -163,6 +158,11 @@ Post processing
 Decollate batch
 ---------------
 .. autoclass:: DecollateBatch
+    :members:
+
+MLFlow handler
+--------------
+.. autoclass:: MLFlowHandler
     :members:
 
 NVTX Handlers

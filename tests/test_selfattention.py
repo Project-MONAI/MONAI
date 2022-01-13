@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,11 +28,7 @@ for dropout_rate in np.linspace(0, 1, 4):
         for num_heads in [4, 6, 8, 12]:
 
             test_case = [
-                {
-                    "hidden_size": hidden_size,
-                    "num_heads": num_heads,
-                    "dropout_rate": dropout_rate,
-                },
+                {"hidden_size": hidden_size, "num_heads": num_heads, "dropout_rate": dropout_rate},
                 (2, 512, hidden_size),
                 (2, 512, hidden_size),
             ]

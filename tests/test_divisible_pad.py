@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,21 +22,11 @@ TESTS = []
 
 for p in TEST_NDARRAYS:
     # pad first dim to be divisible by 7, the second unchanged.
-    TESTS.append(
-        [
-            {"k": (7, -1), "mode": "constant"},
-            p(np.zeros((3, 8, 7))),
-            p(np.zeros((3, 14, 7))),
-        ]
-    )
+    TESTS.append([{"k": (7, -1), "mode": "constant"}, p(np.zeros((3, 8, 7))), p(np.zeros((3, 14, 7)))])
 
     # pad all dimensions to be divisible by 5
     TESTS.append(
-        [
-            {"k": 5, "mode": "constant", "method": "end"},
-            p(np.zeros((3, 10, 5, 17))),
-            p(np.zeros((3, 10, 5, 20))),
-        ]
+        [{"k": 5, "mode": "constant", "method": "end"}, p(np.zeros((3, 10, 5, 17))), p(np.zeros((3, 10, 5, 20)))]
     )
 
 
@@ -50,11 +40,13 @@ class TestDivisiblePad(unittest.TestCase):
         self.assertAlmostEqual(result.shape, expected_val.shape)
 
     def test_pad_kwargs(self):
-        padder = DivisiblePad(k=5, mode="constant", constant_values=((0, 0), (1, 1), (2, 2)))
         for p in TEST_NDARRAYS:
-            result = padder(p(np.zeros((3, 8, 4))))
-            result = result.cpu() if isinstance(result, torch.Tensor) else result
-            torch.testing.assert_allclose(result[:, :1, :4], np.ones((3, 1, 4)), rtol=1e-7, atol=0)
+            input_data = p(np.zeros((3, 8, 4)))
+            if isinstance(input_data, np.ndarray):
+                result = DivisiblePad(k=5, mode="constant", constant_values=((0, 0), (1, 1), (2, 2)))(input_data)
+                np.testing.assert_allclose(result[:, :1, :4], np.ones((3, 1, 4)), rtol=1e-7, atol=0)
+            else:
+                result = DivisiblePad(k=5, mode="constant", value=2)(input_data).cpu()
             torch.testing.assert_allclose(result[:, :, 4:5], np.ones((3, 10, 1)) + 1, rtol=1e-7, atol=0)
 
 
