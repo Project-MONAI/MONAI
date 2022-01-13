@@ -75,7 +75,7 @@ class TestDeterminism(DistTestCase):
     def tearDown(self):
         set_determinism(seed=None)
 
-    @TimedCall(seconds=150)
+    @TimedCall(seconds=150, skip_timing=not torch.cuda.is_available())
     def test_training(self):
         set_determinism(seed=0)
         loss, step = run_test(device=self.device)

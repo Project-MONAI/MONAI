@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import grid_pull
+from monai.networks.utils import meshgrid_ij
 from monai.utils import optional_import
 from tests.testing_data.cpp_resample_answers import Expected_1D_GP_bwd, Expected_1D_GP_fwd
 from tests.utils import skip_if_no_cpp_extension
@@ -26,7 +27,7 @@ PType, has_p_type = optional_import("monai._C", name="InterpolationType")
 
 def make_grid(shape, dtype=None, device=None, requires_grad=True):
     ranges = [torch.arange(float(s), dtype=dtype, device=device, requires_grad=requires_grad) for s in shape]
-    grid = torch.stack(torch.meshgrid(*ranges), dim=-1)
+    grid = torch.stack(meshgrid_ij(*ranges), dim=-1)
     return grid[None]
 
 

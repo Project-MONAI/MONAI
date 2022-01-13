@@ -37,6 +37,7 @@ __all__ = [
     "train_mode",
     "copy_model_state",
     "convert_to_torchscript",
+    "meshgrid_ij",
 ]
 
 
@@ -500,3 +501,9 @@ def convert_to_torchscript(
                 torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
 
     return script_module
+
+
+def meshgrid_ij(*tensors):
+    if pytorch_after(1, 10):
+        return torch.meshgrid(*tensors, indexing="ij")
+    return torch.meshgrid(*tensors)
