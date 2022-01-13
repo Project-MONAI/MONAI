@@ -65,14 +65,14 @@ grid_4 = [
         [0.0, 0.0, 0.0, 0.0, 0.0],
     ],
 ]
-
+grid_5 = [[[0, 0, 1, 0, 0], [0, 1, 1, 1, 1], [1, 1, 1, 0, 0], [1, 1, 0, 1, 0], [1, 1, 0, 0, 1]]]
 
 TESTS = []
 for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "value_1",
-            {"independent": False, "applied_labels": 1},
+            {"independent": False, "applied_labels": 1, "is_onehot": False},
             p(grid_1),
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
         ]
@@ -81,7 +81,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "value_2",
-            {"independent": False, "applied_labels": [2]},
+            {"independent": False, "applied_labels": [2], "is_onehot": False},
             p(grid_1),
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
         ]
@@ -90,7 +90,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "independent_value_1_2",
-            {"independent": True, "applied_labels": [1, 2]},
+            {"independent": True, "applied_labels": [1, 2], "is_onehot": False},
             p(grid_1),
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
         ]
@@ -99,7 +99,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "dependent_value_1_2",
-            {"independent": False, "applied_labels": [1, 2]},
+            {"independent": False, "applied_labels": [1, 2], "is_onehot": False},
             p(grid_1),
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
         ]
@@ -108,7 +108,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "value_1",
-            {"independent": True, "applied_labels": [1]},
+            {"independent": True, "applied_labels": [1], "is_onehot": False},
             p(grid_2),
             torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
         ]
@@ -117,7 +117,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "independent_value_1_2",
-            {"independent": True, "applied_labels": [1, 2]},
+            {"independent": True, "applied_labels": [1, 2], "is_onehot": False},
             p(grid_2),
             torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
         ]
@@ -126,7 +126,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "dependent_value_1_2",
-            {"independent": False, "applied_labels": [1, 2]},
+            {"independent": False, "applied_labels": [1, 2], "is_onehot": False},
             p(grid_2),
             torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 1]]]),
         ]
@@ -135,7 +135,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "value_1_connect_1",
-            {"independent": False, "applied_labels": [1], "connectivity": 1},
+            {"independent": False, "applied_labels": [1], "connectivity": 1, "is_onehot": False},
             p(grid_1),
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 2]]]),
         ]
@@ -144,7 +144,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "independent_value_1_2_connect_1",
-            {"independent": True, "applied_labels": [1, 2], "connectivity": 1},
+            {"independent": True, "applied_labels": [1, 2], "connectivity": 1, "is_onehot": False},
             p(grid_1),
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
         ]
@@ -152,7 +152,7 @@ for p in TEST_NDARRAYS:
 
     TESTS.append(
         [
-            "dependent_value_1_2_connect_1",
+            "onehot_none_dependent_value_1_2_connect_1",
             {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
             p(grid_1),
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
@@ -162,7 +162,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "onehot_independent_batch_2_apply_label_1_connect_1",
-            {"independent": True, "applied_labels": [1], "connectivity": 1},
+            {"independent": True, "applied_labels": [1], "connectivity": 1, "is_onehot": True},
             p(grid_3),
             torch.tensor(
                 [
@@ -195,7 +195,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "onehot_independent_batch_2_apply_label_1_connect_2",
-            {"independent": True, "applied_labels": [1], "connectivity": 2},
+            {"independent": True, "applied_labels": [1], "connectivity": 2, "is_onehot": True},
             p(grid_3),
             torch.tensor(
                 [
@@ -228,7 +228,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "onehot_independent_batch_2_apply_label_1_2_connect_2",
-            {"independent": True, "applied_labels": [1, 2], "connectivity": 2},
+            {"independent": True, "applied_labels": [1, 2], "connectivity": 2, "is_onehot": True},
             p(grid_3),
             torch.tensor(
                 [
@@ -261,7 +261,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             "onehot_dependent_batch_2_apply_label_1_2_connect_2",
-            {"independent": False, "applied_labels": [1, 2], "connectivity": 2},
+            {"independent": False, "applied_labels": [1, 2], "connectivity": 2, "is_onehot": True},
             p(grid_4),
             torch.tensor(
                 [
@@ -293,7 +293,7 @@ for p in TEST_NDARRAYS:
 
     TESTS.append(
         [
-            "onehot_dependent_batch_2_apply_label_1_2_connect_1",
+            "onehot_none_dependent_batch_2_apply_label_1_2_connect_1",
             {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
             p(grid_4),
             torch.tensor(
@@ -324,9 +324,20 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+    TESTS.append(
+        [
+            "single_channel_onehot",
+            {"independent": False, "applied_labels": 0, "connectivity": 1, "is_onehot": True},
+            p(grid_5),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 1, 1, 1, 1], [1, 1, 1, 0, 0], [1, 1, 0, 0, 0], [1, 1, 0, 0, 0]]]),
+        ]
+    )
+
 INVALID_CASES = []
 for p in TEST_NDARRAYS:
-    INVALID_CASES.append(["no_applied_labels_for_single_channel", {"independent": False}, p(grid_1), TypeError])
+    INVALID_CASES.append(
+        ["no_applied_labels_for_single_channel", {"independent": False, "is_onehot": False}, p(grid_1), TypeError]
+    )
     INVALID_CASES.append(["no_applied_labels_for_multi_channel", {"independent": False}, p(grid_3), TypeError])
 
 
