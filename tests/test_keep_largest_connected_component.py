@@ -152,8 +152,8 @@ for p in TEST_NDARRAYS:
 
     TESTS.append(
         [
-            "dependent_value_1_2_connect_1",
-            {"independent": False, "applied_labels": [1, 2], "connectivity": 1, "is_onehot": False},
+            "onehot_none_dependent_value_1_2_connect_1",
+            {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
             p(grid_1),
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
         ]
@@ -293,8 +293,8 @@ for p in TEST_NDARRAYS:
 
     TESTS.append(
         [
-            "onehot_dependent_batch_2_apply_label_1_2_connect_1",
-            {"independent": False, "applied_labels": [1, 2], "connectivity": 1, "is_onehot": True},
+            "onehot_none_dependent_batch_2_apply_label_1_2_connect_1",
+            {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
             p(grid_4),
             torch.tensor(
                 [
@@ -338,12 +338,7 @@ for p in TEST_NDARRAYS:
     INVALID_CASES.append(
         ["no_applied_labels_for_single_channel", {"independent": False, "is_onehot": False}, p(grid_1), TypeError]
     )
-    INVALID_CASES.append(
-        ["no_applied_labels_for_multi_channel", {"independent": False, "is_onehot": False}, p(grid_3), TypeError]
-    )
-    INVALID_CASES.append(
-        ["no_is_onehot_for_multi_channel", {"independent": False, "applied_labels": 0}, p(grid_3), TypeError]
-    )
+    INVALID_CASES.append(["no_applied_labels_for_multi_channel", {"independent": False}, p(grid_3), TypeError])
 
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):

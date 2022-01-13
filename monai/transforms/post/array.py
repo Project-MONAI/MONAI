@@ -305,7 +305,7 @@ class KeepLargestConnectedComponent(Transform):
     def __init__(
         self,
         applied_labels: Union[Sequence[int], int],
-        is_onehot: bool,
+        is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
     ) -> None:
@@ -315,6 +315,7 @@ class KeepLargestConnectedComponent(Transform):
                 If not OneHot. The pixel whose value is in this list will be analyzed.
                 If the data is in OneHot format, this is used to determine which channels to apply.
             is_onehot: if `True`, treat the input data as OneHot format data, otherwise, not OneHot format data.
+                default to None, which treats multi-channel data as OneHot and single channel data as not OneHot.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
                 and return the intersection of the largest components.
@@ -340,17 +341,17 @@ class KeepLargestConnectedComponent(Transform):
         Returns:
             An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
-
+        is_onehot = img.shape[0] > 1 if self.is_onehot is None else self.is_onehot
         if self.independent:
             for i in self.applied_labels:
-                foreground = img[i] > 0 if self.is_onehot else img[0] == i
+                foreground = img[i] > 0 if is_onehot else img[0] == i
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                if self.is_onehot:
+                if is_onehot:
                     img[i][foreground != mask] = 0
                 else:
                     img[0][foreground != mask] = 0
             return img
-        if not self.is_onehot:  # not one-hot, union of labels
+        if not is_onehot:  # not one-hot, union of labels
             labels, *_ = convert_to_dst_type(self.applied_labels, dst=img, wrap_sequence=True)
             foreground = (img[..., None] == labels).any(-1)[0]
             mask = get_largest_connected_component_mask(foreground, self.connectivity)

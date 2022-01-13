@@ -216,7 +216,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         self,
         keys: KeysCollection,
         applied_labels: Union[Sequence[int], int],
-        is_onehot: bool,
+        is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
         allow_missing_keys: bool = False,
@@ -229,6 +229,7 @@ class KeepLargestConnectedComponentd(MapTransform):
                 If not OneHot. The pixel whose value is in this list will be analyzed.
                 If the data is in OneHot format, this is used to determine which channels to apply.
             is_onehot: if `True`, treat the input data as OneHot format data, otherwise, not OneHot format data.
+                default to None, which treats multi-channel data as OneHot and single channel data as not OneHot.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
                 and return the intersection of the largest components.
