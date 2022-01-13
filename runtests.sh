@@ -44,6 +44,7 @@ doBlackFix=false
 doIsortFormat=false
 doIsortFix=false
 doFlake8Format=false
+doPylintFormat=false
 doClangFormat=false
 doCopyRight=false
 doPytypeFormat=false
@@ -56,7 +57,7 @@ NUM_PARALLEL=1
 PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--clangformat] [--pytype] [--mypy]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--list_tests]"
     echo "            [--copyright] [--build] [--clean] [--help] [--version]"
     echo ""
@@ -75,6 +76,7 @@ function print_usage {
     echo "    --autofix         : format code using \"isort\" and \"black\""
     echo "    --isort           : perform \"isort\" import sort checks"
     echo "    --flake8          : perform \"flake8\" code format checks"
+    echo "    --pylint          : perform \"pylint\" code format checks"
     echo "    --clangformat     : format csrc code using \"clang-format\""
     echo ""
     echo "Python type check options:"
@@ -241,6 +243,7 @@ do
             doBlackFormat=true
             doIsortFormat=true
             doFlake8Format=true
+            doPylintFormat=true
             doPytypeFormat=true
             doMypyFormat=true
             doCopyRight=true
@@ -266,6 +269,9 @@ do
         ;;
         --flake8)
             doFlake8Format=true
+        ;;
+        --pylint)
+            doPylintFormat=true
         ;;
         --pytype)
             doPytypeFormat=true
@@ -463,7 +469,7 @@ then
 
     # ensure that the necessary packages for code format testing are installed
     if ! is_pip_installed flake8
-	then
+    then
         install_deps
     fi
     ${cmdPrefix}${PY_EXE} -m flake8 --version
@@ -475,6 +481,32 @@ then
     then
         print_style_fail_msg
         exit ${flake8_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
+fi
+
+if [ $doPylintFormat = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    echo "${separator}${blue}pylint${noColor}"
+
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed flake8
+    then
+        install_deps
+    fi
+    ${cmdPrefix}${PY_EXE} -m pylint --version
+
+    ignore_codes="E1101,E1102,E0601,E1130,E1123,E0102,E1120,E1137,E1136"
+    ${cmdPrefix}${PY_EXE} -m pylint monai tests -E --disable=$ignore_codes -j $NUM_PARALLEL
+    pylint_status=$?
+
+    if [ ${pylint_status} -ne 0 ]
+    then
+        print_style_fail_msg
+        exit ${pylint_status}
     else
         echo "${green}passed!${noColor}"
     fi
