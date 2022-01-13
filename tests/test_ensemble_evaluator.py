@@ -15,6 +15,7 @@ import torch
 from ignite.engine import EventEnum, Events
 
 from monai.engines import EnsembleEvaluator
+from monai.utils.enums import CommonKeys
 
 
 class TestEnsembleEvaluator(unittest.TestCase):

@@ -35,6 +35,7 @@ from monai.transforms.croppad.dictionary import SpatialPadd
 from monai.transforms.spatial.dictionary import RandFlipd, Spacingd
 from monai.utils import optional_import, set_determinism
 from tests.utils import TEST_NDARRAYS
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 if TYPE_CHECKING:
     import tqdm

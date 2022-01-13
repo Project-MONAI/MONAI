@@ -15,7 +15,7 @@ import torch
 
 from monai.engines import PrepareBatchDefault, SupervisedEvaluator
 from tests.utils import assert_allclose
-
+from monai.utils.enums import CommonKeys
 
 class TestNet(torch.nn.Module):
     def forward(self, x: torch.Tensor):

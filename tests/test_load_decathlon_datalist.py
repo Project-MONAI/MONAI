@@ -16,6 +16,7 @@ import unittest
 from pathlib import Path
 
 from monai.data import load_decathlon_datalist
+from monai.utils.enums import CommonKeys
 
 
 class TestLoadDecathlonDatalist(unittest.TestCase):

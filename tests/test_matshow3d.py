@@ -19,6 +19,7 @@ from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropSa
 from monai.utils import optional_import
 from monai.visualize.utils import matshow3d
 from tests.utils import SkipIfNoModule
+from monai.utils.enums import CommonKeys
 
 compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_images")
 pyplot, has_pyplot = optional_import("matplotlib", name="pyplot")

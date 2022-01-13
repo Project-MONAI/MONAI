@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.apps.deepgrow.dataset import create_dataset
 from monai.utils import set_determinism
+from monai.utils.enums import CommonKeys
 
 TEST_CASE_1 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 3}, 9, 1]
 

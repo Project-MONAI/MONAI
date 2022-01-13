@@ -24,6 +24,7 @@ from monai.data.image_reader import PILReader
 from monai.transforms import LoadImage, LoadImaged
 from monai.transforms.io.array import switch_endianness
 from monai.utils.module import optional_import
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 if TYPE_CHECKING:
     import nibabel as nib

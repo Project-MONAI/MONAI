@@ -24,6 +24,7 @@ from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
+from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt

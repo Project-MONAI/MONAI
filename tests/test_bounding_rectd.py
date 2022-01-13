@@ -17,6 +17,7 @@ from parameterized import parameterized
 import monai
 from monai.transforms import BoundingRectD
 from tests.utils import TEST_NDARRAYS
+from monai.utils.enums import CommonKeys
 
 TEST_CASE_1 = [(2, 3), [[0, 0], [1, 2]]]
 

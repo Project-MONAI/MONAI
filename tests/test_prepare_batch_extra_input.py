@@ -16,6 +16,7 @@ from parameterized import parameterized
 
 from monai.engines import PrepareBatchExtraInput, SupervisedEvaluator
 from tests.utils import assert_allclose
+from monai.utils.enums import CommonKeys
 
 TEST_CASE_0 = [
     {"extra_keys": "extra1"},

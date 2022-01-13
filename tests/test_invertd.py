@@ -37,7 +37,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
-from monai.utils.enums import CommonKeys
+from monai.utils.enums import CommonKeys, DictPostFixes
 from tests.utils import make_nifti_image
 
 KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]

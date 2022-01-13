@@ -19,7 +19,7 @@ import torch
 
 from monai.data import DataLoader, Dataset, NumpyReader
 from monai.transforms import LoadImaged
-
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 class TestNumpyReader(unittest.TestCase):
     def test_npy(self):

@@ -16,6 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import DeleteItemsd
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 TEST_CASE_1 = [{"keys": [str(i) for i in range(30)]}, 20]
 

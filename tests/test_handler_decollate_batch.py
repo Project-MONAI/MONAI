@@ -16,7 +16,7 @@ import torch
 from monai.engines import SupervisedEvaluator
 from monai.handlers import DecollateBatch, PostProcessing
 from monai.transforms import Activationsd, AsDiscreted, Compose, CopyItemsd
-
+from monai.utils.enums import CommonKeys
 
 class TestHandlerDecollateBatch(unittest.TestCase):
     def test_compute(self):

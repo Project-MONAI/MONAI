@@ -15,6 +15,7 @@ import unittest
 from pathlib import Path
 
 from monai.data import create_cross_validation_datalist, load_decathlon_datalist
+from monai.utils.enums import CommonKeys
 
 
 class TestCreateCrossValidationDatalist(unittest.TestCase):

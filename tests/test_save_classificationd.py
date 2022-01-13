@@ -20,6 +20,7 @@ import torch
 
 from monai.data import CSVSaver, decollate_batch
 from monai.transforms import Compose, CopyItemsd, SaveClassificationd
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 
 class TestSaveClassificationd(unittest.TestCase):

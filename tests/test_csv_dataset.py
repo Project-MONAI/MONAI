@@ -18,7 +18,7 @@ import pandas as pd
 
 from monai.data import CSVDataset
 from monai.transforms import ToNumpyd
-
+from monai.utils.enums import CommonKeys
 
 class TestCSVDataset(unittest.TestCase):
     def test_values(self):

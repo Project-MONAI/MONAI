@@ -17,6 +17,7 @@ from parameterized import parameterized
 from monai.transforms import CuCIMd
 from monai.utils import optional_import, set_determinism
 from tests.utils import HAS_CUPY, skip_if_no_cuda
+from monai.utils.enums import CommonKeys
 
 _, has_cut = optional_import("cucim.core.operations.expose.transform")
 cp, _ = optional_import("cupy")

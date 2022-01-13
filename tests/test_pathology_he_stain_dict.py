@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms import ExtractHEStainsD, NormalizeHEStainsD
+from monai.utils.enums import CommonKeys
 
 # None inputs
 EXTRACT_STAINS_TEST_CASE_0 = (None,)

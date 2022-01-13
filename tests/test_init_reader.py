@@ -14,7 +14,7 @@ import unittest
 from monai.data import ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.transforms import LoadImage, LoadImaged
 from tests.utils import SkipIfNoModule
-
+from monai.utils.enums import CommonKeys
 
 class TestInitLoadImage(unittest.TestCase):
     def test_load_image(self):

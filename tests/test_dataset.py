@@ -19,6 +19,7 @@ from parameterized import parameterized
 
 from monai.data import Dataset
 from monai.transforms import Compose, LoadImaged, SimulateDelayd
+from monai.utils.enums import CommonKeys
 
 TEST_CASE_1 = [(128, 128, 128)]
 

@@ -15,6 +15,7 @@ import tempfile
 import unittest
 
 from monai.data import Dataset, DatasetFunc, load_decathlon_datalist, partition_dataset
+from monai.utils.enums import CommonKeys
 
 
 class TestDatasetFunc(unittest.TestCase):

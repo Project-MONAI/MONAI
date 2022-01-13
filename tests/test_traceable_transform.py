@@ -12,6 +12,7 @@
 import unittest
 
 from monai.transforms.inverse import TraceableTransform
+from monai.utils.enums import CommonKeys
 
 
 class _TraceTest(TraceableTransform):

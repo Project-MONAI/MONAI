@@ -13,7 +13,7 @@ import itertools
 import unittest
 
 from monai.transforms.adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-
+from monai.utils.enums import CommonKeys
 
 class TestAdaptors(unittest.TestCase):
     def test_function_signature(self):

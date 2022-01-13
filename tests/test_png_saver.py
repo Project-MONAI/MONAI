@@ -17,7 +17,7 @@ from pathlib import Path
 import torch
 
 from monai.data import PNGSaver
-
+from monai.utils.enums import CommonKeys
 
 class TestPNGSaver(unittest.TestCase):
     def test_saved_content(self):

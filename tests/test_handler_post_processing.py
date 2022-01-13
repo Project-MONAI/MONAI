@@ -17,6 +17,7 @@ from parameterized import parameterized
 from monai.engines import SupervisedEvaluator
 from monai.handlers import PostProcessing
 from monai.transforms import Activationsd, AsDiscreted, Compose, CopyItemsd
+from monai.utils.enums import CommonKeys
 
 # test lambda function as `transform`
 TEST_CASE_1 = [{"transform": lambda x: dict(pred=x["pred"] + 1.0)}, False, torch.tensor([[[[1.9975], [1.9997]]]])]

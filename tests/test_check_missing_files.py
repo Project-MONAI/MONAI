@@ -18,6 +18,7 @@ import nibabel as nib
 import numpy as np
 
 from monai.data import check_missing_files
+from monai.utils.enums import CommonKeys
 
 
 class TestCheckMissingFiles(unittest.TestCase):

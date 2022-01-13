@@ -20,7 +20,7 @@ import numpy as np
 from monai.data import Dataset, DatasetSummary, create_test_image_3d
 from monai.transforms import LoadImaged
 from monai.utils import set_determinism
-
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 def test_collate(batch):
     elem = batch[0]

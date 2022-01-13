@@ -43,6 +43,7 @@ from monai.utils import set_determinism
 from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
+from monai.utils.enums import CommonKeys
 
 TASK = "integration_segmentation_3d"
 

@@ -23,6 +23,7 @@ from monai.data.image_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from tests.utils import download_url_or_skip_test
+from monai.utils.enums import CommonKeys, DictPostFixes
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")

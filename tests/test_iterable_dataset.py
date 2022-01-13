@@ -19,6 +19,7 @@ import numpy as np
 
 from monai.data import DataLoader, Dataset, IterableDataset
 from monai.transforms import Compose, LoadImaged, SimulateDelayd
+from monai.utils.enums import CommonKeys
 
 
 class _Stream:
