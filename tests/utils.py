@@ -24,7 +24,7 @@ import warnings
 from functools import partial
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
-from urllib.error import HTTPError, URLError
+from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
 import torch
