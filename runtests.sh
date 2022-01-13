@@ -518,14 +518,16 @@ if [ $doPytypeFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
     echo "${separator}${blue}pytype${noColor}"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "${red}pytype not working on macOS (https://github.com/Project-MONAI/MONAI/issues/2391), skipping the tests.${noColor}"
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed pytype
+    then
+        install_deps
+    fi
+    pytype_ver=$(${cmdPrefix}${PY_EXE} -m pytype --version)
+    if [[ "$OSTYPE" == "darwin"* && "$pytype_ver" == "2021."* ]]; then
+        echo "${red}pytype not working on macOS 2021 (https://github.com/Project-MONAI/MONAI/issues/2391). Please upgrade to 2022*.${noColor}"
+        exit 1
     else
-        # ensure that the necessary packages for code format testing are installed
-        if ! is_pip_installed pytype
-        then
-            install_deps
-        fi
         ${cmdPrefix}${PY_EXE} -m pytype --version
 
         ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
