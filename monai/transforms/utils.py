@@ -931,7 +931,8 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
         img: Image to get largest connected component from. Shape is (spatial_dim1 [, spatial_dim2, ...])
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
-            connectivity of ``input.ndim`` is used.
+            connectivity of ``input.ndim`` is used. for more details:
+            https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
     """
     img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
     largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
