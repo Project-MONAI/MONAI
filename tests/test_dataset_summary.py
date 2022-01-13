@@ -22,6 +22,7 @@ from monai.transforms import LoadImaged
 from monai.utils import set_determinism
 from monai.utils.enums import CommonKeys, DictPostFixes
 
+
 def test_collate(batch):
     elem = batch[0]
     elem_type = type(elem)

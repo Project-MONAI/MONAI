@@ -15,8 +15,8 @@ import torch
 from parameterized import parameterized
 
 from monai.engines import PrepareBatchExtraInput, SupervisedEvaluator
-from tests.utils import assert_allclose
 from monai.utils.enums import CommonKeys
+from tests.utils import assert_allclose
 
 TEST_CASE_0 = [
     {"extra_keys": "extra1"},

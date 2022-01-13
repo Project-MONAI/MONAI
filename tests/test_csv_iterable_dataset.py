@@ -19,8 +19,8 @@ import pandas as pd
 
 from monai.data import CSVIterableDataset, DataLoader
 from monai.transforms import ToNumpyd
-from tests.utils import skip_if_windows
 from monai.utils.enums import CommonKeys
+from tests.utils import skip_if_windows
 
 
 @skip_if_windows

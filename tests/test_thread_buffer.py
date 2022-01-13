@@ -18,6 +18,7 @@ from monai.transforms import Compose, SimulateDelayd
 from monai.utils import PerfContext
 from monai.utils.enums import CommonKeys
 
+
 class TestDataLoader(unittest.TestCase):
     def setUp(self):
         super().setUp()

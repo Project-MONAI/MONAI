@@ -23,8 +23,8 @@ from monai.data import DataLoader, Dataset, create_test_image_2d
 from monai.data.image_reader import PILReader
 from monai.transforms import LoadImage, LoadImaged
 from monai.transforms.io.array import switch_endianness
-from monai.utils.module import optional_import
 from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.module import optional_import
 
 if TYPE_CHECKING:
     import nibabel as nib

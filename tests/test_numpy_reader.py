@@ -21,6 +21,7 @@ from monai.data import DataLoader, Dataset, NumpyReader
 from monai.transforms import LoadImaged
 from monai.utils.enums import CommonKeys, DictPostFixes
 
+
 class TestNumpyReader(unittest.TestCase):
     def test_npy(self):
         test_data = np.random.randint(0, 256, size=[3, 4, 4])

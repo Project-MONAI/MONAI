@@ -17,8 +17,8 @@ from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import MedNISTDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from tests.utils import skip_if_quick
 from monai.utils.enums import CommonKeys, DictPostFixes
+from tests.utils import skip_if_quick
 
 MEDNIST_FULL_DATASET_LENGTH = 58954
 

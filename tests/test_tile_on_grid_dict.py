@@ -17,8 +17,8 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms import TileOnGridDict
-from tests.utils import TEST_NDARRAYS, assert_allclose
 from monai.utils.enums import CommonKeys
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES = []
 for tile_count in [16, 64]:
