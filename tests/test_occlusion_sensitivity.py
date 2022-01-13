@@ -32,7 +32,7 @@ model_3d.eval()
 # 2D w/ bounding box
 TEST_CASE_0 = [
     {"nn_module": model_2d},
-    {"x": torch.rand(1, 2, 48, 64).to(device), "b_box": [-1, -1, 2, 40, 1, 62]},
+    {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [-1, -1, 2, 40, 1, 62]},
     (1, 1, 39, 62, out_channels_2d),
     (1, 1, 39, 62),
 ]

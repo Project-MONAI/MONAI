@@ -295,6 +295,7 @@ class OcclusionSensitivity:
                     Hence, more -ve values imply that region was important in the decision process.
                 * The map will have shape ``BCHW(D)N``, where N is the number of classes to be inferred by the
                     network. Hence, the occlusion for class ``i`` can be seen with ``map[...,i]``.
+                * If `per_channel==False`, output ``C`` will equal 1: ``B1HW(D)N``
             * Most probable class:
                 * The most probable class when the corresponding part of the image is occluded (``argmax(dim=-1)``).
             Both images will be cropped if a bounding box used, but voxel sizes will always match the input.
