@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,6 +31,7 @@ class DistributedMetricsSaver(DistTestCase):
             self._run(tempdir)
 
     def _run(self, tempdir):
+        my_rank = dist.get_rank()
         fnames = ["aaa" * 300, "bbb" * 301, "ccc" * 302]
 
         metrics_saver = MetricsSaver(
@@ -46,18 +47,15 @@ class DistributedMetricsSaver(DistTestCase):
 
         engine = Engine(_val_func)
 
-        if dist.get_rank() == 0:
+        if my_rank == 0:
             data = [{"image_meta_dict": {"filename_or_obj": [fnames[0]]}}]
 
             @engine.on(Events.EPOCH_COMPLETED)
             def _save_metrics0(engine):
                 engine.state.metrics = {"metric1": 1, "metric2": 2}
-                engine.state.metric_details = {
-                    "metric3": torch.tensor([[1, 2]]),
-                    "metric4": torch.tensor([[5, 6]]),
-                }
+                engine.state.metric_details = {"metric3": torch.tensor([[1, 2]]), "metric4": torch.tensor([[5, 6]])}
 
-        if dist.get_rank() == 1:
+        if my_rank == 1:
             # different ranks have different data length
             data = [
                 {"image_meta_dict": {"filename_or_obj": [fnames[1]]}},
@@ -82,7 +80,7 @@ class DistributedMetricsSaver(DistTestCase):
         metrics_saver.attach(engine)
         engine.run(data, max_epochs=1)
 
-        if dist.get_rank() == 0:
+        if my_rank == 0:
             # check the metrics.csv and content
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metrics.csv")))
             with open(os.path.join(tempdir, "metrics.csv")) as f:

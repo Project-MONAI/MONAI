@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import math
+from copy import deepcopy
 from typing import List, Sequence, Union
 
 import torch
@@ -20,29 +21,30 @@ from torch.autograd import Function
 from monai.networks.layers.convutils import gaussian_1d
 from monai.networks.layers.factories import Conv
 from monai.utils import (
-    PT_BEFORE_1_7,
     ChannelMatching,
     InvalidPyTorchVersionError,
     SkipMode,
-    ensure_tuple_rep,
     look_up_option,
     optional_import,
+    pytorch_after,
 )
+from monai.utils.misc import issequenceiterable
 
 _C, _ = optional_import("monai._C")
-if not PT_BEFORE_1_7:
+if pytorch_after(1, 7):
     fft, _ = optional_import("torch.fft")
 
 __all__ = [
-    "SkipConnection",
+    "ChannelPad",
     "Flatten",
     "GaussianFilter",
+    "HilbertTransform",
     "LLTM",
     "Reshape",
-    "separable_filtering",
     "SavitzkyGolayFilter",
-    "HilbertTransform",
-    "ChannelPad",
+    "SkipConnection",
+    "apply_filter",
+    "separable_filtering",
 ]
 
 
@@ -210,25 +212,97 @@ def separable_filtering(x: torch.Tensor, kernels: List[torch.Tensor], mode: str 
     Args:
         x: the input image. must have shape (batch, channels, H[, W, ...]).
         kernels: kernel along each spatial dimension.
-            could be a single kernel (duplicated for all dimension), or `spatial_dims` number of kernels.
+            could be a single kernel (duplicated for all spatial dimensions), or
+            a list of `spatial_dims` number of kernels.
         mode (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'``
-            or ``'circular'``. Default: ``'zeros'``. Modes other than ``'zeros'`` require PyTorch version >= 1.5.1. See
-            torch.nn.Conv1d() for more information.
+            or ``'circular'``. Default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
 
     Raises:
         TypeError: When ``x`` is not a ``torch.Tensor``.
+
+    Examples:
+
+    .. code-block:: python
+
+        >>> import torch
+        >>> from monai.networks.layers import separable_filtering
+        >>> img = torch.randn(2, 4, 32, 32)  # batch_size 2, channels 4, 32x32 2D images
+        # applying a [-1, 0, 1] filter along each of the spatial dimensions.
+        # the output shape is the same as the input shape.
+        >>> out = separable_filtering(img, torch.tensor((-1., 0., 1.)))
+        # applying `[-1, 0, 1]`, `[1, 0, -1]` filters along two spatial dimensions respectively.
+        # the output shape is the same as the input shape.
+        >>> out = separable_filtering(img, [torch.tensor((-1., 0., 1.)), torch.tensor((1., 0., -1.))])
+
     """
 
     if not isinstance(x, torch.Tensor):
         raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
 
     spatial_dims = len(x.shape) - 2
-    _kernels = [s.float() for s in kernels]
+    if isinstance(kernels, torch.Tensor):
+        kernels = [kernels] * spatial_dims
+    _kernels = [s.to(x) for s in kernels]
     _paddings = [(k.shape[0] - 1) // 2 for k in _kernels]
     n_chs = x.shape[1]
     pad_mode = "constant" if mode == "zeros" else mode
 
-    return _separable_filtering_conv(x, kernels, pad_mode, spatial_dims - 1, spatial_dims, _paddings, n_chs)
+    return _separable_filtering_conv(x, _kernels, pad_mode, spatial_dims - 1, spatial_dims, _paddings, n_chs)
+
+
+def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tensor:
+    """
+    Filtering `x` with `kernel` independently for each batch and channel respectively.
+
+    Args:
+        x: the input image, must have shape (batch, channels, H[, W, D]).
+        kernel: `kernel` must at least have the spatial shape (H_k[, W_k, D_k]).
+            `kernel` shape must be broadcastable to the `batch` and `channels` dimensions of `x`.
+        kwargs: keyword arguments passed to `conv*d()` functions.
+
+    Returns:
+        The filtered `x`.
+
+    Examples:
+
+    .. code-block:: python
+
+        >>> import torch
+        >>> from monai.networks.layers import apply_filter
+        >>> img = torch.rand(2, 5, 10, 10)  # batch_size 2, channels 5, 10x10 2D images
+        >>> out = apply_filter(img, torch.rand(3, 3))   # spatial kernel
+        >>> out = apply_filter(img, torch.rand(5, 3, 3))  # channel-wise kernels
+        >>> out = apply_filter(img, torch.rand(2, 5, 3, 3))  # batch-, channel-wise kernels
+
+    """
+    if not isinstance(x, torch.Tensor):
+        raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
+    batch, chns, *spatials = x.shape
+    n_spatial = len(spatials)
+    if n_spatial > 3:
+        raise NotImplementedError(f"Only spatial dimensions up to 3 are supported but got {n_spatial}.")
+    k_size = len(kernel.shape)
+    if k_size < n_spatial or k_size > n_spatial + 2:
+        raise ValueError(
+            f"kernel must have {n_spatial} ~ {n_spatial + 2} dimensions to match the input shape {x.shape}."
+        )
+    kernel = kernel.to(x)
+    # broadcast kernel size to (batch chns, spatial_kernel_size)
+    kernel = kernel.expand(batch, chns, *kernel.shape[(k_size - n_spatial) :])
+    kernel = kernel.reshape(-1, 1, *kernel.shape[2:])  # group=1
+    x = x.view(1, kernel.shape[0], *spatials)
+    conv = [F.conv1d, F.conv2d, F.conv3d][n_spatial - 1]
+    if "padding" not in kwargs:
+        if pytorch_after(1, 10):
+            kwargs["padding"] = "same"
+        else:
+            # even-sized kernels are not supported
+            kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
+
+    if "stride" not in kwargs:
+        kwargs["stride"] = 1
+    output = conv(x, kernel, groups=kernel.shape[0], bias=None, **kwargs)
+    return output.view(batch, chns, *output.shape[2:])
 
 
 class SavitzkyGolayFilter(nn.Module):
@@ -307,12 +381,12 @@ class HilbertTransform(nn.Module):
 
     Args:
         axis: Axis along which to apply Hilbert transform. Default 2 (first spatial dimension).
-        N: Number of Fourier components (i.e. FFT size). Default: ``x.shape[axis]``.
+        n: Number of Fourier components (i.e. FFT size). Default: ``x.shape[axis]``.
     """
 
     def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:
 
-        if PT_BEFORE_1_7:
+        if not pytorch_after(1, 7):
             raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         super().__init__()
@@ -393,13 +467,18 @@ class GaussianFilter(nn.Module):
                 (for example `parameters()` iterator could be used to get the parameters);
                 otherwise this module will fix the kernels using `sigma` as the std.
         """
+        if issequenceiterable(sigma):
+            if len(sigma) != spatial_dims:  # type: ignore
+                raise ValueError
+        else:
+            sigma = [deepcopy(sigma) for _ in range(spatial_dims)]  # type: ignore
         super().__init__()
         self.sigma = [
             torch.nn.Parameter(
                 torch.as_tensor(s, dtype=torch.float, device=s.device if isinstance(s, torch.Tensor) else None),
                 requires_grad=requires_grad,
             )
-            for s in ensure_tuple_rep(sigma, int(spatial_dims))
+            for s in sigma  # type: ignore
         ]
         self.truncated = truncated
         self.approx = approx
@@ -449,7 +528,7 @@ class LLTM(nn.Module):
     """
 
     def __init__(self, input_features: int, state_size: int):
-        super(LLTM, self).__init__()
+        super().__init__()
         self.input_features = input_features
         self.state_size = state_size
         self.weights = nn.Parameter(torch.empty(3 * state_size, input_features + state_size))

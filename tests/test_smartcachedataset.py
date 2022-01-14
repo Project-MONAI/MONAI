@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -174,13 +174,7 @@ class TestSmartCacheDataset(unittest.TestCase):
         data_list = [np.array([i]) for i in range(5)]
         data_list_backup = copy.copy(data_list)
 
-        SmartCacheDataset(
-            data=data_list,
-            transform=None,
-            cache_rate=0.5,
-            replace_rate=0.4,
-            shuffle=True,
-        )
+        SmartCacheDataset(data=data_list, transform=None, cache_rate=0.5, replace_rate=0.4, shuffle=True)
         np.testing.assert_allclose(data_list, data_list_backup)
 
 
