@@ -67,7 +67,7 @@ class TestFolderLayout(unittest.TestCase):
         """mkdir=True should create the directory if it does not exist."""
         with tempfile.TemporaryDirectory() as tempdir:
             output_tmp = os.path.join(tempdir, "output")
-            fname = FolderLayout(output_tmp, makedirs=True).filename("subject_test", "001")
+            _ = FolderLayout(output_tmp, makedirs=True).filename("subject_test", "001")
             self.assertTrue(os.path.exists(os.path.join(output_tmp)))
 
 
