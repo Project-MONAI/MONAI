@@ -69,6 +69,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+_build/
 
 # PyBuilder
 target/
@@ -135,3 +136,4 @@ tests/testing_data/*.tiff
 
 # VSCode
 .vscode/
+*.zip

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,9 +30,7 @@ else:
     PILImageImage, _ = optional_import("PIL.Image", name="Image")
 
 im = [[1.0, 2.0], [3.0, 4.0]]
-TESTS = []
-for p in TEST_NDARRAYS:
-    TESTS.append([{"keys": "image"}, {"image": p(im)}])
+TESTS = [[{"keys": "image"}, {"image": p(im)}] for p in TEST_NDARRAYS]
 if has_pil:
     TESTS.append([{"keys": "image"}, {"image": pil_image_fromarray(np.array(im))}])
 
@@ -43,7 +41,7 @@ class TestToPIL(unittest.TestCase):
     def test_values(self, input_param, test_data):
         result = ToPILd(**input_param)(test_data)[input_param["keys"]]
         self.assertTrue(isinstance(result, PILImageImage))
-        assert_allclose(np.array(result), test_data[input_param["keys"]])
+        assert_allclose(np.array(result), test_data[input_param["keys"]], type_test=False)
 
 
 if __name__ == "__main__":

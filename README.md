@@ -10,7 +10,7 @@
 [![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/dev/graph/badge.svg)](https://codecov.io/gh/Project-MONAI/MONAI)
 [![PyPI version](https://badge.fury.io/py/monai.svg)](https://badge.fury.io/py/monai)
 
-MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](LICENSE) framework for deep learning in healthcare imaging, part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/).
+MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/dev/LICENSE) framework for deep learning in healthcare imaging, part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/).
 Its ambitions are:
 - developing a community of academic, industrial and clinical researchers collaborating on a common foundation;
 - creating state-of-the-art, end-to-end training workflows for healthcare imaging;
@@ -19,7 +19,7 @@ Its ambitions are:
 
 ## Features
 > _The codebase is currently under active development._
-> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) and [What's New in 0.6](https://docs.monai.io/en/latest/whatsnew_0_6.html) of the current milestone release._
+> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) and [What's New](https://docs.monai.io/en/latest/whatsnew.html) of the current milestone release._
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
@@ -47,7 +47,7 @@ Examples and notebook tutorials are located at [Project-MONAI/tutorials](https:/
 Technical documentation is available at [docs.monai.io](https://docs.monai.io).
 
 ## Contributing
-For guidance on making a contribution to MONAI, see the [contributing guidelines](CONTRIBUTING.md).
+For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md).
 
 ## Community
 Join the conversation on Twitter [@ProjectMONAI](https://twitter.com/ProjectMONAI) or join our [Slack channel](https://forms.gle/QTxJq3hFictp31UM9).
