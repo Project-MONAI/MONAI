@@ -885,7 +885,7 @@ class CopyItemsd(MapTransform):
         if times < 1:
             raise ValueError(f"times must be positive, got {times}.")
         self.times = times
-        names = ensure_tuple(names) if names is not None else [f"{k}_{i}" for k in self.keys for i in self.times]
+        names = [f"{k}_{i}" for k in self.keys for i in range(self.times)] if names is None else ensure_tuple(names)
         if len(names) != (len(self.keys) * times):
             raise ValueError(
                 "len(names) must match len(keys) * times, "

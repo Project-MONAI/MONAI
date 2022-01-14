@@ -27,21 +27,23 @@ TEST_CASE_3 = ["img", 2, ["img_1", "img_2"]]
 
 TEST_CASE_4 = [["img", "seg"], 2, ["img_1", "seg_1", "img_2", "seg_2"]]
 
-TEST_CASE_5 = ["img", None, "img_1"]
-
-TEST_CASE_6 = [["img", "seg"], 2, None, ["img_1", "seg_1", "img_2", "seg_2"]]
-
 
 class TestCopyItemsd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
-    def test_numpy_values(self, keys, times, names, expected_keys=None):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    def test_numpy_values(self, keys, times, names):
         input_data = {"img": np.array([[0, 1], [1, 2]]), "seg": np.array([[3, 4], [4, 5]])}
         result = CopyItemsd(keys=keys, times=times, names=names)(input_data)
-        for name in ensure_tuple(names or expected_keys):
+        for name in ensure_tuple(names):
             self.assertTrue(name in result)
         result["img_1"] += 1
         np.testing.assert_allclose(result["img_1"], np.array([[1, 2], [2, 3]]))
         np.testing.assert_allclose(result["img"], np.array([[0, 1], [1, 2]]))
+
+    def test_default_names(self):
+        input_data = {"img": np.array([[0, 1], [1, 2]]), "seg": np.array([[3, 4], [4, 5]])}
+        result = CopyItemsd(keys=["img", "seg"], times=2, names=None)(input_data)
+        for name in ["img_0", "seg_0", "img_1", "seg_1"]:
+            self.assertTrue(name in result)
 
     def test_tensor_values(self):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
