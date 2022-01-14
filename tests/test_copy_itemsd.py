@@ -27,13 +27,17 @@ TEST_CASE_3 = ["img", 2, ["img_1", "img_2"]]
 
 TEST_CASE_4 = [["img", "seg"], 2, ["img_1", "seg_1", "img_2", "seg_2"]]
 
+TEST_CASE_5 = ["img", None, "img_1"]
+
+TEST_CASE_6 = [["img", "seg"], 2, None, ["img_1", "seg_1", "img_2", "seg_2"]]
+
 
 class TestCopyItemsd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
-    def test_numpy_values(self, keys, times, names):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    def test_numpy_values(self, keys, times, names, expected_keys=None):
         input_data = {"img": np.array([[0, 1], [1, 2]]), "seg": np.array([[3, 4], [4, 5]])}
         result = CopyItemsd(keys=keys, times=times, names=names)(input_data)
-        for name in ensure_tuple(names):
+        for name in ensure_tuple(names or expected_keys):
             self.assertTrue(name in result)
         result["img_1"] += 1
         np.testing.assert_allclose(result["img_1"], np.array([[1, 2], [2, 3]]))
@@ -45,7 +49,8 @@ class TestCopyItemsd(unittest.TestCase):
             "img": torch.tensor([[0, 1], [1, 2]], device=device),
             "seg": torch.tensor([[0, 1], [1, 2]], device=device),
         }
-        result = CopyItemsd(keys="img", times=1, names="img_1")(input_data)
+        # test default `times=1`
+        result = CopyItemsd(keys="img", names="img_1")(input_data)
         self.assertTrue("img_1" in result)
         result["img_1"] += 1
         torch.testing.assert_allclose(result["img"], torch.tensor([[0, 1], [1, 2]], device=device))
