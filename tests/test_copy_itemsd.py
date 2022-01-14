@@ -39,13 +39,20 @@ class TestCopyItemsd(unittest.TestCase):
         np.testing.assert_allclose(result["img_1"], np.array([[1, 2], [2, 3]]))
         np.testing.assert_allclose(result["img"], np.array([[0, 1], [1, 2]]))
 
+    def test_default_names(self):
+        input_data = {"img": np.array([[0, 1], [1, 2]]), "seg": np.array([[3, 4], [4, 5]])}
+        result = CopyItemsd(keys=["img", "seg"], times=2, names=None)(input_data)
+        for name in ["img_0", "seg_0", "img_1", "seg_1"]:
+            self.assertTrue(name in result)
+
     def test_tensor_values(self):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
         input_data = {
             "img": torch.tensor([[0, 1], [1, 2]], device=device),
             "seg": torch.tensor([[0, 1], [1, 2]], device=device),
         }
-        result = CopyItemsd(keys="img", times=1, names="img_1")(input_data)
+        # test default `times=1`
+        result = CopyItemsd(keys="img", names="img_1")(input_data)
         self.assertTrue("img_1" in result)
         result["img_1"] += 1
         torch.testing.assert_allclose(result["img"], torch.tensor([[0, 1], [1, 2]], device=device))
