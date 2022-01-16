@@ -176,6 +176,7 @@ class BoxClipToImaged(MapTransform, InvertibleTransform):
 class BoxFlipd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Flip`.
+    We suggest performing BoxClipToImaged before this transform.
 
     See `numpy.flip` for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
@@ -192,7 +193,6 @@ class BoxFlipd(MapTransform, InvertibleTransform):
         image_key: str,
         spatial_axis: Optional[Union[Sequence[int], int]] = None,
         box_mode: str = None,
-        remove_empty: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(box_keys, allow_missing_keys)
@@ -201,9 +201,8 @@ class BoxFlipd(MapTransform, InvertibleTransform):
                 "Currently we support only standard box_mode."
                 "Please apply BoxConvertToStandardd first and then set box_mode=None."
             )
-        self.flipper = BoxFlip(spatial_axis=spatial_axis, mode=box_mode, remove_empty=remove_empty)
+        self.flipper = BoxFlip(spatial_axis=spatial_axis, mode=box_mode)
         self.image_key = image_key
-        self.remove_empty = remove_empty
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

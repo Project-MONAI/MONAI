@@ -24,6 +24,7 @@ from monai.data import box_utils
 from monai.transforms.transform import Transform
 from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
+from monai.utils.module import look_up_option
 
 nib, _ = optional_import("nibabel")
 
@@ -81,6 +82,9 @@ class BoxConvertToStandard(Transform):
 class BoxClipToImage(Transform):
     """
     Clip the bounding Boxes to makes sure they are within the image.
+
+    Args:
+        remove_empty: whether to remove the boxes that are actually empty
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -113,6 +117,7 @@ class BoxClipToImage(Transform):
 class BoxFlip(Transform):
     """
     Reverses the box coordinates along the given spatial axis. Preserves shape.
+    We suggest performing BoxClipToImage before this transform.
 
     Args:
         spatial_axis: spatial axes along which to flip over. Default is None.
@@ -123,12 +128,9 @@ class BoxFlip(Transform):
 
     """
 
-    def __init__(
-        self, spatial_axis: Optional[Union[Sequence[int], int]] = None, mode: str = None, remove_empty: bool = True
-    ) -> None:
+    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None, mode: str = None) -> None:
         self.spatial_axis = spatial_axis
         self.mode = mode
-        self.remove_empty = remove_empty
 
     def __call__(
         self, bbox: NdarrayOrTensor, image_size: Union[Sequence[int], torch.Tensor, np.ndarray]
@@ -144,15 +146,17 @@ class BoxFlip(Transform):
         if isinstance(self.spatial_axis, int):
             self.spatial_axis = [self.spatial_axis]
 
-        # clip box to the image and (optional) remove empty box
-        bbox_clip = box_utils.box_clip_to_image(bbox_tensor, image_size, self.mode, self.remove_empty)
+        if self.mode is None:
+            self.mode = box_utils.get_standard_mode(len(image_size) )
+        self.mode = look_up_option(self.mode, supported=box_utils.STANDARD_MODE)
 
         # flip box
-        flip_bbox_clip = deepcopy(bbox_clip)
+        flip_bbox_tensor = deepcopy(bbox_tensor)
         for axis in self.spatial_axis:
-            flip_bbox_clip[:, 2 * axis + 1] = image_size[axis] - bbox_clip[:, 2 * axis] - box_utils.TO_REMOVE
-            flip_bbox_clip[:, 2 * axis] = image_size[axis] - bbox_clip[:, 2 * axis + 1] - box_utils.TO_REMOVE
+            flip_bbox_tensor[:, 2 * axis + 1] = image_size[axis] - bbox_tensor[:, 2 * axis] - box_utils.TO_REMOVE
+            flip_bbox_tensor[:, 2 * axis] = image_size[axis] - bbox_tensor[:, 2 * axis + 1] - box_utils.TO_REMOVE
 
         if isinstance(bbox, np.ndarray):
-            flip_bbox_clip = flip_bbox_clip.cpu().numpy()
-        return flip_bbox_clip
+            return flip_bbox_tensor.cpu().numpy()
+        else:
+            return flip_bbox_tensor

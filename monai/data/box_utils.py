@@ -24,7 +24,9 @@ STANDARD_MODE = ["xxyy", "xxyyzz"]  # [2d_mode, 3d_mode]
 #      i.e., when x_min=1, x_max=2, we have w = 1
 # TO_REMOVE = 1  if in 'xxyy','xxyyzz' mode, the bottom-right corner is included in the box,
 #       i.e., when x_min=1, x_max=2, we have w = 2
-TO_REMOVE = 0  # x_max-x_min = w -TO_REMOVE
+# Currently only TO_REMOVE = 0 has been tested. Please use TO_REMOVE = 0
+TO_REMOVE = 0  # x_max-x_min = w -TO_REMOVE.
+
 
 """
 The following variables share the same definition across the functions in this file.
@@ -39,13 +41,13 @@ def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> l
     """
     convert a torch.Tensor, or np array input to list
     Args:
-        in_sequence:
+        in_sequence: Sequence or torch.Tensor or np.ndarray
     Returns: in_sequence_list
 
     """
     in_sequence_list = deepcopy(in_sequence)
     if torch.is_tensor(in_sequence):
-        in_sequence_list.cpu().detach().numpy().tolist()
+        in_sequence_list.detach().cpu().numpy().tolist()
     elif isinstance(in_sequence, np.ndarray):
         in_sequence_list.tolist()
     elif not isinstance(in_sequence, list):
@@ -73,7 +75,7 @@ def get_dimension(
         raise ValueError("At least one of bbox, image_size, and mode needs to be non-empty.")
     elif len(spatial_dims) == 1:
         spatial_dims = int(spatial_dims[0])
-        spatial_dims = look_up_option(spatial_dims,supported=[2,3])
+        spatial_dims = look_up_option(spatial_dims, supported=[2, 3])
         return int(spatial_dims)
     else:
         raise ValueError("The dimension of bbox, image_size, mode should match with each other.")
@@ -111,7 +113,7 @@ def point_interp(
     """
     # make sure the spatial dimensions of the inputs match with each other
     spatial_dims = len(point1)
-    spatial_dims = look_up_option(spatial_dims,supported=[2,3])
+    spatial_dims = look_up_option(spatial_dims, supported=[2, 3])
 
     # compute new point
     point2 = deepcopy(point1)
@@ -134,7 +136,7 @@ def box_interp(bbox1: torch.Tensor, zoom: Union[Sequence[float], float], mode1: 
     """
     if mode1 is None:
         mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
-    mode1 = look_up_option(mode1,supported=SUPPORT_MODE)
+    mode1 = look_up_option(mode1, supported=SUPPORT_MODE)
     spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
 
     mode_standard = get_standard_mode(spatial_dims)
@@ -160,7 +162,7 @@ def split_into_corners(bbox: torch.Tensor, mode: str):
         xmin for example, is a Nx1 tensor
 
     """
-    mode = look_up_option(mode,supported=SUPPORT_MODE)
+    mode = look_up_option(mode, supported=SUPPORT_MODE)
     if mode in STANDARD_MODE:
         return bbox.split(1, dim=-1)
     elif mode == "xyzxyz":
@@ -202,8 +204,8 @@ def box_convert_mode(bbox1: torch.Tensor, mode1: str, mode2: str) -> torch.Tenso
         mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
     if mode2 is None:
         mode2 = get_standard_mode(int(bbox1.shape[1] / 2))
-    mode1 = look_up_option(mode1,supported=SUPPORT_MODE)
-    mode2 = look_up_option(mode2,supported=SUPPORT_MODE)
+    mode1 = look_up_option(mode1, supported=SUPPORT_MODE)
+    mode2 = look_up_option(mode2, supported=SUPPORT_MODE)
 
     spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
     if len(mode1) != len(mode2):
@@ -246,7 +248,7 @@ def box_convert_standard_mode(bbox: torch.Tensor, mode: str) -> torch.Tensor:
     """
     This function convert the bbox in mode 1 to 'xyxy' or 'xyzxyz'
     """
-    mode = look_up_option(mode,supported=SUPPORT_MODE)
+    mode = look_up_option(mode, supported=SUPPORT_MODE)
     spatial_dims = get_dimension(bbox=bbox, mode=mode)
     mode_standard = get_standard_mode(spatial_dims)
     return box_convert_mode(bbox1=bbox, mode1=mode, mode2=mode_standard)
@@ -261,13 +263,20 @@ def box_area(bbox: torch.Tensor, mode: str = None) -> torch.tensor:
 
     if mode is None:
         mode = get_standard_mode(int(bbox.shape[1] / 2))
-    mode = look_up_option(mode,supported=STANDARD_MODE)
+    mode = look_up_option(mode, supported=STANDARD_MODE)
     spatial_dims = get_dimension(bbox=bbox, mode=mode)
 
     area = bbox[:, 1] - bbox[:, 0] + TO_REMOVE
     for axis in range(1, spatial_dims):
         area = area * (bbox[:, 2 * axis + 1] - bbox[:, 2 * axis] + TO_REMOVE)
 
+    if torch.isnan(area).any() or torch.isinf(area).any():
+        if area.dtype in {torch.bfloat16, torch.float16}:
+            ValueError(
+                f"Box area is NaN or Inf. torch.float16 is used. Please change to torch.float32 and test it again."
+            )
+        else:
+            ValueError(f"Box area is NaN or Inf.")
     return area
 
 
@@ -286,7 +295,7 @@ def box_clip_to_image(
     """
     if mode is None:
         mode = get_standard_mode(int(bbox.shape[1] / 2))
-    mode = look_up_option(mode,supported=STANDARD_MODE)
+    mode = look_up_option(mode, supported=STANDARD_MODE)
     spatial_dims = get_dimension(bbox=bbox, image_size=image_size, mode=mode)
     new_bbox = deepcopy(bbox)
     if bbox.shape[0] == 0:
@@ -339,11 +348,11 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
         mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
     if mode2 is None:
         mode2 = get_standard_mode(int(bbox2.shape[1] / 2))
-    mode1 = look_up_option(mode1,supported=STANDARD_MODE)
-    mode2 = look_up_option(mode2,supported=STANDARD_MODE)
+    mode1 = look_up_option(mode1, supported=STANDARD_MODE)
+    mode2 = look_up_option(mode2, supported=STANDARD_MODE)
     spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
 
-    # we do computation on cpu
+    # we do computation on cpu to save gpu memory
     device = bbox1.device
 
     # compute area for the bbox
@@ -351,8 +360,8 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
     area2 = box_area(bbox=bbox2, mode=mode2).cpu()  # Mx1
 
     # get the left top and right bottom points for the NxM combinations
-    lt = torch.max(bbox1[:, None, ::2], bbox2[:, ::2])  # [N,M,spatial_dims] left top
-    rb = torch.min(bbox1_corner[:, None, 1::2], bbox2_corner[:, 1::2])  # [N,M,spatial_dims] right bottom
+    lt = torch.max(bbox1[:, None, ::2], bbox2[:, ::2]).cpu()  # [N,M,spatial_dims] left top
+    rb = torch.min(bbox1[:, None, 1::2], bbox2[:, 1::2]).cpu()  # [N,M,spatial_dims] right bottom
     # compute size for the intersection region for the NxM combinations
     wh = (rb - lt + TO_REMOVE).clamp(min=0)  # [N,M,spatial_dims]
     inter = wh[:, :, 0]  # [N,M]
@@ -360,7 +369,13 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
         inter = inter * wh[:, :, axis]
 
     # compute IoU
-    iou = inter / (area1[:, None] + area2 - inter + torch.finfo(torch.float32).eps)  # [N,M,spatial_dims]
+    iou = inter / (area1[:, None] + area2 - inter + torch.finfo(area1.dtype).eps)  # [N,M,spatial_dims]
+
+    if torch.isnan(iou).any() or torch.isinf(iou).any():
+        if iou.dtype in {torch.bfloat16, torch.float16}:
+            ValueError(f"Box IoU is aN or Inf. torch.float16 is used. Please change to torch.float32 and test it again.")
+        else:
+            ValueError(f"Box IoU is NaN or Inf.")
 
     if gpubool:
         iou = iou.to(device)  # [N,M,spatial_dims]
