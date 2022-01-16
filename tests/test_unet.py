@@ -198,7 +198,7 @@ class TestUNET(unittest.TestCase):
     @parameterized.expand(ILL_CASES)
     def test_ill_input_hyper_params(self, input_param):
         with self.assertRaises(ValueError):
-            net = UNet(**input_param)
+            _ = UNet(**input_param)
 
 
 if __name__ == "__main__":
