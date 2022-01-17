@@ -32,7 +32,9 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
     BlendMode,
+    Method,
     NumpyPadMode,
+    convert_data_type,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -42,7 +44,6 @@ from monai.utils import (
     look_up_option,
     optional_import,
 )
-from monai.utils.enums import Method
 
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
@@ -679,61 +680,68 @@ def compute_shape_offset(
     corners = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
     corners = in_affine @ corners
-    corners_out = np.linalg.inv(out_affine) @ corners
+    inv_mat = np.linalg.inv(out_affine)
+    corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
-    if np.allclose(nib.io_orientation(in_affine), nib.io_orientation(out_affine)):
-        # same orientation, get translate from the origin
-        offset = in_affine @ ([0] * sr + [1])
-        offset = offset[:-1] / offset[-1]
-    else:
-        # different orientation, the min is the origin
-        corners = corners[:-1] / corners[-1]
-        offset = np.min(corners, 1)
+    mat = inv_mat[:-1, :-1]
+    k = 0
+    for i in range(corners.shape[1]):
+        min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
+        if np.allclose(min_corner, 0.0):
+            k = i
+            break
+    offset = corners[:-1, k]
     return out_shape.astype(int, copy=False), offset
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
+def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndarray:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
-
     when ``r`` is an integer, output is an (r+1)x(r+1) matrix,
     where the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(r, len(affine) - 1)`.
-
-    when ``r`` is an affine matrix, the output has the same as ``r``,
-    the top left kxk elements are  copied from ``affine``,
+    when ``r`` is an affine matrix, the output has the same shape as ``r``,
+    and the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
-
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
-
+        dtype: data type of the output array.
     Raises:
         ValueError: When ``affine`` dimensions is not 2.
         ValueError: When ``r`` is nonpositive.
-
     Returns:
         an (r+1) x (r+1) matrix
-
     """
-    affine_np = np.array(affine, dtype=np.float64)
+    affine_np: np.ndarray
+    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]  # type: ignore
+    affine_np = affine_np.copy()
     if affine_np.ndim != 2:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
-    new_affine = np.array(r, dtype=np.float64, copy=True)
+    new_affine = np.array(r, dtype=dtype, copy=True)
     if new_affine.ndim == 0:
         sr: int = int(new_affine.astype(np.uint))
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
-        new_affine = np.eye(sr + 1, dtype=np.float64)
+        new_affine = np.eye(sr + 1, dtype=dtype)
     d = max(min(len(new_affine) - 1, len(affine_np) - 1), 1)
     new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
         new_affine[:d, -1] = affine_np[:d, -1]
     return new_affine
+
+
+def ensure_mat44(affine, dtype=np.float64) -> np.ndarray:
+    """
+    Given a matrix `affine`, ensure that it is a float64 4x4 matrix using `to_affine_nd`.
+    """
+    if affine is None:
+        return np.eye(4, dtype=dtype)
+    return to_affine_nd(r=3, affine=affine, dtype=dtype)
 
 
 def create_file_basename(
