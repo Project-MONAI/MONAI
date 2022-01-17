@@ -858,17 +858,22 @@ class CopyItemsd(MapTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, keys: KeysCollection, times: int, names: KeysCollection, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        times: int = 1,
+        names: Optional[KeysCollection] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             times: expected copy times, for example, if keys is "img", times is 3,
-                it will add 3 copies of "img" data to the dictionary.
+                it will add 3 copies of "img" data to the dictionary, default to 1.
             names: the names corresponding to the newly copied data,
                 the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
                 and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
+                if None, use "{key}_{index}" as key for copy times `N`, index from `0` to `N-1`.
             allow_missing_keys: don't raise exception if key is missing.
 
         Raises:
@@ -880,7 +885,7 @@ class CopyItemsd(MapTransform):
         if times < 1:
             raise ValueError(f"times must be positive, got {times}.")
         self.times = times
-        names = ensure_tuple(names)
+        names = [f"{k}_{i}" for k in self.keys for i in range(self.times)] if names is None else ensure_tuple(names)
         if len(names) != (len(self.keys) * times):
             raise ValueError(
                 "len(names) must match len(keys) * times, "
