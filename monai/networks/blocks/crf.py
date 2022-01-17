@@ -15,6 +15,7 @@ import torch
 from torch.nn.functional import softmax
 
 from monai.networks.layers.filtering import PHLFilter
+from monai.networks.utils import meshgrid_ij
 
 __all__ = ["CRF"]
 
@@ -114,6 +115,6 @@ class CRF(torch.nn.Module):
 # helper methods
 def _create_coordinate_tensor(tensor):
     axes = [torch.arange(tensor.size(i)) for i in range(2, tensor.dim())]
-    grids = torch.meshgrid(axes)
+    grids = meshgrid_ij(axes)
     coords = torch.stack(grids).to(device=tensor.device, dtype=tensor.dtype)
     return torch.stack(tensor.size(0) * [coords], dim=0)

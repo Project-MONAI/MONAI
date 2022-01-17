@@ -20,7 +20,7 @@ from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
-from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.deprecate_utils import deprecated, deprecated_arg
 from monai.utils.misc import ensure_tuple, set_determinism
 from monai.utils.module import pytorch_after
 
@@ -37,6 +37,7 @@ __all__ = [
     "train_mode",
     "copy_model_state",
     "convert_to_torchscript",
+    "meshgrid_ij",
 ]
 
 
@@ -93,7 +94,13 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     return labels
 
 
+@deprecated(since="0.8.0", msg_suffix="use `monai.utils.misc.sample_slices` instead.")
 def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:
+    """
+    .. deprecated:: 0.8.0
+        Use `monai.utils.misc.sample_slices` instead.
+
+    """
     slices = [slice(None)] * len(tensor.shape)
     slices[1] = slice(*slicevals)
 
@@ -494,3 +501,9 @@ def convert_to_torchscript(
                 torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
 
     return script_module
+
+
+def meshgrid_ij(*tensors):
+    if pytorch_after(1, 10):
+        return torch.meshgrid(*tensors, indexing="ij")
+    return torch.meshgrid(*tensors)
