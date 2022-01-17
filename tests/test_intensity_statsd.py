@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
 from monai.transforms import IntensityStatsd
+from monai.utils.enums import DictPostFixes
 
 TEST_CASE_1 = [
     {"keys": "img", "ops": ["max", "mean"], "key_prefix": "orig", "meta_keys": "test_meta"},
@@ -29,21 +30,21 @@ TEST_CASE_1 = [
 TEST_CASE_2 = [
     {"keys": "img", "ops": "std", "key_prefix": "orig"},
     {"img": np.array([[[0.0, 1.0], [2.0, 3.0]]])},
-    "img_meta_dict",
+    f"img_{DictPostFixes.META}",
     {"orig_std": 1.118034},
 ]
 
 TEST_CASE_3 = [
     {"keys": "img", "ops": [np.mean, "max", np.min], "key_prefix": "orig"},
     {"img": np.array([[[0.0, 1.0], [2.0, 3.0]]])},
-    "img_meta_dict",
+    f"img_{DictPostFixes.META}",
     {"orig_custom_0": 1.5, "orig_max": 3.0, "orig_custom_1": 0.0},
 ]
 
 TEST_CASE_4 = [
     {"keys": "img", "ops": ["max", "mean"], "key_prefix": "orig", "channel_wise": True, "meta_key_postfix": "meta"},
     {"img": np.array([[[0.0, 1.0], [2.0, 3.0]], [[4.0, 5.0], [6.0, 7.0]]]), "img_meta": {"affine": None}},
-    "img_meta",
+    f"img_{DictPostFixes.META}",
     {"orig_max": [3.0, 7.0], "orig_mean": [1.5, 5.5]},
 ]
 
@@ -68,7 +69,7 @@ class TestIntensityStatsd(unittest.TestCase):
         mp.set_start_method("spawn", force=True)
 
         for d in dataloader:
-            meta = d["img_meta_dict"]
+            meta = d[f"img_{DictPostFixes.META}"]
             np.testing.assert_allclose(meta["orig_max"], [3.0, 3.0], atol=1e-3)
             np.testing.assert_allclose(meta["orig_mean"], [1.5, 1.5], atol=1e-3)
         # restore the mp method
@@ -77,7 +78,7 @@ class TestIntensityStatsd(unittest.TestCase):
     def test_mask(self):
         data = {"img": np.array([[[0.0, 1.0], [2.0, 3.0]]]), "img_mask": np.array([[[1, 0], [1, 0]]], dtype=bool)}
         stats = IntensityStatsd(keys="img", ops=["max", "mean"], mask_keys="img_mask", key_prefix="orig")
-        meta = stats(data)["img_meta_dict"]
+        meta = stats(data)[f"img_{DictPostFixes.META}"]
         np.testing.assert_allclose(meta["orig_max"], 2.0, atol=1e-3)
         np.testing.assert_allclose(meta["orig_mean"], 1.0, atol=1e-3)
 

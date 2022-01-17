@@ -21,6 +21,7 @@ from parameterized import parameterized
 
 from monai.data import ITKReader
 from monai.transforms import Compose, EnsureChannelFirstD, LoadImaged, SaveImageD
+from monai.utils.enums import DictPostFixes
 
 KEYS = ["image", "label", "extra"]
 
@@ -54,7 +55,7 @@ class TestLoadImaged(unittest.TestCase):
             loader = LoadImaged(keys="img")
             loader.register(ITKReader())
             result = loader({"img": Path(filename)})
-            self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), spatial_size[::-1])
+            self.assertTupleEqual(tuple(result[f"img_{DictPostFixes.META}"]["spatial_shape"]), spatial_size[::-1])
             self.assertTupleEqual(result["img"].shape, spatial_size[::-1])
 
     def test_channel_dim(self):
@@ -67,7 +68,7 @@ class TestLoadImaged(unittest.TestCase):
             loader = LoadImaged(keys="img")
             loader.register(ITKReader(channel_dim=2))
             result = EnsureChannelFirstD("img")(loader({"img": filename}))
-            self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), (32, 64, 128))
+            self.assertTupleEqual(tuple(result[f"img_{DictPostFixes.META}"]["spatial_shape"]), (32, 64, 128))
             self.assertTupleEqual(result["img"].shape, (3, 32, 64, 128))
 
     def test_no_file(self):
@@ -84,21 +85,23 @@ class TestConsistency(unittest.TestCase):
         xforms = Compose([LoadImaged(keys, reader=reader_1), EnsureChannelFirstD(keys)])
         img_dict = xforms(data_dict)  # load dicom with itk
         self.assertTupleEqual(img_dict["img"].shape, ch_shape)
-        self.assertTupleEqual(tuple(img_dict["img_meta_dict"]["spatial_shape"]), shape)
+        self.assertTupleEqual(tuple(img_dict[f"img_{DictPostFixes.META}"]["spatial_shape"]), shape)
 
         with tempfile.TemporaryDirectory() as tempdir:
             save_xform = SaveImageD(
-                keys, meta_keys="img_meta_dict", output_dir=tempdir, squeeze_end_dims=False, output_ext=ext
+                keys, meta_keys=f"img_{DictPostFixes.META}", output_dir=tempdir, squeeze_end_dims=False, output_ext=ext
             )
             save_xform(img_dict)  # save to nifti
 
             new_xforms = Compose([LoadImaged(keys, reader=reader_2), EnsureChannelFirstD(keys)])
             out = new_xforms({"img": os.path.join(tempdir, outname)})  # load nifti with itk
             self.assertTupleEqual(out["img"].shape, ch_shape)
-            self.assertTupleEqual(tuple(out["img_meta_dict"]["spatial_shape"]), shape)
-            if "affine" in img_dict["img_meta_dict"] and "affine" in out["img_meta_dict"]:
+            self.assertTupleEqual(tuple(out[f"img_{DictPostFixes.META}"]["spatial_shape"]), shape)
+            if "affine" in img_dict[f"img_{DictPostFixes.META}"] and "affine" in out[f"img_{DictPostFixes.META}"]:
                 np.testing.assert_allclose(
-                    img_dict["img_meta_dict"]["affine"], out["img_meta_dict"]["affine"], rtol=1e-3
+                    img_dict[f"img_{DictPostFixes.META}"]["affine"],
+                    out[f"img_{DictPostFixes.META}"]["affine"],
+                    rtol=1e-3,
                 )
             np.testing.assert_allclose(out["img"], img_dict["img"], rtol=1e-3)
 

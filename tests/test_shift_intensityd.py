@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 
 from monai.transforms import IntensityStatsd, ShiftIntensityd
+from monai.utils.enums import DictPostFixes
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
@@ -30,7 +31,7 @@ class TestShiftIntensityd(NumpyImageTestCase2D):
         key = "img"
         stats = IntensityStatsd(keys=key, ops="max", key_prefix="orig")
         shifter = ShiftIntensityd(keys=[key], offset=1.0, factor_key=["orig_max"])
-        data = {key: self.imt, key + "_meta_dict": {"affine": None}}
+        data = {key: self.imt, key + f"_{DictPostFixes.META}": {"affine": None}}
 
         result = shifter(stats(data))
         expected = self.imt + 1.0 * np.nanmax(self.imt)

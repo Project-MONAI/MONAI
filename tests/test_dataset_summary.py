@@ -20,6 +20,7 @@ import numpy as np
 from monai.data import Dataset, DatasetSummary, create_test_image_3d
 from monai.transforms import LoadImaged
 from monai.utils import set_determinism
+from monai.utils.enums import DictPostFixes
 
 
 def test_collate(batch):
@@ -86,7 +87,7 @@ class TestDatasetSummary(unittest.TestCase):
 
             dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
 
-            calculator = DatasetSummary(dataset, num_workers=4, meta_key_postfix="meta_dict")
+            calculator = DatasetSummary(dataset, num_workers=4, meta_key_postfix=DictPostFixes.META)
 
             target_spacing = calculator.get_target_spacing(anisotropic_threshold=4.0, percentile=20.0)
             np.testing.assert_allclose(target_spacing, (1.0, 1.0, 1.8))

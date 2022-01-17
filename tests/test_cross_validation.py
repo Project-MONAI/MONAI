@@ -15,6 +15,7 @@ from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import CrossValidation, DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
+from monai.utils.enums import DictPostFixes
 from tests.utils import skip_if_quick
 
 
@@ -36,7 +37,7 @@ class TestCrossValidation(unittest.TestCase):
             self.assertEqual(len(dataset), 52)
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue("image_meta_dict" in dataset[0])
+            self.assertTrue(f"image_{DictPostFixes.META}" in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 34, 49, 41))
 
         cvdataset = CrossValidation(

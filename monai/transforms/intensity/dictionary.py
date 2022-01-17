@@ -56,6 +56,7 @@ from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.enums import DictPostFixes
 
 __all__ = [
     "RandGaussianNoised",
@@ -285,7 +286,7 @@ class ShiftIntensityd(MapTransform):
         offset: float,
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -342,7 +343,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         offsets: Union[Tuple[float, float], float],
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
     ) -> None:

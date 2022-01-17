@@ -20,6 +20,7 @@ from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.transforms import concatenate
 from monai.utils import convert_data_type
+from monai.utils.enums import DictPostFixes
 
 
 class DatasetSummary:
@@ -42,7 +43,7 @@ class DatasetSummary:
         image_key: Optional[str] = "image",
         label_key: Optional[str] = "label",
         meta_key: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DictPostFixes.META,
         num_workers: int = 0,
         **kwargs,
     ):
