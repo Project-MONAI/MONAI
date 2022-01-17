@@ -699,7 +699,7 @@ def create_file_basename(
             separate_folder=True,
             makedirs=False)
         # output: /output/test1/image/image_seg
-        
+
     Args:
         postfix: output name's postfix
         input_file_name: path to the input image file.
