@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 
 from monai.transforms import IntensityStatsd, RandShiftIntensityd
-from monai.utils.enums import DictPostFixes
+from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
@@ -35,7 +35,7 @@ class TestRandShiftIntensityd(NumpyImageTestCase2D):
         key = "img"
         stats = IntensityStatsd(keys=key, ops="max", key_prefix="orig")
         shifter = RandShiftIntensityd(keys=[key], offsets=1.0, factor_key=["orig_max"], prob=1.0)
-        data = {key: self.imt, key + f"_{DictPostFixes.META}": {"affine": None}}
+        data = {key: self.imt, PostFix.meta(key): {"affine": None}}
         shifter.set_random_state(seed=0)
         result = shifter(stats(data))
         np.random.seed(0)

@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.deepedit.transforms import ClickRatioAddRandomGuidanced, DiscardAddGuidanced, ResizeGuidanceCustomd
-from monai.utils.enums import DictPostFixes
+from monai.utils.enums import PostFix
 
 IMAGE = np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]])
 LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]])
@@ -23,8 +23,8 @@ LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0,
 DATA_1 = {
     "image": IMAGE,
     "label": LABEL,
-    f"image_{DictPostFixes.META}": {"dim": IMAGE.shape},
-    f"label_{DictPostFixes.META}": {},
+    PostFix.meta("image"): {"dim": IMAGE.shape},
+    PostFix.meta("label"): {},
     "foreground": [0, 0, 0],
     "background": [0, 0, 0],
 }
@@ -52,7 +52,7 @@ CLICK_RATIO_ADD_RANDOM_GUIDANCE_TEST_CASE_1 = [
 
 DATA_3 = {
     "image": np.arange(1000).reshape((1, 5, 10, 20)),
-    f"image_{DictPostFixes.META}": {"foreground_cropped_shape": (1, 10, 20, 40), "dim": [3, 512, 512, 128]},
+    PostFix.meta("image"): {"foreground_cropped_shape": (1, 10, 20, 40), "dim": [3, 512, 512, 128]},
     "guidance": [[[6, 10, 14], [8, 10, 14]], [[8, 10, 16]]],
     "foreground": [[10, 14, 6], [10, 14, 8]],
     "background": [[10, 16, 8]],

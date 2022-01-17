@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Spacingd
-from monai.utils.enums import DictPostFixes
+from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS: List[Tuple] = []
@@ -25,9 +25,9 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         (
             "spacing 3d",
-            {"image": p(np.ones((2, 10, 15, 20))), f"image_{DictPostFixes.META}": {"affine": p(np.eye(4))}},
+            {"image": p(np.ones((2, 10, 15, 20))), PostFix.meta("image"): {"affine": p(np.eye(4))}},
             dict(keys="image", pixdim=(1, 2, 1.4)),
-            ("image", f"image_{DictPostFixes.META}", "image_transforms"),
+            ("image", PostFix.meta("image"), "image_transforms"),
             (2, 10, 8, 15),
             p(np.diag([1, 2, 1.4, 1.0])),
         )
@@ -35,9 +35,9 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         (
             "spacing 2d",
-            {"image": np.ones((2, 10, 20)), f"image_{DictPostFixes.META}": {"affine": np.eye(3)}},
+            {"image": np.ones((2, 10, 20)), PostFix.meta("image"): {"affine": np.eye(3)}},
             dict(keys="image", pixdim=(1, 2)),
-            ("image", f"image_{DictPostFixes.META}", "image_transforms"),
+            ("image", PostFix.meta("image"), "image_transforms"),
             (2, 10, 10),
             np.diag((1, 2, 1)),
         )
@@ -47,7 +47,7 @@ for p in TEST_NDARRAYS:
             "spacing 2d no metadata",
             {"image": np.ones((2, 10, 20))},
             dict(keys="image", pixdim=(1, 2)),
-            ("image", f"image_{DictPostFixes.META}", "image_transforms"),
+            ("image", PostFix.meta("image"), "image_transforms"),
             (2, 10, 10),
             np.diag((1, 2, 1)),
         )
@@ -58,18 +58,11 @@ for p in TEST_NDARRAYS:
             {
                 "image": np.arange(20).reshape((2, 1, 10)),
                 "seg": np.ones((2, 1, 10)),
-                f"image_{DictPostFixes.META}": {"affine": np.eye(4)},
-                f"seg_{DictPostFixes.META}": {"affine": np.eye(4)},
+                PostFix.meta("image"): {"affine": np.eye(4)},
+                PostFix.meta("seg"): {"affine": np.eye(4)},
             },
             dict(keys=("image", "seg"), mode="nearest", pixdim=(1, 0.2)),
-            (
-                "image",
-                f"image_{DictPostFixes.META}",
-                "image_transforms",
-                "seg",
-                f"seg_{DictPostFixes.META}",
-                "seg_transforms",
-            ),
+            ("image", PostFix.meta("image"), "image_transforms", "seg", PostFix.meta("seg"), "seg_transforms"),
             (2, 1, 46),
             np.diag((1, 0.2, 1, 1)),
         )
@@ -80,18 +73,11 @@ for p in TEST_NDARRAYS:
             {
                 "image": np.ones((2, 1, 10)),
                 "seg": np.ones((2, 1, 10)),
-                f"image_{DictPostFixes.META}": {"affine": np.eye(4)},
-                f"seg_{DictPostFixes.META}": {"affine": np.eye(4)},
+                PostFix.meta("image"): {"affine": np.eye(4)},
+                PostFix.meta("seg"): {"affine": np.eye(4)},
             },
             dict(keys=("image", "seg"), mode=("bilinear", "nearest"), pixdim=(1, 0.2)),
-            (
-                "image",
-                f"image_{DictPostFixes.META}",
-                "image_transforms",
-                "seg",
-                f"seg_{DictPostFixes.META}",
-                "seg_transforms",
-            ),
+            ("image", PostFix.meta("image"), "image_transforms", "seg", PostFix.meta("seg"), "seg_transforms"),
             (2, 1, 46),
             np.diag((1, 0.2, 1, 1)),
         )
@@ -106,7 +92,7 @@ class TestSpacingDCase(unittest.TestCase):
             self.assertEqual(data["image"].device, res["image"].device)
         self.assertEqual(expected_keys, tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, expected_shape)
-        assert_allclose(res[f"image_{DictPostFixes.META}"]["affine"], expected_affine)
+        assert_allclose(res[PostFix.meta("image")]["affine"], expected_affine)
 
 
 if __name__ == "__main__":

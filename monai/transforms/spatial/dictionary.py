@@ -61,7 +61,7 @@ from monai.utils import (
     fall_back_tuple,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import DictPostFixes, TraceKeys
+from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
@@ -128,6 +128,7 @@ GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleM
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
 InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
 PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class Spacingd(MapTransform, InvertibleTransform):
@@ -156,7 +157,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -315,7 +316,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         as_closest_canonical: bool = False,
         labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         """

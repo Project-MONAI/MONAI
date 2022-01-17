@@ -63,7 +63,7 @@ from monai.transforms.utility.array import (
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import convert_to_numpy, deprecated_arg, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import DictPostFixes, TraceKeys, TransformBackends
+from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -180,6 +180,8 @@ __all__ = [
     "ClassesToIndicesDict",
 ]
 
+DEFAULT_POST_FIX = PostFix.meta()
+
 
 class Identityd(MapTransform):
     """
@@ -291,7 +293,7 @@ class EnsureChannelFirstd(MapTransform):
         self,
         keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         strict_check: bool = True,
     ) -> None:
         """
@@ -1464,7 +1466,7 @@ class IntensityStatsd(MapTransform):
         mask_keys: Optional[KeysCollection] = None,
         channel_wise: bool = False,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

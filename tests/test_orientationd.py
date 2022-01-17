@@ -15,78 +15,78 @@ import nibabel as nib
 import numpy as np
 
 from monai.transforms import Orientationd
-from monai.utils.enums import DictPostFixes
+from monai.utils.enums import PostFix
 
 
 class TestOrientationdCase(unittest.TestCase):
     def test_orntd(self):
-        data = {"seg": np.ones((2, 1, 2, 3)), f"seg_{DictPostFixes.META}": {"affine": np.eye(4)}}
+        data = {"seg": np.ones((2, 1, 2, 3)), PostFix.meta("seg"): {"affine": np.eye(4)}}
         ornt = Orientationd(keys="seg", axcodes="RAS")
         res = ornt(data)
         np.testing.assert_allclose(res["seg"].shape, (2, 1, 2, 3))
-        code = nib.aff2axcodes(res[f"seg_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("R", "A", "S"))
 
     def test_orntd_3d(self):
         data = {
             "seg": np.ones((2, 1, 2, 3)),
             "img": np.ones((2, 1, 2, 3)),
-            f"seg_{DictPostFixes.META}": {"affine": np.eye(4)},
-            f"img_{DictPostFixes.META}": {"affine": np.eye(4)},
+            PostFix.meta("seg"): {"affine": np.eye(4)},
+            PostFix.meta("img"): {"affine": np.eye(4)},
         }
         ornt = Orientationd(keys=("img", "seg"), axcodes="PLI")
         res = ornt(data)
         np.testing.assert_allclose(res["img"].shape, (2, 2, 1, 3))
         np.testing.assert_allclose(res["seg"].shape, (2, 2, 1, 3))
-        code = nib.aff2axcodes(res[f"seg_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("P", "L", "I"))
-        code = nib.aff2axcodes(res[f"img_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("P", "L", "I"))
 
     def test_orntd_2d(self):
         data = {
             "seg": np.ones((2, 1, 3)),
             "img": np.ones((2, 1, 3)),
-            f"seg_{DictPostFixes.META}": {"affine": np.eye(4)},
-            f"img_{DictPostFixes.META}": {"affine": np.eye(4)},
+            PostFix.meta("seg"): {"affine": np.eye(4)},
+            PostFix.meta("img"): {"affine": np.eye(4)},
         }
         ornt = Orientationd(keys=("img", "seg"), axcodes="PLI")
         res = ornt(data)
         np.testing.assert_allclose(res["img"].shape, (2, 3, 1))
-        code = nib.aff2axcodes(res[f"seg_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("P", "L", "S"))
-        code = nib.aff2axcodes(res[f"img_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("P", "L", "S"))
 
     def test_orntd_1d(self):
         data = {
             "seg": np.ones((2, 3)),
             "img": np.ones((2, 3)),
-            f"seg_{DictPostFixes.META}": {"affine": np.eye(4)},
-            f"img_{DictPostFixes.META}": {"affine": np.eye(4)},
+            PostFix.meta("seg"): {"affine": np.eye(4)},
+            PostFix.meta("img"): {"affine": np.eye(4)},
         }
         ornt = Orientationd(keys=("img", "seg"), axcodes="L")
         res = ornt(data)
         np.testing.assert_allclose(res["img"].shape, (2, 3))
-        code = nib.aff2axcodes(res[f"seg_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("L", "A", "S"))
-        code = nib.aff2axcodes(res[f"img_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("L", "A", "S"))
 
     def test_orntd_canonical(self):
         data = {
             "seg": np.ones((2, 1, 2, 3)),
             "img": np.ones((2, 1, 2, 3)),
-            f"seg_{DictPostFixes.META}": {"affine": np.eye(4)},
-            f"img_{DictPostFixes.META}": {"affine": np.eye(4)},
+            PostFix.meta("seg"): {"affine": np.eye(4)},
+            PostFix.meta("img"): {"affine": np.eye(4)},
         }
         ornt = Orientationd(keys=("img", "seg"), as_closest_canonical=True)
         res = ornt(data)
         np.testing.assert_allclose(res["img"].shape, (2, 1, 2, 3))
         np.testing.assert_allclose(res["seg"].shape, (2, 1, 2, 3))
-        code = nib.aff2axcodes(res[f"seg_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("R", "A", "S"))
-        code = nib.aff2axcodes(res[f"img_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("R", "A", "S"))
 
     def test_orntd_no_metadata(self):
@@ -94,7 +94,7 @@ class TestOrientationdCase(unittest.TestCase):
         ornt = Orientationd(keys="seg", axcodes="RAS")
         res = ornt(data)
         np.testing.assert_allclose(res["seg"].shape, (2, 1, 2, 3))
-        code = nib.aff2axcodes(res[f"seg_{DictPostFixes.META}"]["affine"], ornt.ornt_transform.labels)
+        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
         self.assertEqual(code, ("R", "A", "S"))
 
 

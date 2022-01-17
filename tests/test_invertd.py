@@ -37,7 +37,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
-from monai.utils.enums import DictPostFixes
+from monai.utils.enums import PostFix
 from tests.utils import make_nifti_image
 
 KEYS = ["image", "label"]
@@ -62,7 +62,7 @@ class TestInvertd(unittest.TestCase):
                 RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
                 # test EnsureTensor for complicated dict data and invert it
-                CopyItemsd(f"image_{DictPostFixes.META}", times=1, names="test_dict"),
+                CopyItemsd(PostFix.meta("image"), times=1, names="test_dict"),
                 # test to support Tensor, Numpy array and dictionary when inverting
                 EnsureTyped(keys=["image", "test_dict"]),
                 ToTensord("image"),
@@ -83,8 +83,8 @@ class TestInvertd(unittest.TestCase):
             keys=["image_inverted", "label_inverted", "test_dict"],
             transform=transform,
             orig_keys=["label", "label", "test_dict"],
-            meta_keys=[f"image_inverted_{DictPostFixes.META}", f"label_inverted_{DictPostFixes.META}", None],
-            orig_meta_keys=[f"label_{DictPostFixes.META}", f"label_{DictPostFixes.META}", None],
+            meta_keys=[PostFix.meta("image_inverted"), PostFix.meta("label_inverted"), None],
+            orig_meta_keys=[PostFix.meta("label"), PostFix.meta("label"), None],
             nearest_interp=True,
             to_tensor=[True, False, False],
             device="cpu",
@@ -95,8 +95,8 @@ class TestInvertd(unittest.TestCase):
             keys=["image_inverted1", "label_inverted1"],
             transform=transform,
             orig_keys=["image", "image"],
-            meta_keys=[f"image_inverted1_{DictPostFixes.META}", f"label_inverted1_{DictPostFixes.META}"],
-            orig_meta_keys=[f"image_{DictPostFixes.META}", f"image_{DictPostFixes.META}"],
+            meta_keys=[PostFix.meta("image_inverted1"), PostFix.meta("label_inverted1")],
+            orig_meta_keys=[PostFix.meta("image"), PostFix.meta("image")],
             nearest_interp=[True, False],
             to_tensor=[True, True],
             device="cpu",
@@ -106,16 +106,16 @@ class TestInvertd(unittest.TestCase):
             "image",
             "image_inverted",
             "image_inverted1",
-            f"image_inverted1_{DictPostFixes.META}",
-            f"image_inverted_{DictPostFixes.META}",
-            f"image_{DictPostFixes.META}",
+            PostFix.meta("image_inverted1"),
+            PostFix.meta("image_inverted"),
+            PostFix.meta("image"),
             "image_transforms",
             "label",
             "label_inverted",
             "label_inverted1",
-            f"label_inverted1_{DictPostFixes.META}",
-            f"label_inverted_{DictPostFixes.META}",
-            f"label_{DictPostFixes.META}",
+            PostFix.meta("label_inverted1"),
+            PostFix.meta("label_inverted"),
+            PostFix.meta("label"),
             "label_transforms",
             "test_dict",
             "test_dict_transforms",
@@ -156,7 +156,7 @@ class TestInvertd(unittest.TestCase):
         reverted = item["label_inverted"].detach().cpu().numpy().astype(np.int32)
         original = LoadImaged(KEYS)(data[-1])["label"]
         n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
-        reverted_name = item[f"label_inverted_{DictPostFixes.META}"]["filename_or_obj"]
+        reverted_name = item[PostFix.meta("label_inverted")]["filename_or_obj"]
         original_name = data[-1]["label"]
         self.assertEqual(reverted_name, original_name)
         print("invert diff", reverted.size - n_good)

@@ -38,7 +38,7 @@ from monai.transforms import (
 from monai.transforms.inverse_batch_transform import Decollated
 from monai.transforms.spatial.dictionary import RandAffined, RandRotate90d
 from monai.utils import optional_import, set_determinism
-from monai.utils.enums import DictPostFixes, TraceKeys
+from monai.utils.enums import PostFix, TraceKeys
 from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
@@ -171,13 +171,10 @@ class TestBasicDeCollate(unittest.TestCase):
         self.assertListEqual(expected_out, out)
 
     def test_dict_examples(self):
-        test_case = {
-            "meta": {"out": ["test", "test"]},
-            f"image_{DictPostFixes.META}": {"scl_slope": torch.Tensor((0.0, 0.0))},
-        }
+        test_case = {"meta": {"out": ["test", "test"]}, PostFix.meta("image"): {"scl_slope": torch.Tensor((0.0, 0.0))}}
         out = decollate_batch(test_case)
         self.assertEqual(out[0]["meta"]["out"], "test")
-        self.assertEqual(out[0][f"image_{DictPostFixes.META}"]["scl_slope"], 0.0)
+        self.assertEqual(out[0][PostFix.meta("image")]["scl_slope"], 0.0)
 
         test_case = [torch.ones((2, 1, 10, 10)), torch.ones((2, 3, 5, 5))]
         out = decollate_batch(test_case)
@@ -225,22 +222,22 @@ class TestBasicDeCollate(unittest.TestCase):
         test_case = {
             "image": torch.tensor([[[1, 2]], [[3, 4]]]),
             "meta": {"out": ["test", "test"]},
-            f"image_{DictPostFixes.META}": {"scl_slope": torch.Tensor((0.0, 0.0))},
+            PostFix.meta("image"): {"scl_slope": torch.Tensor((0.0, 0.0))},
             "loss": 0.85,
         }
-        transform = Decollated(keys=["meta", f"image_{DictPostFixes.META}"], detach=False)
+        transform = Decollated(keys=["meta", PostFix.meta("image")], detach=False)
         out = transform(test_case)
         self.assertFalse("loss" in out)
         self.assertEqual(out[0]["meta"]["out"], "test")
-        self.assertEqual(out[0][f"image_{DictPostFixes.META}"]["scl_slope"], 0.0)
-        self.assertTrue(isinstance(out[0][f"image_{DictPostFixes.META}"]["scl_slope"], torch.Tensor))
+        self.assertEqual(out[0][PostFix.meta("image")]["scl_slope"], 0.0)
+        self.assertTrue(isinstance(out[0][PostFix.meta("image")]["scl_slope"], torch.Tensor))
         # decollate all data with keys=None
         transform = Decollated(keys=None, detach=True)
         out = transform(test_case)
         self.assertEqual(out[1]["loss"], 0.85)
         self.assertEqual(out[0]["meta"]["out"], "test")
-        self.assertEqual(out[0][f"image_{DictPostFixes.META}"]["scl_slope"], 0.0)
-        self.assertTrue(isinstance(out[0][f"image_{DictPostFixes.META}"]["scl_slope"], float))
+        self.assertEqual(out[0][PostFix.meta("image")]["scl_slope"], 0.0)
+        self.assertTrue(isinstance(out[0][PostFix.meta("image")]["scl_slope"], float))
 
         # test list input
         test_case = [

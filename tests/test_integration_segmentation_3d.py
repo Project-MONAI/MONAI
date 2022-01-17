@@ -40,7 +40,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
-from monai.utils.enums import DictPostFixes
+from monai.utils.enums import PostFix
 from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
@@ -223,7 +223,7 @@ def run_inference_test(root_dir, device="cuda:0"):
             val_outputs = [val_post_tran(i) for i in decollate_batch(val_outputs)]
             # compute metrics
             dice_metric(y_pred=val_outputs, y=val_labels)
-            saver.save_batch(val_outputs, val_data[f"img_{DictPostFixes.META}"])
+            saver.save_batch(val_outputs, val_data[PostFix.meta("img")])
 
     return dice_metric.aggregate().item()
 

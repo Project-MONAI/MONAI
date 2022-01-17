@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from enum import Enum
+from typing import Optional
 
 from monai.utils.deprecate_utils import deprecated
 
@@ -31,7 +32,7 @@ __all__ = [
     "TraceKeys",
     "InverseKeys",
     "CommonKeys",
-    "DictPostFixes",
+    "PostFix",
     "ForwardMode",
     "TransformBackends",
 ]
@@ -260,11 +261,20 @@ class CommonKeys:
     LOSS = "loss"
 
 
-class DictPostFixes:
+class PostFix:
     """Post-fixes."""
 
-    META = "meta_dict"
-    ORIG_META = "orig_meta_dict"
+    @staticmethod
+    def _get_str(prefix, suffix):
+        return suffix if prefix is None else f"{prefix}_{suffix}"
+
+    @staticmethod
+    def meta(key: Optional[str] = None):
+        return PostFix._get_str(key, "meta_dict")
+
+    @staticmethod
+    def orig_meta(key: Optional[str] = None):
+        return PostFix._get_str(key, "orig_meta_dict")
 
 
 class TransformBackends(Enum):

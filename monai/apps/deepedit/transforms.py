@@ -18,7 +18,7 @@ import numpy as np
 from monai.config import KeysCollection
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.utils import optional_import
-from monai.utils.enums import DictPostFixes
+from monai.utils.enums import PostFix
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class ResizeGuidanceCustomd(Transform):
         d = dict(data)
         current_shape = d[self.ref_image].shape[1:]
 
-        factor = np.divide(current_shape, d[f"image_{DictPostFixes.META}"]["dim"][1:4])
+        factor = np.divide(current_shape, d[PostFix.meta("image")]["dim"][1:4])
         pos_clicks, neg_clicks = d["foreground"], d["background"]
 
         pos = np.multiply(pos_clicks, factor).astype(int, copy=False).tolist() if len(pos_clicks) else []

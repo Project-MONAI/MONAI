@@ -52,7 +52,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
-from monai.utils.enums import DictPostFixes, TraceKeys
+from monai.utils.enums import PostFix, TraceKeys
 
 __all__ = [
     "PadModeSequence",
@@ -105,6 +105,7 @@ __all__ = [
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class SpatialPadd(MapTransform, InvertibleTransform):
@@ -755,7 +756,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
         random_center: bool = True,
         random_size: bool = True,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -951,7 +952,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
         num_samples: int = 1,
         center_coord_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1103,7 +1104,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1302,7 +1303,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         image_threshold: float = 0.0,
         indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:

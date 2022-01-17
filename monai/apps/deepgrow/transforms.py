@@ -20,10 +20,12 @@ from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box, is_positive
 from monai.utils import InterpolateMode, deprecated_arg, ensure_tuple, ensure_tuple_rep, min_version, optional_import
-from monai.utils.enums import DictPostFixes
+from monai.utils.enums import PostFix
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
+
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 # Transforms to support Training for Deepgrow models
@@ -392,7 +394,7 @@ class SpatialCropForegroundd(MapTransform):
         channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix=DictPostFixes.META,
+        meta_key_postfix=DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -494,7 +496,7 @@ class AddGuidanceFromPointsd(Transform):
         spatial_dims: int = 2,
         slice_key: str = "slice",
         meta_keys: Optional[str] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         dimensions: Optional[int] = None,
     ):
         self.ref_image = ref_image
@@ -605,7 +607,7 @@ class SpatialCropGuidanced(MapTransform):
         spatial_size,
         margin=20,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix=DictPostFixes.META,
+        meta_key_postfix=DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -721,7 +723,7 @@ class ResizeGuidanced(Transform):
         guidance: str,
         ref_image: str,
         meta_keys: Optional[str] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
         self.guidance = guidance
@@ -804,7 +806,7 @@ class RestoreLabeld(MapTransform):
         mode: Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str] = InterpolateMode.NEAREST,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         meta_keys: Optional[str] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -908,7 +910,7 @@ class Fetch2DSliced(MapTransform):
         guidance="guidance",
         axis: int = 0,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)

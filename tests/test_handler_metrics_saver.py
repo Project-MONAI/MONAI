@@ -18,7 +18,7 @@ import torch
 from ignite.engine import Engine, Events
 
 from monai.handlers import MetricsSaver
-from monai.utils.enums import DictPostFixes
+from monai.utils.enums import PostFix
 
 
 class TestHandlerMetricsSaver(unittest.TestCase):
@@ -28,13 +28,13 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                 save_dir=tempdir,
                 metrics=["metric1", "metric2"],
                 metric_details=["metric3", "metric4"],
-                batch_transform=lambda x: x[f"image_{DictPostFixes.META}"],
+                batch_transform=lambda x: x[PostFix.meta("image")],
                 summary_ops=["mean", "median", "max", "5percentile", "95percentile", "notnans"],
             )
             # set up engine
             data = [
-                {f"image_{DictPostFixes.META}": {"filename_or_obj": ["filepath1"]}},
-                {f"image_{DictPostFixes.META}": {"filename_or_obj": ["filepath2"]}},
+                {PostFix.meta("image"): {"filename_or_obj": ["filepath1"]}},
+                {PostFix.meta("image"): {"filename_or_obj": ["filepath2"]}},
             ]
 
             def _val_func(engine, batch):
