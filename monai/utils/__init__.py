@@ -54,6 +54,7 @@ from .misc import (
     issequenceiterable,
     list_to_dict,
     progress_bar,
+    sample_slices,
     set_determinism,
     star_zip_with,
     zip_with,

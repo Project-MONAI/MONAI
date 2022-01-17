@@ -101,6 +101,7 @@ def run_testsuit():
         "test_label_filter",
         "test_lltm",
         "test_lmdbdataset",
+        "test_lmdbdataset_dist",
         "test_load_image",
         "test_load_imaged",
         "test_load_spacing_orientation",

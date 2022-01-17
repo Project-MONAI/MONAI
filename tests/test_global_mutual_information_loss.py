@@ -15,9 +15,8 @@ import numpy as np
 import torch
 
 from monai import transforms
-from monai.apps import download_url
 from monai.losses.image_dissimilarity import GlobalMutualInformationLoss
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils import SkipIfBeforePyTorchVersion, download_url_or_skip_test
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -54,7 +53,7 @@ EXPECTED_VALUE = {
 
 class TestGlobalMutualInformationLoss(unittest.TestCase):
     def setUp(self):
-        download_url(FILE_URL, FILE_PATH)
+        download_url_or_skip_test(FILE_URL, FILE_PATH)
 
     @SkipIfBeforePyTorchVersion((1, 9))
     def test_bspline(self):

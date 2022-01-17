@@ -277,8 +277,13 @@ from .post.dictionary import (
     VoteEnsembled,
     VoteEnsembleDict,
 )
-from .smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity, SmoothField
-from .smooth_field.dictionary import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
+from .smooth_field.array import (
+    RandSmoothDeform,
+    RandSmoothFieldAdjustContrast,
+    RandSmoothFieldAdjustIntensity,
+    SmoothField,
+)
+from .smooth_field.dictionary import RandSmoothDeformd, RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
 from .spatial.array import (
     Affine,
     AffineGrid,
@@ -513,6 +518,7 @@ from .utils import (
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
     convert_pad_mode,
+    convert_to_contiguous,
     copypaste_arrays,
     create_control_grid,
     create_grid,
@@ -547,6 +553,7 @@ from .utils import (
 )
 from .utils_pytorch_numpy_unification import (
     any_np_pt,
+    ascontiguousarray,
     clip,
     concatenate,
     cumsum,

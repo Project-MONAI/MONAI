@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 import warnings
-from typing import Any, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -22,6 +22,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
+from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
@@ -700,7 +701,7 @@ class Rotate90(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rot90 = torch.rot90 if isinstance(img, torch.Tensor) else np.rot90
+        rot90: Callable = torch.rot90 if isinstance(img, torch.Tensor) else np.rot90  # type: ignore
         out: NdarrayOrTensor = rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes))
         out, *_ = convert_data_type(out, dtype=img.dtype)
         return out
@@ -1373,14 +1374,15 @@ class Resample(Transform):
             raise ValueError("Unknown grid.")
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         img_t: torch.Tensor
+        grid_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=torch.float32)  # type: ignore
-        grid, *_ = convert_to_dst_type(grid, img_t)
+        grid_t, *_ = convert_to_dst_type(grid, img_t)  # type: ignore
 
         if USE_COMPILED:
             for i, dim in enumerate(img_t.shape[1:]):
-                grid[i] += (dim - 1.0) / 2.0
-            grid = grid[:-1] / grid[-1:]
-            grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
+                grid_t[i] += (dim - 1.0) / 2.0
+            grid_t = grid_t[:-1] / grid_t[-1:]
+            grid_t = grid_t.permute(list(range(grid_t.ndimension()))[1:] + [0])
             _padding_mode = look_up_option(
                 self.padding_mode if padding_mode is None else padding_mode, GridSamplePadMode
             ).value
@@ -1393,21 +1395,21 @@ class Resample(Transform):
             _interp_mode = look_up_option(self.mode if mode is None else mode, GridSampleMode).value
             out = grid_pull(
                 img_t.unsqueeze(0),
-                grid.unsqueeze(0),
+                grid_t.unsqueeze(0),
                 bound=bound,
                 extrapolate=True,
                 interpolation=1 if _interp_mode == "bilinear" else _interp_mode,
             )[0]
         else:
             for i, dim in enumerate(img_t.shape[1:]):
-                grid[i] = 2.0 * grid[i] / (dim - 1.0)
-            grid = grid[:-1] / grid[-1:]
+                grid_t[i] = 2.0 * grid_t[i] / (dim - 1.0)
+            grid_t = grid_t[:-1] / grid_t[-1:]
             index_ordering: List[int] = list(range(img_t.ndimension() - 2, -1, -1))
-            grid = grid[index_ordering]
-            grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
+            grid_t = grid_t[index_ordering]
+            grid_t = grid_t.permute(list(range(grid_t.ndimension()))[1:] + [0])
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
-                grid.unsqueeze(0),
+                grid_t.unsqueeze(0),
                 mode=self.mode.value if mode is None else GridSampleMode(mode).value,
                 padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
                 align_corners=True,
@@ -2102,7 +2104,7 @@ class GridDistortion(Transform):
             ranges = ranges - (dim_size - 1.0) / 2.0
             all_ranges.append(ranges)
 
-        coords = torch.meshgrid(*all_ranges)
+        coords = meshgrid_ij(*all_ranges)
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
         return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore

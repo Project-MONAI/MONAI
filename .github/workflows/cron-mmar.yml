@@ -37,6 +37,6 @@ jobs:
     - name: Loading MMARs
       run: |
         # clean up temporary files
-        $(pwd)/runtests.sh --clean
+        $(pwd)/runtests.sh --build --clean
         # run tests
         python -m tests.ngc_mmar_loading

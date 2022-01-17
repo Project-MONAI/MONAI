@@ -38,11 +38,13 @@ doNetTests=false
 doDryRun=false
 doZooTests=false
 doUnitTests=false
+doBuild=false
 doBlackFormat=false
 doBlackFix=false
 doIsortFormat=false
 doIsortFix=false
 doFlake8Format=false
+doPylintFormat=false
 doClangFormat=false
 doCopyRight=false
 doPytypeFormat=false
@@ -55,9 +57,9 @@ NUM_PARALLEL=1
 PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--clangformat] [--pytype] [--mypy]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--list_tests]"
-    echo "            [--copyright] [--clean] [--help] [--version]"
+    echo "            [--copyright] [--build] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -74,6 +76,7 @@ function print_usage {
     echo "    --autofix         : format code using \"isort\" and \"black\""
     echo "    --isort           : perform \"isort\" import sort checks"
     echo "    --flake8          : perform \"flake8\" code format checks"
+    echo "    --pylint          : perform \"pylint\" code format checks"
     echo "    --clangformat     : format csrc code using \"clang-format\""
     echo ""
     echo "Python type check options:"
@@ -88,6 +91,7 @@ function print_usage {
     echo "    -q, --quick       : skip long running unit tests and integration tests"
     echo "    -m, --min         : only run minimal unit tests which do not require optional packages"
     echo "    --net             : perform integration testing"
+    echo "    -b, --build       : compile and install the source code folder an editable release."
     echo "    --list_tests      : list unit tests and exit"
     echo ""
     echo "Misc. options:"
@@ -106,7 +110,7 @@ function print_usage {
 }
 
 function check_import {
-    echo "python: ${PY_EXE}"
+    echo "Python: ${PY_EXE}"
     ${cmdPrefix}${PY_EXE} -c "import monai"
 }
 
@@ -239,6 +243,7 @@ do
             doBlackFormat=true
             doIsortFormat=true
             doFlake8Format=true
+            doPylintFormat=true
             doPytypeFormat=true
             doMypyFormat=true
             doCopyRight=true
@@ -265,6 +270,9 @@ do
         --flake8)
             doFlake8Format=true
         ;;
+        --pylint)
+            doPylintFormat=true
+        ;;
         --pytype)
             doPytypeFormat=true
         ;;
@@ -277,6 +285,9 @@ do
         ;;
         --copyright)
             doCopyRight=true
+        ;;
+        -b|--build)
+            doBuild=true
         ;;
         -c|--clean)
             doCleanup=true
@@ -322,6 +333,14 @@ else
     check_import
 fi
 
+if [ $doBuild = true ]
+then
+    echo "${separator}${blue}compile and install${noColor}"
+    # try to compile MONAI cpp
+    compile_cpp
+
+    echo "${green}done! (to uninstall and clean up, please use \"./runtests.sh --clean\")${noColor}"
+fi
 
 if [ $doCleanup = true ]
 then
@@ -342,9 +361,6 @@ then
     echo "${green}done!${noColor}"
     exit
 fi
-
-# try to compile MONAI cpp
-compile_cpp
 
 # unconditionally report on the state of monai
 print_version
@@ -453,7 +469,7 @@ then
 
     # ensure that the necessary packages for code format testing are installed
     if ! is_pip_installed flake8
-	then
+    then
         install_deps
     fi
     ${cmdPrefix}${PY_EXE} -m flake8 --version
@@ -471,19 +487,47 @@ then
     set -e # enable exit on failure
 fi
 
+if [ $doPylintFormat = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    echo "${separator}${blue}pylint${noColor}"
+
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed flake8
+    then
+        install_deps
+    fi
+    ${cmdPrefix}${PY_EXE} -m pylint --version
+
+    ignore_codes="E1101,E1102,E0601,E1130,E1123,E0102,E1120,E1137,E1136"
+    ${cmdPrefix}${PY_EXE} -m pylint monai tests -E --disable=$ignore_codes -j $NUM_PARALLEL
+    pylint_status=$?
+
+    if [ ${pylint_status} -ne 0 ]
+    then
+        print_style_fail_msg
+        exit ${pylint_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
+fi
+
 
 if [ $doPytypeFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
     echo "${separator}${blue}pytype${noColor}"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "${red}pytype not working on macOS (https://github.com/Project-MONAI/MONAI/issues/2391), skipping the tests.${noColor}"
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed pytype
+    then
+        install_deps
+    fi
+    pytype_ver=$(${cmdPrefix}${PY_EXE} -m pytype --version)
+    if [[ "$OSTYPE" == "darwin"* && "$pytype_ver" == "2021."* ]]; then
+        echo "${red}pytype not working on macOS 2021 (https://github.com/Project-MONAI/MONAI/issues/2391). Please upgrade to 2022*.${noColor}"
+        exit 1
     else
-        # ensure that the necessary packages for code format testing are installed
-        if ! is_pip_installed pytype
-        then
-            install_deps
-        fi
         ${cmdPrefix}${PY_EXE} -m pytype --version
 
         ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"

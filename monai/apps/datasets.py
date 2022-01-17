@@ -57,6 +57,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
             (for example, randomly crop from the cached image and deepcopy the crop region)
             or if every cache item is only used once in a `multi-processing` environment,
             may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -83,6 +85,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         num_workers: int = 0,
         progress: bool = True,
         copy_cache: bool = True,
+        as_contiguous: bool = True,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -120,9 +123,10 @@ class MedNISTDataset(Randomizable, CacheDataset):
             num_workers=num_workers,
             progress=progress,
             copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
         )
 
-    def randomize(self, data: List[int]) -> None:
+    def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
     def get_num_classes(self) -> int:
@@ -205,6 +209,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
             (for example, randomly crop from the cached image and deepcopy the crop region)
             or if every cache item is only used once in a `multi-processing` environment,
             may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -271,6 +277,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         num_workers: int = 0,
         progress: bool = True,
         copy_cache: bool = True,
+        as_contiguous: bool = True,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -322,6 +329,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             num_workers=num_workers,
             progress=progress,
             copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
         )
 
     def get_indices(self) -> np.ndarray:
@@ -331,7 +339,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         """
         return self.indices
 
-    def randomize(self, data: List[int]) -> None:
+    def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
     def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):

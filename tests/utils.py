@@ -24,12 +24,13 @@ import warnings
 from functools import partial
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
-from urllib.error import HTTPError, URLError
+from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.apps.utils import download_url
 from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
@@ -97,6 +98,10 @@ def test_pretrained_networks(network, input_param, device):
         return network(**input_param).to(device)
     except (URLError, HTTPError) as e:
         raise unittest.SkipTest(e) from e
+    except RuntimeError as r_error:
+        if "unexpected EOF" in f"{r_error}":  # The file might be corrupted.
+            raise unittest.SkipTest(f"{r_error}") from r_error
+        raise
 
 
 def test_is_quick():
@@ -627,6 +632,18 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
             rtol=rtol,
             atol=atol,
         )
+
+
+def download_url_or_skip_test(*args, **kwargs):
+    """``download_url`` and skip the tests if any downloading error occurs."""
+    try:
+        download_url(*args, **kwargs)
+    except (ContentTooShortError, HTTPError) as e:
+        raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except RuntimeError as rt_e:
+        if "network issue" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        raise rt_e
 
 
 def query_memory(n=2):
