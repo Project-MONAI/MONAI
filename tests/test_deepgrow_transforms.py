@@ -27,7 +27,7 @@ from monai.apps.deepgrow.transforms import (
     SpatialCropForegroundd,
     SpatialCropGuidanced,
 )
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 
 IMAGE = np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]])
 LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]])
@@ -35,8 +35,8 @@ LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0,
 DATA_1 = {
     CommonKeys.IMAGE: IMAGE,
     CommonKeys.LABEL: LABEL,
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {},
-    f"{CommonKeys.LABEL}_{DictPostFixes.META}": {},
+    f"{CommonKeys.IMAGE}_meta_dict": {},
+    f"{CommonKeys.LABEL}_meta_dict": {},
 }
 
 DATA_2 = {
@@ -80,21 +80,21 @@ DATA_4 = {
 
 DATA_5 = {
     CommonKeys.IMAGE: np.arange(25).reshape((1, 5, 5)),
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"spatial_shape": [5, 5, 1]},
+    f"{CommonKeys.IMAGE}_meta_dict": {"spatial_shape": [5, 5, 1]},
     "foreground": [[2, 2, 0]],
     "background": [],
 }
 
 DATA_6 = {
     CommonKeys.IMAGE: np.arange(25).reshape((1, 5, 5)),
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"spatial_shape": [5, 2, 1]},
+    f"{CommonKeys.IMAGE}_meta_dict": {"spatial_shape": [5, 2, 1]},
     "foreground": [[2, 1, 0]],
     "background": [[1, 0, 0]],
 }
 
 DATA_7 = {
     CommonKeys.IMAGE: np.arange(500).reshape((5, 10, 10)),
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"spatial_shape": [20, 20, 10]},
+    f"{CommonKeys.IMAGE}_meta_dict": {"spatial_shape": [20, 20, 10]},
     "foreground": [[10, 14, 6], [10, 14, 8]],
     "background": [[10, 16, 8]],
     "slice": 6,
@@ -102,19 +102,19 @@ DATA_7 = {
 
 DATA_8 = {
     CommonKeys.IMAGE: np.arange(500).reshape((1, 5, 10, 10)),
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"spatial_shape": [20, 20, 10]},
+    f"{CommonKeys.IMAGE}_meta_dict": {"spatial_shape": [20, 20, 10]},
     "guidance": [[[3, 5, 7], [4, 5, 7]], [[4, 5, 8]]],
 }
 
 DATA_9 = {
     CommonKeys.IMAGE: np.arange(1000).reshape((1, 5, 10, 20)),
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"foreground_cropped_shape": (1, 10, 20, 40)},
+    f"{CommonKeys.IMAGE}_meta_dict": {"foreground_cropped_shape": (1, 10, 20, 40)},
     "guidance": [[[6, 10, 14], [8, 10, 14]], [[8, 10, 16]]],
 }
 
 DATA_10 = {
     CommonKeys.IMAGE: np.arange(9).reshape((1, 1, 3, 3)),
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {
+    f"{CommonKeys.IMAGE}_meta_dict": {
         "spatial_shape": [3, 3, 1],
         "foreground_start_coord": np.array([0, 0, 0]),
         "foreground_end_coord": np.array([1, 3, 3]),
@@ -129,7 +129,7 @@ DATA_10 = {
 
 DATA_11 = {
     CommonKeys.IMAGE: np.arange(500).reshape((1, 5, 10, 10)),
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {
+    f"{CommonKeys.IMAGE}_meta_dict": {
         "spatial_shape": [20, 20, 10],
         "foreground_start_coord": np.array([2, 2, 2]),
         "foreground_end_coord": np.array([4, 4, 4]),
@@ -144,7 +144,7 @@ DATA_11 = {
 
 DATA_12 = {
     CommonKeys.IMAGE: np.arange(27).reshape(3, 3, 3),
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {},
+    f"{CommonKeys.IMAGE}_meta_dict": {},
     "guidance": [[0, 0, 0], [0, 1, 1], 1],
 }
 
@@ -365,21 +365,15 @@ class TestSpatialCropForegroundd(unittest.TestCase):
     def test_foreground_position(self, arguments, input_data, _):
         result = SpatialCropForegroundd(**arguments)(input_data)
         np.testing.assert_allclose(
-            result[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["foreground_start_coord"], np.array([0, 1, 1])
+            result[f"{CommonKeys.IMAGE}_meta_dict"]["foreground_start_coord"], np.array([0, 1, 1])
         )
-        np.testing.assert_allclose(
-            result[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["foreground_end_coord"], np.array([1, 4, 4])
-        )
+        np.testing.assert_allclose(result[f"{CommonKeys.IMAGE}_meta_dict"]["foreground_end_coord"], np.array([1, 4, 4]))
 
         arguments["start_coord_key"] = "test_start_coord"
         arguments["end_coord_key"] = "test_end_coord"
         result = SpatialCropForegroundd(**arguments)(input_data)
-        np.testing.assert_allclose(
-            result[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["test_start_coord"], np.array([0, 1, 1])
-        )
-        np.testing.assert_allclose(
-            result[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["test_end_coord"], np.array([1, 4, 4])
-        )
+        np.testing.assert_allclose(result[f"{CommonKeys.IMAGE}_meta_dict"]["test_start_coord"], np.array([0, 1, 1]))
+        np.testing.assert_allclose(result[f"{CommonKeys.IMAGE}_meta_dict"]["test_end_coord"], np.array([1, 4, 4]))
 
 
 class TestAddInitialSeedPointd(unittest.TestCase):

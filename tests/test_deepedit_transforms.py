@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.deepedit.transforms import ClickRatioAddRandomGuidanced, DiscardAddGuidanced, ResizeGuidanceCustomd
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 
 IMAGE = np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]])
 LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]])
@@ -23,8 +23,8 @@ LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0,
 DATA_1 = {
     CommonKeys.IMAGE: IMAGE,
     CommonKeys.LABEL: LABEL,
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"dim": IMAGE.shape},
-    f"{CommonKeys.LABEL}_{DictPostFixes.META}": {},
+    f"{CommonKeys.IMAGE}_meta_dict": {"dim": IMAGE.shape},
+    f"{CommonKeys.LABEL}_meta_dict": {},
     "foreground": [0, 0, 0],
     "background": [0, 0, 0],
 }
@@ -52,10 +52,7 @@ CLICK_RATIO_ADD_RANDOM_GUIDANCE_TEST_CASE_1 = [
 
 DATA_3 = {
     CommonKeys.IMAGE: np.arange(1000).reshape((1, 5, 10, 20)),
-    f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {
-        "foreground_cropped_shape": (1, 10, 20, 40),
-        "dim": [3, 512, 512, 128],
-    },
+    f"{CommonKeys.IMAGE}_meta_dict": {"foreground_cropped_shape": (1, 10, 20, 40), "dim": [3, 512, 512, 128]},
     "guidance": [[[6, 10, 14], [8, 10, 14]], [[8, 10, 16]]],
     "foreground": [[10, 14, 6], [10, 14, 8]],
     "background": [[10, 16, 8]],

@@ -37,7 +37,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 from tests.utils import make_nifti_image
 
 KEYS = [CommonKeys.IMAGE, CommonKeys.LABEL]
@@ -62,7 +62,7 @@ class TestInvertd(unittest.TestCase):
                 RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
                 # test EnsureTensor for complicated dict data and invert it
-                CopyItemsd(f"{CommonKeys.IMAGE}_{DictPostFixes.META}", times=1, names="test_dict"),
+                CopyItemsd(f"{CommonKeys.IMAGE}_meta_dict", times=1, names="test_dict"),
                 # test to support Tensor, Numpy array and dictionary when inverting
                 EnsureTyped(keys=[CommonKeys.IMAGE, "test_dict"]),
                 ToTensord(CommonKeys.IMAGE),
@@ -84,11 +84,7 @@ class TestInvertd(unittest.TestCase):
             transform=transform,
             orig_keys=[CommonKeys.LABEL, CommonKeys.LABEL, "test_dict"],
             meta_keys=["image_inverted_meta_dict", "label_inverted_meta_dict", None],
-            orig_meta_keys=[
-                f"{CommonKeys.LABEL}_{DictPostFixes.META}",
-                f"{CommonKeys.LABEL}_{DictPostFixes.META}",
-                None,
-            ],
+            orig_meta_keys=[f"{CommonKeys.LABEL}_meta_dict", f"{CommonKeys.LABEL}_meta_dict", None],
             nearest_interp=True,
             to_tensor=[True, False, False],
             device="cpu",
@@ -100,7 +96,7 @@ class TestInvertd(unittest.TestCase):
             transform=transform,
             orig_keys=[CommonKeys.IMAGE, CommonKeys.IMAGE],
             meta_keys=["image_inverted1_meta_dict", "label_inverted1_meta_dict"],
-            orig_meta_keys=[f"{CommonKeys.IMAGE}_{DictPostFixes.META}", f"{CommonKeys.IMAGE}_{DictPostFixes.META}"],
+            orig_meta_keys=[f"{CommonKeys.IMAGE}_meta_dict", f"{CommonKeys.IMAGE}_meta_dict"],
             nearest_interp=[True, False],
             to_tensor=[True, True],
             device="cpu",
@@ -112,14 +108,14 @@ class TestInvertd(unittest.TestCase):
             "image_inverted1",
             "image_inverted1_meta_dict",
             "image_inverted_meta_dict",
-            f"{CommonKeys.IMAGE}_{DictPostFixes.META}",
+            f"{CommonKeys.IMAGE}_meta_dict",
             "image_transforms",
             CommonKeys.LABEL,
             "label_inverted",
             "label_inverted1",
             "label_inverted1_meta_dict",
             "label_inverted_meta_dict",
-            f"{CommonKeys.LABEL}_{DictPostFixes.META}",
+            f"{CommonKeys.LABEL}_meta_dict",
             "label_transforms",
             "test_dict",
             "test_dict_transforms",

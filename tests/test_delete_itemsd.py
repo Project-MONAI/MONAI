@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import DeleteItemsd
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 
 TEST_CASE_1 = [{"keys": [str(i) for i in range(30)]}, 20]
 
@@ -45,10 +45,10 @@ class TestDeleteItemsd(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_re(self, input_param):
-        input_data = {CommonKeys.IMAGE: [1, 2, 3], DictPostFixes.META: {"0008|0005": 1, "0008|1050": 2, "0008test": 3}}
+        input_data = {CommonKeys.IMAGE: [1, 2, 3], "meta_dict": {"0008|0005": 1, "0008|1050": 2, "0008test": 3}}
         result = DeleteItemsd(**input_param)(input_data)
-        self.assertEqual(result[DictPostFixes.META]["0008test"], 3)
-        self.assertTrue(len(result[DictPostFixes.META]), 1)
+        self.assertEqual(result["meta_dict"]["0008test"], 3)
+        self.assertTrue(len(result["meta_dict"]), 1)
 
 
 if __name__ == "__main__":

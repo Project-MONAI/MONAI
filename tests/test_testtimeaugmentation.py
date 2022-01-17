@@ -34,7 +34,7 @@ from monai.transforms import (
 from monai.transforms.croppad.dictionary import SpatialPadd
 from monai.transforms.spatial.dictionary import RandFlipd, Spacingd
 from monai.utils import optional_import, set_determinism
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS
 
 if TYPE_CHECKING:
@@ -60,10 +60,10 @@ class TestTestTimeAugmentation(unittest.TestCase):
             im, label = custom_create_test_image_2d()
             d = {}
             d[CommonKeys.IMAGE] = data_type(im[:, i:])
-            d[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"] = {"affine": np.eye(4)}
+            d[f"{CommonKeys.IMAGE}_meta_dict"] = {"affine": np.eye(4)}
             if include_label:
                 d[CommonKeys.LABEL] = data_type(label[:, i:])
-                d[f"{CommonKeys.LABEL}_{DictPostFixes.META}"] = {"affine": np.eye(4)}
+                d[f"{CommonKeys.LABEL}_meta_dict"] = {"affine": np.eye(4)}
             data.append(d)
         return data[0] if num_examples == 1 else data
 

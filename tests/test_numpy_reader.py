@@ -19,7 +19,7 @@ import torch
 
 from monai.data import DataLoader, Dataset, NumpyReader
 from monai.transforms import LoadImaged
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 
 
 class TestNumpyReader(unittest.TestCase):
@@ -110,7 +110,7 @@ class TestNumpyReader(unittest.TestCase):
                     num_workers=num_workers,
                 )
                 for d in loader:
-                    for s in d[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["spatial_shape"]:
+                    for s in d[f"{CommonKeys.IMAGE}_meta_dict"]["spatial_shape"]:
                         torch.testing.assert_allclose(s, torch.as_tensor([3, 4, 5]))
                     for c in d[CommonKeys.IMAGE]:
                         torch.testing.assert_allclose(c, test_data)

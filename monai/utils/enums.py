@@ -31,7 +31,6 @@ __all__ = [
     "TraceKeys",
     "InverseKeys",
     "CommonKeys",
-    "DictPostFixes",
     "ForwardMode",
     "TransformBackends",
 ]
@@ -258,13 +257,6 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
-
-
-class DictPostFixes:
-    """Post-fixes."""
-
-    META = "meta_dict"
-    ORIG_META = "orig_meta_dict"
 
 
 class TransformBackends(Enum):

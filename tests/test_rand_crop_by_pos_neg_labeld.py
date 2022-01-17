@@ -16,7 +16,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandCropByPosNegLabeld
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS
 
 TESTS = [
@@ -35,7 +35,7 @@ TESTS = [
             CommonKeys.IMAGE: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             CommonKeys.LABEL: np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"affine": np.eye(3), "shape": "CHWD"},
+            f"{CommonKeys.IMAGE}_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 2, 2),
     ],
@@ -54,7 +54,7 @@ TESTS = [
             CommonKeys.IMAGE: np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             CommonKeys.LABEL: np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            f"{CommonKeys.LABEL}_{DictPostFixes.META}": {"affine": np.eye(3), "shape": "CHWD"},
+            f"{CommonKeys.LABEL}_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 2, 2, 2),
     ],

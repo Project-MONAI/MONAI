@@ -24,7 +24,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.transform import Randomizable
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils.enums import CommonKeys, DictPostFixes, TraceKeys
+from monai.utils.enums import CommonKeys, TraceKeys
 from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type
 
@@ -106,7 +106,7 @@ class TestTimeAugmentation:
         orig_key=CommonKeys.LABEL,
         nearest_interp: bool = True,
         orig_meta_keys: Optional[str] = None,
-        meta_key_postfix=DictPostFixes.META,
+        meta_key_postfix: str = "meta_dict",
         return_full_data: bool = False,
         progress: bool = True,
     ) -> None:

@@ -61,7 +61,7 @@ from monai.utils import (
     fall_back_tuple,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import DictPostFixes, TraceKeys
+from monai.utils.enums import TraceKeys
 from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
@@ -156,7 +156,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -315,7 +315,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         as_closest_canonical: bool = False,
         labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
         """

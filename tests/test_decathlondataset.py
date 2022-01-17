@@ -17,7 +17,7 @@ from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 from tests.utils import skip_if_quick
 
 
@@ -38,7 +38,7 @@ class TestDecathlonDataset(unittest.TestCase):
             self.assertEqual(len(dataset), 52)
             self.assertTrue(CommonKeys.IMAGE in dataset[0])
             self.assertTrue(CommonKeys.LABEL in dataset[0])
-            self.assertTrue(f"{CommonKeys.IMAGE}_{DictPostFixes.META}" in dataset[0])
+            self.assertTrue(f"{CommonKeys.IMAGE}_meta_dict" in dataset[0])
             self.assertTupleEqual(dataset[0][CommonKeys.IMAGE].shape, (1, 36, 47, 44))
 
         try:  # will start downloading if testing_dir doesn't have the Decathlon files
@@ -62,12 +62,8 @@ class TestDecathlonDataset(unittest.TestCase):
             root_dir=testing_dir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
         )
         _test_dataset(data)
-        self.assertTrue(
-            data[0][f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["filename_or_obj"].endswith("hippocampus_163.nii.gz")
-        )
-        self.assertTrue(
-            data[0][f"{CommonKeys.LABEL}_{DictPostFixes.META}"]["filename_or_obj"].endswith("hippocampus_163.nii.gz")
-        )
+        self.assertTrue(data[0][f"{CommonKeys.IMAGE}_meta_dict"]["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
+        self.assertTrue(data[0][f"{CommonKeys.LABEL}_meta_dict"]["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
         # test validation without transforms
         data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
         self.assertTupleEqual(data[0][CommonKeys.IMAGE].shape, (36, 47, 44))

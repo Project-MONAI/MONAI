@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Spacingd
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS: List[Tuple] = []
@@ -25,12 +25,9 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         (
             "spacing 3d",
-            {
-                CommonKeys.IMAGE: p(np.ones((2, 10, 15, 20))),
-                f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"affine": p(np.eye(4))},
-            },
+            {CommonKeys.IMAGE: p(np.ones((2, 10, 15, 20))), f"{CommonKeys.IMAGE}_meta_dict": {"affine": p(np.eye(4))}},
             dict(keys=CommonKeys.IMAGE, pixdim=(1, 2, 1.4)),
-            (CommonKeys.IMAGE, f"{CommonKeys.IMAGE}_{DictPostFixes.META}", "image_transforms"),
+            (CommonKeys.IMAGE, f"{CommonKeys.IMAGE}_meta_dict", "image_transforms"),
             (2, 10, 8, 15),
             p(np.diag([1, 2, 1.4, 1.0])),
         )
@@ -38,9 +35,9 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         (
             "spacing 2d",
-            {CommonKeys.IMAGE: np.ones((2, 10, 20)), f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"affine": np.eye(3)}},
+            {CommonKeys.IMAGE: np.ones((2, 10, 20)), f"{CommonKeys.IMAGE}_meta_dict": {"affine": np.eye(3)}},
             dict(keys=CommonKeys.IMAGE, pixdim=(1, 2)),
-            (CommonKeys.IMAGE, f"{CommonKeys.IMAGE}_{DictPostFixes.META}", "image_transforms"),
+            (CommonKeys.IMAGE, f"{CommonKeys.IMAGE}_meta_dict", "image_transforms"),
             (2, 10, 10),
             np.diag((1, 2, 1)),
         )
@@ -50,7 +47,7 @@ for p in TEST_NDARRAYS:
             "spacing 2d no metadata",
             {CommonKeys.IMAGE: np.ones((2, 10, 20))},
             dict(keys=CommonKeys.IMAGE, pixdim=(1, 2)),
-            (CommonKeys.IMAGE, f"{CommonKeys.IMAGE}_{DictPostFixes.META}", "image_transforms"),
+            (CommonKeys.IMAGE, f"{CommonKeys.IMAGE}_meta_dict", "image_transforms"),
             (2, 10, 10),
             np.diag((1, 2, 1)),
         )
@@ -61,13 +58,13 @@ for p in TEST_NDARRAYS:
             {
                 CommonKeys.IMAGE: np.arange(20).reshape((2, 1, 10)),
                 "seg": np.ones((2, 1, 10)),
-                f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"affine": np.eye(4)},
+                f"{CommonKeys.IMAGE}_meta_dict": {"affine": np.eye(4)},
                 "seg_meta_dict": {"affine": np.eye(4)},
             },
             dict(keys=(CommonKeys.IMAGE, "seg"), mode="nearest", pixdim=(1, 0.2)),
             (
                 CommonKeys.IMAGE,
-                f"{CommonKeys.IMAGE}_{DictPostFixes.META}",
+                f"{CommonKeys.IMAGE}_meta_dict",
                 "image_transforms",
                 "seg",
                 "seg_meta_dict",
@@ -83,13 +80,13 @@ for p in TEST_NDARRAYS:
             {
                 CommonKeys.IMAGE: np.ones((2, 1, 10)),
                 "seg": np.ones((2, 1, 10)),
-                f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"affine": np.eye(4)},
+                f"{CommonKeys.IMAGE}_meta_dict": {"affine": np.eye(4)},
                 "seg_meta_dict": {"affine": np.eye(4)},
             },
             dict(keys=(CommonKeys.IMAGE, "seg"), mode=("bilinear", "nearest"), pixdim=(1, 0.2)),
             (
                 CommonKeys.IMAGE,
-                f"{CommonKeys.IMAGE}_{DictPostFixes.META}",
+                f"{CommonKeys.IMAGE}_meta_dict",
                 "image_transforms",
                 "seg",
                 "seg_meta_dict",
@@ -109,7 +106,7 @@ class TestSpacingDCase(unittest.TestCase):
             self.assertEqual(data[CommonKeys.IMAGE].device, res[CommonKeys.IMAGE].device)
         self.assertEqual(expected_keys, tuple(sorted(res)))
         np.testing.assert_allclose(res[CommonKeys.IMAGE].shape, expected_shape)
-        assert_allclose(res[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"], expected_affine)
+        assert_allclose(res[f"{CommonKeys.IMAGE}_meta_dict"]["affine"], expected_affine)
 
 
 if __name__ == "__main__":

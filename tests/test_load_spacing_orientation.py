@@ -19,7 +19,7 @@ from nibabel.processing import resample_to_output
 from parameterized import parameterized
 
 from monai.transforms import AddChanneld, LoadImaged, Orientationd, Spacingd
-from monai.utils.enums import CommonKeys, DictPostFixes
+from monai.utils.enums import CommonKeys
 
 FILES = tuple(
     os.path.join(os.path.dirname(__file__), "testing_data", filename)
@@ -38,13 +38,13 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         t1 = time.time()
         print(f"time monai: {t1 - t}")
         anat = nibabel.Nifti1Image(
-            data_dict[CommonKeys.IMAGE][0], data_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["original_affine"]
+            data_dict[CommonKeys.IMAGE][0], data_dict[f"{CommonKeys.IMAGE}_meta_dict"]["original_affine"]
         )
         ref = resample_to_output(anat, (1, 0.2, 1), order=1)
         t2 = time.time()
         print(f"time scipy: {t2 - t1}")
         self.assertTrue(t2 >= t1)
-        np.testing.assert_allclose(res_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"], ref.affine)
+        np.testing.assert_allclose(res_dict[f"{CommonKeys.IMAGE}_meta_dict"]["affine"], ref.affine)
         np.testing.assert_allclose(res_dict[CommonKeys.IMAGE].shape[1:], ref.shape)
         np.testing.assert_allclose(ref.get_fdata(), res_dict[CommonKeys.IMAGE][0], atol=0.05)
 
@@ -53,22 +53,22 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data = {CommonKeys.IMAGE: filename}
         data_dict = LoadImaged(keys=CommonKeys.IMAGE)(data)
         data_dict = AddChanneld(keys=CommonKeys.IMAGE)(data_dict)
-        affine = data_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"]
-        data_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["original_affine"] = data_dict[
-            f"{CommonKeys.IMAGE}_{DictPostFixes.META}"
-        ]["affine"] = (np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine)
+        affine = data_dict[f"{CommonKeys.IMAGE}_meta_dict"]["affine"]
+        data_dict[f"{CommonKeys.IMAGE}_meta_dict"]["original_affine"] = data_dict[f"{CommonKeys.IMAGE}_meta_dict"][
+            "affine"
+        ] = (np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine)
         t = time.time()
         res_dict = Spacingd(keys=CommonKeys.IMAGE, pixdim=(1, 2, 3), diagonal=True, padding_mode="zeros")(data_dict)
         t1 = time.time()
         print(f"time monai: {t1 - t}")
         anat = nibabel.Nifti1Image(
-            data_dict[CommonKeys.IMAGE][0], data_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["original_affine"]
+            data_dict[CommonKeys.IMAGE][0], data_dict[f"{CommonKeys.IMAGE}_meta_dict"]["original_affine"]
         )
         ref = resample_to_output(anat, (1, 2, 3), order=1)
         t2 = time.time()
         print(f"time scipy: {t2 - t1}")
         self.assertTrue(t2 >= t1)
-        np.testing.assert_allclose(res_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"], ref.affine)
+        np.testing.assert_allclose(res_dict[f"{CommonKeys.IMAGE}_meta_dict"]["affine"], ref.affine)
         if "anatomical" not in filename:
             np.testing.assert_allclose(res_dict[CommonKeys.IMAGE].shape[1:], ref.shape)
             np.testing.assert_allclose(ref.get_fdata(), res_dict[CommonKeys.IMAGE][0], atol=0.05)
@@ -81,13 +81,13 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data = {CommonKeys.IMAGE: FILES[1]}
         data_dict = LoadImaged(keys=CommonKeys.IMAGE)(data)
         data_dict = AddChanneld(keys=CommonKeys.IMAGE)(data_dict)
-        affine = data_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"]
-        data_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["original_affine"] = data_dict[
-            f"{CommonKeys.IMAGE}_{DictPostFixes.META}"
-        ]["affine"] = (np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine)
+        affine = data_dict[f"{CommonKeys.IMAGE}_meta_dict"]["affine"]
+        data_dict[f"{CommonKeys.IMAGE}_meta_dict"]["original_affine"] = data_dict[f"{CommonKeys.IMAGE}_meta_dict"][
+            "affine"
+        ] = (np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine)
         res_dict = Spacingd(keys=CommonKeys.IMAGE, pixdim=(1, 2, 3), diagonal=False, padding_mode="zeros")(data_dict)
         np.testing.assert_allclose(
-            res_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"],
+            res_dict[f"{CommonKeys.IMAGE}_meta_dict"]["affine"],
             np.array(
                 [
                     [0.0, 0.0, 3.0, -27.599409],
@@ -104,7 +104,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data_dict = AddChanneld(keys=CommonKeys.IMAGE)(data_dict)
         res_dict = Spacingd(keys=CommonKeys.IMAGE, pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
         np.testing.assert_allclose(
-            res_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"],
+            res_dict[f"{CommonKeys.IMAGE}_meta_dict"]["affine"],
             np.array([[-1.0, 0.0, 0.0, 32.0], [0.0, 2.0, 0.0, -40.0], [0.0, 0.0, 3.0, -16.0], [0.0, 0.0, 0.0, 1.0]]),
         )
 
@@ -115,7 +115,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         res_dict = Spacingd(keys=CommonKeys.IMAGE, pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
         res_dict = Orientationd(keys=CommonKeys.IMAGE, axcodes="LPI")(res_dict)
         np.testing.assert_allclose(
-            res_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"],
+            res_dict[f"{CommonKeys.IMAGE}_meta_dict"]["affine"],
             np.array([[-1.0, 0.0, 0.0, 32.0], [0.0, -2.0, 0.0, 40.0], [0.0, 0.0, -3.0, 32.0], [0.0, 0.0, 0.0, 1.0]]),
         )
 
@@ -123,14 +123,14 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data = {CommonKeys.IMAGE: FILES[1]}
         data_dict = LoadImaged(keys=CommonKeys.IMAGE)(data)
         data_dict = AddChanneld(keys=CommonKeys.IMAGE)(data_dict)
-        affine = data_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"]
-        data_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["original_affine"] = data_dict[
-            f"{CommonKeys.IMAGE}_{DictPostFixes.META}"
-        ]["affine"] = (np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine)
+        affine = data_dict[f"{CommonKeys.IMAGE}_meta_dict"]["affine"]
+        data_dict[f"{CommonKeys.IMAGE}_meta_dict"]["original_affine"] = data_dict[f"{CommonKeys.IMAGE}_meta_dict"][
+            "affine"
+        ] = (np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine)
         res_dict = Spacingd(keys=CommonKeys.IMAGE, pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
         res_dict = Orientationd(keys=CommonKeys.IMAGE, axcodes="LPI")(res_dict)
         np.testing.assert_allclose(
-            res_dict[f"{CommonKeys.IMAGE}_{DictPostFixes.META}"]["affine"],
+            res_dict[f"{CommonKeys.IMAGE}_meta_dict"]["affine"],
             np.array(
                 [
                     [-3.0, 0.0, 0.0, 56.4005909],

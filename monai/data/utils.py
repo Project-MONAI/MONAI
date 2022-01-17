@@ -344,14 +344,14 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
 
         batch_data = {
             CommonKeys.IMAGE: torch.rand((2,1,10,10)),
-            f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {"scl_slope": torch.Tensor([0.0, 0.0])}
+            f"{CommonKeys.IMAGE}_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
         }
         out = decollate_batch(batch_data)
         print(len(out))
         >>> 2
 
         print(out[0])
-        >>> {CommonKeys.IMAGE: tensor([[[4.3549e-01...43e-01]]]), f"{CommonKeys.IMAGE}_{DictPostFixes.META}": {'scl_slope': 0.0}}
+        >>> {CommonKeys.IMAGE: tensor([[[4.3549e-01...43e-01]]]), f"{CommonKeys.IMAGE}_meta_dict": {'scl_slope': 0.0}}
 
         batch_data = [torch.rand((2,1,10,10)), torch.rand((2,3,5,5))]
         out = decollate_batch(batch_data)

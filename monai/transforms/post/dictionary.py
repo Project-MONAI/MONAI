@@ -39,7 +39,6 @@ from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import DictPostFixes
 
 __all__ = [
     "ActivationsD",
@@ -545,7 +544,7 @@ class Invertd(MapTransform):
         orig_keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
         orig_meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = "meta_dict",
         nearest_interp: Union[bool, Sequence[bool]] = True,
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
@@ -670,7 +669,7 @@ class SaveClassificationd(MapTransform):
         self,
         keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DictPostFixes.META,
+        meta_key_postfix: str = "meta_dict",
         saver: Optional[CSVSaver] = None,
         output_dir: PathLike = "./",
         filename: str = "predictions.csv",
