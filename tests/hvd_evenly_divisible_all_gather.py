@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import horovod.torch as hvd
 import torch
 
 from monai.utils import evenly_divisible_all_gather
+from monai.utils.module import optional_import
+
+hvd, has_hvd = optional_import("horovod", name="torch")
 
 
 class HvdEvenlyDivisibleAllGather:

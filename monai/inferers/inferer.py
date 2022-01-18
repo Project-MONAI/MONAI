@@ -30,7 +30,8 @@ class Inferer(ABC):
     Example code::
 
         device = torch.device("cuda:0")
-        data = ToTensor()(LoadImage()(filename=img_path)).to(device)
+        transform = Compose([ToTensor(), LoadImage(image_only=True)])
+        data = transform(img_path).to(device)
         model = UNet(...).to(device)
         inferer = SlidingWindowInferer(...)
 
