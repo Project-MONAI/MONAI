@@ -939,7 +939,7 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
         vals, counts = cupy.unique(x_label[cupy.nonzero(x_label)], return_counts=True)
         comp = x_label == vals[cupy.ndarray.argmax(counts)]
         out = comp.astype(x_cupy_dtype)
-        out = ToTensor(device=img.device)(out)
+        largest_cc = ToTensor(device=img.device)(out)
     else:
         img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
         largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
