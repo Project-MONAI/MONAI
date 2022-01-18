@@ -21,6 +21,7 @@ from ignite.engine import Engine, Events
 
 from monai.handlers import MetricsSaver
 from monai.utils import evenly_divisible_all_gather
+from monai.utils.enums import PostFix
 from tests.utils import DistCall, DistTestCase
 
 
@@ -38,7 +39,7 @@ class DistributedMetricsSaver(DistTestCase):
             save_dir=tempdir,
             metrics=["metric1", "metric2"],
             metric_details=["metric3", "metric4"],
-            batch_transform=lambda x: x["image_meta_dict"],
+            batch_transform=lambda x: x[PostFix.meta("image")],
             summary_ops="*",
         )
 
@@ -48,7 +49,7 @@ class DistributedMetricsSaver(DistTestCase):
         engine = Engine(_val_func)
 
         if my_rank == 0:
-            data = [{"image_meta_dict": {"filename_or_obj": [fnames[0]]}}]
+            data = [{PostFix.meta("image"): {"filename_or_obj": [fnames[0]]}}]
 
             @engine.on(Events.EPOCH_COMPLETED)
             def _save_metrics0(engine):
@@ -58,8 +59,8 @@ class DistributedMetricsSaver(DistTestCase):
         if my_rank == 1:
             # different ranks have different data length
             data = [
-                {"image_meta_dict": {"filename_or_obj": [fnames[1]]}},
-                {"image_meta_dict": {"filename_or_obj": [fnames[2]]}},
+                {PostFix.meta("image"): {"filename_or_obj": [fnames[1]]}},
+                {PostFix.meta("image"): {"filename_or_obj": [fnames[2]]}},
             ]
 
             @engine.on(Events.EPOCH_COMPLETED)

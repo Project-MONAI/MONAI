@@ -29,6 +29,7 @@ from .enums import (
     Method,
     MetricReduction,
     NumpyPadMode,
+    PostFix,
     PytorchPadMode,
     SkipMode,
     TraceKeys,
