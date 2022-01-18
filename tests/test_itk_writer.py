@@ -49,12 +49,10 @@ class TestITKWriter(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             for c in (0, 1, 2, 3):
                 fname = os.path.join(tempdir, f"testing{c}.nii")
-                (
-                    ITKWriter()
-                    .set_data_array(torch.zeros(1, 2, 3, 4), channel_dim=c, squeeze_end_dims=False)
-                    .set_metadata({})
-                    .write(fname)
-                )
+                itk_writer = ITKWriter()
+                itk_writer.set_data_array(torch.zeros(1, 2, 3, 4), channel_dim=c, squeeze_end_dims=False)
+                itk_writer.set_metadata({})
+                itk_writer.write(fname)
                 itk_obj = itk.imread(fname)
                 s = [1, 2, 3, 4]
                 s.pop(c)

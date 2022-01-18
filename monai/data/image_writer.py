@@ -323,7 +323,6 @@ class ITKWriter(ImageWriter):
             contiguous=kwargs.pop("contiguous", True),
         )
         self.channel_dim = channel_dim
-        return self
 
     def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
         """Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray."""
@@ -338,7 +337,6 @@ class ITKWriter(ImageWriter):
             align_corners=options.pop("align_corners", False),
             dtype=options.pop("dtype", np.float64),
         )
-        return self
 
     def write(self, filename_or_obj: PathLike, verbose: bool = False, **kwargs):
         """Create an ITK object from ``self.data_obj`` and call ``itk.imwrite``"""
