@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,7 +29,7 @@ class TestPatchDataset(unittest.TestCase):
         test_dataset = ["vwxyz", "hello", "world"]
         n_per_image = len(test_dataset[0])
 
-        result = PatchDataset(dataset=test_dataset, patch_func=identity, samples_per_image=n_per_image)
+        result = PatchDataset(data=test_dataset, patch_func=identity, samples_per_image=n_per_image)
 
         output = []
         n_workers = 0 if sys.platform == "win32" else 2
@@ -50,7 +50,7 @@ class TestPatchDataset(unittest.TestCase):
         patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)
         image_ds = Dataset(images, transform=patch_intensity)
         # patch level
-        ds = PatchDataset(dataset=image_ds, patch_func=sampler, samples_per_image=n_samples, transform=patch_intensity)
+        ds = PatchDataset(data=image_ds, patch_func=sampler, samples_per_image=n_samples, transform=patch_intensity)
 
         np.testing.assert_equal(len(ds), n_samples * len(images))
         # use the patch dataset, length: len(images) x samplers_per_image
@@ -59,7 +59,7 @@ class TestPatchDataset(unittest.TestCase):
         np.testing.assert_allclose(
             item[0],
             np.array(
-                [[[1.779992, 2.779992, 3.779992], [5.779992, 6.779992, 7.779992], [9.779992, 10.779992, 11.779992]]]
+                [[[1.338681, 2.338681, 3.338681], [5.338681, 6.338681, 7.338681], [9.338681, 10.338681, 11.338681]]]
             ),
             rtol=1e-5,
         )
@@ -71,9 +71,9 @@ class TestPatchDataset(unittest.TestCase):
                 np.array(
                     [
                         [
-                            [5.025618, 6.025618, 7.025618],
-                            [9.025618, 10.025618, 11.025618],
-                            [13.025618, 14.025618, 15.025618],
+                            [4.957847, 5.957847, 6.957847],
+                            [8.957847, 9.957847, 10.957847],
+                            [12.957847, 13.957847, 14.957847],
                         ]
                     ]
                 ),
