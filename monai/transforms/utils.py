@@ -58,6 +58,7 @@ measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
+cucim, has_cucim = optional_import("cucim")
 exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
@@ -931,12 +932,22 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """
-    img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
-    largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
-    img_arr = measure.label(img_arr, connectivity=connectivity)
-    if img_arr.max() != 0:
-        largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
-    largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
+    if has_cupy and has_cucim:
+        x_cupy = ToCupy()(img)
+        x_cupy_dtype = x_cupy.dtype
+        x_label = cucim.skimage.measure.label(x_cupy)
+        vals, counts = cupy.unique(x_label[cupy.nonzero(x_label)], return_counts=True)
+        comp = x_label == vals[cupy.ndarray.argmax(counts)]
+        out = comp.astype(x_cupy_dtype)
+        out = ToTensor(device=img.device)(out)
+    else:
+        img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
+        largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
+        img_arr = measure.label(img_arr, connectivity=connectivity)
+        if img_arr.max() != 0:
+            largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
+        largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
+   
     return largest_cc
 
 
