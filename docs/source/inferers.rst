@@ -38,7 +38,7 @@ Inferers
     :special-members: __call__
 
 `SliceInferer`
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 .. autoclass:: SliceInferer
     :members:
     :special-members: __call__

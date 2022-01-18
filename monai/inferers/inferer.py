@@ -231,11 +231,12 @@ class SliceInferer(SlidingWindowInferer):
     Args:
         spatial_dim: Spatial dimension over which the slice-by-slice inference runs on the 3D volume.
             For example ``0`` could slide over axial slices. ``1`` over coronal slices and ``2`` over sagittal slices.
-        args: other optional args to be passed to the `__init__` of SliceInferer.
-        kwargs: other optional keyword args to be passed to `__init__` of SliceInferer.
+        args: other optional args to be passed to the `__init__` of base class SlidingWindowInferer.
+        kwargs: other optional keyword args to be passed to `__init__` of base class SlidingWindowInferer.
 
-
-    ``args``, ``kwargs`` follow :py:class:`monai.inferer.SlidingWindowInferer`.
+    Note:
+        ``roi_size`` in SliceInferer is expected to be a 2D tuple when a 3D volume is provided. This allows
+        sliding across slices along the 3D volume using a selected ``spatial_dim``.
 
     """
 
@@ -253,36 +254,27 @@ class SliceInferer(SlidingWindowInferer):
             args: optional args to be passed to ``network``.
             kwargs: optional keyword args to be passed to ``network``.
         """
-        assert self.spatial_dim < 3, "`spatial_dim` can only be `[D, H, W]` with `0, 1, 2` respectively"
+        if self.spatial_dim > 2:
+            raise ValueError("`spatial_dim` can only be `[H, W, D]` with `0, 1, 2` respectively.")
 
-        # Check if roi size (eg. 2D roi) and input volume sizes (3D input) mismatch
-        if len(self.roi_size) != len(inputs.shape[2:]):
+        # Check if ``roi_size`` tuple is 2D and ``inputs`` tensor is 3D
+        if len(self.roi_size) == 2 and len(inputs.shape[2:]) == 3:
+            self.roi_size = list(self.roi_size)
+            self.roi_size.insert(self.spatial_dim, 1)
+        else:
+            raise RuntimeError("Currently, only 2D `roi_size` with 3D `inputs` tensor is supported.")
 
-            # If they mismatch and roi_size is 2D add another dimension to roi size
-            if len(self.roi_size) == 2:
-                self.roi_size = list(self.roi_size)
-                self.roi_size.insert(self.spatial_dim, 1)
-            else:
-                raise RuntimeError("Currently, only 2D `roi_size` is supported, cannot broadcast to volume. ")
-
-        return super().__call__(inputs, lambda x: self.network_wrapper(network, x))
+        return super().__call__(inputs, lambda x: self.network_wrapper(network, x, *args, **kwargs))
 
     def network_wrapper(
         self, network: Callable[..., torch.Tensor], x: torch.Tensor, *args, **kwargs
     ) -> Callable[..., torch.Tensor]:
         """
-        Wrapper handles cases where inference needs to be done using
-        2D models over 3D volume inputs.
+        Wrapper handles inference for 2D models over 3D volume inputs.
         """
-        # If depth dim is 1 in [D, H, W] roi size, then the input is 2D and needs
-        # be handled accordingly
-
-        if self.roi_size[self.spatial_dim] == 1:
-            #  Pass 4D input [N, C, H, W]/[N, C, D, W]/[N, C, D, H] to the model as it is 2D.
-            x = x.squeeze(dim=self.spatial_dim + 2)
-            out = network(x, *args, **kwargs)
-            #  Unsqueeze the network output so it is [N, C, D, H, W] as expected by
-            # the default SlidingWindowInferer class
-            return out.unsqueeze(dim=self.spatial_dim + 2)
-        else:
-            return network(x, *args, **kwargs)
+        #  Pass 4D input [N, C, H, W]/[N, C, D, W]/[N, C, D, H] to the model as it is 2D.
+        x = x.squeeze(dim=self.spatial_dim + 2)
+        out = network(x, *args, **kwargs)
+        #  Unsqueeze the network output so it is [N, C, D, H, W] as expected by
+        # the default SlidingWindowInferer class
+        return out.unsqueeze(dim=self.spatial_dim + 2)
