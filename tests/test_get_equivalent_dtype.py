@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,6 +31,14 @@ class TestGetEquivalentDtype(unittest.TestCase):
     def test_get_equivalent_dtype(self, im, input_dtype):
         out_dtype = get_equivalent_dtype(input_dtype, type(im))
         self.assertEqual(out_dtype, im.dtype)
+
+    def test_native_type(self):
+        """the get_equivalent_dtype currently doesn't change the build-in type"""
+        n_type = [float, int, bool]
+        for n in n_type:
+            for im_dtype in DTYPES:
+                out_dtype = get_equivalent_dtype(n, type(im_dtype))
+                self.assertEqual(out_dtype, n)
 
 
 if __name__ == "__main__":
