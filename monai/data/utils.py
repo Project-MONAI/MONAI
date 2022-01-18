@@ -682,16 +682,23 @@ def create_file_basename(
     """
     Utility function to create the path to the output file based on the input
     filename (file name extension is not added by this function).
-    When `data_root_dir` is not specified, the output file name is:
+    When ``data_root_dir`` is not specified, the output file name is:
 
         `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix][_patch_index]`
 
-    otherwise the relative path with respect to `data_root_dir` will be inserted, for example:
-    input_file_name: /foo/bar/test1/image.png,
-    postfix: seg
-    folder_path: /output,
-    data_root_dir: /foo/bar,
-    output will be: /output/test1/image/image_seg
+    otherwise the relative path with respect to ``data_root_dir`` will be inserted, for example:
+
+    .. code-block:: python
+
+        from monai.data import create_file_basename
+        create_file_basename(
+            postfix="seg",
+            input_file_name="/foo/bar/test1/image.png",
+            folder_path="/output",
+            data_root_dir="/foo/bar",
+            separate_folder=True,
+            makedirs=False)
+        # output: /output/test1/image/image_seg
 
     Args:
         postfix: output name's postfix
@@ -730,7 +737,7 @@ def create_file_basename(
         os.makedirs(output, exist_ok=True)
 
     # add the sub-folder plus the postfix name to become the file basename in the output path
-    output = os.path.join(output, (filename + "_" + postfix) if len(postfix) > 0 else filename)
+    output = os.path.join(output, filename + "_" + postfix if postfix != "" else filename)
 
     if patch_index is not None:
         output += f"_{patch_index}"
