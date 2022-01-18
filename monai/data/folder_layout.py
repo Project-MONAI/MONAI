@@ -66,7 +66,7 @@ class FolderLayout:
         self.makedirs = makedirs
         self.data_root_dir = data_root_dir
 
-    def filename(self, subject="subject", idx=None, **kwargs):
+    def filename(self, subject: PathLike = "subject", idx=None, **kwargs):
         """
         Create a filename based on the input ``subject`` and ``idx``.
 
@@ -81,7 +81,7 @@ class FolderLayout:
                 from this class's constructor.
             idx: additional index name of the image.
             kwargs: additional keyword arguments to be used to form the output filename.
-                The key-value pairs will be appended to the output filename.
+                The key-value pairs will be appended to the output filename as ``f"_{k}-{v}"``.
         """
         full_name = create_file_basename(
             postfix=self.postfix,
