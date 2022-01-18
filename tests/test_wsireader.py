@@ -18,11 +18,11 @@ import torch
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
-from monai.apps.utils import download_url
 from monai.data import DataLoader, Dataset
 from monai.data.image_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
+from tests.utils import download_url_or_skip_test
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
@@ -103,7 +103,7 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
 
 @skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
 def setUpModule():  # noqa: N802
-    download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
+    download_url_or_skip_test(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
 
 class WSIReaderTests:
@@ -119,8 +119,9 @@ class WSIReaderTests:
 
         @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_5])
         def test_read_region(self, file_path, patch_info, expected_img):
-            reader = WSIReader(self.backend)
-            with reader.read(file_path) as img_obj:
+            kwargs = {"name": None, "offset": None} if self.backend == "tifffile" else {}
+            reader = WSIReader(self.backend, **kwargs)
+            with reader.read(file_path, **kwargs) as img_obj:
                 if self.backend == "tifffile":
                     with self.assertRaises(ValueError):
                         reader.get_data(img_obj, **patch_info)[0]
