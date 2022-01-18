@@ -45,7 +45,7 @@ class ImageWriter:
 
         - dimensionality of the data array, arrangements of spatial dimensions and channel/time dimensions
             - ``convert_to_channel_last()``
-        - metadata of current affine and output affine, the data array should be converted accordingly
+        - metadata of the current affine and output affine, the data array should be converted accordingly
             - ``get_meta_info()``
             - ``resample_if_needed()``
         - data type of the output image
@@ -53,10 +53,10 @@ class ImageWriter:
 
     Subclasses of this class should implement the backend-specific functions:
 
-        - ``set_data_array()`` to set the data array (numpy array or torch tensor)
-            - this calls the base class utilities for array handling
+        - ``set_data_array()`` to set the data array (input must be numpy array or torch tensor)
+            - this method sets the backend object's data part
         - ``set_metadata()`` to set the metadata and output affine
-            - this calls the base class utilities for metadata (affine, resmaple) handling
+            - this method sets the metadata including affine handling and image resampling
         - backend-specific data object
             - ``create_backend_obj()``
         - backend-specific writing function
@@ -92,10 +92,11 @@ class ImageWriter:
     When ``metadata`` is specified and ``resample=True``, the saver will
     try to resample data from the space defined by `"affine"` to the space
     defined by `"original_affine"`, for more details, please refer to the
-    ``convert_to_target_affine`` method.
+    ``resample_if_needed`` method.
     """
 
     def __init__(self, **kwargs):
+        """the constructor supports adding new instance members."""
         self.data_obj = None
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -115,7 +116,7 @@ class ImageWriter:
     def create_backend_obj(cls, data_array: NdarrayOrTensor, **kwargs) -> np.ndarray:
         """
         Subclass should implement this method to return a backend-specific data representation object.
-        This method is used by ``cls.create_data_obj`` and the input ``data_array`` is 'channel-last'.
+        This method is used by ``cls.write`` and the input ``data_array`` is assumed 'channel-last'.
         """
         return convert_data_type(data_array, np.ndarray)[0]  # type: ignore
 
@@ -313,6 +314,7 @@ class ITKWriter(ImageWriter):
         super().__init__(output_dtype=output_dtype, affine=None, channel_dim=0, **kwargs)
 
     def set_data_array(self, data_array, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs):
+        """Convert ``data_array`` into 'channel-last' numpy ndarray."""
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
             channel_dim=channel_dim,
@@ -324,6 +326,7 @@ class ITKWriter(ImageWriter):
         return self
 
     def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
+        """Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray."""
         original_affine, affine, spatial_shape = self.get_meta_info(meta_dict)
         self.data_obj, self.affine = self.resample_if_needed(
             data_array=self.data_obj,
@@ -338,6 +341,7 @@ class ITKWriter(ImageWriter):
         return self
 
     def write(self, filename_or_obj: PathLike, verbose: bool = False, **kwargs):
+        """Create an ITK object from ``self.data_obj`` and call ``itk.imwrite``"""
         super().write(filename_or_obj, verbose=verbose)
         self.data_obj = self.create_backend_obj(
             self.data_obj, channel_dim=self.channel_dim, affine=self.affine, dtype=self.output_dtype, **kwargs  # type: ignore
@@ -358,8 +362,7 @@ class ITKWriter(ImageWriter):
         dtype: DtypeLike = np.float32,
         **kwargs,
     ):
-        """create an ITK object from ``data_array``.  This method assumes a 'channel-last' ``data_array``."""
-
+        """Create an ITK object from ``data_array``.  This method assumes a 'channel-last' ``data_array``."""
         data_array = super().create_backend_obj(data_array)
         _is_vec = channel_dim is not None
         if _is_vec:
