@@ -52,7 +52,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         data_dict = LoadImaged(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
         affine = data_dict[PostFix.meta("image")]["affine"]
-        data_dict[PostFix.meta("image")]["original_affine"] = data_dict[PostFix.meta("label")]["affine"] = (
+        data_dict[PostFix.meta("image")]["original_affine"] = data_dict[PostFix.meta("image")]["affine"] = (
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
         )
         t = time.time()
