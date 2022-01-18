@@ -932,7 +932,7 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """
-    if has_cupy and has_cucim:
+    if has_cp and has_cucim:
         x_cupy = ToCupy()(img)
         x_cupy_dtype = x_cupy.dtype
         x_label = cucim.skimage.measure.label(x_cupy)
