@@ -16,7 +16,7 @@ import torch
 
 from monai.apps.utils import get_logger
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
-from monai.data.utils import compute_shape_offset, ensure_mat44, to_affine_nd
+from monai.data.utils import compute_shape_offset, ensure_mat44, reorient_spatial_axes, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.transforms.utils_pytorch_numpy_unification import ascontiguousarray, moveaxis
 from monai.utils import GridSampleMode, GridSamplePadMode, convert_data_type, optional_import, require_pkg
@@ -195,12 +195,7 @@ class ImageWriter:
 
         # resolve orientation
         if has_nib:  # this is to avoid dependency on nibabel
-            start_ornt = nib.orientations.io_orientation(affine)
-            target_ornt = nib.orientations.io_orientation(target_affine)
-            ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
-            data_shape = data.shape
-            data = nib.orientations.apply_orientation(data, ornt_transform)
-            _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
+            data, _affine = reorient_spatial_axes(data, affine, target_affine)
             if np.allclose(_affine, target_affine, atol=AFFINE_TOL):
                 return data, ensure_mat44(_affine)
 

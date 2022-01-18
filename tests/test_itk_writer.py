@@ -43,7 +43,6 @@ for p in TEST_NDARRAYS:
 
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
-@unittest.skipUnless(has_nibabel, "Requires `nibabel` package.")
 class TestITKWriter(unittest.TestCase):
     def test_channel_shape(self):
         with tempfile.TemporaryDirectory() as tempdir:

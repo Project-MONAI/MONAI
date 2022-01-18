@@ -66,6 +66,7 @@ from .utils import (
     partition_dataset_classes,
     pickle_hashing,
     rectify_header_sform_qform,
+    reorient_spatial_axes,
     resample_datalist,
     select_cross_validation_folds,
     set_rnd,

@@ -79,6 +79,7 @@ __all__ = [
     "no_collation",
     "convert_tables_to_dicts",
     "SUPPORTED_PICKLE_MOD",
+    "reorient_spatial_axes",
 ]
 
 # module to be used by `torch.save`
@@ -742,6 +743,22 @@ def ensure_mat44(affine, dtype=np.float64) -> np.ndarray:
     if affine is None:
         return np.eye(4, dtype=dtype)
     return to_affine_nd(r=3, affine=affine, dtype=dtype)
+
+
+def reorient_spatial_axes(data_array: np.ndarray, init_affine: np.ndarray, target_affine: np.ndarray):
+    """
+    Given the input ``data_array`` and its corresponding coordinate ``init_affine``,
+    convert the array to ``target_affine`` by rearranging/flipping the axes.
+    Returns the transformed array and the updated affine.
+
+    Note that this function requires external module ``nibabel.orientations``.
+    """
+    start_ornt = nib.orientations.io_orientation(init_affine)
+    target_ornt = nib.orientations.io_orientation(target_affine)
+    ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
+    new_affine = init_affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_array.shape)
+    data = nib.orientations.apply_orientation(data_array, ornt_transform)
+    return data, new_affine
 
 
 def create_file_basename(
