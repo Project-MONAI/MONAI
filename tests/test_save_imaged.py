@@ -17,9 +17,10 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import SaveImaged
+from monai.utils.enums import PostFix
 
 TEST_CASE_1 = [
-    {"img": torch.randint(0, 255, (1, 2, 3, 4)), "img_meta_dict": {"filename_or_obj": "testfile0.nii.gz"}},
+    {"img": torch.randint(0, 255, (1, 2, 3, 4)), PostFix.meta("img"): {"filename_or_obj": "testfile0.nii.gz"}},
     ".nii.gz",
     False,
 ]
@@ -27,7 +28,7 @@ TEST_CASE_1 = [
 TEST_CASE_2 = [
     {
         "img": torch.randint(0, 255, (1, 2, 3, 4)),
-        "img_meta_dict": {"filename_or_obj": "testfile0.nii.gz"},
+        PostFix.meta("img"): {"filename_or_obj": "testfile0.nii.gz"},
         "patch_index": 6,
     },
     ".nii.gz",
@@ -41,7 +42,7 @@ class TestSaveImaged(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             trans = SaveImaged(
                 keys=["img", "pred"],
-                meta_keys="img_meta_dict",
+                meta_keys=PostFix.meta("img"),
                 output_dir=tempdir,
                 output_ext=output_ext,
                 resample=resample,
@@ -49,7 +50,7 @@ class TestSaveImaged(unittest.TestCase):
             )
             trans(test_data)
 
-            patch_index = test_data["img_meta_dict"].get("patch_index", None)
+            patch_index = test_data[PostFix.meta("img")].get("patch_index", None)
             patch_index = f"_{patch_index}" if patch_index is not None else ""
             filepath = os.path.join("testfile0", "testfile0" + "_trans" + patch_index + output_ext)
             self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
