@@ -719,6 +719,9 @@ class PILWriter(ImageWriter):
 def init():
     """Initialize the image writer modules according to the file extension name."""
     register_writer(".png", PILWriter)
+    register_writer(".jpg", PILWriter)
+    register_writer(".bmp", PILWriter)
+    register_writer(".tif", PILWriter)  # TODO: test 16-bit
     register_writer(".nii.gz", NibabelWriter, ITKWriter)
     register_writer(".nii", NibabelWriter, ITKWriter)
     register_writer(".nrrd", ITKWriter, NibabelWriter)

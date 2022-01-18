@@ -321,13 +321,13 @@ class SaveImage(Transform):
             data_root_dir=data_root_dir,
         )
 
-        self.output_ext = output_ext
+        self.output_ext = output_ext.lower()
         self.writers = image_writer.resolve_writer(output_format or self.output_ext) if writer is None else (writer,)
         self.resample = resample
         self.output_dtype = output_dtype
-        if self.output_ext.lower() == ".png" and self.output_dtype not in (np.uint8, np.uint16):
+        if self.output_ext == ".png" and self.output_dtype not in (np.uint8, np.uint16):
             self.output_dtype = np.uint8
-        if self.output_ext.lower() == ".dcm" and self.output_dtype not in (np.uint8, np.uint16):
+        if self.output_ext == ".dcm" and self.output_dtype not in (np.uint8, np.uint16):
             self.output_dtype = np.uint8
         self.scale = scale
         self.squeeze_end_dims = squeeze_end_dims
@@ -358,7 +358,7 @@ class SaveImage(Transform):
             except Exception as e:
                 logging.getLogger(self.__class__.__name__).exception(e, exc_info=True)
                 logging.getLogger(self.__class__.__name__).info(
-                    f"{writer_cls.__class__.__name__}: unable to load {filename}."
+                    f"{writer_cls.__class__.__name__}: unable to write {filename}."
                 )
             else:
                 self._data_index += 1
