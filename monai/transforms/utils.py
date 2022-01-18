@@ -947,7 +947,7 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
         if img_arr.max() != 0:
             largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
         largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
-   
+
     return largest_cc
 
 
