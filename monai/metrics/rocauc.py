@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Union, cast
 
 import numpy as np
@@ -65,8 +66,14 @@ class ROCAUCMetric(CumulativeIterationMetric):
 def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
-    if not y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
-        raise AssertionError("y values must be 0 or 1, can not be all 0 or all 1.")
+    y_unique = y.unique()
+    if len(y_unique) == 1:
+        warnings.warn(f"y values can not be all {y_unique.item()}, skip AUC computation and return `Nan`.")
+        return float("nan")
+    if not y_unique.equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
+        warnings.warn(f"y values must be 0 or 1, but in {y_unique.tolist()}, skip AUC computation and return `Nan`.")
+        return float("nan")
+
     n = len(y)
     indices = y_pred.argsort()
     y = y[indices].cpu().numpy()
