@@ -765,10 +765,7 @@ class CropForeground(Transform):
         Crop and pad based on the bounding box.
         """
         out = SpatialCrop(roi_start=box_start, roi_end=box_end)(img, meta_data=meta_data)
-        if meta_data is None:
-            cropped = out
-        else:
-            cropped, meta_data = out
+        cropped, meta_data = (out, None) if meta_data is None else out
 
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
@@ -787,17 +784,15 @@ class CropForeground(Transform):
         slicing doesn't change the channel dim.
         """
         box_start, box_end = self.compute_bounding_box(img)
-        if meta_data is None:
-            cropped = self.crop_pad(img, box_start, box_end, mode)
-        else:
-            cropped, meta_data = self.crop_pad(img, box_start, box_end, mode, meta_data=meta_data)
+        out = self.crop_pad(img, box_start, box_end, mode, meta_data=meta_data)
+        cropped, meta_data = (out, None) if meta_data is None else out
 
         out = [cropped]
         if self.return_coords:
             out += [box_start, box_end]
         if meta_data is not None:
             out.append(meta_data)
-        return out
+        return out[0] if len(out) == 1 else out
 
 
 class RandWeightedCrop(Randomizable, Transform):
