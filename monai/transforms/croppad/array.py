@@ -423,12 +423,12 @@ class SpatialCrop(Transform):
         """
         sd = min(len(self.slices), len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + self.slices[:sd]
-        roi_start = [i.start for i in self.slices]
         res = img[tuple(slices)]
 
         if meta_data is None:
             return res
 
+        roi_start = [i.start for i in self.slices]
         applied_affine = create_translate(sd, roi_start)
         meta_data = update_meta(meta_data, res, applied_affine=applied_affine)
 
