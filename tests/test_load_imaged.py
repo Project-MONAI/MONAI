@@ -63,12 +63,10 @@ class TestLoadImaged(unittest.TestCase):
         test_image = np.random.rand(*spatial_size)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_image.nii.gz")
-            itk_np_view = itk.image_view_from_array(test_image.T.copy())
-            itk.imwrite(itk_np_view, filename)
+            nib.save(nib.Nifti1Image(test_image, affine=np.eye(4)), filename)
 
             loader = LoadImaged(keys="img")
             loader.register(ITKReader(channel_dim=2))
-
             result = EnsureChannelFirstD("img")(loader({"img": filename}))
             self.assertTupleEqual(tuple(result[PostFix.meta("img")]["spatial_shape"]), (32, 64, 128))
             self.assertTupleEqual(result["img"].shape, (3, 32, 64, 128))
