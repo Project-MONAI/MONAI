@@ -80,6 +80,13 @@ TEST_CASE_8 = [
     (3, 128, 128, 128),
 ]
 
+TEST_CASE_8_1 = [
+    {"reader": ITKReader(channel_dim=0), "image_only": True},
+    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
+    (384, 128, 128),
+]
+
+
 TEST_CASE_9 = [
     {"reader": ITKReader(), "image_only": False},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
@@ -128,7 +135,7 @@ class TestLoadImage(unittest.TestCase):
                 np.testing.assert_allclose(header["original_affine"], np.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9])
+    @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_8_1, TEST_CASE_9])
     def test_itk_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
