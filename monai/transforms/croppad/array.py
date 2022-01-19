@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from itertools import chain
 from math import ceil
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -28,12 +28,14 @@ from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     convert_pad_mode,
+    create_translate,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     is_positive,
     map_binary_to_indices,
     map_classes_to_indices,
+    update_meta,
     weighted_patch_samples,
 )
 from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
@@ -412,14 +414,25 @@ class SpatialCrop(Transform):
             else:
                 self.slices = [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(
+        self, img: NdarrayOrTensor, meta_data: Optional[Dict] = None
+    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, Dict]]:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
         sd = min(len(self.slices), len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + self.slices[:sd]
-        return img[tuple(slices)]
+        roi_start = [i.start for i in self.slices]
+        res = img[tuple(slices)]
+
+        if meta_data is None:
+            return res
+
+        applied_affine = create_translate(sd, roi_start)
+        meta_data = update_meta(meta_data, res, applied_affine=applied_affine)
+
+        return res, meta_data
 
 
 class CenterSpatialCrop(Transform):
@@ -746,28 +759,45 @@ class CropForeground(Transform):
         box_start: np.ndarray,
         box_end: np.ndarray,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        meta_data: Optional[Dict] = None,
     ):
         """
         Crop and pad based on the bounding box.
-
         """
-        cropped = SpatialCrop(roi_start=box_start, roi_end=box_end)(img)
+        out = SpatialCrop(roi_start=box_start, roi_end=box_end)(img, meta_data=meta_data)
+        if meta_data is None:
+            cropped = out
+        else:
+            cropped, meta_data = out
+
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-        return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.np_kwargs)(cropped)
+        cropped_padded = BorderPad(spatial_border=pad, mode=mode or self.mode, **self.np_kwargs)(cropped)
 
-    def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None):
+        if meta_data is None:
+            return cropped_padded
+        return cropped_padded, meta_data
+
+    def __call__(
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None, meta_data: Optional[Dict] = None
+    ):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
         box_start, box_end = self.compute_bounding_box(img)
-        cropped = self.crop_pad(img, box_start, box_end, mode)
+        if meta_data is None:
+            cropped = self.crop_pad(img, box_start, box_end, mode)
+        else:
+            cropped, meta_data = self.crop_pad(img, box_start, box_end, mode, meta_data=meta_data)
 
+        out = [cropped]
         if self.return_coords:
-            return cropped, box_start, box_end
-        return cropped
+            out += [box_start, box_end]
+        if meta_data is not None:
+            out.append(meta_data)
+        return out
 
 
 class RandWeightedCrop(Randomizable, Transform):

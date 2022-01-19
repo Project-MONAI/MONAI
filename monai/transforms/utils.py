@@ -13,8 +13,9 @@ import itertools
 import random
 import warnings
 from contextlib import contextmanager
+from copy import deepcopy
 from inspect import getmembers, isclass
-from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -52,7 +53,7 @@ from monai.utils import (
     min_version,
     optional_import,
 )
-from monai.utils.enums import TransformBackends
+from monai.utils.enums import PostFix, TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -100,6 +101,8 @@ __all__ = [
     "print_transform_backends",
     "convert_pad_mode",
     "convert_to_contiguous",
+    "backup_meta",
+    "update_meta",
 ]
 
 
@@ -1514,6 +1517,33 @@ def convert_to_contiguous(data, **kwargs):
     if isinstance(data, Sequence):
         return [convert_to_contiguous(i, **kwargs) for i in data]
     return data
+
+
+def backup_meta(data: Mapping[Hashable, Dict], key: Hashable) -> Mapping[Hashable, Dict]:
+    """Create a copy of the meta data (e.g., `image_meta_dict`-> `image_orig_meta_dict`)"""
+    orig_meta_key = PostFix.orig_meta(key)
+    if orig_meta_key not in data:
+        meta_key = PostFix.meta(key)
+        data[orig_meta_key] = deepcopy(data[meta_key])
+    return data
+
+
+def update_meta(
+    meta_data: Mapping[Hashable, Dict], data: NdarrayOrTensor, applied_affine: Optional[NdarrayOrTensor] = None
+) -> Mapping[Hashable, Dict]:
+    # update affine
+    affine = meta_data.get("affine", None)
+    if affine is not None and applied_affine is not None:
+        applied_affine, *_ = convert_to_dst_type(applied_affine, affine)
+        meta_data["affine"] = affine @ applied_affine
+    # update dim
+    spatial_shape = data.shape[1:]
+    if "dim" in meta_data:
+        meta_data["dim"][1 : len(data.shape)] = spatial_shape
+    if "spatial_shape" in meta_data:
+        meta_data["spatial_shape"] = spatial_shape
+
+    return meta_data
 
 
 if __name__ == "__main__":

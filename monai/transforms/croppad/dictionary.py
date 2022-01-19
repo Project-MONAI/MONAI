@@ -43,6 +43,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
     allow_missing_keys_mode,
+    backup_meta,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     is_positive,
@@ -372,11 +373,19 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[NdarrayOrTensor, Dict]]
+    ) -> Dict[Hashable, Union[NdarrayOrTensor, Dict]]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
-            d[key] = self.cropper(d[key])
+            meta_key = PostFix.meta(key)
+            meta = d.get(meta_key, None)
+            if meta is None:
+                d[key] = self.cropper(d[key])
+            else:
+                d = backup_meta(d, key)
+                d[key], d[meta_key] = self.cropper(d[key], meta_data=meta)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -882,7 +891,14 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         d[self.end_coord_key] = box_end
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"box_start": box_start, "box_end": box_end})
-            d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
+            meta_key = PostFix.meta(key)
+            meta = d.get(meta_key, None)
+            if meta is None:
+                d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
+            else:
+                d[key], d[meta_key] = self.cropper.crop_pad(
+                    img=d[key], box_start=box_start, box_end=box_end, mode=m, meta_data=meta
+                )
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

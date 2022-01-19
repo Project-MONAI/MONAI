@@ -31,6 +31,11 @@ TESTS = [
 
 TEST_ERRORS = [[{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}]]
 
+TESTS_W_META = [
+    [{"roi_start": [1, 2, 3], "roi_end": [2, 8, 8]}, (3, 3, 3, 3)],
+    [{"roi_slices": [slice(s, e) for s, e in zip([1, 2, 3], [None, None, 2])]}, (3, 3, 3, 3)],
+]
+
 
 class TestSpatialCrop(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -56,6 +61,27 @@ class TestSpatialCrop(unittest.TestCase):
     def test_error(self, input_param):
         with self.assertRaises(ValueError):
             SpatialCrop(**input_param)
+
+    @parameterized.expand(TESTS_W_META)
+    def test_shape_w_meta(self, input_param, input_shape):
+        input_data = np.random.randint(0, 2, size=input_shape)
+        for p in TEST_NDARRAYS:
+            for q in TEST_NDARRAYS + (None,):
+                input_param_mod = {
+                    k: q(v) if k != "roi_slices" and q is not None else v for k, v in input_param.items()
+                }
+                im = p(input_data)
+                cropper = SpatialCrop(**input_param_mod)
+                ndim = len(im.shape[1:])
+                meta_in = {"affine": p(np.eye(ndim + 1))}
+                _, meta_out = cropper(im, meta_in)
+
+                if "roi_start" in input_param:
+                    desired = input_param["roi_start"]
+                elif "roi_slices" in input_param:
+                    desired = [i.start for i in input_param["roi_slices"]]
+                actual = meta_out["affine"][:, -1][:-1]
+                assert_allclose(desired, actual, type_test=False)
 
 
 if __name__ == "__main__":

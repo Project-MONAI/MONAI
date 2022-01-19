@@ -515,6 +515,7 @@ from .utility.dictionary import (
 from .utils import (
     Fourier,
     allow_missing_keys_mode,
+    backup_meta,
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
     convert_pad_mode,
@@ -548,6 +549,7 @@ from .utils import (
     rescale_array_int_max,
     rescale_instance_array,
     resize_center,
+    update_meta,
     weighted_patch_samples,
     zero_margins,
 )
