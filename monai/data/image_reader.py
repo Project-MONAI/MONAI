@@ -148,7 +148,7 @@ class ITKReader(ImageReader):
     Args:
         channel_dim: the channel dimension of the input image, default is None.
             This is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
-            If None, original_channel_dim will be either `no_channel` or `-1`.
+            If None, `original_channel_dim` will be either `no_channel` or `-1`.
 
                 - Nifti file is usually "channel last", so there is no need to specify this argument.
                 - PNG file usually has `GetNumberOfComponentsPerPixel()==3`, so there is no need to specify this argument.
@@ -322,9 +322,7 @@ class ITKReader(ImageReader):
         sr = max(min(sr, 3), 1)
         _size = list(itk.size(img))
         if self.channel_dim is not None:
-            # channel_dim is given in the numpy convention, which is different from ITK
-            # size is reversed
-            _size.pop(-self.channel_dim)
+            _size.pop(self.channel_dim)
         return np.asarray(_size[:sr])
 
     def _get_array_data(self, img):
@@ -358,6 +356,11 @@ class NibabelReader(ImageReader):
     Args:
         as_closest_canonical: if True, load the image as closest to canonical axis format.
         squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
+        channel_dim: the channel dimension of the input image, default is None.
+            this is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            if None, `original_channel_dim` will be either `no_channel` or `-1`.
+            most Nifti files are usually "channel last", no need to specify this argument for them.
+        dtype: dtype of the output data array when loading with Nibabel library.
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
@@ -365,12 +368,14 @@ class NibabelReader(ImageReader):
 
     def __init__(
         self,
+        channel_dim: Optional[int] = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
         dtype: DtypeLike = np.float32,
         **kwargs,
     ):
         super().__init__()
+        self.channel_dim = channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
         self.dtype = dtype
@@ -442,7 +447,10 @@ class NibabelReader(ImageReader):
                     if data.shape[d - 1] == 1:
                         data = data.squeeze(axis=d - 1)
             img_array.append(data)
-            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            if self.channel_dim is None:  # default to "no_channel" or -1
+                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            else:
+                header["original_channel_dim"] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -491,9 +499,11 @@ class NibabelReader(ImageReader):
             dim = header.get("dims")  # mgh format?
             dim = np.insert(dim, 0, 3)
         ndim = dim[0]
-        spatial_rank = min(ndim, 3)
-        # the img data should have no channel dim or the last dim is channel
-        return np.asarray(dim[1 : spatial_rank + 1])
+        size = list(dim[1:])
+        if self.channel_dim is not None:
+            size.pop(self.channel_dim)
+        spatial_rank = max(min(ndim, 3), 1)
+        return np.asarray(size[:spatial_rank])
 
     def _get_array_data(self, img):
         """
