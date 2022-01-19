@@ -46,7 +46,8 @@ class TestConfigParser(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_type(self, input_param, test_input, output_type):
         configer = ConfigParser(**input_param)
-        result = configer.build_component(test_input)
+        configer.set_config({"test": test_input})
+        result = configer.get_instance("test")
         if result is not None:
             self.assertTrue(isinstance(result, output_type))
             if isinstance(result, LoadImaged):

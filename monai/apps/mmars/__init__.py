@@ -9,7 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config_parser import ConfigParser, ModuleScanner
+from .config_parser import ConfigParser
+from .config_resolver import ModuleScanner, ConfigComponent, ConfigResolver
 from .mmars import download_mmar, get_model_spec, load_from_mmar
 from .model_desc import MODEL_DESC, RemoteMMARKeys
-from .utils import get_class, instantiate_class
+from .utils import get_class, instantiate_class, search_configs_with_objs, update_configs_with_objs
