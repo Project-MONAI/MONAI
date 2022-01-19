@@ -38,6 +38,12 @@ Model Package
 .. autoclass:: ModuleScanner
     :members:
 
+.. autoclass:: ConfigComponent
+    :members:
+
+.. autoclass:: ConfigResolver
+    :members:
+
 
 `Utilities`
 -----------
