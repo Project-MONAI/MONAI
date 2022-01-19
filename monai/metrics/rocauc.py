@@ -67,14 +67,11 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
     y_unique = y.unique()
-    if y_unique.equal(torch.tensor([0], dtype=y.dtype, device=y.device)):
-        warnings.warn("y values can not be all 0, skip AUC computation and return `Nan`.")
-        return float("nan")
-    if y_unique.equal(torch.tensor([1], dtype=y.dtype, device=y.device)):
-        warnings.warn("y values can not be all 1, skip AUC computation and return `Nan`.")
+    if len(y_unique) == 1:
+        warnings.warn(f"y values can not be all {y_unique.item()}, skip AUC computation and return `Nan`.")
         return float("nan")
     if not y_unique.equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
-        warnings.warn("y values must be 0 or 1, skip AUC computation and return `Nan`.")
+        warnings.warn(f"y values must be 0 or 1, but in {y_unique.tolist()}, skip AUC computation and return `Nan`.")
         return float("nan")
 
     n = len(y)
