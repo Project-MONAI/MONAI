@@ -324,7 +324,7 @@ class ITKReader(ImageReader):
         if self.channel_dim is not None:
             # channel_dim is given in the numpy convention, which is different from ITK
             # size is reversed
-            _size.pop(-self.channel_dim)
+            _size.pop(self.channel_dim)
         return np.asarray(_size[:sr])
 
     def _get_array_data(self, img):
