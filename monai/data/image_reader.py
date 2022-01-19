@@ -148,7 +148,7 @@ class ITKReader(ImageReader):
     Args:
         channel_dim: the channel dimension of the input image, default is None.
             This is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
-            If None, original_channel_dim will be either `no_channel` or `-1`.
+            If None, `original_channel_dim` will be either `no_channel` or `-1`.
 
                 - Nifti file is usually "channel last", so there is no need to specify this argument.
                 - PNG file usually has `GetNumberOfComponentsPerPixel()==3`, so there is no need to specify this argument.
@@ -319,14 +319,11 @@ class ITKReader(ImageReader):
         # the img data should have no channel dim
 
         sr = itk.array_from_matrix(img.GetDirection()).shape[0]
+        sr = max(min(sr, 3), 1)
         _size = list(itk.size(img))
-        # channel_dim is given in the numpy convention, which is different from
-        # ITK size is reversed
-        if self.channel_dim == 0:
-            spatial_dims = slice(-(min(sr, 3) + 1), -1)
-        else:
-            spatial_dims = slice(-min(sr, 3), None)
-        return np.asarray(_size[spatial_dims])
+        if self.channel_dim is not None:
+            _size.pop(self.channel_dim)
+        return np.asarray(_size[:sr])
 
     def _get_array_data(self, img):
         """
@@ -361,7 +358,7 @@ class NibabelReader(ImageReader):
         squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
         channel_dim: the channel dimension of the input image, default is None.
             this is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
-            if None, original_channel_dim will be either `no_channel` or `-1`.
+            if None, `original_channel_dim` will be either `no_channel` or `-1`.
             most Nifti files are usually "channel last", no need to specify this argument for them.
         dtype: dtype of the output data array when loading with Nibabel library.
         kwargs: additional args for `nibabel.load` API. more details about available args:
@@ -502,9 +499,11 @@ class NibabelReader(ImageReader):
             dim = header.get("dims")  # mgh format?
             dim = np.insert(dim, 0, 3)
         ndim = dim[0]
-        # the img data should have: no channel dim, or the last dim is channel, or the first dim is channel
-        spatial_dims = slice(2, min(ndim, 4) + 1) if self.channel_dim == 0 else slice(1, min(ndim, 3) + 1)
-        return np.asarray(dim[spatial_dims])
+        size = list(dim[1:])
+        if self.channel_dim is not None:
+            size.pop(self.channel_dim)
+        spatial_rank = max(min(ndim, 3), 1)
+        return np.asarray(size[:spatial_rank])
 
     def _get_array_data(self, img):
         """

@@ -59,18 +59,19 @@ class TestLoadImaged(unittest.TestCase):
             self.assertTupleEqual(result["img"].shape, spatial_size[::-1])
 
     def test_channel_dim(self):
-        spatial_size = (32, 64, 128, 3)
+        spatial_size = (32, 64, 3, 128)
         test_image = np.random.rand(*spatial_size)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_image.nii.gz")
-            itk_np_view = itk.image_view_from_array(test_image)
+            itk_np_view = itk.image_view_from_array(test_image.T.copy())
             itk.imwrite(itk_np_view, filename)
 
             loader = LoadImaged(keys="img")
-            loader.register(ITKReader(channel_dim=-1))
+            loader.register(ITKReader(channel_dim=2))
+
             result = EnsureChannelFirstD("img")(loader({"img": filename}))
-            self.assertTupleEqual(tuple(result[PostFix.meta("img")]["spatial_shape"]), (128, 64, 32))
-            self.assertTupleEqual(result["img"].shape, (3, 128, 64, 32))
+            self.assertTupleEqual(tuple(result[PostFix.meta("img")]["spatial_shape"]), (32, 64, 128))
+            self.assertTupleEqual(result["img"].shape, (3, 32, 64, 128))
 
     def test_no_file(self):
         with self.assertRaises(RuntimeError):

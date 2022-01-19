@@ -111,9 +111,13 @@ TEST_CASE_13 = [{"reader": "nibabelreader", "channel_dim": 0}, "test_image.nii.g
 
 TEST_CASE_14 = [{"reader": "nibabelreader", "channel_dim": -1}, "test_image.nii.gz", (128, 128, 128, 3)]
 
-TEST_CASE_15 = [{"reader": "itkreader", "channel_dim": 0}, "test_image.nii.gz", (3, 128, 128, 128)]
+TEST_CASE_15 = [{"reader": "nibabelreader", "channel_dim": 2}, "test_image.nii.gz", (128, 128, 3, 128)]
 
-TEST_CASE_16 = [{"reader": "ITKReader", "channel_dim": -1}, "test_image.nii.gz", (128, 128, 128, 3)]
+TEST_CASE_16 = [{"reader": "itkreader", "channel_dim": 0}, "test_image.nii.gz", (3, 128, 128, 128)]
+
+TEST_CASE_17 = [{"reader": "ITKReader", "channel_dim": -1}, "test_image.nii.gz", (128, 128, 128, 3)]
+
+TEST_CASE_18 = [{"reader": "ITKReader", "channel_dim": 2}, "test_image.nii.gz", (128, 128, 3, 128)]
 
 
 class TestLoadImage(unittest.TestCase):
@@ -271,20 +275,14 @@ class TestLoadImage(unittest.TestCase):
         expected = "Series Description=Routine Brain "
         self.assertEqual(f"{label}={val}", expected)
 
-    @parameterized.expand([TEST_CASE_13, TEST_CASE_14, TEST_CASE_15, TEST_CASE_16])
+    @parameterized.expand([TEST_CASE_13, TEST_CASE_14, TEST_CASE_15, TEST_CASE_16, TEST_CASE_17, TEST_CASE_18])
     def test_channel_dim(self, input_param, filename, expected_shape):
         test_image = np.random.rand(*expected_shape)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, filename)
-            if input_param["reader"].lower() == "itkreader":
-                itk_np_view = itk.image_view_from_array(test_image, is_vector=False)
-                itk.imwrite(itk_np_view, filename)
-            else:
-                nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
+            nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
             result = LoadImage(**input_param)(filename)
 
-        if input_param["reader"].lower() == "itkreader":
-            expected_shape = tuple(reversed(expected_shape))
         self.assertTupleEqual(result[0].shape, expected_shape)
         self.assertTupleEqual(tuple(result[1]["spatial_shape"]), (128, 128, 128))
         self.assertEqual(result[1]["original_channel_dim"], input_param["channel_dim"])
