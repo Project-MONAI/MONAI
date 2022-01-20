@@ -106,12 +106,7 @@ class TestWarp(unittest.TestCase):
         monai_result = monai_warp(img, ddf)
         itk_result = itk_warp(img, ddf)
         relative_diff = np.mean(
-            np.divide(
-                monai_result - itk_result,
-                itk_result,
-                out=np.zeros_like(itk_result),
-                where=(itk_result != 0)
-            )
+            np.divide(monai_result - itk_result, itk_result, out=np.zeros_like(itk_result), where=(itk_result != 0))
         )
         assert relative_diff < 0.01
 
@@ -185,15 +180,13 @@ def itk_warp(img, ddf):
     # initialise image
     PixelType = itk.F  # float32
     ImageType = itk.Image[PixelType, Dimension]
-    itk_img = itk.PyBuffer[ImageType].GetImageFromArray(
-        img.astype(np.float32), is_vector=None)
+    itk_img = itk.PyBuffer[ImageType].GetImageFromArray(img.astype(np.float32), is_vector=None)
 
     # initialise displacement field
     VectorComponentType = itk.F
     VectorPixelType = itk.Vector[VectorComponentType, Dimension]
     DisplacementFieldType = itk.Image[VectorPixelType, Dimension]
-    deformationField = itk.PyBuffer[DisplacementFieldType].GetImageFromArray(
-        ddf.astype(np.float32), is_vector=True)
+    deformationField = itk.PyBuffer[DisplacementFieldType].GetImageFromArray(ddf.astype(np.float32), is_vector=True)
 
     # initialise warpFilter
     warpFilter = itk.WarpImageFilter[ImageType, ImageType, DisplacementFieldType].New()
