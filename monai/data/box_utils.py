@@ -271,7 +271,7 @@ def box_area(bbox: torch.Tensor, mode: str = None) -> torch.tensor:
         area = area * (bbox[:, 2 * axis + 1] - bbox[:, 2 * axis] + TO_REMOVE)
 
     if torch.isnan(area).any() or torch.isinf(area).any():
-        if area.dtype in {torch.bfloat16, torch.float16}:
+        if area.dtype is torch.float16:
             ValueError(
                 f"Box area is NaN or Inf. torch.float16 is used. Please change to torch.float32 and test it again."
             )
@@ -323,7 +323,7 @@ def box_clip_to_image(
     return new_bbox
 
 
-def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: str = None, gpubool: bool = True):
+def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: str = None, cpubool: bool = True):
     """
     Compute the intersection over union of two set of boxes. This function is not differentialable.
 
@@ -335,7 +335,7 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
     Arguments:
       bbox1: Nx4 or Nx6, make sure they are non-empty
       bbox2: Mx4 or Mx6, make sure they are non-empty
-      gpubool: whether to send the final IoU results to GPU
+      cpubool: whether to compute IoU on CPU
 
     Returns:
       (tensor) iou, sized [N,M].
@@ -354,30 +354,35 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
 
     # we do computation on cpu to save gpu memory
     device = bbox1.device
+    box_dtype = bbox1.dtype
 
-    # compute area for the bbox
-    area1 = box_area(bbox=bbox1, mode=mode1).cpu()  # Nx1
-    area2 = box_area(bbox=bbox2, mode=mode2).cpu()  # Mx1
+    # compute area for the bbox with float32 to avoid overflow
+    area1 = box_area(bbox=bbox1.to(dtype=torch.float32), mode=mode1)  # Nx1
+    area2 = box_area(bbox=bbox2.to(dtype=torch.float32), mode=mode2)  # Mx1
+
+    if cpubool:
+        area1 = area1.cpu()
+        area2 = area2.cpu()
 
     # get the left top and right bottom points for the NxM combinations
-    lt = torch.max(bbox1[:, None, ::2], bbox2[:, ::2]).cpu()  # [N,M,spatial_dims] left top
-    rb = torch.min(bbox1[:, None, 1::2], bbox2[:, 1::2]).cpu()  # [N,M,spatial_dims] right bottom
+    lt = torch.max(bbox1[:, None, ::2], bbox2[:, ::2]).to(dtype=torch.float32)  # [N,M,spatial_dims] left top
+    rb = torch.min(bbox1[:, None, 1::2], bbox2[:, 1::2]).to(dtype=torch.float32)  # [N,M,spatial_dims] right bottom
+    if cpubool:
+        lt = lt.cpu()
+        rb = rb.cpu()
     # compute size for the intersection region for the NxM combinations
     wh = (rb - lt + TO_REMOVE).clamp(min=0)  # [N,M,spatial_dims]
     inter = wh[:, :, 0]  # [N,M]
     for axis in range(1, spatial_dims):
         inter = inter * wh[:, :, axis]
 
-    # compute IoU
-    iou = inter / (area1[:, None] + area2 - inter + torch.finfo(area1.dtype).eps)  # [N,M,spatial_dims]
+    # compute IoU and convert back to original box_dtype
+    iou = inter / (area1[:, None] + area2 - inter + torch.finfo(torch.float32).eps)  # [N,M,spatial_dims]
+    iou = iou.to(dtype=box_dtype)
 
     if torch.isnan(iou).any() or torch.isinf(iou).any():
-        if iou.dtype in {torch.bfloat16, torch.float16}:
-            ValueError(f"Box IoU is aN or Inf. torch.float16 is used. Please change to torch.float32 and test it again.")
-        else:
-            ValueError(f"Box IoU is NaN or Inf.")
+        ValueError(f"Box IoU is NaN or Inf.")
 
-    if gpubool:
-        iou = iou.to(device)  # [N,M,spatial_dims]
+    iou = iou.to(device)  # [N,M,spatial_dims]
 
     return iou
