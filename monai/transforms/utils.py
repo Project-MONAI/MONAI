@@ -1519,7 +1519,7 @@ def convert_to_contiguous(data, **kwargs):
     return data
 
 
-def backup_meta(data: Mapping[Hashable, Dict], key: Hashable) -> Mapping[Hashable, Dict]:
+def backup_meta(data: Dict, key: Hashable) -> Dict:
     """Create a copy of the meta data (e.g., `image_meta_dict`-> `image_orig_meta_dict`)"""
     orig_meta_key = PostFix.orig_meta(key)
     if orig_meta_key not in data:
@@ -1528,9 +1528,7 @@ def backup_meta(data: Mapping[Hashable, Dict], key: Hashable) -> Mapping[Hashabl
     return data
 
 
-def update_meta(
-    meta_data: Mapping[Hashable, Dict], data: NdarrayOrTensor, applied_affine: Optional[NdarrayOrTensor] = None
-) -> Mapping[Hashable, Dict]:
+def update_meta(meta_data: Dict, data: NdarrayOrTensor, applied_affine: Optional[NdarrayOrTensor] = None) -> Dict:
     # update affine
     affine = meta_data.get("affine", None)
     if affine is not None and applied_affine is not None:
