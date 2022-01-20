@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from enum import Enum
-from typing import Optional
+from typing import Hashable, Optional
 
 from monai.utils.deprecate_utils import deprecated
 
@@ -265,15 +265,15 @@ class PostFix:
     """Post-fixes."""
 
     @staticmethod
-    def _get_str(prefix, suffix):
-        return suffix if prefix is None else f"{prefix}_{suffix}"
+    def _get_str(prefix: Optional[Hashable], suffix: Hashable) -> str:
+        return str(suffix if prefix is None else f"{prefix}_{suffix}")
 
     @staticmethod
-    def meta(key: Optional[str] = None):
+    def meta(key: Optional[Hashable] = None) -> str:
         return PostFix._get_str(key, "meta_dict")
 
     @staticmethod
-    def orig_meta(key: Optional[str] = None):
+    def orig_meta(key: Optional[Hashable] = None) -> str:
         return PostFix._get_str(key, "orig_meta_dict")
 
 
