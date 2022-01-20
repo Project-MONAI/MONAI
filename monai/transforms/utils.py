@@ -933,13 +933,13 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
             connectivity of ``input.ndim`` is used.
     """
     if has_cp and has_cucim:
-        x_cupy = ToCupy()(img)
+        x_cupy = monai.transforms.ToCupy()(img)
         x_cupy_dtype = x_cupy.dtype
         x_label = cucim.skimage.measure.label(x_cupy)
-        vals, counts = cupy.unique(x_label[cupy.nonzero(x_label)], return_counts=True)
-        comp = x_label == vals[cupy.ndarray.argmax(counts)]
+        vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
+        comp = x_label == vals[cp.ndarray.argmax(counts)]
         out = comp.astype(x_cupy_dtype)
-        largest_cc = ToTensor(device=img.device)(out)
+        largest_cc = monai.transforms.ToTensor(device=img.device)(out)
     else:
         img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
         largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
