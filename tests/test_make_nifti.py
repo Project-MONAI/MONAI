@@ -18,7 +18,10 @@ import torch
 from parameterized import parameterized
 
 from monai.data.synthetic import create_test_image_2d
+from monai.utils import optional_import
 from tests.utils import make_nifti_image
+
+_, has_nib = optional_import("nibabel")
 
 TESTS = []
 for affine in (None, np.eye(4), torch.eye(4)):
@@ -27,6 +30,7 @@ for affine in (None, np.eye(4), torch.eye(4)):
             TESTS.append([{"affine": affine, "dir": dir, "fname": fname}])
 
 
+@unittest.skipUnless(has_nib, "Requires nibabel")
 class TestMakeNifti(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_make_nifti(self, params):
