@@ -322,7 +322,8 @@ class Orientation(Transform):
         spatial_ornt[:, 0] += 1  # skip channel dim
         spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
         axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
-        data_array = torch.flip(data_array, dims=axes) if _is_tensor else np.flip(data_array, axis=axes)  # type: ignore
+        if axes:
+            data_array = torch.flip(data_array, dims=axes) if _is_tensor else np.flip(data_array, axis=axes)  # type: ignore
         full_transpose = np.arange(len(data_array.shape))
         full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
         data_array = (

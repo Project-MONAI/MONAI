@@ -175,9 +175,9 @@ class TestOrientationCase(unittest.TestCase):
         ornt = Orientation(**init_param)
         res = ornt(img, **data_param)
         if not isinstance(res, tuple):
-            assert_allclose(res, expected_data, type_test=False)
+            assert_allclose(res, in_type(expected_data))
             return
-        assert_allclose(res[0], expected_data, type_test=False)
+        assert_allclose(res[0], in_type(expected_data))
         original_affine = data_param["affine"]
         np.testing.assert_allclose(original_affine, res[1])
         new_code = nib.orientations.aff2axcodes(res[2], labels=ornt.labels)
