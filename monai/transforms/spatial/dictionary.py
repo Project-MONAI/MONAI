@@ -46,6 +46,7 @@ from monai.transforms.spatial.array import (
     Rotate,
     Rotate90,
     Spacing,
+    SpatialResample,
     Zoom,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
@@ -68,6 +69,7 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 nib, _ = optional_import("nibabel")
 
 __all__ = [
+    "SpatialResampled",
     "Spacingd",
     "Orientationd",
     "Rotate90d",
@@ -86,6 +88,8 @@ __all__ = [
     "RandRotated",
     "Zoomd",
     "RandZoomd",
+    "SpatialResampleD",
+    "SpatialResampleDict",
     "SpacingD",
     "SpacingDict",
     "OrientationD",
@@ -129,6 +133,10 @@ GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridS
 InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
 PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
 DEFAULT_POST_FIX = PostFix.meta()
+
+
+class SpatialResampled(MapTransform, InvertibleTransform):
+    pass
 
 
 class Spacingd(MapTransform, InvertibleTransform):
@@ -1870,6 +1878,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         return d
 
 
+SpatialResampleD = SpatialResampleDict = SpatialResampled
 SpacingD = SpacingDict = Spacingd
 OrientationD = OrientationDict = Orientationd
 Rotate90D = Rotate90Dict = Rotate90d

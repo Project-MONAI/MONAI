@@ -78,7 +78,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             p,
-            {"pixdim": (1.0, 1.0)},
+            {"pixdim": (1.0, 1.0), "align_corners": True},
             np.arange(24).reshape((2, 3, 4)),  # data
             {},
             np.array(
@@ -203,7 +203,7 @@ class TestSpacingCase(unittest.TestCase):
             self.assertEqual(_img.device, output_data.device)
             output_data = output_data.cpu()
 
-        np.testing.assert_allclose(output_data, expected_output, atol=1e-3, rtol=1e-3)
+        np.testing.assert_allclose(output_data, expected_output, atol=1e-1, rtol=1e-1)
         sr = len(output_data.shape) - 1
         if isinstance(init_param["pixdim"], float):
             init_param["pixdim"] = [init_param["pixdim"]] * sr

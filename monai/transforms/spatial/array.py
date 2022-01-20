@@ -20,7 +20,7 @@ import torch
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
+from monai.data.utils import compute_shape_offset, reorient_spatial_axes, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
@@ -52,9 +52,12 @@ from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
-nib, _ = optional_import("nibabel")
+AFFINE_TOL = 1e-3
+
+nib, has_nib = optional_import("nibabel")
 
 __all__ = [
+    "SpatialResample",
     "Spacing",
     "Orientation",
     "Flip",
@@ -80,6 +83,140 @@ __all__ = [
 ]
 
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
+
+
+class SpatialResample(Transform):
+    """
+    Resample input image from the orientation/spacing defined by ``src`` affine into the ones specified by `dst`.
+    """
+
+    def __init__(
+        self,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        align_corners: bool = False,
+        dtype: DtypeLike = np.float64,
+    ):
+        """
+        Args:
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If ``None``, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
+        """
+        self.mode = mode
+        self.padding_mode = padding_mode
+        self.align_corners = align_corners
+        self.dtype = dtype
+
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        src: Optional[NdarrayOrTensor] = None,
+        dst: Optional[NdarrayOrTensor] = None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        align_corners: bool = False,
+        dtype: DtypeLike = np.float64,
+    ):
+        """
+        Args:
+            img: input image to be resampled. It currently supports channel-first arrays with
+                at most three spatial dimensions.
+            src: source affine matrix. Defaults to ``None``, which means the identity matrix.
+                the shape should be `(r+1, r+1)` where `r` is the spatial rank of ``img``.
+            dst: destination affine matrix. Defaults to ``None``, which means the same as `src`.
+                the shape should be `(r+1, r+1)` where `r` is the spatial rank of ``img``.
+                when `dst` is None, the input will be returned without resampling, but the data type
+                will be `float32`.
+            spatial_size: output image spatial size.
+                if `spatial_size` and `self.spatial_size` are not defined,
+                the transform will compute a spatial size automatically containing the previous field of view.
+                if `spatial_size` is ``-1`` are the transform will use the corresponding input img size.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If ``None``, use the data type of input data. To be compatible with other modules,
+                the output data type is always `float32`.
+        """
+        spatial_rank = min(len(img.shape) - 1, 3)
+        if src is None:
+            src = np.eye(4, dtype=np.float64)
+        src = to_affine_nd(spatial_rank, src)
+        dst = to_affine_nd(spatial_rank, dst) if dst is not None else src
+        dst, *_ = convert_to_dst_type(dst, dst, dtype=torch.float32)
+
+        if np.allclose(src, dst, atol=AFFINE_TOL):
+            # no significant change, return original image
+            output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
+            return output_data, dst
+
+        if has_nib and isinstance(img, np.ndarray):
+            spatial_ornt, dst_r = reorient_spatial_axes(img.shape[1 : spatial_rank + 1], src, dst)
+            if np.allclose(dst_r, dst, atol=AFFINE_TOL):
+                # simple reorientation achieves the desired affine
+                spatial_ornt[:, 0] += 1
+                spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
+                img_ = nib.orientations.apply_orientation(img, spatial_ornt)
+                output_data, *_ = convert_to_dst_type(img_, img, dtype=torch.float32)
+                return output_data, dst
+
+        transform = np.linalg.inv(src) @ dst
+        transform = to_affine_nd(spatial_rank, transform)
+        # no resampling if it's identity transform
+        if np.allclose(transform, np.diag(np.ones(len(transform))), atol=AFFINE_TOL):
+            output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
+            return output_data, dst
+
+        _dtype = dtype or self.dtype or img.dtype
+        if ensure_tuple(spatial_size)[0] == -1:  # if the spatial_size == -1
+            spatial_size = img.shape[1 : spatial_rank + 1]
+        elif spatial_size is None:
+            spatial_size, _ = compute_shape_offset(img.shape[1 : spatial_rank + 1], src, dst)  # type: ignore
+        # resample
+        img_, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype)  # type: ignore
+        _align_corners = self.align_corners if align_corners is None else align_corners
+        if USE_COMPILED and _align_corners:
+            affine_xform = Affine(
+                affine=convert_data_type(transform, torch.Tensor, img_.device, dtype=_dtype)[0],
+                spatial_size=spatial_size,
+                image_only=True,
+            )
+            output_data = affine_xform(
+                img_,
+                mode=look_up_option(mode or self.mode, GridSampleMode),
+                padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
+            )
+        else:
+            affine_xform = AffineTransform(
+                normalized=False,
+                mode=look_up_option(mode or self.mode, GridSampleMode),
+                padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
+                align_corners=_align_corners,
+                reverse_indexing=True,
+            )
+            output_data = affine_xform(
+                img_.unsqueeze(0),
+                theta=convert_data_type(transform, torch.Tensor, img_.device, dtype=_dtype)[0],
+                spatial_size=spatial_size,
+            ).squeeze(0)
+        # output dtype float
+        output_data, *_ = convert_to_dst_type(output_data, img, dtype=torch.float32)
+        return output_data, dst
 
 
 class Spacing(Transform):
@@ -135,11 +272,14 @@ class Spacing(Transform):
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
-        self.align_corners = align_corners
-        self.dtype = dtype
         self.image_only = image_only
+        self.dtype = dtype
+
+        self.sp_resample = SpatialResample(
+            mode=look_up_option(mode, GridSampleMode),
+            padding_mode=look_up_option(padding_mode, GridSamplePadMode),
+            align_corners=align_corners,
+        )
 
     def __call__(
         self,
@@ -198,32 +338,16 @@ class Spacing(Transform):
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
         new_affine[:sr, -1] = offset[:sr]
-        transform = np.linalg.inv(affine_) @ new_affine
-        # adapt to the actual rank
-        transform = to_affine_nd(sr, transform)
-
-        # no resampling if it's identity transform
-        if np.allclose(transform, np.diag(np.ones(len(transform))), atol=1e-3):
-            output_data = data_array
-        else:
-            # resample
-            affine_xform = AffineTransform(
-                normalized=False,
-                mode=look_up_option(mode or self.mode, GridSampleMode),
-                padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
-                align_corners=self.align_corners if align_corners is None else align_corners,
-                reverse_indexing=True,
-            )
-            data_array_t: torch.Tensor
-            data_array_t, *_ = convert_data_type(data_array, torch.Tensor, dtype=_dtype)  # type: ignore
-            output_data = affine_xform(
-                # AffineTransform requires a batch dim
-                data_array_t.unsqueeze(0),
-                convert_data_type(transform, torch.Tensor, data_array_t.device, dtype=_dtype)[0],
-                spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
-            ).squeeze(0)
-
-        output_data, *_ = convert_to_dst_type(output_data, data_array, dtype=torch.float32)
+        output_data, new_affine = self.sp_resample(
+            data_array,
+            src=affine,
+            dst=new_affine,
+            spatial_size=output_shape,
+            mode=mode,
+            padding_mode=padding_mode,
+            align_corners=align_corners,
+            dtype=_dtype,
+        )
         new_affine = to_affine_nd(affine_np, new_affine)  # type: ignore
         new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
 
