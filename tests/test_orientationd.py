@@ -16,6 +16,7 @@ import numpy as np
 
 from monai.transforms import Orientationd
 from monai.utils.enums import PostFix
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
 class TestOrientationdCase(unittest.TestCase):
@@ -28,20 +29,21 @@ class TestOrientationdCase(unittest.TestCase):
         self.assertEqual(code, ("R", "A", "S"))
 
     def test_orntd_3d(self):
-        data = {
-            "seg": np.ones((2, 1, 2, 3)),
-            "img": np.ones((2, 1, 2, 3)),
-            PostFix.meta("seg"): {"affine": np.eye(4)},
-            PostFix.meta("img"): {"affine": np.eye(4)},
-        }
-        ornt = Orientationd(keys=("img", "seg"), axcodes="PLI")
-        res = ornt(data)
-        np.testing.assert_allclose(res["img"].shape, (2, 2, 1, 3))
-        np.testing.assert_allclose(res["seg"].shape, (2, 2, 1, 3))
-        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("P", "L", "I"))
-        code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("P", "L", "I"))
+        for p in TEST_NDARRAYS:
+            data = {
+                "seg": p(np.ones((2, 1, 2, 3))),
+                "img": p(np.ones((2, 1, 2, 3))),
+                PostFix.meta("seg"): {"affine": np.eye(4)},
+                PostFix.meta("img"): {"affine": np.eye(4)},
+            }
+            ornt = Orientationd(keys=("img", "seg"), axcodes="PLI")
+            res = ornt(data)
+            np.testing.assert_allclose(res["img"].shape, (2, 2, 1, 3))
+            np.testing.assert_allclose(res["seg"].shape, (2, 2, 1, 3))
+            code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
+            self.assertEqual(code, ("P", "L", "I"))
+            code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
+            self.assertEqual(code, ("P", "L", "I"))
 
     def test_orntd_2d(self):
         data = {

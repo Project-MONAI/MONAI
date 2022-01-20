@@ -325,7 +325,7 @@ class Orientation(Transform):
         data_array = torch.flip(data_array, dims=axes) if _is_tensor else np.flip(data_array, axis=axes)
         full_transpose = np.arange(len(data_array.shape))
         full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
-        data_array = data_array.permute(full_transpose) if _is_tensor else data_array.transpose(full_transpose)
+        data_array = data_array.permute(full_transpose.tolist()) if _is_tensor else data_array.transpose(full_transpose)
         new_affine = to_affine_nd(affine_np, new_affine)
         out = data_array.contiguous() if _is_tensor else np.ascontiguousarray(data_array)
         new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
