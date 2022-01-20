@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,6 +40,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
+from monai.utils.enums import PostFix
 from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
@@ -95,12 +96,12 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     # create UNet, DiceLoss and Adam optimizer
     model = monai.networks.nets.UNet(
-        dimensions=3,
+        spatial_dims=3,
         in_channels=1,
         out_channels=1,
         channels=(16, 32, 64, 128, 256),
@@ -195,11 +196,11 @@ def run_inference_test(root_dir, device="cuda:0"):
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inference need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     model = UNet(
-        dimensions=3,
+        spatial_dims=3,
         in_channels=1,
         out_channels=1,
         channels=(16, 32, 64, 128, 256),
@@ -222,7 +223,7 @@ def run_inference_test(root_dir, device="cuda:0"):
             val_outputs = [val_post_tran(i) for i in decollate_batch(val_outputs)]
             # compute metrics
             dice_metric(y_pred=val_outputs, y=val_labels)
-            saver.save_batch(val_outputs, val_data["img_meta_dict"])
+            saver.save_batch(val_outputs, val_data[PostFix.meta("img")])
 
     return dice_metric.aggregate().item()
 

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import grid_pull
+from monai.networks.utils import meshgrid_ij
 from monai.utils import optional_import
 from tests.testing_data.cpp_resample_answers import Expected_1D_GP_bwd, Expected_1D_GP_fwd
 from tests.utils import skip_if_no_cpp_extension
@@ -26,7 +27,7 @@ PType, has_p_type = optional_import("monai._C", name="InterpolationType")
 
 def make_grid(shape, dtype=None, device=None, requires_grad=True):
     ranges = [torch.arange(float(s), dtype=dtype, device=device, requires_grad=requires_grad) for s in shape]
-    grid = torch.stack(torch.meshgrid(*ranges), dim=-1)
+    grid = torch.stack(meshgrid_ij(*ranges), dim=-1)
     return grid[None]
 
 
@@ -53,11 +54,7 @@ for bound in bounds:
                         "interpolation": interp,
                         "bound": bound,
                     },
-                    {
-                        "val": torch.tensor([[expected_val]]),
-                        "device": device,
-                        "grad": torch.tensor(expected_grad),
-                    },
+                    {"val": torch.tensor([[expected_val]]), "device": device, "grad": torch.tensor(expected_grad)},
                 ]
                 TEST_1D_GP.append(test_case)
 
@@ -85,7 +82,7 @@ class TestGridPull(unittest.TestCase):
             grads = grads[0]
         else:
             grads = torch.cat(grads, dim=0)
-        self.assertTrue("{}".format(result.device).startswith(expected["device"]))
+        self.assertTrue(f"{result.device}".startswith(expected["device"]))
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected["val"].cpu().numpy(), rtol=1e-4, atol=1e-4)
         np.testing.assert_allclose(grads.detach().cpu().numpy(), expected["grad"].cpu().numpy(), rtol=1e-4, atol=1e-4)
 
