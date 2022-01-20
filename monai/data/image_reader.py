@@ -133,8 +133,9 @@ def _stack_images(image_list: List, meta_dict: Dict):
     if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
         channel_dim = int(meta_dict["original_channel_dim"])
         return np.concatenate(image_list, axis=channel_dim)
+    # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
     meta_dict["original_channel_dim"] = 0
-    return np.stack(image_list, axis=meta_dict["original_channel_dim"])
+    return np.stack(image_list, axis=0)
 
 
 @require_pkg(pkg_name="itk")
