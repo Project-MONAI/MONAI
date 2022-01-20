@@ -16,7 +16,7 @@ import numpy as np
 
 from monai.transforms import Orientationd
 from monai.utils.enums import PostFix
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS
 
 
 class TestOrientationdCase(unittest.TestCase):
