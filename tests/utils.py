@@ -240,7 +240,7 @@ def has_cupy():
 HAS_CUPY = has_cupy()
 
 
-def make_nifti_image(array: NdarrayOrTensor, affine=None):
+def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
@@ -253,10 +253,23 @@ def make_nifti_image(array: NdarrayOrTensor, affine=None):
         affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)
 
-    temp_f, image_name = tempfile.mkstemp(suffix=".nii.gz")
-    nib.save(test_image, image_name)
-    os.close(temp_f)
-    return image_name
+    # if dir not given, create random. Else, make sure it exists.
+    if dir is None:
+        dir = tempfile.mkdtemp()
+    else:
+        os.makedirs(dir, exist_ok=True)
+
+    # If fname not given, get random one. Else, concat dir, fname and suffix.
+    if fname is None:
+        temp_f, fname = tempfile.mkstemp(suffix=suffix, dir=dir)
+        os.close(temp_f)
+    else:
+        fname = os.path.join(dir, fname + suffix)
+
+    nib.save(test_image, fname)
+    if verbose:
+        print(f"File written: {fname}.")
+    return fname
 
 
 def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):

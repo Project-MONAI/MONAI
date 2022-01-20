@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 
 from monai.transforms.croppad.dictionary import RandWeightedCropd
+from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
@@ -175,7 +176,7 @@ class TestRandWeightedCrop3D(NumpyImageTestCase3D):
                 weight[0, 24, 21] = 1
                 crop.set_random_state(10)
                 result = crop(
-                    {"img": p(img), "seg": p(self.segn[0]), "w": q(weight), "img_meta_dict": {"affine": None}}
+                    {"img": p(img), "seg": p(self.segn[0]), "w": q(weight), PostFix.meta("img"): {"affine": None}}
                 )
                 self.assertTrue(len(result) == n_samples)
                 for c, e in zip(crop.centers, [[14, 32, 40], [41, 32, 40], [20, 32, 40]]):
@@ -183,8 +184,8 @@ class TestRandWeightedCrop3D(NumpyImageTestCase3D):
                 for i in range(n_samples):
                     np.testing.assert_allclose(result[i]["img"].shape, (1, 10, 64, 80))
                     np.testing.assert_allclose(result[i]["seg"].shape, (1, 10, 64, 80))
-                    np.testing.assert_allclose(result[i]["img_meta_dict"]["patch_index"], i)
-                    np.testing.assert_allclose(result[i]["seg_meta_dict"]["patch_index"], i)
+                    np.testing.assert_allclose(result[i][PostFix.meta("img")]["patch_index"], i)
+                    np.testing.assert_allclose(result[i][PostFix.meta("seg")]["patch_index"], i)
 
 
 if __name__ == "__main__":
