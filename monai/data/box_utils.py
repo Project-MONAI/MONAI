@@ -352,21 +352,23 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
     mode2 = look_up_option(mode2, supported=STANDARD_MODE)
     spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
 
-    # we do computation on cpu to save gpu memory
+    # we do computation with compute_dtype to avoid overflow
     device = bbox1.device
     box_dtype = bbox1.dtype
+    compute_dtype = torch.float32
 
-    # compute area for the bbox with float32 to avoid overflow
-    area1 = box_area(bbox=bbox1.to(dtype=torch.float32), mode=mode1)  # Nx1
-    area2 = box_area(bbox=bbox2.to(dtype=torch.float32), mode=mode2)  # Mx1
+    # compute area
+    area1 = box_area(bbox=bbox1.to(dtype=compute_dtype), mode=mode1)  # Nx1
+    area2 = box_area(bbox=bbox2.to(dtype=compute_dtype), mode=mode2)  # Mx1
 
-    if cpubool:
+    if cpubool: 
+        # we do computation on cpu to save gpu memory
         area1 = area1.cpu()
         area2 = area2.cpu()
 
     # get the left top and right bottom points for the NxM combinations
-    lt = torch.max(bbox1[:, None, ::2], bbox2[:, ::2]).to(dtype=torch.float32)  # [N,M,spatial_dims] left top
-    rb = torch.min(bbox1[:, None, 1::2], bbox2[:, 1::2]).to(dtype=torch.float32)  # [N,M,spatial_dims] right bottom
+    lt = torch.max(bbox1[:, None, ::2], bbox2[:, ::2]).to(dtype=compute_dtype)  # [N,M,spatial_dims] left top
+    rb = torch.min(bbox1[:, None, 1::2], bbox2[:, 1::2]).to(dtype=compute_dtype)  # [N,M,spatial_dims] right bottom
     if cpubool:
         lt = lt.cpu()
         rb = rb.cpu()
@@ -377,7 +379,7 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
         inter = inter * wh[:, :, axis]
 
     # compute IoU and convert back to original box_dtype
-    iou = inter / (area1[:, None] + area2 - inter + torch.finfo(torch.float32).eps)  # [N,M,spatial_dims]
+    iou = inter / (area1[:, None] + area2 - inter + torch.finfo(compute_dtype).eps)  # [N,M,spatial_dims]
     iou = iou.to(dtype=box_dtype)
 
     if torch.isnan(iou).any() or torch.isinf(iou).any():
