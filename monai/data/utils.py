@@ -27,7 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
-from monai.config.type_definitions import PathLike
+from monai.config.type_definitions import NdarrayOrTensor, PathLike
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
@@ -745,7 +745,9 @@ def ensure_mat44(affine, dtype=np.float64) -> np.ndarray:
     return to_affine_nd(r=3, affine=affine, dtype=dtype)
 
 
-def reorient_spatial_axes(data_array: np.ndarray, init_affine: np.ndarray, target_affine: np.ndarray):
+def reorient_spatial_axes(
+    data_array: np.ndarray, init_affine: np.ndarray, target_affine: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given the input ``data_array`` and its corresponding coordinate ``init_affine``,
     convert the array to ``target_affine`` by rearranging/flipping the axes.
@@ -1250,3 +1252,19 @@ def convert_tables_to_dicts(
         data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
 
     return data
+
+
+def orientation_ras_lps(affine: NdarrayOrTensor) -> NdarrayOrTensor:
+    """
+    Convert the ``affine`` between the `RAS` and `LPS` orientation
+    by flipping the first two spatial dimensions.
+
+    Args:
+        affine: a 2D affine matrix.
+    """
+    sr = max(affine.shape[0] - 1, 1)  # spatial rank is at least 1
+    flip_d = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]]
+    flip_diag = flip_d[min(sr - 1, 2)] + [1] * (sr - 3)
+    if isinstance(affine, torch.Tensor):
+        return torch.diag(torch.as_tensor(flip_diag).to(affine)) @ affine
+    return np.diag(flip_diag).astype(affine.dtype) @ affine  # type: ignore

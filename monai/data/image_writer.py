@@ -16,7 +16,14 @@ import torch
 
 from monai.apps.utils import get_logger
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
-from monai.data.utils import compute_shape_offset, ensure_mat44, reorient_spatial_axes, to_affine_nd
+from monai.data.utils import (
+    compute_shape_offset,
+    ensure_mat44,
+    ensure_tuple,
+    orientation_ras_lps,
+    reorient_spatial_axes,
+    to_affine_nd,
+)
 from monai.networks.layers import AffineTransform
 from monai.transforms.utils_pytorch_numpy_unification import ascontiguousarray, moveaxis
 from monai.utils import GridSampleMode, GridSamplePadMode, convert_data_type, optional_import, require_pkg
@@ -195,14 +202,14 @@ class ImageWriter:
 
         # resolve orientation
         if has_nib:  # this is to avoid dependency on nibabel
-            data, _affine = reorient_spatial_axes(data, affine, target_affine)
-            if np.allclose(_affine, target_affine, atol=AFFINE_TOL):
-                return data, ensure_mat44(_affine)
+            data, affine = reorient_spatial_axes(data, affine, target_affine)
+            if np.allclose(affine, target_affine, atol=AFFINE_TOL):
+                return data, ensure_mat44(affine)
 
         # need resampling
         dtype = dtype or data.dtype  # type: ignore
         if output_spatial_shape is None:
-            output_spatial_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)
+            output_spatial_shape, _ = compute_shape_offset(data.shape, affine, target_affine)
         output_spatial_shape_ = list(output_spatial_shape) if output_spatial_shape is not None else []
         sp_dims = min(data.ndim, 3)
         output_spatial_shape_ += [1] * (sp_dims - len(output_spatial_shape_))
@@ -218,7 +225,7 @@ class ImageWriter:
         )
         data_torch = affine_xform(
             torch.as_tensor(np.ascontiguousarray(data_np, dtype=dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(np.linalg.inv(_affine) @ target_affine, dtype=dtype)),
+            torch.as_tensor(np.ascontiguousarray(np.linalg.inv(affine) @ target_affine, dtype=dtype)),
             spatial_size=output_spatial_shape_,
         )
         data_np = data_torch[0].detach().cpu().numpy()
@@ -233,24 +240,25 @@ class ImageWriter:
     def convert_to_channel_last(
         cls,
         data: NdarrayOrTensor,
-        channel_dim: Optional[int] = 0,
+        channel_dim: Union[None, int, Sequence[int]] = 0,
         squeeze_end_dims: bool = True,
         spatial_ndim: Optional[int] = 3,
         contiguous: bool = False,
     ):
         """
         Rearrange the data array axes to make the `channel_dim`-th dim the last
-        dimension and ensure there are three spatial dimensions. If
-        ``channel_dim`` is ``None``, a new axis will be appended to the last
-        dimension.
+        dimension and ensure there are ``spatial_ndim`` number of spatial
+        dimensions. If ``channel_dim`` is ``None``, a new axis will be appended
+        to the last dimension.
 
         When ``squeeze_end_dims`` is ``True``, a postprocessing step will be
         applied to remove any trailing singleton dimensions.
 
         Args:
             data: input data to be converted to "channel-last" format.
-            channel_dim: specifies the axis of the data array that is the channel dimension.
-                ``None`` indicates no channel dimension.
+            channel_dim: specifies the channel axes of the data array to move to the last.
+                ``None`` indicates no channel dimension,
+                a sequence of integers indicates multiple non-spatial dimensions.
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed (after the channel
                 has been moved to the end). So if input is `(H,W,D,C)` and C==1, then it will be saved as `(H,W,D)`.
                 If D is also 1, it will be saved as `(H,W)`. If ``False``, image will always be saved as `(H,W,D,C)`.
@@ -261,12 +269,11 @@ class ImageWriter:
         """
         # change data to "channel last" format
         if channel_dim is not None:
-            # _chns = ensure_tuple_rep(channel_dim)
-            # data = moveaxis(data, _chns, tuple(range(-len(_chns), 0)))
-            data = moveaxis(data, channel_dim, -1)
+            _chns = ensure_tuple(channel_dim)
+            data = moveaxis(data, _chns, tuple(range(-len(_chns), 0)))
         else:  # adds a channel dimension
             data = data[..., None]
-        # To ensure at least three spatial dims
+        # To ensure at least ``spatial_ndim`` number of spatial dims
         if spatial_ndim:
             while len(data.shape) < spatial_ndim + 1:  # assuming the data has spatial + channel dims
                 data = data[..., None, :]
@@ -291,8 +298,7 @@ class ImageWriter:
             - ``'spatial_shape'``: for data original spatial shape.
         """
         if not metadata:
-            default_dict = {"original_affine": None, "affine": None, "spatial_shape": None}
-            metadata = default_dict
+            metadata = {"original_affine": None, "affine": None, "spatial_shape": None}
         original_affine = metadata.get("original_affine")
         affine = metadata.get("affine")
         spatial_shape = metadata.get("spatial_shape")
@@ -364,32 +370,15 @@ class ITKWriter(ImageWriter):
         itk_obj = itk.GetImageFromArray(data_array, is_vector=_is_vec, ttype=kwargs.pop("ttype", None))
 
         d = len(itk.size(itk_obj))
-        # convert affine to LPS
         if affine is None:
             affine = np.eye(d + 1, dtype=np.float64)
-        _affine: np.ndarray = convert_data_type(affine, np.ndarray)[0]  # type: ignore
-        _affine = cls.ras_to_lps(to_affine_nd(d, _affine))
+        _affine = convert_data_type(affine, np.ndarray)[0]
+        _affine = orientation_ras_lps(to_affine_nd(d, _affine))
         spacing = np.sqrt(np.sum(np.square(_affine[:d, :d]), 0))
         spacing[spacing == 0] = 1.0
         _direction: np.ndarray = np.diag(1 / spacing)
-        _direction = _affine[:d, :d] @ _direction
+        _direction = _affine[:d, :d] @ _direction  # type: ignore
         itk_obj.SetSpacing(spacing.tolist())
         itk_obj.SetOrigin(_affine[:d, -1].tolist())
         itk_obj.SetDirection(itk.GetMatrixFromArray(_direction))
         return itk_obj
-
-    @staticmethod
-    def ras_to_lps(affine: NdarrayOrTensor):
-        """
-        Convert the ``affine`` from `RAS` to `LPS` by flipping the first two spatial dimensions.
-        (This could also be used to convert from `LPS` to `RAS`.)
-
-        Args:
-            affine: a 2D affine matrix.
-        """
-        sr = max(affine.shape[0] - 1, 1)  # spatial rank is at least 1
-        flip_d = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]]
-        flip_diag = flip_d[min(sr - 1, 2)] + [1] * (sr - 3)
-        if isinstance(affine, torch.Tensor):
-            return torch.diag(torch.as_tensor(flip_diag).to(affine)) @ affine
-        return np.diag(flip_diag).astype(affine.dtype) @ affine
