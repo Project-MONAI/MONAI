@@ -21,7 +21,7 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.blocks.warp import Warp
 from monai.transforms import LoadImaged
 from monai.utils import GridSampleMode, GridSamplePadMode
-from tests.utils import SkipIfBeforePyTorchVersion, download_url_or_skip_test
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, download_url_or_skip_test
 
 LOW_POWER_TEST_CASES = [  # run with BUILD_MONAI=1 to test csrc/resample, BUILD_MONAI=0 to test native grid_sample
     [
@@ -101,6 +101,7 @@ class TestWarp(unittest.TestCase):
     def setUp(self):
         download_url_or_skip_test(FILE_URL, FILE_PATH)
 
+    @SkipIfNoModule("itk")
     def test_itk_benchmark(self):
         img, ddf = load_img_and_sample_ddf()
         monai_result = monai_warp(img, ddf)
@@ -180,33 +181,33 @@ def itk_warp(img, ddf):
     # x, y, z -> z, x, y
     ddf = ddf[..., ::-1]
 
-    Dimension = 3
+    dimension = 3
 
     # initialise image
-    PixelType = itk.F  # float32
-    ImageType = itk.Image[PixelType, Dimension]
-    itk_img = itk.PyBuffer[ImageType].GetImageFromArray(
+    pixel_type = itk.F  # float32
+    image_type = itk.Image[pixel_type, dimension]
+    itk_img = itk.PyBuffer[image_type].GetImageFromArray(
         img.astype(np.float32), is_vector=None)
 
     # initialise displacement field
-    VectorComponentType = itk.F
-    VectorPixelType = itk.Vector[VectorComponentType, Dimension]
-    DisplacementFieldType = itk.Image[VectorPixelType, Dimension]
-    deformationField = itk.PyBuffer[DisplacementFieldType].GetImageFromArray(
+    vector_component_type = itk.F
+    vector_pixel_type = itk.Vector[vector_component_type, dimension]
+    displacement_field_type = itk.Image[vector_pixel_type, dimension]
+    displacement_field = itk.PyBuffer[displacement_field_type].GetImageFromArray(
         ddf.astype(np.float32), is_vector=True)
 
-    # initialise warpFilter
-    warpFilter = itk.WarpImageFilter[ImageType, ImageType, DisplacementFieldType].New()
-    interpolator = itk.LinearInterpolateImageFunction[ImageType, itk.D].New()
-    warpFilter.SetInterpolator(interpolator)
-    warpFilter.SetOutputSpacing(itk_img.GetSpacing())
-    warpFilter.SetOutputOrigin(itk_img.GetOrigin())
-    warpFilter.SetOutputDirection(itk_img.GetDirection())
+    # initialise warp_filter
+    warp_filter = itk.WarpImageFilter[image_type, image_type, displacement_field_type].New()
+    interpolator = itk.LinearInterpolateImageFunction[image_type, itk.D].New()
+    warp_filter.SetInterpolator(interpolator)
+    warp_filter.SetOutputSpacing(itk_img.GetSpacing())
+    warp_filter.SetOutputOrigin(itk_img.GetOrigin())
+    warp_filter.SetOutputDirection(itk_img.GetDirection())
 
     # warp
-    warpFilter.SetDisplacementField(deformationField)
-    warpFilter.SetInput(itk_img)
-    warped_img = warpFilter.GetOutput()
+    warp_filter.SetDisplacementField(displacement_field)
+    warp_filter.SetInput(itk_img)
+    warped_img = warp_filter.GetOutput()
     warped_img = np.asarray(warped_img)
 
     return warped_img
