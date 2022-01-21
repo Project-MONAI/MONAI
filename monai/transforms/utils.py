@@ -939,23 +939,17 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
         vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
         comp = x_label == vals[cp.ndarray.argmax(counts)]
         out = comp.astype(x_cupy_dtype)
-<<<<<<< HEAD
-        largest_cc_cp = monai.transforms.ToTensor(device=img.device)(out)
+        out_tensor = monai.transforms.ToTensor(device=img.device)(out)
+        return out_tensor
 
-=======
-        largest_cp = monai.transforms.ToTensor(device=img.device)(out)
+    img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
+    largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
+    img_arr = measure.label(img_arr, connectivity=connectivity)
+    if img_arr.max() != 0:
+        largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
+    largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
 
->>>>>>> 9e7c8c217ee5b95ae6cabebf660b51f61af00bb7
-        return largest_cc_cp
-    else:
-        img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
-        largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
-        img_arr = measure.label(img_arr, connectivity=connectivity)
-        if img_arr.max() != 0:
-            largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
-        largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
-
-        return largest_cc
+    return largest_cc
 
 
 def fill_holes(
