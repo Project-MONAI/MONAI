@@ -273,7 +273,11 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         """
         if self.state.epoch_length == 0:
-            warnings.warn("`dataloader` is emply or the specified `epoch_length` is 0, skip the `run`.")
+            warnings.warn(
+                "`dataloader` is emply or the specified `epoch_length` is 0, skip the `run`."
+                " if running distributed training, the program may hang in `all-gather`, `all-reduce`, etc."
+                " because not all the ranks run the same computation logic."
+            )
             return
         super().run(data=self.data_loader, max_epochs=self.state.max_epochs)
 
