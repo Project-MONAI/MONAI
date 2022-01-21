@@ -19,8 +19,11 @@ from parameterized import parameterized
 
 import monai.transforms as mt
 from monai.data import create_test_image_3d
+from monai.utils import optional_import
 from monai.utils.enums import CommonKeys, PostFix
 from tests.utils import make_nifti_image, make_rand_affine
+
+_, has_nib = optional_import("nibabel")
 
 IM_SHAPE = (100, 101, 107)
 IM = CommonKeys.IMAGE
@@ -34,6 +37,7 @@ for trans in (SPATIAL_CROP, CROP_FOREGROUND):
         TESTS.append((trans, resample))
 
 
+@unittest.skipUnless(has_nib, "Requires nibabel")
 class TestUpdatedMeta(unittest.TestCase):
     def setUp(self):
         affine = make_rand_affine()

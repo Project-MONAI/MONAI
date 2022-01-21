@@ -783,7 +783,7 @@ class CropForeground(Transform):
         slicing doesn't change the channel dim.
         """
         *out, _ = self.call_w_meta(img, mode)
-        return out
+        return out[0] if len(out) == 1 else out
 
     def call_w_meta(
         self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None, meta: Optional[Dict] = None
