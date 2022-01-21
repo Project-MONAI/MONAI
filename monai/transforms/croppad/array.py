@@ -422,7 +422,7 @@ class SpatialCrop(Transform):
         img, _ = self.call_w_meta(img)
         return img
 
-    def call_w_meta(self, img: NdarrayOrTensor, meta: Optional[Dict] = None) -> Tuple[NdarrayOrTensor, Dict]:
+    def call_w_meta(self, img: NdarrayOrTensor, meta: Optional[Dict] = None) -> Tuple[NdarrayOrTensor, Optional[Dict]]:
         """Same as `__call__`, but also updates meta data."""
         sd = min(len(self.slices), len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + self.slices[:sd]

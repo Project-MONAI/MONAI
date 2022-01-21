@@ -380,12 +380,10 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             meta_key = PostFix.meta(key)
-            meta = d.get(meta_key, None)
-            if meta is None:
-                d[key] = self.cropper(d[key])
-            else:
-                d = backup_meta(d, key)
-                d[key], d[meta_key] = self.cropper.call_w_meta(d[key], meta)
+            meta: Optional[Dict] = d.get(meta_key, None) # type: ignore
+            d[key], meta = self.cropper.call_w_meta(d[key], meta)
+            if meta is not None:
+                d[meta_key] = meta
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -892,7 +890,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"box_start": box_start, "box_end": box_end})
             meta_key = PostFix.meta(key)
-            meta = d.get(meta_key, None)
+            meta: Optional[Dict] = d.get(meta_key, None)  # type: ignore
             out = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m, meta=meta)
             if meta is None:
                 d[key] = out
