@@ -153,6 +153,7 @@ def run_testsuit():
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
+        "test_prepare_batch_default_dist",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
