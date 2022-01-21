@@ -43,7 +43,6 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
     allow_missing_keys_mode,
-    backup_meta,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     is_positive,
@@ -381,7 +380,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             self.push_transform(d, key)
             meta_key = PostFix.meta(key)
             meta: Optional[Dict] = d.get(meta_key, None) # type: ignore
-            d[key], meta = self.cropper.call_w_meta(d[key], meta)
+            d[key], meta = self.cropper.call_w_meta(d[key], meta)  # type: ignore
             if meta is not None:
                 d[meta_key] = meta
         return d
