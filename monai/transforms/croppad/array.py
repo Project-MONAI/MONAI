@@ -430,7 +430,7 @@ class SpatialCrop(Transform):
 
         if meta is not None:
             roi_start = [i.start for i in self.slices]
-            applied_affine = create_translate(sd, roi_start)
+            applied_affine = create_translate(3, roi_start)  # affine always 4x4 matrix
             meta = update_meta(meta, res, applied_affine=applied_affine)
 
         return res, meta
