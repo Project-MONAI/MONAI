@@ -324,16 +324,15 @@ class Orientation(Transform):
         axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
         if axes:
             data_array = (
-                torch.flip(data_array, dims=axes) if _is_tensor else np.flip(data_array, axis=axes)
-            )  # type: ignore
+                torch.flip(data_array, dims=axes) if _is_tensor else np.flip(data_array, axis=axes)  # type: ignore
+            )
         full_transpose = np.arange(len(data_array.shape))
         full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
         if not np.all(full_transpose == np.arange(len(data_array.shape))):
-            data_array = (
-                data_array.permute(full_transpose.tolist())
-                if _is_tensor
-                else data_array.transpose(full_transpose)  # type: ignore
-            )
+            if _is_tensor:
+                data_array = data_array.permute(full_transpose.tolist())  # type: ignore
+            else:
+                data_array = data_array.transpose(full_transpose)  # type: ignore
         out, *_ = convert_to_dst_type(src=data_array, dst=data_array)  # type: ignore
         new_affine = to_affine_nd(affine_np, new_affine)
         new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
