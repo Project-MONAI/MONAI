@@ -181,15 +181,13 @@ def itk_warp(img, ddf):
     # initialise image
     pixel_type = itk.F  # float32
     image_type = itk.Image[pixel_type, dimension]
-    itk_img = itk.PyBuffer[image_type].GetImageFromArray(
-        img.astype(np.float32), is_vector=None)
+    itk_img = itk.PyBuffer[image_type].GetImageFromArray(img.astype(np.float32), is_vector=None)
 
     # initialise displacement field
     vector_component_type = itk.F
     vector_pixel_type = itk.Vector[vector_component_type, dimension]
     displacement_field_type = itk.Image[vector_pixel_type, dimension]
-    displacement_field = itk.PyBuffer[displacement_field_type].GetImageFromArray(
-        ddf.astype(np.float32), is_vector=True)
+    displacement_field = itk.PyBuffer[displacement_field_type].GetImageFromArray(ddf.astype(np.float32), is_vector=True)
 
     # initialise warp_filter
     warp_filter = itk.WarpImageFilter[image_type, image_type, displacement_field_type].New()
