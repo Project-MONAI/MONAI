@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Configurable metadata keys for `monai.data.DatasetSummary`
 * Flexible `kwargs` for `WSIReader`
 * Logging for the learning rate schedule handler
+* `GridPatchDataset` as subclass of `monai.data.IterableDataset`
+* `is_onehot` option in `KeepLargestConnectedComponent`
+* `channel_dim` in the image readers and support of stacking images with channels
+* Skipping workflow `run` if epoch length is 0
 
 ### Fixed
 * Issue when caching large items with `pickle`
@@ -29,6 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Issue of `deprecated_args` when the function signature contains kwargs
 * Issue of `channel_wise` computations for the intensity-based transforms
 * Issue of inverting `OneOf`
+* Issue of removing temporary caching file for the persistent dataset
 * Error messages when reader backend is not available
 * Output type casting issue in `ScaleIntensityRangePercentiles`
 * Various docstring typos
@@ -37,6 +42,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Additional deep supervision modules in `DynUnet`
 * Deprecated `reduction` argument for `ContrastiveLoss`
 * Decollate warning in `Workflow`
+* Unique label exception in `ROCAUCMetric`
 
 ## [0.8.0] - 2021-11-25
 ### Added
