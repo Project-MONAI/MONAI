@@ -258,6 +258,7 @@ def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[i
 def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     """
     Recursively run collate logic and provide detailed loggings for debugging purposes.
+    It reports results at the 'critical' level, is therefore suitable in the context of exception handling.
 
     Args:
         batch: batch input to collate
@@ -330,14 +331,13 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
-    key, data_k = None, None
+    key = None
     try:
         if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
                 key = k
-                data_k = [d[key] for d in data]
-                ret[key] = default_collate(data_k)
+                ret[key] = default_collate([d[key] for d in data])
             return ret
         return default_collate(data)
     except RuntimeError as re:
@@ -350,7 +350,7 @@ def list_data_collate(batch: Sequence):
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
                 + "documentation)."
             )
-        _ = dev_collate(data_k) if data_k is not None else dev_collate(data)
+        _ = dev_collate(data)
         raise RuntimeError(re_str) from re
     except TypeError as re:
         re_str = str(re)
@@ -362,7 +362,7 @@ def list_data_collate(batch: Sequence):
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
                 + "(check its documentation)."
             )
-        _ = dev_collate(data_k) if data_k is not None else dev_collate(data)
+        _ = dev_collate(data)
         raise TypeError(re_str) from re
 
 

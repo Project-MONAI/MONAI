@@ -131,7 +131,9 @@ def _stack_images(image_list: List, meta_dict: Dict):
     if len(image_list) <= 1:
         return image_list[0]
     if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
-        raise RuntimeError("can not read a list of images which already have channel dimension.")
+        channel_dim = int(meta_dict["original_channel_dim"])
+        return np.concatenate(image_list, axis=channel_dim)
+    # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
     meta_dict["original_channel_dim"] = 0
     return np.stack(image_list, axis=0)
 
@@ -194,8 +196,8 @@ class ITKReader(ImageReader):
 
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
-        Read image data from specified file or files, it can read a list of `no-channel` images
-        and stack them together as multi-channels data in `get_data()`.
+        Read image data from specified file or files, it can read a list of images
+        and stack them together as multi-channel data in `get_data()`.
         If passing directory path instead of file path, will treat it as DICOM images series and read.
         Note that the returned object is ITK image object or list of ITK image objects.
 
@@ -316,8 +318,6 @@ class ITKReader(ImageReader):
             img: an ITK image object loaded from an image file.
 
         """
-        # the img data should have no channel dim
-
         sr = itk.array_from_matrix(img.GetDirection()).shape[0]
         sr = max(min(sr, 3), 1)
         _size = list(itk.size(img))
@@ -395,8 +395,8 @@ class NibabelReader(ImageReader):
 
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
-        Read image data from specified file or files, it can read a list of `no-channel` images
-        and stack them together as multi-channels data in `get_data()`.
+        Read image data from specified file or files, it can read a list of images
+        and stack them together as multi-channel data in `get_data()`.
         Note that the returned object is Nibabel image object or list of Nibabel image objects.
 
         Args:
@@ -554,8 +554,8 @@ class NumpyReader(ImageReader):
 
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
-        Read image data from specified file or files, it can read a list of `no-channel` data files
-        and stack them together as multi-channels data in `get_data()`.
+        Read image data from specified file or files, it can read a list of data files
+        and stack them together as multi-channel data in `get_data()`.
         Note that the returned object is Numpy array or list of Numpy arrays.
 
         Args:
@@ -644,8 +644,8 @@ class PILReader(ImageReader):
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
-        Read image data from specified file or files, it can read a list of `no-channel` images
-        and stack them together as multi-channels data in `get_data()`.
+        Read image data from specified file or files, it can read a list of images
+        and stack them together as multi-channel data in `get_data()`.
         Note that the returned object is PIL image or list of PIL image.
 
         Args:
