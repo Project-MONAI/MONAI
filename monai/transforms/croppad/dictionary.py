@@ -379,7 +379,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             meta_key = PostFix.meta(key)
-            meta: Optional[Dict] = d.get(meta_key, None) # type: ignore
+            meta: Optional[Dict] = d.get(meta_key, None)  # type: ignore
             d[key], meta = self.cropper.call_w_meta(d[key], meta)  # type: ignore
             if meta is not None:
                 d[meta_key] = meta
