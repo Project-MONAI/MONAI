@@ -414,25 +414,26 @@ class SpatialCrop(Transform):
             else:
                 self.slices = [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
 
-    def __call__(
-        self, img: NdarrayOrTensor, meta_data: Optional[Dict] = None
-    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, Dict]]:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
+        img, _ = self.call_w_meta(img)
+        return img
+
+    def call_w_meta(self, img: NdarrayOrTensor, meta: Optional[Dict] = None) -> Tuple[NdarrayOrTensor, Dict]:
+        """Same as `__call__`, but also updates meta data."""
         sd = min(len(self.slices), len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + self.slices[:sd]
-        res = img[tuple(slices)]
+        res: NdarrayOrTensor = img[tuple(slices)]
 
-        if meta_data is None:
-            return res
+        if meta is not None:
+            roi_start = [i.start for i in self.slices]
+            applied_affine = create_translate(sd, roi_start)
+            meta = update_meta(meta, res, applied_affine=applied_affine)
 
-        roi_start = [i.start for i in self.slices]
-        applied_affine = create_translate(sd, roi_start)
-        meta_data = update_meta(meta_data, res, applied_affine=applied_affine)
-
-        return res, meta_data
+        return res, meta
 
 
 class CenterSpatialCrop(Transform):
@@ -759,40 +760,42 @@ class CropForeground(Transform):
         box_start: np.ndarray,
         box_end: np.ndarray,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-        meta_data: Optional[Dict] = None,
+        meta: Optional[Dict] = None,
     ):
         """
         Crop and pad based on the bounding box.
         """
-        out = SpatialCrop(roi_start=box_start, roi_end=box_end)(img, meta_data=meta_data)
-        cropped, meta_data = (out, None) if meta_data is None else out
+        cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
+        cropped, meta = cropper.call_w_meta(img, meta)
 
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
         cropped_padded = BorderPad(spatial_border=pad, mode=mode or self.mode, **self.np_kwargs)(cropped)
 
-        if meta_data is None:
+        if meta is None:
             return cropped_padded
-        return cropped_padded, meta_data
+        return cropped_padded, meta
 
-    def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None, meta_data: Optional[Dict] = None
-    ):
+    def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
-        box_start, box_end = self.compute_bounding_box(img)
-        out = self.crop_pad(img, box_start, box_end, mode, meta_data=meta_data)
-        cropped, meta_data = (out, None) if meta_data is None else out
+        *out, _ = self.call_w_meta(img, mode)
+        return out
 
-        out = [cropped]
+    def call_w_meta(
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None, meta: Optional[Dict] = None
+    ):
+        """Same as `__call__`, but also updates meta data."""
+        box_start, box_end = self.compute_bounding_box(img)
+        out = self.crop_pad(img, box_start, box_end, mode, meta=meta)
+        cropped, meta = (out, None) if meta is None else out
+
         if self.return_coords:
-            out += [box_start, box_end]
-        if meta_data is not None:
-            out.append(meta_data)
-        return out[0] if len(out) == 1 else out
+            return cropped, box_start, box_end, meta
+        return cropped, meta
 
 
 class RandWeightedCrop(Randomizable, Transform):
