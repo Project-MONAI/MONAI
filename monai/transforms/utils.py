@@ -939,7 +939,9 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
         vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
         comp = x_label == vals[cp.ndarray.argmax(counts)]
         out = comp.astype(x_cupy_dtype)
-        largest_cc = monai.transforms.ToTensor(device=img.device)(out)
+        largest_cp = monai.transforms.ToTensor(device=img.device)(out)
+        
+        return largest_cc_cp
     else:
         img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
         largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
@@ -948,7 +950,7 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
             largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
         largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
 
-    return largest_cc
+        return largest_cc
 
 
 def fill_holes(
