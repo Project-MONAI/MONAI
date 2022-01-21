@@ -23,6 +23,7 @@ import monai
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
+from monai.networks.utils import meshgrid_ij
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform, apply_transform
 from monai.transforms.utils_pytorch_numpy_unification import (
@@ -624,7 +625,7 @@ def _create_grid_torch(
         torch.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d), device=device, dtype=dtype)
         for d, s in zip(spatial_size, spacing)
     ]
-    coords = torch.meshgrid(*ranges)
+    coords = meshgrid_ij(*ranges)
     if not homogeneous:
         return torch.stack(coords)
     return torch.stack([*coords, torch.ones_like(coords[0])])
