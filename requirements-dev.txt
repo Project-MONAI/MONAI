@@ -1,6 +1,6 @@
 # Full requirements for developments
 -r requirements-min.txt
-pytorch-ignite==0.4.6
+pytorch-ignite==0.4.8
 gdown>=3.6.4
 scipy
 itk>=5.2
@@ -15,6 +15,7 @@ flake8-bugbear
 flake8-comprehensions
 flake8-executable
 flake8-pyi
+pylint
 mccabe
 pep8-naming
 pycodestyle
