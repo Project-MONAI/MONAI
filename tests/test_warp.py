@@ -11,7 +11,6 @@
 import os
 import unittest
 
-import itk
 import numpy as np
 import torch
 from parameterized import parameterized
@@ -171,6 +170,8 @@ def itk_warp(img, ddf):
     Returns:
         warped_img: numpy arrap of shape (D, H, W)
     """
+    import itk
+    
     # 3, D, H, W -> D, H, W, 3
     ddf = ddf.transpose((1, 2, 3, 0))
     # x, y, z -> z, x, y
