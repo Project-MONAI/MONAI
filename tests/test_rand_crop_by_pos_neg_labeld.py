@@ -16,6 +16,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandCropByPosNegLabeld
+from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS
 
 TESTS = [
@@ -34,7 +35,7 @@ TESTS = [
             "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            "image_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
+            PostFix.meta("image"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 2, 2),
     ],
@@ -53,7 +54,7 @@ TESTS = [
             "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            "label_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
+            PostFix.meta("label"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 2, 2, 2),
     ],
@@ -72,7 +73,7 @@ TESTS = [
             "image": np.zeros([3, 3, 3, 3]) - 1,
             "extra": np.zeros([3, 3, 3, 3]),
             "label": np.ones([3, 3, 3, 3]),
-            "extra_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
+            PostFix.meta("extra"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 2, 2, 2),
     ],
@@ -92,7 +93,7 @@ TESTS = [
             "image": np.zeros([3, 3, 3, 3]) - 1,
             "extra": np.zeros([3, 3, 3, 3]),
             "label": np.ones([3, 3, 3, 3]),
-            "extra_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
+            PostFix.meta("extra"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 3, 2),
     ],
@@ -112,7 +113,7 @@ TESTS = [
             "image": np.zeros([3, 3, 3, 3]) - 1,
             "extra": np.zeros([3, 3, 3, 3]),
             "label": np.ones([3, 3, 3, 3]),
-            "extra_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
+            PostFix.meta("extra"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 3, 3),
     ],
@@ -144,7 +145,7 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
             for k in ("image", "extra", "label"):
                 self.assertTupleEqual(result[0][k].shape, expected_shape)
                 for i, item in enumerate(result):
-                    self.assertEqual(item[k + "_meta_dict"]["patch_index"], i)
+                    self.assertEqual(item[PostFix.meta(k)]["patch_index"], i)
 
 
 if __name__ == "__main__":

@@ -49,6 +49,19 @@ class TestPrepareBatchDefault(unittest.TestCase):
         assert_allclose(output["image"], torch.tensor([1, 2], device=device))
         assert_allclose(output["label"], torch.tensor([3, 4], device=device))
 
+    def test_empty_data(self):
+        dataloader = []
+        evaluator = SupervisedEvaluator(
+            val_data_loader=dataloader,
+            device=torch.device("cpu"),
+            epoch_length=0,
+            network=TestNet(),
+            non_blocking=False,
+            prepare_batch=PrepareBatchDefault(),
+            decollate=False,
+        )
+        evaluator.run()
+
 
 if __name__ == "__main__":
     unittest.main()
