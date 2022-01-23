@@ -1563,7 +1563,7 @@ class Resample(Transform):
             elif _padding_mode == "border":
                 bound = 0
             else:
-                bound = 2  # dct2 is reflection with align_corners=True
+                bound = 1  # "relection"
             _interp_mode = look_up_option(self.mode if mode is None else mode, GridSampleMode).value
             if _interp_mode == "nearest":
                 _interp = 0
