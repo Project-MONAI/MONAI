@@ -715,11 +715,14 @@ def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndar
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
         dtype: data type of the output array.
+
     Raises:
         ValueError: When ``affine`` dimensions is not 2.
         ValueError: When ``r`` is nonpositive.
+
     Returns:
         an (r+1) x (r+1) matrix
+
     """
     affine_np: np.ndarray
     affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]  # type: ignore
