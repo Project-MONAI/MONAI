@@ -136,7 +136,150 @@ DEFAULT_POST_FIX = PostFix.meta()
 
 
 class SpatialResampled(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.SpatialResample`.
+
+    This transform assumes the ``data`` dictionary has a key for the input
+    data's metadata and contains ``src`` and ``dst`` affine required by `SpatialResample`.
+    The key is formed by ``key_{meta_key_postfix}``.
+
+    see also:
+        :py:class:`monai.transforms.SpatialResample`
+    """
+
     backend = SpatialResample.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
+        align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
+        meta_src_keys: Optional[KeysCollection] = "src_affine",
+        meta_dst_keys: Optional[KeysCollection] = "dst_affine",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
+                It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to to fetch the meta data according
+                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+                For example, to handle key `image`,  read/write affine matrices from the
+                metadata `image_meta_dict` dictionary's `affine` field.
+            meta_src_keys: the key of the corresponding ``src`` affine in the meta data dictionary.
+            meta_dst_keys: the key of the corresponding ``dst`` affine in the meta data dictionary.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.sp_transform = SpatialResample()
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
+        self.meta_src_keys = ensure_tuple_rep(meta_src_keys, len(self.keys))
+        self.meta_dst_keys = ensure_tuple_rep(meta_dst_keys, len(self.keys))
+
+    def __call__(
+        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
+    ) -> Dict[Hashable, NdarrayOrTensor]:
+        d: Dict = dict(data)
+        for (key, mode, padding_mode, align_corners, dtype, *metakeyinfo) in self.key_iterator(
+            d,
+            self.mode,
+            self.padding_mode,
+            self.align_corners,
+            self.dtype,
+            self.meta_keys,
+            self.meta_key_postfix,
+            self.meta_src_keys,
+            self.meta_dst_keys,
+        ):
+            meta_key, meta_key_postfix, meta_src_key, meta_dst_key = metakeyinfo
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
+            # create metadata if necessary
+            if meta_key not in d:
+                d[meta_key] = {meta_src_key: None, meta_dst_key: None}
+            meta_data = d[meta_key]
+            original_spatial_shape = d[key].shape[1:]
+            d[key], meta_data[meta_dst_key] = self.sp_transform(  # write dst affine because the dtype might change
+                img=d[key],
+                src=meta_data[meta_src_key],
+                dst=meta_data[meta_dst_key],
+                spatial_size=None,  # None means shape auto inferred
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+                dtype=dtype,
+            )
+            self.push_transform(
+                d,
+                key,
+                extra_info={
+                    "meta_key": meta_key,
+                    "meta_src_key": meta_src_key,
+                    "meta_dst_key": meta_dst_key,
+                    "mode": mode.value if isinstance(mode, Enum) else mode,
+                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+                },
+                orig_size=original_spatial_shape,
+            )
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+        for key, dtype in self.key_iterator(d, self.dtype):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            meta_data = d[transform[TraceKeys.EXTRA_INFO]["meta_key"]]
+            src_affine = meta_data[d[transform[TraceKeys.EXTRA_INFO]["meta_src_key"]]]
+            dst_affine = meta_data[d[transform[TraceKeys.EXTRA_INFO]["meta_dst_key"]]]
+            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+            orig_size = transform[TraceKeys.ORIG_SIZE]
+            inverse_transform = SpatialResample()
+            # Apply inverse
+            d[key], _ = inverse_transform(
+                img=d[key],
+                src=dst_affine,
+                dst=src_affine,
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=False if align_corners == TraceKeys.NONE else align_corners,
+                dtype=dtype,
+                spatial_size=orig_size,
+            )
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
+        return d
 
 
 class Spacingd(MapTransform, InvertibleTransform):

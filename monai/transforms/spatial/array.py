@@ -90,6 +90,8 @@ class SpatialResample(Transform):
     Resample input image from the orientation/spacing defined by ``src`` affine into the ones specified by `dst`.
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(
         self,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
@@ -221,7 +223,7 @@ class SpatialResample(Transform):
             )
             output_data = affine_xform(img_.unsqueeze(0), theta=transform, spatial_size=spatial_size).squeeze(0)
         if additional_dims:
-            full_shape = tuple([chns, *spatial_size, *additional_dims])
+            full_shape = (chns, *spatial_size, *additional_dims)
             output_data = output_data.reshape(full_shape)
         # output dtype float
         output_data, *_ = convert_to_dst_type(output_data, img, dtype=torch.float32)
@@ -233,7 +235,7 @@ class Spacing(Transform):
     Resample input image into the specified `pixdim`.
     """
 
-    backend = [TransformBackends.TORCH]
+    backend = SpatialResample.backend
 
     def __init__(
         self,
