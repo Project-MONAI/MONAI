@@ -700,14 +700,17 @@ def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndar
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
-    when ``r`` is an integer, output is an (r+1)x(r+1) matrix,
+
+    When ``r`` is an integer, output is an (r+1)x(r+1) matrix,
     where the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(r, len(affine) - 1)`.
-    when ``r`` is an affine matrix, the output has the same shape as ``r``,
+
+    When ``r`` is an affine matrix, the output has the same shape as ``r``,
     and the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
+
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix

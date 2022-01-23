@@ -136,7 +136,7 @@ DEFAULT_POST_FIX = PostFix.meta()
 
 
 class SpatialResampled(MapTransform, InvertibleTransform):
-    pass
+    backend = SpatialResample.backend
 
 
 class Spacingd(MapTransform, InvertibleTransform):
@@ -615,6 +615,7 @@ class Affined(MapTransform, InvertibleTransform):
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
+        dtype: Union[DtypeLike, torch.dtype] = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -654,6 +655,9 @@ class Affined(MapTransform, InvertibleTransform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
+            dtype: data type for resampling computation. Defaults to ``np.float32``.
+                If ``None``, use the data type of input data. To be compatible with other modules,
+                the output data type is always `float32`.
             allow_missing_keys: don't raise exception if key is missing.
 
         See also:
@@ -673,6 +677,7 @@ class Affined(MapTransform, InvertibleTransform):
             affine=affine,
             spatial_size=spatial_size,
             device=device,
+            dtype=dtype,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -1345,7 +1350,7 @@ class Rotated(MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float64,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1459,7 +1464,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], Union[DtypeLike, torch.dtype]] = np.float64,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float64,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)

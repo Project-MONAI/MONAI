@@ -48,6 +48,7 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    get_equivalent_dtype,
     issequenceiterable,
     look_up_option,
     min_version,
@@ -604,7 +605,7 @@ def _create_grid_numpy(
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
     ranges = [np.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d)) for d, s in zip(spatial_size, spacing)]
-    coords = np.asarray(np.meshgrid(*ranges, indexing="ij"), dtype=dtype)
+    coords = np.asarray(np.meshgrid(*ranges, indexing="ij"), dtype=get_equivalent_dtype(dtype, np.ndarray))
     if not homogeneous:
         return coords
     return np.concatenate([coords, np.ones_like(coords[:1])])
@@ -622,7 +623,13 @@ def _create_grid_torch(
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
     ranges = [
-        torch.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d), device=device, dtype=dtype)
+        torch.linspace(
+            -(d - 1.0) / 2.0 * s,
+            (d - 1.0) / 2.0 * s,
+            int(d),
+            device=device,
+            dtype=get_equivalent_dtype(dtype, torch.Tensor),
+        )
         for d, s in zip(spatial_size, spacing)
     ]
     coords = meshgrid_ij(*ranges)
