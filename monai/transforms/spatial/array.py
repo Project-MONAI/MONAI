@@ -1546,7 +1546,9 @@ class Resample(Transform):
         img_t: torch.Tensor
         grid_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=dtype)  # type: ignore
-        grid_t, *_ = convert_to_dst_type(grid, img_t)  # type: ignore
+        grid_t = convert_to_dst_type(grid, img_t)[0]  # type: ignore
+        if grid_t is grid:  # copy if needed
+            grid_t = grid_t.clone()
 
         if USE_COMPILED:
             for i, dim in enumerate(img_t.shape[1:]):
