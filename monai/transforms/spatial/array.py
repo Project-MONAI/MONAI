@@ -127,11 +127,11 @@ class SpatialResample(Transform):
         src: Optional[NdarrayOrTensor] = None,
         dst: Optional[NdarrayOrTensor] = None,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
+        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        align_corners: Optional[bool] = False,
         dtype: DtypeLike = np.float64,
-    ):
+    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
         Args:
             img: input image to be resampled. It currently supports channel-first arrays with
@@ -216,8 +216,8 @@ class SpatialResample(Transform):
         else:
             affine_xform = AffineTransform(
                 normalized=False,
-                mode=mode,
-                padding_mode=padding_mode,
+                mode=mode,  # type: ignore
+                padding_mode=padding_mode,  # type: ignore
                 align_corners=align_corners,
                 reverse_indexing=True,
             )
@@ -303,7 +303,7 @@ class Spacing(Transform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
-        output_spatial_shape: Optional[np.ndarray] = None,
+        output_spatial_shape: Optional[Union[Sequence[int], int]] = None,
     ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
         """
         Args:
@@ -358,7 +358,7 @@ class Spacing(Transform):
             data_array,
             src=affine,
             dst=new_affine,
-            spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
+            spatial_size=list(output_shape) if output_spatial_shape is None else output_spatial_shape,
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,

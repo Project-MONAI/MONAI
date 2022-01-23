@@ -27,7 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
-from monai.config.type_definitions import PathLike
+from monai.config.type_definitions import NdarrayOrTensor, PathLike
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
@@ -740,7 +740,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndar
 
 
 def reorient_spatial_axes(
-    data_shape: Sequence[int], init_affine: np.ndarray, target_affine: np.ndarray
+    data_shape: Sequence[int], init_affine: NdarrayOrTensor, target_affine: NdarrayOrTensor
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given the input ``data_array`` and its corresponding coordinate ``init_affine``,
@@ -748,10 +748,12 @@ def reorient_spatial_axes(
     Returns the transformed array and the updated affine.
     Note that this function requires external module ``nibabel.orientations``.
     """
-    start_ornt = nib.orientations.io_orientation(init_affine)
-    target_ornt = nib.orientations.io_orientation(target_affine)
+    init_affine_, *_ = convert_data_type(init_affine, np.ndarray)
+    target_affine_, *_ = convert_data_type(target_affine, np.ndarray)
+    start_ornt = nib.orientations.io_orientation(init_affine_)
+    target_ornt = nib.orientations.io_orientation(target_affine_)
     ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
-    new_affine = init_affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
+    new_affine = init_affine_ @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
     return ornt_transform, new_affine
 
 

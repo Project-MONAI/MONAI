@@ -251,6 +251,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
                 },
                 orig_size=original_spatial_shape,
             )
+        return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
@@ -258,8 +259,8 @@ class SpatialResampled(MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             meta_data = d[transform[TraceKeys.EXTRA_INFO]["meta_key"]]
-            src_affine = meta_data[d[transform[TraceKeys.EXTRA_INFO]["meta_src_key"]]]
-            dst_affine = meta_data[d[transform[TraceKeys.EXTRA_INFO]["meta_dst_key"]]]
+            src_affine = meta_data[d[transform[TraceKeys.EXTRA_INFO]["meta_src_key"]]]  # type: ignore
+            dst_affine = meta_data[d[transform[TraceKeys.EXTRA_INFO]["meta_dst_key"]]]  # type: ignore
             mode = transform[TraceKeys.EXTRA_INFO]["mode"]
             padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
             align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
@@ -278,7 +279,6 @@ class SpatialResampled(MapTransform, InvertibleTransform):
             )
             # Remove the applied transform
             self.pop_transform(d, key)
-
         return d
 
 
