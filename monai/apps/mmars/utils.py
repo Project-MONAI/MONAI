@@ -11,7 +11,6 @@
 
 import importlib
 import re
-from optparse import Option
 from typing import Dict, List, Optional, Union
 
 
@@ -64,7 +63,7 @@ def instantiate_class(class_path: str, **kwargs):
         raise ValueError(f"class {class_path} has parameters error.") from e
 
 
-def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: Optional[List[str]] = None):
+def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: Optional[List[str]] = None) -> List[str]:
     """
     Recursively search all the content of input config compoent to get the ids of dependencies.
     It's used to build all the dependencies before build current config component.
@@ -78,29 +77,28 @@ def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: Opti
         deps: list of the id name of existing dependencies, default to None.
 
     """
-    if deps is None:
-        deps = []
+    deps_: List[str] = [] if deps is None else deps
     pattern = re.compile(r"@\w*[\#\w]*")  # match ref as args: "@XXX#YYY#ZZZ"
     if isinstance(config, list):
         for i, v in enumerate(config):
             sub_id = f"{id}#{i}"
             # all the items in the list should be marked as dependent reference
-            deps.append(sub_id)
-            deps = search_configs_with_objs(v, sub_id, deps)
+            deps_.append(sub_id)
+            deps_ = search_configs_with_objs(v, sub_id, deps_)
     if isinstance(config, dict):
         for k, v in config.items():
             sub_id = f"{id}#{k}"
             # all the items in the dict should be marked as dependent reference
-            deps.append(sub_id)
-            deps = search_configs_with_objs(v, sub_id, deps)
+            deps_.append(sub_id)
+            deps_ = search_configs_with_objs(v, sub_id, deps_)
     if isinstance(config, str):
         result = pattern.findall(config)
         for item in result:
             if config.startswith("$") or config == item:
                 ref_obj_id = item[1:]
-                if ref_obj_id not in deps:
-                    deps.append(ref_obj_id)
-    return deps
+                if ref_obj_id not in deps_:
+                    deps_.append(ref_obj_id)
+    return deps_
 
 
 def update_configs_with_objs(config: Union[Dict, List, str], deps: dict, id: str, globals: Optional[Dict] = None):
@@ -118,21 +116,23 @@ def update_configs_with_objs(config: Union[Dict, List, str], deps: dict, id: str
     pattern = re.compile(r"@\w*[\#\w]*")  # match ref as args: "@XXX#YYY#ZZZ"
     if isinstance(config, list):
         # all the items in the list should be replaced with the reference
-        config = [deps[f"{id}#{i}"] for i in range(len(config))]
+        return [deps[f"{id}#{i}"] for i in range(len(config))]
     if isinstance(config, dict):
         # all the items in the dict should be replaced with the reference
-        config = {k: deps[f"{id}#{k}"] for k, _ in config.items()}
+        return {k: deps[f"{id}#{k}"] for k, _ in config.items()}
     if isinstance(config, str):
         result = pattern.findall(config)
+        config_: str = config
         for item in result:
             ref_obj_id = item[1:]
-            if config.startswith("$"):
+            if config_.startswith("$"):
                 # replace with local code and execute soon
-                config = config.replace(item, f"deps['{ref_obj_id}']")
-            elif config == item:
-                config = deps[ref_obj_id]
+                config_ = config_.replace(item, f"deps['{ref_obj_id}']")
+            elif config_ == item:
+                config_ = deps[ref_obj_id]
 
-        if isinstance(config, str):
-            if config.startswith("$"):
-                config = eval(config[1:], globals, {"deps": deps})
+        if isinstance(config_, str):
+            if config_.startswith("$"):
+                config_ = eval(config_[1:], globals, {"deps": deps})
+        return config_
     return config

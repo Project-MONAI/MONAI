@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import importlib
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from monai.apps.mmars.config_resolver import ConfigComponent, ConfigResolver, ModuleScanner
 
@@ -37,21 +37,21 @@ class ConfigParser:
         self,
         pkgs: Sequence[str],
         modules: Sequence[str],
-        global_imports: Optional[Dict[str, str]] = {"monai": "monai", "torch": "torch", "np": "numpy"},
+        global_imports: Optional[Dict[str, Any]] = None,
         config: Optional[Any] = None,
     ):
         self.config = None
         if config is not None:
             self.set_config(config=config)
         self.module_scanner = ModuleScanner(pkgs=pkgs, modules=modules)
-        self.global_imports = {}
+        self.global_imports: Dict[str, Any] = {"monai": "monai", "torch": "torch", "np": "numpy"}
         if global_imports is not None:
             for k, v in global_imports.items():
                 self.global_imports[k] = importlib.import_module(v)
-        self.config_resolver: Optional[ConfigResolver] = None
+        self.config_resolver: ConfigResolver = ConfigResolver()
         self.resolved = False
 
-    def _get_last_config_and_key(self, config: Union[Dict, List], id: str) -> Tuple[Union[Dict, List], str]:
+    def _get_last_config_and_key(self, config: Union[Dict, List], id: str):
         """
         Utility to get the last config item and the id from the whole config content with nested id name.
 
@@ -77,7 +77,7 @@ class ConfigParser:
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
 
         """
-        if isinstance(id, str):
+        if isinstance(id, str) and isinstance(self.config, (dict, list)):
             conf_, key = self._get_last_config_and_key(config=self.config, id=id)
             conf_[key] = config
         else:
@@ -93,7 +93,7 @@ class ConfigParser:
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
 
         """
-        if isinstance(id, str):
+        if isinstance(id, str) and isinstance(self.config, (dict, list)):
             conf_, key = self._get_last_config_and_key(config=self.config, id=id)
             return conf_[key]
         return self.config
@@ -178,5 +178,5 @@ class ConfigParser:
 
         """
         return ConfigComponent(
-            id=None, config=config, module_scanner=self.module_scanner, globals=self.global_imports
+            id="", config=config, module_scanner=self.module_scanner, globals=self.global_imports
         ).build()

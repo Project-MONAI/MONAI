@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import unittest
-from distutils.command.config import config
 
 import torch
 from parameterized import parameterized

@@ -223,8 +223,8 @@ class ConfigResolver:
     """
 
     def __init__(self, components: Optional[Dict[str, ConfigComponent]] = None):
-        self.resolved_configs = {}
-        self.resolved_components = {}
+        self.resolved_configs: Dict[str, str] = {}
+        self.resolved_components: Dict[str, Any] = {}
         self.components = {} if components is None else components
 
     def add(self, component: ConfigComponent):
@@ -240,9 +240,7 @@ class ConfigResolver:
             raise ValueError(f"id '{id}' is already added.")
         self.components[id] = component
 
-    def _resolve_one_component(
-        self, id: str, instantiate: bool = True, waiting_list: Optional[List[str]] = None
-    ) -> bool:
+    def _resolve_one_component(self, id: str, instantiate: bool = True, waiting_list: Optional[List[str]] = None):
         """
         Resolve one component with specified id name.
         If has unresolved dependencies, recursively resolve the dependencies first.
