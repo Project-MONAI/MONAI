@@ -13,6 +13,9 @@ from typing import Any, Dict, List, Optional, Sequence
 import importlib
 import inspect
 import pkgutil
+from xmlrpc.client import FastMarshaller
+
+from torch import warnings
 
 from monai.apps.mmars.utils import instantiate_class, search_configs_with_objs, update_configs_with_objs
 
@@ -73,6 +76,20 @@ class ConfigComponent:
     def get_updated_config(self, refs: dict):
         return update_configs_with_objs(config=self.config, refs=refs, id=self.id, globals=self.globals)
 
+    def _check_dependency(self, config):
+        if isinstance(config, list):
+            for i in config:
+                if self._check_dependency(i):
+                    return True
+        if isinstance(config, dict):
+            for v in config.values():
+                if self._check_dependency(v):
+                    return True
+        if isinstance(config, str):
+            if config.startswith("&") or "@" in config:
+                return True
+        return False
+
     def build(self, config: Optional[Dict] = None) -> object:
         """
         Build component instance based on the provided dictonary config.
@@ -91,6 +108,10 @@ class ConfigComponent:
 
         """
         config = self.config if config is None else config
+        if self._check_dependency(config=config):
+            warnings.warn("config content has other dependencies or executable string, skip `build`.")
+            return config
+
         if not isinstance(config, dict) \
             or ("<name>" not in config and "<path>" not in config) \
             or config.get("<disabled>") is True:
@@ -121,10 +142,13 @@ class ConfigResolver:
         self.resolved_components = {}
         self.components = {} if components is None else components
 
-    def update(self, component: ConfigComponent):
-        self.components[component.get_id()] = component
+    def add(self, component: ConfigComponent):
+        id = component.get_id()
+        if id in self.components:
+            raise ValueError(f"id '{id}' is already added.")
+        self.components[id] = component
 
-    def resolve_one_component(self, id: str, instantiate: bool = True) -> bool:
+    def _resolve_one_component(self, id: str, instantiate: bool = True) -> bool:
         com = self.components[id]
         # check whether the obj has any unresolved refs in its args
         ref_ids = com.get_referenced_ids()
@@ -137,7 +161,7 @@ class ConfigResolver:
                     if comp_id not in self.components:
                         raise RuntimeError(f"the reference component `{comp_id}` is not in config.")
                     # resolve the dependency first
-                    self.resolve_one_component(id=comp_id, instantiate=True)
+                    self._resolve_one_component(id=comp_id, instantiate=True)
                 refs[comp_id] = self.resolved_components[comp_id]
             # all referenced components are resolved already
         updated_config = com.get_updated_config(refs)
@@ -152,14 +176,16 @@ class ConfigResolver:
 
     def resolve_all(self):
         for k in self.components.keys():
-            self.resolve_one_component(id=k)
+            self._resolve_one_component(id=k, instantiate=True)
 
     def get_resolved_compnent(self, id: str):
         if id not in self.resolved_components:
-            self.resolve_one_component(id=id, instantiate=True)
+            self._resolve_one_component(id=id, instantiate=True)
         return self.resolved_components[id]
 
     def get_resolved_config(self, id: str):
         if id not in self.resolved_configs:
-            self.resolve_one_component(id=id, instantiate=False)
-        return self.resolved_configs[id]
+            config, _ = self._resolve_one_component(id=id, instantiate=False)
+        else:
+            config = self.resolved_configs[id]
+        return config

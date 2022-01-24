@@ -46,50 +46,60 @@ class ConfigParser:
         self.config_resolver: Optional[ConfigResolver] = None
         self.resolved = False
 
-    def _get_last_config_and_key(config: Union[Dict, List], path: str) -> Tuple[Union[Dict, List], str]:
-        keys = path.split("#")
+    def _get_last_config_and_key(self, config: Union[Dict, List], id: str) -> Tuple[Union[Dict, List], str]:
+        keys = id.split("#")
         for k in keys[:-1]:
             config = config[k] if isinstance(config, dict) else config[int(k)]
         key = keys[-1] if isinstance(config, dict) else int(keys[-1])
         return config, key
 
-    def set_config(self, config: Any, path: Optional[str] = None):
-        if isinstance(path, str):
-            conf_, key = self._get_last_config_and_key(self.config, path)
+    def set_config(self, config: Any, id: Optional[str] = None):
+        if isinstance(id, str):
+            conf_, key = self._get_last_config_and_key(config=self.config, id=id)
             conf_[key] = config
         else:
             self.config = config
         self.resolved = False
 
-    def get_config(self, path: Optional[str] = None):
-        if isinstance(path, str):
-            conf_, key = self._get_last_config_and_key(self.config, path)
+    def get_config(self, id: Optional[str] = None):
+        if isinstance(id, str):
+            conf_, key = self._get_last_config_and_key(config=self.config, id=id)
             return conf_[key]
         return self.config
 
-    def _do_scan(self, config, path: Optional[str] = None):
+    def _do_parse(self, config, id: Optional[str] = None):
         if isinstance(config, dict):
             for k, v in config.items():
-                sub_path = k if path is None else f"{path}#{k}"
-                self._do_scan(config=v, path=sub_path)
+                sub_id = k if id is None else f"{id}#{k}"
+                self._do_parse(config=v, id=sub_id)
         if isinstance(config, list):
             for i, v in enumerate(config):
-                sub_path = i if path is None else f"{path}#{i}"
-                self._do_scan(config=v, path=sub_path)
-        if path is not None:
-            self.config_resolver.update(
-                ConfigComponent(id=path, config=config, module_scanner=self.module_scanner, globals=self.global_imports)
+                sub_id = i if id is None else f"{id}#{i}"
+                self._do_parse(config=v, id=sub_id)
+        if id is not None:
+            self.config_resolver.add(
+                ConfigComponent(id=id, config=config, module_scanner=self.module_scanner, globals=self.global_imports)
             )
 
     def resolve_config(self, resolve_all: bool = False):
         self.config_resolver = ConfigResolver()
-        self._do_scan(config=self.config)
+        self._do_parse(config=self.config)
 
         if resolve_all:
             self.config_resolver.resolve_all()
         self.resolved = True
 
-    def get_instance(self, id: str):
+    def get_resolved_config(self, id: str):
         if self.config_resolver is None or not self.resolved:
             self.resolve_config()
-        return self.config_resolver.resolve_one_object(id=id)
+        return self.config_resolver.get_resolved_config(id=id)
+
+    def get_resolved_component(self, id: str):
+        if self.config_resolver is None or not self.resolved:
+            self.resolve_config()
+        return self.config_resolver.get_resolved_compnent(id=id)
+
+    def build(self, config: Dict):
+        return ConfigComponent(
+            id=None, config=config, module_scanner=self.module_scanner, globals=self.global_imports
+            ).build()
