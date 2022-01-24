@@ -71,7 +71,7 @@ def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: List
     For `dict` and `list`, treat every item as a dependency.
     For example, for `{"<name>": "DataLoader", "<args>": {"dataset": "@dataset"}}`, the dependency ids:
     `["<name>", "<args>", "<args>#dataset", "dataset"]`.
-    
+
     Args:
         config: input config content to search.
         id: id name for the input config.
