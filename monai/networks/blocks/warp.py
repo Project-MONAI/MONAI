@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,6 +18,7 @@ from torch.nn import functional as F
 
 from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.layers.spatial_transforms import grid_pull
+from monai.networks.utils import meshgrid_ij
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
 
 _C, _ = optional_import("monai._C")
@@ -84,7 +85,7 @@ class Warp(nn.Module):
     @staticmethod
     def get_reference_grid(ddf: torch.Tensor) -> torch.Tensor:
         mesh_points = [torch.arange(0, dim) for dim in ddf.shape[2:]]
-        grid = torch.stack(torch.meshgrid(*mesh_points), dim=0)  # (spatial_dims, ...)
+        grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
         grid = grid.to(ddf)
         return grid

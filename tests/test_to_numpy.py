@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,13 +17,13 @@ import torch
 
 from monai.transforms import ToNumpy
 from monai.utils import optional_import
-from tests.utils import assert_allclose, skip_if_no_cuda
+from tests.utils import HAS_CUPY, assert_allclose, skip_if_no_cuda
 
-cp, has_cp = optional_import("cupy")
+cp, _ = optional_import("cupy")
 
 
 class TestToNumpy(unittest.TestCase):
-    @skipUnless(has_cp, "CuPy is required.")
+    @skipUnless(HAS_CUPY, "CuPy is required.")
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]])
         test_data = cp.rot90(test_data)
@@ -47,7 +47,7 @@ class TestToNumpy(unittest.TestCase):
         test_data = torch.tensor([[1, 2], [3, 4]])
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
-        result = ToNumpy()(test_data)
+        result = ToNumpy(dtype=torch.uint8)(test_data)
         self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         assert_allclose(result, test_data, type_test=False)
@@ -73,7 +73,7 @@ class TestToNumpy(unittest.TestCase):
 
     def test_single_value(self):
         for test_data in [5, np.array(5), torch.tensor(5)]:
-            result = ToNumpy()(test_data)
+            result = ToNumpy(dtype=np.uint8)(test_data)
             self.assertTrue(isinstance(result, np.ndarray))
             assert_allclose(result, np.asarray(test_data), type_test=False)
             self.assertEqual(result.ndim, 0)

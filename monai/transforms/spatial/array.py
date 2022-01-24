@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 import warnings
-from typing import Any, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -22,6 +22,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
+from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
@@ -33,7 +34,6 @@ from monai.transforms.utils import (
     create_translate,
     map_spatial_axes,
 )
-from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -77,7 +77,6 @@ __all__ = [
     "RandAffine",
     "Rand2DElastic",
     "Rand3DElastic",
-    "AddCoordinateChannels",
 ]
 
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
@@ -238,7 +237,7 @@ class Orientation(Transform):
     Change the input image's orientation into the specified based on `axcodes`.
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
         self,
@@ -294,8 +293,8 @@ class Orientation(Transform):
             (data_array [reoriented in `self.axcodes`], original axcodes, current axcodes).
 
         """
-        data_array_np, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
-        sr = data_array_np.ndim - 1
+        spatial_shape = data_array.shape[1:]
+        sr = len(spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
@@ -311,21 +310,31 @@ class Orientation(Transform):
             spatial_ornt = src
         else:
             if self.axcodes is None:
-                raise AssertionError
+                raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
             if len(dst) < sr:
                 raise ValueError(
                     f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
-        ornt = spatial_ornt.copy()
-        ornt[:, 0] += 1  # skip channel dim
-        ornt = np.concatenate([np.array([[0, 1]]), ornt])
-        shape = data_array_np.shape[1:]
-        data_array_np = np.ascontiguousarray(nib.orientations.apply_orientation(data_array_np, ornt))
-        new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
+        new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
+        _is_tensor = isinstance(data_array, torch.Tensor)
+        spatial_ornt[:, 0] += 1  # skip channel dim
+        spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
+        axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
+        if axes:
+            data_array = (
+                torch.flip(data_array, dims=axes) if _is_tensor else np.flip(data_array, axis=axes)  # type: ignore
+            )
+        full_transpose = np.arange(len(data_array.shape))
+        full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
+        if not np.all(full_transpose == np.arange(len(data_array.shape))):
+            if _is_tensor:
+                data_array = data_array.permute(full_transpose.tolist())  # type: ignore
+            else:
+                data_array = data_array.transpose(full_transpose)  # type: ignore
+        out, *_ = convert_to_dst_type(src=data_array, dst=data_array)  # type: ignore
         new_affine = to_affine_nd(affine_np, new_affine)
-        out, *_ = convert_to_dst_type(src=data_array_np, dst=data_array)
         new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
 
         if self.image_only:
@@ -702,7 +711,7 @@ class Rotate90(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rot90 = torch.rot90 if isinstance(img, torch.Tensor) else np.rot90
+        rot90: Callable = torch.rot90 if isinstance(img, torch.Tensor) else np.rot90  # type: ignore
         out: NdarrayOrTensor = rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes))
         out, *_ = convert_data_type(out, dtype=img.dtype)
         return out
@@ -1375,14 +1384,15 @@ class Resample(Transform):
             raise ValueError("Unknown grid.")
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         img_t: torch.Tensor
+        grid_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=torch.float32)  # type: ignore
-        grid, *_ = convert_to_dst_type(grid, img_t)
+        grid_t, *_ = convert_to_dst_type(grid, img_t)  # type: ignore
 
         if USE_COMPILED:
             for i, dim in enumerate(img_t.shape[1:]):
-                grid[i] += (dim - 1.0) / 2.0
-            grid = grid[:-1] / grid[-1:]
-            grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
+                grid_t[i] += (dim - 1.0) / 2.0
+            grid_t = grid_t[:-1] / grid_t[-1:]
+            grid_t = grid_t.permute(list(range(grid_t.ndimension()))[1:] + [0])
             _padding_mode = look_up_option(
                 self.padding_mode if padding_mode is None else padding_mode, GridSamplePadMode
             ).value
@@ -1395,21 +1405,21 @@ class Resample(Transform):
             _interp_mode = look_up_option(self.mode if mode is None else mode, GridSampleMode).value
             out = grid_pull(
                 img_t.unsqueeze(0),
-                grid.unsqueeze(0),
+                grid_t.unsqueeze(0),
                 bound=bound,
                 extrapolate=True,
                 interpolation=1 if _interp_mode == "bilinear" else _interp_mode,
             )[0]
         else:
             for i, dim in enumerate(img_t.shape[1:]):
-                grid[i] = 2.0 * grid[i] / (dim - 1.0)
-            grid = grid[:-1] / grid[-1:]
+                grid_t[i] = 2.0 * grid_t[i] / (dim - 1.0)
+            grid_t = grid_t[:-1] / grid_t[-1:]
             index_ordering: List[int] = list(range(img_t.ndimension() - 2, -1, -1))
-            grid = grid[index_ordering]
-            grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
+            grid_t = grid_t[index_ordering]
+            grid_t = grid_t.permute(list(range(grid_t.ndimension()))[1:] + [0])
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
-                grid.unsqueeze(0),
+                grid_t.unsqueeze(0),
                 mode=self.mode.value if mode is None else GridSampleMode(mode).value,
                 padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
                 align_corners=True,
@@ -2024,49 +2034,6 @@ class Rand3DElastic(RandomizableTransform):
         return out
 
 
-class AddCoordinateChannels(Transform):
-    """
-    Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
-    to allow feeding of the patch's location into the network.
-
-    This can be seen as a input-only version of CoordConv:
-
-    Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
-    """
-
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __init__(self, spatial_channels: Sequence[int]) -> None:
-        """
-        Args:
-            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
-                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
-                coordinates of the input's three spatial dimensions (0 is reserved for the channel dimension).
-        """
-        self.spatial_channels = spatial_channels
-
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        """
-        Args:
-            img: data to be transformed, assuming `img` is channel first.
-        """
-        if max(self.spatial_channels) > img.ndim - 1:
-            raise ValueError(
-                f"input has {img.ndim-1} spatial dimensions, cannot add AddCoordinateChannels channel for "
-                f"dim {max(self.spatial_channels)}."
-            )
-        if 0 in self.spatial_channels:
-            raise ValueError("cannot add AddCoordinateChannels channel for dimension 0, as 0 is channel dim.")
-
-        spatial_dims = img.shape[1:]
-        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing="ij"))
-        coord_channels, *_ = convert_to_dst_type(coord_channels, img)  # type: ignore
-        # only keep required dimensions. need to subtract 1 since im will be 0-based
-        # but user input is 1-based (because channel dim is 0)
-        coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
-        return concatenate((img, coord_channels), axis=0)
-
-
 class GridDistortion(Transform):
 
     backend = [TransformBackends.TORCH]
@@ -2147,7 +2114,7 @@ class GridDistortion(Transform):
             ranges = ranges - (dim_size - 1.0) / 2.0
             all_ranges.append(ranges)
 
-        coords = torch.meshgrid(*all_ranges)
+        coords = meshgrid_ij(*all_ranges)
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
         return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore

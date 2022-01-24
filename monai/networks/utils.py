@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
-from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.deprecate_utils import deprecated, deprecated_arg
 from monai.utils.misc import ensure_tuple, set_determinism
 from monai.utils.module import pytorch_after
 
@@ -37,6 +37,7 @@ __all__ = [
     "train_mode",
     "copy_model_state",
     "convert_to_torchscript",
+    "meshgrid_ij",
 ]
 
 
@@ -93,7 +94,13 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
     return labels
 
 
+@deprecated(since="0.8.0", msg_suffix="use `monai.utils.misc.sample_slices` instead.")
 def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:
+    """
+    .. deprecated:: 0.8.0
+        Use `monai.utils.misc.sample_slices` instead.
+
+    """
     slices = [slice(None)] * len(tensor.shape)
     slices[1] = slice(*slicevals)
 
@@ -458,11 +465,13 @@ def convert_to_torchscript(
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
+            https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
     model.eval()
     with torch.no_grad():
-        script_module = torch.jit.script(model)
+        script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
             if not pytorch_after(1, 7):
                 torch.jit.save(m=script_module, f=filename_or_obj)
@@ -492,3 +501,9 @@ def convert_to_torchscript(
                 torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
 
     return script_module
+
+
+def meshgrid_ij(*tensors):
+    if pytorch_after(1, 10):
+        return torch.meshgrid(*tensors, indexing="ij")
+    return torch.meshgrid(*tensors)

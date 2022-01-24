@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,6 +19,7 @@ from parameterized import parameterized
 from PIL import Image
 
 from monai.transforms import EnsureChannelFirstd, LoadImaged
+from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_1 = [{"keys": "img"}, ["test_image.nii.gz"], None]
@@ -58,12 +59,14 @@ class TestEnsureChannelFirstd(unittest.TestCase):
 
     def test_exceptions(self):
         with self.assertRaises(ValueError):  # no meta
-            EnsureChannelFirstd("img")({"img": np.zeros((1, 2, 3)), "img_meta_dict": None})
+            EnsureChannelFirstd("img")({"img": np.zeros((1, 2, 3)), PostFix.meta("img"): None})
         with self.assertRaises(ValueError):  # no meta channel
-            EnsureChannelFirstd("img")({"img": np.zeros((1, 2, 3)), "img_meta_dict": {"original_channel_dim": None}})
-        EnsureChannelFirstd("img", strict_check=False)({"img": np.zeros((1, 2, 3)), "img_meta_dict": None})
+            EnsureChannelFirstd("img")(
+                {"img": np.zeros((1, 2, 3)), PostFix.meta("img"): {"original_channel_dim": None}}
+            )
+        EnsureChannelFirstd("img", strict_check=False)({"img": np.zeros((1, 2, 3)), PostFix.meta("img"): None})
         EnsureChannelFirstd("img", strict_check=False)(
-            {"img": np.zeros((1, 2, 3)), "img_meta_dict": {"original_channel_dim": None}}
+            {"img": np.zeros((1, 2, 3)), PostFix.meta("img"): {"original_channel_dim": None}}
         )
 
 

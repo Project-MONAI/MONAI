@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,6 +28,7 @@ __all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_su
 def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor]):
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
+
     Args:
         y_pred: predictions. As for classification tasks,
             `y_pred` should has the shape [BN] where N is larger than 1. As for segmentation tasks,
@@ -35,6 +36,7 @@ def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarr
         y: ground truth, the first dim is batch.
 
     """
+
     y = y[:, 1:] if y.shape[1] > 1 else y
     y_pred = y_pred[:, 1:] if y_pred.shape[1] > 1 else y_pred
     return y_pred, y
@@ -42,14 +44,16 @@ def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarr
 
 def do_metric_reduction(f: torch.Tensor, reduction: Union[MetricReduction, str] = MetricReduction.MEAN):
     """
-    This function is to do the metric reduction for calculated metrics of each example's each class.
+    This function is to do the metric reduction for calculated `not-nan` metrics of each sample's each class.
     The function also returns `not_nans`, which counts the number of not nans for the metric.
 
     Args:
         f: a tensor that contains the calculated metric scores per batch and
             per class. The first two dims should be batch and class.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}, if "none", return the input f tensor and not_nans.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``.
+            if "none", return the input f tensor and not_nans.
         Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
     Raises:

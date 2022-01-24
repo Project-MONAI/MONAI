@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -131,7 +131,9 @@ def _stack_images(image_list: List, meta_dict: Dict):
     if len(image_list) <= 1:
         return image_list[0]
     if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
-        raise RuntimeError("can not read a list of images which already have channel dimension.")
+        channel_dim = int(meta_dict["original_channel_dim"])
+        return np.concatenate(image_list, axis=channel_dim)
+    # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
     meta_dict["original_channel_dim"] = 0
     return np.stack(image_list, axis=0)
 
@@ -148,23 +150,38 @@ class ITKReader(ImageReader):
     Args:
         channel_dim: the channel dimension of the input image, default is None.
             This is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
-            If None, original_channel_dim will be either `no_channel` or `-1`.
+            If None, `original_channel_dim` will be either `no_channel` or `-1`.
 
                 - Nifti file is usually "channel last", so there is no need to specify this argument.
                 - PNG file usually has `GetNumberOfComponentsPerPixel()==3`, so there is no need to specify this argument.
 
         series_name: the name of the DICOM series if there are multiple ones.
             used when loading DICOM series.
+        reverse_indexing: whether to use a reversed spatial indexing convention for the returned data array.
+            If ``False``, the spatial indexing follows the numpy convention;
+            otherwise, the spatial indexing convention is reversed to be compatible with ITK. Default is ``False``.
+            This option does not affect the metadata.
+        series_meta: whether to load the metadata of the DICOM series (using the metadata from the first slice).
+            This flag is checked only when loading DICOM series. Default is ``False``.
         kwargs: additional args for `itk.imread` API. more details about available args:
             https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itk/support/extras.py
 
     """
 
-    def __init__(self, channel_dim: Optional[int] = None, series_name: str = "", **kwargs):
+    def __init__(
+        self,
+        channel_dim: Optional[int] = None,
+        series_name: str = "",
+        reverse_indexing: bool = False,
+        series_meta: bool = False,
+        **kwargs,
+    ):
         super().__init__()
         self.kwargs = kwargs
         self.channel_dim = channel_dim
         self.series_name = series_name
+        self.reverse_indexing = reverse_indexing
+        self.series_meta = series_meta
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
@@ -179,8 +196,8 @@ class ITKReader(ImageReader):
 
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
-        Read image data from specified file or files, it can read a list of `no-channel` images
-        and stack them together as multi-channels data in `get_data()`.
+        Read image data from specified file or files, it can read a list of images
+        and stack them together as multi-channel data in `get_data()`.
         If passing directory path instead of file path, will treat it as DICOM images series and read.
         Note that the returned object is ITK image object or list of ITK image objects.
 
@@ -214,7 +231,17 @@ class ITKReader(ImageReader):
                 series_identifier = series_uid[0] if not self.series_name else self.series_name
                 name = names_generator.GetFileNames(series_identifier)
 
-            img_.append(itk.imread(name, **kwargs_))
+                _obj = itk.imread(name, **kwargs_)
+                if self.series_meta:
+                    _reader = itk.ImageSeriesReader.New(FileNames=name)
+                    _reader.Update()
+                    _meta = _reader.GetMetaDataDictionaryArray()
+                    if len(_meta) > 0:
+                        # TODO: using the first slice's meta. this could be improved to filter unnecessary tags.
+                        _obj.SetMetaDataDictionary(_meta[0])
+                img_.append(_obj)
+            else:
+                img_.append(itk.imread(name, **kwargs_))
         return img_ if len(filenames) > 1 else img_[0]
 
     def get_data(self, img):
@@ -291,15 +318,11 @@ class ITKReader(ImageReader):
             img: an ITK image object loaded from an image file.
 
         """
-        # the img data should have no channel dim
-
         sr = itk.array_from_matrix(img.GetDirection()).shape[0]
         sr = max(min(sr, 3), 1)
         _size = list(itk.size(img))
         if self.channel_dim is not None:
-            # channel_dim is given in the numpy convention, which is different from ITK
-            # size is reversed
-            _size.pop(-self.channel_dim)
+            _size.pop(self.channel_dim)
         return np.asarray(_size[:sr])
 
     def _get_array_data(self, img):
@@ -308,19 +331,21 @@ class ITKReader(ImageReader):
 
         Following PyTorch conventions, the returned array data has contiguous channels,
         e.g. for an RGB image, all red channel image pixels are contiguous in memory.
-        The first axis of the returned array is the channel axis.
+        The last axis of the returned array is the channel axis.
+
+        See also:
+
+            - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Modules/Bridge/NumPy/wrapping/PyBuffer.i.in
 
         Args:
             img: an ITK image object loaded from an image file.
 
         """
-        channels = img.GetNumberOfComponentsPerPixel()
-        np_data = itk.array_view_from_image(img).T
-        if channels == 1:
-            return np_data
-        if channels != np_data.shape[0]:
-            warnings.warn("itk_img.GetNumberOfComponentsPerPixel != numpy data channels")
-        return np.moveaxis(np_data, 0, -1)  # channel last is compatible with `write_nifti`
+        np_img = itk.array_view_from_image(img, keep_axes=False)
+        if img.GetNumberOfComponentsPerPixel() == 1:  # handling spatial images
+            return np_img if self.reverse_indexing else np_img.T
+        # handling multi-channel images
+        return np_img if self.reverse_indexing else np.moveaxis(np_img.T, 0, -1)
 
 
 @require_pkg(pkg_name="nibabel")
@@ -331,6 +356,11 @@ class NibabelReader(ImageReader):
     Args:
         as_closest_canonical: if True, load the image as closest to canonical axis format.
         squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
+        channel_dim: the channel dimension of the input image, default is None.
+            this is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            if None, `original_channel_dim` will be either `no_channel` or `-1`.
+            most Nifti files are usually "channel last", no need to specify this argument for them.
+        dtype: dtype of the output data array when loading with Nibabel library.
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
@@ -338,12 +368,14 @@ class NibabelReader(ImageReader):
 
     def __init__(
         self,
+        channel_dim: Optional[int] = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
         dtype: DtypeLike = np.float32,
         **kwargs,
     ):
         super().__init__()
+        self.channel_dim = channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
         self.dtype = dtype
@@ -363,8 +395,8 @@ class NibabelReader(ImageReader):
 
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
-        Read image data from specified file or files, it can read a list of `no-channel` images
-        and stack them together as multi-channels data in `get_data()`.
+        Read image data from specified file or files, it can read a list of images
+        and stack them together as multi-channel data in `get_data()`.
         Note that the returned object is Nibabel image object or list of Nibabel image objects.
 
         Args:
@@ -415,7 +447,10 @@ class NibabelReader(ImageReader):
                     if data.shape[d - 1] == 1:
                         data = data.squeeze(axis=d - 1)
             img_array.append(data)
-            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            if self.channel_dim is None:  # default to "no_channel" or -1
+                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            else:
+                header["original_channel_dim"] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -464,9 +499,11 @@ class NibabelReader(ImageReader):
             dim = header.get("dims")  # mgh format?
             dim = np.insert(dim, 0, 3)
         ndim = dim[0]
-        spatial_rank = min(ndim, 3)
-        # the img data should have no channel dim or the last dim is channel
-        return np.asarray(dim[1 : spatial_rank + 1])
+        size = list(dim[1:])
+        if self.channel_dim is not None:
+            size.pop(self.channel_dim)
+        spatial_rank = max(min(ndim, 3), 1)
+        return np.asarray(size[:spatial_rank])
 
     def _get_array_data(self, img):
         """
@@ -517,8 +554,8 @@ class NumpyReader(ImageReader):
 
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
-        Read image data from specified file or files, it can read a list of `no-channel` data files
-        and stack them together as multi-channels data in `get_data()`.
+        Read image data from specified file or files, it can read a list of data files
+        and stack them together as multi-channel data in `get_data()`.
         Note that the returned object is Numpy array or list of Numpy arrays.
 
         Args:
@@ -607,8 +644,8 @@ class PILReader(ImageReader):
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
-        Read image data from specified file or files, it can read a list of `no-channel` images
-        and stack them together as multi-channels data in `get_data()`.
+        Read image data from specified file or files, it can read a list of images
+        and stack them together as multi-channel data in `get_data()`.
         Note that the returned object is PIL image or list of PIL image.
 
         Args:
@@ -681,23 +718,29 @@ class WSIReader(ImageReader):
     Read whole slide images and extract patches.
 
     Args:
-        backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "Tifffile".
+        backend: backend library to load the images, available options: "cuCIM", "OpenSlide" and "TiffFile".
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
+        kwargs: additional args for backend reading API in `read()`, more details in `cuCIM`, `TiffFile`, `OpenSlide`:
+            https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
+            https://github.com/cgohlke/tifffile.
+            https://openslide.org/api/python/#openslide.OpenSlide.
 
     Note:
-        While "cucim" and "OpenSlide" backends both can load patches from large whole slide images
-        without loading the entire image into memory, "Tifffile" backend needs to load the entire image into memory
-        before extracting any patch; thus, memory consideration is needed when using "Tifffile" backend for
+        While "cuCIM" and "OpenSlide" backends both can load patches from large whole slide images
+        without loading the entire image into memory, "TiffFile" backend needs to load the entire image into memory
+        before extracting any patch; thus, memory consideration is needed when using "TiffFile" backend for
         patch extraction.
+
     """
 
-    def __init__(self, backend: str = "OpenSlide", level: int = 0):
+    def __init__(self, backend: str = "OpenSlide", level: int = 0, **kwargs):
         super().__init__()
         self.backend = backend.lower()
         func = require_pkg(self.backend)(self._set_reader)
         self.wsi_reader = func(self.backend)
         self.level = level
+        self.kwargs = kwargs
 
     @staticmethod
     def _set_reader(backend: str):
@@ -725,6 +768,11 @@ class WSIReader(ImageReader):
 
         Args:
             data: file name or a list of file names to read.
+            kwargs: additional args for backend reading API in `read()`, will override `self.kwargs` for existing keys.
+                more details in `cuCIM`, `TiffFile`, `OpenSlide`:
+                https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
+                https://github.com/cgohlke/tifffile.
+                https://openslide.org/api/python/#openslide.OpenSlide.
 
         Returns:
             image object or list of image objects
@@ -733,8 +781,10 @@ class WSIReader(ImageReader):
         img_: List = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
         for name in filenames:
-            img = self.wsi_reader(name)
+            img = self.wsi_reader(name, **kwargs_)
             if self.backend == "openslide":
                 img.shape = (img.dimensions[1], img.dimensions[0], 3)
             img_.append(img)
@@ -765,19 +815,22 @@ class WSIReader(ImageReader):
             grid_shape: (row, columns) tuple define a grid to extract patches on that
             patch_size: (height, width) the size of extracted patches at the given level
         """
+        # Verify inputs
         if level is None:
-            level = self.level
+            level = self._check_level(img, level)
 
-        if self.backend == "openslide" and size is None:
-            # the maximum size is set to WxH at the specified level
-            size = (img.shape[0] // (2 ** level) - location[0], img.shape[1] // (2 ** level) - location[1])
-
+        # Extract a region or the entire image
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
+        # Add necessary metadata
         metadata: Dict = {}
         metadata["spatial_shape"] = np.asarray(region.shape[:-1])
         metadata["original_channel_dim"] = -1
+
+        # Make it channel first
         region = EnsureChannelFirst()(region, metadata)
+
+        # Split into patches
         if patch_size is None:
             patches = region
         else:
@@ -788,6 +841,45 @@ class WSIReader(ImageReader):
 
         return patches, metadata
 
+    def _check_level(self, img, level):
+        level = self.level
+
+        level_count = 0
+        if self.backend == "openslide":
+            level_count = img.level_count
+        elif self.backend == "cucim":
+            level_count = img.resolutions["level_count"]
+        elif self.backend == "tifffile":
+            level_count = len(img.pages)
+
+        if level > level_count - 1:
+            raise ValueError(f"The maximum level of this image is {level_count - 1} while level={level} is requested)!")
+
+        return level
+
+    def _get_image_size(self, img, size, level, location):
+        """
+        Calculate the maximum region size for the given level and starting location (if size is None).
+        Note that region size in OpenSlide and cuCIM are WxH (but the final image output would be HxW)
+        """
+        if size is not None:
+            return size[::-1]
+
+        max_size = []
+        downsampling_factor = []
+        if self.backend == "openslide":
+            downsampling_factor = img.level_downsamples[level]
+            max_size = img.level_dimensions[level]
+        elif self.backend == "cucim":
+            downsampling_factor = img.resolutions["level_downsamples"][level]
+            max_size = img.resolutions["level_dimensions"][level]
+
+        # subtract the top left corner of the patch (at given level) from maximum size
+        location_at_level = (round(location[1] / downsampling_factor), round(location[0] / downsampling_factor))
+        size = [max_size[i] - location_at_level[i] for i in range(len(max_size))]
+
+        return size
+
     def _extract_region(
         self,
         img_obj,
@@ -797,21 +889,25 @@ class WSIReader(ImageReader):
         dtype: DtypeLike = np.uint8,
     ):
         if self.backend == "tifffile":
-            with img_obj:
-                region = img_obj.asarray(level=level)
-            if size is None:
-                region = region[location[0] :, location[1] :]
-            else:
-                region = region[location[0] : location[0] + size[0], location[1] : location[1] + size[1]]
-
+            # Read the entire image
+            if size is not None:
+                raise ValueError(
+                    f"TiffFile backend reads the entire image only, so size '{size}'' should not be provided!",
+                    "For more flexibility or extracting regions, please use cuCIM or OpenSlide backend.",
+                )
+            if location != (0, 0):
+                raise ValueError(
+                    f"TiffFile backend reads the entire image only, so location '{location}' should not be provided!",
+                    "For more flexibility and extracting regions, please use cuCIM or OpenSlide backend.",
+                )
+            region = img_obj.asarray(level=level)
         else:
-            # reverse the order of dimensions for size and location to be compatible with image shape
-            location = location[::-1]
-            if size is None:
-                region = img_obj.read_region(location=location, level=level)
-            else:
-                size = size[::-1]
-                region = img_obj.read_region(location=location, size=size, level=level)
+            # Get region size to be extracted
+            region_size = self._get_image_size(img_obj, size, level, location)
+            # reverse the order of location's dimensions to become WxH (for cuCIM and OpenSlide)
+            region_location = location[::-1]
+            # Extract a region (or the entire image)
+            region = img_obj.read_region(location=region_location, size=region_size, level=level)
 
         region = self.convert_to_rgb_array(region, dtype)
         return region
@@ -824,6 +920,7 @@ class WSIReader(ImageReader):
 
         # convert to numpy (if not already in numpy)
         raw_region = np.asarray(raw_region, dtype=dtype)
+
         # remove alpha channel if exist (RGBA)
         if raw_region.shape[-1] > 3:
             raw_region = raw_region[..., :3]

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -105,7 +105,14 @@ class MetricsSaver:
         engine.add_event_handler(Events.ITERATION_COMPLETED, self._get_filenames)
         engine.add_event_handler(Events.EPOCH_COMPLETED, self)
 
-    def _started(self, engine: Engine) -> None:
+    def _started(self, _engine: Engine) -> None:
+        """
+        Initialize internal buffers.
+
+        Args:
+            _engine: Ignite Engine, unused argument.
+
+        """
         self._filenames = []
 
     def _get_filenames(self, engine: Engine) -> None:

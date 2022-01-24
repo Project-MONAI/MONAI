@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,16 +18,19 @@ import torch
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
-from monai.apps.utils import download_url
 from monai.data import DataLoader, Dataset
 from monai.data.image_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
+from monai.utils.enums import PostFix
+from tests.utils import download_url_or_skip_test
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
 _, has_osl = optional_import("openslide")
 imsave, has_tiff = optional_import("tifffile", name="imsave")
+_, has_codec = optional_import("imagecodecs")
+has_tiff = has_tiff and has_codec
 
 FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
 base_name, extension = FILE_URL.split("id=")[1], ".tiff"
@@ -69,6 +72,13 @@ TEST_CASE_4 = [
     np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
 ]
 
+TEST_CASE_5 = [
+    FILE_PATH,
+    {"location": (HEIGHT - 2, WIDTH - 2), "level": 0, "grid_shape": (1, 1)},
+    np.array([[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[237, 237], [237, 237]]]),
+]
+
+
 TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
 TEST_CASE_RGB_1 = [np.ones((3, 100, 100), dtype=np.uint8)]  # CHW
@@ -92,9 +102,9 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
     return filename
 
 
-@skipUnless(has_cucim or has_osl, "Requires cucim or openslide!")
+@skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
 def setUpModule():  # noqa: N802
-    download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
+    download_url_or_skip_test(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
 
 class WSIReaderTests:
@@ -104,27 +114,38 @@ class WSIReaderTests:
         @parameterized.expand([TEST_CASE_0])
         def test_read_whole_image(self, file_path, level, expected_shape):
             reader = WSIReader(self.backend, level=level)
-            img_obj = reader.read(file_path)
-            img = reader.get_data(img_obj)[0]
+            with reader.read(file_path) as img_obj:
+                img = reader.get_data(img_obj)[0]
             self.assertTupleEqual(img.shape, expected_shape)
 
-        @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+        @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_5])
         def test_read_region(self, file_path, patch_info, expected_img):
-            reader = WSIReader(self.backend)
-            img_obj = reader.read(file_path)
-            # Read twice to check multiple calls
-            img = reader.get_data(img_obj, **patch_info)[0]
-            img = reader.get_data(img_obj, **patch_info)[0]
-            self.assertTupleEqual(img.shape, expected_img.shape)
-            self.assertIsNone(assert_array_equal(img, expected_img))
+            kwargs = {"name": None, "offset": None} if self.backend == "tifffile" else {}
+            reader = WSIReader(self.backend, **kwargs)
+            with reader.read(file_path, **kwargs) as img_obj:
+                if self.backend == "tifffile":
+                    with self.assertRaises(ValueError):
+                        reader.get_data(img_obj, **patch_info)[0]
+                else:
+                    # Read twice to check multiple calls
+                    img = reader.get_data(img_obj, **patch_info)[0]
+                    img2 = reader.get_data(img_obj, **patch_info)[0]
+                    self.assertTupleEqual(img.shape, img2.shape)
+                    self.assertIsNone(assert_array_equal(img, img2))
+                    self.assertTupleEqual(img.shape, expected_img.shape)
+                    self.assertIsNone(assert_array_equal(img, expected_img))
 
         @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
         def test_read_patches(self, file_path, patch_info, expected_img):
             reader = WSIReader(self.backend)
-            img_obj = reader.read(file_path)
-            img = reader.get_data(img_obj, **patch_info)[0]
-            self.assertTupleEqual(img.shape, expected_img.shape)
-            self.assertIsNone(assert_array_equal(img, expected_img))
+            with reader.read(file_path) as img_obj:
+                if self.backend == "tifffile":
+                    with self.assertRaises(ValueError):
+                        reader.get_data(img_obj, **patch_info)[0]
+                else:
+                    img = reader.get_data(img_obj, **patch_info)[0]
+                    self.assertTupleEqual(img.shape, expected_img.shape)
+                    self.assertIsNone(assert_array_equal(img, expected_img))
 
         @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
         @skipUnless(has_tiff, "Requires tifffile.")
@@ -140,8 +161,8 @@ class WSIReaderTests:
                     os.path.join(os.path.dirname(__file__), "testing_data", f"temp_tiff_image_{mode}.tiff"),
                     mode=mode,
                 )
-                img_obj = reader.read(file_path)
-                image[mode], _ = reader.get_data(img_obj)
+                with reader.read(file_path) as img_obj:
+                    image[mode], _ = reader.get_data(img_obj)
 
             self.assertIsNone(assert_array_equal(image["RGB"], img_expected))
             self.assertIsNone(assert_array_equal(image["RGBA"], img_expected))
@@ -149,12 +170,15 @@ class WSIReaderTests:
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(self, file_path, level, expected_spatial_shape, expected_shape):
             train_transform = Compose(
-                [LoadImaged(keys=["image"], reader=WSIReader, backend="cuCIM", level=level), ToTensord(keys=["image"])]
+                [
+                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    ToTensord(keys=["image"]),
+                ]
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
             data: dict = first(data_loader)
-            for s in data["image_meta_dict"]["spatial_shape"]:
+            for s in data[PostFix.meta("image")]["spatial_shape"]:
                 torch.testing.assert_allclose(s, expected_spatial_shape)
             self.assertTupleEqual(data["image"].shape, expected_shape)
 

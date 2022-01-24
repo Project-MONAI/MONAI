@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,9 +68,49 @@ TEST_CASE_7 = [
     0.62,
 ]
 
+TEST_CASE_8 = [
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
+    torch.tensor([[0], [0], [0], [0]]),
+    True,
+    2,
+    "macro",
+    float("nan"),
+]
+
+TEST_CASE_9 = [
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
+    torch.tensor([[1], [1], [1], [1]]),
+    True,
+    2,
+    "macro",
+    float("nan"),
+]
+
+TEST_CASE_10 = [
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
+    torch.tensor([[0, 0], [1, 1], [2, 2], [3, 3]]),
+    True,
+    None,
+    "macro",
+    float("nan"),
+]
+
 
 class TestComputeROCAUC(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    @parameterized.expand(
+        [
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+            TEST_CASE_4,
+            TEST_CASE_5,
+            TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
+            TEST_CASE_9,
+            TEST_CASE_10,
+        ]
+    )
     def test_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
         y_pred_trans = Compose([ToTensor(), Activations(softmax=softmax)])
         y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=to_onehot)])
@@ -79,7 +119,20 @@ class TestComputeROCAUC(unittest.TestCase):
         result = compute_roc_auc(y_pred=y_pred, y=y, average=average)
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    @parameterized.expand(
+        [
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+            TEST_CASE_4,
+            TEST_CASE_5,
+            TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
+            TEST_CASE_9,
+            TEST_CASE_10,
+        ]
+    )
     def test_class_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
         y_pred_trans = Compose([ToTensor(), Activations(softmax=softmax)])
         y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=to_onehot)])

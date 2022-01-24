@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,6 +48,19 @@ class TestPrepareBatchDefault(unittest.TestCase):
         output = evaluator.state.output
         assert_allclose(output["image"], torch.tensor([1, 2], device=device))
         assert_allclose(output["label"], torch.tensor([3, 4], device=device))
+
+    def test_empty_data(self):
+        dataloader = []
+        evaluator = SupervisedEvaluator(
+            val_data_loader=dataloader,
+            device=torch.device("cpu"),
+            epoch_length=0,
+            network=TestNet(),
+            non_blocking=False,
+            prepare_batch=PrepareBatchDefault(),
+            decollate=False,
+        )
+        evaluator.run()
 
 
 if __name__ == "__main__":

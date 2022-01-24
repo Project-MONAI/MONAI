@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -61,7 +61,7 @@ class TestDataset(unittest.TestCase):
                 data=items,
                 transform=_InplaceXform(),
                 cache_dir=tempdir,
-                pickle_module=pickle,
+                pickle_module="pickle",
                 pickle_protocol=pickle.HIGHEST_PROTOCOL,
             )
             self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])

@@ -21,6 +21,12 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
+`DatasetFunc`
+~~~~~~~~~~~~~
+.. autoclass:: DatasetFunc
+  :members:
+  :special-members: __next__
+
 `ShuffleBuffer`
 ~~~~~~~~~~~~~~~
 .. autoclass:: ShuffleBuffer
@@ -172,6 +178,12 @@ Synthetic
   :members:
 
 
+Ouput folder layout
+-------------------
+.. automodule:: monai.data.folder_layout
+  :members:
+
+
 Utilities
 ---------
 .. automodule:: monai.data.utils
@@ -202,6 +214,7 @@ Decathlon Datalist
 .. autofunction:: monai.data.load_decathlon_datalist
 .. autofunction:: monai.data.load_decathlon_properties
 .. autofunction:: monai.data.check_missing_files
+.. autofunction:: monai.data.create_cross_validation_datalist
 
 
 DataLoader

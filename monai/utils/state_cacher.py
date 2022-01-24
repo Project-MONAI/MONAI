@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +16,7 @@ import tempfile
 from typing import Dict, Optional
 
 import torch
+from torch.serialization import DEFAULT_PROTOCOL
 
 from monai.config.type_definitions import PathLike
 
@@ -43,7 +44,7 @@ class StateCacher:
         cache_dir: Optional[PathLike] = None,
         allow_overwrite: bool = True,
         pickle_module=pickle,
-        pickle_protocol=pickle.DEFAULT_PROTOCOL,
+        pickle_protocol: int = DEFAULT_PROTOCOL,
     ) -> None:
         """Constructor.
 
@@ -65,19 +66,16 @@ class StateCacher:
 
         """
         self.in_memory = in_memory
-        self.cache_dir = cache_dir
+        self.cache_dir = tempfile.gettempdir() if cache_dir is None else cache_dir
+        if not os.path.isdir(self.cache_dir):
+            raise ValueError("Given `cache_dir` is not a valid directory.")
+
         self.allow_overwrite = allow_overwrite
         self.pickle_module = pickle_module
         self.pickle_protocol = pickle_protocol
+        self.cached: Dict = {}
 
-        if self.cache_dir is None:
-            self.cache_dir = tempfile.gettempdir()
-        elif not os.path.isdir(self.cache_dir):
-            raise ValueError("Given `cache_dir` is not a valid directory.")
-
-        self.cached: Dict[str, str] = {}
-
-    def store(self, key, data_obj, pickle_module=None, pickle_protocol=None):
+    def store(self, key, data_obj, pickle_module=None, pickle_protocol: Optional[int] = None):
         """
         Store a given object with the given key name.
 

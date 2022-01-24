@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -101,6 +101,7 @@ def run_testsuit():
         "test_label_filter",
         "test_lltm",
         "test_lmdbdataset",
+        "test_lmdbdataset_dist",
         "test_load_image",
         "test_load_imaged",
         "test_load_spacing_orientation",
@@ -153,6 +154,7 @@ def run_testsuit():
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
+        "test_prepare_batch_default_dist",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import CrossValidation, DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
+from monai.utils.enums import PostFix
 from tests.utils import skip_if_quick
 
 
@@ -36,7 +37,7 @@ class TestCrossValidation(unittest.TestCase):
             self.assertEqual(len(dataset), 52)
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue("image_meta_dict" in dataset[0])
+            self.assertTrue(PostFix.meta("image") in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 34, 49, 41))
 
         cvdataset = CrossValidation(

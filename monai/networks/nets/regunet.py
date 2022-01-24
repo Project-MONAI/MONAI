@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,6 +21,7 @@ from monai.networks.blocks.regunet_block import (
     get_conv_block,
     get_deconv_block,
 )
+from monai.networks.utils import meshgrid_ij
 
 __all__ = ["RegUNet", "AffineHead", "GlobalNet", "LocalNet"]
 
@@ -260,7 +261,7 @@ class AffineHead(nn.Module):
     @staticmethod
     def get_reference_grid(image_size: Union[Tuple[int], List[int]]) -> torch.Tensor:
         mesh_points = [torch.arange(0, dim) for dim in image_size]
-        grid = torch.stack(torch.meshgrid(*mesh_points), dim=0)  # (spatial_dims, ...)
+        grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         return grid.to(dtype=torch.float)
 
     def affine_transform(self, theta: torch.Tensor):

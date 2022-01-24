@@ -22,7 +22,7 @@ import monai  # noqa: E402
 
 # -- Project information -----------------------------------------------------
 project = "MONAI"
-copyright = "2020 - 2021 MONAI Consortium"
+copyright = "MONAI Consortium"
 author = "MONAI Contributors"
 
 # The full version, including alpha/beta/rc tags
@@ -86,7 +86,7 @@ extensions = [
     "sphinx_autodoc_typehints",
 ]
 
-autoclass_content = "both"
+autoclass_content = "class"
 add_module_names = True
 source_encoding = "utf-8"
 autosectionlabel_prefix_document = True

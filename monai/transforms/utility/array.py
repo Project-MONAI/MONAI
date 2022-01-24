@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,6 +37,7 @@ from monai.utils import (
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
+    deprecated_arg,
     ensure_tuple,
     look_up_option,
     min_version,
@@ -56,6 +57,7 @@ __all__ = [
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
+    "AddCoordinateChannels",
     "EnsureChannelFirst",
     "EnsureType",
     "RepeatChannel",
@@ -200,6 +202,7 @@ class EnsureChannelFirst(Transform):
             strict_check: whether to raise an error when the meta information is insufficient.
         """
         self.strict_check = strict_check
+        self.add_channel = AddChannel()
 
     def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
@@ -221,7 +224,7 @@ class EnsureChannelFirst(Transform):
             warnings.warn(msg)
             return img
         if channel_dim == "no_channel":
-            return AddChannel()(img)
+            return self.add_channel(img)
         return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
@@ -446,6 +449,8 @@ class ToCupy(Transform):
 
     Args:
         dtype: data type specifier. It is inferred from the input by default.
+            if not None, must be an argument of `numpy.dtype`, for more details:
+            https://docs.cupy.dev/en/stable/reference/generated/cupy.array.html.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[array(1), array(2)]`, if `True`, then `[1, 2]` -> `array([1, 2])`.
 
@@ -453,7 +458,7 @@ class ToCupy(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype=None, wrap_sequence: bool = True) -> None:
+    def __init__(self, dtype: Optional[np.dtype] = None, wrap_sequence: bool = True) -> None:
         super().__init__()
         self.dtype = dtype
         self.wrap_sequence = wrap_sequence
@@ -566,7 +571,7 @@ class DataStats(Transform):
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info: user can define callable function to extract additional info from input data.
             logger_handler: add additional handler to output data: save to file, etc.
-                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+                all the existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html.
                 the handler should have a logging level of at least `INFO`.
 
         Raises:
@@ -785,7 +790,7 @@ class LabelToMask(Transform):
         if img.shape[0] > 1:
             data = img[[*select_labels]]
         else:
-            where = np.where if isinstance(img, np.ndarray) else torch.where
+            where: Callable = np.where if isinstance(img, np.ndarray) else torch.where  # type: ignore
             if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
                 data = where(in1d(img, select_labels), True, False).reshape(img.shape)
             # pre pytorch 1.8.0, need to use 1/0 instead of True/False
@@ -1006,6 +1011,7 @@ class TorchVision:
 
         """
         super().__init__()
+        self.name = name
         transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
@@ -1194,6 +1200,7 @@ class CuCIM(Transform):
 
     def __init__(self, name: str, *args, **kwargs) -> None:
         super().__init__()
+        self.name = name
         self.transform, _ = optional_import("cucim.core.operations.expose.transform", name=name)
         self.args = args
         self.kwargs = kwargs
@@ -1250,3 +1257,45 @@ class RandCuCIM(CuCIM, RandomizableTransform):
         if not self._do_transform:
             return data
         return super().__call__(data)
+
+
+class AddCoordinateChannels(Transform):
+    """
+    Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
+    to allow feeding of the patch's location into the network.
+
+    This can be seen as a input-only version of CoordConv:
+
+    Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
+
+    Args:
+        spatial_dims: the spatial dimensions that are to have their coordinates encoded in a channel and
+            appended to the input image. E.g., `(0, 1, 2)` represents `H, W, D` dims and append three channels
+            to the input image, encoding the coordinates of the input's three spatial dimensions.
+
+    .. deprecated:: 0.8.0
+        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    @deprecated_arg(
+        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
+    )
+    def __init__(self, spatial_dims: Sequence[int]) -> None:
+        self.spatial_dims = spatial_dims
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: data to be transformed, assuming `img` is channel first.
+        """
+        if max(self.spatial_dims) > img.ndim - 2 or min(self.spatial_dims) < 0:
+            raise ValueError(f"`spatial_dims` values must be within [0, {img.ndim - 2}]")
+
+        spatial_size = img.shape[1:]
+        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_size), indexing="ij"))
+        coord_channels, *_ = convert_to_dst_type(coord_channels, img)  # type: ignore
+        coord_channels = coord_channels[list(self.spatial_dims)]
+        return concatenate((img, coord_channels), axis=0)

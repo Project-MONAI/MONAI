@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -178,6 +178,9 @@ from .intensity.dictionary import (
     RandStdShiftIntensityd,
     RandStdShiftIntensityD,
     RandStdShiftIntensityDict,
+    SavitzkyGolaySmoothd,
+    SavitzkyGolaySmoothD,
+    SavitzkyGolaySmoothDict,
     ScaleIntensityd,
     ScaleIntensityD,
     ScaleIntensityDict,
@@ -274,10 +277,14 @@ from .post.dictionary import (
     VoteEnsembled,
     VoteEnsembleDict,
 )
-from .smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity, SmoothField
-from .smooth_field.dictionary import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
+from .smooth_field.array import (
+    RandSmoothDeform,
+    RandSmoothFieldAdjustContrast,
+    RandSmoothFieldAdjustIntensity,
+    SmoothField,
+)
+from .smooth_field.dictionary import RandSmoothDeformd, RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
 from .spatial.array import (
-    AddCoordinateChannels,
     Affine,
     AffineGrid,
     Flip,
@@ -302,9 +309,6 @@ from .spatial.array import (
     Zoom,
 )
 from .spatial.dictionary import (
-    AddCoordinateChannelsd,
-    AddCoordinateChannelsD,
-    AddCoordinateChannelsDict,
     Affined,
     AffineD,
     AffineDict,
@@ -363,6 +367,7 @@ from .spatial.dictionary import (
 from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
 from .utility.array import (
     AddChannel,
+    AddCoordinateChannels,
     AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
@@ -398,6 +403,9 @@ from .utility.dictionary import (
     AddChanneld,
     AddChannelD,
     AddChannelDict,
+    AddCoordinateChannelsd,
+    AddCoordinateChannelsD,
+    AddCoordinateChannelsDict,
     AddExtremePointsChanneld,
     AddExtremePointsChannelD,
     AddExtremePointsChannelDict,
@@ -510,6 +518,7 @@ from .utils import (
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
     convert_pad_mode,
+    convert_to_contiguous,
     copypaste_arrays,
     create_control_grid,
     create_grid,
@@ -544,6 +553,7 @@ from .utils import (
 )
 from .utils_pytorch_numpy_unification import (
     any_np_pt,
+    ascontiguousarray,
     clip,
     concatenate,
     cumsum,

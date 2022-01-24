@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,7 +29,6 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
-    AddCoordinateChannels,
     Affine,
     AffineGrid,
     Flip,
@@ -62,7 +61,7 @@ from monai.utils import (
     fall_back_tuple,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import TraceKeys
+from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
@@ -123,15 +122,13 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
-    "AddCoordinateChannelsd",
-    "AddCoordinateChannelsD",
-    "AddCoordinateChannelsDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
 InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
 PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class Spacingd(MapTransform, InvertibleTransform):
@@ -160,7 +157,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -319,7 +316,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         as_closest_canonical: bool = False,
         labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -1756,34 +1753,6 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class AddCoordinateChannelsd(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AddCoordinateChannels`.
-    """
-
-    backend = AddCoordinateChannels.backend
-
-    def __init__(self, keys: KeysCollection, spatial_channels: Sequence[int], allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            allow_missing_keys: don't raise exception if key is missing.
-            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
-                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
-                coordinates of the input's three spatial dimensions. It is assumed dimension 0 is the channel.
-
-        """
-        super().__init__(keys, allow_missing_keys)
-        self.add_coordinate_channels = AddCoordinateChannels(spatial_channels)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.add_coordinate_channels(d[key])
-        return d
-
-
 class GridDistortiond(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GridDistortion`.
@@ -1919,4 +1888,3 @@ RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
-AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd

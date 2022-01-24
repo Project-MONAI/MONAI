@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import Compose, RandSpatialCropSamplesd, ToTensord
+from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
@@ -89,8 +90,8 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
             self.assertTupleEqual(item["img"].shape, expected)
             self.assertTupleEqual(item["seg"].shape, expected)
         for i, item in enumerate(result):
-            self.assertEqual(item["img_meta_dict"]["patch_index"], i)
-            self.assertEqual(item["seg_meta_dict"]["patch_index"], i)
+            self.assertEqual(item[PostFix.meta("img")]["patch_index"], i)
+            self.assertEqual(item[PostFix.meta("seg")]["patch_index"], i)
         assert_allclose(item["img"], expected_last["img"], type_test=True)
         assert_allclose(item["seg"], expected_last["seg"], type_test=True)
 

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,7 +30,8 @@ class Inferer(ABC):
     Example code::
 
         device = torch.device("cuda:0")
-        data = ToTensor()(LoadImage()(filename=img_path)).to(device)
+        transform = Compose([ToTensor(), LoadImage(image_only=True)])
+        data = transform(img_path).to(device)
         model = UNet(...).to(device)
         inferer = SlidingWindowInferer(...)
 

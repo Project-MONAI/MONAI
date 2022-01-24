@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,7 +29,7 @@ class TestPatchDataset(unittest.TestCase):
         test_dataset = ["vwxyz", "hello", "world"]
         n_per_image = len(test_dataset[0])
 
-        result = PatchDataset(dataset=test_dataset, patch_func=identity, samples_per_image=n_per_image)
+        result = PatchDataset(data=test_dataset, patch_func=identity, samples_per_image=n_per_image)
 
         output = []
         n_workers = 0 if sys.platform == "win32" else 2
@@ -50,7 +50,7 @@ class TestPatchDataset(unittest.TestCase):
         patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)
         image_ds = Dataset(images, transform=patch_intensity)
         # patch level
-        ds = PatchDataset(dataset=image_ds, patch_func=sampler, samples_per_image=n_samples, transform=patch_intensity)
+        ds = PatchDataset(data=image_ds, patch_func=sampler, samples_per_image=n_samples, transform=patch_intensity)
 
         np.testing.assert_equal(len(ds), n_samples * len(images))
         # use the patch dataset, length: len(images) x samplers_per_image

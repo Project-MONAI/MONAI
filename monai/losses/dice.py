@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -348,10 +348,14 @@ class GeneralizedDiceLoss(_Loss):
         denominator = ground_o + pred_o
 
         w = self.w_func(ground_o.float())
-        for b in w:
-            infs = torch.isinf(b)
-            b[infs] = 0.0
-            b[infs] = torch.max(b)
+        infs = torch.isinf(w)
+        if self.batch:
+            w[infs] = 0.0
+            w = w + infs * torch.max(w)
+        else:
+            w[infs] = 0.0
+            max_values = torch.max(w, dim=1)[0].unsqueeze(dim=1)
+            w = w + infs * max_values
 
         final_reduce_dim = 0 if self.batch else 1
         numer = 2.0 * (intersection * w).sum(final_reduce_dim, keepdim=True) + self.smooth_nr

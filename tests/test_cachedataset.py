@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -60,7 +60,7 @@ class TestCacheDataset(unittest.TestCase):
                     "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
                 },
             ]
-            dataset = CacheDataset(data=test_data, transform=transform, cache_rate=0.5)
+            dataset = CacheDataset(data=test_data, transform=transform, cache_rate=0.5, as_contiguous=True)
             data1 = dataset[0]
             data2 = dataset[1]
             data3 = dataset[0:-1]
