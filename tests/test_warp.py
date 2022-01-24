@@ -108,7 +108,7 @@ class TestWarp(unittest.TestCase):
         relative_diff = np.mean(
             np.divide(monai_result - itk_result, itk_result, out=np.zeros_like(itk_result), where=(itk_result != 0))
         )
-        assert relative_diff < 0.01
+        self.assertTrue(relative_diff < 0.01)
 
     @parameterized.expand(TEST_CASES, skip_on_empty=True)
     def test_resample(self, input_param, input_data, expected_val):
