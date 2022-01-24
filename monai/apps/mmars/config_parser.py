@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, Sequence
-from config_resolver import ConfigComponent, ConfigResolver
+import importlib
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from monai.apps.mmars.config_resolver import ConfigComponent, ConfigResolver, ModuleScanner
 
 
 class ConfigParser:
@@ -18,46 +19,72 @@ class ConfigParser:
     Parse dictionary format config and build components.
 
     Args:
-        pkgs: the expected packages to scan.
-        modules: the expected modules in the packages to scan.
+        pkgs: the expected packages to scan modules and parse class names in the config.
+        modules: the expected modules in the packages to scan for all the classes.
+            for example, to parser "LoadImage" in config, `pkgs` can be ["monai"], `modules` can be ["transforms"].
+        global_imports: pre-import packages as global variables to execute `eval` commands.
+            for example, pre-import `monai`, then execute `eval("monai.data.list_data_collate")`.
+        config: config content to parse.
 
     """
 
-    def __init__(self, pkgs: Sequence[str], modules: Sequence[str], config: Optional[Dict] = None):
-        self.pkgs = pkgs
-        self.modules = modules
-        self.config = {}
-        if isinstance(config, dict):
+    def __init__(
+        self,
+        pkgs: Sequence[str],
+        modules: Sequence[str],
+        global_imports: Optional[Sequence[str]] = None,
+        config: Optional[Any] = None,
+    ):
+        self.config = None
+        if config is not None:
             self.set_config(config=config)
+        self.module_scanner = ModuleScanner(pkgs=pkgs, modules=modules)
+        self.global_imports = {}
+        if global_imports is not None:
+            for i in global_imports:
+                self.global_imports[i] = importlib.import_module(i)
         self.config_resolver: Optional[ConfigResolver] = None
         self.resolved = False
 
+    def _get_last_config_and_key(config: Union[Dict, List], path: str) -> Tuple[Union[Dict, List], str]:
+        keys = path.split("#")
+        for k in keys[:-1]:
+            config = config[k] if isinstance(config, dict) else config[int(k)]
+        key = keys[-1] if isinstance(config, dict) else int(keys[-1])
+        return config, key
+
     def set_config(self, config: Any, path: Optional[str] = None):
         if isinstance(path, str):
-            keys = path.split(".")
-            config = self.config
-            for k in keys[:-1]:
-                config = config[k]
-            config[keys[-1]] = config
+            conf_, key = self._get_last_config_and_key(self.config, path)
+            conf_[key] = config
         else:
             self.config = config
         self.resolved = False
 
-    def get_config(self, config: Dict, path: Optional[str] = None):
+    def get_config(self, path: Optional[str] = None):
         if isinstance(path, str):
-            keys = path.split(".")
-            config = self.config
-            for k in keys[:-1]:
-                config = config[k]
-            return config[keys[-1]]
+            conf_, key = self._get_last_config_and_key(self.config, path)
+            return conf_[key]
         return self.config
+
+    def _do_scan(self, config, path: Optional[str] = None):
+        if isinstance(config, dict):
+            for k, v in config.items():
+                sub_path = k if path is None else f"{path}#{k}"
+                self._do_scan(config=v, path=sub_path)
+        if isinstance(config, list):
+            for i, v in enumerate(config):
+                sub_path = i if path is None else f"{path}#{i}"
+                self._do_scan(config=v, path=sub_path)
+        if path is not None:
+            self.config_resolver.update(
+                ConfigComponent(id=path, config=config, module_scanner=self.module_scanner, globals=self.global_imports)
+            )
 
     def resolve_config(self, resolve_all: bool = False):
         self.config_resolver = ConfigResolver()
-        for k, v in self.config.items():
-            # only prepare the components, lazy instantiation
-            # FIXME: only support "@" reference in top level config for now
-            self.config_resolver.update(ConfigComponent(id=k, config=v, pkgs=self.pkgs, modules=self.modules))
+        self._do_scan(config=self.config)
+
         if resolve_all:
             self.config_resolver.resolve_all()
         self.resolved = True

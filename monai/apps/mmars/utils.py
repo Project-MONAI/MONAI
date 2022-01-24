@@ -10,8 +10,9 @@
 # limitations under the License.
 
 import importlib
+from optparse import Option
 import re
-from typing import List, Union
+from typing import Dict, List, Optional, Union
 
 
 def get_class(class_path: str):
@@ -63,48 +64,49 @@ def instantiate_class(class_path: str, **kwargs):
         raise ValueError(f"class {class_path} has parameters error.") from e
 
 
-def search_configs_with_objs(configs: Union[dict, list, str], refs: List[str]):
-    pattern = re.compile(r'@\w*')
-    if isinstance(configs, list):
-        for i in configs:
-            refs = search_configs_with_objs(i, refs)
-    elif isinstance(configs, dict):
-        for _, v in configs.items():
-            refs = search_configs_with_objs(v, refs)
-    elif isinstance(configs, str):
-        result = pattern.findall(configs)
+def search_configs_with_objs(config: Union[Dict, List, str], refs: List[str], id: str):
+    pattern = re.compile(r'@\w*[\#\w]*')  # match ref as args: "@XXX#YYY#ZZZ"
+    if isinstance(config, list):
+        for i, v in enumerate(config):
+            sub_id = f"{id}#{i}"
+            # all the items in the list should be marked as dependent reference
+            refs.append(sub_id)
+            refs = search_configs_with_objs(v, refs, sub_id)
+    if isinstance(config, dict):
+        for k, v in config.items():
+            sub_id = f"{id}#{k}"
+            # all the items in the dict should be marked as dependent reference
+            refs.append(sub_id)
+            refs = search_configs_with_objs(v, refs, sub_id)
+    if isinstance(config, str):
+        result = pattern.findall(config)
         for item in result:
-            # only parse `@` for: `@object`, `lambda ...`, `#lambda ...`
-            if configs.startswith("#") or configs.startswith("lambda") or configs == item:
+            if config.startswith("$") or config == item:
                 ref_obj_id = item[1:]
                 if ref_obj_id not in refs:
                     refs.append(ref_obj_id)
     return refs
 
 
-def update_configs_with_objs(configs: Union[dict, list, str], refs: dict):
-    pattern = re.compile(r'@\w*')
-    if isinstance(configs, list):
-        configs = [update_configs_with_objs(i, refs) for i in configs]
-    elif isinstance(configs, dict):
-        configs = {k: update_configs_with_objs(v, refs) for k, v in configs.items()}
-    elif isinstance(configs, str):
-        result = pattern.findall(configs)
+def update_configs_with_objs(config: Union[Dict, List, str], refs: dict, id: str, globals: Optional[Dict] = None):
+    pattern = re.compile(r'@\w*[\#\w]*')  # match ref as args: "@XXX#YYY#ZZZ"
+    if isinstance(config, list):
+        # all the items in the list should be replaced with the reference
+        config = [refs[f"{id}#{i}"] for i in range(len(config))]
+    if isinstance(config, dict):
+        # all the items in the dict should be replaced with the reference
+        config = {k: refs[f"{id}#{k}"] for k, _ in config.items()}
+    if isinstance(config, str):
+        result = pattern.findall(config)
         for item in result:
             ref_obj_id = item[1:]
-            # only parse `@` for: `@object`, `lambda ...`, `#lambda ...`
-            if configs.startswith("lambda") or configs.startswith("#lambda"):
-                # if using @object in a lambda function, only support to convert the item to f-string
-                configs = configs.replace(item, f"{refs[ref_obj_id]}")
-            elif configs.startswith("#"):
+            if config.startswith("$"):
                 # replace with local code and execute soon
-                configs = configs.replace(item, f"refs['{ref_obj_id}']")
-            elif configs == item:
-                configs = refs[ref_obj_id]
+                config = config.replace(item, f"refs['{ref_obj_id}']")
+            elif config == item:
+                config = refs[ref_obj_id]
 
-        if isinstance(configs, str):
-            if configs.startswith("#"):
-                configs = eval(configs[1:])
-            elif configs.startswith("lambda"):
-                configs = eval(configs)
-    return configs
+        if isinstance(config, str):
+            if config.startswith("$"):
+                config = eval(config[1:], globals, {"refs": refs})
+    return config

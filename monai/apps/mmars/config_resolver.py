@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 import importlib
 import inspect
 import pkgutil
@@ -39,7 +39,8 @@ class ModuleScanner:
             package = importlib.import_module(pkg)
 
             for _, modname, _ in pkgutil.walk_packages(path=package.__path__, prefix=package.__name__ + "."):
-                if any(name in modname for name in self.modules):
+                # if no modules specified, load all modules in the package
+                if len(self.modules) == 0 or any(name in modname for name in self.modules):
                     try:
                         module = importlib.import_module(modname)
                         for name, obj in inspect.getmembers(module):
@@ -49,34 +50,38 @@ class ModuleScanner:
                         pass
         return class_table
 
-    def get_module_name(self, class_name):
+    def get_class_module_name(self, class_name):
         return self._class_table.get(class_name, None)
 
 
 class ConfigComponent:
-    def __init__(self, id: str, config: Dict, pkgs: Sequence[str], modules: Sequence[str]) -> None:
+    def __init__(self, id: str, config: Any, module_scanner: ModuleScanner, globals: Optional[Dict] = None) -> None:
         self.id = id
         self.config = config
-        self.module_scanner = ModuleScanner(pkgs=pkgs, modules=modules)
+        self.module_scanner = module_scanner
+        self.globals = globals
 
     def get_id(self) -> str:
         return self.id
 
+    def get_config(self):
+        return self.config
+
     def get_referenced_ids(self) -> List[str]:
-        return search_configs_with_objs(self.config, [])
+        return search_configs_with_objs(self.config, [], id=self.id)
 
     def get_instance(self, refs: dict):
-        config = update_configs_with_objs(self.config, refs)
-        return self.build(config) if isinstance(config, dict) and ("name" in config or "path" in config) else config
+        config = update_configs_with_objs(config=self.config, refs=refs, id=self.id, globals=self.globals)
+        return self.build(config) if isinstance(config, dict) and ("<name>" in config or "<path>" in config) else config
 
-    def build(self, config: Dict) -> object:
+    def build(self, config: Optional[Dict] = None) -> object:
         """
         Build component instance based on the provided dictonary config.
-        Supported keys for the config:
-        - 'name' - class name in the modules of packages.
-        - 'path' - directly specify the class path, based on PYTHONPATH, ignore 'name' if specified.
-        - 'args' - arguments to initialize the component instance.
-        - 'disabled' - if defined `'disabled': true`, will skip the buiding, useful for development or tuning.
+        Supported special keys for the config:
+        - '<name>' - class name in the modules of packages.
+        - '<path>' - directly specify the class path, based on PYTHONPATH, ignore '<name>' if specified.
+        - '<args>' - arguments to initialize the component instance.
+        - '<disabled>' - if defined `'<disabled>': true`, will skip the buiding, useful for development or tuning.
 
         Args:
             config: dictionary config to define a component.
@@ -86,24 +91,25 @@ class ConfigComponent:
             ValueError: can not find component class.
 
         """
+        config = self.config if config is None else config
         if not isinstance(config, dict):
-            raise ValueError("config of component must be a dictionary.")
+            raise ValueError("only dictionary config can be built as component instance.")
 
-        if config.get("disabled") is True:
+        if config.get("<disabled>") is True:
             # if marked as `disabled`, skip parsing
-            return None
+            return config
 
-        class_args = config.get("args", {})
+        class_args = config.get("<args>", {})
         class_path = self._get_class_path(config)
         return instantiate_class(class_path, **class_args)
 
     def _get_class_path(self, config):
-        class_path = config.get("path", None)
+        class_path = config.get("<path>", None)
         if class_path is None:
-            class_name = config.get("name", None)
+            class_name = config.get("<name>", None)
             if class_name is None:
-                raise ValueError("must provide `path` or `name` of class to build component.")
-            module_name = self.module_scanner.get_module_name(class_name)
+                raise ValueError("must provide `<path>` or `<name>` of class to build component.")
+            module_name = self.module_scanner.get_class_module_name(class_name)
             if module_name is None:
                 raise ValueError(f"can not find component class '{class_name}'.")
             class_path = f"{module_name}.{class_name}"
