@@ -656,6 +656,8 @@ def download_url_or_skip_test(*args, **kwargs):
     except RuntimeError as rt_e:
         if "network issue" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "gdown dependency" in str(rt_e):  # no gdown installed
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         raise rt_e
 
 
