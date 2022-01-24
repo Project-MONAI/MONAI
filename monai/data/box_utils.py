@@ -10,11 +10,12 @@
 # limitations under the License.
 
 from copy import deepcopy
-from typing import Sequence, Union
+from typing import List, Sequence, Union
 
 import numpy as np
 import torch
 
+import monai
 from monai.utils.module import look_up_option
 
 SUPPORT_MODE = ["xxyy", "xxyyzz", "xyxy", "xyzxyz", "xywh", "xyzwhd"]
@@ -142,14 +143,14 @@ def box_interp(bbox1: torch.Tensor, zoom: Union[Sequence[float], float], mode1: 
     mode_standard = get_standard_mode(spatial_dims)
     bbox1_standard = box_convert_mode(bbox1=bbox1, mode1=mode1, mode2=mode_standard)
 
-    corner_lt = point_utils.point_interp(bbox1_standard[:, ::2], zoom)
-    corner_rb = point_utils.point_interp(bbox1_standard[:, 1::2], zoom)
+    corner_lt = point_interp(bbox1_standard[:, ::2], zoom)
+    corner_rb = point_interp(bbox1_standard[:, 1::2], zoom)
 
-    bbox2_standard_interp = deepcopy(bbox2_standard)
-    bbox2_standard_interp[:, ::2] = corner_lt
-    bbox2_standard_interp[:, 1::2] = corner_rb
+    bbox1_standard_interp = deepcopy(bbox1_standard)
+    bbox1_standard_interp[:, ::2] = corner_lt
+    bbox1_standard_interp[:, 1::2] = corner_rb
 
-    return box_convert_mode(bbox1=bbox2_standard_interp, mode1=mode_standard, mode2=mode1)
+    return box_convert_mode(bbox1=bbox1_standard_interp, mode1=mode_standard, mode2=mode1)
 
 
 def split_into_corners(bbox: torch.Tensor, mode: str):
@@ -272,11 +273,11 @@ def box_area(bbox: torch.Tensor, mode: str = None) -> torch.tensor:
 
     if torch.isnan(area).any() or torch.isinf(area).any():
         if area.dtype is torch.float16:
-            ValueError(
-                f"Box area is NaN or Inf. torch.float16 is used. Please change to torch.float32 and test it again."
+            raise ValueError(
+                "Box area is NaN or Inf. torch.float16 is used. Please change to torch.float32 and test it again."
             )
         else:
-            ValueError(f"Box area is NaN or Inf.")
+            raise ValueError("Box area is NaN or Inf.")
     return area
 
 
@@ -299,7 +300,7 @@ def box_clip_to_image(
     spatial_dims = get_dimension(bbox=bbox, image_size=image_size, mode=mode)
     new_bbox = deepcopy(bbox)
     if bbox.shape[0] == 0:
-        return deepcopy(bbox)
+        return deepcopy(bbox), []
 
     # 1. convert to standard mode
     mode_standard = get_standard_mode(spatial_dims)
@@ -320,7 +321,7 @@ def box_clip_to_image(
     # 4. return updated boxlist
     new_bbox = box_convert_mode(bbox1=new_bbox, mode1=mode_standard, mode2=mode)
 
-    return new_bbox
+    return new_bbox, keep
 
 
 def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: str = None, cpubool: bool = True):
@@ -361,7 +362,7 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
     area1 = box_area(bbox=bbox1.to(dtype=compute_dtype), mode=mode1)  # Nx1
     area2 = box_area(bbox=bbox2.to(dtype=compute_dtype), mode=mode2)  # Mx1
 
-    if cpubool: 
+    if cpubool:
         # we do computation on cpu to save gpu memory
         area1 = area1.cpu()
         area2 = area2.cpu()
@@ -383,8 +384,66 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor, mode1: str = None, mode2: 
     iou = iou.to(dtype=box_dtype)
 
     if torch.isnan(iou).any() or torch.isinf(iou).any():
-        ValueError(f"Box IoU is NaN or Inf.")
+        ValueError("Box IoU is NaN or Inf.")
 
     iou = iou.to(device)  # [N,M,spatial_dims]
 
     return iou
+
+
+def non_max_suppression(bbox: torch.Tensor, scores: torch.Tensor, nms_thresh: float, max_proposals=-1):
+    # written by Can Zhao, 2019
+    # if there are no boxes, return an empty list
+    look_up_option(bbox.shape[1], [4, 6]) // 2
+    if bbox.shape[0] == 0:
+        return []
+
+    scores_sort, indices = torch.sort(scores, descending=True)
+    bbox = bbox[indices, :]
+
+    # initialize the list of picked indexes
+    pick = []
+    idxs = np.arange(0, bbox.shape[0])
+    # keep looping while some indexes still remain in the indexes
+    # list
+    while len(idxs) > 0:
+        # grab the first index in the indexes list and add the
+        # index value to the list of picked indexes
+        i = idxs[0]
+        pick.append(i)
+        if len(pick) >= max_proposals >= 1:
+            break
+
+        # compute the IoU
+        iou = box_iou(bbox[idxs[1:], :], bbox[idxs[0:1], :])
+
+        # delete all indexes from the index list that have
+        idxs = np.delete(idxs, np.concatenate(([0], np.where(iou.cpu().numpy() > nms_thresh)[0])))
+
+    # return only the bounding boxes that were picked using the
+    # integer data type
+    return indices[pick]
+
+
+def resize_boxes(bbox: torch.Tensor, original_size: List[int], new_size: List[int], mode: str = None) -> torch.Tensor:
+    # modified from torchvision
+    if mode is None:
+        mode = get_standard_mode(int(bbox.shape[1] / 2))
+    mode = look_up_option(mode, supported=STANDARD_MODE)
+
+    if len(original_size) != len(new_size):
+        ValueError("The dimension of original image size should equal to the new image size")
+    spatial_dims = get_dimension(bbox, original_size)
+
+    ratios = [
+        torch.tensor(s, dtype=bbox.dtype, device=bbox.device)
+        / torch.tensor(s_orig, dtype=bbox.dtype, device=bbox.device)
+        for s, s_orig in zip(new_size, original_size)
+    ]
+    corners = split_into_corners(deepcopy(bbox), mode)
+
+    for axis in range(spatial_dims):
+        corners[2 * axis] = corners[2 * axis] * ratios[axis]
+        corners[2 * axis + 1] = corners[2 * axis + 1] * ratios[axis]
+
+    return torch.stack(corners, dim=1)

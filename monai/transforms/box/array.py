@@ -107,7 +107,7 @@ class BoxClipToImage(Transform):
             bbox_tensor = bbox
 
         # clip box to the image and (optional) remove empty box
-        bbox_clip = box_utils.box_clip_to_image(bbox_tensor, image_size, self.mode, self.remove_empty)
+        bbox_clip, _ = box_utils.box_clip_to_image(bbox_tensor, image_size, self.mode, self.remove_empty)
 
         if isinstance(bbox, np.ndarray):
             bbox_clip = bbox_clip.cpu().numpy()
