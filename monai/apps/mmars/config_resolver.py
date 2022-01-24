@@ -68,9 +68,9 @@ class ConfigComponent:
     Utility class to manage every component in the config with a unique `id` name.
     When recursively parsing a complicated config dictioanry, every item should be treated as a `ConfigComponent`.
     For example:
-    - `{"preprocessing": [{"name": "LoadImage", "args": {"keys": "image"}}]}`
-    - `{"name": "LoadImage", "args": {"keys": "image"}}`
-    - `"name": "LoadImage"`
+    - `{"preprocessing": [{"<name>": "LoadImage", "<args>": {"keys": "image"}}]}`
+    - `{"<name>": "LoadImage", "<args>": {"keys": "image"}}`
+    - `"<name>": "LoadImage"`
     - `"keys": "image"`
 
     It can search the config content and find out all the dependencies, then build the config to instance
@@ -119,8 +119,8 @@ class ConfigComponent:
         Recursively search all the content of current config compoent to get the ids of dependencies.
         Must build all the dependencies before build current config component.
         For `dict` and `list`, treat every item as a dependency.
-        For example, for `{"name": "DataLoader", "args": {"dataset": "@dataset"}}`, the dependency ids:
-        `["name", "args", "args#dataset", "dataset"]`.
+        For example, for `{"<name>": "DataLoader", "<args>": {"dataset": "@dataset"}}`, the dependency ids:
+        `["<name>", "<args>", "<args>#dataset", "dataset"]`.
 
         """
         return search_configs_with_objs(self.config, [], id=self.id)
