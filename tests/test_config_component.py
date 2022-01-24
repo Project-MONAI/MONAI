@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Iterator
 import unittest
+from typing import Callable, Iterator
 
 import torch
-import monai
 from parameterized import parameterized
 
+import monai
 from monai.apps import ConfigComponent, ModuleScanner
-from monai.data import Dataset, DataLoader
+from monai.data import DataLoader, Dataset
 from monai.transforms import LoadImaged, RandTorchVisiond
 
 TEST_CASE_1 = [
@@ -56,10 +56,7 @@ TEST_CASE_6 = [
     RandTorchVisiond,
 ]
 # test dependencies of dict config
-TEST_CASE_7 = [
-    {"dataset": "@dataset", "batch_size": 2},
-    ["test#dataset", "dataset", "test#batch_size"],
-]
+TEST_CASE_7 = [{"dataset": "@dataset", "batch_size": 2}, ["test#dataset", "dataset", "test#batch_size"]]
 # test dependencies of list config
 TEST_CASE_8 = [
     {"dataset": "@dataset", "transforms": ["@trans0", "@trans1"]},
@@ -98,26 +95,11 @@ TEST_CASE_13 = [
     torch.optim.Adam,
 ]
 # test replace dependencies with code execution result
-TEST_CASE_14 = [
-    "optimizer#<args>#params",
-    "$@model.parameters()",
-    {"model": torch.nn.PReLU()},
-    Iterator,
-]
+TEST_CASE_14 = ["optimizer#<args>#params", "$@model.parameters()", {"model": torch.nn.PReLU()}, Iterator]
 # test execute some function in args, test pre-imported global packages `monai`
-TEST_CASE_15 = [
-    "dataloader#<args>#collate_fn",
-    "$monai.data.list_data_collate",
-    {},
-    Callable,
-]
+TEST_CASE_15 = ["dataloader#<args>#collate_fn", "$monai.data.list_data_collate", {}, Callable]
 # test lambda function, should not execute the lambda function, just change the string with dependent objects
-TEST_CASE_16 = [
-    "dataloader#<args>#collate_fn",
-    "$lambda x: monai.data.list_data_collate(x) + 100",
-    {},
-    Callable,
-]
+TEST_CASE_16 = ["dataloader#<args>#collate_fn", "$lambda x: monai.data.list_data_collate(x) + 100", {}, Callable]
 
 
 class TestConfigComponent(unittest.TestCase):

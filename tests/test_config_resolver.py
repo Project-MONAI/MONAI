@@ -10,11 +10,12 @@
 # limitations under the License.
 
 import unittest
+from distutils.command.config import config
 
 import torch
-import monai
 from parameterized import parameterized
 
+import monai
 from monai.apps import ConfigComponent, ConfigResolver, ModuleScanner
 from monai.data import DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
@@ -37,7 +38,8 @@ TEST_CASE_2 = [
     {
         # all the recursively parsed config items
         "dataloader": {
-            "<name>": "DataLoader", "<args>": {"dataset": "@dataset", "collate_fn": "$monai.data.list_data_collate"}
+            "<name>": "DataLoader",
+            "<args>": {"dataset": "@dataset", "collate_fn": "$monai.data.list_data_collate"},
         },
         "dataset": {"<name>": "Dataset", "<args>": {"data": [1, 2]}},
         "dataloader#<name>": "DataLoader",
@@ -58,7 +60,8 @@ TEST_CASE_3 = [
     {
         # all the recursively parsed config items
         "transform#1": {
-            "<name>": "RandTorchVisiond", "<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25}
+            "<name>": "RandTorchVisiond",
+            "<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25},
         },
         "transform#1#<name>": "RandTorchVisiond",
         "transform#1#<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25},
@@ -77,16 +80,32 @@ class TestConfigComponent(unittest.TestCase):
         scanner = ModuleScanner(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
         resolver = ConfigResolver()
         for k, v in configs.items():
-            resolver.add(ConfigComponent(
-                id=k, config=v, module_scanner=scanner, globals={"monai": monai, "torch": torch}
-            ))
+            resolver.add(
+                ConfigComponent(id=k, config=v, module_scanner=scanner, globals={"monai": monai, "torch": torch})
+            )
         ins = resolver.get_resolved_component(expected_id)
         self.assertTrue(isinstance(ins, output_type))
-        config = resolver.get_resolved_config(expected_id)
+        # test resolve all
+        resolver.resolved_configs = {}
+        resolver.resolved_components = {}
+        resolver.resolve_all()
+        ins = resolver.get_resolved_component(expected_id)
+        self.assertTrue(isinstance(ins, output_type))
         # test lazy instantiation
+        config = resolver.get_resolved_config(expected_id)
         config["<disabled>"] = False
         ins = ConfigComponent(id=expected_id, module_scanner=scanner, config=config).build()
         self.assertTrue(isinstance(ins, output_type))
+
+    def test_circular_dependencies(self):
+        scanner = ModuleScanner(pkgs=[], modules=[])
+        resolver = ConfigResolver()
+        configs = {"A": "@B", "B": "@C", "C": "@A"}
+        for k, v in configs.items():
+            resolver.add(ConfigComponent(id=k, config=v, module_scanner=scanner))
+        for k in ["A", "B", "C"]:
+            with self.assertRaises(ValueError):
+                resolver.get_resolved_component(k)
 
 
 if __name__ == "__main__":

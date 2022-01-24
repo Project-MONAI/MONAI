@@ -11,6 +11,7 @@
 
 import importlib
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
 from monai.apps.mmars.config_resolver import ConfigComponent, ConfigResolver, ModuleScanner
 
 
@@ -178,4 +179,4 @@ class ConfigParser:
         """
         return ConfigComponent(
             id=None, config=config, module_scanner=self.module_scanner, globals=self.global_imports
-            ).build()
+        ).build()

@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Sequence
 import importlib
 import inspect
 import pkgutil
 import warnings
+from typing import Any, Dict, List, Optional, Sequence
 
 from monai.apps.mmars.utils import instantiate_class, search_configs_with_objs, update_configs_with_objs
 
@@ -94,6 +94,7 @@ class ConfigComponent:
             for config `"collate_fn": "$monai.data.list_data_collate"`.
 
     """
+
     def __init__(self, id: str, config: Any, module_scanner: ModuleScanner, globals: Optional[Dict] = None) -> None:
         self.id = id
         self.config = config
@@ -123,7 +124,7 @@ class ConfigComponent:
         `["<name>", "<args>", "<args>#dataset", "dataset"]`.
 
         """
-        return search_configs_with_objs(config=self.config, id=self.id, deps=[])
+        return search_configs_with_objs(config=self.config, id=self.id)
 
     def get_updated_config(self, deps: dict):
         """
@@ -179,9 +180,11 @@ class ConfigComponent:
             warnings.warn("config content has other dependencies or executable string, skip `build`.")
             return config
 
-        if not isinstance(config, dict) \
-            or ("<name>" not in config and "<path>" not in config) \
-            or config.get("<disabled>") is True:
+        if (
+            not isinstance(config, dict)
+            or ("<name>" not in config and "<path>" not in config)
+            or config.get("<disabled>") is True
+        ):
             # if marked as `disabled`, skip parsing
             return config
 
@@ -218,6 +221,7 @@ class ConfigResolver:
         components: config components to resolve, if None, can also `add()` component in runtime.
 
     """
+
     def __init__(self, components: Optional[Dict[str, ConfigComponent]] = None):
         self.resolved_configs = {}
         self.resolved_components = {}
@@ -236,7 +240,9 @@ class ConfigResolver:
             raise ValueError(f"id '{id}' is already added.")
         self.components[id] = component
 
-    def _resolve_one_component(self, id: str, instantiate: bool = True) -> bool:
+    def _resolve_one_component(
+        self, id: str, instantiate: bool = True, waiting_list: Optional[List[str]] = None
+    ) -> bool:
         """
         Resolve one component with specified id name.
         If has unresolved dependencies, recursively resolve the dependencies first.
@@ -246,21 +252,30 @@ class ConfigResolver:
             instantiate: after resolving all the dependencies, whether to build instance.
                 if False, can support lazy instantiation with the resolved config later.
                 default to `True`.
+            waiting_list: list of components wait to resolve dependencies. it's used to detect circular dependencies
+                when resolving dependencies like: `{"name": "A", "dep": "@B"}` and `{"name": "B", "dep": "@A"}`.
 
         """
+        if waiting_list is None:
+            waiting_list = []
+        waiting_list.append(id)
         com = self.components[id]
-        # check whether the obj has any unresolved deps in its args
-        ref_ids = com.get_dependent_ids()
+        dep_ids = com.get_dependent_ids()
+        # if current component has dependency already in the waiting list, that's circular dependencies
+        for d in dep_ids:
+            if d in waiting_list:
+                raise ValueError(f"detected circular dependencies for id='{d}' in the config content.")
+
         deps = {}
-        if len(ref_ids) > 0:
-            # see whether all deps are resolved
-            for comp_id in ref_ids:
+        if len(dep_ids) > 0:
+            # # check whether the component has any unresolved deps
+            for comp_id in dep_ids:
                 if comp_id not in self.resolved_components:
                     # this dependent component is not resolved
                     if comp_id not in self.components:
                         raise RuntimeError(f"the dependent component `{comp_id}` is not in config.")
                     # resolve the dependency first
-                    self._resolve_one_component(id=comp_id, instantiate=True)
+                    self._resolve_one_component(id=comp_id, instantiate=True, waiting_list=waiting_list)
                 deps[comp_id] = self.resolved_components[comp_id]
             # all dependent components are resolved already
         updated_config = com.get_updated_config(deps)

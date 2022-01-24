@@ -10,8 +10,8 @@
 # limitations under the License.
 
 import importlib
-from optparse import Option
 import re
+from optparse import Option
 from typing import Dict, List, Optional, Union
 
 
@@ -64,7 +64,7 @@ def instantiate_class(class_path: str, **kwargs):
         raise ValueError(f"class {class_path} has parameters error.") from e
 
 
-def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: List[str] = []):
+def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: Optional[List[str]] = None):
     """
     Recursively search all the content of input config compoent to get the ids of dependencies.
     It's used to build all the dependencies before build current config component.
@@ -75,10 +75,12 @@ def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: List
     Args:
         config: input config content to search.
         id: id name for the input config.
-        deps: list of the id name of existing dependencies, default to empty.
+        deps: list of the id name of existing dependencies, default to None.
 
     """
-    pattern = re.compile(r'@\w*[\#\w]*')  # match ref as args: "@XXX#YYY#ZZZ"
+    if deps is None:
+        deps = []
+    pattern = re.compile(r"@\w*[\#\w]*")  # match ref as args: "@XXX#YYY#ZZZ"
     if isinstance(config, list):
         for i, v in enumerate(config):
             sub_id = f"{id}#{i}"
@@ -113,7 +115,7 @@ def update_configs_with_objs(config: Union[Dict, List, str], deps: dict, id: str
         globals: predefined global variables to execute code string with `eval()`.
 
     """
-    pattern = re.compile(r'@\w*[\#\w]*')  # match ref as args: "@XXX#YYY#ZZZ"
+    pattern = re.compile(r"@\w*[\#\w]*")  # match ref as args: "@XXX#YYY#ZZZ"
     if isinstance(config, list):
         # all the items in the list should be replaced with the reference
         config = [deps[f"{id}#{i}"] for i in range(len(config))]

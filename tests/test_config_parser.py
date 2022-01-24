@@ -10,10 +10,11 @@
 # limitations under the License.
 
 import unittest
+
 from parameterized import parameterized
 
 from monai.apps import ConfigParser
-from monai.data import Dataset, DataLoader
+from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 
 # test the resolved and parsed instances
@@ -21,10 +22,15 @@ TEST_CASE_1 = [
     {
         "transform": {
             "<name>": "Compose",
-            "<args>": {"transforms": [
-                {"<name>": "LoadImaged", "<args>": {"keys": "image"}},
-                {"<name>": "RandTorchVisiond", "<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25}},
-            ]}
+            "<args>": {
+                "transforms": [
+                    {"<name>": "LoadImaged", "<args>": {"keys": "image"}},
+                    {
+                        "<name>": "RandTorchVisiond",
+                        "<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25},
+                    },
+                ]
+            },
         },
         "dataset": {"<name>": "Dataset", "<args>": {"data": [1, 2], "transform": "@transform"}},
         "dataloader": {
@@ -50,7 +56,8 @@ class TestConfigComponent(unittest.TestCase):
     def test_parse(self, config, expected_ids, output_types):
         parser = ConfigParser(
             pkgs=["torch.optim", "monai"],
-            modules=["data", "transforms", "adam"],global_imports={"monai": "monai"},
+            modules=["data", "transforms", "adam"],
+            global_imports={"monai": "monai"},
             config=config,
         )
         for id, cls in zip(expected_ids, output_types):
