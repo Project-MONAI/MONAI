@@ -75,14 +75,14 @@ class ConfigComponent:
 
     It can search the config content and find out all the dependencies, then build the config to instance
     when all the dependencies are resolved.
-    
+
     Here we predefined several special marks to parse the config content:
     - "<XXX>": like "<name>" is the name of a class, to distinguish it with regular key "name" in the config content.
         now we have 4 keys: `<name>`, `<path>`, `<args>`, `<disabled>`.
     - "XXX#YYY": join nested config ids, like "transforms#5" is id name of the 6th transform in the transforms list.
     - "@XXX": use an instance as config item, like `"dataset": "@dataset"` uses `dataset` instance as the parameter.
     - "$XXX": execute the string after "$" as python code with `eval()` function, like "$@model.parameters()".
-    
+
     Args:
         id: id name of current config component, for nested config items, use `#` to join ids.
             for list component, use index from `0` as id.
@@ -192,7 +192,7 @@ class ConfigComponent:
     def _get_class_path(self, config):
         """
         Get the path of class specified in the config content.
-        
+
         Args:
             config: dictionary config that defines a component.
 
@@ -213,7 +213,7 @@ class ConfigComponent:
 class ConfigResolver:
     """
     Utility class to resolve the dependencies between config components and build instance for specified `id`.
-    
+
     Args:
         components: config components to resolve, if None, can also `add()` component in runtime.
 
