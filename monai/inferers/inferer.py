@@ -256,7 +256,7 @@ class SliceInferer(SlidingWindowInferer):
             kwargs: optional keyword args to be passed to ``network``.
         """
         if self.spatial_dim > 2:
-            raise ValueError("`spatial_dim` can only be `[H, W, D]` with `0, 1, 2` respectively.")
+            raise ValueError("`spatial_dim` can only be `0, 1, 2` with `[H, W, D]` respectively.")
 
         # Check if ``roi_size`` tuple is 2D and ``inputs`` tensor is 3D
         if len(self.roi_size) == 2 and len(inputs.shape[2:]) == 3:
