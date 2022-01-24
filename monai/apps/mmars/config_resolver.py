@@ -13,9 +13,7 @@ from typing import Any, Dict, List, Optional, Sequence
 import importlib
 import inspect
 import pkgutil
-from xmlrpc.client import FastMarshaller
-
-from torch import warnings
+import warnings
 
 from monai.apps.mmars.utils import instantiate_class, search_configs_with_objs, update_configs_with_objs
 
