@@ -464,14 +464,14 @@ class PermutohedralLattice {
     // depending where we ended up, we may have to copy data
     if (oldValue != hashTableBase) {
       memcpy(hashTableBase, oldValue, hashTable.size() * vd * sizeof(scalar_t));
-      delete oldValue;
+      delete[] oldValue;
     } else {
-      delete newValue;
+      delete[] newValue;
     }
 
-    delete zero;
-    delete neighbor1;
-    delete neighbor2;
+    delete[] zero;
+    delete[] neighbor1;
+    delete[] neighbor2;
   }
 
  private:
