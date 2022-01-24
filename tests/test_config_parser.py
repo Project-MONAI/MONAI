@@ -10,12 +10,16 @@
 # limitations under the License.
 
 import unittest
+from unittest import skipUnless
 
 from parameterized import parameterized
 
 from monai.apps import ConfigParser
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
+from monai.utils import optional_import
+
+_, has_tv = optional_import("torchvision")
 
 # test the resolved and parsed instances
 TEST_CASE_1 = [
@@ -53,6 +57,7 @@ class TestConfigComponent(unittest.TestCase):
         self.assertDictEqual(parser.get_config(id="preprocessing#0#datasets"), {"name": "CacheDataset"})
 
     @parameterized.expand([TEST_CASE_1])
+    @skipUnless(has_tv, "Requires tifffile.")
     def test_parse(self, config, expected_ids, output_types):
         parser = ConfigParser(
             pkgs=["torch.optim", "monai"],

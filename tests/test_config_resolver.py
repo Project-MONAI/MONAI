@@ -18,6 +18,9 @@ import monai
 from monai.apps import ConfigComponent, ConfigResolver, ModuleScanner
 from monai.data import DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
+from monai.utils import optional_import
+
+_, has_tv = optional_import("torchvision")
 
 # test instance with no dependencies
 TEST_CASE_1 = [
@@ -74,7 +77,7 @@ TEST_CASE_3 = [
 
 
 class TestConfigComponent(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2] + ([TEST_CASE_3] if has_tv else []))
     def test_resolve(self, configs, expected_id, output_type):
         scanner = ModuleScanner(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
         resolver = ConfigResolver()

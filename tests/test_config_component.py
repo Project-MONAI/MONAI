@@ -19,6 +19,9 @@ import monai
 from monai.apps import ConfigComponent, ModuleScanner
 from monai.data import DataLoader, Dataset
 from monai.transforms import LoadImaged, RandTorchVisiond
+from monai.utils import optional_import
+
+_, has_tv = optional_import("torchvision")
 
 TEST_CASE_1 = [
     dict(pkgs=["monai"], modules=["transforms"]),
@@ -103,7 +106,9 @@ TEST_CASE_16 = ["dataloader#<args>#collate_fn", "$lambda x: monai.data.list_data
 
 
 class TestConfigComponent(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand(
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5] + ([TEST_CASE_6] if has_tv else [])
+    )
     def test_build(self, input_param, test_input, output_type):
         scanner = ModuleScanner(**input_param)
         configer = ConfigComponent(id="test", config=test_input, module_scanner=scanner)
