@@ -21,6 +21,7 @@ from ignite.engine import Engine, Events
 
 from monai.handlers import MetricsSaver
 from monai.utils import evenly_divisible_all_gather
+from monai.utils.enums import PostFix
 from tests.utils import DistCall, DistTestCase
 
 
@@ -31,13 +32,14 @@ class DistributedMetricsSaver(DistTestCase):
             self._run(tempdir)
 
     def _run(self, tempdir):
+        my_rank = dist.get_rank()
         fnames = ["aaa" * 300, "bbb" * 301, "ccc" * 302]
 
         metrics_saver = MetricsSaver(
             save_dir=tempdir,
             metrics=["metric1", "metric2"],
             metric_details=["metric3", "metric4"],
-            batch_transform=lambda x: x["image_meta_dict"],
+            batch_transform=lambda x: x[PostFix.meta("image")],
             summary_ops="*",
         )
 
@@ -46,19 +48,19 @@ class DistributedMetricsSaver(DistTestCase):
 
         engine = Engine(_val_func)
 
-        if dist.get_rank() == 0:
-            data = [{"image_meta_dict": {"filename_or_obj": [fnames[0]]}}]
+        if my_rank == 0:
+            data = [{PostFix.meta("image"): {"filename_or_obj": [fnames[0]]}}]
 
             @engine.on(Events.EPOCH_COMPLETED)
             def _save_metrics0(engine):
                 engine.state.metrics = {"metric1": 1, "metric2": 2}
                 engine.state.metric_details = {"metric3": torch.tensor([[1, 2]]), "metric4": torch.tensor([[5, 6]])}
 
-        if dist.get_rank() == 1:
+        if my_rank == 1:
             # different ranks have different data length
             data = [
-                {"image_meta_dict": {"filename_or_obj": [fnames[1]]}},
-                {"image_meta_dict": {"filename_or_obj": [fnames[2]]}},
+                {PostFix.meta("image"): {"filename_or_obj": [fnames[1]]}},
+                {PostFix.meta("image"): {"filename_or_obj": [fnames[2]]}},
             ]
 
             @engine.on(Events.EPOCH_COMPLETED)
@@ -79,7 +81,7 @@ class DistributedMetricsSaver(DistTestCase):
         metrics_saver.attach(engine)
         engine.run(data, max_epochs=1)
 
-        if dist.get_rank() == 0:
+        if my_rank == 0:
             # check the metrics.csv and content
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metrics.csv")))
             with open(os.path.join(tempdir, "metrics.csv")) as f:

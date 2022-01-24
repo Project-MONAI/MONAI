@@ -350,7 +350,8 @@ class GeneralizedDiceLoss(_Loss):
         w = self.w_func(ground_o.float())
         infs = torch.isinf(w)
         if self.batch:
-            w[infs] = torch.max(w)
+            w[infs] = 0.0
+            w = w + infs * torch.max(w)
         else:
             w[infs] = 0.0
             max_values = torch.max(w, dim=1)[0].unsqueeze(dim=1)

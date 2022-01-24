@@ -14,7 +14,7 @@ import random
 import warnings
 from contextlib import contextmanager
 from inspect import getmembers, isclass
-from typing import Any, Callable, Hashable, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -23,10 +23,12 @@ import monai
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
+from monai.networks.utils import meshgrid_ij
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform, apply_transform
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
+    ascontiguousarray,
     cumsum,
     isfinite,
     nonzero,
@@ -98,6 +100,7 @@ __all__ = [
     "get_transform_backends",
     "print_transform_backends",
     "convert_pad_mode",
+    "convert_to_contiguous",
 ]
 
 
@@ -400,7 +403,7 @@ def weighted_patch_samples(
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
         r, *_ = convert_to_dst_type(r_state.random(n_samples), v)  # type: ignore
-        idx = searchsorted(v, r * v[-1], right=True)
+        idx = searchsorted(v, r * v[-1], right=True)  # type: ignore
     idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
@@ -409,7 +412,7 @@ def weighted_patch_samples(
 
 
 def correct_crop_centers(
-    centers: List[Union[int, torch.Tensor]],
+    centers: List[int],
     spatial_size: Union[Sequence[int], int],
     label_spatial_shape: Sequence[int],
     allow_smaller: bool = False,
@@ -444,8 +447,7 @@ def correct_crop_centers(
             valid_end[i] += 1
     valid_centers = []
     for c, v_s, v_e in zip(centers, valid_start, valid_end):
-        _c = int(convert_data_type(c, np.ndarray)[0])  # type: ignore
-        center_i = min(max(_c, v_s), v_e - 1)
+        center_i = min(max(c, v_s), v_e - 1)
         valid_centers.append(int(center_i))
     return valid_centers
 
@@ -501,7 +503,7 @@ def generate_pos_neg_label_crop_centers(
         indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
         random_int = rand_state.randint(len(indices_to_use))
         idx = indices_to_use[random_int]
-        center = unravel_index(idx, label_spatial_shape)
+        center = unravel_index(idx, label_spatial_shape).tolist()
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
@@ -556,10 +558,9 @@ def generate_label_classes_crop_centers(
         # randomly select the indices of a class based on the ratios
         indices_to_use = indices[i]
         random_int = rand_state.randint(len(indices_to_use))
-        center = unravel_index(indices_to_use[random_int], label_spatial_shape)
+        center = unravel_index(indices_to_use[random_int], label_spatial_shape).tolist()
         # shift center to range of valid centers
-        center_ori = list(center)
-        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape, allow_smaller))
+        centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
     return centers
 
@@ -624,7 +625,7 @@ def _create_grid_torch(
         torch.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d), device=device, dtype=dtype)
         for d, s in zip(spatial_size, spacing)
     ]
-    coords = torch.meshgrid(*ranges)
+    coords = meshgrid_ij(*ranges)
     if not homogeneous:
         return torch.stack(coords)
     return torch.stack([*coords, torch.ones_like(coords[0])])
@@ -929,7 +930,8 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
         img: Image to get largest connected component from. Shape is (spatial_dim1 [, spatial_dim2, ...])
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
-            connectivity of ``input.ndim`` is used.
+            connectivity of ``input.ndim`` is used. for more details:
+            https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
     """
     img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
     largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
@@ -1494,6 +1496,25 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadM
             mode = "edge"
         return look_up_option(mode, NumpyPadMode)
     raise ValueError(f"unsupported data type: {type(dst)}.")
+
+
+def convert_to_contiguous(data, **kwargs):
+    """
+    Check and ensure the numpy array or PyTorch Tensor in data to be contuguous in memory.
+
+    Args:
+        data: input data to convert, will recursively convert the numpy array or PyTorch Tensor in dict and sequence.
+        kwargs: if `x` is PyTorch Tensor, additional args for `torch.contiguous`, more details:
+            https://pytorch.org/docs/stable/generated/torch.Tensor.contiguous.html#torch.Tensor.contiguous.
+
+    """
+    if isinstance(data, (np.ndarray, torch.Tensor, str, bytes)):
+        return ascontiguousarray(data, **kwargs)
+    if isinstance(data, Mapping):
+        return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
+    if isinstance(data, Sequence):
+        return [convert_to_contiguous(i, **kwargs) for i in data]
+    return data
 
 
 if __name__ == "__main__":

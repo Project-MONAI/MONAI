@@ -22,6 +22,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
+from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
@@ -236,7 +237,7 @@ class Orientation(Transform):
     Change the input image's orientation into the specified based on `axcodes`.
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
         self,
@@ -292,8 +293,8 @@ class Orientation(Transform):
             (data_array [reoriented in `self.axcodes`], original axcodes, current axcodes).
 
         """
-        data_array_np, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
-        sr = data_array_np.ndim - 1
+        spatial_shape = data_array.shape[1:]
+        sr = len(spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
@@ -309,21 +310,31 @@ class Orientation(Transform):
             spatial_ornt = src
         else:
             if self.axcodes is None:
-                raise AssertionError
+                raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
             if len(dst) < sr:
                 raise ValueError(
                     f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
-        ornt = spatial_ornt.copy()
-        ornt[:, 0] += 1  # skip channel dim
-        ornt = np.concatenate([np.array([[0, 1]]), ornt])
-        shape = data_array_np.shape[1:]
-        data_array_np = np.ascontiguousarray(nib.orientations.apply_orientation(data_array_np, ornt))
-        new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
+        new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
+        _is_tensor = isinstance(data_array, torch.Tensor)
+        spatial_ornt[:, 0] += 1  # skip channel dim
+        spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
+        axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
+        if axes:
+            data_array = (
+                torch.flip(data_array, dims=axes) if _is_tensor else np.flip(data_array, axis=axes)  # type: ignore
+            )
+        full_transpose = np.arange(len(data_array.shape))
+        full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
+        if not np.all(full_transpose == np.arange(len(data_array.shape))):
+            if _is_tensor:
+                data_array = data_array.permute(full_transpose.tolist())  # type: ignore
+            else:
+                data_array = data_array.transpose(full_transpose)  # type: ignore
+        out, *_ = convert_to_dst_type(src=data_array, dst=data_array)  # type: ignore
         new_affine = to_affine_nd(affine_np, new_affine)
-        out, *_ = convert_to_dst_type(src=data_array_np, dst=data_array)
         new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
 
         if self.image_only:
@@ -2103,7 +2114,7 @@ class GridDistortion(Transform):
             ranges = ranges - (dim_size - 1.0) / 2.0
             all_ranges.append(ranges)
 
-        coords = torch.meshgrid(*all_ranges)
+        coords = meshgrid_ij(*all_ranges)
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
         return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore

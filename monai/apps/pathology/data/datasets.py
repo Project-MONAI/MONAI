@@ -126,6 +126,8 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             default to `True`. if the random transforms don't modify the cache content
             or every cache item is only used once in a `multi-processing` environment,
             may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
 
     """
 
@@ -144,6 +146,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         num_replace_workers: Optional[int] = None,
         progress: bool = True,
         copy_cache: bool = True,
+        as_contiguous: bool = True,
     ):
         patch_wsi_dataset = PatchWSIDataset(
             data=data,
@@ -163,6 +166,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             progress=progress,
             shuffle=False,
             copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
         )
 
 
