@@ -70,9 +70,8 @@ class ConfigComponent:
     def get_referenced_ids(self) -> List[str]:
         return search_configs_with_objs(self.config, [], id=self.id)
 
-    def get_instance(self, refs: dict):
-        config = update_configs_with_objs(config=self.config, refs=refs, id=self.id, globals=self.globals)
-        return self.build(config) if isinstance(config, dict) and ("<name>" in config or "<path>" in config) else config
+    def get_updated_config(self, refs: dict):
+        return update_configs_with_objs(config=self.config, refs=refs, id=self.id, globals=self.globals)
 
     def build(self, config: Optional[Dict] = None) -> object:
         """
@@ -92,10 +91,9 @@ class ConfigComponent:
 
         """
         config = self.config if config is None else config
-        if not isinstance(config, dict):
-            raise ValueError("only dictionary config can be built as component instance.")
-
-        if config.get("<disabled>") is True:
+        if not isinstance(config, dict) \
+            or ("<name>" not in config and "<path>" not in config) \
+            or config.get("<disabled>") is True:
             # if marked as `disabled`, skip parsing
             return config
 
@@ -119,39 +117,49 @@ class ConfigComponent:
 
 class ConfigResolver:
     def __init__(self, components: Optional[Dict[str, ConfigComponent]] = None):
-        self.resolved = {}
+        self.resolved_configs = {}
+        self.resolved_components = {}
         self.components = {} if components is None else components
 
     def update(self, component: ConfigComponent):
         self.components[component.get_id()] = component
 
-    def resolve_one_object(self, id: str) -> bool:
-        obj = self.components[id]
+    def resolve_one_component(self, id: str, instantiate: bool = True) -> bool:
+        com = self.components[id]
         # check whether the obj has any unresolved refs in its args
-        ref_ids = obj.get_referenced_ids()
-        if not ref_ids:
-            # this object does not reference others
-            resolved_obj = obj.get_instance([])
-        else:
+        ref_ids = com.get_referenced_ids()
+        refs = {}
+        if len(ref_ids) > 0:
             # see whether all refs are resolved
-            refs = {}
             for comp_id in ref_ids:
-                if comp_id not in self.resolved:
-                    # this referenced object is not resolved
+                if comp_id not in self.resolved_components:
+                    # this referenced component is not resolved
                     if comp_id not in self.components:
                         raise RuntimeError(f"the reference component `{comp_id}` is not in config.")
                     # resolve the dependency first
-                    self.resolve_one_object(id=comp_id)
-                refs[comp_id] = self.resolved[comp_id]
-            # all referenced objects are resolved already
-            resolved_obj = obj.get_instance(refs)
+                    self.resolve_one_component(id=comp_id, instantiate=True)
+                refs[comp_id] = self.resolved_components[comp_id]
+            # all referenced components are resolved already
+        updated_config = com.get_updated_config(refs)
+        resolved_com = None
 
-        self.resolved[id] = resolved_obj
-        return resolved_obj
+        if instantiate:
+            resolved_com = com.build(updated_config)
+            self.resolved_configs[id] = updated_config
+            self.resolved_components[id] = resolved_com
+
+        return updated_config, resolved_com
 
     def resolve_all(self):
-        for v in self.components.values():
-            self.resolve_one_object(obj=v)
+        for k in self.components.keys():
+            self.resolve_one_component(id=k)
 
-    def get_resolved(self, id: str):
-        return self.resolved[id]
+    def get_resolved_compnent(self, id: str):
+        if id not in self.resolved_components:
+            self.resolve_one_component(id=id, instantiate=True)
+        return self.resolved_components[id]
+
+    def get_resolved_config(self, id: str):
+        if id not in self.resolved_configs:
+            self.resolve_one_component(id=id, instantiate=False)
+        return self.resolved_configs[id]

@@ -135,12 +135,13 @@ class TestConfigComponent(unittest.TestCase):
         self.assertListEqual(ret, ref_ids)
 
     @parameterized.expand([TEST_CASE_10, TEST_CASE_11, TEST_CASE_12, TEST_CASE_13, TEST_CASE_14, TEST_CASE_15])
-    def test_get_instance(self, id, test_input, refs, output_type):
+    def test_update_reference(self, id, test_input, refs, output_type):
         scanner = ModuleScanner(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
         configer = ConfigComponent(
             id=id, config=test_input, module_scanner=scanner, globals={"monai": monai, "torch": torch}
         )
-        ret = configer.get_instance(refs)
+        config = configer.get_updated_config(refs)
+        ret = configer.build(config)
         self.assertTrue(isinstance(ret, output_type))
 
 
