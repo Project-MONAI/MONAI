@@ -398,12 +398,15 @@ def non_max_suppression(bbox: torch.Tensor, scores: torch.Tensor, nms_thresh: fl
     if bbox.shape[0] == 0:
         return []
 
-    scores_sort, indices = torch.sort(scores, descending=True)
-    bbox = bbox[indices, :]
+    if bbox.shape[0] != scores.shape[0]:
+        raise ValueError(f"bbox and scores should have same length, got bbox shape {bbox.shape}, scores shape {scores.shape}")
+
+    scores_sort, indices = torch.sort(deepcopy(scores), descending=True)
+    bbox_sort = deepcopy(bbox)[indices, :]
 
     # initialize the list of picked indexes
     pick = []
-    idxs = np.arange(0, bbox.shape[0])
+    idxs = np.arange(0, bbox_sort.shape[0])
     # keep looping while some indexes still remain in the indexes
     # list
     while len(idxs) > 0:
@@ -415,10 +418,10 @@ def non_max_suppression(bbox: torch.Tensor, scores: torch.Tensor, nms_thresh: fl
             break
 
         # compute the IoU
-        iou = box_iou(bbox[idxs[1:], :], bbox[idxs[0:1], :])
+        iou = box_iou(bbox_sort[idxs[1:], :], bbox_sort[i:i+1, :])
 
         # delete all indexes from the index list that have
-        idxs = np.delete(idxs, np.concatenate(([0], np.where(iou.cpu().numpy() > nms_thresh)[0])))
+        idxs = np.delete( idxs, np.concatenate(([0], 1+np.where(iou.cpu().numpy() > nms_thresh)[0]) ) )
 
     # return only the bounding boxes that were picked using the
     # integer data type
