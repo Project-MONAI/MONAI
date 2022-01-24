@@ -78,7 +78,7 @@ class ConfigComponent:
 
     Here we predefined several special marks to parse the config content:
     - "<XXX>": like "<name>" is the name of a class, to distinguish it with regular key "name" in the config content.
-        now we have 4 keys: `<name>`, `<path>`, `<args>`, `<disabled>`.
+    now we have 4 keys: `<name>`, `<path>`, `<args>`, `<disabled>`.
     - "XXX#YYY": join nested config ids, like "transforms#5" is id name of the 6th transform in the transforms list.
     - "@XXX": use an instance as config item, like `"dataset": "@dataset"` uses `dataset` instance as the parameter.
     - "$XXX": execute the string after "$" as python code with `eval()` function, like "$@model.parameters()".
