@@ -19,7 +19,7 @@ from monai.apps import ConfigComponent, ConfigResolver, ModuleScanner
 from monai.data import DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
 
-# test instance with no reference
+# test instance with no dependencies
 TEST_CASE_1 = [
     {
         # all the recursively parsed config items
@@ -80,7 +80,7 @@ class TestConfigComponent(unittest.TestCase):
             resolver.add(ConfigComponent(
                 id=k, config=v, module_scanner=scanner, globals={"monai": monai, "torch": torch}
             ))
-        ins = resolver.get_resolved_compnent(expected_id)
+        ins = resolver.get_resolved_component(expected_id)
         self.assertTrue(isinstance(ins, output_type))
         config = resolver.get_resolved_config(expected_id)
         # test lazy instantiation

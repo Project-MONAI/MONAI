@@ -49,7 +49,9 @@ class TestConfigComponent(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_parse(self, config, expected_ids, output_types):
         parser = ConfigParser(
-            pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"], global_imports=["monai"], config=config
+            pkgs=["torch.optim", "monai"],
+            modules=["data", "transforms", "adam"],global_imports={"monai": "monai"},
+            config=config,
         )
         for id, cls in zip(expected_ids, output_types):
             config = parser.get_resolved_config(id)

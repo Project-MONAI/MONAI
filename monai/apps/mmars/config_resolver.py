@@ -114,27 +114,27 @@ class ConfigComponent:
         """
         return self.config
 
-    def get_referenced_ids(self) -> List[str]:
+    def get_dependent_ids(self) -> List[str]:
         """
         Recursively search all the content of current config compoent to get the ids of dependencies.
-        Must build all the dependencies before build current config component.
+        It's used to build all the dependencies before build current config component.
         For `dict` and `list`, treat every item as a dependency.
         For example, for `{"<name>": "DataLoader", "<args>": {"dataset": "@dataset"}}`, the dependency ids:
         `["<name>", "<args>", "<args>#dataset", "dataset"]`.
 
         """
-        return search_configs_with_objs(self.config, [], id=self.id)
+        return search_configs_with_objs(config=self.config, id=self.id, deps=[])
 
-    def get_updated_config(self, refs: dict):
+    def get_updated_config(self, deps: dict):
         """
-        If all the dependencies are ready in `refs`, update the config content with them and return new config.
+        If all the dependencies are ready in `deps`, update the config content with them and return new config.
         It can be used for lazy instantiation.
 
         Args:
-            refs: all the dependent components with ids.
+            deps: all the dependent components with ids.
 
         """
-        return update_configs_with_objs(config=self.config, refs=refs, id=self.id, globals=self.globals)
+        return update_configs_with_objs(config=self.config, deps=deps, id=self.id, globals=self.globals)
 
     def _check_dependency(self, config):
         """
@@ -249,21 +249,21 @@ class ConfigResolver:
 
         """
         com = self.components[id]
-        # check whether the obj has any unresolved refs in its args
-        ref_ids = com.get_referenced_ids()
-        refs = {}
+        # check whether the obj has any unresolved deps in its args
+        ref_ids = com.get_dependent_ids()
+        deps = {}
         if len(ref_ids) > 0:
-            # see whether all refs are resolved
+            # see whether all deps are resolved
             for comp_id in ref_ids:
                 if comp_id not in self.resolved_components:
-                    # this referenced component is not resolved
+                    # this dependent component is not resolved
                     if comp_id not in self.components:
-                        raise RuntimeError(f"the reference component `{comp_id}` is not in config.")
+                        raise RuntimeError(f"the dependent component `{comp_id}` is not in config.")
                     # resolve the dependency first
                     self._resolve_one_component(id=comp_id, instantiate=True)
-                refs[comp_id] = self.resolved_components[comp_id]
-            # all referenced components are resolved already
-        updated_config = com.get_updated_config(refs)
+                deps[comp_id] = self.resolved_components[comp_id]
+            # all dependent components are resolved already
+        updated_config = com.get_updated_config(deps)
         resolved_com = None
 
         if instantiate:

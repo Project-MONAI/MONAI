@@ -64,49 +64,73 @@ def instantiate_class(class_path: str, **kwargs):
         raise ValueError(f"class {class_path} has parameters error.") from e
 
 
-def search_configs_with_objs(config: Union[Dict, List, str], refs: List[str], id: str):
+def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: List[str] = []):
+    """
+    Recursively search all the content of input config compoent to get the ids of dependencies.
+    It's used to build all the dependencies before build current config component.
+    For `dict` and `list`, treat every item as a dependency.
+    For example, for `{"<name>": "DataLoader", "<args>": {"dataset": "@dataset"}}`, the dependency ids:
+    `["<name>", "<args>", "<args>#dataset", "dataset"]`.
+    
+    Args:
+        config: input config content to search.
+        id: id name for the input config.
+        deps: list of the id name of existing dependencies, default to empty.
+
+    """
     pattern = re.compile(r'@\w*[\#\w]*')  # match ref as args: "@XXX#YYY#ZZZ"
     if isinstance(config, list):
         for i, v in enumerate(config):
             sub_id = f"{id}#{i}"
             # all the items in the list should be marked as dependent reference
-            refs.append(sub_id)
-            refs = search_configs_with_objs(v, refs, sub_id)
+            deps.append(sub_id)
+            deps = search_configs_with_objs(v, sub_id, deps)
     if isinstance(config, dict):
         for k, v in config.items():
             sub_id = f"{id}#{k}"
             # all the items in the dict should be marked as dependent reference
-            refs.append(sub_id)
-            refs = search_configs_with_objs(v, refs, sub_id)
+            deps.append(sub_id)
+            deps = search_configs_with_objs(v, sub_id, deps)
     if isinstance(config, str):
         result = pattern.findall(config)
         for item in result:
             if config.startswith("$") or config == item:
                 ref_obj_id = item[1:]
-                if ref_obj_id not in refs:
-                    refs.append(ref_obj_id)
-    return refs
+                if ref_obj_id not in deps:
+                    deps.append(ref_obj_id)
+    return deps
 
 
-def update_configs_with_objs(config: Union[Dict, List, str], refs: dict, id: str, globals: Optional[Dict] = None):
+def update_configs_with_objs(config: Union[Dict, List, str], deps: dict, id: str, globals: Optional[Dict] = None):
+    """
+    With all the dependencies in `deps`, update the config content with them and return new config.
+    It can be used for lazy instantiation.
+
+    Args:
+        config: input config content to update.
+        deps: all the dependent components with ids.
+        id: id name for the input config.
+        globals: predefined global variables to execute code string with `eval()`.
+
+    """
     pattern = re.compile(r'@\w*[\#\w]*')  # match ref as args: "@XXX#YYY#ZZZ"
     if isinstance(config, list):
         # all the items in the list should be replaced with the reference
-        config = [refs[f"{id}#{i}"] for i in range(len(config))]
+        config = [deps[f"{id}#{i}"] for i in range(len(config))]
     if isinstance(config, dict):
         # all the items in the dict should be replaced with the reference
-        config = {k: refs[f"{id}#{k}"] for k, _ in config.items()}
+        config = {k: deps[f"{id}#{k}"] for k, _ in config.items()}
     if isinstance(config, str):
         result = pattern.findall(config)
         for item in result:
             ref_obj_id = item[1:]
             if config.startswith("$"):
                 # replace with local code and execute soon
-                config = config.replace(item, f"refs['{ref_obj_id}']")
+                config = config.replace(item, f"deps['{ref_obj_id}']")
             elif config == item:
-                config = refs[ref_obj_id]
+                config = deps[ref_obj_id]
 
         if isinstance(config, str):
             if config.startswith("$"):
-                config = eval(config[1:], globals, {"refs": refs})
+                config = eval(config[1:], globals, {"deps": deps})
     return config
