@@ -941,7 +941,8 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
         vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
         comp = x_label == vals[cp.ndarray.argmax(counts)]
         out = comp.astype(x_cupy_dtype)
-        out_tensor = monai.transforms.ToTensor(device=img.device)(out)
+        out_tensor = monai.transforms.ToTensor(device=img.device)(out)  # type: ignore
+
         return out_tensor
 
     img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
