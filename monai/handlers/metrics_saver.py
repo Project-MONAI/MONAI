@@ -70,7 +70,7 @@ class MetricsSaver:
                 mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
 
         save_rank: only the handler on specified rank will save to files in multi-gpus validation, default to 0.
-        delimiter: the delimiter character in CSV file, default to ",", for more details:
+        delimiter: the delimiter character in saved file, default to ",", for more details:
             https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
