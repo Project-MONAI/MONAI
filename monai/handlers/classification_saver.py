@@ -51,8 +51,8 @@ class ClassificationSaver:
         Args:
             output_dir: if `saver=None`, output CSV file directory.
             filename: if `saver=None`, name of the saved CSV file name.
-            delimiter: the delimiter character in the saved file, default to ",", for more details:
-                https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
+            delimiter: the delimiter character in the saved file, default to "," as the default output type is `csv`.
+                to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
             overwrite: if `saver=None`, whether to overwriting existing file content, if True,
                 will clear the file before saving. otherwise, will append new content to the file.
             batch_transform: a callable that is used to extract the `meta_data` dictionary of

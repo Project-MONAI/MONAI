@@ -49,8 +49,8 @@ class CSVSaver:
                 otherwise, will append new content to the CSV file.
             flush: whether to write the cache data to CSV file immediately when `save_batch` and clear the cache.
                 default to False.
-            delimiter: the delimiter character in the saved file, default to ",", for more details:
-                https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
+            delimiter: the delimiter character in the saved file, default to "," as the default output type is `csv`.
+                to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
 
         """
         self.output_dir = Path(output_dir)

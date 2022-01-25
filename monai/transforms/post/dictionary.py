@@ -700,8 +700,8 @@ class SaveClassificationd(MapTransform):
                 the saver must provide `save(data, meta_data)` and `finalize()` APIs.
             output_dir: if `saver=None`, specify the directory to save the CSV file.
             filename: if `saver=None`, specify the name of the saved CSV file.
-            delimiter: the delimiter character in the saved file, default to ",", for more details:
-                https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
+            delimiter: the delimiter character in the saved file, default to "," as the default output type is `csv`.
+                to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
             overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
                 will clear the file before saving. otherwise, will append new content to the CSV file.
             flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately
