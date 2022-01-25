@@ -39,6 +39,7 @@ class CSVSaver:
         filename: str = "predictions.csv",
         overwrite: bool = True,
         flush: bool = False,
+        delimiter: str = ",",
     ) -> None:
         """
         Args:
@@ -48,6 +49,8 @@ class CSVSaver:
                 otherwise, will append new content to the CSV file.
             flush: whether to write the cache data to CSV file immediately when `save_batch` and clear the cache.
                 default to False.
+            delimiter: the delimiter character in the saved file, default to ",", for more details:
+                https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
 
         """
         self.output_dir = Path(output_dir)
@@ -59,6 +62,7 @@ class CSVSaver:
             os.remove(self._filepath)
 
         self.flush = flush
+        self.delimiter = delimiter
         self._data_index = 0
 
     def finalize(self) -> None:
@@ -72,7 +76,7 @@ class CSVSaver:
             for k, v in self._cache_dict.items():
                 f.write(k)
                 for result in v.flatten():
-                    f.write("," + str(result))
+                    f.write(self.delimiter + str(result))
                 f.write("\n")
         # clear cache content after writing
         self.reset_cache()

@@ -23,14 +23,14 @@ from monai.data import CSVSaver
 class TestCSVSaver(unittest.TestCase):
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            saver = CSVSaver(output_dir=tempdir, filename="predictions.csv")
+            saver = CSVSaver(output_dir=tempdir, filename="predictions.csv", delimiter="\t")
             meta_data = {"filename_or_obj": ["testfile" + str(i) for i in range(8)]}
             saver.save_batch(torch.zeros(8), meta_data)
             saver.finalize()
             filepath = os.path.join(tempdir, "predictions.csv")
             self.assertTrue(os.path.exists(filepath))
             with open(filepath) as f:
-                reader = csv.reader(f)
+                reader = csv.reader(f, delimiter="\t")
                 i = 0
                 for row in reader:
                     self.assertEqual(row[0], "testfile" + str(i))

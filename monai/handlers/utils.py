@@ -56,7 +56,7 @@ def write_metrics_reports(
     metrics: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
     metric_details: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
     summary_ops: Optional[Union[str, Sequence[str]]],
-    deli: str = "\t",
+    deli: str = ",",
     output_type: str = "csv",
 ):
     """
@@ -88,7 +88,8 @@ def write_metrics_reports(
                 class1  6.0000   6.0000   6.0000   6.0000      6.0000       1.0000
                 mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
 
-        deli: the delimiter character in the file, default to "\t".
+        deli: the delimiter character in the file, default to ",", for more details:
+            https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """
