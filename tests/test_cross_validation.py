@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import CrossValidation, DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
+from monai.utils.enums import PostFix
 from tests.utils import skip_if_quick
 
 
@@ -22,7 +23,7 @@ class TestCrossValidation(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        transform = Compose(
+        train_transform = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
                 AddChanneld(keys=["image", "label"]),
@@ -30,12 +31,13 @@ class TestCrossValidation(unittest.TestCase):
                 ToTensord(keys=["image", "label"]),
             ]
         )
+        val_transform = LoadImaged(keys=["image", "label"])
 
         def _test_dataset(dataset):
             self.assertEqual(len(dataset), 52)
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue("image_meta_dict" in dataset[0])
+            self.assertTrue(PostFix.meta("image") in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 34, 49, 41))
 
         cvdataset = CrossValidation(
@@ -45,7 +47,7 @@ class TestCrossValidation(unittest.TestCase):
             root_dir=testing_dir,
             task="Task04_Hippocampus",
             section="validation",
-            transform=transform,
+            transform=train_transform,
             download=True,
         )
 
@@ -60,13 +62,14 @@ class TestCrossValidation(unittest.TestCase):
 
         _test_dataset(data)
 
-        # test training data for fold 0 of 5 splits
+        # test training data for fold [1, 2, 3, 4] of 5 splits
         data = cvdataset.get_dataset(folds=[1, 2, 3, 4])
         self.assertTupleEqual(data[0]["image"].shape, (1, 35, 52, 33))
         self.assertEqual(len(data), 208)
         # test train / validation for fold 4 of 5 splits
-        data = cvdataset.get_dataset(folds=[4])
-        self.assertTupleEqual(data[0]["image"].shape, (1, 38, 53, 30))
+        data = cvdataset.get_dataset(folds=[4], transform=val_transform, download=False)
+        # val_transform doesn't add the channel dim to shape
+        self.assertTupleEqual(data[0]["image"].shape, (38, 53, 30))
         self.assertEqual(len(data), 52)
         data = cvdataset.get_dataset(folds=[0, 1, 2, 3])
         self.assertTupleEqual(data[0]["image"].shape, (1, 34, 49, 41))

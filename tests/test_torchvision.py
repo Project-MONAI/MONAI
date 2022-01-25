@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,75 +11,54 @@
 
 import unittest
 
-import torch
 from parameterized import parameterized
 
 from monai.transforms import TorchVision
 from monai.utils import set_determinism
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
 
-TEST_CASE_1 = [
-    {"name": "ColorJitter"},
-    torch.tensor([[[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]]]),
-    torch.tensor([[[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]]]),
-]
-
-TEST_CASE_2 = [
-    {"name": "ColorJitter", "brightness": 0.5, "contrast": 0.5, "saturation": [0.1, 0.8], "hue": 0.5},
-    torch.tensor([[[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]]]),
-    torch.tensor(
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.extend(
         [
             [
-                [0.1090, 0.6193],
-                [0.6193, 0.9164],
+                {"name": "ColorJitter"},
+                p([[[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]]]),
+                p([[[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]]]),
             ],
             [
-                [0.1090, 0.6193],
-                [0.6193, 0.9164],
+                {"name": "ColorJitter", "brightness": 0.5, "contrast": 0.5, "saturation": [0.1, 0.8], "hue": 0.5},
+                p([[[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]]]),
+                p(
+                    [
+                        [[0.1090, 0.6193], [0.6193, 0.9164]],
+                        [[0.1090, 0.6193], [0.6193, 0.9164]],
+                        [[0.1090, 0.6193], [0.6193, 0.9164]],
+                    ]
+                ),
             ],
             [
-                [0.1090, 0.6193],
-                [0.6193, 0.9164],
-            ],
-        ],
-    ),
-]
-
-TEST_CASE_3 = [
-    {"name": "Pad", "padding": [1, 1, 1, 1]},
-    torch.tensor([[[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]]]),
-    torch.tensor(
-        [
-            [
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 1.0, 2.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 1.0, 2.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 1.0, 2.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
+                {"name": "Pad", "padding": [1, 1, 1, 1]},
+                p([[[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]], [[0.0, 1.0], [1.0, 2.0]]]),
+                p(
+                    [
+                        [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 2.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                        [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 2.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                        [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 2.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
+                    ]
+                ),
             ],
         ]
-    ),
-]
+    )
 
 
 @SkipIfBeforePyTorchVersion((1, 7))
 class TestTorchVision(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand(TESTS)
     def test_value(self, input_param, input_data, expected_value):
         set_determinism(seed=0)
         result = TorchVision(**input_param)(input_data)
-        torch.testing.assert_allclose(result, expected_value)
+        assert_allclose(result, expected_value, rtol=1e-3)
 
 
 if __name__ == "__main__":

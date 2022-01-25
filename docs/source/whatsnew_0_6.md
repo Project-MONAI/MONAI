@@ -1,4 +1,4 @@
-# What's new in 0.6 🎉🎉
+# What's new in 0.6
 
 - Decollating mini-batches as an essential post-processing step
 - Pythonic APIs to load the pretrained models from Clara Train MMARs

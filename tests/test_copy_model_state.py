@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,7 @@ from monai.utils import set_determinism
 
 class _TestModelOne(torch.nn.Module):
     def __init__(self, n_n, n_m, n_class):
-        super(_TestModelOne, self).__init__()
+        super().__init__()
         self.layer = torch.nn.Linear(n_n, n_m)
         self.class_layer = torch.nn.Linear(n_m, n_class)
 
@@ -33,7 +33,7 @@ class _TestModelOne(torch.nn.Module):
 
 class _TestModelTwo(torch.nn.Module):
     def __init__(self, n_n, n_m, n_d, n_class):
-        super(_TestModelTwo, self).__init__()
+        super().__init__()
         self.layer = torch.nn.Linear(n_n, n_m)
         self.layer_1 = torch.nn.Linear(n_m, n_d)
         self.class_layer = torch.nn.Linear(n_d, n_class)
