@@ -103,15 +103,15 @@ class SpatialResample(Transform):
         Args:
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
                 See also: https://docs.monai.io/en/stable/networks.html#grid-pull
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
@@ -148,15 +148,15 @@ class SpatialResample(Transform):
                 if `spatial_size` is ``-1`` are the transform will use the corresponding input img size.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
                 See also: https://docs.monai.io/en/stable/networks.html#grid-pull
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
@@ -279,15 +279,15 @@ class Spacing(Transform):
                 of the original data.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
                 See also: https://docs.monai.io/en/stable/networks.html#grid-pull
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
@@ -321,15 +321,15 @@ class Spacing(Transform):
             affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
                 See also: https://docs.monai.io/en/stable/networks.html#grid-pull
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
@@ -539,10 +539,10 @@ class Resize(Transform):
             #albumentations.augmentations.geometric.resize.LongestMaxSize.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
     """
 
     backend = [TransformBackends.TORCH]
@@ -570,10 +570,10 @@ class Resize(Transform):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         Raises:
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
@@ -619,12 +619,12 @@ class Rotate(Transform, ThreadUnsafe):
             input array is contained completely in the output. Default is True.
         mode: {``"bilinear"``, ``"nearest"``}
             Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
             Padding mode for outside grid values. Defaults to ``"border"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         align_corners: Defaults to False.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``np.float32``.
@@ -662,14 +662,14 @@ class Rotate(Transform, ThreadUnsafe):
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 align_corners: Defaults to ``self.align_corners``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             align_corners: Defaults to ``self.align_corners``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
@@ -728,7 +728,7 @@ class Rotate(Transform, ThreadUnsafe):
 class Zoom(Transform):
     """
     Zooms an ND image using :py:class:`torch.nn.functional.interpolate`.
-    For details, please see https://pytorch.org/docs/stable/nn.functional.html#interpolate.
+    For details, please see https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html.
 
     Different from :py:class:`monai.transforms.resize`, this transform takes scaling factors
     as input, and provides an option of preserving the input spatial size.
@@ -739,7 +739,7 @@ class Zoom(Transform):
             If a sequence, zoom should contain one value for each spatial axis.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
@@ -749,7 +749,7 @@ class Zoom(Transform):
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         keep_size: Should keep original size (padding/slicing if needed), default is True.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
@@ -786,7 +786,7 @@ class Zoom(Transform):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
@@ -796,7 +796,7 @@ class Zoom(Transform):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         """
         img_t: torch.Tensor
@@ -928,12 +928,12 @@ class RandRotate(RandomizableTransform):
             If it is True, the output shape is the same as the input. Default is True.
         mode: {``"bilinear"``, ``"nearest"``}
             Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
             Padding mode for outside grid values. Defaults to ``"border"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         align_corners: Defaults to False.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``np.float32``.
@@ -997,12 +997,12 @@ class RandRotate(RandomizableTransform):
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             align_corners: Defaults to ``self.align_corners``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
@@ -1115,7 +1115,7 @@ class RandZoom(RandomizableTransform):
             If 2 values provided for 3D data, use the first value for both H & W dims to keep the same zoom ratio.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
@@ -1125,7 +1125,7 @@ class RandZoom(RandomizableTransform):
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         keep_size: Should keep original size (pad if needed), default is True.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
@@ -1183,7 +1183,7 @@ class RandZoom(RandomizableTransform):
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
@@ -1193,7 +1193,7 @@ class RandZoom(RandomizableTransform):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             randomize: whether to execute `randomize()` function first, default to True.
 
         """
@@ -1505,10 +1505,10 @@ class Resample(Transform):
         Args:
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
                 See also: https://docs.monai.io/en/stable/networks.html#grid-pull
@@ -1545,13 +1545,13 @@ class Resample(Transform):
             grid: shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
                 See also: https://docs.monai.io/en/stable/networks.html#grid-pull
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
@@ -1673,13 +1673,13 @@ class Affine(Transform):
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
                 See also: https://docs.monai.io/en/stable/networks.html#grid-pull
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             norm_coords: whether to normalize the coordinates from `[-(size-1)/2, (size-1)/2]` to
                 `[0, size - 1]` or `[-1, 1]` to be compatible with the underlying resampling API.
                 If the coordinates are generated by ``monai.transforms.utils.create_grid``
@@ -1727,13 +1727,13 @@ class Affine(Transform):
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
                 See also: https://docs.monai.io/en/stable/networks.html#grid-pull
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         grid, affine = self.affine_grid(spatial_size=sp_size)
@@ -1800,10 +1800,10 @@ class RandAffine(RandomizableTransform):
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             cache_grid: whether to cache the identity sampling grid.
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
@@ -1905,10 +1905,10 @@ class RandAffine(RandomizableTransform):
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             randomize: whether to execute `randomize()` function first, default to True.
 
         """
@@ -1990,10 +1990,10 @@ class Rand2DElastic(RandomizableTransform):
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             device: device on which the tensor will be allocated.
 
         See also:
@@ -2053,10 +2053,10 @@ class Rand2DElastic(RandomizableTransform):
                 the transform will use the spatial size of `img`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             randomize: whether to execute `randomize()` function first, default to True.
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
@@ -2146,10 +2146,10 @@ class Rand3DElastic(RandomizableTransform):
                 to `(32, 32, 64)` if the third spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             device: device on which the tensor will be allocated.
 
         See also:
@@ -2213,10 +2213,10 @@ class Rand3DElastic(RandomizableTransform):
                 the transform will use the spatial size of `img`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             randomize: whether to execute `randomize()` function first, default to True.
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
@@ -2261,10 +2261,10 @@ class GridDistortion(Transform):
                 Each value in the tuple represents the distort step of the related cell.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             device: device on which the tensor will be allocated.
 
         """
@@ -2288,10 +2288,10 @@ class GridDistortion(Transform):
                 Each value in the tuple represents the distort step of the related cell.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
 
         """
         distort_steps = self.distort_steps if distort_steps is None else distort_steps
@@ -2349,10 +2349,10 @@ class RandGridDistortion(RandomizableTransform):
                 Defaults to (-0.03, 0.03).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             device: device on which the tensor will be allocated.
 
         """
@@ -2388,10 +2388,10 @@ class RandGridDistortion(RandomizableTransform):
             img: shape must be (num_channels, H, W[, D]).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             randomize: whether to shuffle the random factors using `randomize()`, default to True.
         """
         if randomize:
