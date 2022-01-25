@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,6 +21,7 @@ from monai.networks.blocks.regunet_block import (
     get_conv_block,
     get_deconv_block,
 )
+from monai.networks.utils import meshgrid_ij
 
 __all__ = ["RegUNet", "AffineHead", "GlobalNet", "LocalNet"]
 
@@ -67,7 +68,7 @@ class RegUNet(nn.Module):
             concat_skip: when up-sampling, concatenate skipped tensor if true, otherwise use addition
             encode_kernel_sizes: kernel size for down-sampling
         """
-        super(RegUNet, self).__init__()
+        super().__init__()
         if not extract_levels:
             extract_levels = (depth,)
         if max(extract_levels) != depth:
@@ -106,9 +107,7 @@ class RegUNet(nn.Module):
         # build layers
         self.build_layers()
 
-    def build_layers(
-        self,
-    ):
+    def build_layers(self):
         self.build_encode_layers()
         self.build_decode_layers()
 
@@ -125,23 +124,13 @@ class RegUNet(nn.Module):
             ]
         )
         self.encode_pools = nn.ModuleList(
-            [
-                self.build_down_sampling_block(
-                    channels=self.num_channels[d],
-                )
-                for d in range(self.depth)
-            ]
+            [self.build_down_sampling_block(channels=self.num_channels[d]) for d in range(self.depth)]
         )
         self.bottom_block = self.build_bottom_block(
             in_channels=self.num_channels[-2], out_channels=self.num_channels[-1]
         )
 
-    def build_conv_block(
-        self,
-        in_channels,
-        out_channels,
-        kernel_size,
-    ):
+    def build_conv_block(self, in_channels, out_channels, kernel_size):
         return nn.Sequential(
             get_conv_block(
                 spatial_dims=self.spatial_dims,
@@ -157,10 +146,7 @@ class RegUNet(nn.Module):
             ),
         )
 
-    def build_down_sampling_block(
-        self,
-        channels: int,
-    ):
+    def build_down_sampling_block(self, channels: int):
         return RegistrationDownSampleBlock(spatial_dims=self.spatial_dims, channels=channels, pooling=self.pooling)
 
     def build_bottom_block(self, in_channels: int, out_channels: int):
@@ -203,11 +189,7 @@ class RegUNet(nn.Module):
         # extraction
         self.output_block = self.build_output_block()
 
-    def build_up_sampling_block(
-        self,
-        in_channels: int,
-        out_channels: int,
-    ) -> nn.Module:
+    def build_up_sampling_block(self, in_channels: int, out_channels: int) -> nn.Module:
         return get_deconv_block(spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels)
 
     def build_output_block(self) -> nn.Module:
@@ -255,14 +237,8 @@ class RegUNet(nn.Module):
 
 
 class AffineHead(nn.Module):
-    def __init__(
-        self,
-        spatial_dims: int,
-        image_size: List[int],
-        decode_size: List[int],
-        in_channels: int,
-    ):
-        super(AffineHead, self).__init__()
+    def __init__(self, spatial_dims: int, image_size: List[int], decode_size: List[int], in_channels: int):
+        super().__init__()
         self.spatial_dims = spatial_dims
         if spatial_dims == 2:
             in_features = in_channels * decode_size[0] * decode_size[1]
@@ -285,7 +261,7 @@ class AffineHead(nn.Module):
     @staticmethod
     def get_reference_grid(image_size: Union[Tuple[int], List[int]]) -> torch.Tensor:
         mesh_points = [torch.arange(0, dim) for dim in image_size]
-        grid = torch.stack(torch.meshgrid(*mesh_points), dim=0)  # (spatial_dims, ...)
+        grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         return grid.to(dtype=torch.float)
 
     def affine_transform(self, theta: torch.Tensor):
@@ -365,13 +341,8 @@ class GlobalNet(RegUNet):
 
 
 class AdditiveUpSampleBlock(nn.Module):
-    def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-    ):
-        super(AdditiveUpSampleBlock, self).__init__()
+    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int):
+        super().__init__()
         self.deconv = get_deconv_block(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -435,17 +406,10 @@ class LocalNet(RegUNet):
     def build_bottom_block(self, in_channels: int, out_channels: int):
         kernel_size = self.encode_kernel_sizes[self.depth]
         return get_conv_block(
-            spatial_dims=self.spatial_dims,
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
+            spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size
         )
 
-    def build_up_sampling_block(
-        self,
-        in_channels: int,
-        out_channels: int,
-    ) -> nn.Module:
+    def build_up_sampling_block(self, in_channels: int, out_channels: int) -> nn.Module:
         if self._use_additive_upsampling:
             return AdditiveUpSampleBlock(
                 spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels
