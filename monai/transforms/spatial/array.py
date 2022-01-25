@@ -186,42 +186,41 @@ class SpatialResample(Transform):
                 output_data, *_ = convert_to_dst_type(img_, img, dtype=torch.float32)
                 return output_data, dst
 
-        transform = np.linalg.inv(src) @ dst
-        transform = to_affine_nd(spatial_rank, transform)
+        xform = np.linalg.inv(src) @ dst
+        xform = to_affine_nd(spatial_rank, xform)
         # no resampling if it's identity transform
-        if np.allclose(transform, np.diag(np.ones(len(transform))), atol=AFFINE_TOL):
+        if np.allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL):
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
             return output_data, dst
 
         _dtype = dtype or self.dtype or img.dtype
         spatial_size = ensure_tuple(spatial_size)
+        in_spatial_size = list(img.shape[1 : spatial_rank + 1])
         if spatial_size[0] == -1:  # if the spatial_size == -1
-            spatial_size = img.shape[1 : spatial_rank + 1]
+            spatial_size = in_spatial_size
         elif spatial_size[0] is None:
-            spatial_size, _ = compute_shape_offset(img.shape[1 : spatial_rank + 1], src, dst)  # type: ignore
+            spatial_size, _ = compute_shape_offset(in_spatial_size, src, dst)  # type: ignore
         spatial_size = spatial_size[:spatial_rank]
         chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
         # resample
         img_ = convert_data_type(img, torch.Tensor, dtype=_dtype)[0]  # type: ignore
-        transform = convert_to_dst_type(transform, img_)[0]  # type: ignore
+        xform = convert_to_dst_type(xform, img_)[0]  # type: ignore
         align_corners = self.align_corners if align_corners is None else align_corners
         mode = look_up_option(mode or self.mode, GridSampleMode)
         padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode)
         if additional_dims:
-            xform_shape = [-1] + list(img.shape[1 : spatial_rank + 1])
+            xform_shape = [-1] + in_spatial_size
             img_ = img_.reshape(xform_shape)
         if align_corners:
-            _t_r = torch.diag(torch.ones(len(transform), dtype=transform.dtype, device=transform.device))
+            _t_r = torch.diag(torch.ones(len(xform), dtype=xform.dtype, device=xform.device))  # type: ignore
             for idx, d_dst in enumerate(spatial_size[:spatial_rank]):
                 _t_r[idx, -1] = (max(d_dst, 2) - 1.0) / 2.0
-            transform = transform @ _t_r
+            xform = xform @ _t_r
             if not USE_COMPILED:
-                _t_l = normalize_transform(
-                    img.shape[1 : spatial_rank + 1], device=transform.device, dtype=transform.dtype, align_corners=True
-                )
-                transform = _t_l @ transform
+                _t_l = normalize_transform(in_spatial_size, xform.device, xform.dtype, align_corners=True)  # type: ignore
+                xform = _t_l @ xform
             affine_xform = Affine(
-                affine=transform, spatial_size=spatial_size, norm_coords=False, image_only=True, dtype=_dtype
+                affine=xform, spatial_size=spatial_size, norm_coords=False, image_only=True, dtype=_dtype
             )
             output_data = affine_xform(img_, mode=mode, padding_mode=padding_mode)
         else:
@@ -232,7 +231,7 @@ class SpatialResample(Transform):
                 align_corners=align_corners,
                 reverse_indexing=True,
             )
-            output_data = affine_xform(img_.unsqueeze(0), theta=transform, spatial_size=spatial_size).squeeze(0)
+            output_data = affine_xform(img_.unsqueeze(0), theta=xform, spatial_size=spatial_size).squeeze(0)
         if additional_dims:
             full_shape = (chns, *spatial_size, *additional_dims)
             output_data = output_data.reshape(full_shape)
