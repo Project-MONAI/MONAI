@@ -39,6 +39,7 @@ class ClassificationSaver:
         self,
         output_dir: str = "./",
         filename: str = "predictions.csv",
+        delimiter: str = ",",
         overwrite: bool = True,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
@@ -50,6 +51,8 @@ class ClassificationSaver:
         Args:
             output_dir: if `saver=None`, output CSV file directory.
             filename: if `saver=None`, name of the saved CSV file name.
+            delimiter: the delimiter character in the saved file, default to "," as the default output type is `csv`.
+                to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
             overwrite: if `saver=None`, whether to overwriting existing file content, if True,
                 will clear the file before saving. otherwise, will append new content to the file.
             batch_transform: a callable that is used to extract the `meta_data` dictionary of
@@ -74,6 +77,7 @@ class ClassificationSaver:
         self.save_rank = save_rank
         self.output_dir = output_dir
         self.filename = filename
+        self.delimiter = delimiter
         self.overwrite = overwrite
         self.batch_transform = batch_transform
         self.output_transform = output_transform
@@ -153,6 +157,8 @@ class ClassificationSaver:
 
         # save to CSV file only in the expected rank
         if idist.get_rank() == self.save_rank:
-            saver = self.saver or CSVSaver(self.output_dir, self.filename, self.overwrite)
+            saver = self.saver or CSVSaver(
+                output_dir=self.output_dir, filename=self.filename, overwrite=self.overwrite, delimiter=self.delimiter
+            )
             saver.save_batch(outputs, meta_dict)
             saver.finalize()

@@ -40,7 +40,9 @@ class TestSaveClassificationd(unittest.TestCase):
                 },
             ]
 
-            saver = CSVSaver(output_dir=Path(tempdir), filename="predictions2.csv", overwrite=False, flush=False)
+            saver = CSVSaver(
+                output_dir=Path(tempdir), filename="predictions2.csv", overwrite=False, flush=False, delimiter="\t"
+            )
             # set up test transforms
             post_trans = Compose(
                 [
@@ -52,6 +54,7 @@ class TestSaveClassificationd(unittest.TestCase):
                         meta_keys=None,
                         output_dir=Path(tempdir),
                         filename="predictions1.csv",
+                        delimiter="\t",
                         overwrite=True,
                     ),
                     # 2rd saver only saves data into the cache, manually finalize later
@@ -75,6 +78,7 @@ class TestSaveClassificationd(unittest.TestCase):
                 meta_keys="image_meta_dict",  # specify meta key, so no need to copy anymore
                 output_dir=tempdir,
                 filename="predictions1.csv",
+                delimiter="\t",
                 overwrite=False,
             )
             d = decollate_batch(data[2])
@@ -85,7 +89,7 @@ class TestSaveClassificationd(unittest.TestCase):
                 filepath = os.path.join(tempdir, filename)
                 self.assertTrue(os.path.exists(filepath))
                 with open(filepath) as f:
-                    reader = csv.reader(f)
+                    reader = csv.reader(f, delimiter="\t")
                     i = 0
                     for row in reader:
                         self.assertEqual(row[0], "testfile" + str(i))

@@ -39,6 +39,7 @@ class DistributedMetricsSaver(DistTestCase):
             metric_details=["metric3", "metric4"],
             batch_transform=lambda x: x["image_meta_dict"],
             summary_ops="*",
+            delimiter="\t",
         )
 
         def _val_func(engine, batch):
