@@ -1566,7 +1566,7 @@ class Resample(Transform):
         grid_t = convert_to_dst_type(grid, img_t)[0]  # type: ignore
         if grid_t is grid:  # copy if needed
             grid_t = grid_t.clone()
-        sr = max(len(img_t.shape[1:]), 3)
+        sr = min(len(img_t.shape[1:]), 3)
 
         if USE_COMPILED:
             if self.norm_coords:
