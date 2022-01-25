@@ -216,7 +216,9 @@ class SpatialResample(Transform):
                 _t_r[idx, -1] = (max(d_dst, 2) - 1.0) / 2.0
             transform = transform @ _t_r
             if not USE_COMPILED:
-                _t_l = normalize_transform(img.shape[1 : spatial_rank + 1], device=transform.device, dtype=transform.dtype, align_corners=True)
+                _t_l = normalize_transform(
+                    img.shape[1 : spatial_rank + 1], device=transform.device, dtype=transform.dtype, align_corners=True
+                )
                 transform = _t_l @ transform
             affine_xform = Affine(
                 affine=transform, spatial_size=spatial_size, norm_coords=False, image_only=True, dtype=_dtype
