@@ -196,9 +196,9 @@ for p in TEST_NDARRAYS:
         [
             p,
             {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float, "align_corners": True},
-            np.ones((1, 2, 1, 2, 1)),  # data
+            np.ones((1, 2, 2, 2, 1)),  # data
             {"affine": np.eye(4)},
-            np.array([[[[[1.0], [1.0], [1.0]]], [[[1.0], [1.0], [1.0]]]]]),
+            np.ones((1, 2, 2, 3, 1)),
         ]
     )
 

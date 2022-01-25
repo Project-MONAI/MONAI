@@ -22,7 +22,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, reorient_spatial_axes, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.networks.utils import meshgrid_ij
+from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
@@ -210,8 +210,17 @@ class SpatialResample(Transform):
         if additional_dims:
             xform_shape = [-1] + list(img.shape[1 : spatial_rank + 1])
             img_ = img_.reshape(xform_shape)
-        if USE_COMPILED and align_corners:
-            affine_xform = Affine(affine=transform, spatial_size=spatial_size, image_only=True, dtype=_dtype)
+        if align_corners:
+            _t_r = torch.diag(torch.ones(len(transform), dtype=transform.dtype, device=transform.device))
+            for idx, d_dst in enumerate(spatial_size[:spatial_rank]):
+                _t_r[idx, -1] = (max(d_dst, 2) - 1.0) / 2.0
+            transform = transform @ _t_r
+            if not USE_COMPILED:
+                _t_l = normalize_transform(img.shape[1 : spatial_rank + 1], device=transform.device, dtype=transform.dtype, align_corners=True)
+                transform = _t_l @ transform
+            affine_xform = Affine(
+                affine=transform, spatial_size=spatial_size, norm_coords=False, image_only=True, dtype=_dtype
+            )
             output_data = affine_xform(img_, mode=mode, padding_mode=padding_mode)
         else:
             affine_xform = AffineTransform(
@@ -1484,6 +1493,7 @@ class Resample(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         as_tensor_output: bool = True,
+        norm_coords: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
     ) -> None:
@@ -1501,6 +1511,10 @@ class Resample(Transform):
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
                 See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+            norm_coords: whether to normalize the coordinates from `[-(size-1)/2, (size-1)/2]` to
+                `[0, size - 1]` (for ``monai/csrc`` implementation) or
+                `[-1, 1]` (for torch ``grid_sample`` implementation) to be compatible with the underlying
+                resampling API.
             device: device on which the tensor will be allocated.
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
@@ -1512,6 +1526,7 @@ class Resample(Transform):
         """
         self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.norm_coords = norm_coords
         self.device = device
         self.dtype = dtype
 
@@ -1549,11 +1564,15 @@ class Resample(Transform):
         grid_t = convert_to_dst_type(grid, img_t)[0]  # type: ignore
         if grid_t is grid:  # copy if needed
             grid_t = grid_t.clone()
+        sr = max(len(img_t.shape[1:]), 3)
 
         if USE_COMPILED:
-            for i, dim in enumerate(img_t.shape[1:]):
-                grid_t[i] += (dim - 1.0) / 2.0
-            grid_t = grid_t[:-1] / grid_t[-1:]
+            if self.norm_coords:
+                for i, dim in enumerate(img_t.shape[1:]):
+                    grid_t[i] += (max(dim, 2) - 1.0) / 2.0
+                grid_t = grid_t[:sr] / grid_t[-1:]
+            else:
+                grid_t = grid_t[:sr]
             grid_t = grid_t.permute(list(range(grid_t.ndimension()))[1:] + [0])
             _padding_mode = look_up_option(
                 self.padding_mode if padding_mode is None else padding_mode, GridSamplePadMode
@@ -1575,9 +1594,12 @@ class Resample(Transform):
                 img_t.unsqueeze(0), grid_t.unsqueeze(0), bound=bound, extrapolate=True, interpolation=_interp
             )[0]
         else:
-            for i, dim in enumerate(img_t.shape[1:]):
-                grid_t[i] = 2.0 * grid_t[i] / (dim - 1.0)
-            grid_t = grid_t[:-1] / grid_t[-1:]
+            if self.norm_coords:
+                for i, dim in enumerate(img_t.shape[1:]):
+                    grid_t[i] = 2.0 * grid_t[i] / (max(2, dim) - 1.0)
+                grid_t = grid_t[:sr] / grid_t[-1:]
+            else:
+                grid_t = grid_t[:sr]
             index_ordering: List[int] = list(range(img_t.ndimension() - 2, -1, -1))
             grid_t = grid_t[index_ordering]
             grid_t = grid_t.permute(list(range(grid_t.ndimension()))[1:] + [0])
@@ -1613,6 +1635,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
+        norm_coords: bool = True,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
@@ -1656,6 +1679,11 @@ class Affine(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            norm_coords: whether to normalize the coordinates from `[-(size-1)/2, (size-1)/2]` to
+                `[0, size - 1]` or `[-1, 1]` to be compatible with the underlying resampling API.
+                If the coordinates are generated by ``monai.transforms.utils.create_grid``
+                and the ``affine`` doesn't include the normalization, this argument should be set to ``True``.
+                If the output `self.affine_grid` is already normalized, this argument should be set to ``False``.
             device: device on which the tensor will be allocated.
             dtype: data type for resampling computation. Defaults to ``np.float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
@@ -1676,7 +1704,7 @@ class Affine(Transform):
             device=device,
         )
         self.image_only = image_only
-        self.resampler = Resample(device=device, dtype=dtype)
+        self.resampler = Resample(norm_coords=norm_coords, device=device, dtype=dtype)
         self.spatial_size = spatial_size
         self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
