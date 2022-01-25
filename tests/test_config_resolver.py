@@ -15,10 +15,10 @@ import torch
 from parameterized import parameterized
 
 import monai
-from monai.apps import ConfigComponent, ConfigResolver, ModuleScanner
+from monai.apps import ConfigComponent, ConfigResolver
 from monai.data import DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
-from monai.utils import optional_import
+from monai.utils import ClassScanner, optional_import
 
 _, has_tv = optional_import("torchvision")
 
@@ -79,11 +79,11 @@ TEST_CASE_3 = [
 class TestConfigComponent(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2] + ([TEST_CASE_3] if has_tv else []))
     def test_resolve(self, configs, expected_id, output_type):
-        scanner = ModuleScanner(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
+        scanner = ClassScanner(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
         resolver = ConfigResolver()
         for k, v in configs.items():
             resolver.add(
-                ConfigComponent(id=k, config=v, module_scanner=scanner, globals={"monai": monai, "torch": torch})
+                ConfigComponent(id=k, config=v, class_scanner=scanner, globals={"monai": monai, "torch": torch})
             )
         ins = resolver.get_resolved_component(expected_id)
         self.assertTrue(isinstance(ins, output_type))
@@ -96,15 +96,15 @@ class TestConfigComponent(unittest.TestCase):
         # test lazy instantiation
         config = resolver.get_resolved_config(expected_id)
         config["<disabled>"] = False
-        ins = ConfigComponent(id=expected_id, module_scanner=scanner, config=config).build()
+        ins = ConfigComponent(id=expected_id, class_scanner=scanner, config=config).build()
         self.assertTrue(isinstance(ins, output_type))
 
     def test_circular_dependencies(self):
-        scanner = ModuleScanner(pkgs=[], modules=[])
+        scanner = ClassScanner(pkgs=[], modules=[])
         resolver = ConfigResolver()
         configs = {"A": "@B", "B": "@C", "C": "@A"}
         for k, v in configs.items():
-            resolver.add(ConfigComponent(id=k, config=v, module_scanner=scanner))
+            resolver.add(ConfigComponent(id=k, config=v, class_scanner=scanner))
         for k in ["A", "B", "C"]:
             with self.assertRaises(ValueError):
                 resolver.get_resolved_component(k)

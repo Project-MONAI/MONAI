@@ -9,58 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
-import inspect
-import pkgutil
 import warnings
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
-from monai.apps.mmars.utils import instantiate_class, search_configs_with_objs, update_configs_with_objs
-
-
-class ModuleScanner:
-    """
-    Scan all the available classes in the specified packages and modules.
-    Map the all the class names and the module names in a table.
-
-    Args:
-        pkgs: the expected packages to scan modules and parse class names in the config.
-        modules: the expected modules in the packages to scan for all the classes.
-            for example, to parser "LoadImage" in config, `pkgs` can be ["monai"], `modules` can be ["transforms"].
-
-    """
-
-    def __init__(self, pkgs: Sequence[str], modules: Sequence[str]):
-        self.pkgs = pkgs
-        self.modules = modules
-        self._class_table = self._create_classes_table()
-
-    def _create_classes_table(self):
-        class_table = {}
-        for pkg in self.pkgs:
-            package = importlib.import_module(pkg)
-
-            for _, modname, _ in pkgutil.walk_packages(path=package.__path__, prefix=package.__name__ + "."):
-                # if no modules specified, load all modules in the package
-                if len(self.modules) == 0 or any(name in modname for name in self.modules):
-                    try:
-                        module = importlib.import_module(modname)
-                        for name, obj in inspect.getmembers(module):
-                            if inspect.isclass(obj) and obj.__module__ == modname:
-                                class_table[name] = modname
-                    except ModuleNotFoundError:
-                        pass
-        return class_table
-
-    def get_class_module_name(self, class_name):
-        """
-        Get the module name of the class with specified class name.
-
-        Args:
-            class_name: name of the expected class.
-
-        """
-        return self._class_table.get(class_name, None)
+from monai.apps.mmars.utils import search_configs_with_deps, update_configs_with_deps
+from monai.utils.module import ClassScanner, instantiate_class
 
 
 class ConfigComponent:
@@ -88,17 +41,17 @@ class ConfigComponent:
             for list component, use index from `0` as id.
             for example: `transform`, `transform#5`, `transform#5#<args>#keys`, etc.
         config: config content of current component, can be a `dict`, `list`, `string`, `float`, `int`, etc.
-        module_scanner: ModuleScanner to help get the class name or path in the config and build instance.
+        class_scanner: ClassScanner to help get the class name or path in the config and build instance.
         globals: to support executable string in the config, sometimes we need to provide the global variables
             which are referred in the executable string. for example: `globals={"monai": monai} will be useful
             for config `"collate_fn": "$monai.data.list_data_collate"`.
 
     """
 
-    def __init__(self, id: str, config: Any, module_scanner: ModuleScanner, globals: Optional[Dict] = None) -> None:
+    def __init__(self, id: str, config: Any, class_scanner: ClassScanner, globals: Optional[Dict] = None) -> None:
         self.id = id
         self.config = config
-        self.module_scanner = module_scanner
+        self.class_scanner = class_scanner
         self.globals = globals
 
     def get_id(self) -> str:
@@ -124,7 +77,7 @@ class ConfigComponent:
         `["<name>", "<args>", "<args>#dataset", "dataset"]`.
 
         """
-        return search_configs_with_objs(config=self.config, id=self.id)
+        return search_configs_with_deps(config=self.config, id=self.id)
 
     def get_updated_config(self, deps: dict):
         """
@@ -135,7 +88,7 @@ class ConfigComponent:
             deps: all the dependent components with ids.
 
         """
-        return update_configs_with_objs(config=self.config, deps=deps, id=self.id, globals=self.globals)
+        return update_configs_with_deps(config=self.config, deps=deps, id=self.id, globals=self.globals)
 
     def _check_dependency(self, config):
         """
@@ -205,7 +158,7 @@ class ConfigComponent:
             class_name = config.get("<name>", None)
             if class_name is None:
                 raise ValueError("must provide `<path>` or `<name>` of class to build component.")
-            module_name = self.module_scanner.get_class_module_name(class_name)
+            module_name = self.class_scanner.get_class_module_name(class_name)
             if module_name is None:
                 raise ValueError(f"can not find component class '{class_name}'.")
             class_path = f"{module_name}.{class_name}"

@@ -12,7 +12,8 @@
 import importlib
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from monai.apps.mmars.config_resolver import ConfigComponent, ConfigResolver, ModuleScanner
+from monai.apps.mmars.config_resolver import ConfigComponent, ConfigResolver
+from monai.utils.module import ClassScanner
 
 
 class ConfigParser:
@@ -43,7 +44,7 @@ class ConfigParser:
         self.config = None
         if config is not None:
             self.set_config(config=config)
-        self.module_scanner = ModuleScanner(pkgs=pkgs, modules=modules)
+        self.class_scanner = ClassScanner(pkgs=pkgs, modules=modules)
         self.global_imports: Dict[str, Any] = {"monai": "monai", "torch": "torch", "np": "numpy"}
         if global_imports is not None:
             for k, v in global_imports.items():
@@ -124,7 +125,7 @@ class ConfigParser:
                 self._do_parse(config=v, id=sub_id)
         if id is not None:
             self.config_resolver.add(
-                ConfigComponent(id=id, config=config, module_scanner=self.module_scanner, globals=self.global_imports)
+                ConfigComponent(id=id, config=config, class_scanner=self.class_scanner, globals=self.global_imports)
             )
 
     def parse_config(self, resolve_all: bool = False):
@@ -178,5 +179,5 @@ class ConfigParser:
 
         """
         return ConfigComponent(
-            id="", config=config, module_scanner=self.module_scanner, globals=self.global_imports
+            id="", config=config, class_scanner=self.class_scanner, globals=self.global_imports
         ).build()

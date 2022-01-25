@@ -35,9 +35,6 @@ Model Package
 .. autoclass:: ConfigParser
     :members:
 
-.. autoclass:: ModuleScanner
-    :members:
-
 .. autoclass:: ConfigComponent
     :members:
 

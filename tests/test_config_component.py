@@ -16,10 +16,10 @@ import torch
 from parameterized import parameterized
 
 import monai
-from monai.apps import ConfigComponent, ModuleScanner
+from monai.apps import ConfigComponent
 from monai.data import DataLoader, Dataset
 from monai.transforms import LoadImaged, RandTorchVisiond
-from monai.utils import optional_import
+from monai.utils import ClassScanner, optional_import
 
 _, has_tv = optional_import("torchvision")
 
@@ -110,8 +110,8 @@ class TestConfigComponent(unittest.TestCase):
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5] + ([TEST_CASE_6] if has_tv else [])
     )
     def test_build(self, input_param, test_input, output_type):
-        scanner = ModuleScanner(**input_param)
-        configer = ConfigComponent(id="test", config=test_input, module_scanner=scanner)
+        scanner = ClassScanner(**input_param)
+        configer = ConfigComponent(id="test", config=test_input, class_scanner=scanner)
         ret = configer.build()
         self.assertTrue(isinstance(ret, output_type))
         if isinstance(ret, LoadImaged):
@@ -122,16 +122,16 @@ class TestConfigComponent(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_7, TEST_CASE_8, TEST_CASE_9, TEST_CASE_10])
     def test_dependent_ids(self, test_input, ref_ids):
-        scanner = ModuleScanner(pkgs=[], modules=[])
-        configer = ConfigComponent(id="test", config=test_input, module_scanner=scanner)
+        scanner = ClassScanner(pkgs=[], modules=[])
+        configer = ConfigComponent(id="test", config=test_input, class_scanner=scanner)
         ret = configer.get_dependent_ids()
         self.assertListEqual(ret, ref_ids)
 
     @parameterized.expand([TEST_CASE_11, TEST_CASE_12, TEST_CASE_13, TEST_CASE_14, TEST_CASE_15, TEST_CASE_16])
     def test_update_dependencies(self, id, test_input, deps, output_type):
-        scanner = ModuleScanner(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
+        scanner = ClassScanner(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
         configer = ConfigComponent(
-            id=id, config=test_input, module_scanner=scanner, globals={"monai": monai, "torch": torch}
+            id=id, config=test_input, class_scanner=scanner, globals={"monai": monai, "torch": torch}
         )
         config = configer.get_updated_config(deps)
         ret = configer.build(config)

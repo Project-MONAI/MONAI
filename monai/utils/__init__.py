@@ -61,14 +61,17 @@ from .misc import (
     zip_with,
 )
 from .module import (
+    ClassScanner,
     InvalidPyTorchVersionError,
     OptionalImportError,
     damerau_levenshtein_distance,
     exact_version,
     export,
+    get_class,
     get_full_type_name,
     get_package_version,
     get_torch_version_tuple,
+    instantiate_class,
     load_submodules,
     look_up_option,
     min_version,

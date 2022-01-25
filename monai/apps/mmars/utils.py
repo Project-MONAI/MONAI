@@ -9,61 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
 import re
 from typing import Dict, List, Optional, Union
 
 
-def get_class(class_path: str):
-    """
-    Get the class from specified class path.
-
-    Args:
-        class_path (str): full path of the class.
-
-    Raises:
-        ValueError: invalid class_path, missing the module name.
-        ValueError: class does not exist.
-        ValueError: module does not exist.
-
-    """
-    if len(class_path.split(".")) < 2:
-        raise ValueError(f"invalid class_path: {class_path}, missing the module name.")
-    module_name, class_name = class_path.rsplit(".", 1)
-
-    try:
-        module_ = importlib.import_module(module_name)
-
-        try:
-            class_ = getattr(module_, class_name)
-        except AttributeError as e:
-            raise ValueError(f"class {class_name} does not exist.") from e
-
-    except AttributeError as e:
-        raise ValueError(f"module {module_name} does not exist.") from e
-
-    return class_
-
-
-def instantiate_class(class_path: str, **kwargs):
-    """
-    Method for creating an instance for the specified class.
-
-    Args:
-        class_path: full path of the class.
-        kwargs: arguments to initialize the class instance.
-
-    Raises:
-        ValueError: class has paramenters error.
-    """
-
-    try:
-        return get_class(class_path)(**kwargs)
-    except TypeError as e:
-        raise ValueError(f"class {class_path} has parameters error.") from e
-
-
-def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: Optional[List[str]] = None) -> List[str]:
+def search_configs_with_deps(config: Union[Dict, List, str], id: str, deps: Optional[List[str]] = None) -> List[str]:
     """
     Recursively search all the content of input config compoent to get the ids of dependencies.
     It's used to build all the dependencies before build current config component.
@@ -84,13 +34,13 @@ def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: Opti
             sub_id = f"{id}#{i}"
             # all the items in the list should be marked as dependent reference
             deps_.append(sub_id)
-            deps_ = search_configs_with_objs(v, sub_id, deps_)
+            deps_ = search_configs_with_deps(v, sub_id, deps_)
     if isinstance(config, dict):
         for k, v in config.items():
             sub_id = f"{id}#{k}"
             # all the items in the dict should be marked as dependent reference
             deps_.append(sub_id)
-            deps_ = search_configs_with_objs(v, sub_id, deps_)
+            deps_ = search_configs_with_deps(v, sub_id, deps_)
     if isinstance(config, str):
         result = pattern.findall(config)
         for item in result:
@@ -101,7 +51,7 @@ def search_configs_with_objs(config: Union[Dict, List, str], id: str, deps: Opti
     return deps_
 
 
-def update_configs_with_objs(config: Union[Dict, List, str], deps: dict, id: str, globals: Optional[Dict] = None):
+def update_configs_with_deps(config: Union[Dict, List, str], deps: dict, id: str, globals: Optional[Dict] = None):
     """
     With all the dependencies in `deps`, update the config content with them and return new config.
     It can be used for lazy instantiation.

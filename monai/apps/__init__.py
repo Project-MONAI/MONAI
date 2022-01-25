@@ -15,14 +15,11 @@ from .mmars import (
     ConfigComponent,
     ConfigParser,
     ConfigResolver,
-    ModuleScanner,
     RemoteMMARKeys,
     download_mmar,
-    get_class,
     get_model_spec,
-    instantiate_class,
     load_from_mmar,
-    search_configs_with_objs,
-    update_configs_with_objs,
+    search_configs_with_deps,
+    update_configs_with_deps,
 )
 from .utils import SUPPORTED_HASH_TYPES, check_hash, download_and_extract, download_url, extractall, get_logger, logger
