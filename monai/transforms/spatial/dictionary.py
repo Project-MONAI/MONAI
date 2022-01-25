@@ -183,14 +183,14 @@ class Spacingd(MapTransform, InvertibleTransform):
                 axes against the original ones.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of bool, each element corresponds to a key in ``keys``.
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
@@ -526,11 +526,11 @@ class Resized(MapTransform, InvertibleTransform):
             #albumentations.augmentations.geometric.resize.LongestMaxSize.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -639,11 +639,11 @@ class Affined(MapTransform, InvertibleTransform):
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
@@ -769,11 +769,11 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             cache_grid: whether to cache the identity sampling grid.
                 If the spatial size is not dynamically defined by input image, enabling this option could
@@ -939,11 +939,11 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
@@ -1075,11 +1075,11 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
@@ -1311,14 +1311,14 @@ class Rotated(MapTransform, InvertibleTransform):
             If it is True, the output shape is the same as the input. Default is True.
         mode: {``"bilinear"``, ``"nearest"``}
             Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
             Padding mode for outside grid values. Defaults to ``"border"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners: Defaults to False.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data. To be compatible with other modules,
@@ -1422,14 +1422,14 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             If it is True, the output shape is the same as the input. Default is True.
         mode: {``"bilinear"``, ``"nearest"``}
             Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
             Padding mode for outside grid values. Defaults to ``"border"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         align_corners: Defaults to False.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data. To be compatible with other modules,
@@ -1548,7 +1548,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             If a sequence, zoom should contain one value for each spatial axis.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
@@ -1559,7 +1559,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
@@ -1648,7 +1648,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             If 2 values provided for 3D data, use the first value for both H & W dims to keep the same zoom ratio.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
@@ -1659,7 +1659,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
@@ -1779,11 +1779,11 @@ class GridDistortiond(MapTransform):
                 Each value in the tuple represents the distort step of the related cell.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
@@ -1829,11 +1829,11 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
                 Defaults to (-0.03, 0.03).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
