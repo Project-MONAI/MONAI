@@ -169,9 +169,9 @@ class SpatialResample(Transform):
         When both ``monai.config.USE_COMPILED`` and ``align_corners`` are set to ``True``,
         MONAI's resampling implementation will be used.
         """
-        spatial_rank = min(len(img.shape) - 1, 3)
         if src is None:
             src = np.eye(4, dtype=np.float64)
+        spatial_rank = min(len(img.shape) - 1, src.shape[0] - 1, 3)
         src = to_affine_nd(spatial_rank, src)
         dst = to_affine_nd(spatial_rank, dst) if dst is not None else src
         dst, *_ = convert_to_dst_type(dst, dst, dtype=torch.float32)
@@ -211,8 +211,8 @@ class SpatialResample(Transform):
         img_ = convert_data_type(img, torch.Tensor, dtype=_dtype)[0]  # type: ignore
         xform = convert_to_dst_type(xform, img_)[0]  # type: ignore
         align_corners = self.align_corners if align_corners is None else align_corners
-        mode = look_up_option(mode or self.mode, GridSampleMode)
-        padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode)
+        mode = mode or self.mode
+        padding_mode = padding_mode or self.padding_mode
         if additional_dims:
             xform_shape = [-1] + in_spatial_size
             img_ = img_.reshape(xform_shape)
@@ -1576,25 +1576,20 @@ class Resample(Transform):
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
-            grid_t = moveaxis(grid_t[:sr], 0, -1)
-            _padding_mode = look_up_option(
-                self.padding_mode if padding_mode is None else padding_mode, GridSamplePadMode
-            ).value
-            if _padding_mode == "zeros":
-                bound = 7
-            elif _padding_mode == "border":
-                bound = 0
+            grid_t = moveaxis(grid_t[:sr], 0, -1)  # type: ignore
+            _padding_mode = self.padding_mode if padding_mode is None else padding_mode
+            _padding_mode = _padding_mode.value if isinstance(_padding_mode, GridSamplePadMode) else _padding_mode
+            bound = 1 if _padding_mode == "reflection" else _padding_mode
+            _interp_mode = self.mode if mode is None else mode
+            _interp_mode = _interp_mode.value if isinstance(_interp_mode, GridSampleMode) else _interp_mode
+            if _interp_mode == "bicubic":
+                interp = 3
+            elif _interp_mode == "bilinear":
+                interp = 1
             else:
-                bound = 1  # "relection"
-            _interp_mode = look_up_option(self.mode if mode is None else mode, GridSampleMode).value
-            if _interp_mode == "nearest":
-                _interp = 0
-            elif _interp_mode == "bicubic":
-                _interp = 3
-            else:
-                _interp = 1  # "bilinear"
+                interp = _interp_mode  # type: ignore
             out = grid_pull(
-                img_t.unsqueeze(0), grid_t.unsqueeze(0), bound=bound, extrapolate=True, interpolation=_interp
+                img_t.unsqueeze(0), grid_t.unsqueeze(0), bound=bound, extrapolate=True, interpolation=interp
             )[0]
         else:
             if self.norm_coords:
