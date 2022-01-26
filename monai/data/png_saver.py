@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pathlib import Path
 from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
 
+from monai.config.type_definitions import PathLike
 from monai.data.png_writer import write_png
 from monai.data.utils import create_file_basename
 from monai.utils import ImageMetaKey as Key
@@ -34,13 +34,13 @@ class PNGSaver:
 
     def __init__(
         self,
-        output_dir: Union[Path, str] = "./",
+        output_dir: PathLike = "./",
         output_postfix: str = "seg",
         output_ext: str = ".png",
         resample: bool = True,
         mode: Union[InterpolateMode, str] = InterpolateMode.NEAREST,
         scale: Optional[int] = None,
-        data_root_dir: str = "",
+        data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:
@@ -52,7 +52,7 @@ class PNGSaver:
             resample: whether to resample and resize if providing spatial_shape in the metadata.
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``"nearest"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
             data_root_dir: if not empty, it specifies the beginning parts of the input file's
@@ -134,11 +134,7 @@ class PNGSaver:
             raise ValueError(f"Unsupported number of channels: {data.shape[0]}, available options are [1, 3, 4]")
 
         write_png(
-            np.asarray(data),
-            file_name=path,
-            output_spatial_shape=spatial_shape,
-            mode=self.mode,
-            scale=self.scale,
+            np.asarray(data), file_name=path, output_spatial_shape=spatial_shape, mode=self.mode, scale=self.scale
         )
 
         if self.print_log:
