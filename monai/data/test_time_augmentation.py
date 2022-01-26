@@ -16,17 +16,17 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 import numpy as np
 import torch
 
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
-from monai.data.utils import list_data_collate, pad_list_data_collate
+from monai.data.utils import decollate_batch, pad_list_data_collate
+from monai.handlers.utils import from_engine
 from monai.transforms.compose import Compose
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.inverse_batch_transform import BatchInverseTransform
+from monai.transforms.post.dictionary import Invertd
 from monai.transforms.transform import Randomizable
-from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils.enums import CommonKeys, PostFix, TraceKeys
+from monai.utils.enums import CommonKeys, PostFix
 from monai.utils.module import optional_import
-from monai.utils.type_conversion import convert_data_type
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -80,19 +80,22 @@ class TestTimeAugmentation:
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
             this arg only works when `meta_keys=None`.
-        return_full_data: normally, metrics are returned (mode, mean, std, vvc). Setting this flag to `True` will return the
-            full data. Dimensions will be same size as when passing a single image through `inferrer_fn`, with a dimension appended
-            equal in size to `num_examples` (N), i.e., `[N,C,H,W,[D]]`.
+        to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
+        output_device: if converted the inverted data to Tensor, move the inverted results to target device
+            before `post_func`, default to "cpu".
+        post_func: post processing for the inverted data, should be a callable function.
+        return_full_data: normally, metrics are returned (mode, mean, std, vvc). Setting this flag to `True`
+            will return the full data. Dimensions will be same size as when passing a single image through
+            `inferrer_fn`, with a dimension appended equal in size to `num_examples` (N), i.e., `[N,C,H,W,[D]]`.
         progress: whether to display a progress bar.
 
     Example:
         .. code-block:: python
 
             transform = RandAffined(keys, ...)
-            post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
 
             tt_aug = TestTimeAugmentation(
-                transform, batch_size=5, num_workers=0, inferrer_fn=lambda x: post_trans(model(x)), device=device
+                transform, batch_size=5, num_workers=0, inferrer_fn=model, device=device
             )
             mode, mean, std, vvc = tt_aug(test_data)
     """
@@ -109,6 +112,9 @@ class TestTimeAugmentation:
         nearest_interp: bool = True,
         orig_meta_keys: Optional[str] = None,
         meta_key_postfix=DEFAULT_POST_FIX,
+        to_tensor: bool = True,
+        output_device: Union[str, torch.device] = "cpu",
+        post_func: Callable = lambda x: x,
         return_full_data: bool = False,
         progress: bool = True,
     ) -> None:
@@ -118,12 +124,20 @@ class TestTimeAugmentation:
         self.inferrer_fn = inferrer_fn
         self.device = device
         self.image_key = image_key
-        self.orig_key = orig_key
-        self.nearest_interp = nearest_interp
-        self.orig_meta_keys = orig_meta_keys
-        self.meta_key_postfix = meta_key_postfix
         self.return_full_data = return_full_data
         self.progress = progress
+        self._pred_key = CommonKeys.PRED
+        self.inverter = Invertd(
+            keys=self._pred_key,
+            transform=transform,
+            orig_keys=orig_key,
+            orig_meta_keys=orig_meta_keys,
+            meta_key_postfix=meta_key_postfix,
+            nearest_interp=nearest_interp,
+            to_tensor=to_tensor,
+            device=output_device,
+            post_func=post_func,
+        )
 
         # check that the transform has at least one random component, and that all random transforms are invertible
         self._check_transforms()
@@ -154,11 +168,12 @@ class TestTimeAugmentation:
             num_examples: number of realisations to be processed and results combined.
 
         Returns:
-            - if `return_full_data==False`: mode, mean, std, vvc. The mode, mean and standard deviation are calculated across
-                `num_examples` outputs at each voxel. The volume variation coefficient (VVC) is `std/mean` across the whole output,
-                including `num_examples`. See original paper for clarification.
-            - if `return_full_data==False`: data is returned as-is after applying the `inferrer_fn` and then concatenating across
-                the first dimension containing `num_examples`. This allows the user to perform their own analysis if desired.
+            - if `return_full_data==False`: mode, mean, std, vvc. The mode, mean and standard deviation are
+                calculated across `num_examples` outputs at each voxel. The volume variation coefficient (VVC)
+                is `std/mean` across the whole output, including `num_examples`. See original paper for clarification.
+            - if `return_full_data==False`: data is returned as-is after applying the `inferrer_fn` and then
+                concatenating across the first dimension containing `num_examples`. This allows the user to perform
+                their own analysis if desired.
         """
         d = dict(data)
 
@@ -171,55 +186,21 @@ class TestTimeAugmentation:
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, num_workers=self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
-        transform_key = InvertibleTransform.trace_key(self.orig_key)
-
-        # create inverter
-        inverter = BatchInverseTransform(self.transform, dl, collate_fn=list_data_collate)
-
-        outputs: List[np.ndarray] = []
+        outs: List[NdarrayOrTensor] = []
 
         for batch_data in tqdm(dl) if has_tqdm and self.progress else dl:
-
-            batch_images = batch_data[self.image_key].to(self.device)
-
             # do model forward pass
-            batch_output = self.inferrer_fn(batch_images)
-            if isinstance(batch_output, torch.Tensor):
-                batch_output = batch_output.detach().cpu()
-            if isinstance(batch_output, np.ndarray):
-                batch_output = torch.Tensor(batch_output)
-            transform_info = batch_data.get(transform_key, None)
-            if transform_info is None:
-                # no invertible transforms, adding dummy info for identity invertible
-                transform_info = [[TraceKeys.NONE] for _ in range(self.batch_size)]
-            if self.nearest_interp:
-                transform_info = convert_inverse_interp_mode(
-                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
-                )
+            batch_data[self._pred_key] = self.inferrer_fn(batch_data[self.image_key].to(self.device))
+            result = [self.inverter(i) for i in decollate_batch(batch_data)]
+            outs.append(from_engine(keys=self._pred_key)(result))
 
-            # create a dictionary containing the inferred batch and their transforms
-            inferred_dict = {self.orig_key: batch_output, transform_key: transform_info}
-            # if meta dict is present, add that too (required for some inverse transforms)
-            meta_dict_key = self.orig_meta_keys or f"{self.orig_key}_{self.meta_key_postfix}"
-            if meta_dict_key in batch_data:
-                inferred_dict[meta_dict_key] = batch_data[meta_dict_key]
-
-            # do inverse transformation (allow missing keys as only inverting the orig_key)
-            with allow_missing_keys_mode(self.transform):  # type: ignore
-                inv_batch = inverter(inferred_dict)
-
-            # append
-            outputs.append(inv_batch[self.orig_key])
-
-        # output
-        output: np.ndarray = np.concatenate(outputs)
+        output: NdarrayOrTensor = np.stack(outs, 0) if isinstance(outs[0], np.np.ndarray) else torch.stack(outs, 0)
 
         if self.return_full_data:
             return output
 
         # calculate metrics
-        output_t, *_ = convert_data_type(output, output_type=torch.Tensor, dtype=np.int64)
-        mode: np.ndarray = np.asarray(torch.mode(output_t, dim=0).values)  # type: ignore
+        mode: np.ndarray = np.asarray(torch.mode(output, dim=0).values)  # type: ignore
         mean: np.ndarray = np.mean(output, axis=0)  # type: ignore
         std: np.ndarray = np.std(output, axis=0)  # type: ignore
         vvc: float = (np.std(output) / np.mean(output)).item()
