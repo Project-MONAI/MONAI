@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from monai.data.utils import create_file_basename
 
@@ -68,6 +69,15 @@ class TestFilename(unittest.TestCase):
             result = create_file_basename("post", "test.tar.gz", output_tmp, "foo", True, 8)
             expected = os.path.join(output_tmp, "test", "test_post_8")
             self.assertEqual(result, expected)
+
+            result = create_file_basename("post", Path("test.tar.gz"), Path(output_tmp), Path("foo"), True, 8)
+            expected = os.path.join(output_tmp, "test", "test_post_8")
+            self.assertEqual(result, expected)
+
+    def test_relative_path(self):
+        output = create_file_basename("", "test.txt", "output", "", makedirs=False)
+        expected = os.path.join("output", "test", "test")
+        self.assertEqual(output, expected)
 
 
 if __name__ == "__main__":

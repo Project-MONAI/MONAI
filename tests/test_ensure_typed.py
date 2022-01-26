@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,9 +25,13 @@ class TestEnsureTyped(unittest.TestCase):
             test_datas.append(test_datas[-1].cuda())
         for test_data in test_datas:
             for dtype in ("tensor", "NUMPY"):
-                result = EnsureTyped(keys="data", data_type=dtype)({"data": test_data})["data"]
+                result = EnsureTyped(
+                    keys="data", data_type=dtype, dtype=np.float32 if dtype == "NUMPY" else None, device="cpu"
+                )({"data": test_data})["data"]
+                if dtype == "NUMPY":
+                    self.assertTrue(result.dtype == np.float32)
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
-                assert_allclose(result, test_data)
+                assert_allclose(result, test_data, type_test=False)
                 self.assertTupleEqual(result.shape, (2, 2))
 
     def test_single_input(self):
@@ -41,7 +45,7 @@ class TestEnsureTyped(unittest.TestCase):
                 if isinstance(test_data, bool):
                     self.assertFalse(result)
                 else:
-                    assert_allclose(result, test_data)
+                    assert_allclose(result, test_data, type_test=False)
                 self.assertEqual(result.ndim, 0)
 
     def test_string(self):
@@ -57,12 +61,14 @@ class TestEnsureTyped(unittest.TestCase):
 
     def test_list_tuple(self):
         for dtype in ("tensor", "numpy"):
-            result = EnsureTyped(keys="data", data_type=dtype)({"data": [[1, 2], [3, 4]]})["data"]
+            result = EnsureTyped(keys="data", data_type=dtype, wrap_sequence=False)({"data": [[1, 2], [3, 4]]})["data"]
             self.assertTrue(isinstance(result, list))
             self.assertTrue(isinstance(result[0][1], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result[1][0], torch.as_tensor(3))
             # tuple of numpy arrays
-            result = EnsureTyped(keys="data", data_type=dtype)({"data": (np.array([1, 2]), np.array([3, 4]))})["data"]
+            result = EnsureTyped(keys="data", data_type=dtype, wrap_sequence=False)(
+                {"data": (np.array([1, 2]), np.array([3, 4]))}
+            )["data"]
             self.assertTrue(isinstance(result, tuple))
             self.assertTrue(isinstance(result[0], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result[1], torch.as_tensor([3, 4]))
@@ -75,7 +81,7 @@ class TestEnsureTyped(unittest.TestCase):
             "extra": None,
         }
         for dtype in ("tensor", "numpy"):
-            result = EnsureTyped(keys="data", data_type=dtype)({"data": test_data})["data"]
+            result = EnsureTyped(keys="data", data_type=dtype, device="cpu")({"data": test_data})["data"]
             self.assertTrue(isinstance(result, dict))
             self.assertTrue(isinstance(result["img"], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]))
