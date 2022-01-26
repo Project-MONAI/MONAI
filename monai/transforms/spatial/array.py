@@ -34,6 +34,7 @@ from monai.transforms.utils import (
     create_translate,
     map_spatial_axes,
 )
+from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -1575,9 +1576,7 @@ class Resample(Transform):
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
-            else:
-                grid_t = grid_t[:sr]
-            grid_t = torch.movedim(grid_t, 0, -1)
+            grid_t = moveaxis(grid_t[:sr], 0, -1)
             _padding_mode = look_up_option(
                 self.padding_mode if padding_mode is None else padding_mode, GridSamplePadMode
             ).value
@@ -1602,7 +1601,7 @@ class Resample(Transform):
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     grid_t[i] = 2.0 / (max(2, dim) - 1.0) * grid_t[i] / grid_t[-1:]
             index_ordering: List[int] = list(range(sr - 1, -1, -1))
-            grid_t = torch.moveaxis(grid_t[index_ordering], 0, -1)
+            grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
                 grid_t.unsqueeze(0),
