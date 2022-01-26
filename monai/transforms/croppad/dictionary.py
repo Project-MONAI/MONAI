@@ -380,7 +380,8 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             self.push_transform(d, key)
             meta_key = PostFix.meta(key)
             meta: Optional[Dict] = d.get(meta_key, None)  # type: ignore
-            d[key], meta = self.cropper.call_w_meta(d[key], meta)  # type: ignore
+            img: NdarrayOrTensor = d[key]  # type: ignore
+            d[key], meta = self.cropper.call_w_meta(img, meta=meta)
             if meta is not None:
                 d[meta_key] = meta
         return d

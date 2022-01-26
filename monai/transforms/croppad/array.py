@@ -766,7 +766,7 @@ class CropForeground(Transform):
         Crop and pad based on the bounding box.
         """
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        cropped, meta = cropper.call_w_meta(img, meta)
+        cropped, meta = cropper.call_w_meta(img, meta=meta)
 
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
@@ -782,11 +782,11 @@ class CropForeground(Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
-        *out, _ = self.call_w_meta(img, mode)
+        *out, _ = self.call_w_meta(img, mode=mode)
         return out[0] if len(out) == 1 else out
 
     def call_w_meta(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None, meta: Optional[Dict] = None
+        self, img: NdarrayOrTensor, meta: Optional[Dict] = None, mode: Optional[Union[NumpyPadMode, str]] = None
     ):
         """Same as `__call__`, but also updates meta data."""
         box_start, box_end = self.compute_bounding_box(img)

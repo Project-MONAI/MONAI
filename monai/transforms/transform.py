@@ -234,7 +234,7 @@ class Transform(ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def call_w_meta(self, data: Any, meta: Optional[Dict] = None):
+    def call_w_meta(self, data: Any, meta: Optional[Dict] = None) -> Tuple[Any, Optional[Dict]]:
         """
         Same as ``__call__``, except it also updates the meta data
         """

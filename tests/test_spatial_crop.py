@@ -74,7 +74,7 @@ class TestSpatialCrop(unittest.TestCase):
                 cropper = SpatialCrop(**input_param_mod)
                 ndim = len(im.shape[1:])
                 meta_in = {"affine": p(np.eye(ndim + 1))}
-                _, meta_out = cropper.call_w_meta(im, meta_in)
+                _, meta_out = cropper.call_w_meta(im, meta=meta_in)
 
                 if "roi_start" in input_param:
                     desired = input_param["roi_start"]
