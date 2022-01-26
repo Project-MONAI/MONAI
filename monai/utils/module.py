@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import enum
+import inspect
 import os
 import re
 import sys
@@ -19,7 +20,7 @@ from importlib import import_module
 from pkgutil import walk_packages
 from re import match
 from types import FunctionType
-from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
+from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Sequence, Tuple, cast
 
 import torch
 
@@ -36,6 +37,9 @@ __all__ = [
     "optional_import",
     "require_pkg",
     "load_submodules",
+    "ClassScanner",
+    "get_class",
+    "instantiate_class",
     "get_full_type_name",
     "get_package_version",
     "get_torch_version_tuple",
@@ -193,7 +197,105 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     return submodules, err_mod
 
 
+class ClassScanner:
+    """
+    Scan all the available classes in the specified packages and modules.
+    Map the all the class names and the module names in a table.
+
+    Args:
+        pkgs: the expected packages to scan modules and parse class names in the config.
+        modules: the expected modules in the packages to scan for all the classes.
+            for example, to parser "LoadImage" in config, `pkgs` can be ["monai"], `modules` can be ["transforms"].
+
+    """
+
+    def __init__(self, pkgs: Sequence[str], modules: Sequence[str]):
+        self.pkgs = pkgs
+        self.modules = modules
+        self._class_table = self._create_classes_table()
+
+    def _create_classes_table(self):
+        class_table = {}
+        for pkg in self.pkgs:
+            package = import_module(pkg)
+
+            for _, modname, _ in walk_packages(path=package.__path__, prefix=package.__name__ + "."):
+                # if no modules specified, load all modules in the package
+                if len(self.modules) == 0 or any(name in modname for name in self.modules):
+                    try:
+                        module = import_module(modname)
+                        for name, obj in inspect.getmembers(module):
+                            if inspect.isclass(obj) and obj.__module__ == modname:
+                                class_table[name] = modname
+                    except ModuleNotFoundError:
+                        pass
+        return class_table
+
+    def get_class_module_name(self, class_name):
+        """
+        Get the module name of the class with specified class name.
+
+        Args:
+            class_name: name of the expected class.
+
+        """
+        return self._class_table.get(class_name, None)
+
+
+def get_class(class_path: str):
+    """
+    Get the class from specified class path.
+
+    Args:
+        class_path (str): full path of the class.
+
+    Raises:
+        ValueError: invalid class_path, missing the module name.
+        ValueError: class does not exist.
+        ValueError: module does not exist.
+
+    """
+    if len(class_path.split(".")) < 2:
+        raise ValueError(f"invalid class_path: {class_path}, missing the module name.")
+    module_name, class_name = class_path.rsplit(".", 1)
+
+    try:
+        module_ = import_module(module_name)
+
+        try:
+            class_ = getattr(module_, class_name)
+        except AttributeError as e:
+            raise ValueError(f"class {class_name} does not exist.") from e
+
+    except AttributeError as e:
+        raise ValueError(f"module {module_name} does not exist.") from e
+
+    return class_
+
+
+def instantiate_class(class_path: str, **kwargs):
+    """
+    Method for creating an instance for the specified class.
+
+    Args:
+        class_path: full path of the class.
+        kwargs: arguments to initialize the class instance.
+
+    Raises:
+        ValueError: class has paramenters error.
+    """
+
+    try:
+        return get_class(class_path)(**kwargs)
+    except TypeError as e:
+        raise ValueError(f"class {class_path} has parameters error.") from e
+
+
 def get_full_type_name(typeobj):
+    """
+    Utility to get the full path name of a class or object type.
+
+    """
     module = typeobj.__module__
     if module is None or module == str.__class__.__module__:
         return typeobj.__name__  # Avoid reporting __builtin__
