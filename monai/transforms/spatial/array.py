@@ -87,7 +87,11 @@ RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
 
 class SpatialResample(Transform):
     """
-    Resample input image from the orientation/spacing defined by ``src`` affine into the ones specified by `dst`.
+    Resample input image from the orientation/spacing defined by ``src`` affine matrix into
+    the ones specified by ``dst`` affine matrix.
+
+    Internally this transform computes the affine transform matrix from ``src`` to ``dst``,
+    by ``xform = np.linalg.inv(src) @ dst``, and call ``monai.transforms.Affine`` with ``xform``.
     """
 
     backend = [TransformBackends.TORCH]
