@@ -167,16 +167,16 @@ class SaveImaged(MapTransform):
 
             - NIfTI files {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             - PNG files {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
 
             - NIfTI files {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             - PNG files
                 This option is ignored.
 
