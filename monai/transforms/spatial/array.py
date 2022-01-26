@@ -1563,18 +1563,17 @@ class Resample(Transform):
         grid_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=dtype)  # type: ignore
         grid_t = convert_to_dst_type(grid, img_t)[0]  # type: ignore
-        if grid_t is grid:  # copy if needed
-            grid_t = grid_t.clone()
+        if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
+            grid_t = grid_t.clone(memory_format=torch.contiguous_format)
         sr = min(len(img_t.shape[1:]), 3)
 
         if USE_COMPILED:
             if self.norm_coords:
-                for i, dim in enumerate(img_t.shape[1:]):
-                    grid_t[i] += (max(dim, 2) - 1.0) / 2.0
-                grid_t = grid_t[:sr] / grid_t[-1:]
+                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
+                    grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
             else:
                 grid_t = grid_t[:sr]
-            grid_t = grid_t.permute(list(range(grid_t.ndimension()))[1:] + [0])
+            grid_t = torch.movedim(grid_t, 0, -1)
             _padding_mode = look_up_option(
                 self.padding_mode if padding_mode is None else padding_mode, GridSamplePadMode
             ).value
@@ -1596,14 +1595,10 @@ class Resample(Transform):
             )[0]
         else:
             if self.norm_coords:
-                for i, dim in enumerate(img_t.shape[1:]):
-                    grid_t[i] = 2.0 * grid_t[i] / (max(2, dim) - 1.0)
-                grid_t = grid_t[:sr] / grid_t[-1:]
-            else:
-                grid_t = grid_t[:sr]
-            index_ordering: List[int] = list(range(img_t.ndimension() - 2, -1, -1))
-            grid_t = grid_t[index_ordering]
-            grid_t = grid_t.permute(list(range(grid_t.ndimension()))[1:] + [0])
+                for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
+                    grid_t[i] = 2.0 / (max(2, dim) - 1.0) * grid_t[i] / grid_t[-1:]
+            index_ordering: List[int] = list(range(sr - 1, -1, -1))
+            grid_t = torch.moveaxis(grid_t[index_ordering], 0, -1)
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
                 grid_t.unsqueeze(0),
