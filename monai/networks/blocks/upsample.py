@@ -72,7 +72,7 @@ class UpSample(nn.Sequential):
                 If ends with ``"linear"`` will use ``spatial dims`` to determine the correct interpolation.
                 This corresponds to linear, bilinear, trilinear for 1D, 2D, and 3D respectively.
                 The interpolation mode. Defaults to ``"linear"``.
-                See also: https://pytorch.org/docs/stable/nn.html#upsample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.Upsample.html
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
                 Only used in the "nontrainable" mode.
             bias: whether to have a bias term in the default preconv and deconv layers. Defaults to True.

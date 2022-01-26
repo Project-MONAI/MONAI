@@ -108,7 +108,7 @@ class BlendMode(Enum):
 
 class PytorchPadMode(Enum):
     """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#pad
+    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
     """
 
     CONSTANT = "constant"
