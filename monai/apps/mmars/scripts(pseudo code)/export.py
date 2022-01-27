@@ -1,4 +1,3 @@
-
 # Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,10 +27,10 @@ def main():
     args = parser.parse_args()
 
     # load config file
-    with open(args.config, "r") as f:
+    with open(args.config) as f:
         config_dict = json.load(f)
     # load meta data
-    with open(args.meta, "r") as f:
+    with open(args.meta) as f:
         meta_dict = json.load(f)
 
     net: torch.nn.Module = None

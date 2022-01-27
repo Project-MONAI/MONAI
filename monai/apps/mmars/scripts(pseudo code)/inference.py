@@ -1,4 +1,3 @@
-
 # Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,10 +31,10 @@ def main():
     configs = {}
 
     # load meta data
-    with open(args.meta, "r") as f:
+    with open(args.meta) as f:
         configs.update(json.load(f))
     # load config file, can override meta data in config
-    with open(args.config, "r") as f:
+    with open(args.config) as f:
         configs.update(json.load(f))
 
     model: torch.nn.Module = None
