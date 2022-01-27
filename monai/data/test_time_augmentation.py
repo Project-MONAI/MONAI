@@ -90,6 +90,7 @@ class TestTimeAugmentation:
     Example:
         .. code-block:: python
 
+            model = UNet(...).to(device)
             transform = RandAffined(keys, ...)
 
             tt_aug = TestTimeAugmentation(
@@ -159,7 +160,7 @@ class TestTimeAugmentation:
 
     def __call__(
         self, data: Dict[str, Any], num_examples: int = 10
-    ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray, float], np.ndarray]:
+    ) -> Union[Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor, float], NdarrayOrTensor]:
         """
         Args:
             data: dictionary data to be processed.
@@ -184,7 +185,7 @@ class TestTimeAugmentation:
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, num_workers=self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
-        outs: List[NdarrayOrTensor] = []
+        outs: List = []
 
         for batch_data in tqdm(dl) if has_tqdm and self.progress else dl:
             # do model forward pass
@@ -197,7 +198,8 @@ class TestTimeAugmentation:
             return output
 
         # calculate metrics
-        output_t, *_ = convert_data_type(output, output_type=torch.Tensor)
+        output_t: torch.Tensor
+        output_t, *_ = convert_data_type(output, output_type=torch.Tensor)  # type: ignore
         mode, *_ = convert_to_dst_type(torch.mode(output_t.long(), dim=0).values, output, dtype=torch.int64)
         mean, *_ = convert_to_dst_type(torch.mean(output_t, dim=0), output)
         std, *_ = convert_to_dst_type(torch.std(output_t, dim=0), output)

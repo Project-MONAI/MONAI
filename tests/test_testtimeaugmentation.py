@@ -128,7 +128,15 @@ class TestTestTimeAugmentation(unittest.TestCase):
         def inferrer_fn(x):
             return post_trans(model(x))
 
-        tt_aug = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=inferrer_fn, device=device)
+        tt_aug = TestTimeAugmentation(
+            transform=transforms,
+            batch_size=5,
+            num_workers=0,
+            inferrer_fn=inferrer_fn,
+            device=device,
+            to_tensor=True,
+            output_device="cpu",
+        )
         mode, mean, std, vvc = tt_aug(test_data)
         self.assertEqual(mode.shape, (1,) + input_size)
         self.assertEqual(mean.shape, (1,) + input_size)
