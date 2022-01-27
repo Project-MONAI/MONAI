@@ -61,10 +61,11 @@ for ind, dst in enumerate(
         for p_src in TEST_NDARRAYS:
             for dtype in (np.float32, np.float64):
                 for align in (True, False):
-                    interp = ("nearest", "bilinear")
                     if align and USE_COMPILED:
-                        interp = interp + (0, 1)  # type: ignore
-                    for interp_mode in interp:
+                        interp = ("nearest", "bilinear", 0, 1)  # type: ignore
+                    else:
+                        interp = ("nearest", "bilinear")  # type: ignore
+                    for interp_mode in interp:  # type: ignore
                         for padding_mode in ("zeros", "border", "reflection"):
                             TESTS.append(
                                 [
@@ -93,8 +94,8 @@ class TestSpatialResample(unittest.TestCase):
     @parameterized.expand(itertools.product(TEST_NDARRAYS, TESTS))
     def test_flips(self, p_type, args):
         init_param, img, data_param, expected_output = args
-        _img = p(img)
-        _expected_output = p(expected_output)
+        _img = p_type(img)
+        _expected_output = p_type(expected_output)
         output_data, output_dst = SpatialResample(**init_param)(img=_img, **data_param)
         assert_allclose(output_data, _expected_output)
         expected_dst = data_param.get("dst") if data_param.get("dst") is not None else data_param.get("src")
@@ -107,7 +108,7 @@ class TestSpatialResample(unittest.TestCase):
         img = np.tile(img, (1, 1, 1, 1, 2, 2) if is_5d else (1, 1, 1, 1, 2))
         _img = p_type(img)
         dst = np.asarray([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
-        output_data, output_dst = SpatialResample(dtype=np.float32)(img=_img, src=p(np.eye(4)), dst=dst)
+        output_data, output_dst = SpatialResample(dtype=np.float32)(img=_img, src=p_type(np.eye(4)), dst=dst)
         expected_data = (
             np.asarray(
                 [

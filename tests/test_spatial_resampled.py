@@ -61,10 +61,11 @@ for ind, dst in enumerate(
         for p_src in TEST_NDARRAYS:
             for dtype in (np.float32, np.float64):
                 for align in (True, False):
-                    interp = ("nearest", "bilinear")
                     if align and USE_COMPILED:
-                        interp = interp + (0, 1)  # type: ignore
-                    for interp_mode in interp:
+                        interp = ("nearest", "bilinear", 0, 1)  # type: ignore
+                    else:
+                        interp = ("nearest", "bilinear")  # type: ignore
+                    for interp_mode in interp:  # type: ignore
                         for padding_mode in ("zeros", "border", "reflection"):
                             TESTS.append(
                                 [
@@ -92,9 +93,9 @@ for ind, dst in enumerate(
 class TestSpatialResample(unittest.TestCase):
     @parameterized.expand(itertools.product(TEST_NDARRAYS, TESTS))
     def test_flips_inverse(self, p_type, args):
-        init_param, img, data_param, expected_output = args
-        _img = p(img)
-        _expected_output = p(expected_output)
+        _, img, data_param, expected_output = args
+        _img = p_type(img)
+        _expected_output = p_type(expected_output)
         input_dict = {"img": _img, "img_meta_dict": {"src": data_param.get("src"), "dst": data_param.get("dst")}}
         xform = SpatialResampleD(
             keys="img",
@@ -102,6 +103,7 @@ class TestSpatialResample(unittest.TestCase):
             meta_dst_keys="dst",
             mode=data_param.get("mode"),
             padding_mode=data_param.get("padding_mode"),
+            align_corners=data_param.get("align_corners"),
         )
         output_data = xform(input_dict)
         assert_allclose(output_data["img"], _expected_output)
