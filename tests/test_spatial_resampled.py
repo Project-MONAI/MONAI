@@ -29,27 +29,26 @@ for ind, dst in enumerate(
 ):
     for p in TEST_NDARRAYS:
         for p_src in TEST_NDARRAYS:
-            for dtype in (np.float32, np.float64):
-                for align in (False, True):
-                    for interp_mode in ("nearest", "bilinear"):
-                        for padding_mode in ("zeros", "border", "reflection"):
-                            TESTS.append(
-                                [
-                                    {},  # default no params
-                                    np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
-                                    {
-                                        "src": p_src(np.eye(3)),
-                                        "dst": p(dst),
-                                        "dtype": dtype,
-                                        "align_corners": align,
-                                        "mode": interp_mode,
-                                        "padding_mode": padding_mode,
-                                    },
-                                    np.array([[[2.0, 1.0], [4.0, 3.0]]])
-                                    if ind == 0
-                                    else np.array([[[3.0, 4.0], [1.0, 2.0]]]),
-                                ]
-                            )
+            for align in (False, True):
+                for interp_mode in ("nearest", "bilinear"):
+                    for padding_mode in ("zeros", "border", "reflection"):
+                        TESTS.append(
+                            [
+                                {},  # default no params
+                                np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
+                                {
+                                    "src": p_src(np.eye(3)),
+                                    "dst": p(dst),
+                                    "dtype": np.float32,
+                                    "align_corners": align,
+                                    "mode": interp_mode,
+                                    "padding_mode": padding_mode,
+                                },
+                                np.array([[[2.0, 1.0], [4.0, 3.0]]])
+                                if ind == 0
+                                else np.array([[[3.0, 4.0], [1.0, 2.0]]]),
+                            ]
+                        )
 
 for ind, dst in enumerate(
     [
@@ -57,37 +56,33 @@ for ind, dst in enumerate(
         np.asarray([[-1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
     ]
 ):
-    for p in TEST_NDARRAYS:
-        for p_src in TEST_NDARRAYS:
-            for dtype in (np.float32, np.float64):
-                for align in (True, False):
-                    if align and USE_COMPILED:
-                        interp = ("nearest", "bilinear", 0, 1)  # type: ignore
-                    else:
-                        interp = ("nearest", "bilinear")  # type: ignore
-                    for interp_mode in interp:  # type: ignore
-                        for padding_mode in ("zeros", "border", "reflection"):
-                            TESTS.append(
-                                [
-                                    {},  # default no params
-                                    np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
-                                    {
-                                        "src": p_src(np.eye(4)),
-                                        "dst": p(dst),
-                                        "dtype": dtype,
-                                        "align_corners": align,
-                                        "mode": interp_mode,
-                                        "padding_mode": padding_mode,
-                                    },
-                                    np.array(
-                                        [[[[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]], [[10.0, 11.0, 12.0], [7.0, 8.0, 9.0]]]]
-                                    )
-                                    if ind == 0
-                                    else np.array(
-                                        [[[[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]], [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]]]
-                                    ),
-                                ]
-                            )
+    for p_src in TEST_NDARRAYS:
+        for align in (True, False):
+            if align and USE_COMPILED:
+                interp = ("nearest", "bilinear", 0, 1)  # type: ignore
+            else:
+                interp = ("nearest", "bilinear")  # type: ignore
+            for interp_mode in interp:  # type: ignore
+                for padding_mode in ("zeros", "border", "reflection"):
+                    TESTS.append(
+                        [
+                            {},  # default no params
+                            np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
+                            {
+                                "src": p_src(np.eye(4)),
+                                "dst": p_src(dst),
+                                "dtype": np.float64,
+                                "align_corners": align,
+                                "mode": interp_mode,
+                                "padding_mode": padding_mode,
+                            },
+                            np.array([[[[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]], [[10.0, 11.0, 12.0], [7.0, 8.0, 9.0]]]])
+                            if ind == 0
+                            else np.array(
+                                [[[[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]], [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]]]
+                            ),
+                        ]
+                    )
 
 
 class TestSpatialResample(unittest.TestCase):
@@ -106,13 +101,15 @@ class TestSpatialResample(unittest.TestCase):
             align_corners=data_param.get("align_corners"),
         )
         output_data = xform(input_dict)
-        assert_allclose(output_data["img"], _expected_output)
-        assert_allclose(output_data["img_meta_dict"]["src"], data_param.get("dst"), type_test=False)
+        assert_allclose(output_data["img"], _expected_output, rtol=1e-2, atol=1e-2)
+        assert_allclose(
+            output_data["img_meta_dict"]["src"], data_param.get("dst"), type_test=False, rtol=1e-2, atol=1e-2
+        )
 
         inverted = xform.inverse(output_data)
         self.assertEqual(inverted["img_transforms"], [])  # no further invert after inverting
-        assert_allclose(inverted["img_meta_dict"]["src"], data_param.get("src"), type_test=False)
-        assert_allclose(inverted["img"], _img)
+        assert_allclose(inverted["img_meta_dict"]["src"], data_param.get("src"), type_test=False, rtol=1e-2, atol=1e-2)
+        assert_allclose(inverted["img"], _img, rtol=1e-2, atol=1e-2)
 
 
 if __name__ == "__main__":
