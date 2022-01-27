@@ -446,11 +446,11 @@ class AffineTransform(nn.Module):
                 coordinates.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"zeros"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            align_corners: see also https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            align_corners: see also https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html.
             reverse_indexing: whether to reverse the spatial indexing of image and coordinates.
                 set to `False` if `theta` follows pytorch's default "D, H, W" convention.
                 set to `True` if `theta` follows `scipy.ndimage` default "i, j, k" convention.
