@@ -21,6 +21,7 @@ import time
 import traceback
 import unittest
 import warnings
+from contextlib import contextmanager
 from functools import partial
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
@@ -649,18 +650,26 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
         )
 
 
-def download_url_or_skip_test(*args, **kwargs):
-    """``download_url`` and skip the tests if any downloading error occurs."""
+@contextmanager
+def skip_if_downloading_fail():
     try:
-        download_url(*args, **kwargs)
-    except (ContentTooShortError, HTTPError) as e:
+        yield
+    except (ContentTooShortError, HTTPError, ConnectionError) as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
     except RuntimeError as rt_e:
         if "network issue" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         if "gdown dependency" in str(rt_e):  # no gdown installed
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "md5 check" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         raise rt_e
+
+
+def download_url_or_skip_test(*args, **kwargs):
+    """``download_url`` and skip the tests if any downloading error occurs."""
+    with skip_if_downloading_fail():
+        download_url(*args, **kwargs)
 
 
 def query_memory(n=2):

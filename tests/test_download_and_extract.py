@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import download_and_extract, download_url, extractall
-from tests.utils import skip_if_quick
+from tests.utils import skip_if_downloading_fail, skip_if_quick
 
 
 class TestDownloadAndExtract(unittest.TestCase):
@@ -27,22 +27,15 @@ class TestDownloadAndExtract(unittest.TestCase):
         filepath = Path(testing_dir) / "MedNIST.tar.gz"
         output_dir = Path(testing_dir)
         md5_value = "0bc7306e7427e00ad1c5526a6677552d"
-        try:
+        with skip_if_downloading_fail():
             download_and_extract(url, filepath, output_dir, md5_value)
             download_and_extract(url, filepath, output_dir, md5_value)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, RuntimeError):
-                # FIXME: skip MD5 check as current downloading method may fail
-                self.assertTrue(str(e).startswith("md5 check"))
-            return  # skipping this test due the network connection errors
 
         wrong_md5 = "0"
         with self.assertLogs(logger="monai.apps", level="ERROR"):
             try:
                 download_url(url, filepath, wrong_md5)
             except (ContentTooShortError, HTTPError, RuntimeError) as e:
-                print(str(e))
                 if isinstance(e, RuntimeError):
                     # FIXME: skip MD5 check as current downloading method may fail
                     self.assertTrue(str(e).startswith("md5 check"))
@@ -56,7 +49,7 @@ class TestDownloadAndExtract(unittest.TestCase):
     @skip_if_quick
     def test_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            try:
+            with skip_if_downloading_fail():
                 # icon.tar.gz https://drive.google.com/file/d/1HrQd-AKPbts9jkTNN4pT8vLZyhM5irVn/view?usp=sharing
                 download_and_extract(
                     "https://drive.google.com/uc?id=1HrQd-AKPbts9jkTNN4pT8vLZyhM5irVn",
@@ -71,12 +64,6 @@ class TestDownloadAndExtract(unittest.TestCase):
                     hash_val="ac6e167ee40803577d98237f2b0241e5",
                     file_type="zip",
                 )
-            except (ContentTooShortError, HTTPError, RuntimeError) as e:
-                print(str(e))
-                if isinstance(e, RuntimeError):
-                    # FIXME: skip MD5 check as current downloading method may fail
-                    self.assertTrue(str(e).startswith("md5 check"))
-                return  # skipping this test due the network connection errors
 
 
 if __name__ == "__main__":
