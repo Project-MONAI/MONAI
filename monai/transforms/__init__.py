@@ -306,6 +306,7 @@ from .spatial.array import (
     Rotate,
     Rotate90,
     Spacing,
+    SpatialResample,
     Zoom,
 )
 from .spatial.dictionary import (
@@ -360,6 +361,9 @@ from .spatial.dictionary import (
     Spacingd,
     SpacingD,
     SpacingDict,
+    SpatialResampled,
+    SpatialResampleD,
+    SpatialResampleDict,
     Zoomd,
     ZoomD,
     ZoomDict,

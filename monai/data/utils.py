@@ -681,7 +681,10 @@ def compute_shape_offset(
     corners = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
     corners = in_affine @ corners
-    inv_mat = np.linalg.inv(out_affine)
+    try:
+        inv_mat = np.linalg.inv(out_affine)
+    except np.linalg.LinAlgError as e:
+        raise ValueError(f"Affine {out_affine} is not invertible") from e
     corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
@@ -700,21 +703,26 @@ def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndar
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
-    when ``r`` is an integer, output is an (r+1)x(r+1) matrix,
+
+    When ``r`` is an integer, output is an (r+1)x(r+1) matrix,
     where the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(r, len(affine) - 1)`.
-    when ``r`` is an affine matrix, the output has the same shape as ``r``,
+
+    When ``r`` is an affine matrix, the output has the same shape as ``r``,
     and the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
+
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
         dtype: data type of the output array.
+
     Raises:
         ValueError: When ``affine`` dimensions is not 2.
         ValueError: When ``r`` is nonpositive.
+
     Returns:
         an (r+1) x (r+1) matrix
     """
@@ -736,31 +744,25 @@ def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndar
     return new_affine
 
 
-def ensure_mat44(affine, dtype=np.float64) -> np.ndarray:
-    """
-    Given a matrix `affine`, ensure that it is a float64 4x4 matrix using `to_affine_nd`.
-    """
-    if affine is None:
-        return np.eye(4, dtype=dtype)
-    return to_affine_nd(r=3, affine=affine, dtype=dtype)
-
-
 def reorient_spatial_axes(
-    data_array: np.ndarray, init_affine: np.ndarray, target_affine: np.ndarray
+    data_shape: Sequence[int], init_affine: NdarrayOrTensor, target_affine: NdarrayOrTensor
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given the input ``data_array`` and its corresponding coordinate ``init_affine``,
     convert the array to ``target_affine`` by rearranging/flipping the axes.
     Returns the transformed array and the updated affine.
-
     Note that this function requires external module ``nibabel.orientations``.
     """
-    start_ornt = nib.orientations.io_orientation(init_affine)
-    target_ornt = nib.orientations.io_orientation(target_affine)
-    ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
-    new_affine = init_affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_array.shape)
-    data = nib.orientations.apply_orientation(data_array, ornt_transform)
-    return data, new_affine
+    init_affine_, *_ = convert_data_type(init_affine, np.ndarray)
+    target_affine_, *_ = convert_data_type(target_affine, np.ndarray)
+    start_ornt = nib.orientations.io_orientation(init_affine_)
+    target_ornt = nib.orientations.io_orientation(target_affine_)
+    try:
+        ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
+    except ValueError as e:
+        raise ValueError(f"The input affine {init_affine} and target affine {target_affine} are not compatible.") from e
+    new_affine = init_affine_ @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
+    return ornt_transform, new_affine
 
 
 def create_file_basename(
