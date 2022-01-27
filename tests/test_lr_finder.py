@@ -24,7 +24,7 @@ from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
-from tests.utils import skip_if_downloading_fail
+from tests.utils import skip_if_downloading_fails
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
@@ -62,7 +62,7 @@ class TestLRFinder(unittest.TestCase):
 
     def test_lr_finder(self):
         # 0.001 gives 54 examples
-        with skip_if_downloading_fail():
+        with skip_if_downloading_fails():
             train_ds = MedNISTDataset(
                 root_dir=self.root_dir,
                 transform=self.transforms,

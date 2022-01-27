@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from functools import partial
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
-from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
 import torch
@@ -94,17 +94,25 @@ def assert_allclose(
     np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
-def test_pretrained_networks(network, input_param, device):
+@contextmanager
+def skip_if_downloading_fails():
     try:
+        yield
+    except (ContentTooShortError, HTTPError, ConnectionError) as e:
+        raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except RuntimeError as rt_e:
+        if "network issue" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "gdown dependency" in str(rt_e):  # no gdown installed
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "md5 check" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        raise rt_e
+
+
+def test_pretrained_networks(network, input_param, device):
+    with skip_if_downloading_fails():
         return network(**input_param).to(device)
-    except (URLError, HTTPError) as e:
-        raise unittest.SkipTest(e) from e
-    except RuntimeError as r_error:
-        if "unexpected EOF" in f"{r_error}":  # The file might be corrupted.
-            raise unittest.SkipTest(f"{r_error}") from r_error
-        if "network issue" in f"{r_error}":  # The network is not available.
-            raise unittest.SkipTest(f"{r_error}") from r_error
-        raise
 
 
 def test_is_quick():
@@ -650,25 +658,9 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
         )
 
 
-@contextmanager
-def skip_if_downloading_fail():
-    try:
-        yield
-    except (ContentTooShortError, HTTPError, ConnectionError) as e:
-        raise unittest.SkipTest(f"error while downloading: {e}") from e
-    except RuntimeError as rt_e:
-        if "network issue" in str(rt_e):
-            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
-        if "gdown dependency" in str(rt_e):  # no gdown installed
-            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
-        if "md5 check" in str(rt_e):
-            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
-        raise rt_e
-
-
 def download_url_or_skip_test(*args, **kwargs):
     """``download_url`` and skip the tests if any downloading error occurs."""
-    with skip_if_downloading_fail():
+    with skip_if_downloading_fails():
         download_url(*args, **kwargs)
 
 

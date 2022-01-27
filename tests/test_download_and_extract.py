@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import download_and_extract, download_url, extractall
-from tests.utils import skip_if_downloading_fail, skip_if_quick
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestDownloadAndExtract(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestDownloadAndExtract(unittest.TestCase):
         filepath = Path(testing_dir) / "MedNIST.tar.gz"
         output_dir = Path(testing_dir)
         md5_value = "0bc7306e7427e00ad1c5526a6677552d"
-        with skip_if_downloading_fail():
+        with skip_if_downloading_fails():
             download_and_extract(url, filepath, output_dir, md5_value)
             download_and_extract(url, filepath, output_dir, md5_value)
 
@@ -49,7 +49,7 @@ class TestDownloadAndExtract(unittest.TestCase):
     @skip_if_quick
     def test_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            with skip_if_downloading_fail():
+            with skip_if_downloading_fails():
                 # icon.tar.gz https://drive.google.com/file/d/1HrQd-AKPbts9jkTNN4pT8vLZyhM5irVn/view?usp=sharing
                 download_and_extract(
                     "https://drive.google.com/uc?id=1HrQd-AKPbts9jkTNN4pT8vLZyhM5irVn",
