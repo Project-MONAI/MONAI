@@ -166,6 +166,8 @@ class SpatialResample(Transform):
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
 
+        The spatial rank is determined by the smallest among ``img.ndim -1``, ``len(src) - 1``, and ``3``.
+
         When both ``monai.config.USE_COMPILED`` and ``align_corners`` are set to ``True``,
         MONAI's resampling implementation will be used.
         """

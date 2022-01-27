@@ -140,10 +140,13 @@ class SpatialResampled(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialResample`.
 
     This transform assumes the ``data`` dictionary has a key for the input
-    data's metadata and contains ``src`` and ``dst`` affine required by `SpatialResample`.
-    The key is formed by ``key_{meta_key_postfix}``.
+    data's metadata and contains ``src`` and ``dst`` affine required by
+    `SpatialResample`. The key is formed by ``key_{meta_key_postfix}``.  The
+    transform will swap ``src`` and ``dst`` affine (with potential data type
+    changes) in the dictionary so that ``src`` always refers to the current
+    status of affine.
 
-    see also:
+    See also:
         :py:class:`monai.transforms.SpatialResample`
     """
 
@@ -238,6 +241,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
                 align_corners=align_corners,
                 dtype=dtype,
             )
+            meta_data[meta_dst_key], meta_data[meta_src_key] = meta_data[meta_src_key], meta_data[meta_dst_key]
             self.push_transform(
                 d,
                 key,
@@ -259,24 +263,27 @@ class SpatialResampled(MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             meta_data = d[transform[TraceKeys.EXTRA_INFO]["meta_key"]]
-            src_affine = meta_data[d[transform[TraceKeys.EXTRA_INFO]["meta_src_key"]]]  # type: ignore
-            dst_affine = meta_data[d[transform[TraceKeys.EXTRA_INFO]["meta_dst_key"]]]  # type: ignore
+            src_key = transform[TraceKeys.EXTRA_INFO]["meta_src_key"]
+            dst_key = transform[TraceKeys.EXTRA_INFO]["meta_dst_key"]
+            src_affine = meta_data[src_key]  # type: ignore
+            dst_affine = meta_data[dst_key]  # type: ignore
             mode = transform[TraceKeys.EXTRA_INFO]["mode"]
             padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
             align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
             orig_size = transform[TraceKeys.ORIG_SIZE]
             inverse_transform = SpatialResample()
             # Apply inverse
-            d[key], _ = inverse_transform(
+            d[key], dst_affine = inverse_transform(
                 img=d[key],
-                src=dst_affine,
-                dst=src_affine,
+                src=src_affine,
+                dst=dst_affine,
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=False if align_corners == TraceKeys.NONE else align_corners,
                 dtype=dtype,
                 spatial_size=orig_size,
             )
+            meta_data[src_key], meta_data[dst_key] = dst_affine, meta_data[src_key]  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
