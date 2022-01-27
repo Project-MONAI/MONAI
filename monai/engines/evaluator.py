@@ -114,7 +114,7 @@ class Evaluator(Workflow):
             event_to_attr=event_to_attr,
             decollate=decollate,
         )
-        self.mode = look_up_option(mode, ForwardMode)
+        mode = look_up_option(mode, ForwardMode)
         if mode == ForwardMode.EVAL:
             self.mode = eval_mode
         elif mode == ForwardMode.TRAIN:

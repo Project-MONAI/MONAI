@@ -101,6 +101,8 @@ def test_pretrained_networks(network, input_param, device):
     except RuntimeError as r_error:
         if "unexpected EOF" in f"{r_error}":  # The file might be corrupted.
             raise unittest.SkipTest(f"{r_error}") from r_error
+        if "network issue" in f"{r_error}":  # The network is not available.
+            raise unittest.SkipTest(f"{r_error}") from r_error
         raise
 
 

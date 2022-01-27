@@ -43,6 +43,7 @@ class TestPrepareBatchDefault(unittest.TestCase):
             non_blocking=False,
             prepare_batch=PrepareBatchDefault(),
             decollate=False,
+            mode="eval",
         )
         evaluator.run()
         output = evaluator.state.output
