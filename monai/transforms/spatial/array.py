@@ -131,7 +131,7 @@ class SpatialResample(Transform):
         img: NdarrayOrTensor,
         src: Optional[NdarrayOrTensor] = None,
         dst: Optional[NdarrayOrTensor] = None,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Optional[Union[Sequence[int], np.ndarray, int]] = None,
         mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
         align_corners: Optional[bool] = False,

@@ -12,19 +12,11 @@
 from typing import TYPE_CHECKING, Mapping, Optional, Sequence, Union
 
 import numpy as np
-import torch
 
 from monai.apps.utils import get_logger
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
-from monai.data.utils import (
-    compute_shape_offset,
-    ensure_mat44,
-    ensure_tuple,
-    orientation_ras_lps,
-    reorient_spatial_axes,
-    to_affine_nd,
-)
-from monai.networks.layers import AffineTransform
+from monai.data.utils import ensure_tuple, orientation_ras_lps, to_affine_nd
+from monai.transforms.spatial.array import SpatialResample
 from monai.transforms.utils_pytorch_numpy_unification import ascontiguousarray, moveaxis
 from monai.utils import GridSampleMode, GridSamplePadMode, convert_data_type, optional_import, require_pkg
 
@@ -34,12 +26,8 @@ logger = get_logger(module_name=__name__, fmt=DEFAULT_FMT)
 
 if TYPE_CHECKING:
     import itk  # type: ignore
-    import nibabel as nib
-
-    has_itk = has_nib = has_pil = True
 else:
-    itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
-    nib, has_nib = optional_import("nibabel")
+    itk, _ = optional_import("itk", allow_namespace_pkg=True)
 
 __all__ = ["ImageWriter", "ITKWriter"]
 
@@ -136,8 +124,8 @@ class ImageWriter:
         cls,
         data_array: NdarrayOrTensor,
         affine: Optional[NdarrayOrTensor] = None,
-        target_affine: Optional[np.ndarray] = None,
-        output_spatial_shape: Union[Sequence[int], np.ndarray, None] = None,
+        target_affine: Optional[NdarrayOrTensor] = None,
+        output_spatial_shape: Union[Sequence[int], np.ndarray, int, None] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
@@ -191,54 +179,11 @@ class ImageWriter:
             dtype: data type for resampling computation. Defaults to
                 ``np.float64`` for best precision. If ``None``, use the data type of input data.
         """
-        data: np.ndarray
-        data, *_ = convert_data_type(data_array, np.ndarray)  # type: ignore
-
-        sr = min(data.ndim, 3)
-        if affine is None:
-            affine = np.eye(4, dtype=np.float64)
-        affine = to_affine_nd(sr, affine)  # type: ignore
-        target_affine = to_affine_nd(sr, target_affine) if target_affine is not None else affine
-
-        if np.allclose(affine, target_affine, atol=AFFINE_TOL):
-            # no affine changes, return (data, affine)
-            return data, ensure_mat44(target_affine)
-
-        # resolve orientation
-        if has_nib:  # this is to avoid dependency on nibabel
-            data, affine = reorient_spatial_axes(data, affine, target_affine)
-            if np.allclose(affine, target_affine, atol=AFFINE_TOL):
-                return data, ensure_mat44(affine)
-
-        # need resampling
-        dtype = dtype or data.dtype  # type: ignore
-        if output_spatial_shape is None:
-            output_spatial_shape, _ = compute_shape_offset(data.shape, affine, target_affine)
-        output_spatial_shape_ = list(output_spatial_shape) if output_spatial_shape is not None else []
-        sp_dims = min(data.ndim, 3)
-        output_spatial_shape_ += [1] * (sp_dims - len(output_spatial_shape_))
-        output_spatial_shape_ = output_spatial_shape_[:sp_dims]
-        original_channels = data.shape[3:]
-        if original_channels:  # multi channel, resampling each channel
-            data_np: np.ndarray = data.reshape(list(data.shape[:3]) + [-1])  # type: ignore
-            data_np = np.moveaxis(data_np, -1, 0)  # channel first for pytorch
-        else:  # single channel image, need to expand to have a channel
-            data_np = data[None]
-        affine_xform = AffineTransform(
-            normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
+        resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
+        output_array, target_affine = resampler(
+            data_array[None], src=affine, dst=target_affine, spatial_size=output_spatial_shape
         )
-        data_torch = affine_xform(
-            torch.as_tensor(np.ascontiguousarray(data_np, dtype=dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(np.linalg.inv(affine) @ target_affine, dtype=dtype)),
-            spatial_size=output_spatial_shape_,
-        )
-        data_np = data_torch[0].detach().cpu().numpy()
-        if original_channels:
-            data_np = np.moveaxis(data_np, 0, -1)  # channel last
-            data_np = data_np.reshape(list(data_np.shape[:3]) + list(original_channels))
-        else:
-            data_np = data_np[0]
-        return data_np, ensure_mat44(target_affine)
+        return output_array[0], target_affine
 
     @classmethod
     def convert_to_channel_last(
