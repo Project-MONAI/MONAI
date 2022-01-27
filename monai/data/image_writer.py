@@ -103,7 +103,11 @@ class ImageWriter:
     """
 
     def __init__(self, **kwargs):
-        """the constructor supports adding new instance members."""
+        """
+        The constructor supports adding new instance members.
+        The current member in the base class is ``self.data_obj``, the subclases can add more members,
+        so that necessary meta information can be stored in the object and shared among the class methods.
+        """
         self.data_obj = None
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -311,11 +315,27 @@ class ITKWriter(ImageWriter):
     Write data and metadata into files on disk using ITK-python.
     """
 
-    def __init__(self, output_dtype: DtypeLike = np.float32, **kwargs):
-        super().__init__(output_dtype=output_dtype, affine=None, channel_dim=0, **kwargs)
+    def __init__(self, output_dtype: DtypeLike = np.float32, affine=None, channel_dim=0, **kwargs):
+        """
+        Args:
+            output_dtype: output data type.
+            kwargs: keyword arguments passed to ``ImageWriter``.
+
+        The constructor will create ``self.output_dtype``, ``self.affine``, ``self.channel_dim`` internally.
+        """
+        super().__init__(output_dtype=output_dtype, affine=affine, channel_dim=channel_dim, **kwargs)
 
     def set_data_array(self, data_array, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs):
-        """Convert ``data_array`` into 'channel-last' numpy ndarray."""
+        """
+        Convert ``data_array`` into 'channel-last' numpy ndarray.
+
+        Args:
+            data_array: input data array with the channel dimension specified by ``channel_dim``.
+            channel_dim: channel dimension of the data array.
+            squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
+            kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
+                currently support ``spatial_ndim`` and ``contiguous``.
+        """
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
             channel_dim=channel_dim,
@@ -326,7 +346,15 @@ class ITKWriter(ImageWriter):
         self.channel_dim = channel_dim
 
     def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
-        """Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray."""
+        """
+        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+
+        Args:
+            meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
+            resample: if ``True``, the data will be resampled to the original affine (specified in ``meta_dict``).
+            options: keyword arguments passed to ``self.resample_if_needed``,
+                currently support ``mode``, ``padding_mode``, ``align_corners``, and ``dtype``.
+        """
         original_affine, affine, spatial_shape = self.get_meta_info(meta_dict)
         self.data_obj, self.affine = self.resample_if_needed(
             data_array=self.data_obj,
@@ -340,7 +368,15 @@ class ITKWriter(ImageWriter):
         )
 
     def write(self, filename_or_obj: PathLike, verbose: bool = False, **kwargs):
-        """Create an ITK object from ``self.data_obj`` and call ``itk.imwrite``"""
+        """
+        Create an ITK object from ``self.data_obj`` and call ``itk.imwrite``.
+
+        Args:
+            filename_or_obj: filename or PathLike object.
+            verbose: if ``True``, log the progress.
+            kwargs: keyword arguments passed to ``itk.imwrite``,
+                currently support ``compression`` and ``imageio``.
+        """
         super().write(filename_or_obj, verbose=verbose)
         self.data_obj = self.create_backend_obj(
             self.data_obj, channel_dim=self.channel_dim, affine=self.affine, dtype=self.output_dtype, **kwargs  # type: ignore
@@ -361,7 +397,16 @@ class ITKWriter(ImageWriter):
         dtype: DtypeLike = np.float32,
         **kwargs,
     ):
-        """Create an ITK object from ``data_array``.  This method assumes a 'channel-last' ``data_array``."""
+        """
+        Create an ITK object from ``data_array``.  This method assumes a 'channel-last' ``data_array``.
+
+        Args:
+            data_array: input data array.
+            channel_dim: channel dimension of the data array. This is used to create a Vector Image if it is not ``None``.
+            affine: affine matrix of the data array. This is used to compute `spacing`, `direction` and `origin`.
+            dtype: output data type.
+            kwargs: keyword arguments. Current `itk.GetImageFromArray` will read ``ttype`` from this dictionary.
+        """
         data_array = super().create_backend_obj(data_array)
         _is_vec = channel_dim is not None
         if _is_vec:
