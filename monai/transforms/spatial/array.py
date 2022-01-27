@@ -191,7 +191,10 @@ class SpatialResample(Transform):
                 output_data, *_ = convert_to_dst_type(img_, img, dtype=torch.float32)
                 return output_data, dst
 
-        xform = np.linalg.inv(src) @ dst
+        try:
+            xform = np.linalg.inv(src) @ dst
+        except np.linalg.LinAlgError as e:
+            raise ValueError(f"src affine is not invertible: {src}") from e
         xform = to_affine_nd(spatial_rank, xform)
         # no resampling if it's identity transform
         if np.allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL):

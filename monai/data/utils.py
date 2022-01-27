@@ -681,7 +681,10 @@ def compute_shape_offset(
     corners = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
     corners = in_affine @ corners
-    inv_mat = np.linalg.inv(out_affine)
+    try:
+        inv_mat = np.linalg.inv(out_affine)
+    except np.linalg.LinAlgError as e:
+        raise ValueError(f"Affine {out_affine} is not invertible") from e
     corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
@@ -755,7 +758,10 @@ def reorient_spatial_axes(
     target_affine_, *_ = convert_data_type(target_affine, np.ndarray)
     start_ornt = nib.orientations.io_orientation(init_affine_)
     target_ornt = nib.orientations.io_orientation(target_affine_)
-    ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
+    try:
+        ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
+    except ValueError as e:
+        raise ValueError(f"The input affine {init_affine} and target affine {target_affine} are not compatible.") from e
     new_affine = init_affine_ @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
     return ornt_transform, new_affine
 

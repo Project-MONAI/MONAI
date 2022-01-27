@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import itertools
 import unittest
 
 import numpy as np
@@ -38,7 +39,7 @@ for ind, dst in enumerate(
                                     np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
                                     {
                                         "src": p_src(np.eye(3)),
-                                        "dst": p(dst) if dst is not None else None,
+                                        "dst": p(dst),
                                         "dtype": dtype,
                                         "align_corners": align,
                                         "mode": interp_mode,
@@ -71,7 +72,7 @@ for ind, dst in enumerate(
                                     np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
                                     {
                                         "src": p_src(np.eye(4)),
-                                        "dst": p(dst) if dst is not None else None,
+                                        "dst": p(dst),
                                         "dtype": dtype,
                                         "align_corners": align,
                                         "mode": interp_mode,
@@ -89,15 +90,59 @@ for ind, dst in enumerate(
 
 
 class TestSpatialResample(unittest.TestCase):
-    @parameterized.expand(TESTS)
-    def test_flips(self, init_param, img, data_param, expected_output):
-        for p in TEST_NDARRAYS:
-            _img = p(img)
-            _expected_output = p(expected_output)
-            output_data, output_dst = SpatialResample(**init_param)(img=_img, **data_param)
-            assert_allclose(output_data, _expected_output)
-            expected_dst = data_param.get("dst") if data_param.get("dst") is not None else data_param.get("src")
-            assert_allclose(output_dst, expected_dst, type_test=False)
+    @parameterized.expand(itertools.product(TEST_NDARRAYS, TESTS))
+    def test_flips(self, p_type, args):
+        init_param, img, data_param, expected_output = args
+        _img = p(img)
+        _expected_output = p(expected_output)
+        output_data, output_dst = SpatialResample(**init_param)(img=_img, **data_param)
+        assert_allclose(output_data, _expected_output)
+        expected_dst = data_param.get("dst") if data_param.get("dst") is not None else data_param.get("src")
+        assert_allclose(output_dst, expected_dst, type_test=False)
+
+    @parameterized.expand(itertools.product([True, False], TEST_NDARRAYS))
+    def test_4d_5d(self, is_5d, p_type):
+        new_shape = (1, 2, 2, 3, 1, 1) if is_5d else (1, 2, 2, 3, 1)
+        img = np.arange(12).reshape(new_shape)
+        img = np.tile(img, (1, 1, 1, 1, 2, 2) if is_5d else (1, 1, 1, 1, 2))
+        _img = p_type(img)
+        dst = np.asarray([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
+        output_data, output_dst = SpatialResample(dtype=np.float32)(img=_img, src=p(np.eye(4)), dst=dst)
+        expected_data = (
+            np.asarray(
+                [
+                    [
+                        [[[0.0, 0.0], [0.0, 1.0]], [[0.5, 0.0], [1.5, 1.0]], [[1.0, 2.0], [2.0, 2.0]]],
+                        [[[3.0, 3.0], [3.0, 4.0]], [[3.5, 3.0], [4.5, 4.0]], [[4.0, 5.0], [5.0, 5.0]]],
+                    ],
+                    [
+                        [[[6.0, 6.0], [6.0, 7.0]], [[6.5, 6.0], [7.5, 7.0]], [[7.0, 8.0], [8.0, 8.0]]],
+                        [[[9.0, 9.0], [9.0, 10.0]], [[9.5, 9.0], [10.5, 10.0]], [[10.0, 11.0], [11.0, 11.0]]],
+                    ],
+                ],
+                dtype=np.float32,
+            )
+            if is_5d
+            else np.asarray(
+                [
+                    [[[0.5, 0.0], [0.0, 2.0], [1.5, 1.0]], [[3.5, 3.0], [3.0, 5.0], [4.5, 4.0]]],
+                    [[[6.5, 6.0], [6.0, 8.0], [7.5, 7.0]], [[9.5, 9.0], [9.0, 11.0], [10.5, 10.0]]],
+                ],
+                dtype=np.float32,
+            )
+        )
+        assert_allclose(output_data, p_type(expected_data[None]))
+        assert_allclose(output_dst, dst, type_test=False)
+
+    def test_ill_affine(self):
+        img = np.arange(12).reshape(1, 2, 2, 3)
+        ill_affine = np.asarray(
+            [[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]]
+        )
+        with self.assertRaises(ValueError):
+            SpatialResample()(img=img, src=np.eye(4), dst=ill_affine)
+        with self.assertRaises(ValueError):
+            SpatialResample()(img=img, src=ill_affine, dst=np.eye(3))
 
 
 if __name__ == "__main__":
