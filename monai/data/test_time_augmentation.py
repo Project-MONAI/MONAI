@@ -20,13 +20,11 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.data.utils import decollate_batch, pad_list_data_collate
-from monai.handlers.utils import from_engine
 from monai.transforms.compose import Compose
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.dictionary import Invertd
 from monai.transforms.transform import Randomizable
-from monai.utils.enums import CommonKeys, PostFix
-from monai.utils.module import optional_import
+from monai.utils import CommonKeys, PostFix, convert_data_type, convert_to_dst_type, optional_import
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -191,17 +189,17 @@ class TestTimeAugmentation:
         for batch_data in tqdm(dl) if has_tqdm and self.progress else dl:
             # do model forward pass
             batch_data[self._pred_key] = self.inferrer_fn(batch_data[self.image_key].to(self.device))
-            result = [self.inverter(i) for i in decollate_batch(batch_data)]
-            outs.append(from_engine(keys=self._pred_key)(result))
+            outs.extend([self.inverter(i)[self._pred_key] for i in decollate_batch(batch_data)])
 
-        output: NdarrayOrTensor = np.stack(outs, 0) if isinstance(outs[0], np.np.ndarray) else torch.stack(outs, 0)
+        output: NdarrayOrTensor = np.stack(outs, 0) if isinstance(outs[0], np.ndarray) else torch.stack(outs, 0)
 
         if self.return_full_data:
             return output
 
         # calculate metrics
-        mode: np.ndarray = np.asarray(torch.mode(output, dim=0).values)  # type: ignore
-        mean: np.ndarray = np.mean(output, axis=0)  # type: ignore
-        std: np.ndarray = np.std(output, axis=0)  # type: ignore
-        vvc: float = (np.std(output) / np.mean(output)).item()
+        output_t, *_ = convert_data_type(output, output_type=torch.Tensor)
+        mode, *_ = convert_to_dst_type(torch.mode(output_t.long(), dim=0).values, output, dtype=torch.int64)
+        mean, *_ = convert_to_dst_type(torch.mean(output_t, dim=0), output)
+        std, *_ = convert_to_dst_type(torch.std(output_t, dim=0), output)
+        vvc: float = (torch.std(output_t) / torch.mean(output_t)).item()
         return mode, mean, std, vvc
