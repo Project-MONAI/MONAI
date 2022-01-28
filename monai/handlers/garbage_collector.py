@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,6 +42,7 @@ class GarbageCollector:
     """
 
     def __init__(self, trigger_event: str = "epoch", log_level: int = 10):
+        self.trigger_event: Events
         if isinstance(trigger_event, Events):
             self.trigger_event = trigger_event
         elif trigger_event.lower() == "epoch":

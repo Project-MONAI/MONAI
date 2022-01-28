@@ -22,7 +22,7 @@ import monai  # noqa: E402
 
 # -- Project information -----------------------------------------------------
 project = "MONAI"
-copyright = "2020 - 2021 MONAI Consortium"
+copyright = "MONAI Consortium"
 author = "MONAI Contributors"
 
 # The full version, including alpha/beta/rc tags
@@ -86,7 +86,7 @@ extensions = [
     "sphinx_autodoc_typehints",
 ]
 
-autoclass_content = "both"
+autoclass_content = "class"
 add_module_names = True
 source_encoding = "utf-8"
 autosectionlabel_prefix_document = True
@@ -107,16 +107,8 @@ html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "external_links": [{"url": "https://github.com/Project-MONAI/tutorials", "name": "Tutorials"}],
     "icon_links": [
-        {
-            "name": "GitHub",
-            "url": "https://github.com/project-monai/monai",
-            "icon": "fab fa-github-square",
-        },
-        {
-            "name": "Twitter",
-            "url": "https://twitter.com/projectmonai",
-            "icon": "fab fa-twitter-square",
-        },
+        {"name": "GitHub", "url": "https://github.com/project-monai/monai", "icon": "fab fa-github-square"},
+        {"name": "Twitter", "url": "https://twitter.com/projectmonai", "icon": "fab fa-twitter-square"},
     ],
     "collapse_navigation": True,
     "navigation_depth": 3,

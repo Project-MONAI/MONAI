@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,12 +34,10 @@ class TestFlip(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             im = p(self.imt[0])
             flip = Flip(spatial_axis=spatial_axis)
-            expected = []
-            for channel in self.imt[0]:
-                expected.append(np.flip(channel, spatial_axis))
+            expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)
             result = flip(im)
-            assert_allclose(expected, result)
+            assert_allclose(result, p(expected))
 
 
 if __name__ == "__main__":

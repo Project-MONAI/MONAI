@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 TEST_CASE_0 = [  # single channel 2D, batch 4, no residual
     {
-        "dimensions": 2,
+        "spatial_dims": 2,
         "in_shape": (1, 128, 128),
         "out_channels": 1,
         "latent_size": 2,
@@ -37,7 +37,7 @@ TEST_CASE_0 = [  # single channel 2D, batch 4, no residual
 
 TEST_CASE_1 = [  # single channel 2D, batch 4
     {
-        "dimensions": 2,
+        "spatial_dims": 2,
         "in_shape": (1, 128, 128),
         "out_channels": 1,
         "latent_size": 2,
@@ -50,7 +50,7 @@ TEST_CASE_1 = [  # single channel 2D, batch 4
 
 TEST_CASE_2 = [  # 3-channel 2D, batch 4, LeakyReLU activation
     {
-        "dimensions": 2,
+        "spatial_dims": 2,
         "in_shape": (3, 128, 128),
         "out_channels": 3,
         "latent_size": 2,
@@ -64,7 +64,7 @@ TEST_CASE_2 = [  # 3-channel 2D, batch 4, LeakyReLU activation
 
 TEST_CASE_3 = [  # 4-channel 3D, batch 4
     {
-        "dimensions": 3,
+        "spatial_dims": 3,
         "in_shape": (4, 128, 128, 128),
         "out_channels": 3,
         "latent_size": 2,
@@ -88,7 +88,7 @@ class TestVarAutoEncoder(unittest.TestCase):
 
     def test_script(self):
         net = VarAutoEncoder(
-            dimensions=2, in_shape=(1, 32, 32), out_channels=1, latent_size=2, channels=(4, 8), strides=(2, 2)
+            spatial_dims=2, in_shape=(1, 32, 32), out_channels=1, latent_size=2, channels=(4, 8), strides=(2, 2)
         )
         test_data = torch.randn(2, 1, 32, 32)
         test_script_save(net, test_data)

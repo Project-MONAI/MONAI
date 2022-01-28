@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandSpatialCropSamples
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     {"roi_size": [3, 3, 3], "num_samples": 4, "random_center": True, "random_size": False},
@@ -70,14 +71,15 @@ TEST_CASE_2 = [
 class TestRandSpatialCropSamples(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape, expected_last_item):
-        xform = RandSpatialCropSamples(**input_param)
-        xform.set_random_state(1234)
-        result = xform(input_data)
+        for p in TEST_NDARRAYS:
+            xform = RandSpatialCropSamples(**input_param)
+            xform.set_random_state(1234)
+            result = xform(p(input_data))
 
-        np.testing.assert_equal(len(result), input_param["num_samples"])
-        for item, expected in zip(result, expected_shape):
-            self.assertTupleEqual(item.shape, expected)
-        np.testing.assert_allclose(result[-1], expected_last_item)
+            np.testing.assert_equal(len(result), input_param["num_samples"])
+            for item, expected in zip(result, expected_shape):
+                self.assertTupleEqual(item.shape, expected)
+            assert_allclose(result[-1], expected_last_item, type_test=False)
 
 
 if __name__ == "__main__":
