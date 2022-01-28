@@ -91,7 +91,8 @@ class TestTimeAugmentation:
         .. code-block:: python
 
             model = UNet(...).to(device)
-            transform = RandAffined(keys, ...)
+            transform = Compose([RandAffined(keys, ...), ...])
+            transform.set_random_state(seed=123)  # ensure deterministic evaluation
 
             tt_aug = TestTimeAugmentation(
                 transform, batch_size=5, num_workers=0, inferrer_fn=model, device=device
