@@ -24,7 +24,7 @@ from monai.transforms.compose import Compose
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.dictionary import Invertd
 from monai.transforms.transform import Randomizable
-from monai.utils import CommonKeys, PostFix, convert_data_type, convert_to_dst_type, optional_import
+from monai.utils import CommonKeys, PostFix, optional_import
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -199,10 +199,10 @@ class TestTimeAugmentation:
             return output
 
         # calculate metrics
-        output_t: torch.Tensor
-        output_t, *_ = convert_data_type(output, output_type=torch.Tensor)  # type: ignore
-        mode, *_ = convert_to_dst_type(torch.mode(output_t.long(), dim=0).values, output, dtype=torch.int64)
-        mean, *_ = convert_to_dst_type(torch.mean(output_t, dim=0), output)
-        std, *_ = convert_to_dst_type(torch.std(output_t, dim=0), output)
-        vvc: float = (torch.std(output_t) / torch.mean(output_t)).item()
+        mode = output.long().mode(0).values if isinstance(output, torch.Tensor) else output.astype(np.int64).mode(0)  # type: ignore
+        mean = output.mean(0)
+        std = output.std(0)
+        vvc = output.std() / output.mean()
+        vvc = vvc.item() if isinstance(vvc, torch.Tensor) else vvc
+
         return mode, mean, std, vvc

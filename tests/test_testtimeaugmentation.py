@@ -35,7 +35,7 @@ from monai.transforms.croppad.dictionary import SpatialPadd
 from monai.transforms.spatial.dictionary import RandFlipd, Spacingd
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import PostFix
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 if TYPE_CHECKING:
     import tqdm
@@ -74,76 +74,82 @@ class TestTestTimeAugmentation(unittest.TestCase):
         set_determinism(None)
 
     def test_test_time_augmentation(self):
-        input_size = (20, 20)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        keys = ["image", "label"]
-        num_training_ims = 10
-        train_data = self.get_data(num_training_ims, input_size)
-        test_data = self.get_data(1, input_size)
+        results = []
+        for data_type in TEST_NDARRAYS:
+            input_size = (20, 20)
+            keys = ["image", "label"]
+            num_training_ims = 10
+            train_data = self.get_data(num_training_ims, input_size, data_type)
+            test_data = self.get_data(1, input_size, data_type)
+            device = test_data.device if isinstance(test_data, torch.Tensor) else "cpu"
 
-        transforms = Compose(
-            [
-                AddChanneld(keys),
-                RandAffined(
-                    keys,
-                    prob=1.0,
-                    spatial_size=(30, 30),
-                    rotate_range=(np.pi / 3, np.pi / 3),
-                    translate_range=(3, 3),
-                    scale_range=((0.8, 1), (0.8, 1)),
-                    padding_mode="zeros",
-                    mode=("bilinear", "nearest"),
-                    as_tensor_output=False,
-                ),
-                CropForegroundd(keys, source_key="image"),
-                DivisiblePadd(keys, 4),
-            ]
-        )
+            transforms = Compose(
+                [
+                    AddChanneld(keys),
+                    RandAffined(
+                        keys,
+                        prob=1.0,
+                        spatial_size=(30, 30),
+                        rotate_range=(np.pi / 3, np.pi / 3),
+                        translate_range=(3, 3),
+                        scale_range=((0.8, 1), (0.8, 1)),
+                        padding_mode="zeros",
+                        mode=("bilinear", "nearest"),
+                        as_tensor_output=False,
+                    ),
+                    CropForegroundd(keys, source_key="image"),
+                    DivisiblePadd(keys, 4),
+                ]
+            )
 
-        train_ds = CacheDataset(train_data, transforms)
-        # output might be different size, so pad so that they match
-        train_loader = DataLoader(train_ds, batch_size=2, collate_fn=pad_list_data_collate)
+            train_ds = CacheDataset(train_data, transforms)
+            # output might be different size, so pad so that they match
+            train_loader = DataLoader(train_ds, batch_size=2, collate_fn=pad_list_data_collate)
 
-        model = UNet(2, 1, 1, channels=(6, 6), strides=(2, 2)).to(device)
-        loss_function = DiceLoss(sigmoid=True)
-        optimizer = torch.optim.Adam(model.parameters(), 1e-3)
+            model = UNet(2, 1, 1, channels=(6, 6), strides=(2, 2)).to(device)
+            loss_function = DiceLoss(sigmoid=True)
+            optimizer = torch.optim.Adam(model.parameters(), 1e-3)
 
-        num_epochs = 10
-        for _ in trange(num_epochs):
-            epoch_loss = 0
+            num_epochs = 10
+            for _ in trange(num_epochs):
+                epoch_loss = 0
 
-            for batch_data in train_loader:
-                inputs, labels = batch_data["image"].to(device), batch_data["label"].to(device)
-                optimizer.zero_grad()
-                outputs = model(inputs)
-                loss = loss_function(outputs, labels)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item()
+                for batch_data in train_loader:
+                    inputs, labels = batch_data["image"].to(device), batch_data["label"].to(device)
+                    optimizer.zero_grad()
+                    outputs = model(inputs)
+                    loss = loss_function(outputs, labels)
+                    loss.backward()
+                    optimizer.step()
+                    epoch_loss += loss.item()
 
-            epoch_loss /= len(train_loader)
+                epoch_loss /= len(train_loader)
 
-        post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
+            post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
 
-        def inferrer_fn(x):
-            return post_trans(model(x))
+            tt_aug = TestTimeAugmentation(
+                transform=transforms,
+                batch_size=5,
+                num_workers=0,
+                inferrer_fn=model,
+                device=device,
+                to_tensor=True,
+                output_device="cpu",
+                post_func=post_trans,
+            )
+            result = tt_aug(test_data)
+            mode, mean, std, vvc = result
+            self.assertEqual(mode.shape, (1,) + input_size)
+            self.assertEqual(mean.shape, (1,) + input_size)
+            self.assertTrue(all(np.unique(mode) == (0, 1)))
+            self.assertEqual((mean.min(), mean.max()), (0.0, 1.0))
+            self.assertEqual(std.shape, (1,) + input_size)
+            self.assertIsInstance(vvc, float)
+            results.append(result)
 
-        tt_aug = TestTimeAugmentation(
-            transform=transforms,
-            batch_size=5,
-            num_workers=0,
-            inferrer_fn=inferrer_fn,
-            device=device,
-            to_tensor=True,
-            output_device="cpu",
-        )
-        mode, mean, std, vvc = tt_aug(test_data)
-        self.assertEqual(mode.shape, (1,) + input_size)
-        self.assertEqual(mean.shape, (1,) + input_size)
-        self.assertTrue(all(np.unique(mode) == (0, 1)))
-        self.assertEqual((mean.min(), mean.max()), (0.0, 1.0))
-        self.assertEqual(std.shape, (1,) + input_size)
-        self.assertIsInstance(vvc, float)
+        for r in results:
+            for r1, r2 in zip(results[0], r):
+                assert_allclose(r1, r2)
 
     def test_fail_non_random(self):
         transforms = Compose([AddChanneld("im"), SpatialPadd("im", 1)])
