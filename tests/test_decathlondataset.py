@@ -13,11 +13,10 @@ import os
 import shutil
 import unittest
 from pathlib import Path
-from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from tests.utils import skip_if_quick
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestDecathlonDataset(unittest.TestCase):
@@ -40,7 +39,7 @@ class TestDecathlonDataset(unittest.TestCase):
             self.assertTrue("image_meta_dict" in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 36, 47, 44))
 
-        try:  # will start downloading if testing_dir doesn't have the Decathlon files
+        with skip_if_downloading_fails():
             data = DecathlonDataset(
                 root_dir=testing_dir,
                 task="Task04_Hippocampus",
@@ -48,12 +47,6 @@ class TestDecathlonDataset(unittest.TestCase):
                 section="validation",
                 download=True,
             )
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, RuntimeError):
-                # FIXME: skip MD5 check as current downloading method may fail
-                self.assertTrue(str(e).startswith("md5 check"))
-            return  # skipping this test due the network connection errors
 
         _test_dataset(data)
         data = DecathlonDataset(

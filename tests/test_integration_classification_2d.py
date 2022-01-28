@@ -12,7 +12,6 @@
 import os
 import unittest
 import warnings
-from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
 import torch
@@ -39,7 +38,7 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_downloading_fails, skip_if_quick
 
 TEST_DATA_URL = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
@@ -186,14 +185,8 @@ class IntegrationClassification2D(DistTestCase):
         dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
 
         if not os.path.exists(data_dir):
-            try:
+            with skip_if_downloading_fails():
                 download_and_extract(TEST_DATA_URL, dataset_file, self.data_dir, MD5_VALUE)
-            except (ContentTooShortError, HTTPError, RuntimeError) as e:
-                print(str(e))
-                if isinstance(e, RuntimeError):
-                    # FIXME: skip MD5 check as current downloading method may fail
-                    self.assertTrue(str(e).startswith("md5 check"))
-                return  # skipping this test due the network connection errors
 
         assert os.path.exists(data_dir)
 
