@@ -114,7 +114,7 @@ class TestTimeAugmentation:
         meta_key_postfix=DEFAULT_POST_FIX,
         to_tensor: bool = True,
         output_device: Union[str, torch.device] = "cpu",
-        post_func: Callable = lambda x: x,
+        post_func: Callable = _identity,
         return_full_data: bool = False,
         progress: bool = True,
     ) -> None:
