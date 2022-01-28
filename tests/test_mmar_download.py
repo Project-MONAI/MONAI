@@ -13,7 +13,6 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
 import torch
@@ -22,7 +21,7 @@ from parameterized import parameterized
 from monai.apps import RemoteMMARKeys, download_mmar, get_model_spec, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
-from tests.utils import skip_if_quick
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 TEST_CASES = [["clara_pt_prostate_mri_segmentation_1"], ["clara_pt_covid19_ct_lesion_segmentation_1"]]
 TEST_EXTRACT_CASES = [
@@ -105,7 +104,7 @@ class TestMMMARDownload(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skip_if_quick
     def test_download(self, idx):
-        try:
+        with skip_if_downloading_fails():
             # test model specification
             cand = get_model_spec(idx)
             self.assertEqual(cand[RemoteMMARKeys.ID], idx)
@@ -116,22 +115,12 @@ class TestMMMARDownload(unittest.TestCase):
                 download_mmar(idx, mmar_dir=tmp_dir, progress=False)
                 download_mmar(idx, mmar_dir=Path(tmp_dir), progress=False, version=1)  # repeated to check caching
                 self.assertTrue(os.path.exists(os.path.join(tmp_dir, idx)))
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, HTTPError):
-                self.assertTrue("500" in str(e))  # http error has the code 500
-            return  # skipping this test due the network connection errors
 
     @parameterized.expand(TEST_EXTRACT_CASES)
     @skip_if_quick
     def test_load_ckpt(self, input_args, expected_name, expected_val):
-        try:
+        with skip_if_downloading_fails():
             output = load_from_mmar(**input_args)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, HTTPError):
-                self.assertTrue("500" in str(e))  # http error has the code 500
-            return
         self.assertEqual(output.__class__.__name__, expected_name)
         x = next(output.parameters())  # verify the first element
         np.testing.assert_allclose(x[0][0].detach().cpu().numpy(), expected_val, rtol=1e-3, atol=1e-3)
