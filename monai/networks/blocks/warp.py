@@ -38,7 +38,7 @@ class Warp(nn.Module):
             - mode: ``"nearest"``, ``"bilinear"``, ``"bicubic"``.
             - padding_mode: ``"zeros"``, ``"border"``, ``"reflection"``
 
-        See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+        See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
 
         For MONAI C++/CUDA extensions, the possible values are:
 

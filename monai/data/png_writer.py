@@ -39,7 +39,7 @@ def write_png(
         output_spatial_shape: spatial shape of the output image.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"bicubic"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling to
             [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
 
