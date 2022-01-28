@@ -31,24 +31,21 @@ for ind, dst in enumerate(
         for p_src in TEST_NDARRAYS:
             for align in (False, True):
                 for interp_mode in ("nearest", "bilinear"):
-                    for padding_mode in ("zeros", "border", "reflection"):
-                        TESTS.append(
-                            [
-                                {},  # default no params
-                                np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
-                                {
-                                    "src": p_src(np.eye(3)),
-                                    "dst": p(dst),
-                                    "dtype": np.float32,
-                                    "align_corners": align,
-                                    "mode": interp_mode,
-                                    "padding_mode": padding_mode,
-                                },
-                                np.array([[[2.0, 1.0], [4.0, 3.0]]])
-                                if ind == 0
-                                else np.array([[[3.0, 4.0], [1.0, 2.0]]]),
-                            ]
-                        )
+                    TESTS.append(
+                        [
+                            {},  # default no params
+                            np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
+                            {
+                                "src": p_src(np.eye(3)),
+                                "dst": p(dst),
+                                "dtype": np.float32,
+                                "align_corners": align,
+                                "mode": interp_mode,
+                                "padding_mode": "zeros",
+                            },
+                            np.array([[[2.0, 1.0], [4.0, 3.0]]]) if ind == 0 else np.array([[[3.0, 4.0], [1.0, 2.0]]]),
+                        ]
+                    )
 
 for ind, dst in enumerate(
     [
