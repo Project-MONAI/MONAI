@@ -99,6 +99,12 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`HashCacheDataset`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: HashCacheDataset
+  :members:
+  :special-members: __getitem__
+
 Patch-based dataset
 -------------------
 

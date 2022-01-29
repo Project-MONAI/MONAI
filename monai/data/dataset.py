@@ -1348,3 +1348,37 @@ class CSVDataset(Dataset):
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
         super().__init__(data=data, transform=transform)
+
+
+class HashCacheDataset(CacheDataset):
+    """
+    Extend from `CacheDataset` to support only caching unique items in the datset.
+    It computes hash value of input data as the key to save cache, if key exists, avoid saving duplicated content.
+    Can help save memory when the dataset has duplicated items or augmented dataset.
+    The `cache_num` or `cache_rate` are computed against only on the unique items of the dataset.
+
+    Args:
+        data: input data to load and transform to generate dataset for model.
+        hash_func: a callable to compute hash from data items to be cached.
+            defaults to `monai.data.utils.pickle_hashing`.
+        kwargs: other arguments of `CacheDataset` except for `data`.
+
+    """
+
+    def __init__(self, data: Sequence, hash_func: Callable[..., bytes] = pickle_hashing, **kwargs) -> None:
+        self.hash_func = hash_func
+        mapping = {self.hash_func(v): v for v in data}
+        # only compute cache for the unique items of dataset
+        super().__init__(data=list(mapping.values()), **kwargs)
+        self._cache_keys = list(mapping)[: self.cache_num]
+        self.data = data
+
+    def _transform(self, index: int):
+        key = self.hash_func(self.data[index])
+        if key in self._cache_keys:
+            # if existing in cache, get the index
+            index = self._cache_keys.index(key)
+        return super()._transform(index=index)
+
+    def set_data(self, _: Sequence):
+        raise NotImplementedError("`set_data` at runtime is not supported in `HashCacheDataset`.")
