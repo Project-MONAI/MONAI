@@ -45,6 +45,8 @@ class TestCacheDataset(unittest.TestCase):
             nib.save(test_image, os.path.join(tempdir, "test_label1.nii.gz"))
             nib.save(test_image, os.path.join(tempdir, "test_image2.nii.gz"))
             nib.save(test_image, os.path.join(tempdir, "test_label2.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_image3.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_label3.nii.gz"))
             test_data = [
                 {
                     "image": os.path.join(tempdir, "test_image1.nii.gz"),
@@ -59,21 +61,30 @@ class TestCacheDataset(unittest.TestCase):
                     "image": os.path.join(tempdir, "test_image2.nii.gz"),
                     "label": os.path.join(tempdir, "test_label2.nii.gz"),
                 },
+                {
+                    "image": os.path.join(tempdir, "test_image3.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label3.nii.gz"),
+                },
+                {
+                    "image": os.path.join(tempdir, "test_image3.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label3.nii.gz"),
+                },
             ]
-            dataset = HashCacheDataset(data=test_data, transform=transform, cache_rate=1.0, num_workers=2)
+            dataset = HashCacheDataset(data=test_data, transform=transform, cache_num=4, num_workers=2)
+            self.assertEqual(len(dataset), 5)
             # ensure no duplicated cache content
-            self.assertEqual(len(dataset._cache), 2)
+            self.assertEqual(len(dataset._cache), 3)
             data1 = dataset[0]
             data2 = dataset[1]
             data3 = dataset[-1]
             # test slice indices
             data4 = dataset[0:-1]
-            self.assertEqual(len(data4), 2)
+            self.assertEqual(len(data4), 4)
 
         if transform is None:
             self.assertEqual(data1["image"], os.path.join(tempdir, "test_image1.nii.gz"))
             self.assertEqual(data2["label"], os.path.join(tempdir, "test_label2.nii.gz"))
-            self.assertEqual(data3["image"], os.path.join(tempdir, "test_image2.nii.gz"))
+            self.assertEqual(data3["image"], os.path.join(tempdir, "test_image3.nii.gz"))
         else:
             self.assertTupleEqual(data1["image"].shape, expected_shape)
             self.assertTupleEqual(data2["label"].shape, expected_shape)
