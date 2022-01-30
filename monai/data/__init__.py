@@ -18,7 +18,6 @@ from .dataset import (
     CSVDataset,
     Dataset,
     DatasetFunc,
-    HashCacheDataset,
     LMDBDataset,
     NPZDictItemDataset,
     PersistentDataset,

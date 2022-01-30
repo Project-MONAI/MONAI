@@ -676,6 +676,8 @@ class CacheDataset(Dataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        hash_as_key: bool = False,
+        hash_func: Callable[..., bytes] = pickle_hashing,
     ) -> None:
         """
         Args:
@@ -695,19 +697,30 @@ class CacheDataset(Dataset):
                 may set `copy=False` for better performance.
             as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
                 it may help improve the performance of following logic.
+            hash_as_key: whether to compute hash value of input data as the key to save cache,
+                if key exists, avoid saving duplicated content. it can help save memory when
+                the dataset has duplicated items or augmented dataset.
+            hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
 
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
+        self.set_num = cache_num
+        self.set_rate = cache_rate
         self.progress = progress
         self.copy_cache = copy_cache
         self.as_contiguous = as_contiguous
-        self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
+        self.hash_as_key = hash_as_key
+        self.hash_func = hash_func
         self.num_workers = num_workers
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
-        self._cache: List = self._fill_cache()
+        self.cache_num = 0
+        self._cache_keys: List = []
+        self._cache: List = []
+        self.set_data(data)
 
     def set_data(self, data: Sequence):
         """
@@ -718,8 +731,16 @@ class CacheDataset(Dataset):
         generated cache content.
 
         """
-        self.data = data
+        if self.hash_as_key:
+            # only compute cache for the unique items of dataset
+            mapping = {self.hash_func(v): v for v in data}
+            self._cache_keys = list(mapping)
+            self.data = list(mapping.values())
+        else:
+            self.data = data
+        self.cache_num = min(int(self.set_num), int(len(self.data) * self.set_rate), len(self.data))
         self._cache = self._fill_cache()
+        self.data = data
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
@@ -754,6 +775,12 @@ class CacheDataset(Dataset):
         return item
 
     def _transform(self, index: int):
+        if self.hash_as_key:
+            key = self.hash_func(self.data[index])
+            if key in self._cache_keys[: self.cache_num]:
+                # if existing in cache, get the index
+                index = self._cache_keys.index(key)
+
         if index % len(self) >= self.cache_num:  # support negative index
             # no cache for this index, execute all the transforms directly
             return super()._transform(index)
@@ -862,9 +889,13 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
-            data = copy(data)
-            self.randomize(data)
         self.shuffle = shuffle
+
+        self._start_pos: int = 0
+        self._update_lock: threading.Lock = threading.Lock()
+        self._round: int = 1
+        self._replace_done: bool = False
+        self._replace_mgr: Optional[threading.Thread] = None
 
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache, as_contiguous)
         if self._cache is None:
@@ -884,13 +915,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
         self._replacements: List[Any] = [None for _ in range(self._replace_num)]
         self._replace_data_idx: List[int] = list(range(self._replace_num))
-
-        self._start_pos: int = 0
-        self._update_lock: threading.Lock = threading.Lock()
-        self._round: int = 1
-        self._replace_done: bool = False
-        self._replace_mgr: Optional[threading.Thread] = None
-
         self._compute_data_idx()
 
     def set_data(self, data: Sequence):
@@ -1348,37 +1372,3 @@ class CSVDataset(Dataset):
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
         super().__init__(data=data, transform=transform)
-
-
-class HashCacheDataset(CacheDataset):
-    """
-    Extend from `CacheDataset` to support only caching unique items in the datset.
-    It computes hash value of input data as the key to save cache, if key exists, avoid saving duplicated content.
-    Can help save memory when the dataset has duplicated items or augmented dataset.
-    The `cache_num` or `cache_rate` are computed against only on the unique items of the dataset.
-
-    Args:
-        data: input data to load and transform to generate dataset for model.
-        hash_func: a callable to compute hash from data items to be cached.
-            defaults to `monai.data.utils.pickle_hashing`.
-        kwargs: other arguments of `CacheDataset` except for `data`.
-
-    """
-
-    def __init__(self, data: Sequence, hash_func: Callable[..., bytes] = pickle_hashing, **kwargs) -> None:
-        self.hash_func = hash_func
-        mapping = {self.hash_func(v): v for v in data}
-        # only compute cache for the unique items of dataset
-        super().__init__(data=list(mapping.values()), **kwargs)
-        self._cache_keys = list(mapping)[: self.cache_num]
-        self.data = data
-
-    def _transform(self, index: int):
-        key = self.hash_func(self.data[index])
-        if key in self._cache_keys:
-            # if existing in cache, get the index
-            index = self._cache_keys.index(key)
-        return super()._transform(index=index)
-
-    def set_data(self, _: Sequence):
-        raise NotImplementedError("`set_data` at runtime is not supported in `HashCacheDataset`.")
