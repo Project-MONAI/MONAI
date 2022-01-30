@@ -244,7 +244,8 @@ def update_docstring(code_path, transform_name):
     contents.insert(image_line + 1, "    :alt: example of " + transform_name + "\n")
 
     # check that we've only added two lines
-    assert len(contents) == len(contents_orig) + 2
+    if len(contents) != len(contents_orig) + 2:
+        raise AssertionError
 
     # write the updated doc to overwrite the original
     with open(code_path, "w") as f:
