@@ -35,6 +35,7 @@ from monai.utils import (
     Method,
     NumpyPadMode,
     convert_data_type,
+    convert_to_dst_type,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -660,7 +661,7 @@ def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], d
 
 
 def compute_shape_offset(
-    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: np.ndarray, out_affine: np.ndarray
+    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: NdarrayOrTensor, out_affine: NdarrayOrTensor
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
@@ -675,12 +676,12 @@ def compute_shape_offset(
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
-    in_affine = to_affine_nd(sr, in_affine)
-    out_affine = to_affine_nd(sr, out_affine)
+    in_affine = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]  # type: ignore
+    out_affine = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]  # type: ignore
     in_coords = [(0.0, dim - 1.0) for dim in shape]
-    corners = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
+    corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine @ corners
+    corners = in_affine @ corners  # type: ignore
     try:
         inv_mat = np.linalg.inv(out_affine)
     except np.linalg.LinAlgError as e:
@@ -692,14 +693,14 @@ def compute_shape_offset(
     k = 0
     for i in range(corners.shape[1]):
         min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
-        if np.allclose(min_corner, 0.0):
+        if np.allclose(min_corner, 0.0, rtol=1e-3):
             k = i
             break
     offset = corners[:-1, k]
     return out_shape.astype(int, copy=False), offset
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndarray:
+def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayOrTensor, dtype=np.float64) -> NdarrayOrTensor:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
@@ -724,7 +725,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndar
         ValueError: When ``r`` is nonpositive.
 
     Returns:
-        an (r+1) x (r+1) matrix
+        an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
     affine_np: np.ndarray
@@ -742,16 +743,19 @@ def to_affine_nd(r: Union[np.ndarray, int], affine, dtype=np.float64) -> np.ndar
     new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
         new_affine[:d, -1] = affine_np[:d, -1]
+    new_affine, *_ = convert_to_dst_type(new_affine, affine, dtype=dtype)  # type: ignore
     return new_affine
 
 
 def reorient_spatial_axes(
     data_shape: Sequence[int], init_affine: NdarrayOrTensor, target_affine: NdarrayOrTensor
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, NdarrayOrTensor]:
     """
-    Given the input ``data_array`` and its corresponding coordinate ``init_affine``,
-    convert the array to ``target_affine`` by rearranging/flipping the axes.
-    Returns the transformed array and the updated affine.
+    Given the input ``init_affine``, compute the orientation transform between
+    it and ``target_affine`` by rearranging/flipping the axes.
+
+    Returns the orientation transform and the updated affine (tensor or ndarray
+    depends on the input ``affine`` data type).
     Note that this function requires external module ``nibabel.orientations``.
     """
     init_affine_, *_ = convert_data_type(init_affine, np.ndarray)
@@ -763,6 +767,7 @@ def reorient_spatial_axes(
     except ValueError as e:
         raise ValueError(f"The input affine {init_affine} and target affine {target_affine} are not compatible.") from e
     new_affine = init_affine_ @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
+    new_affine, *_ = convert_to_dst_type(new_affine, init_affine)
     return ornt_transform, new_affine
 
 

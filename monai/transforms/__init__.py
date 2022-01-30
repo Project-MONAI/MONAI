@@ -556,6 +556,7 @@ from .utils import (
     zero_margins,
 )
 from .utils_pytorch_numpy_unification import (
+    allclose,
     any_np_pt,
     ascontiguousarray,
     clip,

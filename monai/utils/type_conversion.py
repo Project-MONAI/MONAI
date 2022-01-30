@@ -15,7 +15,7 @@ from typing import Any, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor, NdarrayTensor
 from monai.utils import optional_import
 from monai.utils.module import look_up_option
 

@@ -34,7 +34,7 @@ from monai.transforms.utils import (
     create_translate,
     map_spatial_axes,
 )
-from monai.transforms.utils_pytorch_numpy_unification import moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import allclose, moveaxis
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -92,7 +92,7 @@ class SpatialResample(Transform):
     the ones specified by ``dst`` affine matrix.
 
     Internally this transform computes the affine transform matrix from ``src`` to ``dst``,
-    by ``xform = np.linalg.inv(src) @ dst``, and call ``monai.transforms.Affine`` with ``xform``.
+    by ``xform = linalg.solve(src, dst)``, and call ``monai.transforms.Affine`` with ``xform``.
     """
 
     backend = [TransformBackends.TORCH]
@@ -162,9 +162,9 @@ class SpatialResample(Transform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
-                If ``None``, use the data type of input data. To be compatible with other modules,
-                the output data type is always `float32`.
+            dtype: data type for resampling computation. Defaults to ``self.dtype`` or
+                ``np.float64`` (for best precision). If ``None``, use the data type of input data.
+                To be compatible with other modules, the output data type is always `float32`.
 
         The spatial rank is determined by the smallest among ``img.ndim -1``, ``len(src) - 1``, and ``3``.
 
@@ -178,14 +178,14 @@ class SpatialResample(Transform):
         dst = to_affine_nd(spatial_rank, dst) if dst is not None else src
         dst, *_ = convert_to_dst_type(dst, dst, dtype=torch.float32)
 
-        if np.allclose(src, dst, atol=AFFINE_TOL):
+        if allclose(src, dst, atol=AFFINE_TOL):
             # no significant change, return original image
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
             return output_data, dst
 
         if has_nib and isinstance(img, np.ndarray):
             spatial_ornt, dst_r = reorient_spatial_axes(img.shape[1 : spatial_rank + 1], src, dst)
-            if np.allclose(dst_r, dst, atol=AFFINE_TOL):
+            if allclose(dst_r, dst, atol=AFFINE_TOL):
                 # simple reorientation achieves the desired affine
                 spatial_ornt[:, 0] += 1
                 spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
@@ -194,12 +194,16 @@ class SpatialResample(Transform):
                 return output_data, dst
 
         try:
-            xform = np.linalg.inv(src) @ dst
-        except np.linalg.LinAlgError as e:
+            src, *_ = convert_to_dst_type(src, dst)
+            if isinstance(src, np.ndarray):
+                xform = np.linalg.solve(src, dst)
+            else:
+                xform = torch.linalg.solve(src, dst)
+        except (np.linalg.LinAlgError, RuntimeError) as e:
             raise ValueError(f"src affine is not invertible: {src}") from e
         xform = to_affine_nd(spatial_rank, xform)
         # no resampling if it's identity transform
-        if np.allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL):
+        if allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL):
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
             return output_data, dst
 
@@ -364,7 +368,7 @@ class Spacing(Transform):
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_np, *_ = convert_data_type(affine, np.ndarray)  # type: ignore
-            affine_ = to_affine_nd(sr, affine_np)
+            affine_ = to_affine_nd(sr, affine_np)  # type: ignore
 
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
@@ -457,13 +461,14 @@ class Orientation(Transform):
         sr = len(spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
+        affine_: np.ndarray
         if affine is None:
             # default to identity
             affine_np = affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_np, *_ = convert_data_type(affine, np.ndarray)  # type: ignore
-            affine_ = to_affine_nd(sr, affine_np)
+            affine_ = to_affine_nd(sr, affine_np)  # type: ignore
 
         src = nib.io_orientation(affine_)
         if self.as_closest_canonical:
