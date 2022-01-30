@@ -47,6 +47,7 @@ from monai.utils import (
     fall_back_tuple,
     issequenceiterable,
     optional_import,
+    pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
@@ -198,10 +199,14 @@ class SpatialResample(Transform):
             if isinstance(src_affine, np.ndarray):
                 xform = np.linalg.solve(src_affine, dst_affine)
             else:
-                xform = torch.linalg.solve(src_affine, dst_affine)
+                xform = (
+                    torch.linalg.solve(src_affine, dst_affine)
+                    if pytorch_after(1, 8, 0)
+                    else torch.solve(dst_affine, src_affine).solution  # type: ignore
+                )
         except (np.linalg.LinAlgError, RuntimeError) as e:
             raise ValueError(f"src affine is not invertible: {src_affine}") from e
-        xform = to_affine_nd(spatial_rank, xform)
+        xform = to_affine_nd(spatial_rank, xform)  # type: ignore
         # no resampling if it's identity transform
         if allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL):
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
@@ -232,7 +237,7 @@ class SpatialResample(Transform):
             xform = xform @ _t_r
             if not USE_COMPILED:
                 _t_l = normalize_transform(in_spatial_size, xform.device, xform.dtype, align_corners=True)  # type: ignore
-                xform = _t_l @ xform
+                xform = _t_l @ xform  # type: ignore
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, norm_coords=False, image_only=True, dtype=_dtype
             )
