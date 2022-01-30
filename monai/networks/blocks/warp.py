@@ -150,7 +150,7 @@ class DVF2DDF(nn.Module):
         Returns:
             a dense displacement field
         """
-        ddf: torch.Tensor = dvf / (2 ** self.num_steps)
+        ddf: torch.Tensor = dvf / (2**self.num_steps)
         for _ in range(self.num_steps):
             ddf = ddf + self.warp_layer(image=ddf, ddf=ddf)
         return ddf
