@@ -382,7 +382,7 @@ def get_images(data, is_label=False):
         # we might need to panel the images. this happens if a transform produces e.g. 4 output images.
         # In this case, we create a 2-by-2 grid from them. Output will be a list containing n_orthog_views,
         # each element being either the image (if num_samples is 1) or the panelled image.
-        nrows = int(np.floor(num_samples ** 0.5))
+        nrows = int(np.floor(num_samples**0.5))
         for view in range(num_orthog_views):
             result = np.asarray([d[view] for d in data])
             nindex, height, width = result.shape
