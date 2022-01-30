@@ -219,7 +219,7 @@ class SubpixelUpsample(nn.Module):
             out_channels = out_channels or in_channels
             if not out_channels:
                 raise ValueError("in_channels need to be specified.")
-            conv_out_channels = out_channels * (scale_factor ** self.dimensions)
+            conv_out_channels = out_channels * (scale_factor**self.dimensions)
             self.conv_block = Conv[Conv.CONV, self.dimensions](
                 in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1, bias=bias
             )
@@ -247,7 +247,7 @@ class SubpixelUpsample(nn.Module):
             x: Tensor in shape (batch, channel, spatial_1[, spatial_2, ...).
         """
         x = self.conv_block(x)
-        if x.shape[1] % (self.scale_factor ** self.dimensions) != 0:
+        if x.shape[1] % (self.scale_factor**self.dimensions) != 0:
             raise ValueError(
                 f"Number of channels after `conv_block` ({x.shape[1]}) must be evenly "
                 "divisible by scale_factor ** dimensions "
