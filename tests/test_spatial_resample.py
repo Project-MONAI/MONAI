@@ -36,8 +36,8 @@ for ind, dst in enumerate(
                             {},  # default no params
                             np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
                             {
-                                "src": p_src(np.eye(3)),
-                                "dst": p(dst),
+                                "src_affine": p_src(np.eye(3)),
+                                "dst_affine": p(dst),
                                 "dtype": np.float32,
                                 "align_corners": align,
                                 "mode": interp_mode,
@@ -66,8 +66,8 @@ for ind, dst in enumerate(
                             {},  # default no params
                             np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
                             {
-                                "src": p_src(np.eye(4)),
-                                "dst": p_src(dst),
+                                "src_affine": p_src(np.eye(4)),
+                                "dst_affine": p_src(dst),
                                 "dtype": np.float64,
                                 "align_corners": align,
                                 "mode": interp_mode,
@@ -90,7 +90,9 @@ class TestSpatialResample(unittest.TestCase):
         _expected_output = p_type(expected_output)
         output_data, output_dst = SpatialResample(**init_param)(img=_img, **data_param)
         assert_allclose(output_data, _expected_output, rtol=1e-2, atol=1e-2)
-        expected_dst = data_param.get("dst") if data_param.get("dst") is not None else data_param.get("src")
+        expected_dst = (
+            data_param.get("dst_affine") if data_param.get("dst_affine") is not None else data_param.get("src_affine")
+        )
         assert_allclose(output_dst, expected_dst, type_test=False, rtol=1e-2, atol=1e-2)
 
     @parameterized.expand(itertools.product([True, False], TEST_NDARRAYS))
@@ -100,7 +102,9 @@ class TestSpatialResample(unittest.TestCase):
         img = np.tile(img, (1, 1, 1, 1, 2, 2) if is_5d else (1, 1, 1, 1, 2))
         _img = p_type(img)
         dst = np.asarray([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
-        output_data, output_dst = SpatialResample(dtype=np.float32)(img=_img, src=p_type(np.eye(4)), dst=dst)
+        output_data, output_dst = SpatialResample(dtype=np.float32)(
+            img=_img, src_affine=p_type(np.eye(4)), dst_affine=dst
+        )
         expected_data = (
             np.asarray(
                 [
@@ -133,9 +137,9 @@ class TestSpatialResample(unittest.TestCase):
             [[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]]
         )
         with self.assertRaises(ValueError):
-            SpatialResample()(img=img, src=np.eye(4), dst=ill_affine)
+            SpatialResample()(img=img, src_affine=np.eye(4), dst_affine=ill_affine)
         with self.assertRaises(ValueError):
-            SpatialResample()(img=img, src=ill_affine, dst=np.eye(3))
+            SpatialResample()(img=img, src_affine=ill_affine, dst_affine=np.eye(3))
 
 
 if __name__ == "__main__":

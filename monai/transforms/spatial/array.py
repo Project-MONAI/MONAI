@@ -88,11 +88,11 @@ RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
 
 class SpatialResample(Transform):
     """
-    Resample input image from the orientation/spacing defined by ``src`` affine matrix into
-    the ones specified by ``dst`` affine matrix.
+    Resample input image from the orientation/spacing defined by ``src_affine`` affine matrix into
+    the ones specified by ``dst_affine`` affine matrix.
 
-    Internally this transform computes the affine transform matrix from ``src`` to ``dst``,
-    by ``xform = linalg.solve(src, dst)``, and call ``monai.transforms.Affine`` with ``xform``.
+    Internally this transform computes the affine transform matrix from ``src_affine`` to ``dst_affine``,
+    by ``xform = linalg.solve(src_affine, dst_affine)``, and call ``monai.transforms.Affine`` with ``xform``.
     """
 
     backend = [TransformBackends.TORCH]
@@ -129,8 +129,8 @@ class SpatialResample(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        src: Optional[NdarrayOrTensor] = None,
-        dst: Optional[NdarrayOrTensor] = None,
+        src_affine: Optional[NdarrayOrTensor] = None,
+        dst_affine: Optional[NdarrayOrTensor] = None,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
@@ -141,9 +141,9 @@ class SpatialResample(Transform):
         Args:
             img: input image to be resampled. It currently supports channel-first arrays with
                 at most three spatial dimensions.
-            src: source affine matrix. Defaults to ``None``, which means the identity matrix.
+            src_affine: source affine matrix. Defaults to ``None``, which means the identity matrix.
                 the shape should be `(r+1, r+1)` where `r` is the spatial rank of ``img``.
-            dst: destination affine matrix. Defaults to ``None``, which means the same as `src`.
+            dst_affine: destination affine matrix. Defaults to ``None``, which means the same as `src_affine`.
                 the shape should be `(r+1, r+1)` where `r` is the spatial rank of ``img``.
                 when `dst` is None, the input will be returned without resampling, but the data type
                 will be `float32`.
@@ -166,46 +166,46 @@ class SpatialResample(Transform):
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
 
-        The spatial rank is determined by the smallest among ``img.ndim -1``, ``len(src) - 1``, and ``3``.
+        The spatial rank is determined by the smallest among ``img.ndim -1``, ``len(src_affine) - 1``, and ``3``.
 
         When both ``monai.config.USE_COMPILED`` and ``align_corners`` are set to ``True``,
         MONAI's resampling implementation will be used.
         """
-        if src is None:
-            src = np.eye(4, dtype=np.float64)
-        spatial_rank = min(len(img.shape) - 1, src.shape[0] - 1, 3)
-        src = to_affine_nd(spatial_rank, src)
-        dst = to_affine_nd(spatial_rank, dst) if dst is not None else src
-        dst, *_ = convert_to_dst_type(dst, dst, dtype=torch.float32)
+        if src_affine is None:
+            src_affine = np.eye(4, dtype=np.float64)
+        spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
+        src_affine = to_affine_nd(spatial_rank, src_affine)
+        dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
+        dst_affine, *_ = convert_to_dst_type(dst_affine, dst_affine, dtype=torch.float32)
 
-        if allclose(src, dst, atol=AFFINE_TOL):
+        if allclose(src_affine, dst_affine, atol=AFFINE_TOL):
             # no significant change, return original image
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
-            return output_data, dst
+            return output_data, dst_affine
 
         if has_nib and isinstance(img, np.ndarray):
-            spatial_ornt, dst_r = reorient_spatial_axes(img.shape[1 : spatial_rank + 1], src, dst)
-            if allclose(dst_r, dst, atol=AFFINE_TOL):
+            spatial_ornt, dst_r = reorient_spatial_axes(img.shape[1 : spatial_rank + 1], src_affine, dst_affine)
+            if allclose(dst_r, dst_affine, atol=AFFINE_TOL):
                 # simple reorientation achieves the desired affine
                 spatial_ornt[:, 0] += 1
                 spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
                 img_ = nib.orientations.apply_orientation(img, spatial_ornt)
                 output_data, *_ = convert_to_dst_type(img_, img, dtype=torch.float32)
-                return output_data, dst
+                return output_data, dst_affine
 
         try:
-            src, *_ = convert_to_dst_type(src, dst)
-            if isinstance(src, np.ndarray):
-                xform = np.linalg.solve(src, dst)
+            src_affine, *_ = convert_to_dst_type(src_affine, dst_affine)
+            if isinstance(src_affine, np.ndarray):
+                xform = np.linalg.solve(src_affine, dst_affine)
             else:
-                xform = torch.linalg.solve(src, dst)
+                xform = torch.linalg.solve(src_affine, dst_affine)
         except (np.linalg.LinAlgError, RuntimeError) as e:
-            raise ValueError(f"src affine is not invertible: {src}") from e
+            raise ValueError(f"src affine is not invertible: {src_affine}") from e
         xform = to_affine_nd(spatial_rank, xform)
         # no resampling if it's identity transform
         if allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL):
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
-            return output_data, dst
+            return output_data, dst_affine
 
         _dtype = dtype or self.dtype or img.dtype
         spatial_size = ensure_tuple(spatial_size)
@@ -213,7 +213,7 @@ class SpatialResample(Transform):
         if spatial_size[0] == -1:  # if the spatial_size == -1
             spatial_size = in_spatial_size
         elif spatial_size[0] is None:
-            spatial_size, _ = compute_shape_offset(in_spatial_size, src, dst)  # type: ignore
+            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
         spatial_size = spatial_size[:spatial_rank]
         chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
         # resample
@@ -251,7 +251,7 @@ class SpatialResample(Transform):
             output_data = output_data.reshape(full_shape)
         # output dtype float
         output_data, *_ = convert_to_dst_type(output_data, img, dtype=torch.float32)
-        return output_data, dst
+        return output_data, dst_affine
 
 
 class Spacing(Transform):
@@ -380,8 +380,8 @@ class Spacing(Transform):
         new_affine[:sr, -1] = offset[:sr]
         output_data, new_affine = self.sp_resample(
             data_array,
-            src=affine,
-            dst=new_affine,
+            src_affine=affine,
+            dst_affine=new_affine,
             spatial_size=list(output_shape) if output_spatial_shape is None else output_spatial_shape,
             mode=mode,
             padding_mode=padding_mode,

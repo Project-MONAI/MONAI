@@ -140,10 +140,10 @@ class SpatialResampled(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialResample`.
 
     This transform assumes the ``data`` dictionary has a key for the input
-    data's metadata and contains ``src`` and ``dst`` affine required by
+    data's metadata and contains ``src_affine`` and ``dst_affine`` required by
     `SpatialResample`. The key is formed by ``key_{meta_key_postfix}``.  The
-    transform will swap ``src`` and ``dst`` affine (with potential data type
-    changes) in the dictionary so that ``src`` always refers to the current
+    transform will swap ``src_affine`` and ``dst_affine`` affine (with potential data type
+    changes) in the dictionary so that ``src_affine`` always refers to the current
     status of affine.
 
     See also:
@@ -188,12 +188,12 @@ class SpatialResampled(MapTransform, InvertibleTransform):
                 the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to to fetch the meta data according
+            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the meta data according
                 to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
-            meta_src_keys: the key of the corresponding ``src`` affine in the meta data dictionary.
-            meta_dst_keys: the key of the corresponding ``dst`` affine in the meta data dictionary.
+            meta_src_keys: the key of the corresponding ``src_affine`` in the metadata dictionary.
+            meta_dst_keys: the key of the corresponding ``dst_affine`` in the metadata dictionary.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
@@ -233,8 +233,8 @@ class SpatialResampled(MapTransform, InvertibleTransform):
             original_spatial_shape = d[key].shape[1:]
             d[key], meta_data[meta_dst_key] = self.sp_transform(  # write dst affine because the dtype might change
                 img=d[key],
-                src=meta_data[meta_src_key],
-                dst=meta_data[meta_dst_key],
+                src_affine=meta_data[meta_src_key],
+                dst_affine=meta_data[meta_dst_key],
                 spatial_size=None,  # None means shape auto inferred
                 mode=mode,
                 padding_mode=padding_mode,
@@ -275,8 +275,8 @@ class SpatialResampled(MapTransform, InvertibleTransform):
             # Apply inverse
             d[key], dst_affine = inverse_transform(
                 img=d[key],
-                src=src_affine,
-                dst=dst_affine,
+                src_affine=src_affine,
+                dst_affine=dst_affine,
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=False if align_corners == TraceKeys.NONE else align_corners,
@@ -359,7 +359,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                 the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to to fetch the meta data according
+            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the meta data according
                 to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
@@ -493,7 +493,7 @@ class Orientationd(MapTransform, InvertibleTransform):
                 the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
                 to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
