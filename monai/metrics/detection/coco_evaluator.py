@@ -149,7 +149,7 @@ class COCOMetric(DetectionMetric):
         Compute AP metrics
 
         Args:
-            results_list (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
+            dataset_statistics (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
                 per category (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
                 `dtMatches`: matched detections [T, D], where T = number of thresholds, D = number of detections
                 `gtMatches`: matched ground truth boxes [T, G], where T = number of thresholds, G = number of
@@ -191,7 +191,7 @@ class COCOMetric(DetectionMetric):
         Compute AR metrics
 
         Args:
-            results_list (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
+            dataset_statistics (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
                 per category (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
                 `dtMatches`: matched detections [T, D], where T = number of thresholds, D = number of detections
                 `gtMatches`: matched ground truth boxes [T, G], where T = number of thresholds, G = number of
