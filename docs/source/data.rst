@@ -178,6 +178,12 @@ Synthetic
   :members:
 
 
+Ouput folder layout
+-------------------
+.. automodule:: monai.data.folder_layout
+  :members:
+
+
 Utilities
 ---------
 .. automodule:: monai.data.utils

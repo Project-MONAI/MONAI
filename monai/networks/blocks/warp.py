@@ -18,6 +18,7 @@ from torch.nn import functional as F
 
 from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.layers.spatial_transforms import grid_pull
+from monai.networks.utils import meshgrid_ij
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
 
 _C, _ = optional_import("monai._C")
@@ -37,7 +38,7 @@ class Warp(nn.Module):
             - mode: ``"nearest"``, ``"bilinear"``, ``"bicubic"``.
             - padding_mode: ``"zeros"``, ``"border"``, ``"reflection"``
 
-        See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+        See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
 
         For MONAI C++/CUDA extensions, the possible values are:
 
@@ -84,7 +85,7 @@ class Warp(nn.Module):
     @staticmethod
     def get_reference_grid(ddf: torch.Tensor) -> torch.Tensor:
         mesh_points = [torch.arange(0, dim) for dim in ddf.shape[2:]]
-        grid = torch.stack(torch.meshgrid(*mesh_points), dim=0)  # (spatial_dims, ...)
+        grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
         grid = grid.to(ddf)
         return grid
@@ -149,7 +150,7 @@ class DVF2DDF(nn.Module):
         Returns:
             a dense displacement field
         """
-        ddf: torch.Tensor = dvf / (2 ** self.num_steps)
+        ddf: torch.Tensor = dvf / (2**self.num_steps)
         for _ in range(self.num_steps):
             ddf = ddf + self.warp_layer(image=ddf, ddf=ddf)
         return ddf

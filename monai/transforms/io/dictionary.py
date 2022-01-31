@@ -25,8 +25,11 @@ from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple, ensure_tuple_rep
+from monai.utils.enums import PostFix
 
 __all__ = ["LoadImaged", "LoadImageD", "LoadImageDict", "SaveImaged", "SaveImageD", "SaveImageDict"]
+
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class LoadImaged(MapTransform):
@@ -66,7 +69,7 @@ class LoadImaged(MapTransform):
         reader: Optional[Union[ImageReader, str]] = None,
         dtype: DtypeLike = np.float32,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         overwriting: bool = False,
         image_only: bool = False,
         allow_missing_keys: bool = False,
@@ -167,16 +170,16 @@ class SaveImaged(MapTransform):
 
             - NIfTI files {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             - PNG files {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
 
             - NIfTI files {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             - PNG files
                 This option is ignored.
 
@@ -216,7 +219,7 @@ class SaveImaged(MapTransform):
         self,
         keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         output_dir: Union[Path, str] = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",

@@ -182,9 +182,9 @@ class RandRicianNoise(RandomizableTransform):
         if isinstance(img, torch.Tensor):
             n1 = torch.tensor(self._noise1, device=img.device)
             n2 = torch.tensor(self._noise2, device=img.device)
-            return torch.sqrt((img + n1) ** 2 + n2 ** 2)
+            return torch.sqrt((img + n1) ** 2 + n2**2)
 
-        return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
+        return np.sqrt((img + self._noise1) ** 2 + self._noise2**2)
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -443,6 +443,7 @@ class ScaleIntensity(Transform):
             ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
 
         """
+        ret: NdarrayOrTensor
         if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
@@ -591,7 +592,7 @@ class RandBiasField(RandomizableTransform):
             axis=0,
         )
         img_np, *_ = convert_data_type(img, np.ndarray)
-        out = img_np * np.exp(_bias_fields)
+        out: NdarrayOrTensor = img_np * np.exp(_bias_fields)
         out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype or img.dtype)
         return out
 
@@ -973,8 +974,8 @@ class ScaleIntensityRangePercentiles(Transform):
         Apply the transform to `img`.
         """
         if self.channel_wise:
-            for i, d in enumerate(img):
-                img[i] = self._normalize(img=d)  # type: ignore
+            out = [self._normalize(img=d) for d in img]
+            img = torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
         else:
             img = self._normalize(img=img)
 

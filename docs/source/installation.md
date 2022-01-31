@@ -4,6 +4,7 @@
 1. [From PyPI](#from-pypi)
 	1. [Milestone release](#milestone-release)
 	2. [Weekly preview release](#weekly-preview-release)
+1. [From conda-forge](#from-conda-forge)
 2. [From GitHub](#from-github)
 	1. [System-wide](#milestone-release)
 	2. [Editable](#weekly-preview-release)
@@ -45,6 +46,13 @@ The weekly build is released to PyPI every Sunday with a pre-release build numbe
 To report any issues on the weekly preview, please include the version and commit information:
 ```bash
 python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
+```
+
+## From conda-forge
+
+To install the [current milestone release](https://pypi.org/project/monai/):
+```bash
+conda install -c conda-forge monai
 ```
 
 ## From GitHub
@@ -166,11 +174,18 @@ cd MONAI/
 pip install -e '.[all]'
 ```
 
-To install all optional dependencies for MONAI development:
+To install all optional dependencies for MONAI development with `pip`:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -r requirements-dev.txt
+```
+
+To install all optional dependencies for MONAI development with `conda`:
+```bash
+git clone https://github.com/Project-MONAI/MONAI.git
+cd MONAI/
+conda env update -n <name> -f environment-dev.yml
 ```
 
 Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is available via PyPI.

@@ -21,15 +21,17 @@ import time
 import traceback
 import unittest
 import warnings
+from contextlib import contextmanager
 from functools import partial
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
-from urllib.error import HTTPError, URLError
+from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.apps.utils import download_url
 from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
@@ -92,11 +94,25 @@ def assert_allclose(
     np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
-def test_pretrained_networks(network, input_param, device):
+@contextmanager
+def skip_if_downloading_fails():
     try:
+        yield
+    except (ContentTooShortError, HTTPError, ConnectionError) as e:
+        raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except RuntimeError as rt_e:
+        if "network issue" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "gdown dependency" in str(rt_e):  # no gdown installed
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "md5 check" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        raise rt_e
+
+
+def test_pretrained_networks(network, input_param, device):
+    with skip_if_downloading_fails():
         return network(**input_param).to(device)
-    except (URLError, HTTPError) as e:
-        raise unittest.SkipTest(e) from e
 
 
 def test_is_quick():
@@ -235,7 +251,7 @@ def has_cupy():
 HAS_CUPY = has_cupy()
 
 
-def make_nifti_image(array: NdarrayOrTensor, affine=None):
+def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
@@ -248,10 +264,23 @@ def make_nifti_image(array: NdarrayOrTensor, affine=None):
         affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)
 
-    temp_f, image_name = tempfile.mkstemp(suffix=".nii.gz")
-    nib.save(test_image, image_name)
-    os.close(temp_f)
-    return image_name
+    # if dir not given, create random. Else, make sure it exists.
+    if dir is None:
+        dir = tempfile.mkdtemp()
+    else:
+        os.makedirs(dir, exist_ok=True)
+
+    # If fname not given, get random one. Else, concat dir, fname and suffix.
+    if fname is None:
+        temp_f, fname = tempfile.mkstemp(suffix=suffix, dir=dir)
+        os.close(temp_f)
+    else:
+        fname = os.path.join(dir, fname + suffix)
+
+    nib.save(test_image, fname)
+    if verbose:
+        print(f"File written: {fname}.")
+    return fname
 
 
 def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):
@@ -627,6 +656,12 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
             rtol=rtol,
             atol=atol,
         )
+
+
+def download_url_or_skip_test(*args, **kwargs):
+    """``download_url`` and skip the tests if any downloading error occurs."""
+    with skip_if_downloading_fails():
+        download_url(*args, **kwargs)
 
 
 def query_memory(n=2):

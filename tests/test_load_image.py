@@ -80,6 +80,13 @@ TEST_CASE_8 = [
     (3, 128, 128, 128),
 ]
 
+TEST_CASE_8_1 = [
+    {"reader": ITKReader(channel_dim=0), "image_only": True},
+    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
+    (384, 128, 128),
+]
+
+
 TEST_CASE_9 = [
     {"reader": ITKReader(), "image_only": False},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
@@ -107,6 +114,18 @@ TEST_CASE_12 = [
     (4, 16, 16),
 ]
 
+TEST_CASE_13 = [{"reader": "nibabelreader", "channel_dim": 0}, "test_image.nii.gz", (3, 128, 128, 128)]
+
+TEST_CASE_14 = [{"reader": "nibabelreader", "channel_dim": -1}, "test_image.nii.gz", (128, 128, 128, 3)]
+
+TEST_CASE_15 = [{"reader": "nibabelreader", "channel_dim": 2}, "test_image.nii.gz", (128, 128, 3, 128)]
+
+TEST_CASE_16 = [{"reader": "itkreader", "channel_dim": 0}, "test_image.nii.gz", (3, 128, 128, 128)]
+
+TEST_CASE_17 = [{"reader": "ITKReader", "channel_dim": -1}, "test_image.nii.gz", (128, 128, 128, 3)]
+
+TEST_CASE_18 = [{"reader": "ITKReader", "channel_dim": 2}, "test_image.nii.gz", (128, 128, 3, 128)]
+
 
 class TestLoadImage(unittest.TestCase):
     @parameterized.expand(
@@ -128,7 +147,7 @@ class TestLoadImage(unittest.TestCase):
                 np.testing.assert_allclose(header["original_affine"], np.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9])
+    @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_8_1, TEST_CASE_9])
     def test_itk_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -253,6 +272,27 @@ class TestLoadImage(unittest.TestCase):
             self.assertEqual(out[1]["name"], "my test")
         out = LoadImage()("test", reader=_MiniReader(is_compatible=False))
         self.assertEqual(out[1]["name"], "my test")
+
+    def test_itk_meta(self):
+        """test metadata from a directory"""
+        out, meta = LoadImage(reader="ITKReader", pixel_type=itk.UC, series_meta=True)("tests/testing_data/CT_DICOM")
+        idx = "0008|103e"
+        label = itk.GDCMImageIO.GetLabelFromTag(idx, "")[1]
+        val = meta[idx]
+        expected = "Series Description=Routine Brain "
+        self.assertEqual(f"{label}={val}", expected)
+
+    @parameterized.expand([TEST_CASE_13, TEST_CASE_14, TEST_CASE_15, TEST_CASE_16, TEST_CASE_17, TEST_CASE_18])
+    def test_channel_dim(self, input_param, filename, expected_shape):
+        test_image = np.random.rand(*expected_shape)
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename = os.path.join(tempdir, filename)
+            nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
+            result = LoadImage(**input_param)(filename)
+
+        self.assertTupleEqual(result[0].shape, expected_shape)
+        self.assertTupleEqual(tuple(result[1]["spatial_shape"]), (128, 128, 128))
+        self.assertEqual(result[1]["original_channel_dim"], input_param["channel_dim"])
 
 
 if __name__ == "__main__":

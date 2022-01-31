@@ -57,7 +57,7 @@ void BilateralFilterPHLCpu(
         int coord = offsetRemainder / desc.strides[d];
         offsetRemainder -= coord * desc.strides[d];
 
-        features[i * featureChannels + desc.channelCount + d] = invSpatialSigma * coord;
+        features[i * featureChannels + desc.channelCount + d] = (scalar_t)invSpatialSigma * coord;
       }
     }
 

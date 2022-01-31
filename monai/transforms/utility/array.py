@@ -202,6 +202,7 @@ class EnsureChannelFirst(Transform):
             strict_check: whether to raise an error when the meta information is insufficient.
         """
         self.strict_check = strict_check
+        self.add_channel = AddChannel()
 
     def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
@@ -223,7 +224,7 @@ class EnsureChannelFirst(Transform):
             warnings.warn(msg)
             return img
         if channel_dim == "no_channel":
-            return AddChannel()(img)
+            return self.add_channel(img)
         return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
@@ -570,7 +571,7 @@ class DataStats(Transform):
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info: user can define callable function to extract additional info from input data.
             logger_handler: add additional handler to output data: save to file, etc.
-                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+                all the existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html.
                 the handler should have a logging level of at least `INFO`.
 
         Raises:
@@ -789,7 +790,7 @@ class LabelToMask(Transform):
         if img.shape[0] > 1:
             data = img[[*select_labels]]
         else:
-            where = np.where if isinstance(img, np.ndarray) else torch.where
+            where: Callable = np.where if isinstance(img, np.ndarray) else torch.where  # type: ignore
             if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
                 data = where(in1d(img, select_labels), True, False).reshape(img.shape)
             # pre pytorch 1.8.0, need to use 1/0 instead of True/False

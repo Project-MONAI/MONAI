@@ -44,9 +44,9 @@ jobs:
     - name: Lint and type check
       run: |
         # clean up temporary files
-        $(pwd)/runtests.sh --clean
+        $(pwd)/runtests.sh --build --clean
         # Git hub actions have 2 cores, so parallize pytype
-        $(pwd)/runtests.sh --codeformat -j 2
+        $(pwd)/runtests.sh --build --codeformat -j 2
 
   quick-py3:  # full dependencies installed tests for different OS
     runs-on: ${{ matrix.os }}

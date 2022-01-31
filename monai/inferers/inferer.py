@@ -30,7 +30,8 @@ class Inferer(ABC):
     Example code::
 
         device = torch.device("cuda:0")
-        data = ToTensor()(LoadImage()(filename=img_path)).to(device)
+        transform = Compose([ToTensor(), LoadImage(image_only=True)])
+        data = transform(img_path).to(device)
         model = UNet(...).to(device)
         inferer = SlidingWindowInferer(...)
 
@@ -109,7 +110,7 @@ class SlidingWindowInferer(Inferer):
             spatial dimensions.
         padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
             Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
-            See also: https://pytorch.org/docs/stable/nn.functional.html#pad
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         cval: fill value for 'constant' padding mode. Default: 0
         sw_device: device for the window data.
             By default the device (and accordingly the memory) of the `inputs` is used.

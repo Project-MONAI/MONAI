@@ -39,6 +39,7 @@ from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils.enums import PostFix
 
 __all__ = [
     "ActivationsD",
@@ -76,6 +77,8 @@ __all__ = [
     "VoteEnsembleDict",
     "VoteEnsembled",
 ]
+
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class Activationsd(MapTransform):
@@ -216,6 +219,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         self,
         keys: KeysCollection,
         applied_labels: Union[Sequence[int], int],
+        is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
         allow_missing_keys: bool = False,
@@ -224,9 +228,11 @@ class KeepLargestConnectedComponentd(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            applied_labels: Labels for applying the connected component on.
-                If only one channel. The pixel whose value is not in this list will remain unchanged.
-                If the data is in one-hot format, this is the channel indices to apply transform.
+            applied_labels: Labels for applying the connected component analysis on.
+                If not OneHot. The pixel whose value is in this list will be analyzed.
+                If the data is in OneHot format, this is used to determine which channels to apply.
+            is_onehot: if `True`, treat the input data as OneHot format data, otherwise, not OneHot format data.
+                default to None, which treats multi-channel data as OneHot and single channel data as not OneHot.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
                 and return the intersection of the largest components.
@@ -234,12 +240,15 @@ class KeepLargestConnectedComponentd(MapTransform):
                 default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
-                connectivity of ``input.ndim`` is used.
+                connectivity of ``input.ndim`` is used. for more details:
+                https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
+        self.converter = KeepLargestConnectedComponent(
+            applied_labels=applied_labels, is_onehot=is_onehot, independent=independent, connectivity=connectivity
+        )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -538,7 +547,7 @@ class Invertd(MapTransform):
         orig_keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
         orig_meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         nearest_interp: Union[bool, Sequence[bool]] = True,
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
@@ -663,10 +672,11 @@ class SaveClassificationd(MapTransform):
         self,
         keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         saver: Optional[CSVSaver] = None,
         output_dir: PathLike = "./",
         filename: str = "predictions.csv",
+        delimiter: str = ",",
         overwrite: bool = True,
         flush: bool = True,
         allow_missing_keys: bool = False,
@@ -690,6 +700,8 @@ class SaveClassificationd(MapTransform):
                 the saver must provide `save(data, meta_data)` and `finalize()` APIs.
             output_dir: if `saver=None`, specify the directory to save the CSV file.
             filename: if `saver=None`, specify the name of the saved CSV file.
+            delimiter: the delimiter character in the saved file, default to "," as the default output type is `csv`.
+                to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
             overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
                 will clear the file before saving. otherwise, will append new content to the CSV file.
             flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately
@@ -701,7 +713,9 @@ class SaveClassificationd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         if len(self.keys) != 1:
             raise ValueError("only 1 key is allowed when saving the classification result.")
-        self.saver = saver or CSVSaver(output_dir, filename, overwrite, flush)
+        self.saver = saver or CSVSaver(
+            output_dir=output_dir, filename=filename, overwrite=overwrite, flush=flush, delimiter=delimiter
+        )
         self.flush = flush
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
