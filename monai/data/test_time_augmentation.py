@@ -203,7 +203,6 @@ class TestTimeAugmentation:
         _mode = mode(output, dim=0)
         mean = output.mean(0)
         std = output.std(0)
-        vvc = output.std() / output.mean()
-        vvc = vvc.item() if isinstance(vvc, torch.Tensor) else vvc
+        vvc = (output.std() / output.mean()).item()
 
         return _mode, mean, std, vvc
