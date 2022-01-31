@@ -42,7 +42,7 @@ __all__ = [
 ]
 
 
-def allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:
+def allclose(a: NdarrayTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:
     """`np.allclose` with equivalent implementation for torch."""
     b, *_ = convert_to_dst_type(b, a)
     if isinstance(a, np.ndarray):

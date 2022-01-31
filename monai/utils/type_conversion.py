@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import re
-from typing import Any, Optional, Sequence, Tuple, Type, Union, overload
+from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -241,7 +241,7 @@ def convert_data_type(
             (1.0, <class 'torch.Tensor'>, None)
 
     """
-    orig_type: Any
+    orig_type: type
     if isinstance(data, torch.Tensor):
         orig_type = torch.Tensor
     elif isinstance(data, np.ndarray):
@@ -260,13 +260,14 @@ def convert_data_type(
     data_: NdarrayTensor
     if issubclass(output_type, torch.Tensor):
         data_ = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence)
-    elif issubclass(output_type, np.ndarray):
+        return data_, orig_type, orig_device
+    if issubclass(output_type, np.ndarray):
         data_ = convert_to_numpy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
+        return data_, orig_type, orig_device
     elif has_cp and issubclass(output_type, cp.ndarray):
         data_ = convert_to_cupy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
-    else:
-        raise ValueError(f"Unsupported output type: {output_type}")
-    return data_, orig_type, orig_device
+        return data_, orig_type, orig_device
+    raise ValueError(f"Unsupported output type: {output_type}")
 
 
 def convert_to_dst_type(
