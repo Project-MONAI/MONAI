@@ -23,7 +23,7 @@ jobs:
           - "PT18+CUDA102"
           - "PT18+CUDA112"
           - "PT19+CUDA114"
-          - "PT110+CUDA115"
+          - "PT110+CUDA116"
           - "PT110+CUDA102"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
