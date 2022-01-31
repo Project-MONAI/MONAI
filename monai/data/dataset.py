@@ -707,8 +707,8 @@ class CacheDataset(Dataset):
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
-        self.set_num = cache_num
-        self.set_rate = cache_rate
+        self.set_num = cache_num  # tracking the user-provided `cache_num` option
+        self.set_rate = cache_rate  # tracking the user-provided `cache_rate` option
         self.progress = progress
         self.copy_cache = copy_cache
         self.as_contiguous = as_contiguous
@@ -718,8 +718,7 @@ class CacheDataset(Dataset):
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
         self.cache_num = 0
-        self._cache_keys: List = []
-        self._cache: List = []
+        self._cache: Union[List, Dict] = []
         self.set_data(data)
 
     def set_data(self, data: Sequence):
@@ -731,16 +730,21 @@ class CacheDataset(Dataset):
         generated cache content.
 
         """
+
+        def _compute_cache():
+            self.cache_num = min(int(self.set_num), int(len(self.data) * self.set_rate), len(self.data))
+            return self._fill_cache()
+
         if self.hash_as_key:
             # only compute cache for the unique items of dataset
             mapping = {self.hash_func(v): v for v in data}
-            self._cache_keys = list(mapping)
             self.data = list(mapping.values())
+            cache_ = _compute_cache()
+            self._cache = dict(zip(list(mapping)[: self.cache_num], cache_))
+            self.data = data
         else:
             self.data = data
-        self.cache_num = min(int(self.set_num), int(len(self.data) * self.set_rate), len(self.data))
-        self._cache = self._fill_cache()
-        self.data = data
+            self._cache = _compute_cache()
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
@@ -775,20 +779,21 @@ class CacheDataset(Dataset):
         return item
 
     def _transform(self, index: int):
+        index_: Any = index
         if self.hash_as_key:
             key = self.hash_func(self.data[index])
-            if key in self._cache_keys[: self.cache_num]:
+            if key in self._cache:
                 # if existing in cache, get the index
-                index = self._cache_keys.index(key)
+                index_ = key  # if using hash as cache keys, set the key
 
-        if index % len(self) >= self.cache_num:  # support negative index
+        if isinstance(index_, int) and index_ % len(self) >= self.cache_num:  # support negative index
             # no cache for this index, execute all the transforms directly
-            return super()._transform(index)
+            return super()._transform(index_)
         # load data from cache and execute from the first random transform
         start_run = False
         if self._cache is None:
             self._cache = self._fill_cache()
-        data = self._cache[index]
+        data = self._cache[index_]
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
