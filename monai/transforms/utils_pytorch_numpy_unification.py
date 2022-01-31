@@ -14,7 +14,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.utils.misc import ensure_tuple, is_module_ver_at_least
 from monai.utils.type_conversion import convert_to_dst_type
 
@@ -324,7 +324,7 @@ def isfinite(x: NdarrayOrTensor) -> NdarrayOrTensor:
     return torch.isfinite(x)
 
 
-def searchsorted(a: NdarrayOrTensor, v: NdarrayOrTensor, right=False, sorter=None, **kwargs) -> NdarrayOrTensor:
+def searchsorted(a: NdarrayTensor, v: NdarrayOrTensor, right=False, sorter=None, **kwargs) -> NdarrayTensor:
     """
     `np.searchsorted` with equivalent implementation for torch.
 

@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -694,7 +694,7 @@ class NormalizeIntensity(Transform):
         else:
             img = self._normalize(img, self.subtrahend, self.divisor)
 
-        out, *_ = convert_data_type(img, dtype=dtype)
+        out = convert_to_dst_type(img, img, dtype=dtype)[0]
         return out
 
 
@@ -779,7 +779,7 @@ class ScaleIntensityRange(Transform):
             img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
             img = clip(img, self.b_min, self.b_max)
-        ret, *_ = convert_data_type(img, dtype=dtype)
+        ret: NdarrayOrTensor = convert_data_type(img, dtype=dtype)[0]
 
         return ret
 
@@ -1146,9 +1146,8 @@ class GaussianSmooth(Transform):
         self.sigma = sigma
         self.approx = approx
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         sigma: Union[Sequence[torch.Tensor], torch.Tensor]
         if isinstance(self.sigma, Sequence):
             sigma = [torch.as_tensor(s, device=img_t.device) for s in self.sigma]
@@ -1255,7 +1254,7 @@ class GaussianSharpen(Transform):
         self.alpha = alpha
         self.approx = approx
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         img_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
 

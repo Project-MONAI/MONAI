@@ -222,8 +222,8 @@ class SpatialResample(Transform):
         spatial_size = spatial_size[:spatial_rank]
         chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
         # resample
-        img_ = convert_data_type(img, torch.Tensor, dtype=_dtype)[0]  # type: ignore
-        xform = convert_to_dst_type(xform, img_)[0]  # type: ignore
+        img_ = convert_data_type(img, torch.Tensor, dtype=_dtype)[0]
+        xform = convert_to_dst_type(xform, img_)[0]
         align_corners = self.align_corners if align_corners is None else align_corners
         mode = mode or self.mode
         padding_mode = padding_mode or self.padding_mode
@@ -231,12 +231,12 @@ class SpatialResample(Transform):
             xform_shape = [-1] + in_spatial_size
             img_ = img_.reshape(xform_shape)
         if align_corners:
-            _t_r = torch.diag(torch.ones(len(xform), dtype=xform.dtype, device=xform.device))  # type: ignore
+            _t_r = torch.diag(torch.ones(len(xform), dtype=xform.dtype, device=xform.device))
             for idx, d_dst in enumerate(spatial_size[:spatial_rank]):
                 _t_r[idx, -1] = (max(d_dst, 2) - 1.0) / 2.0
             xform = xform @ _t_r
             if not USE_COMPILED:
-                _t_l = normalize_transform(in_spatial_size, xform.device, xform.dtype, align_corners=True)  # type: ignore
+                _t_l = normalize_transform(in_spatial_size, xform.device, xform.dtype, align_corners=True)
                 xform = _t_l @ xform  # type: ignore
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, norm_coords=False, image_only=True, dtype=_dtype
@@ -503,7 +503,7 @@ class Orientation(Transform):
                 data_array = data_array.permute(full_transpose.tolist())  # type: ignore
             else:
                 data_array = data_array.transpose(full_transpose)  # type: ignore
-        out, *_ = convert_to_dst_type(src=data_array, dst=data_array)  # type: ignore
+        out, *_ = convert_to_dst_type(src=data_array, dst=data_array)
         new_affine = to_affine_nd(affine_np, new_affine)
         new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
 
@@ -700,8 +700,7 @@ class Rotate(Transform, ThreadUnsafe):
         """
         _dtype = dtype or self.dtype or img.dtype
 
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype)
 
         im_shape = np.asarray(img_t.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
@@ -721,8 +720,7 @@ class Rotate(Transform, ThreadUnsafe):
         shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
         transform = shift @ transform @ shift_1
 
-        transform_t: torch.Tensor
-        transform_t, *_ = convert_to_dst_type(transform, img_t)  # type: ignore
+        transform_t, *_ = convert_to_dst_type(transform, img_t)
 
         xform = AffineTransform(
             normalized=False,
@@ -1582,7 +1580,7 @@ class Resample(Transform):
         img_t: torch.Tensor
         grid_t: torch.Tensor
         img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=dtype)  # type: ignore
-        grid_t = convert_to_dst_type(grid, img_t)[0]  # type: ignore
+        grid_t = convert_to_dst_type(grid, img_t)[0]
         if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
             grid_t = grid_t.clone(memory_format=torch.contiguous_format)
         sr = min(len(img_t.shape[1:]), 3)

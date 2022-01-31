@@ -39,9 +39,9 @@ def default_normalizer(x: NdarrayTensor) -> NdarrayTensor:
         return np.stack([scaler(i) for i in data], axis=0)
 
     if isinstance(x, torch.Tensor):
-        return torch.as_tensor(_compute(x.detach().cpu().numpy()), device=x.device)
+        return torch.as_tensor(_compute(x.detach().cpu().numpy()), device=x.device)  # type: ignore
 
-    return _compute(x)
+    return _compute(x)  # type: ignore
 
 
 class ModelWithHooks:

@@ -67,7 +67,7 @@ DtypeLike = Union[np.dtype, type, str, None]
 #
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
 # Unlike Union can create a dependence between parameter(s) / return(s)
-NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
+NdarrayTensor = TypeVar("NdarrayTensor", bound=Union[np.ndarray, torch.Tensor])
 
 
 #: NdarrayOrTensor: Union of numpy.ndarray and torch.Tensor to be used for typing
