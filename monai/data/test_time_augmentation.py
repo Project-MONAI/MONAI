@@ -24,6 +24,7 @@ from monai.transforms.compose import Compose
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.dictionary import Invertd
 from monai.transforms.transform import Randomizable
+from monai.transforms.utils_pytorch_numpy_unification import mode, stack
 from monai.utils import CommonKeys, PostFix, optional_import
 
 if TYPE_CHECKING:
@@ -193,16 +194,16 @@ class TestTimeAugmentation:
             batch_data[self._pred_key] = self.inferrer_fn(batch_data[self.image_key].to(self.device))
             outs.extend([self.inverter(i)[self._pred_key] for i in decollate_batch(batch_data)])
 
-        output: NdarrayOrTensor = np.stack(outs, 0) if isinstance(outs[0], np.ndarray) else torch.stack(outs, 0)
+        output: NdarrayOrTensor = stack(outs, 0)
 
         if self.return_full_data:
             return output
 
         # calculate metrics
-        mode = output.long().mode(0).values if isinstance(output, torch.Tensor) else output.astype(np.int64).mode(0)  # type: ignore
+        _mode = mode(output, dim=0)
         mean = output.mean(0)
         std = output.std(0)
         vvc = output.std() / output.mean()
         vvc = vvc.item() if isinstance(vvc, torch.Tensor) else vvc
 
-        return mode, mean, std, vvc
+        return _mode, mean, std, vvc
