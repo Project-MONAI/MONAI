@@ -231,12 +231,12 @@ class SpatialResample(Transform):
             xform_shape = [-1] + in_spatial_size
             img_ = img_.reshape(xform_shape)
         if align_corners:
-            _t_r = torch.diag(torch.ones(len(xform), dtype=xform.dtype, device=xform.device))
+            _t_r = torch.diag(torch.ones(len(xform), dtype=xform.dtype, device=xform.device))  # type: ignore
             for idx, d_dst in enumerate(spatial_size[:spatial_rank]):
                 _t_r[idx, -1] = (max(d_dst, 2) - 1.0) / 2.0
             xform = xform @ _t_r
             if not USE_COMPILED:
-                _t_l = normalize_transform(in_spatial_size, xform.device, xform.dtype, align_corners=True)
+                _t_l = normalize_transform(in_spatial_size, xform.device, xform.dtype, align_corners=True)  # type: ignore
                 xform = _t_l @ xform  # type: ignore
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, norm_coords=False, image_only=True, dtype=_dtype
