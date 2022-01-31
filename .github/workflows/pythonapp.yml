@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - enhance-convert-typing
   pull_request:
 
 concurrency:
