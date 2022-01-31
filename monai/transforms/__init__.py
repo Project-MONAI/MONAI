@@ -562,11 +562,13 @@ from .utils_pytorch_numpy_unification import (
     isfinite,
     isnan,
     maximum,
+    mode,
     moveaxis,
     nonzero,
     percentile,
     ravel,
     repeat,
+    stack,
     unravel_index,
     where,
 )

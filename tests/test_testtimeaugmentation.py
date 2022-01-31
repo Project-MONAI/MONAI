@@ -75,11 +75,12 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     def test_test_time_augmentation(self):
         input_size = (20, 20)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
         keys = ["image", "label"]
         num_training_ims = 10
+
         train_data = self.get_data(num_training_ims, input_size)
         test_data = self.get_data(1, input_size)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         transforms = Compose(
             [
@@ -125,23 +126,22 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
         post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
 
-        def inferrer_fn(x):
-            return post_trans(model(x))
-
         tt_aug = TestTimeAugmentation(
             transform=transforms,
             batch_size=5,
             num_workers=0,
-            inferrer_fn=inferrer_fn,
+            inferrer_fn=model,
             device=device,
             to_tensor=True,
             output_device="cpu",
+            post_func=post_trans,
         )
         mode, mean, std, vvc = tt_aug(test_data)
         self.assertEqual(mode.shape, (1,) + input_size)
         self.assertEqual(mean.shape, (1,) + input_size)
         self.assertTrue(all(np.unique(mode) == (0, 1)))
-        self.assertEqual((mean.min(), mean.max()), (0.0, 1.0))
+        self.assertGreaterEqual(mean.min(), 0.0)
+        self.assertLessEqual(mean.max(), 1.0)
         self.assertEqual(std.shape, (1,) + input_size)
         self.assertIsInstance(vvc, float)
 
