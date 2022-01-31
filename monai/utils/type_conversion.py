@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import re
-from typing import Any, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Optional, Sequence, Tuple, Type, Union, overload
 
 import numpy as np
 import torch
@@ -214,7 +214,7 @@ def convert_data_type(
     data: Any,
     output_type: Optional[Type[NdarrayTensor]] = None,
     device: Optional[torch.device] = None,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+    dtype: Union[DtypeLike, torch.dtype, None] = None,
     wrap_sequence: bool = False,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
@@ -257,19 +257,20 @@ def convert_data_type(
 
     dtype_ = get_equivalent_dtype(dtype, output_type)
 
-    if output_type is torch.Tensor:
-        data = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence)
-    elif output_type is np.ndarray:
-        data = convert_to_numpy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
-    elif has_cp and output_type is cp.ndarray:
-        data = convert_to_cupy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
+    data_: NdarrayTensor
+    if issubclass(output_type, torch.Tensor):
+        data_ = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence)
+    elif issubclass(output_type, np.ndarray):
+        data_ = convert_to_numpy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
+    elif has_cp and issubclass(output_type, cp.ndarray):
+        data_ = convert_to_cupy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
     else:
         raise ValueError(f"Unsupported output type: {output_type}")
-    return data, orig_type, orig_device
+    return data_, orig_type, orig_device
 
 
 def convert_to_dst_type(
-    src: Any, dst: NdarrayTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None, wrap_sequence: bool = False
+    src: Any, dst: NdarrayTensor, dtype: Union[DtypeLike, torch.dtype, None] = None, wrap_sequence: bool = False
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert source data to the same data type and device as the destination data.
