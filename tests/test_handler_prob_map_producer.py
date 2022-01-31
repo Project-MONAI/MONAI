@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,12 +32,7 @@ class TestDataset(Dataset):
     def __init__(self, name, size):
         super().__init__(
             data=[
-                {
-                    "name": name,
-                    "mask_shape": (size, size),
-                    "mask_locations": [[i, i] for i in range(size)],
-                    "level": 0,
-                }
+                {"name": name, "mask_shape": (size, size), "mask_locations": [[i, i] for i in range(size)], "level": 0}
             ]
         )
         self.len = size
@@ -46,11 +41,7 @@ class TestDataset(Dataset):
         return self.len
 
     def __getitem__(self, index):
-        return {
-            "name": self.data[0]["name"],
-            "mask_location": self.data[0]["mask_locations"][index],
-            "pred": index + 1,
-        }
+        return {"name": self.data[0]["name"], "mask_location": self.data[0]["mask_locations"][index], "pred": index + 1}
 
 
 class TestEvaluator(Evaluator):
@@ -59,13 +50,7 @@ class TestEvaluator(Evaluator):
 
 
 class TestHandlerProbMapGenerator(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_prob_map_generator(self, name, size):
         # set up dataset
         dataset = TestDataset(name, size)

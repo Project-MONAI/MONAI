@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,11 +30,11 @@ def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
 
 class LUConv(nn.Module):
     def __init__(self, spatial_dims: int, nchan: int, act: Union[Tuple[str, Dict], str], bias: bool = False):
-        super(LUConv, self).__init__()
+        super().__init__()
 
         self.act_function = get_acti_layer(act, nchan)
         self.conv_block = Convolution(
-            dimensions=spatial_dims,
+            spatial_dims=spatial_dims,
             in_channels=nchan,
             out_channels=nchan,
             kernel_size=5,
@@ -65,7 +65,7 @@ class InputTransition(nn.Module):
         act: Union[Tuple[str, Dict], str],
         bias: bool = False,
     ):
-        super(InputTransition, self).__init__()
+        super().__init__()
 
         if 16 % in_channels != 0:
             raise ValueError(f"16 should be divisible by in_channels, got in_channels={in_channels}.")
@@ -74,7 +74,7 @@ class InputTransition(nn.Module):
         self.in_channels = in_channels
         self.act_function = get_acti_layer(act, 16)
         self.conv_block = Convolution(
-            dimensions=spatial_dims,
+            spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=16,
             kernel_size=5,
@@ -102,7 +102,7 @@ class DownTransition(nn.Module):
         dropout_dim: int = 3,
         bias: bool = False,
     ):
-        super(DownTransition, self).__init__()
+        super().__init__()
 
         conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -138,7 +138,7 @@ class UpTransition(nn.Module):
         dropout_prob: Optional[float] = None,
         dropout_dim: int = 3,
     ):
-        super(UpTransition, self).__init__()
+        super().__init__()
 
         conv_trans_type: Type[Union[nn.ConvTranspose2d, nn.ConvTranspose3d]] = Conv[Conv.CONVTRANS, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
@@ -174,13 +174,13 @@ class OutputTransition(nn.Module):
         act: Union[Tuple[str, Dict], str],
         bias: bool = False,
     ):
-        super(OutputTransition, self).__init__()
+        super().__init__()
 
         conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
 
         self.act_function1 = get_acti_layer(act, out_channels)
         self.conv_block = Convolution(
-            dimensions=spatial_dims,
+            spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=5,

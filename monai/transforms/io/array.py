@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,15 +23,14 @@ from typing import Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import DtypeLike
+from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
 from monai.transforms.transform import Transform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, ensure_tuple, optional_import
-from monai.utils.module import look_up_option
+from monai.utils import InterpolateMode, OptionalImportError, ensure_tuple, look_up_option, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -126,6 +125,10 @@ class LoadImage(Transform):
         for r in SUPPORTED_READERS:  # set predefined readers as default
             try:
                 self.register(SUPPORTED_READERS[r](*args, **kwargs))
+            except OptionalImportError:
+                logging.getLogger(self.__class__.__name__).debug(
+                    f"required package for reader {r} is not installed, or the version doesn't match requirement."
+                )
             except TypeError:  # the reader doesn't have the corresponding args/kwargs
                 logging.getLogger(self.__class__.__name__).debug(
                     f"{r} is not supported with the given parameters {args} {kwargs}."
@@ -139,6 +142,10 @@ class LoadImage(Transform):
                 the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
                 try:
                     self.register(the_reader(*args, **kwargs))
+                except OptionalImportError:
+                    warnings.warn(
+                        f"required package for reader {r} is not installed, or the version doesn't match requirement."
+                    )
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
                     warnings.warn(f"{r} is not supported with the given parameters {args} {kwargs}.")
                     self.register(the_reader())
@@ -160,7 +167,7 @@ class LoadImage(Transform):
             warnings.warn(f"Preferably the reader should inherit ImageReader, but got {type(reader)}.")
         self.readers.append(reader)
 
-    def __call__(self, filename: Union[Sequence[str], str, Path, Sequence[Path]], reader: Optional[ImageReader] = None):
+    def __call__(self, filename: Union[Sequence[PathLike], PathLike], reader: Optional[ImageReader] = None):
         """
         Load image file and meta data from the given filename(s).
         If `reader` is not specified, this class automatically chooses readers based on the
@@ -176,7 +183,7 @@ class LoadImage(Transform):
             reader: runtime reader to load image file and meta data.
 
         """
-        filename = tuple(str(s) for s in ensure_tuple(filename))  # allow Path objects
+        filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects
         img = None
         if reader is not None:
             img = reader.read(filename)  # runtime specified reader
@@ -197,19 +204,21 @@ class LoadImage(Transform):
                         break
 
         if img is None or reader is None:
+            if isinstance(filename, tuple) and len(filename) == 1:
+                filename = filename[0]
             raise RuntimeError(
-                f"can not find a suitable reader for file: {filename}.\n"
+                f"cannot find a suitable reader for file: {filename}.\n"
                 "    Please install the reader libraries, see also the installation instructions:\n"
                 "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
                 f"   The current registered: {self.readers}.\n"
             )
 
         img_array, meta_data = reader.get_data(img)
-        img_array = img_array.astype(self.dtype)
+        img_array = img_array.astype(self.dtype, copy=False)
 
         if self.image_only:
             return img_array
-        meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
+        meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
 
@@ -239,16 +248,16 @@ class SaveImage(Transform):
 
             - NIfTI files {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             - PNG files {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
 
             - NIfTI files {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             - PNG files
                 This option is ignored.
 
@@ -285,7 +294,7 @@ class SaveImage(Transform):
 
     def __init__(
         self,
-        output_dir: Union[Path, str] = "./",
+        output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         resample: bool = True,
@@ -295,7 +304,7 @@ class SaveImage(Transform):
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
-        data_root_dir: str = "",
+        data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:
