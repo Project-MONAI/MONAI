@@ -20,6 +20,7 @@ from monai.utils.module import look_up_option
 
 SUPPORT_MODE = ["xxyy", "xxyyzz", "xyxy", "xyzxyz", "xywh", "xyzwhd"]
 STANDARD_MODE = ["xxyy", "xxyyzz"]  # [2d_mode, 3d_mode]
+CORNER_SIZE_MODE = ["xywh", "xyzwhd"] # [2d_mode, 3d_mode]
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
 #      i.e., when x_min=1, x_max=2, we have w = 1
