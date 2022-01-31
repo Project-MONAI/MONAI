@@ -400,7 +400,7 @@ class SpatialCrop(Transform):
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start_torch, *_ = convert_data_type(  # type: ignore
+                roi_start_torch, *_ = convert_data_type(
                     data=roi_start, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
                 )
                 roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))  # type: ignore

@@ -940,7 +940,7 @@ def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optio
             connectivity of ``input.ndim`` is used. for more details:
             https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
     """
-    img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
+    img_arr = convert_data_type(img, np.ndarray)[0]
     largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
     img_arr = measure.label(img_arr, connectivity=connectivity)
     if img_arr.max() != 0:

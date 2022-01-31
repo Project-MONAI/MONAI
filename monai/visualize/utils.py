@@ -93,7 +93,7 @@ def matshow3d(
         >>> plt.show()
 
     """
-    vol: np.ndarray = convert_data_type(data=volume, output_type=np.ndarray)[0]  # type: ignore
+    vol = convert_data_type(data=volume, output_type=np.ndarray)[0]
     if channel_dim is not None:
         if channel_dim not in [0, 1] or vol.shape[channel_dim] not in [1, 3, 4]:
             raise ValueError("channel_dim must be: None, 0 or 1, and channels of image must be 1, 3 or 4.")
@@ -186,8 +186,7 @@ def blend_images(
 
     def get_label_rgb(cmap: str, label: NdarrayOrTensor):
         _cmap = cm.get_cmap(cmap)
-        label_np: np.ndarray
-        label_np, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+        label_np, *_ = convert_data_type(label, np.ndarray)
         label_rgb_np = _cmap(label_np[0])
         label_rgb_np = np.moveaxis(label_rgb_np, -1, 0)[:3]
         label_rgb, *_ = convert_to_dst_type(label_rgb_np, label)

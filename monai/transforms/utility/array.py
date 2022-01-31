@@ -413,7 +413,10 @@ class EnsureType(Transform):
         output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
         return convert_data_type(
             data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
-        )[0]  # type: ignore
+        )[
+            0
+        ]  # type: ignore
+
 
 class ToNumpy(Transform):
     """
@@ -1018,7 +1021,7 @@ class TorchVision:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
-        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor)
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
@@ -1110,8 +1113,7 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         if meta_data is None:
             meta_data = {}
 

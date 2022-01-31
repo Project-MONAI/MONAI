@@ -372,7 +372,7 @@ class Spacing(Transform):
             affine_np = affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_np, *_ = convert_data_type(affine, np.ndarray)  # type: ignore
+            affine_np, *_ = convert_data_type(affine, np.ndarray)
             affine_ = to_affine_nd(sr, affine_np)  # type: ignore
 
         out_d = self.pixdim[:sr]
@@ -599,7 +599,7 @@ class Resize(Transform):
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
-        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
+        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if self.size_mode == "all":
             input_ndim = img_.ndim - 1  # spatial ndim
             output_ndim = len(ensure_tuple(self.spatial_size))
@@ -817,8 +817,7 @@ class Zoom(Transform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         """
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)
 
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(  # type: ignore
@@ -1577,9 +1576,7 @@ class Resample(Transform):
         if grid is None:
             raise ValueError("Unknown grid.")
         _device = img.device if isinstance(img, torch.Tensor) else self.device
-        img_t: torch.Tensor
-        grid_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=dtype)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=dtype)
         grid_t = convert_to_dst_type(grid, img_t)[0]
         if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
             grid_t = grid_t.clone(memory_format=torch.contiguous_format)

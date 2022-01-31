@@ -27,7 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
-from monai.config.type_definitions import NdarrayOrTensor, PathLike
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
@@ -676,8 +676,8 @@ def compute_shape_offset(
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
-    in_affine_: np.ndarray = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
-    out_affine_: np.ndarray = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
+    in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
+    out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
     in_coords = [(0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
@@ -700,7 +700,7 @@ def compute_shape_offset(
     return out_shape.astype(int, copy=False), offset
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayOrTensor, dtype=np.float64) -> NdarrayOrTensor:
+def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
@@ -742,8 +742,8 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayOrTensor, dtype=np.fl
     new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
         new_affine[:d, -1] = affine_np[:d, -1]
-    new_affine, *_ = convert_to_dst_type(new_affine, affine, dtype=dtype)  # type: ignore
-    return new_affine
+    output, *_ = convert_to_dst_type(new_affine, affine, dtype=dtype)
+    return output
 
 
 def reorient_spatial_axes(

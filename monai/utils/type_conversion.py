@@ -10,12 +10,12 @@
 # limitations under the License.
 
 import re
-from typing import Any, Optional, Sequence, Tuple, Union, Type
+from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
 
-from monai.config.type_definitions import DtypeLike, NdarrayOrTensor, NdarrayTensor
+from monai.config.type_definitions import DtypeLike, NdarrayTensor
 from monai.utils import optional_import
 from monai.utils.module import look_up_option
 
