@@ -391,7 +391,7 @@ def stack(x: Sequence[NdarrayOrTensor], dim: int) -> NdarrayOrTensor:
         dim: dimension along which to perform the stack (referred to as `axis` by numpy)
     """
     if isinstance(x[0], np.ndarray):
-        return np.stack(x, dim)
+        return np.stack(x, dim)  # type: ignore
     return torch.stack(x, dim)  # type: ignore
 
 
