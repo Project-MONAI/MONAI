@@ -150,8 +150,8 @@ class TestTimeAugmentation:
         invertibles = np.array([isinstance(t, InvertibleTransform) for t in ts])
         # check at least 1 random
         if sum(randoms) == 0:
-            raise RuntimeError(
-                "Requires a `Randomizable` transform or a `Compose` containing at least one `Randomizable` transform."
+            warnings.warn(
+                "TTA usually has at least a `Randomizable` transform or `Compose` contains `Randomizable` transforms."
             )
         # check that whenever randoms is True, invertibles is also true
         for r, i in zip(randoms, invertibles):

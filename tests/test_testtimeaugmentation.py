@@ -145,9 +145,9 @@ class TestTestTimeAugmentation(unittest.TestCase):
         self.assertEqual(std.shape, (1,) + input_size)
         self.assertIsInstance(vvc, float)
 
-    def test_fail_non_random(self):
+    def test_warn_non_random(self):
         transforms = Compose([AddChanneld("im"), SpatialPadd("im", 1)])
-        with self.assertRaises(RuntimeError):
+        with self.assertWarns(UserWarning):
             TestTimeAugmentation(transforms, None, None, None)
 
     def test_warn_random_but_has_no_invertible(self):
