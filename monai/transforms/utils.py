@@ -587,11 +587,11 @@ def create_grid(
 
     """
     _backend = look_up_option(backend, TransformBackends)
-    dtype = dtype or float
+    _dtype = dtype or float
     if _backend == TransformBackends.NUMPY:
-        return _create_grid_numpy(spatial_size, spacing, homogeneous, dtype)
+        return _create_grid_numpy(spatial_size, spacing, homogeneous, _dtype)
     if _backend == TransformBackends.TORCH:
-        return _create_grid_torch(spatial_size, spacing, homogeneous, dtype, device)
+        return _create_grid_torch(spatial_size, spacing, homogeneous, _dtype, device)
     raise ValueError(f"backend {backend} is not supported")
 
 
@@ -599,7 +599,7 @@ def _create_grid_numpy(
     spatial_size: Sequence[int],
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
-    dtype: DtypeLike = float,
+    dtype: Union[DtypeLike, torch.dtype] = float,
 ):
     """
     compute a `spatial_size` mesh with the numpy API.

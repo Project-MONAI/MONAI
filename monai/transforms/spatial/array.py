@@ -1578,8 +1578,8 @@ class Resample(Transform):
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         img_t: torch.Tensor
         grid_t: torch.Tensor
-        dtype = dtype or self.dtype or img.dtype
-        img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=dtype)  # type: ignore
+        _dtype = dtype or self.dtype or img.dtype
+        img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=_dtype)  # type: ignore
         grid_t = convert_to_dst_type(grid, img_t)[0]  # type: ignore
         if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
             grid_t = grid_t.clone(memory_format=torch.contiguous_format)
