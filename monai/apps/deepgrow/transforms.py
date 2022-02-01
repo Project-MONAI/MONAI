@@ -780,7 +780,7 @@ class RestoreLabeld(MapTransform):
             One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
         meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.

@@ -30,6 +30,7 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                 metric_details=["metric3", "metric4"],
                 batch_transform=lambda x: x[PostFix.meta("image")],
                 summary_ops=["mean", "median", "max", "5percentile", "95percentile", "notnans"],
+                delimiter="\t",
             )
             # set up engine
             data = [

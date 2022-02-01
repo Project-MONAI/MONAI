@@ -57,7 +57,7 @@ TEST_CASE_5 = [
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
-    {"pickle_protocol": 2, "lmdb_kwargs": {"map_size": 100 * 1024 ** 2}},
+    {"pickle_protocol": 2, "lmdb_kwargs": {"map_size": 100 * 1024**2}},
 ]
 
 TEST_CASE_6 = [
@@ -66,7 +66,7 @@ TEST_CASE_6 = [
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
-    {"db_name": "testdb", "lmdb_kwargs": {"map_size": 100 * 1024 ** 2}},
+    {"db_name": "testdb", "lmdb_kwargs": {"map_size": 100 * 1024**2}},
 ]
 
 TEST_CASE_7 = [
@@ -75,7 +75,7 @@ TEST_CASE_7 = [
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
-    {"db_name": "testdb", "lmdb_kwargs": {"map_size": 2 * 1024 ** 2}},
+    {"db_name": "testdb", "lmdb_kwargs": {"map_size": 2 * 1024**2}},
 ]
 
 

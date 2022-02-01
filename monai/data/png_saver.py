@@ -52,7 +52,7 @@ class PNGSaver:
             resample: whether to resample and resize if providing spatial_shape in the metadata.
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``"nearest"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
             data_root_dir: if not empty, it specifies the beginning parts of the input file's

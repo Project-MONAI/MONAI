@@ -41,6 +41,7 @@ class DistributedMetricsSaver(DistTestCase):
             metric_details=["metric3", "metric4"],
             batch_transform=lambda x: x[PostFix.meta("image")],
             summary_ops="*",
+            delimiter="\t",
         )
 
         def _val_func(engine, batch):
@@ -109,6 +110,7 @@ class DistributedMetricsSaver(DistTestCase):
                         self.assertEqual(row, ["mean\t2.5000\t2.5000\t3.5000\t1.5000\t3.3000\t0.8165\t3.0000"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_raw.csv")))
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_summary.csv")))
+        dist.barrier()
 
 
 if __name__ == "__main__":

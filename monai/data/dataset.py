@@ -513,7 +513,7 @@ class LMDBDataset(PersistentDataset):
         self.db_file = self.cache_dir / f"{db_name}.lmdb"
         self.lmdb_kwargs = lmdb_kwargs or {}
         if not self.lmdb_kwargs.get("map_size", 0):
-            self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
+            self.lmdb_kwargs["map_size"] = 1024**4  # default map_size
         # lmdb is single-writer multi-reader by default
         # the cache is created without multi-threading
         self._read_env = None

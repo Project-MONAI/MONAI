@@ -182,9 +182,9 @@ class RandRicianNoise(RandomizableTransform):
         if isinstance(img, torch.Tensor):
             n1 = torch.tensor(self._noise1, device=img.device)
             n2 = torch.tensor(self._noise2, device=img.device)
-            return torch.sqrt((img + n1) ** 2 + n2 ** 2)
+            return torch.sqrt((img + n1) ** 2 + n2**2)
 
-        return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
+        return np.sqrt((img + self._noise1) ** 2 + self._noise2**2)
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
