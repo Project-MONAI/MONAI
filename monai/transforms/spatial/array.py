@@ -136,7 +136,7 @@ class SpatialResample(Transform):
         mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
         align_corners: Optional[bool] = False,
-        dtype: DtypeLike = np.float64,
+        dtype: DtypeLike = None,
     ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         """
         Args:
@@ -1305,12 +1305,10 @@ class AffineGrid(Transform):
             ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
 
         """
-        if grid is None:
-            if spatial_size is not None:
-                grid = create_grid(spatial_size, device=self.device, backend="torch", dtype=self.dtype)
-            else:
+        if grid is None:  # create grid from spatial_size
+            if spatial_size is None:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
-
+            grid = create_grid(spatial_size, device=self.device, backend="torch", dtype=self.dtype)
         _b = TransformBackends.TORCH if isinstance(grid, torch.Tensor) else TransformBackends.NUMPY
         _device = grid.device if isinstance(grid, torch.Tensor) else self.device
         affine: NdarrayOrTensor
@@ -1332,7 +1330,7 @@ class AffineGrid(Transform):
         else:
             affine = self.affine
 
-        grid, *_ = convert_data_type(grid, torch.Tensor, device=_device, dtype=self.dtype)
+        grid, *_ = convert_data_type(grid, torch.Tensor, device=_device, dtype=self.dtype or grid.dtype)
         affine, *_ = convert_to_dst_type(affine, grid)
 
         grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))
@@ -1516,7 +1514,7 @@ class Resample(Transform):
         as_tensor_output: bool = True,
         norm_coords: bool = True,
         device: Optional[torch.device] = None,
-        dtype: DtypeLike = np.float32,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         """
         computes output image using values from `img`, locations from `grid` using pytorch.
@@ -1557,7 +1555,7 @@ class Resample(Transform):
         grid: Optional[NdarrayOrTensor] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-        dtype: DtypeLike = np.float64,
+        dtype: DtypeLike = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1572,15 +1570,15 @@ class Resample(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
-                If ``None``, use the data type of input data. To be compatible with other modules,
-                the output data type is always `float32`.
+            dtype: data type for resampling computation. Defaults to ``self.dtype``.
+                To be compatible with other modules, the output data type is always `float32`.
         """
         if grid is None:
             raise ValueError("Unknown grid.")
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         img_t: torch.Tensor
         grid_t: torch.Tensor
+        dtype = dtype or self.dtype or img.dtype
         img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=dtype)  # type: ignore
         grid_t = convert_to_dst_type(grid, img_t)[0]  # type: ignore
         if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)

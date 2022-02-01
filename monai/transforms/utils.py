@@ -570,7 +570,7 @@ def create_grid(
     spatial_size: Sequence[int],
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
-    dtype=float,
+    dtype: Union[DtypeLike, torch.dtype] = float,
     device: Optional[torch.device] = None,
     backend=TransformBackends.NUMPY,
 ):
@@ -581,12 +581,13 @@ def create_grid(
         spatial_size: spatial size of the grid.
         spacing: same len as ``spatial_size``, defaults to 1.0 (dense grid).
         homogeneous: whether to make homogeneous coordinates.
-        dtype: output grid data type.
+        dtype: output grid data type, defaults to `float`.
         device: device to compute and store the output (when the backend is "torch").
         backend: APIs to use, ``numpy`` or ``torch``.
 
     """
     _backend = look_up_option(backend, TransformBackends)
+    dtype = dtype or float
     if _backend == TransformBackends.NUMPY:
         return _create_grid_numpy(spatial_size, spacing, homogeneous, dtype)
     if _backend == TransformBackends.TORCH:
