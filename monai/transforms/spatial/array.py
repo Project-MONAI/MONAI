@@ -645,7 +645,7 @@ class Rotate(Transform, ThreadUnsafe):
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+        dtype: data type for resampling computation. Defaults to ``np.float32``.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``np.float32``.
     """
@@ -659,7 +659,7 @@ class Rotate(Transform, ThreadUnsafe):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = np.float64,
+        dtype: Union[DtypeLike, torch.dtype] = np.float32,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
@@ -954,7 +954,7 @@ class RandRotate(RandomizableTransform):
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+        dtype: data type for resampling computation. Defaults to ``np.float32``.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``np.float32``.
     """
@@ -971,7 +971,7 @@ class RandRotate(RandomizableTransform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = np.float64,
+        dtype: Union[DtypeLike, torch.dtype] = np.float32,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)

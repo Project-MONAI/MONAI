@@ -1483,7 +1483,7 @@ class Rotated(MapTransform, InvertibleTransform):
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+        dtype: data type for resampling computation. Defaults to ``np.float32``.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``np.float32``.
             It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
@@ -1500,7 +1500,7 @@ class Rotated(MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float64,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1614,7 +1614,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float64,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
