@@ -54,7 +54,11 @@ def _apply_transform(
 
 
 def apply_transform(
-    transform: Callable[..., ReturnType], data: Any, map_items: bool = True, unpack_items: bool = False
+    transform: Callable[..., ReturnType],
+    data: Any,
+    map_items: bool = True,
+    unpack_items: bool = False,
+    log_stats: bool = True,
 ) -> Union[List[ReturnType], ReturnType]:
     """
     Transform `data` with `transform`.
@@ -69,6 +73,9 @@ def apply_transform(
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            default to `True`. for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other meta data, log the values directly.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -82,7 +89,7 @@ def apply_transform(
         return _apply_transform(transform, data, unpack_items)
     except Exception as e:
 
-        if not isinstance(transform, transforms.compose.Compose):
+        if log_stats and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)
@@ -362,7 +369,7 @@ class MapTransform(Transform):
             elif not self.allow_missing_keys:
                 raise KeyError(
                     f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data"
-                    " and allow_missing_keys==False.",
+                    " and allow_missing_keys==False."
                 )
 
     def first_key(self, data: Dict[Hashable, Any]):
