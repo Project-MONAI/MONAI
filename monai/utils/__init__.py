@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 # have to explicitly bring these in here to resolve circular import issues
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
-from .deprecated import DeprecatedError, deprecated, deprecated_arg
+from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg
 from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
     Average,
@@ -24,12 +24,15 @@ from .enums import (
     GridSamplePadMode,
     InterpolateMode,
     InverseKeys,
+    JITMetadataKeys,
     LossReduction,
     Method,
     MetricReduction,
     NumpyPadMode,
+    PostFix,
     PytorchPadMode,
     SkipMode,
+    TraceKeys,
     TransformBackends,
     UpsampleMode,
     Weight,
@@ -52,12 +55,12 @@ from .misc import (
     issequenceiterable,
     list_to_dict,
     progress_bar,
+    sample_slices,
     set_determinism,
     star_zip_with,
     zip_with,
 )
 from .module import (
-    PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
     OptionalImportError,
     damerau_levenshtein_distance,
@@ -70,6 +73,8 @@ from .module import (
     look_up_option,
     min_version,
     optional_import,
+    pytorch_after,
+    require_pkg,
     version_leq,
 )
 from .nvtx import Range
@@ -77,6 +82,7 @@ from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu
 from .state_cacher import StateCacher
 from .type_conversion import (
     convert_data_type,
+    convert_to_cupy,
     convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,

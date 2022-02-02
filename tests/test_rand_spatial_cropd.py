@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandSpatialCropd
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_0 = [
     {"keys": "img", "roi_size": [3, 3, -1], "random_center": True},
@@ -67,10 +68,12 @@ class TestRandSpatialCropd(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
     def test_random_shape(self, input_param, input_data, expected_shape):
-        cropper = RandSpatialCropd(**input_param)
-        cropper.set_random_state(seed=123)
-        result = cropper(input_data)
-        self.assertTupleEqual(result["img"].shape, expected_shape)
+        for p in TEST_NDARRAYS:
+            cropper = RandSpatialCropd(**input_param)
+            cropper.set_random_state(seed=123)
+            input_data["img"] = p(input_data["img"])
+            result = cropper(input_data)
+            self.assertTupleEqual(result["img"].shape, expected_shape)
 
 
 if __name__ == "__main__":
