@@ -360,7 +360,10 @@ class MapTransform(Transform):
             if key in data:
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
-                raise KeyError(f"Key was missing ({key}) and allow_missing_keys==False")
+                raise KeyError(
+                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data"
+                    " and allow_missing_keys==False.",
+                )
 
     def first_key(self, data: Dict[Hashable, Any]):
         """
