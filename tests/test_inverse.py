@@ -209,7 +209,7 @@ TESTS.append(("Zoomd 3d", "3D", 3e-2, Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=Fa
 
 TESTS.append(("RandZoom 3d", "3D", 9e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
 
-TESTS.append(("RandRotated, prob 0", "2D", 0, RandRotated(KEYS, prob=0)))
+TESTS.append(("RandRotated, prob 0", "2D", 0, RandRotated(KEYS, prob=0, dtype=np.float64)))
 
 TESTS.append(
     (
@@ -234,7 +234,7 @@ TESTS.append(
         "RandRotated 3d",
         "3D",
         1e-1,
-        RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
+        RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1, dtype=np.float64),  # type: ignore
     )
 )
 
