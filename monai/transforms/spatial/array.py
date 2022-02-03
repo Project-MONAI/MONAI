@@ -1561,6 +1561,9 @@ class Resample(Transform):
         Args:
             img: shape must be (num_channels, H, W[, D]).
             grid: shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+                if ``norm_coords`` is True, the grid values must be in `[-(size-1)/2, (size-1)/2]`.
+                if ``USE_COMPILED=True`` and ``norm_coords=False``, grid values must be in `[0, size-1]`.
+                if ``USE_COMPILED=False`` and ``norm_coords=False``, grid values must be in `[-1, 1]`.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -1572,6 +1575,9 @@ class Resample(Transform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 To be compatible with other modules, the output data type is always `float32`.
+
+        See also:
+            :py:const:`monai.config.USE_COMPILED`
         """
         if grid is None:
             raise ValueError("Unknown grid.")
