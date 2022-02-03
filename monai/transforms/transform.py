@@ -100,7 +100,7 @@ def apply_transform(
             def _log_stats(data, prefix: Optional[str] = "Data"):
                 if isinstance(data, (np.ndarray, torch.Tensor)):
                     # log data type, shape, range for array
-                    datastats(img=data, data_shape=True, value_range=True, prefix=prefix)  # type: ignore
+                    datastats(img=data, data_shape=True, value_range=True, prefix=prefix)
                 else:
                     # log data type and value for other meta data
                     datastats(img=data, data_value=True, prefix=prefix)

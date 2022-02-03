@@ -91,7 +91,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_average_surface_distance`.
 
@@ -158,7 +158,7 @@ def compute_average_surface_distance(
         if surface_distance.shape == (0,):
             avg_surface_distance = np.nan
         else:
-            avg_surface_distance = surface_distance.mean()  # type: ignore
+            avg_surface_distance = surface_distance.mean()
         if not symmetric:
             asd[b, c] = avg_surface_distance
         else:
@@ -166,7 +166,7 @@ def compute_average_surface_distance(
             if surface_distance_2.shape == (0,):
                 avg_surface_distance_2 = np.nan
             else:
-                avg_surface_distance_2 = surface_distance_2.mean()  # type: ignore
+                avg_surface_distance_2 = surface_distance_2.mean()
             asd[b, c] = np.mean((avg_surface_distance, avg_surface_distance_2))
 
     return torch.from_numpy(asd)

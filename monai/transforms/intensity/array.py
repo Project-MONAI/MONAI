@@ -106,7 +106,7 @@ class RandGaussianNoise(RandomizableTransform):
         rand_std = self.R.uniform(0, self.std)
         noise = self.R.normal(self.mean if mean is None else mean, rand_std, size=img.shape)
         # noise is float64 array, convert to the output dtype to save memory
-        self.noise, *_ = convert_data_type(noise, dtype=self.dtype)  # type: ignore
+        self.noise, *_ = convert_data_type(noise, dtype=self.dtype)
 
     def __call__(self, img: NdarrayOrTensor, mean: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -1622,13 +1622,13 @@ class KSpaceSpikeNoise(Transform, Fourier):
         # FT
         k = self.shift_fourier(img, n_dims)
         lib = np if isinstance(k, np.ndarray) else torch
-        log_abs = lib.log(lib.abs(k) + 1e-10)  # type: ignore
-        phase = lib.angle(k)  # type: ignore
+        log_abs = lib.log(lib.abs(k) + 1e-10)
+        phase = lib.angle(k)
 
         k_intensity = self.k_intensity
         # default log intensity
         if k_intensity is None:
-            k_intensity = tuple(lib.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)  # type: ignore
+            k_intensity = tuple(lib.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)
 
         # highlight
         if isinstance(self.loc[0], Sequence):
@@ -1637,7 +1637,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
         else:
             self._set_spike(log_abs, self.loc, k_intensity)
         # map back
-        k = lib.exp(log_abs) * lib.exp(1j * phase)  # type: ignore
+        k = lib.exp(log_abs) * lib.exp(1j * phase)
         img, *_ = convert_to_dst_type(self.inv_shift_fourier(k, n_dims), dst=img)
 
         return img
@@ -1812,8 +1812,8 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 
         k = self.shift_fourier(img, n_dims)
         mod = torch if isinstance(k, torch.Tensor) else np
-        log_abs = mod.log(mod.absolute(k) + 1e-10)  # type: ignore
-        shifted_means = mod.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5  # type: ignore
+        log_abs = mod.log(mod.absolute(k) + 1e-10)
+        shifted_means = mod.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5
         return tuple((i * 0.95, i * 1.1) for i in shifted_means)
 
 

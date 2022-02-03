@@ -58,7 +58,7 @@ def moveaxis(x: NdarrayOrTensor, src: Union[int, Sequence[int]], dst: Union[int,
         if hasattr(torch, "movedim"):  # `movedim` is new in torch 1.7.0
             # torch.moveaxis is a recent alias since torch 1.8.0
             return torch.movedim(x, src, dst)  # type: ignore
-        return _moveaxis_with_permute(x, src, dst)  # type: ignore
+        return _moveaxis_with_permute(x, src, dst)
     return np.moveaxis(x, src, dst)
 
 

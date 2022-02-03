@@ -681,7 +681,7 @@ def compute_shape_offset(
     in_coords = [(0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine_ @ corners  # type: ignore
+    corners = in_affine_ @ corners
     try:
         inv_mat = np.linalg.inv(out_affine_)
     except np.linalg.LinAlgError as e:
@@ -873,7 +873,7 @@ def compute_importance_map(
 
     """
     mode = look_up_option(mode, BlendMode)
-    device = torch.device(device)  # type: ignore[arg-type]
+    device = torch.device(device)
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device).float()
     elif mode == BlendMode.GAUSSIAN:

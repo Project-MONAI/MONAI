@@ -403,7 +403,7 @@ def weighted_patch_samples(
     if not v[-1] or not isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
-        r, *_ = convert_to_dst_type(r_state.random(n_samples), v)  # type: ignore
+        r, *_ = convert_to_dst_type(r_state.random(n_samples), v)
         idx = searchsorted(v, r * v[-1], right=True)  # type: ignore
     idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode
@@ -860,7 +860,7 @@ def create_translate(
             spatial_dims=spatial_dims,
             shift=shift,
             eye_func=lambda x: torch.eye(torch.as_tensor(x), device=device),  # type: ignore
-            array_func=lambda x: torch.as_tensor(x, device=device),  # type: ignore
+            array_func=lambda x: torch.as_tensor(x, device=device),
         )
     raise ValueError(f"backend {backend} is not supported")
 

@@ -206,7 +206,7 @@ class SpatialResample(Transform):
                 )
         except (np.linalg.LinAlgError, RuntimeError) as e:
             raise ValueError(f"src affine is not invertible: {src_affine}") from e
-        xform = to_affine_nd(spatial_rank, xform)  # type: ignore
+        xform = to_affine_nd(spatial_rank, xform)
         # no resampling if it's identity transform
         if allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL):
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
@@ -245,8 +245,8 @@ class SpatialResample(Transform):
         else:
             affine_xform = AffineTransform(
                 normalized=False,
-                mode=mode,  # type: ignore
-                padding_mode=padding_mode,  # type: ignore
+                mode=mode,
+                padding_mode=padding_mode,
                 align_corners=align_corners,
                 reverse_indexing=True,
             )
@@ -373,7 +373,7 @@ class Spacing(Transform):
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_np, *_ = convert_data_type(affine, np.ndarray)
-            affine_ = to_affine_nd(sr, affine_np)  # type: ignore
+            affine_ = to_affine_nd(sr, affine_np)
 
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
@@ -393,7 +393,7 @@ class Spacing(Transform):
             align_corners=align_corners,
             dtype=dtype,
         )
-        new_affine = to_affine_nd(affine_np, new_affine)  # type: ignore
+        new_affine = to_affine_nd(affine_np, new_affine)
         new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
 
         if self.image_only:
@@ -472,8 +472,8 @@ class Orientation(Transform):
             affine_np = affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_np, *_ = convert_data_type(affine, np.ndarray)  # type: ignore
-            affine_ = to_affine_nd(sr, affine_np)  # type: ignore
+            affine_np, *_ = convert_data_type(affine, np.ndarray)
+            affine_ = to_affine_nd(sr, affine_np)
 
         src = nib.io_orientation(affine_)
         if self.as_closest_canonical:
@@ -618,8 +618,8 @@ class Resize(Transform):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
-        resized = torch.nn.functional.interpolate(  # type: ignore
-            input=img_.unsqueeze(0),  # type: ignore
+        resized = torch.nn.functional.interpolate(
+            input=img_.unsqueeze(0),
             size=spatial_size_,
             mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
@@ -1618,7 +1618,6 @@ class Resample(Transform):
                 padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
                 align_corners=True,
             )[0]
-        out_val: NdarrayOrTensor
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
         return out_val
 
