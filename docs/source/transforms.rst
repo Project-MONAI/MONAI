@@ -557,6 +557,12 @@ Post-processing
 Spatial
 ^^^^^^^
 
+`SpatialResample`
+"""""""""""""""""
+.. autoclass:: SpatialResample
+    :members:
+    :special-members: __call__
+
 `Spacing`
 """""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Spacing.png
@@ -1397,6 +1403,12 @@ Post-processing (Dict)
 
 Spatial (Dict)
 ^^^^^^^^^^^^^^
+
+`SpatialResampled`
+""""""""""""""""""
+.. autoclass:: SpatialResampled
+    :members:
+    :special-members: __call__
 
 `Spacingd`
 """"""""""

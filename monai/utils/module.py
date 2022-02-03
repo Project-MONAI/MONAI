@@ -19,7 +19,7 @@ from importlib import import_module
 from pkgutil import walk_packages
 from re import match
 from types import FunctionType
-from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
+from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, Union, cast
 
 import torch
 
@@ -44,7 +44,7 @@ __all__ = [
 ]
 
 
-def look_up_option(opt_str, supported: Collection, default="no_default"):
+def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default="no_default"):
     """
     Look up the option in the supported collection and return the matched item.
     Raise a value error possibly with a guess of the closest match.

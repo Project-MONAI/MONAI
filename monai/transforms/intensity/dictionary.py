@@ -307,7 +307,7 @@ class ShiftIntensityd(MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
                 to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
             allow_missing_keys: don't raise exception if key is missing.
@@ -366,7 +366,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
                 to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
             prob: probability of rotating.

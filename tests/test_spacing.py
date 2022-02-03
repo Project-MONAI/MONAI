@@ -78,7 +78,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             p,
-            {"pixdim": (1.0, 1.0)},
+            {"pixdim": (1.0, 1.0), "align_corners": True},
             np.arange(24).reshape((2, 3, 4)),  # data
             {},
             np.array(
@@ -192,6 +192,15 @@ for p in TEST_NDARRAYS:
             np.array([[[[1.0, 1.0, 1.0]], [[1.0, 1.0, 1.0]]]]),
         ]
     )
+    TESTS.append(  # 5D input
+        [
+            p,
+            {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float, "align_corners": True},
+            np.ones((1, 2, 2, 2, 1)),  # data
+            {"affine": np.eye(4)},
+            np.ones((1, 2, 2, 3, 1)),
+        ]
+    )
 
 
 class TestSpacingCase(unittest.TestCase):
@@ -203,8 +212,8 @@ class TestSpacingCase(unittest.TestCase):
             self.assertEqual(_img.device, output_data.device)
             output_data = output_data.cpu()
 
-        np.testing.assert_allclose(output_data, expected_output, atol=1e-3, rtol=1e-3)
-        sr = len(output_data.shape) - 1
+        np.testing.assert_allclose(output_data, expected_output, atol=1e-1, rtol=1e-1)
+        sr = min(len(output_data.shape) - 1, 3)
         if isinstance(init_param["pixdim"], float):
             init_param["pixdim"] = [init_param["pixdim"]] * sr
         init_pixdim = ensure_tuple(init_param["pixdim"])

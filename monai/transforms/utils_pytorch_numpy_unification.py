@@ -19,6 +19,7 @@ from monai.utils.misc import ensure_tuple, is_module_ver_at_least
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
+    "allclose",
     "moveaxis",
     "in1d",
     "clip",
@@ -41,6 +42,14 @@ __all__ = [
     "stack",
     "mode",
 ]
+
+
+def allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:
+    """`np.allclose` with equivalent implementation for torch."""
+    b, *_ = convert_to_dst_type(b, a)
+    if isinstance(a, np.ndarray):
+        return np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    return torch.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)  # type: ignore
 
 
 def moveaxis(x: NdarrayOrTensor, src: Union[int, Sequence[int]], dst: Union[int, Sequence[int]]) -> NdarrayOrTensor:
@@ -358,7 +367,7 @@ def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
 
     Args:
         x: array/tensor
-        dim: dimension along which to stack
+
     """
     if isinstance(x, np.ndarray):
         return np.isnan(x)
