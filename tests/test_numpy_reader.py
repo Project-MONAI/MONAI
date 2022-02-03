@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,12 +10,16 @@
 # limitations under the License.
 
 import os
+import sys
 import tempfile
 import unittest
 
 import numpy as np
+import torch
 
-from monai.data import NumpyReader
+from monai.data import DataLoader, Dataset, NumpyReader
+from monai.transforms import LoadImaged
+from monai.utils.enums import PostFix
 
 
 class TestNumpyReader(unittest.TestCase):
@@ -27,8 +31,8 @@ class TestNumpyReader(unittest.TestCase):
 
             reader = NumpyReader()
             result = reader.get_data(reader.read(filepath))
-        self.assertTupleEqual(result[1]["spatial_shape"], test_data.shape)
-        self.assertTupleEqual(result[0].shape, test_data.shape)
+        np.testing.assert_allclose(result[1]["spatial_shape"], test_data.shape)
+        np.testing.assert_allclose(result[0].shape, test_data.shape)
         np.testing.assert_allclose(result[0], test_data)
 
     def test_npz1(self):
@@ -39,8 +43,8 @@ class TestNumpyReader(unittest.TestCase):
 
             reader = NumpyReader()
             result = reader.get_data(reader.read(filepath))
-        self.assertTupleEqual(result[1]["spatial_shape"], test_data1.shape)
-        self.assertTupleEqual(result[0].shape, test_data1.shape)
+        np.testing.assert_allclose(result[1]["spatial_shape"], test_data1.shape)
+        np.testing.assert_allclose(result[0].shape, test_data1.shape)
         np.testing.assert_allclose(result[0], test_data1)
 
     def test_npz2(self):
@@ -52,8 +56,8 @@ class TestNumpyReader(unittest.TestCase):
 
             reader = NumpyReader()
             result = reader.get_data(reader.read(filepath))
-        self.assertTupleEqual(result[1]["spatial_shape"], test_data1.shape)
-        self.assertTupleEqual(result[0].shape, (2, 3, 4, 4))
+        np.testing.assert_allclose(result[1]["spatial_shape"], test_data1.shape)
+        np.testing.assert_allclose(result[0].shape, (2, 3, 4, 4))
         np.testing.assert_allclose(result[0], np.stack([test_data1, test_data2]))
 
     def test_npz3(self):
@@ -65,8 +69,8 @@ class TestNumpyReader(unittest.TestCase):
 
             reader = NumpyReader(npz_keys=["test1", "test2"])
             result = reader.get_data(reader.read(filepath))
-        self.assertTupleEqual(result[1]["spatial_shape"], test_data1.shape)
-        self.assertTupleEqual(result[0].shape, (2, 3, 4, 4))
+        np.testing.assert_allclose(result[1]["spatial_shape"], test_data1.shape)
+        np.testing.assert_allclose(result[0].shape, (2, 3, 4, 4))
         np.testing.assert_allclose(result[0], np.stack([test_data1, test_data2]))
 
     def test_npy_pickle(self):
@@ -77,7 +81,7 @@ class TestNumpyReader(unittest.TestCase):
 
             reader = NumpyReader()
             result = reader.get_data(reader.read(filepath))[0].item()
-        self.assertTupleEqual(result["test"].shape, test_data["test"].shape)
+        np.testing.assert_allclose(result["test"].shape, test_data["test"].shape)
         np.testing.assert_allclose(result["test"], test_data["test"])
 
     def test_kwargs(self):
@@ -88,7 +92,39 @@ class TestNumpyReader(unittest.TestCase):
 
             reader = NumpyReader(mmap_mode="r")
             result = reader.get_data(reader.read(filepath, mmap_mode=None))[0].item()
-        self.assertTupleEqual(result["test"].shape, test_data["test"].shape)
+        np.testing.assert_allclose(result["test"].shape, test_data["test"].shape)
+
+    def test_dataloader(self):
+        test_data = np.random.randint(0, 256, size=[3, 4, 5])
+        datalist = []
+        with tempfile.TemporaryDirectory() as tempdir:
+            for i in range(4):
+                filepath = os.path.join(tempdir, f"test_data{i}.npz")
+                np.savez(filepath, test_data)
+                datalist.append({"image": filepath})
+
+                num_workers = 2 if sys.platform == "linux" else 0
+                loader = DataLoader(
+                    Dataset(data=datalist, transform=LoadImaged(keys="image", reader=NumpyReader())),
+                    batch_size=2,
+                    num_workers=num_workers,
+                )
+                for d in loader:
+                    for s in d[PostFix.meta("image")]["spatial_shape"]:
+                        torch.testing.assert_allclose(s, torch.as_tensor([3, 4, 5]))
+                    for c in d["image"]:
+                        torch.testing.assert_allclose(c, test_data)
+
+    def test_channel_dim(self):
+        test_data = np.random.randint(0, 256, size=[3, 4, 5, 2])
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, "test_data.npy")
+            np.save(filepath, test_data)
+
+            reader = NumpyReader(channel_dim=-1)
+            result = reader.get_data(reader.read(filepath))
+        np.testing.assert_allclose(result[1]["spatial_shape"], test_data.shape[:-1])
+        self.assertEqual(result[1]["original_channel_dim"], -1)
 
 
 if __name__ == "__main__":

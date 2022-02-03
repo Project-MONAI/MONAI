@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -112,16 +112,7 @@ TEST_CASE_8 = [False, None, True, "val_loss", 1, "model.pt", False, True, False,
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-            TEST_CASE_7,
-            TEST_CASE_8,
-        ]
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
     )
     def test_file(
         self,

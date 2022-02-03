@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -59,13 +59,13 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
+    TraceableTransform,
     Transposed,
     Zoomd,
     allow_missing_keys_mode,
     convert_inverse_interp_mode,
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
-from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
@@ -122,23 +122,9 @@ TESTS.append(
     )
 )
 
-TESTS.append(
-    (
-        "SpatialPadd 3d",
-        "3D",
-        0,
-        SpatialPadd(KEYS, spatial_size=[112, 113, 116]),
-    )
-)
+TESTS.append(("SpatialPadd 3d", "3D", 0, SpatialPadd(KEYS, spatial_size=[112, 113, 116])))
 
-TESTS.append(
-    (
-        "SpatialCropd 2d",
-        "2D",
-        0,
-        SpatialCropd(KEYS, [49, 51], [90, 89]),
-    )
-)
+TESTS.append(("SpatialCropd 2d", "2D", 0, SpatialCropd(KEYS, [49, 51], [90, 89])))
 
 TESTS.append(
     (
@@ -149,91 +135,28 @@ TESTS.append(
     )
 )
 
-TESTS.append(
-    (
-        "SpatialCropd 2d",
-        "2D",
-        0,
-        SpatialCropd(KEYS, [49, 51], [390, 89]),
-    )
-)
+TESTS.append(("SpatialCropd 2d", "2D", 0, SpatialCropd(KEYS, [49, 51], [390, 89])))
 
-TESTS.append(
-    (
-        "SpatialCropd 3d",
-        "3D",
-        0,
-        SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93]),
-    )
-)
+TESTS.append(("SpatialCropd 3d", "3D", 0, SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93])))
 
 TESTS.append(("RandSpatialCropd 2d", "2D", 0, RandSpatialCropd(KEYS, [96, 93], None, True, False)))
 
 TESTS.append(("RandSpatialCropd 3d", "3D", 0, RandSpatialCropd(KEYS, [96, 93, 92], None, False, False)))
 
-TESTS.append(
-    (
-        "BorderPadd 2d",
-        "2D",
-        0,
-        BorderPadd(KEYS, [3, 7, 2, 5]),
-    )
-)
+TESTS.append(("BorderPadd 2d", "2D", 0, BorderPadd(KEYS, [3, 7, 2, 5])))
 
-TESTS.append(
-    (
-        "BorderPadd 2d",
-        "2D",
-        0,
-        BorderPadd(KEYS, [3, 7]),
-    )
-)
+TESTS.append(("BorderPadd 2d", "2D", 0, BorderPadd(KEYS, [3, 7])))
 
-TESTS.append(
-    (
-        "BorderPadd 3d",
-        "3D",
-        0,
-        BorderPadd(KEYS, [4]),
-    )
-)
+TESTS.append(("BorderPadd 3d", "3D", 0, BorderPadd(KEYS, [4])))
 
-TESTS.append(
-    (
-        "DivisiblePadd 2d",
-        "2D",
-        0,
-        DivisiblePadd(KEYS, k=4),
-    )
-)
+TESTS.append(("DivisiblePadd 2d", "2D", 0, DivisiblePadd(KEYS, k=4)))
 
-TESTS.append(
-    (
-        "DivisiblePadd 3d",
-        "3D",
-        0,
-        DivisiblePadd(KEYS, k=[4, 8, 11]),
-    )
-)
+TESTS.append(("DivisiblePadd 3d", "3D", 0, DivisiblePadd(KEYS, k=[4, 8, 11])))
 
 
-TESTS.append(
-    (
-        "CenterSpatialCropd 2d",
-        "2D",
-        0,
-        CenterSpatialCropd(KEYS, roi_size=95),
-    )
-)
+TESTS.append(("CenterSpatialCropd 2d", "2D", 0, CenterSpatialCropd(KEYS, roi_size=95)))
 
-TESTS.append(
-    (
-        "CenterSpatialCropd 3d",
-        "3D",
-        0,
-        CenterSpatialCropd(KEYS, roi_size=[95, 97, 98]),
-    )
-)
+TESTS.append(("CenterSpatialCropd 3d", "3D", 0, CenterSpatialCropd(KEYS, roi_size=[95, 97, 98])))
 
 TESTS.append(("CropForegroundd 2d", "2D", 0, CropForegroundd(KEYS, source_key="label", margin=2)))
 
@@ -242,69 +165,20 @@ TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="l
 
 TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
 
-TESTS.append(
-    (
-        "Flipd 3d",
-        "3D",
-        0,
-        Flipd(KEYS, [1, 2]),
-    )
-)
+TESTS.append(("Flipd 3d", "3D", 0, Flipd(KEYS, [1, 2])))
 
-TESTS.append(
-    (
-        "RandFlipd 3d",
-        "3D",
-        0,
-        RandFlipd(KEYS, 1, [1, 2]),
-    )
-)
+TESTS.append(("RandFlipd 3d", "3D", 0, RandFlipd(KEYS, 1, [1, 2])))
 
-TESTS.append(
-    (
-        "RandAxisFlipd 3d",
-        "3D",
-        0,
-        RandAxisFlipd(KEYS, 1),
-    )
-)
+TESTS.append(("RandAxisFlipd 3d", "3D", 0, RandAxisFlipd(KEYS, 1)))
 
 for acc in [True, False]:
-    TESTS.append(
-        (
-            "Orientationd 3d",
-            "3D",
-            0,
-            Orientationd(KEYS, "RAS", as_closest_canonical=acc),
-        )
-    )
+    TESTS.append(("Orientationd 3d", "3D", 0, Orientationd(KEYS, "RAS", as_closest_canonical=acc)))
 
-TESTS.append(
-    (
-        "Rotate90d 2d",
-        "2D",
-        0,
-        Rotate90d(KEYS),
-    )
-)
+TESTS.append(("Rotate90d 2d", "2D", 0, Rotate90d(KEYS)))
 
-TESTS.append(
-    (
-        "Rotate90d 3d",
-        "3D",
-        0,
-        Rotate90d(KEYS, k=2, spatial_axes=(1, 2)),
-    )
-)
+TESTS.append(("Rotate90d 3d", "3D", 0, Rotate90d(KEYS, k=2, spatial_axes=(1, 2))))
 
-TESTS.append(
-    (
-        "RandRotate90d 3d",
-        "3D",
-        0,
-        RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
-    )
-)
+TESTS.append(("RandRotate90d 3d", "3D", 0, RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2))))
 
 TESTS.append(("Spacingd 3d", "3D", 3e-2, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
 
@@ -327,50 +201,22 @@ TESTS.append(
     )
 )
 
-TESTS.append(
-    (
-        "Zoomd 1d",
-        "1D odd",
-        0,
-        Zoomd(KEYS, zoom=2, keep_size=False),
-    )
-)
+TESTS.append(("Zoomd 1d", "1D odd", 0, Zoomd(KEYS, zoom=2, keep_size=False)))
 
-TESTS.append(
-    (
-        "Zoomd 2d",
-        "2D",
-        2e-1,
-        Zoomd(KEYS, zoom=0.9),
-    )
-)
+TESTS.append(("Zoomd 2d", "2D", 2e-1, Zoomd(KEYS, zoom=0.9)))
 
-TESTS.append(
-    (
-        "Zoomd 3d",
-        "3D",
-        3e-2,
-        Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False),
-    )
-)
+TESTS.append(("Zoomd 3d", "3D", 3e-2, Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False)))
 
 TESTS.append(("RandZoom 3d", "3D", 9e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
 
-TESTS.append(
-    (
-        "RandRotated, prob 0",
-        "2D",
-        0,
-        RandRotated(KEYS, prob=0),
-    )
-)
+TESTS.append(("RandRotated, prob 0", "2D", 0, RandRotated(KEYS, prob=0, dtype=np.float64)))
 
 TESTS.append(
     (
         "Rotated 2d",
         "2D",
         8e-2,
-        Rotated(KEYS, random.uniform(np.pi / 6, np.pi), keep_size=True, align_corners=False),
+        Rotated(KEYS, random.uniform(np.pi / 6, np.pi), keep_size=True, align_corners=False, dtype=np.float64),
     )
 )
 
@@ -379,7 +225,7 @@ TESTS.append(
         "Rotated 3d",
         "3D",
         1e-1,
-        Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], True),  # type: ignore
+        Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], True, dtype=np.float64),  # type: ignore
     )
 )
 
@@ -388,27 +234,13 @@ TESTS.append(
         "RandRotated 3d",
         "3D",
         1e-1,
-        RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
+        RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1, dtype=np.float64),  # type: ignore
     )
 )
 
-TESTS.append(
-    (
-        "Transposed 2d",
-        "2D",
-        0,
-        Transposed(KEYS, [0, 2, 1]),  # channel=0
-    )
-)
+TESTS.append(("Transposed 2d", "2D", 0, Transposed(KEYS, [0, 2, 1])))  # channel=0
 
-TESTS.append(
-    (
-        "Transposed 3d",
-        "3D",
-        0,
-        Transposed(KEYS, [0, 3, 1, 2]),  # channel=0
-    )
-)
+TESTS.append(("Transposed 3d", "3D", 0, Transposed(KEYS, [0, 3, 1, 2])))  # channel=0
 
 TESTS.append(
     (
@@ -444,14 +276,7 @@ TESTS.append(
     )
 )
 
-TESTS.append(
-    (
-        "RandAffine 3d",
-        "3D",
-        0,
-        RandAffined(KEYS, spatial_size=None, prob=0),
-    )
-)
+TESTS.append(("RandAffine 3d", "3D", 0, RandAffined(KEYS, spatial_size=None, prob=0)))
 
 TESTS.append(
     (
@@ -462,32 +287,11 @@ TESTS.append(
     )
 )
 
-TESTS.append(
-    (
-        "RandCropByPosNegLabeld 2d",
-        "2D",
-        1e-7,
-        RandCropByPosNegLabeld(KEYS, "label", (99, 96), num_samples=10),
-    )
-)
+TESTS.append(("RandCropByPosNegLabeld 2d", "2D", 1e-7, RandCropByPosNegLabeld(KEYS, "label", (99, 96), num_samples=10)))
 
-TESTS.append(
-    (
-        "RandSpatialCropSamplesd 2d",
-        "2D",
-        1e-7,
-        RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=10),
-    )
-)
+TESTS.append(("RandSpatialCropSamplesd 2d", "2D", 1e-7, RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=10)))
 
-TESTS.append(
-    (
-        "RandWeightedCropd 2d",
-        "2D",
-        1e-7,
-        RandWeightedCropd(KEYS, "label", (90, 91), num_samples=10),
-    )
-)
+TESTS.append(("RandWeightedCropd 2d", "2D", 1e-7, RandWeightedCropd(KEYS, "label", (90, 91), num_samples=10)))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
@@ -566,8 +370,8 @@ class TestInverse(unittest.TestCase):
                 "other": np.array(im_1d, copy=True),
             }
 
-        im_2d_fname, seg_2d_fname = [make_nifti_image(i) for i in create_test_image_2d(101, 100)]
-        im_3d_fname, seg_3d_fname = [make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107)]
+        im_2d_fname, seg_2d_fname = (make_nifti_image(i) for i in create_test_image_2d(101, 100))
+        im_3d_fname, seg_3d_fname = (make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107))
 
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.all_data["2D"] = load_ims({"image": im_2d_fname, "label": seg_2d_fname})
@@ -651,27 +455,15 @@ class TestInverse(unittest.TestCase):
 
         batch_size = 10
         # num workers = 0 for mac
-        num_workers = 2 if sys.platform != "darwin" else 0
-        transforms = Compose(
-            [
-                AddChanneld(KEYS),
-                SpatialPadd(KEYS, (150, 153)),
-                extra_transform,
-            ]
-        )
+        num_workers = 2 if sys.platform == "linux" else 0
+        transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), extra_transform])
         num_invertible_transforms = sum(1 for i in transforms.transforms if isinstance(i, InvertibleTransform))
 
         dataset = CacheDataset(test_data, transform=transforms, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = UNet(
-            dimensions=2,
-            in_channels=1,
-            out_channels=1,
-            channels=(2, 4),
-            strides=(2,),
-        ).to(device)
+        model = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(2, 4), strides=(2,)).to(device)
 
         data = first(loader)
         self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
@@ -679,7 +471,7 @@ class TestInverse(unittest.TestCase):
 
         labels = data["label"].to(device)
         segs = model(labels).detach().cpu()
-        label_transform_key = "label" + InverseKeys.KEY_SUFFIX
+        label_transform_key = TraceableTransform.trace_key("label")
         segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
 
         segs_dict_decollated = decollate_batch(segs_dict)

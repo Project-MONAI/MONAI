@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -46,7 +46,9 @@ class _GridPull(torch.autograd.Function):
             return None, grads[0], None, None, None
 
 
-def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", bound="zero", extrapolate: bool = True):
+def grid_pull(
+    input: torch.Tensor, grid: torch.Tensor, interpolation="linear", bound="zero", extrapolate: bool = True
+) -> torch.Tensor:
     """
     Sample an image with respect to a deformation field.
 
@@ -68,13 +70,13 @@ def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
     `bound` can be an int, a string or a BoundType.
     Possible values are::
 
-        - 0 or 'replicate' or 'nearest'      or BoundType.replicate
+        - 0 or 'replicate' or 'nearest'      or BoundType.replicate or 'border'
         - 1 or 'dct1'      or 'mirror'       or BoundType.dct1
         - 2 or 'dct2'      or 'reflect'      or BoundType.dct2
         - 3 or 'dst1'      or 'antimirror'   or BoundType.dst1
         - 4 or 'dst2'      or 'antireflect'  or BoundType.dst2
         - 5 or 'dft'       or 'wrap'         or BoundType.dft
-        - 7 or 'zero'                        or BoundType.zero
+        - 7 or 'zero'      or 'zeros'        or BoundType.zero
 
     A list of values can be provided, in the order [W, H, D],
     to specify dimension-specific boundary conditions.
@@ -112,8 +114,9 @@ def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
         _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i)
         for i in ensure_tuple(interpolation)
     ]
-
-    return _GridPull.apply(input, grid, interpolation, bound, extrapolate)
+    out: torch.Tensor
+    out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)  # type: ignore
+    return out
 
 
 class _GridPush(torch.autograd.Function):
@@ -443,11 +446,11 @@ class AffineTransform(nn.Module):
                 coordinates.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"zeros"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            align_corners: see also https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            align_corners: see also https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html.
             reverse_indexing: whether to reverse the spatial indexing of image and coordinates.
                 set to `False` if `theta` follows pytorch's default "D, H, W" convention.
                 set to `True` if `theta` follows `scipy.ndimage` default "i, j, k" convention.

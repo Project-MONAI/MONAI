@@ -1,5 +1,5 @@
 /*
-Copyright 2020 - 2021 MONAI Consortium
+Copyright (c) MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -1491,10 +1491,10 @@ MONAI_NAMESPACE_DEVICE { // cuda
     iy0 = bound::index(bound1, iy0, src_Y);
     iz0 = bound::index(bound2, iz0, src_Z);
 
-    // Offsets into source volume
     offset_t o000, o100, o010, o001, o110, o011, o101, o111;
 
     if (do_pull || do_grad || do_sgrad) {
+      // Offsets into source volume
       o000 = ix0 * src_sX + iy0 * src_sY + iz0 * src_sZ;
       o100 = ix1 * src_sX + iy0 * src_sY + iz0 * src_sZ;
       o010 = ix0 * src_sX + iy1 * src_sY + iz0 * src_sZ;
@@ -1503,18 +1503,20 @@ MONAI_NAMESPACE_DEVICE { // cuda
       o011 = ix0 * src_sX + iy1 * src_sY + iz1 * src_sZ;
       o101 = ix1 * src_sX + iy0 * src_sY + iz1 * src_sZ;
       o111 = ix1 * src_sX + iy1 * src_sY + iz1 * src_sZ;
+    } else {
+      // Offsets into 'push' volume
+      o000 = ix0 * out_sX + iy0 * out_sY + iz0 * out_sZ;
+      o100 = ix1 * out_sX + iy0 * out_sY + iz0 * out_sZ;
+      o010 = ix0 * out_sX + iy1 * out_sY + iz0 * out_sZ;
+      o001 = ix0 * out_sX + iy0 * out_sY + iz1 * out_sZ;
+      o110 = ix1 * out_sX + iy1 * out_sY + iz0 * out_sZ;
+      o011 = ix0 * out_sX + iy1 * out_sY + iz1 * out_sZ;
+      o101 = ix1 * out_sX + iy0 * out_sY + iz1 * out_sZ;
+      o111 = ix1 * out_sX + iy1 * out_sY + iz1 * out_sZ;
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_grad) {
-      o000 = ix0 * src_sX + iy0 * src_sY + iz0 * src_sZ;
-      o100 = ix1 * src_sX + iy0 * src_sY + iz0 * src_sZ;
-      o010 = ix0 * src_sX + iy1 * src_sY + iz0 * src_sZ;
-      o001 = ix0 * src_sX + iy0 * src_sY + iz1 * src_sZ;
-      o110 = ix1 * src_sX + iy1 * src_sY + iz0 * src_sZ;
-      o011 = ix0 * src_sX + iy1 * src_sY + iz1 * src_sZ;
-      o101 = ix1 * src_sX + iy0 * src_sY + iz1 * src_sZ;
-      o111 = ix1 * src_sX + iy1 * src_sY + iz1 * src_sZ;
       scalar_t gx = static_cast<scalar_t>(0);
       scalar_t gy = static_cast<scalar_t>(0);
       scalar_t gz = static_cast<scalar_t>(0);
@@ -1623,14 +1625,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Pull ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_pull) {
-      o000 = ix0 * src_sX + iy0 * src_sY + iz0 * src_sZ;
-      o100 = ix1 * src_sX + iy0 * src_sY + iz0 * src_sZ;
-      o010 = ix0 * src_sX + iy1 * src_sY + iz0 * src_sZ;
-      o001 = ix0 * src_sX + iy0 * src_sY + iz1 * src_sZ;
-      o110 = ix1 * src_sX + iy1 * src_sY + iz0 * src_sZ;
-      o011 = ix0 * src_sX + iy1 * src_sY + iz1 * src_sZ;
-      o101 = ix1 * src_sX + iy0 * src_sY + iz1 * src_sZ;
-      o111 = ix1 * src_sX + iy1 * src_sY + iz1 * src_sZ;
       scalar_t* out_ptr_NCXYZ = out_ptr + n * out_sN + w * out_sX + h * out_sY + d * out_sZ;
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
       for (offset_t c = 0; c < C; ++c, out_ptr_NCXYZ += out_sC, src_ptr_NC += src_sC) {
@@ -1642,14 +1636,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SGrad ~~~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~
     else if (do_sgrad) {
-      o000 = ix0 * src_sX + iy0 * src_sY + iz0 * src_sZ;
-      o100 = ix1 * src_sX + iy0 * src_sY + iz0 * src_sZ;
-      o010 = ix0 * src_sX + iy1 * src_sY + iz0 * src_sZ;
-      o001 = ix0 * src_sX + iy0 * src_sY + iz1 * src_sZ;
-      o110 = ix1 * src_sX + iy1 * src_sY + iz0 * src_sZ;
-      o011 = ix0 * src_sX + iy1 * src_sY + iz1 * src_sZ;
-      o101 = ix1 * src_sX + iy0 * src_sY + iz1 * src_sZ;
-      o111 = ix1 * src_sX + iy1 * src_sY + iz1 * src_sZ;
       scalar_t* out_ptr_NCXYZ = out_ptr + n * out_sN + w * out_sX + h * out_sY + d * out_sZ;
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
 
@@ -1672,15 +1658,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     else if (do_push) {
-      // Offsets into 'push' volume
-      o000 = ix0 * out_sX + iy0 * out_sY + iz0 * out_sZ;
-      o100 = ix1 * out_sX + iy0 * out_sY + iz0 * out_sZ;
-      o010 = ix0 * out_sX + iy1 * out_sY + iz0 * out_sZ;
-      o001 = ix0 * out_sX + iy0 * out_sY + iz1 * out_sZ;
-      o110 = ix1 * out_sX + iy1 * out_sY + iz0 * out_sZ;
-      o011 = ix0 * out_sX + iy1 * out_sY + iz1 * out_sZ;
-      o101 = ix1 * out_sX + iy0 * out_sY + iz1 * out_sZ;
-      o111 = ix1 * out_sX + iy1 * out_sY + iz1 * out_sZ;
       scalar_t* trgt_ptr_NCXYZ = trgt_ptr + n * trgt_sN + w * trgt_sX + h * trgt_sY + d * trgt_sZ;
       scalar_t* out_ptr_NC = out_ptr + n * out_sN;
       if (trgt_K == 0) {
@@ -1722,16 +1699,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     else if (do_count) {
-      // Offsets into 'push' volume
-      o000 = ix0 * out_sX + iy0 * out_sY + iz0 * out_sZ;
-      o100 = ix1 * out_sX + iy0 * out_sY + iz0 * out_sZ;
-      o010 = ix0 * out_sX + iy1 * out_sY + iz0 * out_sZ;
-      o001 = ix0 * out_sX + iy0 * out_sY + iz1 * out_sZ;
-      o110 = ix1 * out_sX + iy1 * out_sY + iz0 * out_sZ;
-      o011 = ix0 * out_sX + iy1 * out_sY + iz1 * out_sZ;
-      o101 = ix1 * out_sX + iy0 * out_sY + iz1 * out_sZ;
-      o111 = ix1 * out_sX + iy1 * out_sY + iz1 * out_sZ;
-
       scalar_t* out_ptr_N = out_ptr + n * out_sN;
       bound::add(out_ptr_N, o000, w000, s000);
       bound::add(out_ptr_N, o100, w100, s100);
@@ -1786,21 +1753,23 @@ MONAI_NAMESPACE_DEVICE { // cuda
     ix0 = bound::index(bound0, ix0, src_X);
     iy0 = bound::index(bound1, iy0, src_Y);
 
-    // Offsets into source volume
     offset_t o00, o10, o01, o11;
     if (do_pull || do_grad || do_sgrad) {
+      // Offsets into source volume
       o00 = ix0 * src_sX + iy0 * src_sY;
       o10 = ix1 * src_sX + iy0 * src_sY;
       o01 = ix0 * src_sX + iy1 * src_sY;
       o11 = ix1 * src_sX + iy1 * src_sY;
+    } else {
+      // Offsets into 'push' volume
+      o00 = ix0 * out_sX + iy0 * out_sY;
+      o10 = ix1 * out_sX + iy0 * out_sY;
+      o01 = ix0 * out_sX + iy1 * out_sY;
+      o11 = ix1 * out_sX + iy1 * out_sY;
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_grad) {
-      o00 = ix0 * src_sX + iy0 * src_sY;
-      o10 = ix1 * src_sX + iy0 * src_sY;
-      o01 = ix0 * src_sX + iy1 * src_sY;
-      o11 = ix1 * src_sX + iy1 * src_sY;
       scalar_t gx = static_cast<scalar_t>(0);
       scalar_t gy = static_cast<scalar_t>(0);
       scalar_t* trgt_ptr_NCXY = trgt_ptr + n * trgt_sN + w * trgt_sX + h * trgt_sY;
@@ -1859,10 +1828,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Pull ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_pull) {
-      o00 = ix0 * src_sX + iy0 * src_sY;
-      o10 = ix1 * src_sX + iy0 * src_sY;
-      o01 = ix0 * src_sX + iy1 * src_sY;
-      o11 = ix1 * src_sX + iy1 * src_sY;
       scalar_t* out_ptr_NCXY = out_ptr + n * out_sN + w * out_sX + h * out_sY;
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
       for (offset_t c = 0; c < C; ++c, out_ptr_NCXY += out_sC, src_ptr_NC += src_sC) {
@@ -1872,10 +1837,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SGrad ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     else if (do_sgrad) {
-      o00 = ix0 * src_sX + iy0 * src_sY;
-      o10 = ix1 * src_sX + iy0 * src_sY;
-      o01 = ix0 * src_sX + iy1 * src_sY;
-      o11 = ix1 * src_sX + iy1 * src_sY;
       scalar_t* out_ptr_NCXY = out_ptr + n * out_sN + w * out_sX + h * out_sY;
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
 
@@ -1890,11 +1851,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     else if (do_push) {
-      // Offsets into 'push' volume
-      o00 = ix0 * out_sX + iy0 * out_sY;
-      o10 = ix1 * out_sX + iy0 * out_sY;
-      o01 = ix0 * out_sX + iy1 * out_sY;
-      o11 = ix1 * out_sX + iy1 * out_sY;
       scalar_t* trgt_ptr_NCXY = trgt_ptr + n * trgt_sN + w * trgt_sX + h * trgt_sY;
       scalar_t* out_ptr_NC = out_ptr + n * out_sN;
       if (trgt_K == 0) {
@@ -1924,12 +1880,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     else if (do_count) {
-      // Offsets into 'push' volume
-      o00 = ix0 * out_sX + iy0 * out_sY;
-      o10 = ix1 * out_sX + iy0 * out_sY;
-      o01 = ix0 * out_sX + iy1 * out_sY;
-      o11 = ix1 * out_sX + iy1 * out_sY;
-
       scalar_t* out_ptr_N = out_ptr + n * out_sN;
       bound::add(out_ptr_N, o00, w00, s00);
       bound::add(out_ptr_N, o10, w10, s10);
@@ -1965,15 +1915,16 @@ MONAI_NAMESPACE_DEVICE { // cuda
     if (do_pull || do_grad || do_sgrad) {
       o0 = ix0 * src_sX;
       o1 = ix1 * src_sX;
+    } else {
+      // Offsets into 'push' volume
+      o0 = ix0 * out_sX;
+      o1 = ix1 * out_sX;
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_grad) {
       if (trgt_K == 0) {
         // backward w.r.t. push/pull
-
-        o0 = ix0 * src_sX;
-        o1 = ix1 * src_sX;
         scalar_t gx = static_cast<scalar_t>(0);
         scalar_t* trgt_ptr_NCX = trgt_ptr + n * trgt_sN + w * trgt_sX;
         scalar_t* src_ptr_NC = src_ptr + n * src_sN;
@@ -2001,8 +1952,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Pull ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_pull) {
-      o0 = ix0 * src_sX;
-      o1 = ix1 * src_sX;
       scalar_t* out_ptr_NCX = out_ptr + n * out_sN + w * out_sX;
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
       for (offset_t c = 0; c < C; ++c, out_ptr_NCX += out_sC, src_ptr_NC += src_sC) {
@@ -2011,8 +1960,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SGrad ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     else if (do_sgrad) {
-      o0 = ix0 * src_sX;
-      o1 = ix1 * src_sX;
       scalar_t* out_ptr_NCX = out_ptr + n * out_sN + w * out_sX;
       scalar_t* src_ptr_NC = src_ptr + n * src_sN;
 
@@ -2022,9 +1969,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     else if (do_push) {
-      // Offsets into 'push' volume
-      o0 = ix0 * out_sX;
-      o1 = ix1 * out_sX;
       scalar_t* trgt_ptr_NCX = trgt_ptr + n * trgt_sN + w * trgt_sX;
       scalar_t* out_ptr_NC = out_ptr + n * out_sN;
       if (trgt_K == 0) {
@@ -2045,10 +1989,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Push ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     else if (do_count) {
-      // Offsets into 'push' volume
-      o0 = ix0 * out_sX;
-      o1 = ix1 * out_sX;
-
       scalar_t* out_ptr_N = out_ptr + n * out_sN;
       bound::add(out_ptr_N, o0, w0, s0);
       bound::add(out_ptr_N, o1, w1, s1);
