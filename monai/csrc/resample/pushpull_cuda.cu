@@ -1503,16 +1503,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
       o011 = ix0 * src_sX + iy1 * src_sY + iz1 * src_sZ;
       o101 = ix1 * src_sX + iy0 * src_sY + iz1 * src_sZ;
       o111 = ix1 * src_sX + iy1 * src_sY + iz1 * src_sZ;
-    } else {
-      // Offsets into 'push' volume
-      o000 = ix0 * out_sX + iy0 * out_sY + iz0 * out_sZ;
-      o100 = ix1 * out_sX + iy0 * out_sY + iz0 * out_sZ;
-      o010 = ix0 * out_sX + iy1 * out_sY + iz0 * out_sZ;
-      o001 = ix0 * out_sX + iy0 * out_sY + iz1 * out_sZ;
-      o110 = ix1 * out_sX + iy1 * out_sY + iz0 * out_sZ;
-      o011 = ix0 * out_sX + iy1 * out_sY + iz1 * out_sZ;
-      o101 = ix1 * out_sX + iy0 * out_sY + iz1 * out_sZ;
-      o111 = ix1 * out_sX + iy1 * out_sY + iz1 * out_sZ;
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1622,6 +1612,17 @@ MONAI_NAMESPACE_DEVICE { // cuda
       (*grad_ptr_NXYZ) = gx;
       grad_ptr_NXYZ[grad_sC] = gy;
       grad_ptr_NXYZ[grad_sC * 2] = gz;
+    }
+    if (do_push || do_count) {
+      // Offsets into 'push' volume
+      o000 = ix0 * out_sX + iy0 * out_sY + iz0 * out_sZ;
+      o100 = ix1 * out_sX + iy0 * out_sY + iz0 * out_sZ;
+      o010 = ix0 * out_sX + iy1 * out_sY + iz0 * out_sZ;
+      o001 = ix0 * out_sX + iy0 * out_sY + iz1 * out_sZ;
+      o110 = ix1 * out_sX + iy1 * out_sY + iz0 * out_sZ;
+      o011 = ix0 * out_sX + iy1 * out_sY + iz1 * out_sZ;
+      o101 = ix1 * out_sX + iy0 * out_sY + iz1 * out_sZ;
+      o111 = ix1 * out_sX + iy1 * out_sY + iz1 * out_sZ;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Pull ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_pull) {
@@ -1760,12 +1761,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
       o10 = ix1 * src_sX + iy0 * src_sY;
       o01 = ix0 * src_sX + iy1 * src_sY;
       o11 = ix1 * src_sX + iy1 * src_sY;
-    } else {
-      // Offsets into 'push' volume
-      o00 = ix0 * out_sX + iy0 * out_sY;
-      o10 = ix1 * out_sX + iy0 * out_sY;
-      o01 = ix0 * out_sX + iy1 * out_sY;
-      o11 = ix1 * out_sX + iy1 * out_sY;
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1825,6 +1820,13 @@ MONAI_NAMESPACE_DEVICE { // cuda
       scalar_t* grad_ptr_NXY = grad_ptr + n * grad_sN + w * grad_sX + h * grad_sY;
       (*grad_ptr_NXY) = gx;
       grad_ptr_NXY[grad_sC] = gy;
+    }
+    if (do_push || do_count) {
+      // Offsets into 'push' volume
+      o00 = ix0 * out_sX + iy0 * out_sY;
+      o10 = ix1 * out_sX + iy0 * out_sY;
+      o01 = ix0 * out_sX + iy1 * out_sY;
+      o11 = ix1 * out_sX + iy1 * out_sY;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Pull ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_pull) {
@@ -1915,10 +1917,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     if (do_pull || do_grad || do_sgrad) {
       o0 = ix0 * src_sX;
       o1 = ix1 * src_sX;
-    } else {
-      // Offsets into 'push' volume
-      o0 = ix0 * out_sX;
-      o1 = ix1 * out_sX;
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1949,6 +1947,11 @@ MONAI_NAMESPACE_DEVICE { // cuda
         // backward w.r.t. sgrad
         // -> zero (make sure this is done at initialization)
       }
+    }
+    if (do_push || do_count) {
+      // Offsets into 'push' volume
+      o0 = ix0 * out_sX;
+      o1 = ix1 * out_sX;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Pull ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     if (do_pull) {
