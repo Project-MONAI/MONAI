@@ -1539,6 +1539,8 @@ MONAI_NAMESPACE_DEVICE { // cpu
       o011 = ix0 * src_sX + iy1 * src_sY + iz1 * src_sZ;
       o101 = ix1 * src_sX + iy0 * src_sY + iz1 * src_sZ;
       o111 = ix1 * src_sX + iy1 * src_sY + iz1 * src_sZ;
+    } else if (!(do_push || do_count)) {
+      o000 = o100 = o010 = o001 = o110 = o011 = o101 = o111 = 0;
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1806,6 +1808,8 @@ MONAI_NAMESPACE_DEVICE { // cpu
       o10 = ix1 * src_sX + iy0 * src_sY;
       o01 = ix0 * src_sX + iy1 * src_sY;
       o11 = ix1 * src_sX + iy1 * src_sY;
+    } else if (!(do_push || do_count)) {
+      o00 = o10 = o01 = o11 = 0;
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1962,6 +1966,8 @@ MONAI_NAMESPACE_DEVICE { // cpu
       // Offsets into source volume
       o0 = ix0 * src_sX;
       o1 = ix1 * src_sX;
+    } else if (!(do_push || do_count)) {
+      o0 = o1 = 0;
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~ Grid gradient ~~~~~~~~~~~~~~~~~~~~~~~~~~
