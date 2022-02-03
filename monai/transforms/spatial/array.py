@@ -237,8 +237,8 @@ class SpatialResample(Transform):
             xform = xform @ _t_r
             if not USE_COMPILED:
                 _t_l = normalize_transform(
-                    in_spatial_size, xform.device, xform.dtype, align_corners=True
-                )  # type: ignore
+                    in_spatial_size, xform.device, xform.dtype, align_corners=True  # type: ignore
+                )
                 xform = _t_l @ xform  # type: ignore
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, norm_coords=False, image_only=True, dtype=_dtype
