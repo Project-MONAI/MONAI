@@ -1511,7 +1511,7 @@ class Resample(Transform):
         as_tensor_output: bool = True,
         norm_coords: bool = True,
         device: Optional[torch.device] = None,
-        dtype: DtypeLike = np.float32,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         """
         computes output image using values from `img`, locations from `grid` using pytorch.
@@ -1580,7 +1580,7 @@ class Resample(Transform):
             raise ValueError("Unknown grid.")
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         _dtype = dtype or self.dtype or img.dtype
-        img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype= _dtype)
+        img_t, *_ = convert_data_type(img, torch.Tensor, device=_device, dtype=_dtype)
         grid_t = convert_to_dst_type(grid, img_t)[0]
         if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
             grid_t = grid_t.clone(memory_format=torch.contiguous_format)

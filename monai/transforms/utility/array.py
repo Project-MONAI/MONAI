@@ -411,11 +411,11 @@ class EnsureType(Transform):
 
         """
         output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
-        return convert_data_type(
+        out: NdarrayOrTensor
+        out, *_ = convert_data_type(
             data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
-        )[
-            0
-        ]  # type: ignore
+        )
+        return out
 
 
 class ToNumpy(Transform):

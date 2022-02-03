@@ -374,7 +374,7 @@ def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
     return torch.isnan(x)
 
 
-def ascontiguousarray(x: NdarrayOrTensor, **kwargs) -> NdarrayOrTensor:
+def ascontiguousarray(x: NdarrayTensor, **kwargs) -> NdarrayOrTensor:
     """`np.ascontiguousarray` with equivalent implementation for torch (`contiguous`).
 
     Args:
