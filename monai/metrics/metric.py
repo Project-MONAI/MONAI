@@ -201,8 +201,7 @@ class Cumulative:
             self._buffers = [[] for _ in data]
         for b, d in zip(self._buffers, data):
             # converting to pytorch tensors so that we can use the distributed API
-            d_t: torch.Tensor
-            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)  # type: ignore
+            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)
             try:
                 b.extend([x[0] for x in torch.split(d_t, 1, dim=0)])
             except (AttributeError, IndexError, RuntimeError) as e:
@@ -228,8 +227,7 @@ class Cumulative:
             self._buffers = [[] for _ in data]
         for b, d in zip(self._buffers, data):
             # converting to pytorch tensors so that we can use the distributed API
-            d_t: torch.Tensor
-            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)  # type: ignore
+            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)
             b.append(d_t)
         self._synced = False
 

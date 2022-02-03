@@ -21,7 +21,7 @@ import torch
 
 import monai
 from monai.config import DtypeLike, IndexSelection
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.compose import Compose, OneOf
@@ -359,7 +359,7 @@ def map_classes_to_indices(
         label_flat = ravel(any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0))
         label_flat = img_flat & label_flat if img_flat is not None else label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
-        cls_indices, *_ = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))
+        cls_indices: NdarrayOrTensor = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))[0]
         indices.append(cls_indices)
 
     return indices
@@ -930,7 +930,7 @@ def generate_spatial_bounding_box(
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Optional[int] = None) -> NdarrayOrTensor:
+def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optional[int] = None) -> NdarrayTensor:
     """
     Gets the largest connected component mask of an image.
 
@@ -941,13 +941,12 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
             connectivity of ``input.ndim`` is used. for more details:
             https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
     """
-    img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
+    img_arr = convert_data_type(img, np.ndarray)[0]
     largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
     img_arr = measure.label(img_arr, connectivity=connectivity)
     if img_arr.max() != 0:
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
-    largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
-    return largest_cc
+    return convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]
 
 
 def fill_holes(

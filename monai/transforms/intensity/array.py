@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -694,7 +694,7 @@ class NormalizeIntensity(Transform):
         else:
             img = self._normalize(img, self.subtrahend, self.divisor)
 
-        out, *_ = convert_data_type(img, dtype=dtype)
+        out = convert_to_dst_type(img, img, dtype=dtype)[0]
         return out
 
 
@@ -779,7 +779,7 @@ class ScaleIntensityRange(Transform):
             img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
             img = clip(img, self.b_min, self.b_max)
-        ret, *_ = convert_data_type(img, dtype=dtype)
+        ret: NdarrayOrTensor = convert_data_type(img, dtype=dtype)[0]
 
         return ret
 
@@ -1115,8 +1115,7 @@ class DetectEnvelope(Transform):
             np.ndarray containing envelope of data in img along the specified axis.
 
         """
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor)
         # add one to transform axis because a batch axis will be added at dimension 0
         hilbert_transform = HilbertTransform(self.axis + 1, self.n)
         # convert to Tensor and add Batch axis expected by HilbertTransform
@@ -1146,9 +1145,8 @@ class GaussianSmooth(Transform):
         self.sigma = sigma
         self.approx = approx
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         sigma: Union[Sequence[torch.Tensor], torch.Tensor]
         if isinstance(self.sigma, Sequence):
             sigma = [torch.as_tensor(s, device=img_t.device) for s in self.sigma]
@@ -1255,9 +1253,8 @@ class GaussianSharpen(Transform):
         self.alpha = alpha
         self.approx = approx
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)
 
         gf1, gf2 = (
             GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device)
@@ -1402,8 +1399,7 @@ class RandHistogramShift(RandomizableTransform):
 
         if self.reference_control_points is None or self.floating_control_points is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         img_min, img_max = img_np.min(), img_np.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
@@ -1892,8 +1888,7 @@ class RandCoarseTransform(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         out = self._transform_holes(img=img_np)
         ret, *_ = convert_to_dst_type(src=out, dst=img)
         return ret
@@ -2048,12 +2043,11 @@ class HistogramNormalize(Transform):
         self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         mask = mask if mask is not None else self.mask
         mask_np: Optional[np.ndarray] = None
         if mask is not None:
-            mask_np, *_ = convert_data_type(mask, np.ndarray)  # type: ignore
+            mask_np, *_ = convert_data_type(mask, np.ndarray)
 
         ret = equalize_hist(img=img_np, mask=mask_np, num_bins=self.num_bins, min=self.min, max=self.max)
         out, *_ = convert_to_dst_type(src=ret, dst=img, dtype=self.dtype or img.dtype)

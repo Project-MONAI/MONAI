@@ -336,8 +336,7 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        img_out, *_ = convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)
-        return img_out
+        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]  # type: ignore
 
 
 class ToTensor(Transform):
@@ -412,10 +411,11 @@ class EnsureType(Transform):
 
         """
         output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
-        out, *_ = convert_data_type(
+        return convert_data_type(
             data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
-        )
-        return out
+        )[
+            0
+        ]  # type: ignore
 
 
 class ToNumpy(Transform):
@@ -1021,7 +1021,7 @@ class TorchVision:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
-        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor)
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
@@ -1113,8 +1113,7 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         if meta_data is None:
             meta_data = {}
 

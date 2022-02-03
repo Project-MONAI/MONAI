@@ -1552,10 +1552,8 @@ class Rotated(MapTransform, InvertibleTransform):
                 align_corners=False if align_corners == TraceKeys.NONE else align_corners,
                 reverse_indexing=True,
             )
-            img_t: torch.Tensor
-            img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)  # type: ignore
-            transform_t: torch.Tensor
-            transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
+            img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)
+            transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
 
             out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
             out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
@@ -1686,10 +1684,8 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=False if align_corners == TraceKeys.NONE else align_corners,
                     reverse_indexing=True,
                 )
-                img_t: torch.Tensor
-                img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)  # type: ignore
-                transform_t: torch.Tensor
-                transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
+                img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)
+                transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
                 output: torch.Tensor
                 out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
                 out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
