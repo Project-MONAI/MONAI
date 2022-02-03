@@ -82,7 +82,7 @@ class LoadImage(Transform):
         - User-specified reader in the constructor of `LoadImage`.
         - Readers from the last to the first in the registered list.
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
-          (npz, npy -> NumpyReader), (others -> ITKReader).
+          (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader).
 
     See also:
 
