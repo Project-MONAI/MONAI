@@ -58,7 +58,7 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
-    log_stats: bool = True,
+    log_stats: bool = False,
 ) -> Union[List[ReturnType], ReturnType]:
     """
     Transform `data` with `transform`.
@@ -74,8 +74,8 @@ def apply_transform(
             if `data` is a list or tuple. Defaults to True.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
         log_stats: whether to log the detailed information of data and applied transform when error happened,
-            default to `True`. for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other meta data, log the values directly.
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other meta data, log the values directly. default to `False`.
 
     Raises:
         Exception: When ``transform`` raises an exception.
