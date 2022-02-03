@@ -125,7 +125,7 @@ class ImageWriter:
         data_array: NdarrayOrTensor,
         affine: Optional[NdarrayOrTensor] = None,
         target_affine: Optional[NdarrayOrTensor] = None,
-        output_spatial_shape: Union[Sequence[int], np.ndarray, int, None] = None,
+        output_spatial_shape: Union[Sequence[int], int, None] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
@@ -181,7 +181,7 @@ class ImageWriter:
         """
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
         output_array, target_affine = resampler(
-            data_array[None], src=affine, dst=target_affine, spatial_size=output_spatial_shape
+            data_array[None], src_affine=affine, dst_affine=target_affine, spatial_size=output_spatial_shape
         )
         return output_array[0], target_affine
 

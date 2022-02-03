@@ -16,8 +16,10 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.utils.misc import ensure_tuple, is_module_ver_at_least
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
+    "allclose",
     "moveaxis",
     "in1d",
     "clip",
@@ -37,7 +39,17 @@ __all__ = [
     "repeat",
     "isnan",
     "ascontiguousarray",
+    "stack",
+    "mode",
 ]
+
+
+def allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:
+    """`np.allclose` with equivalent implementation for torch."""
+    b, *_ = convert_to_dst_type(b, a)
+    if isinstance(a, np.ndarray):
+        return np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    return torch.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)  # type: ignore
 
 
 def moveaxis(x: NdarrayOrTensor, src: Union[int, Sequence[int]], dst: Union[int, Sequence[int]]) -> NdarrayOrTensor:
@@ -378,3 +390,31 @@ def ascontiguousarray(x: NdarrayOrTensor, **kwargs) -> NdarrayOrTensor:
     if isinstance(x, torch.Tensor):
         return x.contiguous(**kwargs)
     return x
+
+
+def stack(x: Sequence[NdarrayOrTensor], dim: int) -> NdarrayOrTensor:
+    """`np.stack` with equivalent implementation for torch.
+
+    Args:
+        x: array/tensor
+        dim: dimension along which to perform the stack (referred to as `axis` by numpy)
+    """
+    if isinstance(x[0], np.ndarray):
+        return np.stack(x, dim)  # type: ignore
+    return torch.stack(x, dim)  # type: ignore
+
+
+def mode(x: NdarrayOrTensor, dim: int = -1, to_long: bool = True) -> NdarrayOrTensor:
+    """`torch.mode` with equivalent implementation for numpy.
+
+    Args:
+        x: array/tensor
+        dim: dimension along which to perform `mode` (referred to as `axis` by numpy)
+        to_long: convert input to long before performing mode.
+    """
+    x_t: torch.Tensor
+    dtype = torch.int64 if to_long else None
+    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype)  # type: ignore
+    o_t = torch.mode(x_t, dim).values
+    o, *_ = convert_to_dst_type(o_t, x)
+    return o

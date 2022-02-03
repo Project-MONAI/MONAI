@@ -23,7 +23,7 @@ jobs:
           - "PT18+CUDA102"
           - "PT18+CUDA112"
           - "PT19+CUDA114"
-          - "PT110+CUDA115"
+          - "PT110+CUDA116"
           - "PT110+CUDA102"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
@@ -43,11 +43,11 @@ jobs:
             # 21.10: 1.10.0a0+0aef44c
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
-          - environment: PT110+CUDA115
+          - environment: PT110+CUDA116
             # we explicitly set pytorch to -h to avoid pip install error
-            # 21.12: 1.11.0a0+b6df043
+            # 22.01: 1.11.0a0+bfe5ad2
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.12-py3"
+            base: "nvcr.io/nvidia/pytorch:22.01-py3"
           - environment: PT110+CUDA102
             pytorch: "torch==1.10.1 torchvision==0.11.2"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
@@ -101,7 +101,7 @@ jobs:
     - name: Install dependencies
       run: |
         which python
-        python -m pip install --upgrade pip wheel
+        python -m pip install --upgrade pip==21.3.1 wheel  # workaround monai##3752
         # fixes preinstalled ruamel_yaml error from the docker image
         rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
         python -m pip install ${{ matrix.pytorch }}

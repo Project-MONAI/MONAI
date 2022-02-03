@@ -571,7 +571,7 @@ class Invertd(MapTransform):
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `{orig_key}_{meta_key_postfix}`.
                 meta data will also be inverted and stored in `meta_keys`.
-            meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to to fetch the
+            meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to fetch the
                 meta data from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`.
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle orig_key `image`,  read/write `affine` matrices from the
