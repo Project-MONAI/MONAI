@@ -88,7 +88,7 @@ class BatchInverseTransform(Transform):
         self.detach = detach
         self.pad_batch = pad_batch
         self.fill_value = fill_value
-        self.pad_collation_used = loader.collate_fn.__name__ == pad_list_data_collate.__name__
+        self.pad_collation_used = loader.collate_fn.__doc__ == pad_list_data_collate.__doc__
 
     def __call__(self, data: Dict[str, Any]) -> Any:
         decollated_data = decollate_batch(data, detach=self.detach, pad=self.pad_batch, fill_value=self.fill_value)
