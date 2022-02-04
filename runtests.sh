@@ -559,9 +559,9 @@ then
 
     if [ $doDryRun = true ]
     then
-        ${cmdPrefix}MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)"
+        ${cmdPrefix}MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)" --warn-unused-ignores
     else
-        MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)" # cmdPrefix does not work with MYPYPATH
+        MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)" --warn-unused-ignores # cmdPrefix does not work with MYPYPATH
     fi
 
     mypy_status=$?
