@@ -156,7 +156,7 @@ def rescale_array(
     arr: NdarrayOrTensor,
     minv: Optional[float] = 0.0,
     maxv: Optional[float] = 1.0,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
+    dtype: Union[DtypeLike, torch.dtype] = np.float32,
 ) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.

@@ -214,7 +214,7 @@ def convert_data_type(
     data: Any,
     output_type: Optional[Type[NdarrayTensor]] = None,
     device: Optional[torch.device] = None,
-    dtype: Union[DtypeLike, torch.dtype, None] = None,
+    dtype: Union[DtypeLike, torch.dtype] = None,
     wrap_sequence: bool = False,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
