@@ -21,6 +21,7 @@ from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.data.utils import decollate_batch, pad_list_data_collate
 from monai.transforms.compose import Compose
+from monai.transforms.croppad.batch import PadListDataCollate
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.dictionary import Invertd
 from monai.transforms.transform import Randomizable
@@ -189,10 +190,10 @@ class TestTimeAugmentation:
 
         outs: List = []
 
-        for batch_data in tqdm(dl) if has_tqdm and self.progress else dl:
+        for b in tqdm(dl) if has_tqdm and self.progress else dl:
             # do model forward pass
-            batch_data[self._pred_key] = self.inferrer_fn(batch_data[self.image_key].to(self.device))
-            outs.extend([self.inverter(i)[self._pred_key] for i in decollate_batch(batch_data)])
+            b[self._pred_key] = self.inferrer_fn(b[self.image_key].to(self.device))
+            outs.extend([self.inverter(PadListDataCollate.inverse(i))[self._pred_key] for i in decollate_batch(b)])
 
         output: NdarrayOrTensor = stack(outs, 0)
 

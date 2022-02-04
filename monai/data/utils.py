@@ -492,10 +492,10 @@ def pad_list_data_collate(
     tensor in each dimension. This transform is useful if some of the applied transforms generate batch data of
     different sizes.
 
-    This can be used on both list and dictionary data. In the case of the dictionary data, this transform will be added
-    to the list of invertible transforms.
-
-    The inverse can be called using the static method: `monai.transforms.croppad.batch.PadListDataCollate.inverse`.
+    This can be used on both list and dictionary data.
+    Note that in the case of the dictionary data, this decollate function may add the transform information of
+    `PadListDataCollate` to the list of invertible transforms if input batch have different spatial shape, so need to
+    call static method: `monai.transforms.croppad.batch.PadListDataCollate.inverse` before inverting other transforms.
 
     Args:
         batch: batch of data to pad-collate

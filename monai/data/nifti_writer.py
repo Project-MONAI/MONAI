@@ -163,6 +163,6 @@ def write_nifti(
         )
         data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
 
-    results_img = nib.Nifti1Image(data_np.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))  # type: ignore
+    results_img = nib.Nifti1Image(data_np.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return
