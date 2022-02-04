@@ -159,7 +159,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
+        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         meta_src_keys: Optional[KeysCollection] = "src_affine",
@@ -266,8 +266,8 @@ class SpatialResampled(MapTransform, InvertibleTransform):
             meta_data = d[transform[TraceKeys.EXTRA_INFO]["meta_key"]]
             src_key = transform[TraceKeys.EXTRA_INFO]["meta_src_key"]
             dst_key = transform[TraceKeys.EXTRA_INFO]["meta_dst_key"]
-            src_affine = meta_data[src_key]  # type: ignore
-            dst_affine = meta_data[dst_key]  # type: ignore
+            src_affine = meta_data[src_key]
+            dst_affine = meta_data[dst_key]
             mode = transform[TraceKeys.EXTRA_INFO]["mode"]
             padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
             align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
@@ -314,7 +314,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
+        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
@@ -863,7 +863,7 @@ class Affined(MapTransform, InvertibleTransform):
             inv_affine = np.linalg.inv(fwd_affine)
 
             affine_grid = AffineGrid(affine=inv_affine)
-            grid, _ = affine_grid(orig_size)  # type: ignore
+            grid, _ = affine_grid(orig_size)
 
             # Apply inverse transform
             d[key] = self.affine.resampler(d[key], grid, mode, padding_mode)
@@ -997,7 +997,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
                 grid = self.rand_affine.rand_affine_grid(grid=grid)
-                affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()  # type: ignore[assignment]
+                affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             self.push_transform(
@@ -1030,7 +1030,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 inv_affine = np.linalg.inv(fwd_affine)
 
                 affine_grid = AffineGrid(affine=inv_affine)
-                grid, _ = affine_grid(orig_size)  # type: ignore
+                grid, _ = affine_grid(orig_size)
 
                 # Apply inverse transform
                 d[key] = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
@@ -1553,10 +1553,8 @@ class Rotated(MapTransform, InvertibleTransform):
                 align_corners=False if align_corners == TraceKeys.NONE else align_corners,
                 reverse_indexing=True,
             )
-            img_t: torch.Tensor
-            img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)  # type: ignore
-            transform_t: torch.Tensor
-            transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
+            img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)
+            transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
 
             out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
             out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
@@ -1687,10 +1685,8 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=False if align_corners == TraceKeys.NONE else align_corners,
                     reverse_indexing=True,
                 )
-                img_t: torch.Tensor
-                img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)  # type: ignore
-                transform_t: torch.Tensor
-                transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)  # type: ignore
+                img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)
+                transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
                 output: torch.Tensor
                 out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
                 out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
@@ -1786,7 +1782,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 align_corners=None if align_corners == TraceKeys.NONE else align_corners,
             )
             # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
+            d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1910,7 +1906,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
+                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
 

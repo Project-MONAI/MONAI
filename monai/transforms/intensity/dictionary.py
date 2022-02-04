@@ -1533,7 +1533,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         if first_key == []:
             return d
 
-        self.dropper.randomize(d[first_key].shape[1:])  # type: ignore
+        self.dropper.randomize(d[first_key].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.dropper(img=d[key], randomize=False)
 
@@ -1602,7 +1602,7 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         if first_key == []:
             return d
 
-        self.shuffle.randomize(d[first_key].shape[1:])  # type: ignore
+        self.shuffle.randomize(d[first_key].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.shuffle(img=d[key], randomize=False)
 

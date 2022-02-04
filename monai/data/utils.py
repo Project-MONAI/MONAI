@@ -27,7 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
-from monai.config.type_definitions import NdarrayOrTensor, PathLike
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
@@ -548,7 +548,7 @@ def set_rnd(obj, seed: int) -> int:
     return seed
 
 
-def affine_to_spacing(affine, dims: int = 3, dtype=float, suppress_zeros: bool = True):
+def affine_to_spacing(affine: NdarrayTensor, dims: int = 3, dtype=float, suppress_zeros: bool = True) -> NdarrayTensor:
     """
     Computing the current spacing from the affine matrix.
 
@@ -564,10 +564,12 @@ def affine_to_spacing(affine, dims: int = 3, dtype=float, suppress_zeros: bool =
     _affine, *_ = convert_to_dst_type(affine[:dims, :dims], dst=affine, dtype=dtype)
     if isinstance(_affine, torch.Tensor):
         spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))
-    spacing = np.sqrt(np.sum(_affine * _affine, axis=0))
+    else:
+        spacing = np.sqrt(np.sum(_affine * _affine, axis=0))
     if suppress_zeros:
         spacing[spacing == 0] = 1.0
-    return spacing
+    spacing_, *_ = convert_to_dst_type(spacing, dst=affine, dtype=dtype)
+    return spacing_
 
 
 def correct_nifti_header_if_necessary(img_nii):
@@ -699,16 +701,16 @@ def compute_shape_offset(
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
-    in_affine = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]  # type: ignore
-    out_affine = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]  # type: ignore
+    in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
+    out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
     in_coords = [(0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine @ corners  # type: ignore
+    corners = in_affine_ @ corners
     try:
-        inv_mat = np.linalg.inv(out_affine)
+        inv_mat = np.linalg.inv(out_affine_)
     except np.linalg.LinAlgError as e:
-        raise ValueError(f"Affine {out_affine} is not invertible") from e
+        raise ValueError(f"Affine {out_affine_} is not invertible") from e
     corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
@@ -723,7 +725,7 @@ def compute_shape_offset(
     return out_shape.astype(int, copy=False), offset
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayOrTensor, dtype=np.float64) -> NdarrayOrTensor:
+def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
@@ -751,8 +753,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayOrTensor, dtype=np.fl
         an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
-    affine_np: np.ndarray
-    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]  # type: ignore
+    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]
     affine_np = affine_np.copy()
     if affine_np.ndim != 2:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
@@ -766,8 +767,8 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayOrTensor, dtype=np.fl
     new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
         new_affine[:d, -1] = affine_np[:d, -1]
-    new_affine, *_ = convert_to_dst_type(new_affine, affine, dtype=dtype)  # type: ignore
-    return new_affine
+    output, *_ = convert_to_dst_type(new_affine, affine, dtype=dtype)
+    return output
 
 
 def reorient_spatial_axes(
@@ -897,7 +898,7 @@ def compute_importance_map(
 
     """
     mode = look_up_option(mode, BlendMode)
-    device = torch.device(device)  # type: ignore[arg-type]
+    device = torch.device(device)
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device).float()
     elif mode == BlendMode.GAUSSIAN:
@@ -1285,7 +1286,7 @@ def convert_tables_to_dicts(
     return data
 
 
-def orientation_ras_lps(affine: NdarrayOrTensor) -> NdarrayOrTensor:
+def orientation_ras_lps(affine: NdarrayTensor) -> NdarrayTensor:
     """
     Convert the ``affine`` between the `RAS` and `LPS` orientation
     by flipping the first two spatial dimensions.
@@ -1297,5 +1298,5 @@ def orientation_ras_lps(affine: NdarrayOrTensor) -> NdarrayOrTensor:
     flip_d = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]]
     flip_diag = flip_d[min(sr - 1, 2)] + [1] * (sr - 3)
     if isinstance(affine, torch.Tensor):
-        return torch.diag(torch.as_tensor(flip_diag).to(affine)) @ affine
+        return torch.diag(torch.as_tensor(flip_diag).to(affine)) @ affine  # type: ignore
     return np.diag(flip_diag).astype(affine.dtype) @ affine  # type: ignore

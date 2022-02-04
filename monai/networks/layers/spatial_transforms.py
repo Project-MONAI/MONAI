@@ -115,7 +115,7 @@ def grid_pull(
         for i in ensure_tuple(interpolation)
     ]
     out: torch.Tensor
-    out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)  # type: ignore
+    out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)
     return out
 
 

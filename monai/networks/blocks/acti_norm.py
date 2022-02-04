@@ -98,4 +98,4 @@ class ADN(nn.Sequential):
             if item not in op_dict:
                 raise ValueError(f"ordering must be a string of {op_dict}, got {item} in it.")
             if op_dict[item] is not None:
-                self.add_module(item, op_dict[item])  # type: ignore
+                self.add_module(item, op_dict[item])

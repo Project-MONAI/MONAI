@@ -63,7 +63,7 @@ class ImageWriter:
 
         writer = MyWriter()  # subclass of ImageWriter
         writer.set_data_array(data_array)
-        writer.set_metadata(meta_dict).write(filename_or_obj)
+        writer.set_metadata(meta_dict)
         writer.write(filename)
 
     Create an image writer object based on ``data_array`` and ``metadata``.
@@ -106,10 +106,10 @@ class ImageWriter:
     def set_metadata(self, meta_dict: Optional[Mapping], **options):
         raise NotImplementedError(f"Subclasses of {self.__class__.__name__} must implement this method.")
 
-    def write(self, filename_or_obj: PathLike, verbose: bool = True, **kwargs):
+    def write(self, filename: PathLike, verbose: bool = True, **kwargs):
         """subclass should implement this method to call the backend-specific writing APIs."""
         if verbose:
-            logger.info(f"writing: {filename_or_obj}")
+            logger.info(f"writing: {filename}")
 
     @classmethod
     def create_backend_obj(cls, data_array: NdarrayOrTensor, **kwargs) -> np.ndarray:
@@ -312,23 +312,23 @@ class ITKWriter(ImageWriter):
             dtype=options.pop("dtype", np.float64),
         )
 
-    def write(self, filename_or_obj: PathLike, verbose: bool = False, **kwargs):
+    def write(self, filename: PathLike, verbose: bool = False, **kwargs):
         """
         Create an ITK object from ``self.data_obj`` and call ``itk.imwrite``.
 
         Args:
-            filename_or_obj: filename or PathLike object.
+            filename: filename or PathLike object.
             verbose: if ``True``, log the progress.
             kwargs: keyword arguments passed to ``itk.imwrite``,
                 currently support ``compression`` and ``imageio``.
         """
-        super().write(filename_or_obj, verbose=verbose)
+        super().write(filename, verbose=verbose)
         self.data_obj = self.create_backend_obj(
             self.data_obj, channel_dim=self.channel_dim, affine=self.affine, dtype=self.output_dtype, **kwargs  # type: ignore
         )
         itk.imwrite(
             self.data_obj,
-            filename_or_obj,
+            filename,
             compression=kwargs.pop("compression", False),
             imageio=kwargs.pop("imageio", None),
         )
@@ -365,7 +365,6 @@ class ITKWriter(ImageWriter):
         _affine = convert_data_type(affine, np.ndarray)[0]
         _affine = orientation_ras_lps(to_affine_nd(d, _affine))
         spacing = affine_to_spacing(_affine, dims=d)
-        spacing[spacing == 0] = 1.0
         _direction: np.ndarray = np.diag(1 / spacing)
         _direction = _affine[:d, :d] @ _direction  # type: ignore
         itk_obj.SetSpacing(spacing.tolist())
