@@ -15,7 +15,7 @@ import torch
 import torch.distributed as dist
 
 from monai.engines import create_multigpu_supervised_trainer
-from tests.utils import DistCall, DistTestCase
+from tests.utils import DistCall, DistTestCase, skip_if_no_cuda
 
 
 def fake_loss(y_pred, y):
@@ -29,14 +29,16 @@ def fake_data_stream():
 
 class DistributedTestParallelExecution(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
+    @skip_if_no_cuda
     def test_distributed(self):
         device = torch.device(f"cuda:{dist.get_rank()}")
         net = torch.nn.Conv2d(1, 1, 3, padding=1).to(device)
         opt = torch.optim.Adam(net.parameters(), 1e-3)
 
         trainer = create_multigpu_supervised_trainer(net, opt, fake_loss, [device], distributed=True)
-
         trainer.run(fake_data_stream(), 2, 2)
+        # assert the trainer output is loss value
+        self.assertTrue(isinstance(trainer.state.output, float))
 
 
 if __name__ == "__main__":
