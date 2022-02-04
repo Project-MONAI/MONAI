@@ -74,7 +74,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
         set_determinism(None)
 
     def test_test_time_augmentation(self):
-        input_size = (20, 20)
+        input_size = (20, 40)  # test different input data shape to pad list collate
         keys = ["image", "label"]
         num_training_ims = 10
 
