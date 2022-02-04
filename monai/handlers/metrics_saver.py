@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -50,6 +50,9 @@ class MetricsSaver:
         batch_transform: a callable that is used to extract the `meta_data` dictionary of
             the input images from `ignite.engine.state.batch` if saving metric details. the purpose is to get the
             input filenames from the `meta_data` and store with metric details together.
+            `engine.state` and `batch_transform` inherit from the ignite concept:
+            https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+            https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
         summary_ops: expected computation operations to generate the summary report.
             it can be: None, "*" or list of strings, default to None.
             None - don't generate summary report for every expected metric_details.
@@ -67,7 +70,8 @@ class MetricsSaver:
                 mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
 
         save_rank: only the handler on specified rank will save to files in multi-gpus validation, default to 0.
-        delimiter: the delimiter character in CSV file, default to "\t".
+        delimiter: the delimiter character in the saved file, default to "," as the default output type is `csv`.
+            to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """
@@ -80,7 +84,7 @@ class MetricsSaver:
         batch_transform: Callable = lambda x: x,
         summary_ops: Optional[Union[str, Sequence[str]]] = None,
         save_rank: int = 0,
-        delimiter: str = "\t",
+        delimiter: str = ",",
         output_type: str = "csv",
     ) -> None:
         self.save_dir = save_dir
@@ -102,7 +106,14 @@ class MetricsSaver:
         engine.add_event_handler(Events.ITERATION_COMPLETED, self._get_filenames)
         engine.add_event_handler(Events.EPOCH_COMPLETED, self)
 
-    def _started(self, engine: Engine) -> None:
+    def _started(self, _engine: Engine) -> None:
+        """
+        Initialize internal buffers.
+
+        Args:
+            _engine: Ignite Engine, unused argument.
+
+        """
         self._filenames = []
 
     def _get_filenames(self, engine: Engine) -> None:
@@ -132,10 +143,12 @@ class MetricsSaver:
             if self.metrics is not None and len(engine.state.metrics) > 0:
                 _metrics = {k: v for k, v in engine.state.metrics.items() if k in self.metrics or "*" in self.metrics}
             _metric_details = {}
-            if self.metric_details is not None and len(engine.state.metric_details) > 0:
-                for k, v in engine.state.metric_details.items():
-                    if k in self.metric_details or "*" in self.metric_details:
-                        _metric_details[k] = v
+            if hasattr(engine.state, "metric_details"):
+                details = engine.state.metric_details  # type: ignore
+                if self.metric_details is not None and len(details) > 0:
+                    for k, v in details.items():
+                        if k in self.metric_details or "*" in self.metric_details:
+                            _metric_details[k] = v
 
             write_metrics_reports(
                 save_dir=self.save_dir,

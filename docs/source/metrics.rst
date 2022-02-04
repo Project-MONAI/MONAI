@@ -8,6 +8,8 @@ Metrics
 
 `FROC`
 ------
+.. autofunction:: compute_fp_tp_probs
+.. autofunction:: compute_froc_curve_data
 .. autofunction:: compute_froc_score
 
 `Metric`
@@ -47,6 +49,7 @@ Metrics
 `Confusion matrix`
 ------------------
 .. autofunction:: get_confusion_matrix
+.. autofunction:: compute_confusion_matrix_metric
 
 .. autoclass:: ConfusionMatrixMetric
     :members:
@@ -54,6 +57,7 @@ Metrics
 `Hausdorff distance`
 --------------------
 .. autofunction:: compute_hausdorff_distance
+.. autofunction:: compute_percent_hausdorff_distance
 
 .. autoclass:: HausdorffDistanceMetric
     :members:
@@ -84,3 +88,13 @@ Metrics
 ----------------------------
 .. autoclass:: PSNRMetric
     :members:
+
+`Cumulative average`
+--------------------
+.. autoclass:: CumulativeAverage
+    :members:
+
+Utilities
+---------
+.. automodule:: monai.metrics.utils
+  :members:

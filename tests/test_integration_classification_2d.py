@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +12,6 @@
 import os
 import unittest
 import warnings
-from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
 import torch
@@ -39,7 +38,7 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_downloading_fails, skip_if_quick
 
 TEST_DATA_URL = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
@@ -69,7 +68,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
             AddChannel(),
             Transpose(indices=[0, 2, 1]),
             ScaleIntensity(),
-            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True),
+            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True, dtype=np.float64),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
             ToTensor(),
@@ -80,7 +79,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
         [LoadImage(image_only=True), AddChannel(), Transpose(indices=[0, 2, 1]), ScaleIntensity(), ToTensor()]
     )
     y_pred_trans = Compose([ToTensor(), Activations(softmax=True)])
-    y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=True, num_classes=len(np.unique(train_y)))])
+    y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=len(np.unique(train_y)))])
     auc_metric = ROCAUCMetric()
 
     # create train, val data loaders
@@ -186,18 +185,12 @@ class IntegrationClassification2D(DistTestCase):
         dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
 
         if not os.path.exists(data_dir):
-            try:
+            with skip_if_downloading_fails():
                 download_and_extract(TEST_DATA_URL, dataset_file, self.data_dir, MD5_VALUE)
-            except (ContentTooShortError, HTTPError, RuntimeError) as e:
-                print(str(e))
-                if isinstance(e, RuntimeError):
-                    # FIXME: skip MD5 check as current downloading method may fail
-                    self.assertTrue(str(e).startswith("md5 check"))
-                return  # skipping this test due the network connection errors
 
         assert os.path.exists(data_dir)
 
-        class_names = sorted((x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x))))
+        class_names = sorted(x for x in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, x)))
         image_files = [
             [os.path.join(data_dir, class_name, x) for x in sorted(os.listdir(os.path.join(data_dir, class_name)))]
             for class_name in class_names
