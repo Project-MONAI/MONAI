@@ -276,9 +276,7 @@ class OcclusionSensitivity:
 
         return sensitivity_ims, output_im_shape
 
-    def __call__(  # type: ignore
-        self, x: torch.Tensor, b_box: Optional[Sequence] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __call__(self, x: torch.Tensor, b_box: Optional[Sequence] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             x: Image to use for inference. Should be a tensor consisting of 1 batch.

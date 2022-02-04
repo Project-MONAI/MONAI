@@ -65,10 +65,10 @@ def write_png(
             data = np.expand_dims(data, 0)  # make a channel
             data = xform(data)[0]  # type: ignore
         if mode != InterpolateMode.NEAREST:
-            data = np.clip(data, _min, _max)  # type: ignore
+            data = np.clip(data, _min, _max)
 
     if scale is not None:
-        data = np.clip(data, 0.0, 1.0)  # type: ignore # png writer only can scale data in range [0, 1]
+        data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
         if scale == np.iinfo(np.uint8).max:
             data = (scale * data).astype(np.uint8, copy=False)
         elif scale == np.iinfo(np.uint16).max:
@@ -77,7 +77,7 @@ def write_png(
             raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535]")
 
     # PNG data must be int number
-    if data.dtype not in (np.uint8, np.uint16):  # type: ignore
+    if data.dtype not in (np.uint8, np.uint16):
         data = data.astype(np.uint8, copy=False)
 
     data = np.moveaxis(data, 0, 1)

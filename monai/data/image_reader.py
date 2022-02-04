@@ -25,7 +25,7 @@ from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require
 from .utils import is_supported_format
 
 if TYPE_CHECKING:
-    import itk  # type: ignore
+    import itk
     import nibabel as nib
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage

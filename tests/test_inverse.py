@@ -225,7 +225,7 @@ TESTS.append(
         "Rotated 3d",
         "3D",
         1e-1,
-        Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], True, dtype=np.float64),  # type: ignore
+        Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], True, dtype=np.float64),
     )
 )
 

@@ -10,12 +10,12 @@
 # limitations under the License.
 
 import re
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
 
-from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
+from monai.config.type_definitions import DtypeLike, NdarrayTensor
 from monai.utils import optional_import
 from monai.utils.module import look_up_option
 
@@ -212,18 +212,18 @@ def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool 
 
 def convert_data_type(
     data: Any,
-    output_type: Optional[type] = None,
+    output_type: Optional[Type[NdarrayTensor]] = None,
     device: Optional[torch.device] = None,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+    dtype: Union[DtypeLike, torch.dtype] = None,
     wrap_sequence: bool = False,
-) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
+) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
 
     Args:
         data: data to be converted
-        output_type: `torch.Tensor` or `np.ndarray` (if blank, unchanged)
-        device: if output is `torch.Tensor`, select device (if blank, unchanged)
+        output_type: `torch.Tensor` or `np.ndarray` (if `None`, unchanged)
+        device: if output is `torch.Tensor`, select device (if `None`, unchanged)
         dtype: dtype of output data. Converted to correct library type (e.g.,
             `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
             If left blank, it remains unchanged.
@@ -241,7 +241,7 @@ def convert_data_type(
             (1.0, <class 'torch.Tensor'>, None)
 
     """
-    orig_type: Any
+    orig_type: type
     if isinstance(data, torch.Tensor):
         orig_type = torch.Tensor
     elif isinstance(data, np.ndarray):
@@ -257,20 +257,22 @@ def convert_data_type(
 
     dtype_ = get_equivalent_dtype(dtype, output_type)
 
-    if output_type is torch.Tensor:
-        data = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence)
-    elif output_type is np.ndarray:
-        data = convert_to_numpy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
-    elif has_cp and output_type is cp.ndarray:
-        data = convert_to_cupy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
-    else:
-        raise ValueError(f"Unsupported output type: {output_type}")
-    return data, orig_type, orig_device
+    data_: NdarrayTensor
+    if issubclass(output_type, torch.Tensor):
+        data_ = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence)
+        return data_, orig_type, orig_device
+    if issubclass(output_type, np.ndarray):
+        data_ = convert_to_numpy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
+        return data_, orig_type, orig_device
+    elif has_cp and issubclass(output_type, cp.ndarray):
+        data_ = convert_to_cupy(data, dtype=dtype_, wrap_sequence=wrap_sequence)
+        return data_, orig_type, orig_device
+    raise ValueError(f"Unsupported output type: {output_type}")
 
 
 def convert_to_dst_type(
-    src: Any, dst: NdarrayOrTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None, wrap_sequence: bool = False
-) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
+    src: Any, dst: NdarrayTensor, dtype: Union[DtypeLike, torch.dtype, None] = None, wrap_sequence: bool = False
+) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert source data to the same data type and device as the destination data.
     If `dst` is an instance of `torch.Tensor` or its subclass, convert `src` to `torch.Tensor` with the same data type as `dst`,
