@@ -43,8 +43,7 @@ class ImageWriter:
         - metadata of the current affine and output affine, the data array should be converted accordingly
             - ``get_meta_info()``
             - ``resample_if_needed()``
-        - data type of the output image
-            - as part of ``resample_if_needed()``
+        - data type handling of the output image (as part of ``resample_if_needed()``)
 
     Subclasses of this class should implement the backend-specific functions:
 
@@ -52,12 +51,10 @@ class ImageWriter:
             - this method sets the backend object's data part
         - ``set_metadata()`` to set the metadata and output affine
             - this method sets the metadata including affine handling and image resampling
-        - backend-specific data object
-            - ``create_backend_obj()``
-        - backend-specific writing function
-            - ``write()``
+        - backend-specific data object ``create_backend_obj()``
+        - backend-specific writing function ``write()``
 
-    The primary usage is:
+    The primary usage of subclasses of ``ImageWriter`` is:
 
     .. code-block:: python
 
@@ -66,13 +63,12 @@ class ImageWriter:
         writer.set_metadata(meta_dict)
         writer.write(filename)
 
-    Create an image writer object based on ``data_array`` and ``metadata``.
-    Spatially it supports up to three dimensions (with the resampling step
-    supports both 2D and 3D).
+    This creates an image writer object based on ``data_array`` and ``meta_dict`` and write to ``filename``.
 
+    It supports up to three spatial dimensions (with the resampling step supports for both 2D and 3D).
     When saving multiple time steps or multiple channels `data_array`, time
     and/or modality axes should be the at the `channel_dim`. For example,
-    the shape of a 2D eight-class and channel_dim=0, the segmentation
+    the shape of a 2D eight-class and ``channel_dim=0``, the segmentation
     probabilities to be saved could be `(8, 64, 64)`; in this case
     ``data_array`` will be converted to `(64, 64, 1, 8)` (the third
     dimension is reserved as a spatial dimension).
@@ -197,8 +193,7 @@ class ImageWriter:
         """
         Rearrange the data array axes to make the `channel_dim`-th dim the last
         dimension and ensure there are ``spatial_ndim`` number of spatial
-        dimensions. If ``channel_dim`` is ``None``, a new axis will be appended
-        to the last dimension.
+        dimensions.
 
         When ``squeeze_end_dims`` is ``True``, a postprocessing step will be
         applied to remove any trailing singleton dimensions.
@@ -206,7 +201,7 @@ class ImageWriter:
         Args:
             data: input data to be converted to "channel-last" format.
             channel_dim: specifies the channel axes of the data array to move to the last.
-                ``None`` indicates no channel dimension,
+                ``None`` indicates no channel dimension, a new axis will be appended as the channel dimension.
                 a sequence of integers indicates multiple non-spatial dimensions.
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed (after the channel
                 has been moved to the end). So if input is `(H,W,D,C)` and C==1, then it will be saved as `(H,W,D)`.
@@ -239,12 +234,7 @@ class ImageWriter:
     def get_meta_info(cls, metadata: Optional[Mapping] = None):
         """
         Extracts relevant meta information from the metadata object (using ``.get``).
-
-        This method returns the following fields (the default value is ``None``):
-
-            - ``'original_affine'``: for data original affine (before any image processing),
-            - ``'affine'``: for the current data affine (representing the current coordinate information),
-            - ``'spatial_shape'``: for data original spatial shape.
+        Optional keys are ``"spatial_shape"``, ``"affine"``, ``"original_affine"``.
         """
         if not metadata:
             metadata = {"original_affine": None, "affine": None, "spatial_shape": None}
@@ -276,7 +266,8 @@ class ITKWriter(ImageWriter):
 
         Args:
             data_array: input data array with the channel dimension specified by ``channel_dim``.
-            channel_dim: channel dimension of the data array.
+            channel_dim: channel dimension of the data array. Defaults to 0.
+                ``None`` indicates data without any channel dimension.
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
                 currently support ``spatial_ndim`` and ``contiguous``.
@@ -296,6 +287,7 @@ class ITKWriter(ImageWriter):
 
         Args:
             meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
+                Optional keys are ``"spatial_shape"``, ``"affine"``, ``"original_affine"``.
             resample: if ``True``, the data will be resampled to the original affine (specified in ``meta_dict``).
             options: keyword arguments passed to ``self.resample_if_needed``,
                 currently support ``mode``, ``padding_mode``, ``align_corners``, and ``dtype``.
@@ -314,7 +306,7 @@ class ITKWriter(ImageWriter):
 
     def write(self, filename: PathLike, verbose: bool = False, **kwargs):
         """
-        Create an ITK object from ``self.data_obj`` and call ``itk.imwrite``.
+        Create an ITK object from ``self.create_backend_obj(self.obj, ...)`` and call ``itk.imwrite``.
 
         Args:
             filename: filename or PathLike object.
@@ -327,10 +319,7 @@ class ITKWriter(ImageWriter):
             self.data_obj, channel_dim=self.channel_dim, affine=self.affine, dtype=self.output_dtype, **kwargs  # type: ignore
         )
         itk.imwrite(
-            self.data_obj,
-            filename,
-            compression=kwargs.pop("compression", False),
-            imageio=kwargs.pop("imageio", None),
+            self.data_obj, filename, compression=kwargs.pop("compression", False), imageio=kwargs.pop("imageio", None)
         )
 
     @classmethod
