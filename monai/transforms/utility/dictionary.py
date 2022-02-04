@@ -520,7 +520,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         data_type: str = "tensor",
-        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        dtype: Union[DtypeLike, torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
         allow_missing_keys: bool = False,

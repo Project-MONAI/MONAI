@@ -14,7 +14,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.utils.misc import ensure_tuple, is_module_ver_at_least
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
@@ -44,7 +44,7 @@ __all__ = [
 ]
 
 
-def allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:
+def allclose(a: NdarrayTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:
     """`np.allclose` with equivalent implementation for torch."""
     b, *_ = convert_to_dst_type(b, a)
     if isinstance(a, np.ndarray):
@@ -58,7 +58,7 @@ def moveaxis(x: NdarrayOrTensor, src: Union[int, Sequence[int]], dst: Union[int,
         if hasattr(torch, "movedim"):  # `movedim` is new in torch 1.7.0
             # torch.moveaxis is a recent alias since torch 1.8.0
             return torch.movedim(x, src, dst)  # type: ignore
-        return _moveaxis_with_permute(x, src, dst)  # type: ignore
+        return _moveaxis_with_permute(x, src, dst)
     return np.moveaxis(x, src, dst)
 
 
@@ -326,7 +326,7 @@ def isfinite(x: NdarrayOrTensor) -> NdarrayOrTensor:
     return torch.isfinite(x)
 
 
-def searchsorted(a: NdarrayOrTensor, v: NdarrayOrTensor, right=False, sorter=None, **kwargs) -> NdarrayOrTensor:
+def searchsorted(a: NdarrayTensor, v: NdarrayOrTensor, right=False, sorter=None, **kwargs) -> NdarrayTensor:
     """
     `np.searchsorted` with equivalent implementation for torch.
 
@@ -374,7 +374,7 @@ def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
     return torch.isnan(x)
 
 
-def ascontiguousarray(x: NdarrayOrTensor, **kwargs) -> NdarrayOrTensor:
+def ascontiguousarray(x: NdarrayTensor, **kwargs) -> NdarrayOrTensor:
     """`np.ascontiguousarray` with equivalent implementation for torch (`contiguous`).
 
     Args:
@@ -392,7 +392,7 @@ def ascontiguousarray(x: NdarrayOrTensor, **kwargs) -> NdarrayOrTensor:
     return x
 
 
-def stack(x: Sequence[NdarrayOrTensor], dim: int) -> NdarrayOrTensor:
+def stack(x: Sequence[NdarrayTensor], dim: int) -> NdarrayTensor:
     """`np.stack` with equivalent implementation for torch.
 
     Args:
@@ -404,7 +404,7 @@ def stack(x: Sequence[NdarrayOrTensor], dim: int) -> NdarrayOrTensor:
     return torch.stack(x, dim)  # type: ignore
 
 
-def mode(x: NdarrayOrTensor, dim: int = -1, to_long: bool = True) -> NdarrayOrTensor:
+def mode(x: NdarrayTensor, dim: int = -1, to_long: bool = True) -> NdarrayTensor:
     """`torch.mode` with equivalent implementation for numpy.
 
     Args:
@@ -412,9 +412,8 @@ def mode(x: NdarrayOrTensor, dim: int = -1, to_long: bool = True) -> NdarrayOrTe
         dim: dimension along which to perform `mode` (referred to as `axis` by numpy)
         to_long: convert input to long before performing mode.
     """
-    x_t: torch.Tensor
     dtype = torch.int64 if to_long else None
-    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype)  # type: ignore
+    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype)
     o_t = torch.mode(x_t, dim).values
     o, *_ = convert_to_dst_type(o_t, x)
     return o

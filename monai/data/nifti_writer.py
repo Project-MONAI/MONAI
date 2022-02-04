@@ -107,17 +107,15 @@ def write_nifti(
     sr = min(data.ndim, 3)
     if affine is None:
         affine = np.eye(4, dtype=np.float64)
-    affine = to_affine_nd(sr, affine)  # type: ignore
+    affine = to_affine_nd(sr, affine)
 
     if target_affine is None:
-        target_affine = affine  # type: ignore
-    target_affine, *_ = convert_data_type(to_affine_nd(sr, target_affine), np.ndarray)  # type: ignore
+        target_affine = affine
+    target_affine, *_ = convert_data_type(to_affine_nd(sr, target_affine), np.ndarray)
 
-    if allclose(affine, target_affine, atol=1e-3):  # type: ignore
+    if allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
-        results_img = nib.Nifti1Image(
-            data.astype(output_dtype, copy=False), to_affine_nd(3, target_affine)  # type: ignore
-        )
+        results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
@@ -128,7 +126,7 @@ def write_nifti(
     data_shape = data.shape
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
-    if allclose(_affine, target_affine, atol=1e-3) or not resample:  # type: ignore
+    if allclose(_affine, target_affine, atol=1e-3) or not resample:
         results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, _affine))  # type: ignore
         nib.save(results_img, file_name)
         return
@@ -139,8 +137,8 @@ def write_nifti(
     )
     transform = np.linalg.inv(_affine) @ target_affine
     if output_spatial_shape is None:
-        output_spatial_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)  # type: ignore
-    output_spatial_shape_ = list(output_spatial_shape) if output_spatial_shape is not None else []  # type: ignore
+        output_spatial_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)
+    output_spatial_shape_ = list(output_spatial_shape) if output_spatial_shape is not None else []
     if data.ndim > 3:  # multi channel, resampling each channel
         while len(output_spatial_shape_) < 3:
             output_spatial_shape_ = output_spatial_shape_ + [1]
@@ -165,8 +163,6 @@ def write_nifti(
         )
         data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
 
-    results_img = nib.Nifti1Image(
-        data_np.astype(output_dtype, copy=False), to_affine_nd(3, target_affine)  # type: ignore
-    )
+    results_img = nib.Nifti1Image(data_np.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return

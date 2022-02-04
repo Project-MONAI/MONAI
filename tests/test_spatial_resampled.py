@@ -56,7 +56,7 @@ for ind, dst in enumerate(
     for p_src in TEST_NDARRAYS:
         for align in (True, False):
             if align and USE_COMPILED:
-                interp = ("nearest", "bilinear", 0, 1)  # type: ignore
+                interp = ("nearest", "bilinear", 0, 1)
             else:
                 interp = ("nearest", "bilinear")  # type: ignore
             for interp_mode in interp:  # type: ignore
