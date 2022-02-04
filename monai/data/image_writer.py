@@ -15,7 +15,7 @@ import numpy as np
 
 from monai.apps.utils import get_logger
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
-from monai.data.utils import ensure_tuple, orientation_ras_lps, to_affine_nd
+from monai.data.utils import affine_to_spacing, ensure_tuple, orientation_ras_lps, to_affine_nd
 from monai.transforms.spatial.array import SpatialResample
 from monai.transforms.utils_pytorch_numpy_unification import ascontiguousarray, moveaxis
 from monai.utils import GridSampleMode, GridSamplePadMode, convert_data_type, optional_import, require_pkg
@@ -364,7 +364,7 @@ class ITKWriter(ImageWriter):
             affine = np.eye(d + 1, dtype=np.float64)
         _affine = convert_data_type(affine, np.ndarray)[0]
         _affine = orientation_ras_lps(to_affine_nd(d, _affine))
-        spacing = np.sqrt(np.sum(np.square(_affine[:d, :d]), 0))
+        spacing = affine_to_spacing(_affine, dims=d)
         spacing[spacing == 0] = 1.0
         _direction: np.ndarray = np.diag(1 / spacing)
         _direction = _affine[:d, :d] @ _direction  # type: ignore
