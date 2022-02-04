@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - enhance-convert-typing-1
   pull_request:
 
 concurrency:
@@ -44,7 +43,8 @@ jobs:
         python -m pip install -r requirements-dev.txt
     - name: Lint and type check
       run: |
-        $(pwd)/runtests.sh --mypy
+        # clean up temporary files
+        $(pwd)/runtests.sh --build --clean
         # Git hub actions have 2 cores, so parallize pytype
         $(pwd)/runtests.sh --build --codeformat -j 2
 
