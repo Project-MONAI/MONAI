@@ -19,35 +19,37 @@ jobs:
     strategy:
       matrix:
         environment:
-          - "PT16+CUDA110"
           - "PT17+CUDA102"
-          - "PT17+CUDA110"
           - "PT18+CUDA102"
+          - "PT18+CUDA112"
           - "PT19+CUDA114"
-          - "PT19+CUDA102"
+          - "PT110+CUDA116"
+          - "PT110+CUDA102"
         include:
-          - environment: PT16+CUDA110
-            # we explicitly set pytorch to -h to avoid pip install error
-            pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:20.07-py3"
+          # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
           - environment: PT17+CUDA102
             pytorch: "torch==1.7.1 torchvision==0.8.2"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          - environment: PT17+CUDA110
-            # we explicitly set pytorch to -h to avoid pip install error
-            pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:20.09-py3"
           - environment: PT18+CUDA102
             pytorch: "torch==1.8.1 torchvision==0.9.1"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT18+CUDA112
+            # we explicitly set pytorch to -h to avoid pip install error
+            # 21.03: 1.9.0a0+df837d0
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:21.03-py3"
           - environment: PT19+CUDA114
             # we explicitly set pytorch to -h to avoid pip install error
-            # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
-            # 21.08: 1.10.0a0+3fd9dcf
+            # 21.10: 1.10.0a0+0aef44c
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.08-py3"
-          - environment: PT19+CUDA102
-            pytorch: "torch==1.9.0 torchvision==0.10.0"
+            base: "nvcr.io/nvidia/pytorch:21.10-py3"
+          - environment: PT110+CUDA116
+            # we explicitly set pytorch to -h to avoid pip install error
+            # 22.01: 1.11.0a0+bfe5ad2
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:22.01-py3"
+          - environment: PT110+CUDA102
+            pytorch: "torch==1.10.1 torchvision==0.11.2"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
@@ -59,9 +61,9 @@ jobs:
       run: |
         if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
-          [ ${{ matrix.environment }} = "PT19+CUDA102" ]
+          [ ${{ matrix.environment }} = "PT110+CUDA102" ]
         then
-        PYVER=3.6 PYSFX=3 DISTUTILS=python3-distutils && \
+        PYVER=3.7 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
           curl \
           pkg-config \
@@ -99,7 +101,9 @@ jobs:
     - name: Install dependencies
       run: |
         which python
-        python -m pip install --upgrade pip wheel
+        python -m pip install --upgrade pip==21.3.1 wheel  # workaround monai##3752
+        # fixes preinstalled ruamel_yaml error from the docker image
+        rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
         python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
         python -m pip list
@@ -120,8 +124,8 @@ jobs:
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         python -c "import monai; monai.config.print_config()"
         # build for the current self-hosted CI Tesla V100
-        BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --quick --unittests
-        if [ ${{ matrix.environment }} = "PT19+CUDA102" ]; then
+        BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --build --quick --unittests --disttests
+        if [ ${{ matrix.environment }} = "PT110+CUDA102" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi

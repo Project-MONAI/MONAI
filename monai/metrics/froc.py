@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -96,7 +96,7 @@ def compute_froc_curve_data(
         num_images: the number of images under evaluation.
 
     """
-    if type(fp_probs) is not type(tp_probs):
+    if not isinstance(fp_probs, type(tp_probs)):
         raise AssertionError("fp and tp probs should have same type.")
     if isinstance(fp_probs, torch.Tensor):
         fp_probs = fp_probs.detach().cpu().numpy()
@@ -116,9 +116,7 @@ def compute_froc_curve_data(
 
 
 def compute_froc_score(
-    fps_per_image: np.ndarray,
-    total_sensitivity: np.ndarray,
-    eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
+    fps_per_image: np.ndarray, total_sensitivity: np.ndarray, eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8)
 ):
     """
     This function is modified from the official evaluation code of

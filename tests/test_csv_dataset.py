@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ import tempfile
 import unittest
 
 import numpy as np
+import pandas as pd
 
 from monai.data import CSVDataset
 from monai.transforms import ToNumpyd
@@ -57,6 +58,7 @@ class TestCSVDataset(unittest.TestCase):
             filepath1 = os.path.join(tempdir, "test_data1.csv")
             filepath2 = os.path.join(tempdir, "test_data2.csv")
             filepath3 = os.path.join(tempdir, "test_data3.csv")
+            filepaths = [filepath1, filepath2, filepath3]
             prepare_csv_file(test_data1, filepath1)
             prepare_csv_file(test_data2, filepath2)
             prepare_csv_file(test_data3, filepath3)
@@ -76,7 +78,7 @@ class TestCSVDataset(unittest.TestCase):
             )
 
             # test multiple CSV files, join tables with kwargs
-            dataset = CSVDataset([filepath1, filepath2, filepath3], on="subject_id")
+            dataset = CSVDataset(filepaths, on="subject_id")
             self.assertDictEqual(
                 {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in dataset[3].items()},
                 {
@@ -102,7 +104,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test selected rows and columns
             dataset = CSVDataset(
-                filename=[filepath1, filepath2, filepath3],
+                src=filepaths,
                 row_indices=[[0, 2], 3],  # load row: 0, 1, 3
                 col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"],
             )
@@ -120,7 +122,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test group columns
             dataset = CSVDataset(
-                filename=[filepath1, filepath2, filepath3],
+                src=filepaths,
                 row_indices=[1, 3],  # load row: 1, 3
                 col_names=["subject_id", "image", *[f"ehr_{i}" for i in range(11)], "meta_0", "meta_1", "meta_2"],
                 col_groups={"ehr": [f"ehr_{i}" for i in range(11)], "meta12": ["meta_1", "meta_2"]},
@@ -133,9 +135,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test transform
             dataset = CSVDataset(
-                filename=[filepath1, filepath2, filepath3],
-                col_groups={"ehr": [f"ehr_{i}" for i in range(5)]},
-                transform=ToNumpyd(keys="ehr"),
+                src=filepaths, col_groups={"ehr": [f"ehr_{i}" for i in range(5)]}, transform=ToNumpyd(keys="ehr")
             )
             self.assertEqual(len(dataset), 5)
             expected = [
@@ -151,7 +151,7 @@ class TestCSVDataset(unittest.TestCase):
 
             # test default values and dtype
             dataset = CSVDataset(
-                filename=[filepath1, filepath2, filepath3],
+                src=filepaths,
                 col_names=["subject_id", "image", "ehr_1", "ehr_9", "meta_1"],
                 col_types={"image": {"type": str, "default": "No image"}, "ehr_1": {"type": int, "default": 0}},
                 how="outer",  # generate NaN values in this merge mode
@@ -160,6 +160,29 @@ class TestCSVDataset(unittest.TestCase):
             self.assertEqual(dataset[-1]["image"], "No image")
             self.assertEqual(type(dataset[-1]["ehr_1"]), int)
             np.testing.assert_allclose(dataset[-1]["ehr_9"], 3.3537, rtol=1e-2)
+
+            # test pre-loaded DataFrame
+            df = pd.read_csv(filepath1)
+            dataset = CSVDataset(src=df)
+            self.assertDictEqual(
+                {k: round(v, 4) if not isinstance(v, str) else v for k, v in dataset[2].items()},
+                {
+                    "subject_id": "s000002",
+                    "label": 4,
+                    "image": "./imgs/s000002.png",
+                    "ehr_0": 3.7725,
+                    "ehr_1": 4.2118,
+                    "ehr_2": 4.6353,
+                },
+            )
+
+            # test pre-loaded multiple DataFrames, join tables with kwargs
+            dfs = [pd.read_csv(i) for i in filepaths]
+            dataset = CSVDataset(src=dfs, on="subject_id")
+            self.assertEqual(dataset[3]["subject_id"], "s000003")
+            self.assertEqual(dataset[3]["label"], 1)
+            self.assertEqual(round(dataset[3]["ehr_0"], 4), 3.3333)
+            self.assertEqual(dataset[3]["meta_0"], False)
 
 
 if __name__ == "__main__":
