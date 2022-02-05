@@ -20,7 +20,6 @@ from monai.transforms.spatial.array import SpatialResample
 from monai.transforms.utils_pytorch_numpy_unification import ascontiguousarray, moveaxis
 from monai.utils import GridSampleMode, GridSamplePadMode, convert_data_type, optional_import, require_pkg
 
-AFFINE_TOL = 1e-3
 DEFAULT_FMT = "%(asctime)s %(levelname)s %(filename)s:%(lineno)d - %(message)s"
 logger = get_logger(module_name=__name__, fmt=DEFAULT_FMT)
 
@@ -80,16 +79,15 @@ class ImageWriter:
         - ``'affine'``: it should specify the current data affine, defaulting to an identity matrix.
         - ``'spatial_shape'``: for data output spatial shape.
 
-    When ``metadata`` is specified and ``resample=True``, the saver will
-    try to resample data from the space defined by `"affine"` to the space
-    defined by `"original_affine"`, for more details, please refer to the
+    When ``metadata`` is specified, the saver will may resample data from the space defined by
+    `"affine"` to the space defined by `"original_affine"`, for more details, please refer to the
     ``resample_if_needed`` method.
     """
 
     def __init__(self, **kwargs):
         """
         The constructor supports adding new instance members.
-        The current member in the base class is ``self.data_obj``, the subclases can add more members,
+        The current member in the base class is ``self.data_obj``, the subclasses can add more members,
         so that necessary meta information can be stored in the object and shared among the class methods.
         """
         self.data_obj = None
@@ -174,6 +172,7 @@ class ImageWriter:
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype: data type for resampling computation. Defaults to
                 ``np.float64`` for best precision. If ``None``, use the data type of input data.
+                The output data type of this method is always ``np.float32``.
         """
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
         output_array, target_affine = resampler(
@@ -270,7 +269,7 @@ class ITKWriter(ImageWriter):
                 ``None`` indicates data without any channel dimension.
             squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
-                currently support ``spatial_ndim`` and ``contiguous``.
+                currently support ``spatial_ndim`` and ``contiguous``, defauting to ``3`` and ``False`` respectively.
         """
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
@@ -290,7 +289,8 @@ class ITKWriter(ImageWriter):
                 Optional keys are ``"spatial_shape"``, ``"affine"``, ``"original_affine"``.
             resample: if ``True``, the data will be resampled to the original affine (specified in ``meta_dict``).
             options: keyword arguments passed to ``self.resample_if_needed``,
-                currently support ``mode``, ``padding_mode``, ``align_corners``, and ``dtype``.
+                currently support ``mode``, ``padding_mode``, ``align_corners``, and ``dtype``,
+                defaulting to ``bilinear``, ``border``, ``False``, and ``np.float64`` respectively.
         """
         original_affine, affine, spatial_shape = self.get_meta_info(meta_dict)
         self.data_obj, self.affine = self.resample_if_needed(
@@ -313,6 +313,10 @@ class ITKWriter(ImageWriter):
             verbose: if ``True``, log the progress.
             kwargs: keyword arguments passed to ``itk.imwrite``,
                 currently support ``compression`` and ``imageio``.
+
+        See also:
+
+            - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L809
         """
         super().write(filename, verbose=verbose)
         self.data_obj = self.create_backend_obj(
@@ -332,7 +336,7 @@ class ITKWriter(ImageWriter):
         **kwargs,
     ):
         """
-        Create an ITK object from ``data_array``.  This method assumes a 'channel-last' ``data_array``.
+        Create an ITK object from ``data_array``. This method assumes a 'channel-last' ``data_array``.
 
         Args:
             data_array: input data array.
@@ -340,6 +344,10 @@ class ITKWriter(ImageWriter):
             affine: affine matrix of the data array. This is used to compute `spacing`, `direction` and `origin`.
             dtype: output data type.
             kwargs: keyword arguments. Current `itk.GetImageFromArray` will read ``ttype`` from this dictionary.
+
+        see also:
+
+            - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L389
         """
         data_array = super().create_backend_obj(data_array)
         _is_vec = channel_dim is not None

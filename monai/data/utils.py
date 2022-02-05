@@ -52,40 +52,45 @@ nib, _ = optional_import("nibabel")
 
 
 __all__ = [
-    "get_random_patch",
-    "iter_patch_slices",
-    "dense_patch_slices",
-    "iter_patch",
-    "get_valid_patch_size",
-    "list_data_collate",
-    "worker_init_fn",
-    "set_rnd",
+    "AFFINE_TOL",
+    "SUPPORTED_PICKLE_MOD",
     "affine_to_spacing",
-    "correct_nifti_header_if_necessary",
-    "rectify_header_sform_qform",
-    "zoom_affine",
-    "compute_shape_offset",
-    "to_affine_nd",
-    "create_file_basename",
     "compute_importance_map",
+    "compute_shape_offset",
+    "convert_tables_to_dicts",
+    "correct_nifti_header_if_necessary",
+    "create_file_basename",
+    "decollate_batch",
+    "dense_patch_slices",
+    "get_random_patch",
+    "get_valid_patch_size",
     "is_supported_format",
+    "iter_patch",
+    "iter_patch_slices",
+    "json_hashing",
+    "list_data_collate",
+    "no_collation",
+    "orientation_ras_lps",
+    "pad_list_data_collate",
     "partition_dataset",
     "partition_dataset_classes",
+    "pickle_hashing",
+    "rectify_header_sform_qform",
+    "reorient_spatial_axes",
     "resample_datalist",
     "select_cross_validation_folds",
-    "json_hashing",
-    "pickle_hashing",
+    "set_rnd",
     "sorted_dict",
-    "decollate_batch",
-    "pad_list_data_collate",
-    "no_collation",
-    "convert_tables_to_dicts",
-    "SUPPORTED_PICKLE_MOD",
-    "reorient_spatial_axes",
+    "to_affine_nd",
+    "worker_init_fn",
+    "zoom_affine",
 ]
 
 # module to be used by `torch.save`
 SUPPORTED_PICKLE_MOD = {"pickle": pickle}
+
+# tolerance for affine matrix computation
+AFFINE_TOL = 1e-3
 
 
 def get_random_patch(
@@ -718,7 +723,7 @@ def compute_shape_offset(
     k = 0
     for i in range(corners.shape[1]):
         min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
-        if np.allclose(min_corner, 0.0, rtol=1e-3):
+        if np.allclose(min_corner, 0.0, rtol=AFFINE_TOL):
             k = i
             break
     offset = corners[:-1, k]
