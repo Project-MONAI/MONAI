@@ -38,6 +38,18 @@ class TestITKWriter(unittest.TestCase):
                 s.pop(c)
                 np.testing.assert_allclose(itk.size(itk_obj), s)
 
+    def test_rgb(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fname = os.path.join(tempdir, "testing.png")
+            writer = ITKWriter(output_dtype=np.uint8)
+            writer.set_data_array(np.arange(48).reshape(3, 4, 4), channel_dim=0)
+            writer.set_metadata({"spatial_shape": (5, 5)})
+            writer.write(fname)
+
+            output = np.asarray(itk.imread(fname))
+            np.testing.assert_allclose(output.shape, (5, 5, 3))
+            np.testing.assert_allclose(output[1, 1], (5, 5, 4))
+
 
 if __name__ == "__main__":
     unittest.main()

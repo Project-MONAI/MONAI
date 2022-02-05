@@ -247,17 +247,42 @@ class ImageWriter:
 class ITKWriter(ImageWriter):
     """
     Write data and metadata into files on disk using ITK-python.
+
+    .. code-block:: python
+
+        import numpy as np
+        from monai.data import ITKWriter
+
+        np_data = np.arange(48).reshape(3, 4, 4)
+
+        # write as 3d spatial image no channel
+        writer = ITKWriter(output_dtype=np.float32)
+        writer.set_data_array(np_data, channel_dim=None)
+        # optionally set metadata affine
+        writer.set_metadata({"affine": np.eye(4), "original_affine": -1 * np.eye(4)})
+        writer.write("test1.nii.gz")
+
+        # write as 2d image, channel-first
+        writer = ITKWriter(output_dtype=np.uint8)
+        writer.set_data_array(np_data, channel_dim=0)
+        writer.set_metadata({"spatial_shape": (5, 5)})
+        writer.write("test1.png")
+
     """
 
-    def __init__(self, output_dtype: DtypeLike = np.float32, affine=None, channel_dim=0, **kwargs):
+    def __init__(self, output_dtype: DtypeLike = np.float32, **kwargs):
         """
         Args:
             output_dtype: output data type.
             kwargs: keyword arguments passed to ``ImageWriter``.
 
-        The constructor will create ``self.output_dtype``, ``self.affine``, ``self.channel_dim`` internally.
+        The constructor will create ``self.output_dtype`` internally.
+        ``affine`` and ``channel_dim`` are initialized as instance members (default ``None``, ``0``):
+
+            - user-specified ``affine`` should be set in ``set_metadata``,
+            - user-specified ``channel_dim`` should be set in ``set_data_array``.
         """
-        super().__init__(output_dtype=output_dtype, affine=affine, channel_dim=channel_dim, **kwargs)
+        super().__init__(output_dtype=output_dtype, affine=None, channel_dim=0, **kwargs)
 
     def set_data_array(self, data_array, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs):
         """

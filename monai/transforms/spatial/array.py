@@ -173,18 +173,27 @@ class SpatialResample(Transform):
         if src_affine is None:
             src_affine = np.eye(4, dtype=np.float64)
         spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
+        if spatial_size is not -1 and spatial_size is not None:
+            spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
         src_affine = to_affine_nd(spatial_rank, src_affine)
         dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
         dst_affine, *_ = convert_to_dst_type(dst_affine, dst_affine, dtype=torch.float32)
 
-        if allclose(src_affine, dst_affine, atol=AFFINE_TOL):
+        in_spatial_size = np.asarray(img.shape[1 : spatial_rank + 1])
+        if spatial_size is -1:  # using the input spatial size
+            spatial_size = in_spatial_size
+        elif spatial_size is None:  # auto spatial size
+            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
+        spatial_size = np.asarray(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
+
+        if allclose(src_affine, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
             # no significant change, return original image
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
             return output_data, dst_affine
 
         if has_nib and isinstance(img, np.ndarray):
             spatial_ornt, dst_r = reorient_spatial_axes(img.shape[1 : spatial_rank + 1], src_affine, dst_affine)
-            if allclose(dst_r, dst_affine, atol=AFFINE_TOL):
+            if allclose(dst_r, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
                 # simple reorientation achieves the desired affine
                 spatial_ornt[:, 0] += 1
                 spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
@@ -206,18 +215,12 @@ class SpatialResample(Transform):
             raise ValueError(f"src affine is not invertible: {src_affine}") from e
         xform = to_affine_nd(spatial_rank, xform)
         # no resampling if it's identity transform
-        if allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL):
+        if allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
             return output_data, dst_affine
 
         _dtype = dtype or self.dtype or img.dtype
-        spatial_size = ensure_tuple(spatial_size)
-        in_spatial_size = list(img.shape[1 : spatial_rank + 1])
-        if spatial_size[0] == -1:  # if the spatial_size == -1
-            spatial_size = in_spatial_size
-        elif spatial_size[0] is None:
-            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
-        spatial_size = spatial_size[:spatial_rank]
+        in_spatial_size = in_spatial_size.tolist()
         chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
         # resample
         img_ = convert_data_type(img, torch.Tensor, dtype=_dtype)[0]
