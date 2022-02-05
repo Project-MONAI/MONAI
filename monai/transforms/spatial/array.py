@@ -173,14 +173,14 @@ class SpatialResample(Transform):
         if src_affine is None:
             src_affine = np.eye(4, dtype=np.float64)
         spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
-        if spatial_size not in (-1, None):
+        if spatial_size is not -1 and spatial_size is not None:
             spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
         src_affine = to_affine_nd(spatial_rank, src_affine)
         dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
         dst_affine, *_ = convert_to_dst_type(dst_affine, dst_affine, dtype=torch.float32)
 
         in_spatial_size = np.asarray(img.shape[1 : spatial_rank + 1])
-        if spatial_size == -1:  # using the input spatial size
+        if spatial_size is -1:  # using the input spatial size
             spatial_size = in_spatial_size
         elif spatial_size is None:  # auto spatial size
             spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
