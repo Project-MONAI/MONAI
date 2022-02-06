@@ -90,9 +90,9 @@ class ThreadDataLoader(DataLoader):
     generation process more time to produce a result.
 
     Another typical usage is to accelerate light-weight preprocessing (usually cached all the deterministic transforms
-    and no IO operations) with `num_workers=0` to avoid unnecessary IPC between DataLoader workers and leverage the
-    separate thread to execute preprocessing. And as CUDA may not work well with the multi-processing of DataLoader,
-    `ThreadDataLoader` with `num_workers=0` can be useful for GPU transforms. For more details:
+    and no IO operations), because it leverages the separate thread to execute preprocessing to avoid unnecessary IPC
+    between multiple workers of DataLoader. And as CUDA may not work well with the multi-processing of DataLoader,
+    `ThreadDataLoader` can be useful for GPU transforms. For more details:
     https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md.
 
     See:
@@ -106,10 +106,7 @@ class ThreadDataLoader(DataLoader):
         buffer_size: number of items to buffer from the data source.
         buffer_timeout: time to wait for an item from the buffer, or to wait while the buffer is full when adding items.
         repeats: number of times to yield the same batch.
-        kwargs: other arguments for `DataLoader` except for `dataset`. note that if setting `num_workers` arg, it's the
-            number of the multi-processing workers in PyTorch DataLoader, instead of the number of threads for the
-            `ThreadBuffer` in this class, which always uses 2 threads: one thread processes data, the other one yields
-            the output data.
+        kwargs: other arguments for `DataLoader` except for `dataset`.
 
     """
 
