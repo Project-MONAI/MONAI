@@ -105,24 +105,18 @@ class ThreadDataLoader(DataLoader):
         dataset: input dataset.
         buffer_size: number of items to buffer from the data source.
         buffer_timeout: time to wait for an item from the buffer, or to wait while the buffer is full when adding items.
-        num_workers: number of the multi-processing workers in PyTorch DataLoader.
-            note that it's not the number of threads for the `ThreadBuffer` in this class, which always uses 2 threads:
-            one thread processes data, the other one yields the output data.
-        repeats: number of times to yield the same batch
-        kwargs: other arguments for `DataLoader` except for `dataset` and `num_workers`.
+        repeats: number of times to yield the same batch.
+        kwargs: other arguments for `DataLoader` except for `dataset`. note that if setting `num_workers` arg, it's the
+            number of the multi-processing workers in PyTorch DataLoader, instead of the number of threads for the
+            `ThreadBuffer` in this class, which always uses 2 threads: one thread processes data, the other one yields
+            the output data.
 
     """
 
     def __init__(
-        self,
-        dataset: Dataset,
-        buffer_size: int = 1,
-        buffer_timeout: float = 0.01,
-        num_workers: int = 0,
-        repeats: int = 1,
-        **kwargs,
+        self, dataset: Dataset, buffer_size: int = 1, buffer_timeout: float = 0.01, repeats: int = 1, **kwargs
     ):
-        super().__init__(dataset, num_workers, **kwargs)
+        super().__init__(dataset, **kwargs)
         self.buffer_size = buffer_size
         self.buffer_timeout = buffer_timeout
         self.repeats = repeats
