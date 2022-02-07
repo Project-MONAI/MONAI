@@ -57,20 +57,22 @@ class TestHandlerLrSchedule(unittest.TestCase):
             # test with additional logging handler
             file_saver = logging.FileHandler(filename, mode="w")
             file_saver.setLevel(logging.INFO)
+            logger = logging.getLogger(key_to_handler)
+            logger.setLevel(logging.INFO)
+            logger.addHandler(file_saver)
 
             def _reduce_on_step():
                 optimizer = torch.optim.SGD(net.parameters(), test_lr)
                 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=gamma)
-                handler = LrScheduleHandler(lr_scheduler, name=key_to_handler, logger_handler=file_saver)
+                handler = LrScheduleHandler(lr_scheduler, name=key_to_handler)
                 handler.attach(train_engine)
-                handler.logger.setLevel(logging.INFO)
                 return handler
 
             schedulers = _reduce_lr_on_plateau(), _reduce_on_step()
 
             train_engine.run(data, max_epochs=5)
             file_saver.close()
-            schedulers[1].logger.removeHandler(file_saver)
+            logger.removeHandler(file_saver)
 
             with open(filename) as f:
                 output_str = f.read()
