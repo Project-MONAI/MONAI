@@ -88,8 +88,8 @@ class StatsHandler:
             tag_name: when iteration output is a scalar, tag_name is used to print
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
             key_var_format: a formatting string to control the output string format of key: value.
-            logger_handler: if `name` is not None, add additional handler to the new logger to handle the stats data:
-                save to file, etc. all the existing python logging handlers:
+            logger_handler: only work when `name` is not None, add additional handler to the new logger to handle
+                the stats data: save to file, etc. all the existing python logging handlers:
                 https://docs.python.org/3/library/logging.handlers.html.
                 the handler should have a logging level of at least `INFO`.
         """
@@ -101,9 +101,8 @@ class StatsHandler:
         self.state_attributes = state_attributes
         self.tag_name = tag_name
         self.key_var_format = key_var_format
-        self.logger = None
+        self.logger = logging.getLogger(name)  # will default to `engine.logger` when attached
         if name is not None:
-            self.logger = logging.getLogger(name)
             if logging.root.getEffectiveLevel() > logging.INFO:
                 # if the root log level is higher than INFO, set a separate stream handler to record
                 self.logger.setLevel(logging.INFO)
@@ -112,6 +111,7 @@ class StatsHandler:
                 self.logger.addHandler(console)
             if logger_handler is not None:
                 self.logger.addHandler(logger_handler)
+        self.name = name
 
     def attach(self, engine: Engine) -> None:
         """
@@ -121,7 +121,7 @@ class StatsHandler:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
-        if self.logger is None:
+        if self.name is None:
             self.logger = engine.logger
             if self.logger.getEffectiveLevel() > logging.INFO or logging.root.getEffectiveLevel() > logging.INFO:
                 warnings.warn(

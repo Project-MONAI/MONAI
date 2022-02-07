@@ -12,7 +12,6 @@
 import logging
 import os
 import re
-import sys
 import tempfile
 import unittest
 
@@ -25,7 +24,6 @@ from monai.handlers import LrScheduleHandler
 
 class TestHandlerLrSchedule(unittest.TestCase):
     def test_content(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         data = [0] * 8
         test_lr = 0.1
         gamma = 0.1

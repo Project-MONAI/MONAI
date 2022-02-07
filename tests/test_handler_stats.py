@@ -12,6 +12,7 @@
 import logging
 import os
 import re
+import sys
 import tempfile
 import unittest
 from io import StringIO
@@ -45,7 +46,6 @@ class TestHandlerStats(unittest.TestCase):
         # set up testing handler
         stats_handler = StatsHandler(name=key_to_handler, logger_handler=log_handler)
         stats_handler.attach(engine)
-        stats_handler.logger.setLevel(logging.INFO)
 
         engine.run(range(3), max_epochs=2)
 
@@ -75,7 +75,6 @@ class TestHandlerStats(unittest.TestCase):
         # set up testing handler
         stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=log_handler)
         stats_handler.attach(engine)
-        stats_handler.logger.setLevel(logging.INFO)
 
         engine.run(range(3), max_epochs=2)
 
@@ -107,7 +106,6 @@ class TestHandlerStats(unittest.TestCase):
             name=key_to_handler, output_transform=lambda x: {key_to_print: x[0]}, logger_handler=log_handler
         )
         stats_handler.attach(engine)
-        stats_handler.logger.setLevel(logging.INFO)
 
         engine.run(range(3), max_epochs=2)
 
@@ -139,7 +137,6 @@ class TestHandlerStats(unittest.TestCase):
             # set up testing handler
             stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=handler)
             stats_handler.attach(engine)
-            stats_handler.logger.setLevel(logging.INFO)
 
             engine.run(range(3), max_epochs=2)
             handler.close()
@@ -194,7 +191,6 @@ class TestHandlerStats(unittest.TestCase):
             name=key_to_handler, state_attributes=["test1", "test2", "test3"], logger_handler=log_handler
         )
         stats_handler.attach(engine)
-        stats_handler.logger.setLevel(logging.INFO)
 
         engine.run(range(3), max_epochs=2)
 
@@ -202,6 +198,38 @@ class TestHandlerStats(unittest.TestCase):
         output_str = log_stream.getvalue()
         log_handler.close()
         has_key_word = re.compile(".*State values.*")
+        content_count = 0
+        for line in output_str.split("\n"):
+            if has_key_word.match(line):
+                content_count += 1
+        self.assertTrue(content_count > 0)
+
+    def test_default_logger(self):
+        log_stream = StringIO()
+        log_handler = logging.StreamHandler(log_stream)
+        log_handler.setLevel(logging.INFO)
+        key_to_print = "myLoss"
+
+        # set up engine
+        def _train_func(engine, batch):
+            return [torch.tensor(0.0)]
+
+        engine = Engine(_train_func)
+        engine.logger.addHandler(log_handler)
+
+        # set up testing handler
+        stats_handler = StatsHandler(name=None, tag_name=key_to_print)  # leverage `engine.logger`
+        stats_handler.attach(engine)
+
+        level = logging.root.getEffectiveLevel()
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        engine.run(range(3), max_epochs=2)
+        logging.basicConfig(stream=sys.stdout, level=level)
+
+        # check logging output
+        output_str = log_stream.getvalue()
+        log_handler.close()
+        has_key_word = re.compile(f".*{key_to_print}.*")
         content_count = 0
         for line in output_str.split("\n"):
             if has_key_word.match(line):
