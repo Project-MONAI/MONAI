@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacing
 from monai.utils import ensure_tuple, fall_back_tuple
 from tests.utils import TEST_NDARRAYS
@@ -218,7 +219,7 @@ class TestSpacingCase(unittest.TestCase):
             init_param["pixdim"] = [init_param["pixdim"]] * sr
         init_pixdim = ensure_tuple(init_param["pixdim"])
         init_pixdim = init_param["pixdim"][:sr]
-        norm = np.sqrt(np.sum(np.square(new_affine), axis=0))[:sr]
+        norm = affine_to_spacing(new_affine, sr)
         np.testing.assert_allclose(fall_back_tuple(init_pixdim, norm), norm)
 
 

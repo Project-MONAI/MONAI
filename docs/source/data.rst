@@ -150,6 +150,19 @@ WSIReader
 .. autoclass:: WSIReader
   :members:
 
+Image writer
+------------
+
+ImageWriter
+~~~~~~~~~~~
+.. autoclass:: ImageWriter
+  :members:
+
+ITKWriter
+~~~~~~~~~
+.. autoclass:: ITKWriter
+  :members:
+
 Nifti format handling
 ---------------------
 

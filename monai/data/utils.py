@@ -52,39 +52,45 @@ nib, _ = optional_import("nibabel")
 
 
 __all__ = [
-    "get_random_patch",
-    "iter_patch_slices",
-    "dense_patch_slices",
-    "iter_patch",
-    "get_valid_patch_size",
-    "list_data_collate",
-    "worker_init_fn",
-    "set_rnd",
-    "correct_nifti_header_if_necessary",
-    "rectify_header_sform_qform",
-    "zoom_affine",
-    "compute_shape_offset",
-    "to_affine_nd",
-    "create_file_basename",
+    "AFFINE_TOL",
+    "SUPPORTED_PICKLE_MOD",
+    "affine_to_spacing",
     "compute_importance_map",
+    "compute_shape_offset",
+    "convert_tables_to_dicts",
+    "correct_nifti_header_if_necessary",
+    "create_file_basename",
+    "decollate_batch",
+    "dense_patch_slices",
+    "get_random_patch",
+    "get_valid_patch_size",
     "is_supported_format",
+    "iter_patch",
+    "iter_patch_slices",
+    "json_hashing",
+    "list_data_collate",
+    "no_collation",
+    "orientation_ras_lps",
+    "pad_list_data_collate",
     "partition_dataset",
     "partition_dataset_classes",
+    "pickle_hashing",
+    "rectify_header_sform_qform",
+    "reorient_spatial_axes",
     "resample_datalist",
     "select_cross_validation_folds",
-    "json_hashing",
-    "pickle_hashing",
+    "set_rnd",
     "sorted_dict",
-    "decollate_batch",
-    "pad_list_data_collate",
-    "no_collation",
-    "convert_tables_to_dicts",
-    "SUPPORTED_PICKLE_MOD",
-    "reorient_spatial_axes",
+    "to_affine_nd",
+    "worker_init_fn",
+    "zoom_affine",
 ]
 
 # module to be used by `torch.save`
 SUPPORTED_PICKLE_MOD = {"pickle": pickle}
+
+# tolerance for affine matrix computation
+AFFINE_TOL = 1e-3
 
 
 def get_random_patch(
@@ -547,6 +553,30 @@ def set_rnd(obj, seed: int) -> int:
     return seed
 
 
+def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_zeros: bool = True) -> NdarrayTensor:
+    """
+    Computing the current spacing from the affine matrix.
+
+    Args:
+        affine: a d x d affine matrix.
+        r: indexing based on the spatial rank, spacing is computed from `affine[:r, :r]`.
+        dtype: data type of the output.
+        suppress_zeros: whether to surpress the zeros with ones.
+
+    Returns:
+        an `r` dimensional vector of spacing.
+    """
+    _affine, *_ = convert_to_dst_type(affine[:r, :r], dst=affine, dtype=dtype)
+    if isinstance(_affine, torch.Tensor):
+        spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))
+    else:
+        spacing = np.sqrt(np.sum(_affine * _affine, axis=0))
+    if suppress_zeros:
+        spacing[spacing == 0] = 1.0
+    spacing_, *_ = convert_to_dst_type(spacing, dst=affine, dtype=dtype)
+    return spacing_
+
+
 def correct_nifti_header_if_necessary(img_nii):
     """
     Check nifti object header's format, update the header if needed.
@@ -562,7 +592,7 @@ def correct_nifti_header_if_necessary(img_nii):
         return img_nii  # do nothing for high-dimensional array
     # check that affine matches zooms
     pixdim = np.asarray(img_nii.header.get_zooms())[:dim]
-    norm_affine = np.sqrt(np.sum(np.square(img_nii.affine[:dim, :dim]), 0))
+    norm_affine = affine_to_spacing(img_nii.affine, r=dim)
     if np.allclose(pixdim, norm_affine):
         return img_nii
     if hasattr(img_nii, "get_sform"):
@@ -583,8 +613,8 @@ def rectify_header_sform_qform(img_nii):
     d = img_nii.header["dim"][0]
     pixdim = np.asarray(img_nii.header.get_zooms())[:d]
     sform, qform = img_nii.get_sform(), img_nii.get_qform()
-    norm_sform = np.sqrt(np.sum(np.square(sform[:d, :d]), 0))
-    norm_qform = np.sqrt(np.sum(np.square(qform[:d, :d]), 0))
+    norm_sform = affine_to_spacing(sform, r=d)
+    norm_qform = affine_to_spacing(qform, r=d)
     sform_mismatch = not np.allclose(norm_sform, pixdim)
     qform_mismatch = not np.allclose(norm_qform, pixdim)
 
@@ -601,7 +631,7 @@ def rectify_header_sform_qform(img_nii):
             img_nii.set_qform(img_nii.get_sform())
             return img_nii
 
-    norm = np.sqrt(np.sum(np.square(img_nii.affine[:d, :d]), 0))
+    norm = affine_to_spacing(img_nii.affine, r=d)
     warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")
 
     img_nii.header.set_zooms(norm)
@@ -641,7 +671,7 @@ def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], d
 
     d = len(affine) - 1
     # compute original pixdim
-    norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
+    norm = affine_to_spacing(affine, r=d)
     if len(scale_np) < d:  # defaults based on affine
         scale_np = np.append(scale_np, norm[len(scale_np) :])
     scale_np = scale_np[:d]
@@ -693,7 +723,7 @@ def compute_shape_offset(
     k = 0
     for i in range(corners.shape[1]):
         min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
-        if np.allclose(min_corner, 0.0, rtol=1e-3):
+        if np.allclose(min_corner, 0.0, rtol=AFFINE_TOL):
             k = i
             break
     offset = corners[:-1, k]
@@ -1259,3 +1289,19 @@ def convert_tables_to_dicts(
         data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
 
     return data
+
+
+def orientation_ras_lps(affine: NdarrayTensor) -> NdarrayTensor:
+    """
+    Convert the ``affine`` between the `RAS` and `LPS` orientation
+    by flipping the first two spatial dimensions.
+
+    Args:
+        affine: a 2D affine matrix.
+    """
+    sr = max(affine.shape[0] - 1, 1)  # spatial rank is at least 1
+    flip_d = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]]
+    flip_diag = flip_d[min(sr - 1, 2)] + [1] * (sr - 3)
+    if isinstance(affine, torch.Tensor):
+        return torch.diag(torch.as_tensor(flip_diag).to(affine)) @ affine  # type: ignore
+    return np.diag(flip_diag).astype(affine.dtype) @ affine  # type: ignore

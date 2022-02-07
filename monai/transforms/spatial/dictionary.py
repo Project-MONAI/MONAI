@@ -24,6 +24,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.utils import affine_to_spacing
 from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
@@ -435,7 +436,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
             align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
             orig_size = transform[TraceKeys.ORIG_SIZE]
-            orig_pixdim = np.sqrt(np.sum(np.square(old_affine), 0))[:-1]
+            orig_pixdim = affine_to_spacing(old_affine, -1)
             inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
             # Apply inverse
             d[key], _, new_affine = inverse_transform(
