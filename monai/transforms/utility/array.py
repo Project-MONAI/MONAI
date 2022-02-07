@@ -547,6 +547,11 @@ class DataStats(Transform):
     It can be inserted into any place of a transform chain and check results of previous transforms.
     It support both `numpy.ndarray` and `torch.tensor` as input data,
     so it can be used in pre-processing and post-processing.
+
+    Note that if the settings of `logging.RootLogger` already records INFO level log, will leverage the handlers
+    of it to record the data statistics in stdout or file, etc. otherwise, create a separate `StreamHandler`
+    and record to `stdout`.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -590,10 +595,12 @@ class DataStats(Transform):
         self.additional_info = additional_info
         self._logger_name = "DataStats"
         _logger = logging.getLogger(self._logger_name)
-        _logger.setLevel(logging.INFO)
-        console = logging.StreamHandler(sys.stdout)  # always stdout
-        console.setLevel(logging.INFO)
-        _logger.addHandler(console)
+        if logging.root.getEffectiveLevel() > logging.INFO:
+            # if the root log level is higher than INFO, set a separate stream handler to record
+            _logger.setLevel(logging.INFO)
+            console = logging.StreamHandler(sys.stdout)
+            console.setLevel(logging.INFO)
+            _logger.addHandler(console)
         if logger_handler is not None:
             _logger.addHandler(logger_handler)
 
