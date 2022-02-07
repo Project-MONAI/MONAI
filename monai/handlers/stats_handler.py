@@ -35,9 +35,10 @@ class StatsHandler:
     And it can support logging for epoch level and iteration level with pre-defined loggers.
 
     Note that if `name` arg is None, will leverage `engine.logger` as default logger directly, otherwise,
-    inherit a new logger from `logging.RootLogger` with log level `INFO`. The default log level of `RootLogger`
-    is `WARNING`, so may need to call `logging.basicConfig(level=logging.INFO)` before running this handler
-    to enable the stats logging.
+    get logger from `logging.getLogger(name)`, we can setup a logger outside first with the same `name`.
+    As the default log level of `RootLogger` is `WARNING`, may need to call
+    `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` before running this handler to enable
+    the stats logging.
 
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
@@ -46,7 +47,7 @@ class StatsHandler:
 
     Usage example::
 
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
         trainer = SupervisedTrainer(...)
         StatsHandler(name="train_stats").attach(trainer)
@@ -68,7 +69,6 @@ class StatsHandler:
         name: Optional[str] = None,
         tag_name: str = DEFAULT_TAG,
         key_var_format: str = DEFAULT_KEY_VAL_FORMAT,
-        logger_handler: Optional[logging.Handler] = None,
     ) -> None:
         """
 
@@ -91,14 +91,11 @@ class StatsHandler:
                 with the trainer engine.
             state_attributes: expected attributes from `engine.state`, if provided, will extract them
                 when epoch completed.
-            name: identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
+            name: identifier of `logging.logger` to use, if None, defaulting to ``engine.logger``.
             tag_name: when iteration output is a scalar, tag_name is used to print
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
             key_var_format: a formatting string to control the output string format of key: value.
-            logger_handler: only work when `name` is not None, add additional handler to the new logger to handle
-                the stats data: save to file, etc. all the existing python logging handlers:
-                https://docs.python.org/3/library/logging.handlers.html.
-                the handler should have a logging level of at least `INFO`.
+
         """
 
         self.epoch_print_logger = epoch_print_logger
@@ -109,10 +106,6 @@ class StatsHandler:
         self.tag_name = tag_name
         self.key_var_format = key_var_format
         self.logger = logging.getLogger(name)  # if `name` is None, will default to `engine.logger` when attached
-        if name is not None:
-            self.logger.setLevel(logging.INFO)
-            if logger_handler is not None:
-                self.logger.addHandler(logger_handler)
         self.name = name
 
     def attach(self, engine: Engine) -> None:
@@ -128,7 +121,7 @@ class StatsHandler:
         if self.logger.getEffectiveLevel() > logging.INFO or logging.root.getEffectiveLevel() > logging.INFO:
             warnings.warn(
                 "the effective log level of engine logger or RootLogger is higher than INFO, may not record log,"
-                " please call `logging.basicConfig(level=logging.INFO)` to enable it."
+                " please call `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` to enable it."
             )
         if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)

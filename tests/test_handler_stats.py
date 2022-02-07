@@ -43,7 +43,10 @@ class TestHandlerStats(unittest.TestCase):
             engine.state.metrics[key_to_print] = current_metric + 0.1
 
         # set up testing handler
-        stats_handler = StatsHandler(name=key_to_handler, logger_handler=log_handler)
+        logger = logging.getLogger(key_to_handler)
+        logger.setLevel(logging.INFO)
+        logger.addHandler(log_handler)
+        stats_handler = StatsHandler(name=key_to_handler)
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
@@ -72,7 +75,10 @@ class TestHandlerStats(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=log_handler)
+        logger = logging.getLogger(key_to_handler)
+        logger.setLevel(logging.INFO)
+        logger.addHandler(log_handler)
+        stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print)
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
@@ -101,9 +107,10 @@ class TestHandlerStats(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        stats_handler = StatsHandler(
-            name=key_to_handler, output_transform=lambda x: {key_to_print: x[0]}, logger_handler=log_handler
-        )
+        logger = logging.getLogger(key_to_handler)
+        logger.setLevel(logging.INFO)
+        logger.addHandler(log_handler)
+        stats_handler = StatsHandler(name=key_to_handler, output_transform=lambda x: {key_to_print: x[0]})
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
@@ -134,7 +141,10 @@ class TestHandlerStats(unittest.TestCase):
             engine = Engine(_train_func)
 
             # set up testing handler
-            stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=handler)
+            logger = logging.getLogger(key_to_handler)
+            logger.setLevel(logging.INFO)
+            logger.addHandler(handler)
+            stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print)
             stats_handler.attach(engine)
 
             engine.run(range(3), max_epochs=2)
@@ -186,9 +196,10 @@ class TestHandlerStats(unittest.TestCase):
                 engine.state.test2 += 0.2
 
         # set up testing handler
-        stats_handler = StatsHandler(
-            name=key_to_handler, state_attributes=["test1", "test2", "test3"], logger_handler=log_handler
-        )
+        logger = logging.getLogger(key_to_handler)
+        logger.setLevel(logging.INFO)
+        logger.addHandler(log_handler)
+        stats_handler = StatsHandler(name=key_to_handler, state_attributes=["test1", "test2", "test3"])
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)

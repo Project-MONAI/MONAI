@@ -548,9 +548,9 @@ class DataStats(Transform):
     It support both `numpy.ndarray` and `torch.tensor` as input data,
     so it can be used in pre-processing and post-processing.
 
-    Note that if the settings of `logging.RootLogger` already records `INFO` level log, will leverage the handlers
-    of it to record the data statistics in stdout or file, etc. otherwise, create a separate `StreamHandler`
-    and record to `stdout`.
+    It gets logger from `logging.getLogger(name)`, we can setup a logger outside first with the same `name`.
+    If the log level of `logging.RootLogger` is higher than `INFO`, will add a separate `StreamHandler`
+    log handler with `INFO` level and record to `stdout`.
 
     """
 
@@ -564,7 +564,7 @@ class DataStats(Transform):
         value_range: bool = True,
         data_value: bool = False,
         additional_info: Optional[Callable] = None,
-        logger_handler: Optional[logging.Handler] = None,
+        name: str = "DataStats",
     ) -> None:
         """
         Args:
@@ -575,9 +575,7 @@ class DataStats(Transform):
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info: user can define callable function to extract additional info from input data.
-            logger_handler: add additional handler to output data: save to file, etc.
-                all the existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html.
-                the handler should have a logging level of at least `INFO`.
+            name: identifier of `logging.logger` to use, defaulting to "DataStats".
 
         Raises:
             TypeError: When ``additional_info`` is not an ``Optional[Callable]``.
@@ -593,16 +591,14 @@ class DataStats(Transform):
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
-        self._logger_name = "DataStats"
+        self._logger_name = name
         _logger = logging.getLogger(self._logger_name)
+        _logger.setLevel(logging.INFO)
         if logging.root.getEffectiveLevel() > logging.INFO:
             # if the root log level is higher than INFO, set a separate stream handler to record
-            _logger.setLevel(logging.INFO)
             console = logging.StreamHandler(sys.stdout)
             console.setLevel(logging.INFO)
             _logger.addHandler(console)
-        if logger_handler is not None:
-            _logger.addHandler(logger_handler)
 
     def __call__(
         self,
