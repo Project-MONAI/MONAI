@@ -218,9 +218,10 @@ class TestHandlerStats(unittest.TestCase):
         engine.logger.addHandler(log_handler)
 
         # set up testing handler
-        stats_handler = StatsHandler(name=None, tag_name=key_to_print)  # leverage `engine.logger`
+        stats_handler = StatsHandler(name=None, tag_name=key_to_print)
         stats_handler.attach(engine)
-
+        # leverage `engine.logger` to print info
+        engine.logger.setLevel(logging.INFO)
         level = logging.root.getEffectiveLevel()
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         engine.run(range(3), max_epochs=2)
