@@ -553,20 +553,20 @@ def set_rnd(obj, seed: int) -> int:
     return seed
 
 
-def affine_to_spacing(affine: NdarrayTensor, dims: int = 3, dtype=float, suppress_zeros: bool = True) -> NdarrayTensor:
+def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_zeros: bool = True) -> NdarrayTensor:
     """
     Computing the current spacing from the affine matrix.
 
     Args:
         affine: a d x d affine matrix.
-        dims: indexing of the spatial dimensions `affine[:dims, :dims]`.
+        r: indexing based on the spatial rank, spacing is computed from `affine[:r, :r]`.
         dtype: data type of the output.
         suppress_zeros: whether to surpress the zeros with ones.
 
     Returns:
-        a `dims` dimensional vector of spacing.
+        an `r` dimensional vector of spacing.
     """
-    _affine, *_ = convert_to_dst_type(affine[:dims, :dims], dst=affine, dtype=dtype)
+    _affine, *_ = convert_to_dst_type(affine[:r, :r], dst=affine, dtype=dtype)
     if isinstance(_affine, torch.Tensor):
         spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))
     else:
@@ -592,7 +592,7 @@ def correct_nifti_header_if_necessary(img_nii):
         return img_nii  # do nothing for high-dimensional array
     # check that affine matches zooms
     pixdim = np.asarray(img_nii.header.get_zooms())[:dim]
-    norm_affine = affine_to_spacing(img_nii.affine, dims=dim)
+    norm_affine = affine_to_spacing(img_nii.affine, r=dim)
     if np.allclose(pixdim, norm_affine):
         return img_nii
     if hasattr(img_nii, "get_sform"):
@@ -613,8 +613,8 @@ def rectify_header_sform_qform(img_nii):
     d = img_nii.header["dim"][0]
     pixdim = np.asarray(img_nii.header.get_zooms())[:d]
     sform, qform = img_nii.get_sform(), img_nii.get_qform()
-    norm_sform = affine_to_spacing(sform, dims=d)
-    norm_qform = affine_to_spacing(qform, dims=d)
+    norm_sform = affine_to_spacing(sform, r=d)
+    norm_qform = affine_to_spacing(qform, r=d)
     sform_mismatch = not np.allclose(norm_sform, pixdim)
     qform_mismatch = not np.allclose(norm_qform, pixdim)
 
@@ -631,7 +631,7 @@ def rectify_header_sform_qform(img_nii):
             img_nii.set_qform(img_nii.get_sform())
             return img_nii
 
-    norm = affine_to_spacing(img_nii.affine, dims=d)
+    norm = affine_to_spacing(img_nii.affine, r=d)
     warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")
 
     img_nii.header.set_zooms(norm)
@@ -671,7 +671,7 @@ def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], d
 
     d = len(affine) - 1
     # compute original pixdim
-    norm = affine_to_spacing(affine, dims=d)
+    norm = affine_to_spacing(affine, r=d)
     if len(scale_np) < d:  # defaults based on affine
         scale_np = np.append(scale_np, norm[len(scale_np) :])
     scale_np = scale_np[:d]

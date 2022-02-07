@@ -41,7 +41,7 @@ else:
     PILImage, _ = optional_import("PIL.Image")
 
 
-__all__ = ["ImageWriter", "ITKWriter", "NibabelWriter", "PILWriter"]
+__all__ = ["ImageWriter", "ITKWriter", "NibabelWriter", "PILWriter", "logger"]
 
 
 class ImageWriter:
@@ -399,7 +399,7 @@ class ITKWriter(ImageWriter):
             affine = np.eye(d + 1, dtype=np.float64)
         _affine = convert_data_type(affine, np.ndarray)[0]
         _affine = orientation_ras_lps(to_affine_nd(d, _affine))
-        spacing = affine_to_spacing(_affine, dims=d)
+        spacing = affine_to_spacing(_affine, r=d)
         _direction: np.ndarray = np.diag(1 / spacing)
         _direction = _affine[:d, :d] @ _direction  # type: ignore
         itk_obj.SetSpacing(spacing.tolist())

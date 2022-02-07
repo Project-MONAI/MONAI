@@ -35,7 +35,7 @@ from .folder_layout import FolderLayout
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
-from .image_writer import ImageWriter, ITKWriter, NibabelWriter, PILWriter
+from .image_writer import ImageWriter, ITKWriter, NibabelWriter, PILWriter, logger
 from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
