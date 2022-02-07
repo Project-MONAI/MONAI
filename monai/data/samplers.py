@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -50,7 +50,7 @@ class DistributedSampler(_TorchDistributedSampler):
         super().__init__(dataset=dataset, num_replicas=num_replicas, rank=rank, shuffle=shuffle, **kwargs)
 
         if not even_divisible:
-            data_len = len(dataset)  # type: ignore
+            data_len = len(dataset)
             extra_size = self.total_size - data_len
             if self.rank + extra_size >= self.num_replicas:
                 self.num_samples -= 1

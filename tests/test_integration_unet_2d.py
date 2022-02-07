@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,10 +32,10 @@ def run_test(net_name="basicunet", batch_size=64, train_steps=100, device="cuda:
             return train_steps
 
     if net_name == "basicunet":
-        net = BasicUNet(dimensions=2, in_channels=1, out_channels=1, features=(4, 8, 8, 16, 16, 32))
+        net = BasicUNet(spatial_dims=2, in_channels=1, out_channels=1, features=(4, 8, 8, 16, 16, 32))
     elif net_name == "unet":
         net = UNet(
-            dimensions=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2
+            spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32), strides=(2, 2, 2), num_res_units=2
         )
     net.to(device)
 

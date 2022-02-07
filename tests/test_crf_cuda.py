@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -55,12 +55,12 @@ TEST_CASES = [
             # Batch 0
             [
                 # Channel 0
-                [1, 1, 1, 0.5, 0],
+                [1, 1, 1, 0.5, 0]
             ],
             # Batch 1
             [
                 # Channel 0
-                [1, 1, 0.5, 0, 0],
+                [1, 1, 0.5, 0, 0]
             ],
         ],
         # Expected
@@ -117,12 +117,12 @@ TEST_CASES = [
             # Batch 0
             [
                 # Channel 0
-                [1, 1, 1, 0.5, 0],
+                [1, 1, 1, 0.5, 0]
             ],
             # Batch 1
             [
                 # Channel 0
-                [1, 1, 0.5, 0, 0],
+                [1, 1, 0.5, 0, 0]
             ],
         ],
         # Expected
@@ -185,7 +185,7 @@ TEST_CASES = [
                     [0.5, 1.0, 0.5, 0.0, 0.0],
                     [1.0, 0.5, 0.0, 0.0, 0.0],
                 ],
-            ],
+            ]
         ],
         # Features
         [
@@ -207,7 +207,7 @@ TEST_CASES = [
                     [0.0, 0.0, 0.0, 1.0, 1.0],
                     [0.0, 0.0, 0.0, 1.0, 1.0],
                 ],
-            ],
+            ]
         ],
         # Expected
         [
@@ -237,7 +237,7 @@ TEST_CASES = [
                     [0.492602, 0.609557, 0.480947, 0.161909, 0.161476],
                     [0.610678, 0.480516, 0.352479, 0.159380, 0.158274],
                 ],
-            ],
+            ]
         ],
     ],
     [
@@ -344,7 +344,7 @@ TEST_CASES = [
                         [0.0, 0.0, 0.0, 1.0, 1.0],
                     ],
                 ],
-            ],
+            ]
         ],
         # Features
         [
@@ -392,8 +392,8 @@ TEST_CASES = [
                         [0.0, 0.0, 1.0, 1.0, 1.0],
                         [0.0, 0.0, 1.0, 1.0, 1.0],
                     ],
-                ],
-            ],
+                ]
+            ]
         ],
         # Expected
         [
@@ -485,7 +485,7 @@ TEST_CASES = [
                         [0.500663, 0.500887, 0.556332, 0.773597, 0.775210],
                     ],
                 ],
-            ],
+            ]
         ],
     ],
 ]

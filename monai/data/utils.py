@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,26 +11,31 @@
 
 import hashlib
 import json
+import logging
 import math
 import os
 import pickle
 import warnings
-from collections import defaultdict
+from collections import abc, defaultdict
 from copy import deepcopy
 from functools import reduce
-from itertools import product, starmap
-from pathlib import Path, PurePath
+from itertools import product, starmap, zip_longest
+from pathlib import PurePath
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
     BlendMode,
+    Method,
     NumpyPadMode,
+    convert_data_type,
+    convert_to_dst_type,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -40,7 +45,6 @@ from monai.utils import (
     look_up_option,
     optional_import,
 )
-from monai.utils.enums import Method
 
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
@@ -66,16 +70,21 @@ __all__ = [
     "is_supported_format",
     "partition_dataset",
     "partition_dataset_classes",
+    "resample_datalist",
     "select_cross_validation_folds",
     "json_hashing",
     "pickle_hashing",
     "sorted_dict",
     "decollate_batch",
-    "rep_scalar_to_batch",
     "pad_list_data_collate",
     "no_collation",
     "convert_tables_to_dicts",
+    "SUPPORTED_PICKLE_MOD",
+    "reorient_spatial_axes",
 ]
+
+# module to be used by `torch.save`
+SUPPORTED_PICKLE_MOD = {"pickle": pickle}
 
 
 def get_random_patch(
@@ -134,9 +143,7 @@ def iter_patch_slices(
 
 
 def dense_patch_slices(
-    image_size: Sequence[int],
-    patch_size: Sequence[int],
-    scan_interval: Sequence[int],
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
 ) -> List[Tuple[slice, ...]]:
     """
     Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
@@ -251,6 +258,70 @@ def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[i
     return tuple(min(ms, ps or ms) for ms, ps in zip(image_size, patch_size_))
 
 
+def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
+    """
+    Recursively run collate logic and provide detailed loggings for debugging purposes.
+    It reports results at the 'critical' level, is therefore suitable in the context of exception handling.
+
+    Args:
+        batch: batch input to collate
+        level: current level of recursion for logging purposes
+        logger_name: name of logger to use for logging
+
+    See also: https://pytorch.org/docs/stable/data.html#working-with-collate-fn
+    """
+    elem = batch[0]
+    elem_type = type(elem)
+    l_str = ">" * level
+    batch_str = f"{batch[:10]}{' ... ' if len(batch) > 10 else ''}"
+    if isinstance(elem, torch.Tensor):
+        try:
+            logging.getLogger(logger_name).critical(f"{l_str} collate/stack a list of tensors")
+            return torch.stack(batch, 0)
+        except TypeError as e:
+            logging.getLogger(logger_name).critical(
+                f"{l_str} E: {e}, type {[type(elem).__name__ for elem in batch]} in collate({batch_str})"
+            )
+            return
+        except RuntimeError as e:
+            logging.getLogger(logger_name).critical(
+                f"{l_str} E: {e}, shape {[elem.shape for elem in batch]} in collate({batch_str})"
+            )
+            return
+    elif elem_type.__module__ == "numpy" and elem_type.__name__ != "str_" and elem_type.__name__ != "string_":
+        if elem_type.__name__ in ["ndarray", "memmap"]:
+            logging.getLogger(logger_name).critical(f"{l_str} collate/stack a list of numpy arrays")
+            return dev_collate([torch.as_tensor(b) for b in batch], level=level, logger_name=logger_name)
+        elif elem.shape == ():  # scalars
+            return batch
+    elif isinstance(elem, (float, int, str, bytes)):
+        return batch
+    elif isinstance(elem, abc.Mapping):
+        out = {}
+        for key in elem:
+            logging.getLogger(logger_name).critical(f'{l_str} collate dict key "{key}" out of {len(elem)} keys')
+            out[key] = dev_collate([d[key] for d in batch], level=level + 1, logger_name=logger_name)
+        return out
+    elif isinstance(elem, abc.Sequence):
+        it = iter(batch)
+        els = list(it)
+        try:
+            sizes = [len(elem) for elem in els]  # may not have `len`
+        except TypeError:
+            types = [type(elem).__name__ for elem in els]
+            logging.getLogger(logger_name).critical(f"{l_str} E: type {types} in collate({batch_str})")
+            return
+        logging.getLogger(logger_name).critical(f"{l_str} collate list of sizes: {sizes}.")
+        if any(s != sizes[0] for s in sizes):
+            logging.getLogger(logger_name).critical(
+                f"{l_str} collate list inconsistent sizes, got size: {sizes}, in collate({batch_str})"
+            )
+        transposed = zip(*batch)
+        return [dev_collate(samples, level=level + 1, logger_name=logger_name) for samples in transposed]
+    logging.getLogger(logger_name).critical(f"{l_str} E: unsupported type in collate {batch_str}.")
+    return
+
+
 def list_data_collate(batch: Sequence):
     """
     Enhancement for PyTorch DataLoader default collate.
@@ -265,12 +336,11 @@ def list_data_collate(batch: Sequence):
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     key = None
     try:
-        elem = batch[0]
         if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
                 key = k
-                ret[k] = default_collate([d[k] for d in data])
+                ret[key] = default_collate([d[key] for d in data])
             return ret
         return default_collate(data)
     except RuntimeError as re:
@@ -283,7 +353,8 @@ def list_data_collate(batch: Sequence):
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
                 + "documentation)."
             )
-        raise RuntimeError(re_str)
+        _ = dev_collate(data)
+        raise RuntimeError(re_str) from re
     except TypeError as re:
         re_str = str(re)
         if "numpy" in re_str and "Tensor" in re_str:
@@ -294,10 +365,36 @@ def list_data_collate(batch: Sequence):
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
                 + "(check its documentation)."
             )
-        raise TypeError(re_str)
+        _ = dev_collate(data)
+        raise TypeError(re_str) from re
 
 
-def decollate_batch(batch, detach: bool = True):
+def _non_zipping_check(batch_data, detach, pad, fill_value):
+    """
+    Utility function based on `decollate_batch`, to identify the largest batch size from the collated data.
+    returns batch_size, the list of non-iterable items, and the dictionary or list with their items decollated.
+
+    See `decollate_batch` for more details.
+    """
+    if isinstance(batch_data, Mapping):
+        _deco = {key: decollate_batch(batch_data[key], detach, pad=pad, fill_value=fill_value) for key in batch_data}
+    elif isinstance(batch_data, Iterable):
+        _deco = [decollate_batch(b, detach, pad=pad, fill_value=fill_value) for b in batch_data]
+    else:
+        raise NotImplementedError(f"Unable to de-collate: {batch_data}, type: {type(batch_data)}.")
+    batch_size, non_iterable = 0, []
+    for k, v in _deco.items() if isinstance(_deco, Mapping) else enumerate(_deco):
+        if not isinstance(v, Iterable) or isinstance(v, (str, bytes)) or (isinstance(v, torch.Tensor) and v.ndim == 0):
+            # Not running the usual list decollate here:
+            # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
+            # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
+            non_iterable.append(k)
+        elif hasattr(v, "__len__"):
+            batch_size = max(batch_size, len(v))
+    return batch_size, non_iterable, _deco
+
+
+def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
     Returns a list of structures with the original tensor's 0-th dimension sliced into elements using `torch.unbind`.
@@ -316,14 +413,14 @@ def decollate_batch(batch, detach: bool = True):
 
         batch_data = {
             "image": torch.rand((2,1,10,10)),
-            "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
+            DictPostFix.meta("image"): {"scl_slope": torch.Tensor([0.0, 0.0])}
         }
         out = decollate_batch(batch_data)
         print(len(out))
         >>> 2
 
         print(out[0])
-        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
+        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), DictPostFix.meta("image"): {'scl_slope': 0.0}}
 
         batch_data = [torch.rand((2,1,10,10)), torch.rand((2,3,5,5))]
         out = decollate_batch(batch_data)
@@ -335,10 +432,23 @@ def decollate_batch(batch, detach: bool = True):
         print(out[0])
         >>> tensor([[[4.3549e-01...43e-01]]])
 
+        batch_data = {
+            "image": [1, 2, 3], "meta": [4, 5],  # undetermined batch size
+        }
+        out = decollate_batch(batch_data, pad=True, fill_value=0)
+        print(out)
+        >>> [{'image': 1, 'meta': 4}, {'image': 2, 'meta': 5}, {'image': 3, 'meta': 0}]
+        out = decollate_batch(batch_data, pad=False)
+        print(out)
+        >>> [{'image': 1, 'meta': 4}, {'image': 2, 'meta': 5}]
+
     Args:
         batch: data to be de-collated.
         detach: whether to detach the tensors. Scalars tensors will be detached into number types
             instead of torch tensors.
+        pad: when the items in a batch indicate different batch size, whether to pad all the sequences to the longest.
+            If False, the batch size will be the length of the shortest sequence.
+        fill_value: when `pad` is True, the `fillvalue` to use when padding, defaults to `None`.
     """
     if batch is None:
         return batch
@@ -353,68 +463,20 @@ def decollate_batch(batch, detach: bool = True):
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
-    if isinstance(batch, Mapping):
-        _dict_list = {key: decollate_batch(batch[key], detach) for key in batch}
-        return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]
-    if isinstance(batch, Iterable):
-        item_0 = first(batch)
-        if (
-            not isinstance(item_0, Iterable)
-            or isinstance(item_0, (str, bytes))
-            or (isinstance(item_0, torch.Tensor) and item_0.ndim == 0)
-        ):
-            # Not running the usual list decollate here:
-            # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
-            # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
-            return [decollate_batch(b, detach) for b in batch]
-        return [list(item) for item in zip(*(decollate_batch(b, detach) for b in batch))]
+
+    b, non_iterable, deco = _non_zipping_check(batch, detach, pad, fill_value)
+    if b <= 0:  # all non-iterable, single item "batch"? {"image": 1, "label": 1}
+        return deco
+    if pad:  # duplicate non-iterable items to the longest batch
+        for k in non_iterable:
+            deco[k] = [deepcopy(deco[k]) for _ in range(b)]
+    if isinstance(deco, Mapping):
+        _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
+        return [dict(zip(deco, item)) for item in _gen]
+    if isinstance(deco, Iterable):
+        _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
+        return [list(item) for item in _gen]
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
-
-
-def rep_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
-    """
-    Utility tp replicate the scalar items of a list or dictionary to ensure all the items have batch dimension.
-    It leverages `decollate_batch(detach=False)` to filter out the scalar items.
-
-    """
-
-    def _detect_batch_size(batch_data: Sequence):
-        """
-        Detect the batch size from a list of data, some items in the list have batch dim, some not.
-
-        """
-        for v in batch_data:
-            if isinstance(v, torch.Tensor) and v.ndim > 0:
-                return v.shape[0]
-        for v in batch_data:
-            if issequenceiterable(v):
-                warnings.warn("batch_data doesn't contain batched Tensor data, use the length of first sequence data.")
-                return len(v)
-        raise RuntimeError("failed to automatically detect the batch size.")
-
-    if isinstance(batch_data, dict):
-        batch_size = _detect_batch_size(list(batch_data.values()))
-        dict_batch = {}
-        for k, v in batch_data.items():
-            if decollate_batch(v, detach=False) == v and not isinstance(v, list):
-                # if decollating a list, the result may be the same list, so should skip this case
-                dict_batch[k] = [deepcopy(decollate_batch(v, detach=True)) for _ in range(batch_size)]
-            else:
-                dict_batch[k] = v
-
-        return dict_batch
-    if isinstance(batch_data, list):
-        batch_size = _detect_batch_size(batch_data)
-        list_batch = []
-        for b in batch_data:
-            if decollate_batch(b, detach=False) == b and not isinstance(b, list):
-                list_batch.append([deepcopy(decollate_batch(b, detach=True)) for _ in range(batch_size)])
-            else:
-                list_batch.append(b)
-
-        return list_batch
-    # if not dict or list, just return the original data
-    return batch_data
 
 
 def pad_list_data_collate(
@@ -430,10 +492,10 @@ def pad_list_data_collate(
     tensor in each dimension. This transform is useful if some of the applied transforms generate batch data of
     different sizes.
 
-    This can be used on both list and dictionary data. In the case of the dictionary data, this transform will be added
-    to the list of invertible transforms.
-
-    The inverse can be called using the static method: `monai.transforms.croppad.batch.PadListDataCollate.inverse`.
+    This can be used on both list and dictionary data.
+    Note that in the case of the dictionary data, this decollate function may add the transform information of
+    `PadListDataCollate` to the list of invertible transforms if input batch have different spatial shape, so need to
+    call static method: `monai.transforms.croppad.batch.PadListDataCollate.inverse` before inverting other transforms.
 
     Args:
         batch: batch of data to pad-collate
@@ -467,9 +529,10 @@ def worker_init_fn(worker_id: int) -> None:
 
 def set_rnd(obj, seed: int) -> int:
     """
-    Set seed or random state for all randomisable properties of obj.
+    Set seed or random state for all randomizable properties of obj.
 
     Args:
+        obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
     """
     if not hasattr(obj, "__dict__"):
@@ -545,7 +608,7 @@ def rectify_header_sform_qform(img_nii):
     return img_nii
 
 
-def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = True):
+def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], diagonal: bool = True):
     """
     To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
@@ -598,7 +661,7 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
 
 
 def compute_shape_offset(
-    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: np.ndarray, out_affine: np.ndarray
+    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: NdarrayOrTensor, out_affine: NdarrayOrTensor
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
@@ -613,90 +676,129 @@ def compute_shape_offset(
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
-    in_affine = to_affine_nd(sr, in_affine)
-    out_affine = to_affine_nd(sr, out_affine)
+    in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
+    out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
     in_coords = [(0.0, dim - 1.0) for dim in shape]
-    corners = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
+    corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine @ corners
-    corners_out = np.linalg.inv(out_affine) @ corners
+    corners = in_affine_ @ corners
+    try:
+        inv_mat = np.linalg.inv(out_affine_)
+    except np.linalg.LinAlgError as e:
+        raise ValueError(f"Affine {out_affine_} is not invertible") from e
+    corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
-    if np.allclose(nib.io_orientation(in_affine), nib.io_orientation(out_affine)):
-        # same orientation, get translate from the origin
-        offset = in_affine @ ([0] * sr + [1])
-        offset = offset[:-1] / offset[-1]
-    else:
-        # different orientation, the min is the origin
-        corners = corners[:-1] / corners[-1]
-        offset = np.min(corners, 1)
-    return out_shape.astype(int), offset
+    mat = inv_mat[:-1, :-1]
+    k = 0
+    for i in range(corners.shape[1]):
+        min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
+        if np.allclose(min_corner, 0.0, rtol=1e-3):
+            k = i
+            break
+    offset = corners[:-1, k]
+    return out_shape.astype(int, copy=False), offset
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
+def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
 
-    when ``r`` is an integer, output is an (r+1)x(r+1) matrix,
+    When ``r`` is an integer, output is an (r+1)x(r+1) matrix,
     where the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(r, len(affine) - 1)`.
 
-    when ``r`` is an affine matrix, the output has the same as ``r``,
-    the top left kxk elements are  copied from ``affine``,
+    When ``r`` is an affine matrix, the output has the same shape as ``r``,
+    and the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
 
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
+        dtype: data type of the output array.
 
     Raises:
         ValueError: When ``affine`` dimensions is not 2.
         ValueError: When ``r`` is nonpositive.
 
     Returns:
-        an (r+1) x (r+1) matrix
+        an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
-    affine_np = np.array(affine, dtype=np.float64)
+    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]
+    affine_np = affine_np.copy()
     if affine_np.ndim != 2:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
-    new_affine = np.array(r, dtype=np.float64, copy=True)
+    new_affine = np.array(r, dtype=dtype, copy=True)
     if new_affine.ndim == 0:
         sr: int = int(new_affine.astype(np.uint))
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
-        new_affine = np.eye(sr + 1, dtype=np.float64)
+        new_affine = np.eye(sr + 1, dtype=dtype)
     d = max(min(len(new_affine) - 1, len(affine_np) - 1), 1)
     new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
         new_affine[:d, -1] = affine_np[:d, -1]
-    return new_affine
+    output, *_ = convert_to_dst_type(new_affine, affine, dtype=dtype)
+    return output
+
+
+def reorient_spatial_axes(
+    data_shape: Sequence[int], init_affine: NdarrayOrTensor, target_affine: NdarrayOrTensor
+) -> Tuple[np.ndarray, NdarrayOrTensor]:
+    """
+    Given the input ``init_affine``, compute the orientation transform between
+    it and ``target_affine`` by rearranging/flipping the axes.
+
+    Returns the orientation transform and the updated affine (tensor or ndarray
+    depends on the input ``affine`` data type).
+    Note that this function requires external module ``nibabel.orientations``.
+    """
+    init_affine_, *_ = convert_data_type(init_affine, np.ndarray)
+    target_affine_, *_ = convert_data_type(target_affine, np.ndarray)
+    start_ornt = nib.orientations.io_orientation(init_affine_)
+    target_ornt = nib.orientations.io_orientation(target_affine_)
+    try:
+        ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
+    except ValueError as e:
+        raise ValueError(f"The input affine {init_affine} and target affine {target_affine} are not compatible.") from e
+    new_affine = init_affine_ @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
+    new_affine, *_ = convert_to_dst_type(new_affine, init_affine)
+    return ornt_transform, new_affine
 
 
 def create_file_basename(
     postfix: str,
-    input_file_name: str,
-    folder_path: Union[Path, str],
-    data_root_dir: str = "",
+    input_file_name: PathLike,
+    folder_path: PathLike,
+    data_root_dir: PathLike = "",
     separate_folder: bool = True,
-    patch_index: Optional[int] = None,
+    patch_index=None,
+    makedirs: bool = True,
 ) -> str:
     """
     Utility function to create the path to the output file based on the input
     filename (file name extension is not added by this function).
-    When `data_root_dir` is not specified, the output file name is:
+    When ``data_root_dir`` is not specified, the output file name is:
 
-        `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix]`
+        `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix][_patch_index]`
 
-    otherwise the relative path with respect to `data_root_dir` will be inserted, for example:
-    input_file_name: /foo/bar/test1/image.png,
-    postfix: seg
-    folder_path: /output,
-    data_root_dir: /foo/bar,
-    output will be: /output/test1/image/image_seg
+    otherwise the relative path with respect to ``data_root_dir`` will be inserted, for example:
+
+    .. code-block:: python
+
+        from monai.data import create_file_basename
+        create_file_basename(
+            postfix="seg",
+            input_file_name="/foo/bar/test1/image.png",
+            folder_path="/output",
+            data_root_dir="/foo/bar",
+            separate_folder=True,
+            makedirs=False)
+        # output: /output/test1/image/image_seg
 
     Args:
         postfix: output name's postfix
@@ -710,6 +812,7 @@ def create_file_basename(
             `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
             `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
         patch_index: if not None, append the patch index to filename.
+        makedirs: whether to create the folder if it does not exist.
     """
 
     # get the filename and directory
@@ -728,16 +831,18 @@ def create_file_basename(
 
     if separate_folder:
         output = os.path.join(output, filename)
-    # create target folder if no existing
-    os.makedirs(output, exist_ok=True)
+
+    if makedirs:
+        # create target folder if no existing
+        os.makedirs(output, exist_ok=True)
 
     # add the sub-folder plus the postfix name to become the file basename in the output path
-    output = os.path.join(output, (filename + "_" + postfix) if len(postfix) > 0 else filename)
+    output = os.path.join(output, filename + "_" + postfix if postfix != "" else filename)
 
     if patch_index is not None:
         output += f"_{patch_index}"
 
-    return os.path.abspath(output)
+    return os.path.normpath(output)
 
 
 def compute_importance_map(
@@ -768,7 +873,7 @@ def compute_importance_map(
 
     """
     mode = look_up_option(mode, BlendMode)
-    device = torch.device(device)  # type: ignore[arg-type]
+    device = torch.device(device)
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device).float()
     elif mode == BlendMode.GAUSSIAN:
@@ -795,7 +900,7 @@ def compute_importance_map(
     return importance_map
 
 
-def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[str]) -> bool:
+def is_supported_format(filename: Union[Sequence[PathLike], PathLike], suffixes: Sequence[str]) -> bool:
     """
     Verify whether the specified file or files format match supported suffixes.
     If supported suffixes is None, skip the verification and return True.
@@ -806,7 +911,7 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
         suffixes: all the supported image suffixes of current reader, must be a list of lower case suffixes.
 
     """
-    filenames: Sequence[str] = ensure_tuple(filename)
+    filenames: Sequence[PathLike] = ensure_tuple(filename)
     for name in filenames:
         tokens: Sequence[str] = PurePath(name).suffixes
         if len(tokens) == 0 or all("." + s.lower() not in "".join(tokens) for s in suffixes):
@@ -993,6 +1098,31 @@ def partition_dataset_classes(
     return datasets
 
 
+def resample_datalist(data: Sequence, factor: float, random_pick: bool = False, seed: int = 0):
+    """
+    Utility function to resample the loaded datalist for training, for example:
+    If factor < 1.0, randomly pick part of the datalist and set to Dataset, useful to quickly test the program.
+    If factor > 1.0, repeat the datalist to enhance the Dataset.
+
+    Args:
+        data: original datalist to scale.
+        factor: scale factor for the datalist, for example, factor=4.5, repeat the datalist 4 times and plus
+            50% of the original datalist.
+        random_pick: whether to randomly pick data if scale factor has decimal part.
+        seed: random seed to randomly pick data.
+
+    """
+    scale, repeats = math.modf(factor)
+    ret: List = list()
+
+    for _ in range(int(repeats)):
+        ret.extend(list(deepcopy(data)))
+    if scale > 1e-6:
+        ret.extend(partition_dataset(data=data, ratios=[scale, 1 - scale], shuffle=random_pick, seed=seed)[0])
+
+    return ret
+
+
 def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[Sequence[int], int]) -> List:
     """
     Select cross validation data based on data partitions and specified fold index.
@@ -1029,7 +1159,7 @@ def json_hashing(item) -> bytes:
     """
     # TODO: Find way to hash transforms content as part of the cache
     cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
-    return f"{cache_key}".encode("utf-8")
+    return f"{cache_key}".encode()
 
 
 def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
@@ -1044,7 +1174,7 @@ def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
 
     """
     cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
-    return f"{cache_key}".encode("utf-8")
+    return f"{cache_key}".encode()
 
 
 def sorted_dict(item, key=None, reverse=False):
@@ -1117,7 +1247,7 @@ def convert_tables_to_dicts(
         # convert data types
         types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
         if types:
-            data_ = data_.astype(dtype=types)
+            data_ = data_.astype(dtype=types, copy=False)
     data: List[Dict] = data_.to_dict(orient="records")
 
     # group columns to generate new column
