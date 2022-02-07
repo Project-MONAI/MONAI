@@ -124,7 +124,7 @@ class ImageWriter:
         Subclass should implement this method to return a backend-specific data representation object.
         This method is used by ``cls.write`` and the input ``data_array`` is assumed 'channel-last'.
         """
-        return convert_data_type(data_array, np.ndarray)[0]  # type: ignore
+        return convert_data_type(data_array, np.ndarray)[0]
 
     @classmethod
     def resample_if_needed(
@@ -401,7 +401,7 @@ class ITKWriter(ImageWriter):
         _affine = orientation_ras_lps(to_affine_nd(d, _affine))
         spacing = affine_to_spacing(_affine, r=d)
         _direction: np.ndarray = np.diag(1 / spacing)
-        _direction = _affine[:d, :d] @ _direction  # type: ignore
+        _direction = _affine[:d, :d] @ _direction
         itk_obj.SetSpacing(spacing.tolist())
         itk_obj.SetOrigin(_affine[:d, -1].tolist())
         itk_obj.SetDirection(itk.GetMatrixFromArray(_direction))
@@ -620,7 +620,7 @@ class PILWriter(ImageWriter):
         Args:
             filename: filename or PathLike object.
             verbose: if ``True``, log the progress.
-            obj_kwargs: optional keyword arguments passed to ``self.create_backend_obj``
+            kwargs: optional keyword arguments passed to ``self.create_backend_obj``
                 currently support ``reverse_indexing``, ``image_mode``, defaulting to ``True``, ``None`` respectively.
 
         See also:
@@ -657,7 +657,7 @@ class PILWriter(ImageWriter):
             mode: interpolation mode, defautl is ``InterpolateMode.BICUBIC``.
         """
 
-        data: np.ndarray = convert_data_type(data_array, np.ndarray)[0]  # type: ignore
+        data: np.ndarray = convert_data_type(data_array, np.ndarray)[0]
         if output_spatial_shape is not None:
             output_spatial_shape_ = ensure_tuple_rep(output_spatial_shape, 2)
             mode = look_up_option(mode, InterpolateMode)
@@ -672,7 +672,7 @@ class PILWriter(ImageWriter):
                 data = np.expand_dims(data, 0)  # make a channel
                 data = xform(data)[0]  # type: ignore
             if mode != InterpolateMode.NEAREST:
-                data = np.clip(data, _min, _max)  # type: ignore
+                data = np.clip(data, _min, _max)
         return data
 
     @classmethod
