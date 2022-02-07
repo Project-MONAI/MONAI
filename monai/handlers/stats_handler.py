@@ -101,7 +101,7 @@ class StatsHandler:
         self.state_attributes = state_attributes
         self.tag_name = tag_name
         self.key_var_format = key_var_format
-        self.logger = logging.getLogger(name)  # will default to `engine.logger` when attached
+        self.logger = logging.getLogger(name)  # if `name` is None, will default to `engine.logger` when attached
         if name is not None:
             if logging.root.getEffectiveLevel() > logging.INFO:
                 # if the root log level is higher than INFO, set a separate stream handler to record
