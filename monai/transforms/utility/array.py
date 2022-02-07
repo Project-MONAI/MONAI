@@ -548,7 +548,7 @@ class DataStats(Transform):
     It support both `numpy.ndarray` and `torch.tensor` as input data,
     so it can be used in pre-processing and post-processing.
 
-    Note that if the settings of `logging.RootLogger` already records INFO level log, will leverage the handlers
+    Note that if the settings of `logging.RootLogger` already records `INFO` level log, will leverage the handlers
     of it to record the data statistics in stdout or file, etc. otherwise, create a separate `StreamHandler`
     and record to `stdout`.
 

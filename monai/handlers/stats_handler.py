@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import logging
-import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
@@ -35,18 +34,26 @@ class StatsHandler:
     It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support logging for epoch level and iteration level with pre-defined loggers.
 
-    Note that if `name` arg is None, will leverage `engine.logger` as default logger directly,
-    otherwise, inherit a new logger from `logging.RootLogger`. For the new logger, if the settings
-    of `logging.RootLogger` already records INFO level log, will leverage the handlers of it to
-    record the data statistics in stdout or file, etc. otherwise, create a separate `StreamHandler`
-    and record to `stdout`.
+    Note that if `name` arg is None, will leverage `engine.logger` as default logger directly, otherwise,
+    inherit a new logger from `logging.RootLogger` with log level `INFO`. The default log level of `RootLogger`
+    is `WARNING`, so may need to call `logging.basicConfig(level=logging.INFO)` before running this handler
+    to enable the stats logging.
 
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
         - When ITERATION_COMPLETED, logs
           ``self.output_transform(engine.state.output)`` using ``self.logger``.
 
-    Usage example is available in the tutorial:
+    Usage example::
+
+        logging.basicConfig(level=logging.INFO)
+
+        trainer = SupervisedTrainer(...)
+        StatsHandler(name="train_stats").attach(trainer)
+
+        trainer.run()
+
+    More details is available in the tutorial:
     https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
 
     """
@@ -103,12 +110,7 @@ class StatsHandler:
         self.key_var_format = key_var_format
         self.logger = logging.getLogger(name)  # if `name` is None, will default to `engine.logger` when attached
         if name is not None:
-            if logging.root.getEffectiveLevel() > logging.INFO:
-                # if the root log level is higher than INFO, set a separate stream handler to record
-                self.logger.setLevel(logging.INFO)
-                console = logging.StreamHandler(sys.stdout)
-                console.setLevel(logging.INFO)
-                self.logger.addHandler(console)
+            self.logger.setLevel(logging.INFO)
             if logger_handler is not None:
                 self.logger.addHandler(logger_handler)
         self.name = name
@@ -123,10 +125,11 @@ class StatsHandler:
         """
         if self.name is None:
             self.logger = engine.logger
-            if self.logger.getEffectiveLevel() > logging.INFO or logging.root.getEffectiveLevel() > logging.INFO:
-                warnings.warn(
-                    "the effective log level of engine logger or RootLogger is higher than INFO, may not record log."
-                )
+        if self.logger.getEffectiveLevel() > logging.INFO or logging.root.getEffectiveLevel() > logging.INFO:
+            warnings.warn(
+                "the effective log level of engine logger or RootLogger is higher than INFO, may not record log,"
+                " please call `logging.basicConfig(level=logging.INFO)` to enable it."
+            )
         if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
         if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
