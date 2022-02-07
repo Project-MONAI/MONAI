@@ -46,10 +46,7 @@ class TestHandlerStats(unittest.TestCase):
         stats_handler = StatsHandler(name=key_to_handler, logger_handler=log_handler)
         stats_handler.attach(engine)
 
-        level = logging.root.getEffectiveLevel()
-        logging.basicConfig(level=logging.INFO)
         engine.run(range(3), max_epochs=2)
-        logging.basicConfig(level=level)
 
         # check logging output
         output_str = log_stream.getvalue()
@@ -78,10 +75,7 @@ class TestHandlerStats(unittest.TestCase):
         stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=log_handler)
         stats_handler.attach(engine)
 
-        level = logging.root.getEffectiveLevel()
-        logging.basicConfig(level=logging.INFO)
         engine.run(range(3), max_epochs=2)
-        logging.basicConfig(level=level)
 
         # check logging output
         output_str = log_stream.getvalue()
@@ -112,10 +106,7 @@ class TestHandlerStats(unittest.TestCase):
         )
         stats_handler.attach(engine)
 
-        level = logging.root.getEffectiveLevel()
-        logging.basicConfig(level=logging.INFO)
         engine.run(range(3), max_epochs=2)
-        logging.basicConfig(level=level)
 
         # check logging output
         output_str = log_stream.getvalue()
@@ -146,10 +137,7 @@ class TestHandlerStats(unittest.TestCase):
             stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=handler)
             stats_handler.attach(engine)
 
-            level = logging.root.getEffectiveLevel()
-            logging.basicConfig(level=logging.INFO)
             engine.run(range(3), max_epochs=2)
-            logging.basicConfig(level=level)
             handler.close()
             stats_handler.logger.removeHandler(handler)
             with open(filename) as f:
@@ -203,10 +191,7 @@ class TestHandlerStats(unittest.TestCase):
         )
         stats_handler.attach(engine)
 
-        level = logging.root.getEffectiveLevel()
-        logging.basicConfig(level=logging.INFO)
         engine.run(range(3), max_epochs=2)
-        logging.basicConfig(level=level)
 
         # check logging output
         output_str = log_stream.getvalue()
