@@ -20,7 +20,7 @@ import torch
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import compute_shape_offset, reorient_spatial_axes, to_affine_nd, zoom_affine
+from monai.data.utils import AFFINE_TOL, compute_shape_offset, reorient_spatial_axes, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
@@ -53,8 +53,6 @@ from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
-
-AFFINE_TOL = 1e-3
 
 nib, has_nib = optional_import("nibabel")
 
@@ -132,7 +130,7 @@ class SpatialResample(Transform):
         img: NdarrayOrTensor,
         src_affine: Optional[NdarrayOrTensor] = None,
         dst_affine: Optional[NdarrayOrTensor] = None,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Optional[Union[Sequence[int], np.ndarray, int]] = None,
         mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
         align_corners: Optional[bool] = False,
@@ -175,18 +173,27 @@ class SpatialResample(Transform):
         if src_affine is None:
             src_affine = np.eye(4, dtype=np.float64)
         spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
+        if spatial_size is not -1 and spatial_size is not None:
+            spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
         src_affine = to_affine_nd(spatial_rank, src_affine)
         dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
         dst_affine, *_ = convert_to_dst_type(dst_affine, dst_affine, dtype=torch.float32)
 
-        if allclose(src_affine, dst_affine, atol=AFFINE_TOL):
+        in_spatial_size = np.asarray(img.shape[1 : spatial_rank + 1])
+        if spatial_size is -1:  # using the input spatial size
+            spatial_size = in_spatial_size
+        elif spatial_size is None:  # auto spatial size
+            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
+        spatial_size = np.asarray(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
+
+        if allclose(src_affine, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
             # no significant change, return original image
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
             return output_data, dst_affine
 
         if has_nib and isinstance(img, np.ndarray):
             spatial_ornt, dst_r = reorient_spatial_axes(img.shape[1 : spatial_rank + 1], src_affine, dst_affine)
-            if allclose(dst_r, dst_affine, atol=AFFINE_TOL):
+            if allclose(dst_r, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
                 # simple reorientation achieves the desired affine
                 spatial_ornt[:, 0] += 1
                 spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
@@ -208,18 +215,12 @@ class SpatialResample(Transform):
             raise ValueError(f"src affine is not invertible: {src_affine}") from e
         xform = to_affine_nd(spatial_rank, xform)
         # no resampling if it's identity transform
-        if allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL):
+        if allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
             return output_data, dst_affine
 
         _dtype = dtype or self.dtype or img.dtype
-        spatial_size = ensure_tuple(spatial_size)
-        in_spatial_size = list(img.shape[1 : spatial_rank + 1])
-        if spatial_size[0] == -1:  # if the spatial_size == -1
-            spatial_size = in_spatial_size
-        elif spatial_size[0] is None:
-            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
-        spatial_size = spatial_size[:spatial_rank]
+        in_spatial_size = in_spatial_size.tolist()
         chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
         # resample
         img_ = convert_data_type(img, torch.Tensor, dtype=_dtype)[0]
@@ -270,7 +271,7 @@ class Spacing(Transform):
 
     def __init__(
         self,
-        pixdim: Union[Sequence[float], float],
+        pixdim: Union[Sequence[float], float, np.ndarray],
         diagonal: bool = False,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
@@ -334,7 +335,7 @@ class Spacing(Transform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
-        output_spatial_shape: Optional[Union[Sequence[int], int]] = None,
+        output_spatial_shape: Optional[Union[Sequence[int], np.ndarray, int]] = None,
     ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
         """
         Args:
