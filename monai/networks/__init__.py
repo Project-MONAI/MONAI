@@ -13,6 +13,7 @@ from .utils import (
     convert_to_torchscript,
     copy_model_state,
     eval_mode,
+    get_state_dict,
     icnr_init,
     normal_init,
     normalize_transform,

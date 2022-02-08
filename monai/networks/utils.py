@@ -37,6 +37,7 @@ __all__ = [
     "eval_mode",
     "train_mode",
     "copy_model_state",
+    "get_state_dict",
     "save_state",
     "convert_to_torchscript",
     "meshgrid_ij",
@@ -438,6 +439,20 @@ def copy_model_state(
     return dst_dict, updated_keys, unchanged_keys
 
 
+def get_state_dict(obj: Union[torch.nn.Module, Dict]):
+    """
+    Get the state dict of input object if has `state_dict`, otherwise, return object directly.
+    For data parallel model, automatically convert it to regular model first.
+
+    Args:
+        obj: input object to check and get the state_dict.
+
+    """
+    if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+        obj = obj.module
+    return obj.state_dict() if hasattr(obj, "state_dict") else obj  # type: ignore
+
+
 def save_state(src: Union[torch.nn.Module, Dict], path: str, create_dir: bool = True, **kwargs):
     """
     Save the state dict of input source data with PyTorch `save`.
@@ -462,17 +477,12 @@ def save_state(src: Union[torch.nn.Module, Dict], path: str, create_dir: bool = 
 
     """
 
-    def _get_state(obj):
-        if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
-            obj = obj.module
-        return obj.state_dict() if isinstance(obj, torch.nn.Module) else obj
-
     checkpoint: Dict = {}
     if isinstance(src, dict):
         for k, v in src.items():
-            checkpoint[k] = _get_state(v)
+            checkpoint[k] = get_state_dict(v)
     else:
-        checkpoint = _get_state(src)
+        checkpoint = get_state_dict(src)
 
     if create_dir:
         path_dir = os.path.dirname(path)
