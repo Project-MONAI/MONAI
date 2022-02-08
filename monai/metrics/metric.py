@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,121 +15,168 @@ from typing import Any, List, Optional
 import torch
 
 from monai.config import TensorOrList
-from monai.utils import evenly_divisible_all_gather
+from monai.utils import convert_data_type, evenly_divisible_all_gather
+
+__all__ = ["Metric", "IterationMetric", "Cumulative", "CumulativeIterationMetric"]
 
 
 class Metric(ABC):
     """
-    Base class of all Metrics interface.
-    `__call__` is designed to execute metric computation.
+    Base class for metric computation for evaluating the performance of a model.
+    `__call__` is designed to execute the computation.
 
     """
 
     @abstractmethod
-    def __call__(self, *args: Any, **kwds: Any):
+    def __call__(self, *args: Any, **kwargs: Any):
         """
-        API to execute the metric computation.
-
+        This method should take raw model outputs as inputs, and return values that measure the models' quality.
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class IterationMetric(Metric):
     """
-    Base class of Metrics interface for computation on a batch of tensors, usually the data of 1 iteration.
-    `__call__` is supposed to compute independent logic for several samples of `y_pred` and `y`(optional).
-    Usually, subclass only needs to implement the `_compute_tensor` function for computation process.
-    The input data shape should be `list of channel-first tensors` or a `batch-first tensor`.
+    Base class for metrics computation at the iteration level, that is, on a min-batch of samples
+    usually using the model outcome of one iteration.
 
+    `__call__` is designed to handle `y_pred` and `y` (optional) in torch tensors or a list/tuple of tensors.
+
+    Subclasses typically implement the `_compute_tensor` function for the actual tensor computation logic.
     """
 
     def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
         """
-        Execute basic computation for model prediction and ground truth.
-        It can support  both `list of channel-first Tensor` and `batch-first Tensor`.
-        And users can execute on every batch of data, then accumulate the results, or
-        accumulate the original `y_pred` and `y`, then execute on the accumulated data.
+        Execute basic computation for model prediction `y_pred` and ground truth `y` (optional).
+        It supports inputs of a list of "channel-first" Tensor and a "batch-first" Tensor.
 
         Args:
-            y_pred: the model prediction data to compute, must be a list of `channel-first` Tensor
+            y_pred: the raw model prediction data at one iteration, must be a list of `channel-first` Tensor
                 or a `batch-first` Tensor.
             y: the ground truth to compute, must be a list of `channel-first` Tensor
                 or a `batch-first` Tensor.
 
+        Returns:
+            The computed metric values at the iteration level.
+            The output shape could be a `batch-first` tensor or a list of `batch-first` tensors.
+            When it's a list of tensors, each item in the list can represent a specific type of metric.
+
         """
         ret: TensorOrList
+        # handling a list of channel-first data
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
-            # if y_pred or y is a list of channel-first data, add batch dim and compute metric
-            ret = self._compute_list(y_pred, y)
-        elif isinstance(y_pred, torch.Tensor):
-            y_ = y.detach() if y is not None and isinstance(y, torch.Tensor) else None
-            ret = self._compute_tensor(y_pred.detach(), y_)
-        else:
-            raise ValueError("y_pred or y must be a list of `channel-first` Tensors or a `batch-first` Tensor.")
-
-        return ret
+            return self._compute_list(y_pred, y)
+        # handling a single batch-first data
+        if isinstance(y_pred, torch.Tensor):
+            y_ = y.detach() if isinstance(y, torch.Tensor) else None
+            return self._compute_tensor(y_pred.detach(), y_)
+        raise ValueError("y_pred or y must be a list/tuple of `channel-first` Tensors or a `batch-first` Tensor.")
 
     def _compute_list(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
         """
-        Excute the computation for the y_pred and y items of a iteration, the data is in the list shape.
-        Will concat the results to guarantee the output shape of ret is BCHW[D], otherwise it's list of batch-first,
-        which is against our principle that data in metrics should be BCHW[D] or list of channel-first.
-        Note: subclass may enhance the operation with multi-threads to accelerate.
+        Execute the metric computation for `y_pred` and `y` in a list of "channel-first" tensors.
 
+        The return value is a "batch-first" tensor, or a list of "batch-first" tensors.
+        When it's a list of tensors, each item in the list can represent a specific type of metric values.
+
+        For example, `self._compute_tensor` may be implemented as returning a list of `batch_size` items,
+        where each item is a tuple of three values `tp`, `fp`, `fn` for true positives, false positives,
+        and false negatives respectively. This function will return a list of three items,
+        (`tp_batched`, `fp_batched`, `fn_batched`), where each item is a `batch_size`-length tensor.
+
+        Note: subclass may enhance the operation to have multi-thread support.
         """
-        ret: TensorOrList
         if y is not None:
             ret = [self._compute_tensor(p.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p, y_ in zip(y_pred, y)]
         else:
             ret = [self._compute_tensor(p_.detach().unsqueeze(0), None) for p_ in y_pred]
-        # concat the list of results
-        if isinstance(ret[0], torch.Tensor):
-            ret = torch.cat(ret, dim=0)
-        elif isinstance(ret[0], (list, tuple)) and all(isinstance(i, torch.Tensor) for i in ret[0]):
-            # if _compute_tensor() returned not only 1 Tensor, concat them separately
-            ret = [torch.cat([k[i] for k in ret], dim=0) for i in range(len(ret[0]))]
 
+        # concat the list of results (e.g. a batch of evaluation scores)
+        if isinstance(ret[0], torch.Tensor):
+            return torch.cat(ret, dim=0)
+        # the result is a list of sequence of tensors (e.g. a batch of multi-class results)
+        if isinstance(ret[0], (list, tuple)) and all(isinstance(i, torch.Tensor) for i in ret[0]):
+            return [torch.cat(batch_i, dim=0) for batch_i in zip(*ret)]
         return ret
 
     @abstractmethod
     def _compute_tensor(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         """
-        computation logic for the y_pred and y of a iteration, the data should be `batch-first` Tensors.
-        Every subclass metric should implement its own computation logic according to its algorithm.
-
+        Computation logic for `y_pred` and `y` of an iteration, the data should be "batch-first" Tensors.
+        A subclass should implement its own computation logic.
+        The return value is usually a "batch_first" tensor, or a list of "batch_first" tensors.
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class Cumulative(ABC):
+class Cumulative:
     """
     Utility class for the typical cumulative computation process based on PyTorch Tensors.
-    It cumulates tensors in the buffer, then sync across distributed ranks and aggregate.
+    It provides interfaces to accumulate values in the local buffers, synchronize buffers across distributed nodes,
+    and aggregate the buffered values.
 
-    To speed up computation with multi-processing, PyTorch programs usually split data to distributed ranks
-    by `DistributedSampler` before an epoch, every rank then computes only based on its own data part and
-    `add` to the buffers in its process. Eventually, sync the values of all ranks to compute the final results.
+    In multi-processing, PyTorch programs usually distribute data to multiple nodes. Each node runs with a subset
+    of the data, adds values to its local buffers. Calling `get_buffer` could gather all the results and
+    `aggregate` can further handle the results to generate the final outcomes.
+
+    Users can implement their own `aggregate` method to handle the results,
+    using `get_buffer` to get the buffered contents.
 
     Note: the data list should have the same length every time calling `add()` in a round,
     it will automatically create buffers according to the length of data list.
 
-    Typically, this class is expected to execute the steps referring to below examples::
+    Typically, this class is expected to execute the following steps:
 
-        cum = Cumulative()
-        cum.add(x, y)
-        cum.add(a, b)
-        cum.add(c, d)
-        cum.aggregate()
-        result = cum.get_buffer()
-        cum.reset()
+    .. code-block:: python
+
+        from monai.metrics import Cumulative
+
+        c = Cumulative()
+        c.append(1)  # adds a value
+        c.extend([2, 3])  # adds a batch of values
+        c.extend([4, 5, 6])  # adds a batch of values
+        print(c.get_buffer())  # tensor([1, 2, 3, 4, 5, 6])
+        print(len(c))  # 6
+        c.reset()
+        print(len(c))  # 0
+
+    The following is an example of maintaining two internal buffers:
+
+    .. code-block:: python
+
+        from monai.metrics import Cumulative
+
+        c = Cumulative()
+        c.append(1, 2)  # adds a value to two buffers respectively
+        c.extend([3, 4], [5, 6])  # adds batches of values
+        print(c.get_buffer())  # [tensor([1, 3, 4]), tensor([2, 5, 6])]
+        print(len(c))
+
+    The following is an example of extending with variable length data:
+
+    .. code-block:: python
+
+        import torch
+        from monai.metrics import Cumulative
+
+        c = Cumulative()
+        c.extend(torch.zeros((8, 2)), torch.zeros((6, 2)))  # adds batches
+        c.append(torch.zeros((2, )))  # adds a value
+        print(c.get_buffer())  # [torch.zeros((9, 2)), torch.zeros((6, 2))]
+        print(len(c))
 
     """
 
     def __init__(self):
-        self.buffer_num: int = 0
+        """
+        Initialize the internal buffers.
+        `self._buffers` are local buffers, they are not usually used directly.
+        `self._sync_buffers` are the buffers with all the results across all the nodes.
+        """
         self._buffers: Optional[List[List[torch.Tensor]]] = None
         self._synced_tensors: Optional[List[Optional[torch.Tensor]]] = None
         self._synced: bool = False
+        self.reset()
 
     def reset(self):
         """
@@ -140,33 +187,55 @@ class Cumulative(ABC):
         self._synced_tensors = None
         self._synced = False
 
-    def add(self, *data: torch.Tensor):
+    def extend(self, *data) -> None:
         """
-        Add samples to the cumulative buffers.
+        Extend the local buffers with new ("batch-first") data.
+        A buffer will be allocated for each `data` item.
+        Compared with `self.append`, this method adds a "batch" of data to the local buffers.
 
         Args:
-            data: list of input tensor, make sure the input data order is always the same in a round.
-                every item of data will be added to the corresponding buffer.
+            data: each item can be a "batch-first" tensor or a list of "channel-first" tensors.
+                they will be concatenated at the 0-th dimension when `get_buffer()` is called.
+        """
+        if self._buffers is None:
+            self._buffers = [[] for _ in data]
+        for b, d in zip(self._buffers, data):
+            # converting to pytorch tensors so that we can use the distributed API
+            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)
+            try:
+                b.extend([x[0] for x in torch.split(d_t, 1, dim=0)])
+            except (AttributeError, IndexError, RuntimeError) as e:
+                raise TypeError(
+                    f"{e}. `data` should be a batch-first tensor or"
+                    f" a list of channel-first tensors, got {type(d_t)}"
+                ) from e
+        self._synced = False
+
+    def append(self, *data) -> None:
+        """
+        Add samples to the local cumulative buffers.
+        A buffer will be allocated for each `data` item.
+        Compared with `self.extend`, this method adds a single sample (instead
+        of a "batch") to the local buffers.
+
+        Args:
+            data: each item will be converted into a torch tensor.
+                they will be stacked at the 0-th dim with a new dimension when `get_buffer()` is called.
 
         """
-        data_len = len(data)
         if self._buffers is None:
-            self._buffers = [[] for _ in range(data_len)]
-        elif len(self._buffers) != data_len:
-            raise ValueError(f"data length: {data_len} doesn't match buffers length: {len(self._buffers)}.")
-        if self._synced_tensors is None:
-            self._synced_tensors = [None for _ in range(data_len)]
-
-        for i, d in enumerate(data):
-            if not isinstance(d, torch.Tensor):
-                raise ValueError(f"the data to cumulate in a buffer must be PyTorch Tensor, but got: {type(d)}.")
-            self._buffers[i].append(d)
+            self._buffers = [[] for _ in data]
+        for b, d in zip(self._buffers, data):
+            # converting to pytorch tensors so that we can use the distributed API
+            d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)
+            b.append(d_t)
         self._synced = False
 
     @abstractmethod
-    def aggregate(self, *args: Any, **kwds: Any):
+    def aggregate(self, *args: Any, **kwargs: Any):
         """
-        Aggregate final results based on the buffers.
+        Aggregate final results based on the gathered buffers.
+        This method is expected to use `get_buffer` to gather the local buffer contents.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -174,28 +243,67 @@ class Cumulative(ABC):
     def _sync(self):
         """
         All gather the buffers across distributed ranks for aggregating.
-        Every buffer will be concatenated as a PyTorch Tensor.
+        Each buffer will be concatenated as a PyTorch Tensor.
 
         """
-        self._synced_tensors = [evenly_divisible_all_gather(torch.cat(b, dim=0), concat=True) for b in self._buffers]
+        if self._synced or self._buffers is None:
+            return
+        try:
+            self._synced_tensors = [
+                evenly_divisible_all_gather(torch.stack(b, dim=0), concat=True) for b in self._buffers
+            ]
+        except (RuntimeError, TypeError, ValueError) as e:
+            raise TypeError(f"{e}. unable to sync buffer contents: {self._buffers}.") from e
         self._synced = True
+
+    def __len__(self):
+        """
+        Return the length of the largest buffer.
+        Note that the method will trigger synchronization of the local buffers.
+        """
+        self._sync()
+        if not self._synced_tensors:
+            return 0
+        return max(len(x) for x in self._synced_tensors)
 
     def get_buffer(self):
         """
-        Get the synced buffers list.
+        Get the synchronized list of buffers.
         A typical usage is to generate the metrics report based on the raw metric details.
+        Each buffer is a PyTorch Tensor.
 
         """
-        if not self._synced:
-            self._sync()
+        self._sync()
         return self._synced_tensors[0] if len(self._synced_tensors) == 1 else self._synced_tensors
 
 
 class CumulativeIterationMetric(Cumulative, IterationMetric):
     """
-    Base class of cumulative metric which computes on batch data of every iteration and aggregate.
-    Typically, it computes some intermediate results for every iteration, cumulates in buffers,
-    then syncs across all the distributed ranks and aggregates for the final result when epoch completed.
+    Base class of cumulative metric which collects metrics on each mini-batch data at the iteration level.
+
+    Typically, it computes some intermediate results for each iteration, adds them to the buffers,
+    then the buffer contents could be gathered and aggregated for the final result when epoch completed.
+
+    For example, `MeanDice` inherits this class and the usage is as follows:
+
+    .. code-block:: python
+
+        dice_metric = DiceMetric(include_background=True, reduction="mean")
+
+        for val_data in val_loader:
+            val_outputs = model(val_data["img"])
+            val_outputs = [postprocessing_transform(i) for i in decollate_batch(val_outputs)]
+            # compute metric for current iteration
+            dice_metric(y_pred=val_outputs, y=val_data["seg"])  # callable to add metric to the buffer
+
+        # aggregate the final mean dice result
+        metric = dice_metric.aggregate().item()
+
+        # reset the status for next computation round
+        dice_metric.reset()
+
+    And to load `predictions` and `labels` from files, then compute metrics with multi-processing, please refer to:
+    https://github.com/Project-MONAI/tutorials/blob/master/modules/compute_metric.py.
 
     """
 
@@ -212,11 +320,13 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
             y: the ground truth to compute, must be a list of `channel-first` Tensor
                 or a `batch-first` Tensor.
 
+        Returns:
+            The computed metric values at the iteration level.
         """
         ret = super().__call__(y_pred=y_pred, y=y)
         if isinstance(ret, (tuple, list)):
-            self.add(*ret)
+            self.extend(*ret)
         else:
-            self.add(ret)
+            self.extend(ret)
 
         return ret

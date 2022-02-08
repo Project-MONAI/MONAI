@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,6 +40,8 @@ class TestSetDeterminism(unittest.TestCase):
         self.assertEqual(seed, get_seed())
         a = np.random.randint(seed)
         b = torch.randint(seed, (1,))
+        # tset when global flag support is disabled
+        torch.backends.disable_global_flags()
         set_determinism(seed=seed)
         c = np.random.randint(seed)
         d = torch.randint(seed, (1,))

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,6 +11,7 @@
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -28,7 +29,7 @@ TEST_CASE_1 = [
         "value_range": False,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:",
@@ -42,7 +43,7 @@ TEST_CASE_2 = [
         "value_range": False,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:\nType: <class 'numpy.ndarray'>",
@@ -56,7 +57,7 @@ TEST_CASE_3 = [
         "value_range": False,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)",
@@ -70,7 +71,7 @@ TEST_CASE_4 = [
         "value_range": True,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)",
@@ -84,7 +85,7 @@ TEST_CASE_5 = [
         "value_range": True,
         "data_value": True,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)\nValue: [[0 1]\n [1 2]]",
@@ -98,7 +99,7 @@ TEST_CASE_6 = [
         "value_range": True,
         "data_value": True,
         "additional_info": np.mean,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     (
@@ -115,7 +116,7 @@ TEST_CASE_7 = [
         "value_range": True,
         "data_value": True,
         "additional_info": lambda x: torch.mean(x.float()),
-        "logger_handler": None,
+        "name": "DataStats",
     },
     torch.tensor([[0, 1], [1, 2]]).to("cuda" if torch.cuda.is_available() else "cpu"),
     (
@@ -126,7 +127,7 @@ TEST_CASE_7 = [
 
 TEST_CASE_8 = [
     np.array([[0, 1], [1, 2]]),
-    "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)\n"
+    "test data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)\n"
     "Value: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
@@ -144,6 +145,9 @@ class TestDataStats(unittest.TestCase):
             filename = os.path.join(tempdir, "test_data_stats.log")
             handler = logging.FileHandler(filename, mode="w")
             handler.setLevel(logging.INFO)
+            name = "DataStats"
+            logger = logging.getLogger(name)
+            logger.addHandler(handler)
             input_param = {
                 "prefix": "test data",
                 "data_type": True,
@@ -151,17 +155,17 @@ class TestDataStats(unittest.TestCase):
                 "value_range": True,
                 "data_value": True,
                 "additional_info": np.mean,
-                "logger_handler": handler,
+                "name": name,
             }
             transform = DataStats(**input_param)
             _ = transform(input_data)
-            _logger = logging.getLogger(transform._logger_name)
-            for h in _logger.handlers[:]:
+            for h in logger.handlers[:]:
                 h.close()
-                _logger.removeHandler(h)
-            with open(filename, "r") as f:
+                logger.removeHandler(h)
+            with open(filename) as f:
                 content = f.read()
-            self.assertEqual(content, expected_print)
+            if sys.platform != "win32":
+                self.assertEqual(content, expected_print)
 
 
 if __name__ == "__main__":
