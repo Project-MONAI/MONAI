@@ -94,16 +94,13 @@ class TestNiftiLoadRead(unittest.TestCase):
             os.remove(test_image)
 
         # write test cases
+        writer_obj = NibabelWriter()
+        writer_obj.set_data_array(data_array, channel_dim=None)
         if header is not None:
-            writer_obj = NibabelWriter()
-            writer_obj.set_data_array(data_array, channel_dim=None)
             writer_obj.set_metadata(header)
-            writer_obj.write(test_image, verbose=True)
         elif affine is not None:
-            writer_obj = NibabelWriter()
-            writer_obj.set_data_array(data_array, channel_dim=None)
             writer_obj.set_metadata({"affine": affine})
-            writer_obj.write(test_image, verbose=True)
+        writer_obj.write(test_image, verbose=True)
         saved = nib.load(test_image)
         saved_affine = saved.affine
         saved_data = saved.get_fdata()
@@ -133,7 +130,6 @@ class TestNiftiLoadRead(unittest.TestCase):
         np.testing.assert_allclose(saved_data, np.arange(64).reshape(1, 8, 8), atol=1e-7)
         if os.path.exists(test_image):
             os.remove(test_image)
-        writer_obj = NibabelWriter()
         writer_obj.set_data_array(data[0], channel_dim=None)
         writer_obj.set_metadata(
             meta_dict={"affine": new_affine, "original_affine": original_affine, "spatial_shape": (1, 8, 8)},
@@ -147,7 +143,6 @@ class TestNiftiLoadRead(unittest.TestCase):
         if os.path.exists(test_image):
             os.remove(test_image)
         # test the case no resample
-        writer_obj = NibabelWriter()
         writer_obj.set_data_array(data[0], channel_dim=None)
         writer_obj.set_metadata(meta_dict={"affine": new_affine, "original_affine": original_affine}, resample=False)
         writer_obj.write(test_image, verbose=True)
@@ -171,7 +166,6 @@ class TestNiftiLoadRead(unittest.TestCase):
 
                 image_name = os.path.join(out_dir, "test1.nii.gz")
                 img = np.arange(5).reshape((1, 5))
-                writer_obj = NibabelWriter()
                 writer_obj.set_data_array(img, channel_dim=None)
                 writer_obj.set_metadata(
                     {"affine": np.diag([1, 1, 1, 3, 3]), "original_affine": np.diag([1.4, 2.0, 1, 3, 5])}
@@ -196,7 +190,6 @@ class TestNiftiLoadRead(unittest.TestCase):
 
                 image_name = os.path.join(out_dir, "test1.nii.gz")
                 img = p(np.arange(5).reshape((1, 1, 5)))
-                writer_obj = NibabelWriter()
                 writer_obj.set_data_array(img, channel_dim=None)
                 writer_obj.set_metadata(
                     {"affine": np.diag([1, 1, 1, 3, 3]), "original_affine": np.diag([1.4, 2.0, 2, 3, 5])}
@@ -221,7 +214,6 @@ class TestNiftiLoadRead(unittest.TestCase):
 
                 image_name = os.path.join(out_dir, "test1.nii.gz")
                 img = p(np.arange(5).reshape((1, 1, 5, 1)))
-                writer_obj = NibabelWriter()
                 writer_obj.set_data_array(img, channel_dim=-1, squeeze_end_dims=False)
                 writer_obj.set_metadata(
                     {"affine": np.diag([1, 1, 1, 3, 3]), "original_affine": np.diag([1.4, 2.0, 2, 3, 5])}
@@ -249,7 +241,6 @@ class TestNiftiLoadRead(unittest.TestCase):
 
                 image_name = os.path.join(out_dir, "test1.nii.gz")
                 img = p(np.arange(10).reshape((1, 1, 5, 1, 2)))
-                writer_obj = NibabelWriter()
                 writer_obj.set_data_array(img, channel_dim=-1, squeeze_end_dims=False, spatial_ndim=None)
                 writer_obj.set_metadata({"affine": np.diag([1, 1, 1, 3]), "original_affine": np.diag([1.4, 2.0, 2, 3])})
                 writer_obj.write(image_name, verbose=True)
