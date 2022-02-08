@@ -41,8 +41,7 @@ class TestSaveImage(unittest.TestCase):
                 output_dir=tempdir,
                 output_ext=output_ext,
                 resample=resample,
-                # test saving into the same folder
-                separate_folder=False,
+                separate_folder=False,  # test saving into the same folder
             )
             trans(test_data, meta_data)
 
