@@ -11,6 +11,7 @@
 """
 Utilities and types for defining networks, these depend on PyTorch.
 """
+import os
 import re
 import warnings
 from collections import OrderedDict
@@ -36,6 +37,7 @@ __all__ = [
     "eval_mode",
     "train_mode",
     "copy_model_state",
+    "save_state",
     "convert_to_torchscript",
     "meshgrid_ij",
 ]
@@ -434,6 +436,49 @@ def copy_model_state(
     if inplace and isinstance(dst, torch.nn.Module):
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
+
+
+def save_state(src: Union[torch.nn.Module, Dict], path: str, create_dir: bool = True, **kwargs):
+    """
+    Save the state dict of input source data with PyTorch `save`.
+    It can save `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
+    And automatically convert the data parallel module to regular module.
+    For example::
+
+        save_state(net, path)
+        save_state(net.state_dict(), path)
+        save_state({"net": net, "opt": opt}, path)
+        net_dp = torch.nn.DataParallel(net)
+        save_state(net_dp, path)
+
+    Refer to: https://pytorch.org/ignite/v0.4.8/generated/ignite.handlers.DiskSaver.html.
+
+    Args:
+        src: input data to save, can be `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
+        path: target file path to save the state dict.
+        create_dir: whether to create dictionary of the path if not existng, default to `True`.
+        kwargs: other args for `torch.save()` except for `obj` and `f`, for more details:
+            https://pytorch.org/docs/stable/generated/torch.save.html.
+
+    """
+
+    def _get_state(obj):
+        if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+            obj = obj.module
+        return obj.state_dict() if isinstance(obj, torch.nn.Module) else obj
+
+    checkpoint: Dict = {}
+    if isinstance(src, dict):
+        for k, v in src.items():
+            checkpoint[k] = _get_state(v)
+    else:
+        checkpoint = _get_state(src)
+
+    if create_dir:
+        path_dir = os.path.dirname(path)
+        if not os.path.exists(path_dir):
+            os.makedirs(path_dir)
+    torch.save(checkpoint, path, **kwargs)
 
 
 def convert_to_torchscript(
