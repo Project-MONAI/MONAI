@@ -54,8 +54,8 @@ class StatsHandler:
 
         trainer.run()
 
-    More details is available in the tutorial:
-    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
+    More details of example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/modules/engines/unet_training_dict.py.
 
     """
 
