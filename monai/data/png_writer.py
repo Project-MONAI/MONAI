@@ -14,11 +14,12 @@ from typing import Optional, Sequence, Union
 import numpy as np
 
 from monai.transforms.spatial.array import Resize
-from monai.utils import InterpolateMode, ensure_tuple_rep, look_up_option, optional_import
+from monai.utils import InterpolateMode, deprecated, ensure_tuple_rep, look_up_option, optional_import
 
 Image, _ = optional_import("PIL", name="Image")
 
 
+@deprecated(since="0.8", msg_suffix="use monai.data.PILWriter instead.")
 def write_png(
     data: np.ndarray,
     file_name: str,
@@ -45,6 +46,9 @@ def write_png(
 
     Raises:
         ValueError: When ``scale`` is not one of [255, 65535].
+
+    .. deprecated:: 0.8
+        Use :py:meth:`monai.data.PILWriter` instead.
 
     """
     if not isinstance(data, np.ndarray):

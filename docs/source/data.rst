@@ -153,6 +153,14 @@ WSIReader
 Image writer
 ------------
 
+resolve_writer
+~~~~~~~~~~~~~~
+.. autofunction:: resolve_writer
+
+register_writer
+~~~~~~~~~~~~~~~
+.. autofunction:: register_writer
+
 ImageWriter
 ~~~~~~~~~~~
 .. autoclass:: ImageWriter

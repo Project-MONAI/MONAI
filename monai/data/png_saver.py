@@ -18,9 +18,10 @@ from monai.config.type_definitions import PathLike
 from monai.data.png_writer import write_png
 from monai.data.utils import create_file_basename
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, look_up_option
+from monai.utils import InterpolateMode, deprecated, look_up_option
 
 
+@deprecated(since="0.8", msg_suffix="use monai.transforms.SaveImage instead.")
 class PNGSaver:
     """
     Save the data as png file, it can support single data content or a batch of data.
@@ -29,6 +30,9 @@ class PNGSaver:
     The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
     where the input image name is extracted from the provided meta data dictionary.
     If no meta data provided, use index from 0 as the filename prefix.
+
+    .. deprecated:: 0.8
+        Use :py:class:`monai.transforms.SaveImage` instead.
 
     """
 
