@@ -9,10 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 import warnings
@@ -292,7 +290,6 @@ class IntegrationWorkflows(DistTestCase):
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
         monai.config.print_config()
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     def tearDown(self):
         set_determinism(seed=None)

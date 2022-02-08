@@ -15,7 +15,6 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-import logging
 import re
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
@@ -769,7 +768,7 @@ class DataStatsd(MapTransform):
         value_range: Union[Sequence[bool], bool] = True,
         data_value: Union[Sequence[bool], bool] = False,
         additional_info: Optional[Union[Sequence[Callable], Callable]] = None,
-        logger_handler: Optional[logging.Handler] = None,
+        name: str = "DataStats",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -790,9 +789,7 @@ class DataStatsd(MapTransform):
             additional_info: user can define callable function to extract
                 additional info from input data. it also can be a sequence of string, each element
                 corresponds to a key in ``keys``.
-            logger_handler: add additional handler to output data: save to file, etc.
-                all the existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html.
-                the handler should have a logging level of at least `INFO`.
+            name: identifier of `logging.logger` to use, defaulting to "DataStats".
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -803,8 +800,7 @@ class DataStatsd(MapTransform):
         self.value_range = ensure_tuple_rep(value_range, len(self.keys))
         self.data_value = ensure_tuple_rep(data_value, len(self.keys))
         self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
-        self.logger_handler = logger_handler
-        self.printer = DataStats(logger_handler=logger_handler)
+        self.printer = DataStats(name=name)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

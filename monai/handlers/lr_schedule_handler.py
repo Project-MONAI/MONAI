@@ -36,7 +36,6 @@ class LrScheduleHandler:
         name: Optional[str] = None,
         epoch_level: bool = True,
         step_transform: Callable[[Engine], Any] = lambda engine: (),
-        logger_handler: Optional[logging.Handler] = None,
     ) -> None:
         """
         Args:
@@ -48,9 +47,6 @@ class LrScheduleHandler:
                 `True` is epoch level, `False` is iteration level.
             step_transform: a callable that is used to transform the information from `engine`
                 to expected input data of lr_scheduler.step() function if necessary.
-            logger_handler: if `print_lr` is True, add additional handler to log the learning rate: save to file, etc.
-                all the existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html.
-                the handler should have a logging level of at least `INFO`.
 
         Raises:
             TypeError: When ``step_transform`` is not ``callable``.
@@ -63,8 +59,6 @@ class LrScheduleHandler:
         if not callable(step_transform):
             raise TypeError(f"step_transform must be callable but is {type(step_transform).__name__}.")
         self.step_transform = step_transform
-        if logger_handler is not None:
-            self.logger.addHandler(logger_handler)
 
         self._name = name
 
