@@ -276,7 +276,7 @@ class SaveImage(Transform):
             `image.nii`, postfix `seg` and folder_path `output`, if `separate_folder=True`, it will be saved as:
             `output/image/image_seg.nii`, if `False`, saving as `output/image_seg.nii`. Default to `True`.
         print_log: whether to print logs when saving. Default to `True`.
-        output_format: an optional string to specify the output image writer.
+        output_format: an optional string of filename extension to specify the output image writer.
             see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
         writer: a customised image writer to save data arrays.
             if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
@@ -309,8 +309,8 @@ class SaveImage(Transform):
             data_root_dir=data_root_dir,
         )
 
-        self.output_ext = output_ext.lower()
-        self.writers = image_writer.resolve_writer(output_format or self.output_ext) if writer is None else (writer,)
+        self.output_ext = output_ext.lower() or output_format.lower()
+        self.writers = image_writer.resolve_writer(self.output_ext) if writer is None else (writer,)
 
         _output_dtype = output_dtype
         if self.output_ext == ".png" and _output_dtype not in (np.uint8, np.uint16):
@@ -348,7 +348,7 @@ class SaveImage(Transform):
         """
         Args:
             img: target data content that save into file. The image should be channel-first, shape: `[C,H,W,[D]]`.
-            meta_data: key-value pairs of meta_data corresponding to the data.
+            meta_data: key-value pairs of metadata corresponding to the data.
         """
         subject = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
@@ -370,7 +370,7 @@ class SaveImage(Transform):
                 return img
         raise RuntimeError(
             f"cannot find a suitable writer for {filename}.\n"
-            "    Please install the reader libraries, see also the installation instructions:\n"
+            "    Please install the writer libraries, see also the installation instructions:\n"
             "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
-            f"   The current registered: {self.writers}.\n"
+            f"   The current registered writers for {self.output_ext}: {self.writers}.\n"
         )

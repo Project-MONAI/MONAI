@@ -55,7 +55,7 @@ class LoadImaged(MapTransform):
 
         - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
           readers. This might introduce overheads when handling the exceptions of trying the incompatible loaders.
-          In this case, it is therefore recommended to set the most appropriate reader as
+          In this case, it is therefore recommended setting the most appropriate reader as
           the last item of the `reader` parameter.
 
     See also:
@@ -85,7 +85,7 @@ class LoadImaged(MapTransform):
                 at runtime or use the default readers. If a string of reader name provided, will construct
                 a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
                 "PILReader", "ITKReader", "NumpyReader".
-            dtype: if not None convert the loaded image data to this data type.
+            dtype: if not None, convert the loaded image data to this data type.
             meta_keys: explicitly indicate the key to store the corresponding meta data dictionary.
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
@@ -93,7 +93,7 @@ class LoadImaged(MapTransform):
             meta_key_postfix: if meta_keys is None, use `key_{postfix}` to store the metadata of the nifti image,
                 default is `meta_dict`. The meta data is a dictionary object.
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
-            overwriting: whether allow to overwrite existing meta data of same key.
+            overwriting: whether allow overwriting existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
             image_only: if True return dictionary containing just only the image volumes, otherwise return
                 dictionary containing image data array and header dict per input key.
