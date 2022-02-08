@@ -15,20 +15,33 @@ import numpy as np
 
 from monai.apps.utils import get_logger
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
-from monai.data.utils import affine_to_spacing, ensure_tuple, orientation_ras_lps, to_affine_nd
-from monai.transforms.spatial.array import SpatialResample
+from monai.data.utils import affine_to_spacing, ensure_tuple, ensure_tuple_rep, orientation_ras_lps, to_affine_nd
+from monai.transforms.spatial.array import Resize, SpatialResample
 from monai.transforms.utils_pytorch_numpy_unification import ascontiguousarray, moveaxis
-from monai.utils import GridSampleMode, GridSamplePadMode, convert_data_type, optional_import, require_pkg
+from monai.utils import (
+    GridSampleMode,
+    GridSamplePadMode,
+    InterpolateMode,
+    convert_data_type,
+    look_up_option,
+    optional_import,
+    require_pkg,
+)
 
 DEFAULT_FMT = "%(asctime)s %(levelname)s %(filename)s:%(lineno)d - %(message)s"
 logger = get_logger(module_name=__name__, fmt=DEFAULT_FMT)
 
 if TYPE_CHECKING:
-    import itk  # type: ignore
+    import itk
+    import nibabel as nib
+    from PIL import Image as PILImage
 else:
     itk, _ = optional_import("itk", allow_namespace_pkg=True)
+    nib, _ = optional_import("nibabel")
+    PILImage, _ = optional_import("PIL.Image")
 
-__all__ = ["ImageWriter", "ITKWriter", "logger"]
+
+__all__ = ["ImageWriter", "ITKWriter", "NibabelWriter", "PILWriter", "logger"]
 
 
 class ImageWriter:
@@ -111,7 +124,7 @@ class ImageWriter:
         Subclass should implement this method to return a backend-specific data representation object.
         This method is used by ``cls.write`` and the input ``data_array`` is assumed 'channel-last'.
         """
-        return convert_data_type(data_array, np.ndarray)[0]  # type: ignore
+        return convert_data_type(data_array, np.ndarray)[0]
 
     @classmethod
     def resample_if_needed(
@@ -388,8 +401,318 @@ class ITKWriter(ImageWriter):
         _affine = orientation_ras_lps(to_affine_nd(d, _affine))
         spacing = affine_to_spacing(_affine, r=d)
         _direction: np.ndarray = np.diag(1 / spacing)
-        _direction = _affine[:d, :d] @ _direction  # type: ignore
+        _direction = _affine[:d, :d] @ _direction
         itk_obj.SetSpacing(spacing.tolist())
         itk_obj.SetOrigin(_affine[:d, -1].tolist())
         itk_obj.SetDirection(itk.GetMatrixFromArray(_direction))
         return itk_obj
+
+
+@require_pkg(pkg_name="nibabel")
+class NibabelWriter(ImageWriter):
+    """
+    Write data and metadata into files on disk using Nibabel.
+
+    .. code-block:: python
+
+        import numpy as np
+        from monai.data import NibabelWriter
+
+        np_data = np.arange(48).reshape(3, 4, 4)
+        writer = NibabelWriter()
+        writer.set_data_array(np_data, channel_dim=None)
+        writer.set_metadata({"affine": np.eye(4), "original_affine": np.eye(4)})
+        writer.write("test1.nii.gz", verbose=True)
+
+    """
+
+    def __init__(self, output_dtype: DtypeLike = np.float32, **kwargs):
+        """
+        Args:
+            output_dtype: output data type.
+            kwargs: keyword arguments passed to ``ImageWriter``.
+
+        The constructor will create ``self.output_dtype`` internally.
+        ``affine`` is initialized as instance members (default ``None``),
+        user-specified ``affine`` should be set in ``set_metadata``.
+        """
+        super().__init__(output_dtype=output_dtype, affine=None, **kwargs)
+
+    def set_data_array(
+        self, data_array: NdarrayOrTensor, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs
+    ):
+        """
+        Convert ``data_array`` into 'channel-last' numpy ndarray.
+
+        Args:
+            data_array: input data array with the channel dimension specified by ``channel_dim``.
+            channel_dim: channel dimension of the data array. Defaults to 0.
+                ``None`` indicates data without any channel dimension.
+            squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
+            kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
+                currently support ``spatial_ndim``, defauting to ``3``.
+        """
+        self.data_obj = self.convert_to_channel_last(
+            data=data_array,
+            channel_dim=channel_dim,
+            squeeze_end_dims=squeeze_end_dims,
+            spatial_ndim=kwargs.pop("spatial_ndim", 3),
+        )
+
+    def set_metadata(self, meta_dict: Optional[Mapping], resample: bool = True, **options):
+        """
+        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+
+        Args:
+            meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
+                Optional keys are ``"spatial_shape"``, ``"affine"``, ``"original_affine"``.
+            resample: if ``True``, the data will be resampled to the original affine (specified in ``meta_dict``).
+            options: keyword arguments passed to ``self.resample_if_needed``,
+                currently support ``mode``, ``padding_mode``, ``align_corners``, and ``dtype``,
+                defaulting to ``bilinear``, ``border``, ``False``, and ``np.float64`` respectively.
+        """
+        original_affine, affine, spatial_shape = self.get_meta_info(meta_dict)
+        self.data_obj, self.affine = self.resample_if_needed(
+            data_array=self.data_obj,
+            affine=affine,
+            target_affine=original_affine if resample else None,
+            output_spatial_shape=spatial_shape,
+            mode=options.pop("mode", GridSampleMode.BILINEAR),
+            padding_mode=options.pop("padding_mode", GridSamplePadMode.BORDER),
+            align_corners=options.pop("align_corners", False),
+            dtype=options.pop("dtype", np.float64),
+        )
+
+    def write(self, filename: PathLike, verbose: bool = False, **obj_kwargs):
+        """
+        Create a Nibabel object from ``self.create_backend_obj(self.obj, ...)`` and call ``nib.save``.
+
+        Args:
+            filename: filename or PathLike object.
+            verbose: if ``True``, log the progress.
+            obj_kwargs: keyword arguments passed to ``self.create_backend_obj``,
+
+        See also:
+
+            - https://nipy.org/nibabel/reference/nibabel.nifti1.html#nibabel.nifti1.save
+        """
+        super().write(filename, verbose=verbose)
+        self.data_obj = self.create_backend_obj(
+            self.data_obj, affine=self.affine, dtype=self.output_dtype, **obj_kwargs  # type: ignore
+        )
+        nib.save(self.data_obj, filename)
+
+    @classmethod
+    def create_backend_obj(
+        cls, data_array: NdarrayOrTensor, affine: Optional[NdarrayOrTensor] = None, dtype: DtypeLike = None, **kwargs
+    ):
+        """
+        Create an Nifti1Image object from ``data_array``. This method assumes a 'channel-last' ``data_array``.
+
+        Args:
+            data_array: input data array.
+            affine: affine matrix of the data array.
+            dtype: output data type.
+            kwargs: keyword arguments. Current ``nib.nifti1.Nifti1Image`` will read
+                ``header``, ``extra``, ``file_map`` from this dictionary.
+
+        See also:
+
+            - https://nipy.org/nibabel/reference/nibabel.nifti1.html#nibabel.nifti1.Nifti1Image
+        """
+        data_array = super().create_backend_obj(data_array)
+        if dtype is not None:
+            data_array = data_array.astype(dtype, copy=False)
+        affine = convert_data_type(affine, np.ndarray)[0]
+        affine = to_affine_nd(r=3, affine=affine)
+        return nib.nifti1.Nifti1Image(
+            data_array,
+            affine,
+            header=kwargs.pop("header", None),
+            extra=kwargs.pop("extra", None),
+            file_map=kwargs.pop("file_map", None),
+        )
+
+
+@require_pkg(pkg_name="PIL")
+class PILWriter(ImageWriter):
+    """
+    Write image data into files on disk using pillow.
+
+    It's based on the Image module in PIL library:
+    https://pillow.readthedocs.io/en/stable/reference/Image.html
+
+    .. code-block:: python
+
+        import numpy as np
+        from monai.data import PILWriter
+
+        np_data = np.arange(48).reshape(3, 4, 4)
+        writer = PILWriter(np.uint8)
+        writer.set_data_array(np_data, channel_dim=0)
+        writer.write("test1.png", verbose=True)
+    """
+
+    def __init__(
+        self, output_dtype: DtypeLike = np.float32, channel_dim: Optional[int] = 0, scale: Optional[int] = 255, **kwargs
+    ):
+        """
+        Args:
+            output_dtype: output data type.
+            channel_dim: channel dimension of the data array. Defaults to 0.
+                ``None`` indicates data without any channel dimension.
+            scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
+                [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
+            kwargs: keyword arguments passed to ``ImageWriter``.
+        """
+        super().__init__(output_dtype=output_dtype, channel_dim=channel_dim, scale=scale, **kwargs)
+
+    def set_data_array(
+        self,
+        data_array: NdarrayOrTensor,
+        channel_dim: Optional[int] = 0,
+        squeeze_end_dims: bool = True,
+        contiguous: bool = False,
+        **kwargs,
+    ):
+        """
+        Convert ``data_array`` into 'channel-last' numpy ndarray.
+
+        Args:
+            data_array: input data array with the channel dimension specified by ``channel_dim``.
+            channel_dim: channel dimension of the data array. Defaults to 0.
+                ``None`` indicates data without any channel dimension.
+            squeeze_end_dims: if ``True``, any trailing singleton dimensions will be removed.
+            contiguous: if ``True``, the data array will be converted to a contiguous array. Default is ``False``.
+            kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
+                currently support ``spatial_ndim``, defauting to ``2``.
+        """
+        self.data_obj = self.convert_to_channel_last(
+            data=data_array,
+            channel_dim=channel_dim,
+            squeeze_end_dims=squeeze_end_dims,
+            spatial_ndim=kwargs.pop("spatial_ndim", 2),
+            contiguous=contiguous,
+        )
+
+    def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
+        """
+        Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
+
+        Args:
+            meta_dict: a metadata dictionary for affine, original affine and spatial shape information.
+                Optional key is ``"spatial_shape"``.
+            resample: if ``True``, the data will be resampled to the spatial shape specified in ``meta_dict``.
+            options: keyword arguments passed to ``self.resample_if_needed``,
+                currently support ``mode``, defaulting to ``bicubic``.
+        """
+        spatial_shape = self.get_meta_info(meta_dict)
+        self.data_obj = self.resample_and_clip(
+            data_array=self.data_obj,
+            output_spatial_shape=spatial_shape if resample else None,
+            mode=options.pop("mode", InterpolateMode.BICUBIC),
+        )
+
+    def write(self, filename: PathLike, verbose: bool = False, **kwargs):
+        """
+        Create a PIL image object from ``self.create_backend_obj(self.obj, ...)`` and call ``save``.
+
+        Args:
+            filename: filename or PathLike object.
+            verbose: if ``True``, log the progress.
+            kwargs: optional keyword arguments passed to ``self.create_backend_obj``
+                currently support ``reverse_indexing``, ``image_mode``, defaulting to ``True``, ``None`` respectively.
+
+        See also:
+
+            - https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.save
+        """
+        super().write(filename, verbose=verbose)
+        self.data_obj = self.create_backend_obj(
+            data_array=self.data_obj,
+            dtype=self.output_dtype,  # type: ignore
+            reverse_indexing=kwargs.pop("reverse_indexing", True),
+            image_mode=kwargs.pop("image_mode", None),
+            scale=self.scale,  # type: ignore
+            **kwargs,
+        )
+        self.data_obj.save(filename, **kwargs)
+
+    @classmethod
+    def get_meta_info(cls, metadata: Optional[Mapping] = None):
+        return None if not metadata else metadata.get("spatial_shape")
+
+    @classmethod
+    def resample_and_clip(
+        cls,
+        data_array: NdarrayOrTensor,
+        output_spatial_shape: Optional[Sequence[int]] = None,
+        mode: Union[InterpolateMode, str] = InterpolateMode.BICUBIC,
+    ):
+        """
+        Resample ``data_array`` to ``output_spatial_shape`` if needed.
+        Args:
+            data_array: input data array. This method assumes the 'channel-last' format.
+            output_spatial_shape: output spatial shape.
+            mode: interpolation mode, defautl is ``InterpolateMode.BICUBIC``.
+        """
+
+        data: np.ndarray = convert_data_type(data_array, np.ndarray)[0]
+        if output_spatial_shape is not None:
+            output_spatial_shape_ = ensure_tuple_rep(output_spatial_shape, 2)
+            mode = look_up_option(mode, InterpolateMode)
+            align_corners = None if mode in (InterpolateMode.NEAREST, InterpolateMode.AREA) else False
+            xform = Resize(spatial_size=output_spatial_shape_, mode=mode, align_corners=align_corners)
+            _min, _max = np.min(data), np.max(data)
+            if len(data.shape) == 3:
+                data = np.moveaxis(data, -1, 0)  # to channel first
+                data = xform(data)  # type: ignore
+                data = np.moveaxis(data, 0, -1)
+            else:  # (H, W)
+                data = np.expand_dims(data, 0)  # make a channel
+                data = xform(data)[0]  # type: ignore
+            if mode != InterpolateMode.NEAREST:
+                data = np.clip(data, _min, _max)
+        return data
+
+    @classmethod
+    def create_backend_obj(
+        cls,
+        data_array: NdarrayOrTensor,
+        dtype: DtypeLike = None,
+        scale: Optional[int] = 255,
+        reverse_indexing: bool = True,
+        **kwargs,
+    ):
+        """
+        Create a PIL object from ``data_array``.
+
+        Args:
+            data_array: input data array.
+            dtype: output data type.
+            scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
+                [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
+            reverse_indexing: if ``True``, the data array's first two dimensions will be swapped.
+            kwargs: keyword arguments. Currently ``PILImage.fromarray`` will read
+                ``image_mode`` from this dictionary, defaults to ``None``.
+
+        See also:
+
+            - https://pillow.readthedocs.io/en/stable/reference/Image.html
+        """
+        data: np.ndarray = super().create_backend_obj(data_array)
+        if scale:
+            # scale the data to be in an integer range
+            data = np.clip(data, 0.0, 1.0)  # type: ignore # png writer only can scale data in range [0, 1]
+            if scale == np.iinfo(np.uint8).max:
+                data = (scale * data).astype(np.uint8, copy=False)
+            elif scale == np.iinfo(np.uint16).max:
+                data = (scale * data).astype(np.uint16, copy=False)
+            else:
+                raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535].")
+        if dtype is not None:
+            data = data.astype(dtype, copy=False)
+        if reverse_indexing:
+            data = np.moveaxis(data, 0, 1)
+
+        return PILImage.fromarray(data, mode=kwargs.pop("image_mode", None))

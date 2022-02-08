@@ -163,6 +163,16 @@ ITKWriter
 .. autoclass:: ITKWriter
   :members:
 
+NibabelWriter
+~~~~~~~~~~~~~
+.. autoclass:: NibabelWriter
+  :members:
+
+PILWriter
+~~~~~~~~~
+.. autoclass:: PILWriter
+  :members:
+
 Nifti format handling
 ---------------------
 
