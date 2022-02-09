@@ -12,17 +12,21 @@
 import collections.abc
 import inspect
 import itertools
+import os
 import random
+import shutil
+import tempfile
 import types
 import warnings
 from ast import literal_eval
 from distutils.util import strtobool
+from pathlib import Path
 from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, PathLike
 from monai.utils.module import version_leq
 
 __all__ = [
@@ -46,6 +50,7 @@ __all__ = [
     "is_module_ver_at_least",
     "has_option",
     "sample_slices",
+    "save_obj",
 ]
 
 _seed = None
@@ -386,3 +391,51 @@ def sample_slices(data: NdarrayOrTensor, dim: int = 1, as_indices: bool = True, 
     slices[dim] = slicevals if as_indices else slice(*slicevals)  # type: ignore
 
     return data[tuple(slices)]
+
+
+def save_obj(
+    obj, path: PathLike, create_dir: bool = True, atomic: bool = True, func: Optional[Callable] = None, **kwargs
+):
+    """
+    Save an object to file with specified path.
+    Support to serialize to a temporary file first, then move to final destination,
+    so that files are guaranteed to not be damaged if exception occurs.
+
+    Args:
+        obj: input object data to save.
+        path: target file path to save the input object.
+        create_dir: whether to create dictionary of the path if not existng, default to `True`.
+        atomic: if `True`, state is serialized to a temporary file first, then move to final destination.
+            so that files are guaranteed to not be damaged if exception occurs.
+        func: the function to save file, if None, default to `torch.save`.
+        kwargs: other args for the save `func` except for the checkpoint and filename.
+            default `func` is `torch.save()`, details of other args:
+            https://pytorch.org/docs/stable/generated/torch.save.html.
+
+    """
+    path = Path(path)
+    path_dir = path.parent
+    if not path_dir.exists():
+        if create_dir:
+            path_dir.mkdir(parents=True)
+        else:
+            raise ValueError(f"the directory of specified path is not existing: {path_dir}.")
+    if path.exists():
+        # remove the existing file
+        os.remove(path)
+
+    if func is None:
+        func = torch.save
+
+    if not atomic:
+        func(obj=obj, f=path, **kwargs)
+        return
+    try:
+        # writing to a temporary directory and then using a nearly atomic rename operation
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path = Path(tempdir) / path.name
+            func(obj=obj, f=temp_path, **kwargs)
+            if temp_path.is_file():
+                shutil.move(temp_path, path)
+    except PermissionError:  # project-monai/monai issue #3613
+        pass

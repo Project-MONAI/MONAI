@@ -15,7 +15,6 @@ import math
 import pickle
 import shutil
 import sys
-import tempfile
 import threading
 import time
 import warnings
@@ -32,8 +31,16 @@ from torch.utils.data import Subset
 
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
 from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, convert_to_contiguous
-from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
-from monai.utils.misc import first
+from monai.utils import (
+    MAX_SEED,
+    deprecated_arg,
+    first,
+    get_seed,
+    look_up_option,
+    min_version,
+    optional_import,
+    save_obj,
+)
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -337,27 +344,17 @@ class PersistentDataset(Dataset):
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is None:
             return _item_transformed
-        try:
-            # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
-            #       to make the cache more robust to manual killing of parent process
-            #       which may leave partially written cache files in an incomplete state
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                temp_hash_file = Path(tmpdirname) / hashfile.name
-                torch.save(
-                    obj=_item_transformed,
-                    f=temp_hash_file,
-                    pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
-                    pickle_protocol=self.pickle_protocol,
-                )
-                if temp_hash_file.is_file() and not hashfile.is_file():
-                    # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
-                    # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
-                    try:
-                        shutil.move(temp_hash_file, hashfile)
-                    except FileExistsError:
-                        pass
-        except PermissionError:  # project-monai/monai issue #3613
-            pass
+        # use atomic saving to make the cache more robust to manual killing of parent process
+        # which may leave partially written cache files in an incomplete state
+        save_obj(
+            obj=_item_transformed,
+            path=hashfile,
+            create_dir=True,
+            atomic=True,
+            func=torch.save,
+            pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
+            pickle_protocol=self.pickle_protocol,
+        )
         return _item_transformed
 
     def _transform(self, index: int):

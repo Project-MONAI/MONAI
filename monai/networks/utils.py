@@ -12,12 +12,9 @@
 Utilities and types for defining networks, these depend on PyTorch.
 """
 import re
-import shutil
-import tempfile
 import warnings
 from collections import OrderedDict
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
 import torch
@@ -25,7 +22,7 @@ import torch.nn as nn
 
 from monai.config import PathLike
 from monai.utils.deprecate_utils import deprecated, deprecated_arg
-from monai.utils.misc import ensure_tuple, set_determinism
+from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import pytorch_after
 
 __all__ = [
@@ -486,18 +483,6 @@ def save_state(
 
     """
 
-    path = Path(path)
-    if path.exists():
-        # remove the existing file
-        shutil.rmtree(path)
-    path_dir = path.parent
-    filename = path.name
-    if not path_dir.exists():
-        if create_dir:
-            path_dir.mkdir(parents=True)
-        else:
-            raise ValueError(f"the directory of specified path is not existing: {path_dir}.")
-
     ckpt: Dict = {}
     if isinstance(src, dict):
         for k, v in src.items():
@@ -505,20 +490,7 @@ def save_state(
     else:
         ckpt = get_state_dict(src)
 
-    if func is None:
-        func = torch.save
-    if not atomic:
-        func(ckpt, path, **kwargs)
-        return
-    try:
-        # writing to a temporary directory and then using a nearly atomic rename operation
-        with tempfile.TemporaryDirectory() as tempdir:
-            temp_path = Path(tempdir) / filename
-            func(ckpt, temp_path, **kwargs)
-            if temp_path.is_file():
-                shutil.move(temp_path, path)
-    except PermissionError:  # project-monai/monai issue #3613
-        pass
+    save_obj(obj=ckpt, path=path, create_dir=create_dir, atomic=atomic, func=func, **kwargs)
 
 
 def convert_to_torchscript(
