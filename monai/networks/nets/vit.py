@@ -99,7 +99,7 @@ class ViT(nn.Module):
 
     def forward(self, x):
         x = self.patch_embedding(x)
-        if self.classification:
+        if hasattr(self, "cls_token"):
             cls_token = self.cls_token.expand(x.shape[0], -1, -1)
             x = torch.cat((cls_token, x), dim=1)
         hidden_states_out = []
@@ -107,6 +107,6 @@ class ViT(nn.Module):
             x = blk(x)
             hidden_states_out.append(x)
         x = self.norm(x)
-        if self.classification:
+        if hasattr(self, "classification_head"):
             x = self.classification_head(x[:, 0])
         return x, hidden_states_out
