@@ -448,14 +448,7 @@ def copy_model_state(
     return dst_dict, updated_keys, unchanged_keys
 
 
-def save_state(
-    src: Union[torch.nn.Module, Dict],
-    path: PathLike,
-    create_dir: bool = True,
-    atomic: bool = True,
-    func: Optional[Callable] = None,
-    **kwargs,
-):
+def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
     """
     Save the state dict of input source data with PyTorch `save`.
     It can save `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
@@ -472,13 +465,9 @@ def save_state(
 
     Args:
         src: input data to save, can be `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
-        path: target file path to save the state dict.
-        create_dir: whether to create dictionary of the path if not existng, default to `True`.
-        atomic: if `True`, state is serialized to a temporary file first, then move to final destination.
-            so that files are guaranteed to not be damaged if exception occurs.
-        func: the function to save file, if None, default to `torch.save`.
-        kwargs: other args for the save `func` except for the checkpoint and filename.
-            default `func` is `torch.save()`, details of other args:
+        path: target file path to save the input object.
+        kwargs: other args for the `save_obj` except for the `obj` and `path`.
+            default `func` is `torch.save()`, details of the args of it:
             https://pytorch.org/docs/stable/generated/torch.save.html.
 
     """
@@ -490,7 +479,7 @@ def save_state(
     else:
         ckpt = get_state_dict(src)
 
-    save_obj(obj=ckpt, path=path, create_dir=create_dir, atomic=atomic, func=func, **kwargs)
+    save_obj(obj=ckpt, path=path, **kwargs)
 
 
 def convert_to_torchscript(
