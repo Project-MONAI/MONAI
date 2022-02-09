@@ -6,11 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-## [0.8.1] - 2021-12-21
+## [0.8.1] - 2022-02-16
 ### Added
 * Support of `matshow3d` with given `channel_dim`
 * Support of spatial 2D for `ViTAutoEnc`
-* Support of `dataframe` object in `CSVDataset`
+* Support of `dataframe` object input in `CSVDataset`
+* Support of tensor backend for `Orientation`
+* Support of configurable delimiter for CSV writers
 * A base workflow API
 * `DataFunc` API for dataset-level preprocessing
 * `write_scalar` API for logging with additional `engine` parameter in `TensorBoardHandler`
@@ -24,6 +26,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `is_onehot` option in `KeepLargestConnectedComponent`
 * `channel_dim` in the image readers and support of stacking images with channels
 * Skipping workflow `run` if epoch length is 0
+* Enhanced `CacheDataset` to avoid duplicated cache items
+* `save_state` utility function
+
+### Changed
+* Optionally depend on PyTorch-Ignite v0.4.8 instead of v0.4.6
+* `monai.apps.mmars.load_from_mmar` defaults to the latest version
 
 ### Fixed
 * Issue when caching large items with `pickle`
@@ -36,13 +44,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Issue of removing temporary caching file for the persistent dataset
 * Error messages when reader backend is not available
 * Output type casting issue in `ScaleIntensityRangePercentiles`
-* Various docstring typos
+* Various docstring typos and broken URLs
+* `mode` in the evaluator engine
+* Ordering of `Orientation` and `Spacing` in `monai.apps.deepgrow.dataset`
 
 ### Removed
 * Additional deep supervision modules in `DynUnet`
 * Deprecated `reduction` argument for `ContrastiveLoss`
 * Decollate warning in `Workflow`
 * Unique label exception in `ROCAUCMetric`
+* Logger configuration logic in the event handlers
 
 ## [0.8.0] - 2021-11-25
 ### Added
