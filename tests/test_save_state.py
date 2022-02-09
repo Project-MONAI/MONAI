@@ -31,9 +31,11 @@ TEST_CASE_5 = [{"net": torch.nn.DataParallel(torch.nn.PReLU())}, ["net"], {}]
 
 TEST_CASE_6 = [torch.nn.PReLU(), ["weight"], {"pickle_protocol": 2}]
 
+TEST_CASE_7 = [torch.nn.PReLU().state_dict(), ["weight"], {}]
+
 
 class TestSaveState(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_file(self, src, expected_keys, kwargs):
         with tempfile.TemporaryDirectory() as tempdir:
             path = os.path.join(tempdir, "test_ckpt.pt")

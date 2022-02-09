@@ -36,8 +36,8 @@ __all__ = [
     "pixelshuffle",
     "eval_mode",
     "train_mode",
-    "copy_model_state",
     "get_state_dict",
+    "copy_model_state",
     "save_state",
     "convert_to_torchscript",
     "meshgrid_ij",
@@ -360,6 +360,20 @@ def train_mode(*nets: nn.Module):
             n.eval()
 
 
+def get_state_dict(obj: Union[torch.nn.Module, Mapping]):
+    """
+    Get the state dict of input object if has `state_dict`, otherwise, return object directly.
+    For data parallel model, automatically convert it to regular model first.
+
+    Args:
+        obj: input object to check and get the state_dict.
+
+    """
+    if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+        obj = obj.module
+    return obj.state_dict() if hasattr(obj, "state_dict") else obj  # type: ignore
+
+
 def copy_model_state(
     dst: Union[torch.nn.Module, Mapping],
     src: Union[torch.nn.Module, Mapping],
@@ -404,15 +418,10 @@ def copy_model_state(
             # <All keys matched successfully>
 
     Returns: an OrderedDict of the updated `dst` state, the changed, and unchanged keys.
-    """
 
-    if isinstance(src, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
-        src = src.module
-    if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
-        dst = dst.module
-    src_dict = src.state_dict() if isinstance(src, torch.nn.Module) else src
-    dst_dict = dst.state_dict() if isinstance(dst, torch.nn.Module) else dst
-    dst_dict = OrderedDict(dst_dict)
+    """
+    src_dict = get_state_dict(src)
+    dst_dict = OrderedDict(get_state_dict(dst))
 
     to_skip = {s_key for s_key in src_dict if exclude_vars and re.compile(exclude_vars).search(s_key)}
 
@@ -437,20 +446,6 @@ def copy_model_state(
     if inplace and isinstance(dst, torch.nn.Module):
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
-
-
-def get_state_dict(obj: Union[torch.nn.Module, Dict]):
-    """
-    Get the state dict of input object if has `state_dict`, otherwise, return object directly.
-    For data parallel model, automatically convert it to regular model first.
-
-    Args:
-        obj: input object to check and get the state_dict.
-
-    """
-    if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
-        obj = obj.module
-    return obj.state_dict() if hasattr(obj, "state_dict") else obj  # type: ignore
 
 
 def save_state(src: Union[torch.nn.Module, Dict], path: str, create_dir: bool = True, **kwargs):
