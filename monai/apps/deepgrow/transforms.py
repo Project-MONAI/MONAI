@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
-from typing import Callable, Dict, Optional, Sequence, Union
+from typing import Callable, Dict, Hashable, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -18,11 +18,14 @@ from monai.config import IndexSelection, KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
-from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import InterpolateMode, ensure_tuple, ensure_tuple_rep, min_version, optional_import
+from monai.transforms.utils import generate_spatial_bounding_box, is_positive
+from monai.utils import InterpolateMode, deprecated_arg, ensure_tuple, ensure_tuple_rep, min_version, optional_import
+from monai.utils.enums import PostFix
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
+
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 # Transforms to support Training for Deepgrow models
@@ -145,7 +148,7 @@ class AddInitialSeedPointd(Randomizable, Transform):
     def __call__(self, data):
         d = dict(data)
         self.randomize(data)
-        d[self.guidance] = json.dumps(self._apply(d[self.label], self.sid).astype(int).tolist())
+        d[self.guidance] = json.dumps(self._apply(d[self.label], self.sid).astype(int, copy=False).tolist())
         return d
 
 
@@ -163,13 +166,7 @@ class AddGuidanceSignald(Transform):
 
     """
 
-    def __init__(
-        self,
-        image: str = "image",
-        guidance: str = "guidance",
-        sigma: int = 2,
-        number_intensity_ch: int = 1,
-    ):
+    def __init__(self, image: str = "image", guidance: str = "guidance", sigma: int = 2, number_intensity_ch: int = 1):
         self.image = image
         self.guidance = guidance
         self.sigma = sigma
@@ -276,12 +273,7 @@ class AddRandomGuidanced(Randomizable, Transform):
 
     """
 
-    def __init__(
-        self,
-        guidance: str = "guidance",
-        discrepancy: str = "discrepancy",
-        probability: str = "probability",
-    ):
+    def __init__(self, guidance: str = "guidance", discrepancy: str = "discrepancy", probability: str = "probability"):
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability
@@ -334,7 +326,7 @@ class AddRandomGuidanced(Randomizable, Transform):
             guidance[0].append([-1] * len(neg))
             guidance[1].append(neg)
 
-        return json.dumps(np.asarray(guidance).astype(int).tolist())
+        return json.dumps(np.asarray(guidance, dtype=int).tolist())
 
     def __call__(self, data):
         d = dict(data)
@@ -382,7 +374,7 @@ class SpatialCropForegroundd(MapTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `{key}_{meta_key_postfix}` to to fetch/store the meta data according
+        meta_key_postfix: if meta_keys is None, use `{key}_{meta_key_postfix}` to fetch/store the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
@@ -398,11 +390,11 @@ class SpatialCropForegroundd(MapTransform):
         keys: KeysCollection,
         source_key: str,
         spatial_size: Union[Sequence[int], np.ndarray],
-        select_fn: Callable = lambda x: x > 0,
+        select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix="meta_dict",
+        meta_key_postfix=DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -431,8 +423,8 @@ class SpatialCropForegroundd(MapTransform):
             d[self.source_key], self.select_fn, self.channel_indices, self.margin
         )
 
-        center = list(np.mean([box_start, box_end], axis=0).astype(int))
-        current_size = list(np.subtract(box_end, box_start).astype(int))
+        center = list(np.mean([box_start, box_end], axis=0).astype(int, copy=False))
+        current_size = list(np.subtract(box_end, box_start).astype(int, copy=False))
 
         if np.all(np.less(current_size, self.spatial_size)):
             cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
@@ -476,18 +468,23 @@ class AddGuidanceFromPointsd(Transform):
         background: key that represents user background (-ve) clicks.
         axis: axis that represents slices in 3D volume. (axis to Depth)
         depth_first: if depth (slices) is positioned at first dimension.
-        dimensions: dimensions based on model used for deepgrow (2D vs 3D).
+        spatial_dims: dimensions based on model used for deepgrow (2D vs 3D).
         slice_key: key that represents applicable slice to add guidance.
         meta_keys: explicitly indicate the key of the meta data dictionary of `ref_image`.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             if None, will try to construct meta_keys by `{ref_image}_{meta_key_postfix}`.
-        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
+
+    .. deprecated:: 0.6.0
+        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+
     """
 
+    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         ref_image,
@@ -496,10 +493,11 @@ class AddGuidanceFromPointsd(Transform):
         background: str = "background",
         axis: int = 0,
         depth_first: bool = True,
-        dimensions: int = 2,
+        spatial_dims: int = 2,
         slice_key: str = "slice",
         meta_keys: Optional[str] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
+        dimensions: Optional[int] = None,
     ):
         self.ref_image = ref_image
         self.guidance = guidance
@@ -507,7 +505,7 @@ class AddGuidanceFromPointsd(Transform):
         self.background = background
         self.axis = axis
         self.depth_first = depth_first
-        self.dimensions = dimensions
+        self.dimensions = spatial_dims if dimensions is None else dimensions
         self.slice = slice_key
         self.meta_keys = meta_keys
         self.meta_key_postfix = meta_key_postfix
@@ -533,9 +531,9 @@ class AddGuidanceFromPointsd(Transform):
             guidance = [pos, neg, slice_idx]
         else:
             if len(pos_clicks):
-                pos = np.multiply(pos_clicks, factor).astype(int).tolist()
+                pos = np.multiply(pos_clicks, factor).astype(int, copy=False).tolist()
             if len(neg_clicks):
-                neg = np.multiply(neg_clicks, factor).astype(int).tolist()
+                neg = np.multiply(neg_clicks, factor).astype(int, copy=False).tolist()
             guidance = [pos, neg]
         return guidance
 
@@ -560,7 +558,7 @@ class AddGuidanceFromPointsd(Transform):
         fg_bg_clicks = []
         for key in [self.foreground, self.background]:
             clicks = d[key]
-            clicks = list(np.array(clicks).astype(int))
+            clicks = list(np.array(clicks, dtype=int))
             if self.depth_first:
                 for i in range(len(clicks)):
                     clicks[i] = list(np.roll(clicks[i], 1))
@@ -591,7 +589,7 @@ class SpatialCropGuidanced(MapTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
@@ -609,7 +607,7 @@ class SpatialCropGuidanced(MapTransform):
         spatial_size,
         margin=20,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix="meta_dict",
+        meta_key_postfix=DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -649,13 +647,17 @@ class SpatialCropGuidanced(MapTransform):
 
     def __call__(self, data):
         d: Dict = dict(data)
+        first_key: Union[Hashable, List] = self.first_key(d)
+        if first_key == []:
+            return d
+
         guidance = d[self.guidance]
-        original_spatial_shape = d[self.keys[0]].shape[1:]
+        original_spatial_shape = d[first_key].shape[1:]
         box_start, box_end = self.bounding_box(np.array(guidance[0] + guidance[1]), original_spatial_shape)
-        center = list(np.mean([box_start, box_end], axis=0).astype(int))
+        center = list(np.mean([box_start, box_end], axis=0).astype(int, copy=False))
         spatial_size = self.spatial_size
 
-        box_size = list(np.subtract(box_end, box_start).astype(int))
+        box_size = list(np.subtract(box_end, box_start).astype(int, copy=False))
         spatial_size = spatial_size[-len(box_size) :]
 
         if len(spatial_size) < len(box_size):
@@ -721,7 +723,7 @@ class ResizeGuidanced(Transform):
         guidance: str,
         ref_image: str,
         meta_keys: Optional[str] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
         self.guidance = guidance
@@ -739,8 +741,8 @@ class ResizeGuidanced(Transform):
         factor = np.divide(current_shape, cropped_shape)
 
         pos_clicks, neg_clicks = guidance[0], guidance[1]
-        pos = np.multiply(pos_clicks, factor).astype(int).tolist() if len(pos_clicks) else []
-        neg = np.multiply(neg_clicks, factor).astype(int).tolist() if len(neg_clicks) else []
+        pos = np.multiply(pos_clicks, factor).astype(int, copy=False).tolist() if len(pos_clicks) else []
+        neg = np.multiply(neg_clicks, factor).astype(int, copy=False).tolist() if len(neg_clicks) else []
 
         d[self.guidance] = [pos, neg]
         return d
@@ -778,14 +780,14 @@ class RestoreLabeld(MapTransform):
             One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
         meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_key is None, use `key_{meta_key_postfix} to to fetch the meta data according
+        meta_key_postfix: if meta_key is None, use `key_{meta_key_postfix} to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
@@ -804,7 +806,7 @@ class RestoreLabeld(MapTransform):
         mode: Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str] = InterpolateMode.NEAREST,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         meta_keys: Optional[str] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -895,7 +897,7 @@ class Fetch2DSliced(MapTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: use `key_{meta_key_postfix}` to to fetch the meta data according to the key data,
+        meta_key_postfix: use `key_{meta_key_postfix}` to fetch the meta data according to the key data,
             default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
@@ -908,7 +910,7 @@ class Fetch2DSliced(MapTransform):
         guidance="guidance",
         axis: int = 0,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)

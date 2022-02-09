@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ class TestAdaptors(unittest.TestCase):
         def foo(image, label=None, *a, **kw):
             pass
 
-        f = FunctionSignature(foo)
+        _ = FunctionSignature(foo)
 
     def test_single_in_single_out(self):
         def foo(image):

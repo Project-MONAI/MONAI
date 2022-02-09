@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,19 +42,13 @@ class TestCacheNTransDataset(unittest.TestCase):
 
             cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
             dataset_precached = CacheNTransDataset(
-                data=test_data,
-                transform=transform,
-                cache_dir=cache_dir,
-                cache_n_trans=2,
+                data=test_data, transform=transform, cache_dir=cache_dir, cache_n_trans=2
             )
             data_precached = dataset_precached[0]
             self.assertTupleEqual(data_precached["image"].shape, expected_shape)
 
             dataset_postcached = CacheNTransDataset(
-                data=test_data,
-                transform=transform,
-                cache_dir=cache_dir,
-                cache_n_trans=2,
+                data=test_data, transform=transform, cache_dir=cache_dir, cache_n_trans=2
             )
             data_postcached = dataset_postcached[0]
             self.assertTupleEqual(data_postcached["image"].shape, expected_shape)

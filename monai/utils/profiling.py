@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -56,7 +56,7 @@ def torch_profiler_time_cpu_gpu(func):
         cpu_time = torch.autograd.profiler.format_time(cpu_time)
         gpu_time = torch.autograd.profiler.format_time(gpu_time)
 
-        print("cpu time: {}, gpu time: {}".format(cpu_time, gpu_time), flush=True)
+        print(f"cpu time: {cpu_time}, gpu time: {gpu_time}", flush=True)
 
         return result
 
@@ -83,7 +83,7 @@ def torch_profiler_time_end_to_end(func):
 
         total_time = (end - start) * 1e6
         total_time_str = torch.autograd.profiler.format_time(total_time)
-        print("end to end time: {}".format(total_time_str), flush=True)
+        print(f"end to end time: {total_time_str}", flush=True)
 
         return result
 

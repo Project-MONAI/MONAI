@@ -1,0 +1,57 @@
+name: conda
+
+on:
+  schedule:
+    - cron: "0 3 * * *"  # at 03:00 UTC
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+concurrency:
+  # automatically cancel the previously triggered workflows when there's a newer version
+  group: conda-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cron-conda:
+    if: github.repository == 'Project-MONAI/MONAI'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macOS-latest, ubuntu-latest]
+        python-version: ["3.7"]
+    runs-on: ${{ matrix.os }}
+    env:
+      QUICKTEST: True
+    steps:
+    - if: runner.os == 'windows'
+      name: Config pagefile (Windows only)
+      uses: al-cheb/configure-pagefile-action@v1.2
+      with:
+        minimum-size: 8
+        maximum-size: 16
+        disk-root: "D:"
+    - uses: actions/checkout@v2
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+    - name: Install env (CPU ${{ runner.os }})
+      shell: bash -l {0}
+      run: |
+        conda info
+        conda list
+        conda env create --file environment-dev.yml
+    - if: runner.os == 'windows'
+      name: Windows only install
+      shell: bash -l {0}
+      run: |
+        conda activate monai
+        # this `cpuonly` and -c conda-forge is needed to reduce the paging file size on a github instance
+        conda install pytorch torchvision torchaudio cpuonly -c pytorch -c conda-forge
+        conda deactivate
+    - name: Test env(CPU ${{ runner.os }})
+      shell: bash -l {0}
+      run: |
+        conda activate monai
+        $(pwd)/runtests.sh --build --unittests
+        conda deactivate

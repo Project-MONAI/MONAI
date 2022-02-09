@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,18 +19,19 @@ from parameterized import parameterized
 from monai.apps.pathology.metrics import LesionFROC
 from monai.utils import optional_import
 
-_, has_cucim = optional_import("cucim")
+_cucim, has_cucim = optional_import("cucim")
+has_cucim = has_cucim and hasattr(_cucim, "CuImage")
 _, has_skimage = optional_import("skimage.measure")
 _, has_sp = optional_import("scipy.ndimage")
-PILImage, has_pil = optional_import("PIL.Image")
+imwrite, has_tif = optional_import("tifffile", name="imwrite")
 
 
 def save_as_tif(filename, array):
     array = array[::-1, ...]  # Upside-down
-    img = PILImage.fromarray(array)
     if not filename.endswith(".tif"):
         filename += ".tif"
-    img.save(os.path.join("tests", "testing_data", filename))
+    file_path = os.path.join("tests", "testing_data", filename)
+    imwrite(file_path, array, compress="jpeg", tile=(16, 16))
 
 
 def around(val, interval=3):
@@ -301,7 +302,7 @@ class TestEvaluateTumorFROC(unittest.TestCase):
     @skipUnless(has_cucim, "Requires cucim")
     @skipUnless(has_skimage, "Requires skimage")
     @skipUnless(has_sp, "Requires scipy")
-    @skipUnless(has_pil, "Requires PIL")
+    @skipUnless(has_tif, "Requires tifffile")
     def setUp(self):
         prepare_test_data()
 

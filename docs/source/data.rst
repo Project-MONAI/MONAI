@@ -21,6 +21,18 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
+`DatasetFunc`
+~~~~~~~~~~~~~
+.. autoclass:: DatasetFunc
+  :members:
+  :special-members: __next__
+
+`ShuffleBuffer`
+~~~~~~~~~~~~~~~
+.. autoclass:: ShuffleBuffer
+  :members:
+  :special-members: __next__
+
 `CSVIterableDataset`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: CSVIterableDataset
@@ -138,6 +150,29 @@ WSIReader
 .. autoclass:: WSIReader
   :members:
 
+Image writer
+------------
+
+ImageWriter
+~~~~~~~~~~~
+.. autoclass:: ImageWriter
+  :members:
+
+ITKWriter
+~~~~~~~~~
+.. autoclass:: ITKWriter
+  :members:
+
+NibabelWriter
+~~~~~~~~~~~~~
+.. autoclass:: NibabelWriter
+  :members:
+
+PILWriter
+~~~~~~~~~
+.. autoclass:: PILWriter
+  :members:
+
 Nifti format handling
 ---------------------
 
@@ -163,6 +198,12 @@ Writing PNG
 Synthetic
 ---------
 .. automodule:: monai.data.synthetic
+  :members:
+
+
+Ouput folder layout
+-------------------
+.. automodule:: monai.data.folder_layout
   :members:
 
 
@@ -194,6 +235,9 @@ DatasetSummary
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.data.load_decathlon_datalist
+.. autofunction:: monai.data.load_decathlon_properties
+.. autofunction:: monai.data.check_missing_files
+.. autofunction:: monai.data.create_cross_validation_datalist
 
 
 DataLoader
@@ -205,6 +249,9 @@ ThreadBuffer
 ~~~~~~~~~~~~
 .. autoclass:: monai.data.ThreadBuffer
 
+ThreadDataLoader
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.ThreadDataLoader
 
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~

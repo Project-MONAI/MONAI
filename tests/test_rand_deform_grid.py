@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,10 +12,10 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import RandDeformGrid
+from tests.utils import assert_allclose
 
 TEST_CASES = [
     [
@@ -129,11 +129,7 @@ class TestRandDeformGrid(unittest.TestCase):
         g = RandDeformGrid(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
-        self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
-        if isinstance(result, torch.Tensor):
-            np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
-        else:
-            np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        assert_allclose(result, expected_val, type_test=False, rtol=1e-3, atol=1e-3)
 
 
 if __name__ == "__main__":

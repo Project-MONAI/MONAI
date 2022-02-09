@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,10 +23,7 @@ class TestHandlerEarlyStop(unittest.TestCase):
 
         trainer = Engine(_train_func)
         EarlyStopHandler(
-            patience=5,
-            score_function=lambda x: x.state.output["loss"],
-            trainer=trainer,
-            epoch_level=False,
+            patience=5, score_function=lambda x: x.state.output["loss"], trainer=trainer, epoch_level=False
         ).attach(trainer)
 
         trainer.run(range(4), max_epochs=2)
