@@ -61,7 +61,7 @@ jobs:
           [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT110+CUDA102" ]
         then
-        PYVER=3.6 PYSFX=3 DISTUTILS=python3-distutils && \
+        PYVER=3.7 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
           curl \
           pkg-config \
