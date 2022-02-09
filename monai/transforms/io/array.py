@@ -297,7 +297,7 @@ class SaveImage(Transform):
         data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
-        output_format: Optional[str] = None,
+        output_format: str = "",
         writer: Optional[image_writer.ImageWriter] = None,
     ) -> None:
         self.folder_layout = FolderLayout(
@@ -311,6 +311,7 @@ class SaveImage(Transform):
 
         self.output_ext = output_ext.lower() or output_format.lower()
         self.writers = image_writer.resolve_writer(self.output_ext) if writer is None else (writer,)
+        self.writer_obj = None
 
         _output_dtype = output_dtype
         if self.output_ext == ".png" and _output_dtype not in (np.uint8, np.uint16):
@@ -360,6 +361,7 @@ class SaveImage(Transform):
                 writer_obj.set_data_array(data_array=img, **self.data_kwargs)
                 writer_obj.set_metadata(meta_dict=meta_data, **self.meta_kwargs)
                 writer_obj.write(filename, **self.write_kwargs)
+                self.writer_obj = writer_obj
             except Exception as e:
                 logging.getLogger(self.__class__.__name__).exception(e, exc_info=True)
                 logging.getLogger(self.__class__.__name__).info(

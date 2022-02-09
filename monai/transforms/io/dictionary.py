@@ -228,7 +228,7 @@ class SaveImaged(MapTransform):
         data_root_dir: str = "",
         separate_folder: bool = True,
         print_log: bool = True,
-        output_format: Optional[str] = None,
+        output_format: str = "",
         writer: Optional[image_writer.ImageWriter] = None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

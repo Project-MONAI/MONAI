@@ -360,7 +360,9 @@ class ITKWriter(ImageWriter):
         """
         super().__init__(output_dtype=output_dtype, affine=None, channel_dim=0, **kwargs)
 
-    def set_data_array(self, data_array, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs):
+    def set_data_array(
+        self, data_array: NdarrayOrTensor, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs
+    ):
         """
         Convert ``data_array`` into 'channel-last' numpy ndarray.
 
@@ -372,6 +374,7 @@ class ITKWriter(ImageWriter):
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
                 currently support ``spatial_ndim`` and ``contiguous``, defauting to ``3`` and ``False`` respectively.
         """
+        _r = len(data_array.shape)
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
             channel_dim=channel_dim,
@@ -379,7 +382,7 @@ class ITKWriter(ImageWriter):
             spatial_ndim=kwargs.pop("spatial_ndim", 3),
             contiguous=kwargs.pop("contiguous", True),
         )
-        self.channel_dim = channel_dim
+        self.channel_dim = channel_dim if len(self.data_obj.shape) >= _r else None  # channel dim is at the end
 
     def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
         """
