@@ -126,7 +126,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         if target.shape != pred.shape:
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
 
-        t2, p2, tp = target ** 2, pred ** 2, target * pred
+        t2, p2, tp = target**2, pred**2, target * pred
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
         # sum over kernel
         t_sum = separable_filtering(target, kernels=[kernel.to(pred)] * self.ndim)
@@ -217,7 +217,7 @@ class GlobalMutualInformationLoss(_Loss):
         self.num_bins = num_bins
         self.kernel_type = kernel_type
         if self.kernel_type == "gaussian":
-            self.preterm = 1 / (2 * sigma ** 2)
+            self.preterm = 1 / (2 * sigma**2)
             self.bin_centers = bin_centers[None, None, ...]
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
@@ -280,7 +280,7 @@ class GlobalMutualInformationLoss(_Loss):
             weight = weight + (sample_bin_matrix < 0.5) + (sample_bin_matrix == 0.5) * 0.5
         elif order == 3:
             weight = (
-                weight + (4 - 6 * sample_bin_matrix ** 2 + 3 * sample_bin_matrix ** 3) * (sample_bin_matrix < 1) / 6
+                weight + (4 - 6 * sample_bin_matrix**2 + 3 * sample_bin_matrix**3) * (sample_bin_matrix < 1) / 6
             )
             weight = weight + (2 - sample_bin_matrix) ** 3 * (sample_bin_matrix >= 1) * (sample_bin_matrix < 2) / 6
         else:

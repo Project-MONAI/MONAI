@@ -142,7 +142,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         field, *_ = convert_to_dst_type(field, img)
 
         img = (img - img_min) / max(img_rng, 1e-10)  # rescale to unit values
-        img = img ** field  # contrast is changed by raising image data to a power, in this case the field
+        img = img**field  # contrast is changed by raising image data to a power, in this case the field
 
         out = (img * img_rng) + img_min  # rescale back to the original image value range
 

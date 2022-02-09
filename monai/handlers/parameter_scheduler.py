@@ -134,7 +134,7 @@ class ParamSchedulerHandler:
         Returns:
             float: new parameter value
         """
-        return initial_value * gamma ** current_step
+        return initial_value * gamma**current_step
 
     @staticmethod
     def _step(initial_value: float, gamma: float, step_size: int, current_step: int) -> float:
