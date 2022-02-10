@@ -30,6 +30,7 @@ from monai.utils import (
 )
 
 DEFAULT_FMT = "%(asctime)s %(levelname)s %(filename)s:%(lineno)d - %(message)s"
+EXT_WILDCARD = "*"
 logger = get_logger(module_name=__name__, fmt=DEFAULT_FMT)
 
 if TYPE_CHECKING:
@@ -98,13 +99,15 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
     if fmt.startswith("."):
         fmt = fmt[1:]
     avail_writers = []
-    default_writers = SUPPORTED_WRITERS.get("*", ())
+    default_writers = SUPPORTED_WRITERS.get(EXT_WILDCARD, ())
     for _writer in look_up_option(fmt, SUPPORTED_WRITERS, default=default_writers):
         try:
             _writer()  # this triggers `monai.utils.module.require_pkg` to check the system availability
             avail_writers.append(_writer)
         except OptionalImportError:
-            pass
+            continue
+        except Exception:  # other writer init errors indicating it exists
+            avail_writers.append(_writer)
     if not avail_writers and error_if_not_found:
         raise OptionalImportError(f"No ImageWriter backend found for {fmt}.")
     writer_tuple = ensure_tuple(avail_writers)
@@ -406,7 +409,7 @@ class ITKWriter(ImageWriter):
             data_array=self.data_obj,
             affine=affine,
             target_affine=original_affine if resample else None,
-            output_spatial_shape=spatial_shape,
+            output_spatial_shape=spatial_shape if resample else None,
             mode=options.pop("mode", GridSampleMode.BILINEAR),
             padding_mode=options.pop("padding_mode", GridSamplePadMode.BORDER),
             align_corners=options.pop("align_corners", False),
@@ -547,7 +550,7 @@ class NibabelWriter(ImageWriter):
             data_array=self.data_obj,
             affine=affine,
             target_affine=original_affine if resample else None,
-            output_spatial_shape=spatial_shape,
+            output_spatial_shape=spatial_shape if resample else None,
             mode=options.pop("mode", GridSampleMode.BILINEAR),
             padding_mode=options.pop("padding_mode", GridSamplePadMode.BORDER),
             align_corners=options.pop("align_corners", False),
@@ -798,4 +801,4 @@ def init():
     for ext in ("nii.gz", "nii"):
         register_writer(ext, NibabelWriter, ITKWriter)
     register_writer("nrrd", ITKWriter, NibabelWriter)
-    register_writer("*", ITKWriter, NibabelWriter, ITKWriter)
+    register_writer(EXT_WILDCARD, ITKWriter, NibabelWriter, ITKWriter)
