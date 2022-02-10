@@ -2074,7 +2074,7 @@ class IntensityRemap(RandomizableTransform):
     `Intensity augmentation for domain transfer of whole breast segmentation
     in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_.
 
-    Note: for large images the transform may be too slow to apply on the fly. 
+    Note: for large images the transform may be too slow to apply on the fly.
 
     Args:
         kernel_size: window size for averaging operation for the remapping
@@ -2140,7 +2140,7 @@ class RandIntensityRemap(RandomizableTransform):
     in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_.
 
     Note: for large images the transform may be too slow to apply on the fly.
-    
+
     Args:
         prob: probability of applying the transform.
         kernel_size: window size for averaging operation for the remapping
