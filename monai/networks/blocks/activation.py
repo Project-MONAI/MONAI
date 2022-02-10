@@ -19,6 +19,7 @@ if optional_import("torch.nn.functional", name="mish")[1]:
     def monai_mish(x, inplace: bool = False):
         return torch.nn.functional.mish(x, inplace=inplace)
 
+
 else:
 
     def monai_mish(x, inplace: bool = False):
@@ -29,6 +30,7 @@ if optional_import("torch.nn.functional", name="silu")[1]:
 
     def monai_swish(x, inplace: bool = False):
         return torch.nn.functional.silu(x, inplace=inplace)
+
 
 else:
 

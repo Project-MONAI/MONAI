@@ -16,7 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from abc import abstractmethod
 from collections.abc import Iterable
 from functools import partial
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -75,6 +75,8 @@ __all__ = [
     "RandCoarseDropout",
     "RandCoarseShuffle",
     "HistogramNormalize",
+    "IntensityRemap",
+    "RandIntensityRemap",
 ]
 
 
@@ -182,9 +184,9 @@ class RandRicianNoise(RandomizableTransform):
         if isinstance(img, torch.Tensor):
             n1 = torch.tensor(self._noise1, device=img.device)
             n2 = torch.tensor(self._noise2, device=img.device)
-            return torch.sqrt((img + n1) ** 2 + n2**2)
+            return torch.sqrt((img + n1) ** 2 + n2 ** 2)
 
-        return np.sqrt((img + self._noise1) ** 2 + self._noise2**2)
+        return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -2053,3 +2055,123 @@ class HistogramNormalize(Transform):
         out, *_ = convert_to_dst_type(src=ret, dst=img, dtype=self.dtype or img.dtype)
 
         return out
+
+
+class IntensityRemap(RandomizableTransform):
+    """
+    Transform for intensity remapping of images. The intensity at each
+    pixel is replaced by a new values coming from an intensity remappping
+    curve.
+
+    The remapping curve is created by uniformly sampling values from the
+    possible intensities for the input image and then adding a linear
+    component. The curve is the rescaled to the input image intensity range.
+
+    Intended to be used as a means to data augmentation via:
+    :py:class:`monai.transforms.RandIntensityRemap`.
+
+    Implementation is described in the work:
+    `Intensity augmentation for domain transfer of whole breast segmentation
+    in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_.
+
+    Note: for large images the transform may be too slow to apply on the fly. 
+
+    Args:
+        kernel_size: window size for averaging operation for the remapping
+            curve.
+        slope: slope of the linear component. Easiest to leave default value
+            and tune the kernel_size parameter instead.
+        return_map: set to True for the transform to return a dictionary version
+            of the lookup table used in the intensity remapping. The keys
+            correspond to the old intensities, and the values are the new
+            values.
+    """
+
+    def __init__(self, kernel_size: int = 30, slope: float = 0.7, return_map: bool = False):
+
+        super().__init__()
+
+        self.kernel_size = kernel_size
+        self.slope = slope
+        self.return_map = return_map
+
+    def __call__(self, img: torch.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, Mapping]]:
+        """
+        Args:
+            img: image to remap.
+        """
+
+        img = img.clone()
+        # sample noise
+        vals_to_sample = torch.unique(img).tolist()
+        noise = torch.from_numpy(self.R.choice(vals_to_sample, len(vals_to_sample) - 1 + self.kernel_size))
+        # smooth
+        noise = torch.nn.AvgPool1d(self.kernel_size, stride=1)(noise.unsqueeze(0)).squeeze()
+        # add linear component
+        grid = torch.arange(len(noise)) / len(noise)
+        noise += self.slope * grid
+        # rescale
+        noise = (noise - noise.min()) / (noise.max() - noise.min()) * img.max() + img.min()
+
+        # intensity remapping function
+        map = dict(zip(vals_to_sample, noise.tolist()))
+
+        for key in map:
+            img[img == key] = map[key]
+
+        if self.return_map:
+            return img, map
+        else:
+            return img
+
+
+class RandIntensityRemap(RandomizableTransform):
+    """
+    Transform for intensity remapping of images. The intensity at each
+    pixel is replaced by a new values coming from an intensity remappping
+    curve.
+
+    The remapping curve is created by uniformly sampling values from the
+    possible intensities for the input image and then adding a linear
+    component. The curve is the rescaled to the input image intensity range.
+
+    Implementation is described in the work:
+    `Intensity augmentation for domain transfer of whole breast segmentation
+    in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_.
+
+    Note: for large images the transform may be too slow to apply on the fly.
+    
+    Args:
+        prob: probability of applying the transform.
+        kernel_size: window size for averaging operation for the remapping
+            curve.
+        slope: slope of the linear component. Easiest to leave default value
+            and tune the kernel_size parameter instead.
+        channel_wise: set to True to treat each channel independently.
+    """
+
+    def __init__(self, prob: float = 0.1, kernel_size: int = 30, slope: float = 0.7, channel_wise: bool = True):
+
+        RandomizableTransform.__init__(self, prob=prob)
+        self.kernel_size = kernel_size
+        self.slope = slope
+        self.channel_wise = True
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            img: image to remap.
+        """
+        super().randomize(None)
+        if self._do_transform:
+            if self.channel_wise:
+                img = torch.stack(
+                    [
+                        IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img[i])
+                        for i in range(len(img))
+                    ]
+                )
+            else:
+                img = IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img)
+
+        return img

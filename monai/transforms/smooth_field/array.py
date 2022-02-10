@@ -232,7 +232,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         # everything below here is to be computed using the destination type (numpy, tensor, etc.)
 
         img = (img - img_min) / (img_rng + 1e-10)  # rescale to unit values
-        img = img**rfield  # contrast is changed by raising image data to a power, in this case the field
+        img = img ** rfield  # contrast is changed by raising image data to a power, in this case the field
 
         out = (img * img_rng) + img_min  # rescale back to the original image value range
 

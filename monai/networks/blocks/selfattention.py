@@ -46,7 +46,7 @@ class SABlock(nn.Module):
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
         self.head_dim = hidden_size // num_heads
-        self.scale = self.head_dim**-0.5
+        self.scale = self.head_dim ** -0.5
 
     def forward(self, x):
         q, k, v = einops.rearrange(self.qkv(x), "b h (qkv l d) -> qkv b l h d", qkv=3, l=self.num_heads)
