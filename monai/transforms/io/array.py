@@ -16,6 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import inspect
 import logging
 import sys
+import traceback
 import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union
@@ -184,7 +185,7 @@ class LoadImage(Transform):
 
         """
         filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects
-        img = None
+        img, err = None, []
         if reader is not None:
             img = reader.read(filename)  # runtime specified reader
         else:
@@ -197,20 +198,24 @@ class LoadImage(Transform):
                     try:
                         img = reader.read(filename)
                     except Exception as e:
-                        logging.getLogger(self.__class__.__name__).debug(
-                            f"{reader.__class__.__name__}: unable to load {filename}.\n" f"Error: {e}"
+                        err.append(traceback.format_exc())
+                        logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
+                        logging.getLogger(self.__class__.__name__).info(
+                            f"{reader.__class__.__name__}: unable to load {filename}.\n"
                         )
                     else:
+                        err = []
                         break
 
         if img is None or reader is None:
             if isinstance(filename, tuple) and len(filename) == 1:
                 filename = filename[0]
+            msg = "\n".join([f"{e}" for e in err])
             raise RuntimeError(
-                f"cannot find a suitable reader for file: {filename}.\n"
+                f"{self.__class__.__name__} cannot find a suitable reader for file: {filename}.\n"
                 "    Please install the reader libraries, see also the installation instructions:\n"
                 "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
-                f"   The current registered: {self.readers}.\n"
+                f"   The current registered: {self.readers}.\n{msg}"
             )
 
         img_array, meta_data = reader.get_data(img)
@@ -280,6 +285,8 @@ class SaveImage(Transform):
             see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
         writer: a customised image writer to save data arrays.
             if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
+        channel_dim: the index of the channel dimension. Default to `0`.
+            `None` to indicate no channel dimension.
     """
 
     def __init__(
@@ -299,6 +306,7 @@ class SaveImage(Transform):
         print_log: bool = True,
         output_format: str = "",
         writer: Optional[image_writer.ImageWriter] = None,
+        channel_dim: Optional[int] = 0,
     ) -> None:
         self.folder_layout = FolderLayout(
             output_dir=output_dir,
@@ -319,7 +327,7 @@ class SaveImage(Transform):
         if self.output_ext == ".dcm" and _output_dtype not in (np.uint8, np.uint16):
             _output_dtype = np.uint8
         self.init_kwargs = {"output_dtype": _output_dtype, "scale": scale}
-        self.data_kwargs = {"squeeze_end_dims": squeeze_end_dims, "channel_dim": 0}
+        self.data_kwargs = {"squeeze_end_dims": squeeze_end_dims, "channel_dim": channel_dim}
         self.meta_kwargs = {"resample": resample, "mode": mode, "padding_mode": padding_mode, "dtype": dtype}
         self.write_kwargs = {"verbose": print_log}
         self._data_index = 0
@@ -354,7 +362,10 @@ class SaveImage(Transform):
         subject = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
         filename = self.folder_layout.filename(subject=f"{subject}", idx=patch_index)
+        if meta_data and len(ensure_tuple(meta_data.get("spatial_shape", ()))) == len(img.shape):
+            self.data_kwargs["channel_dim"] = None
 
+        err = []
         for writer_cls in self.writers:
             try:
                 writer_obj = writer_cls(**self.init_kwargs)
@@ -363,16 +374,18 @@ class SaveImage(Transform):
                 writer_obj.write(filename, **self.write_kwargs)
                 self.writer_obj = writer_obj
             except Exception as e:
-                logging.getLogger(self.__class__.__name__).exception(e, exc_info=True)
+                err.append(traceback.format_exc())
+                logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
                 logging.getLogger(self.__class__.__name__).info(
-                    f"{writer_cls.__class__.__name__}: unable to write {filename}."
+                    f"{writer_cls.__class__.__name__}: unable to write {filename}.\n"
                 )
             else:
                 self._data_index += 1
                 return img
+        msg = "\n".join([f"{e}" for e in err])
         raise RuntimeError(
-            f"cannot find a suitable writer for {filename}.\n"
+            f"{self.__class__.__name__} cannot find a suitable writer for {filename}.\n"
             "    Please install the writer libraries, see also the installation instructions:\n"
             "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
-            f"   The current registered writers for {self.output_ext}: {self.writers}.\n"
+            f"   The current registered writers for {self.output_ext}: {self.writers}.\n{msg}"
         )
