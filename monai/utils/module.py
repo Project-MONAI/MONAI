@@ -421,9 +421,12 @@ def version_leq(lhs: str, rhs: str):
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    ver, has_ver = optional_import("pkg_resources", name="parse_version")
+    pkging, has_ver = optional_import("pkg_resources", name="packaging")
     if has_ver:
-        return ver(lhs) <= ver(rhs)
+        try:
+            return pkging.version.Version(lhs) <= pkging.version.Version(rhs)
+        except pkging.version.InvalidVersion:
+            return True
 
     def _try_cast(val: str):
         val = val.strip()
