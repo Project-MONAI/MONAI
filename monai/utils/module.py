@@ -426,7 +426,7 @@ def version_leq(lhs: str, rhs: str):
         try:
             return pkging.version.Version(lhs) <= pkging.version.Version(rhs)
         except pkging.version.InvalidVersion:
-            return False
+            return True
 
     def _try_cast(val: str):
         val = val.strip()
