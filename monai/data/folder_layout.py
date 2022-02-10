@@ -29,7 +29,7 @@ class FolderLayout:
         layout = FolderLayout(
             output_dir="/test_run_1/",
             postfix="seg",
-            extension=".nii",
+            extension="nii",
             makedirs=False)
         layout.filename(subject="Sub-A", idx="00", modality="T1")
         # return value: "/test_run_1/Sub-A_seg_00_modality-T1.nii"
@@ -95,5 +95,6 @@ class FolderLayout:
         for k, v in kwargs.items():
             full_name += f"_{k}-{v}"
         if self.ext is not None:
-            full_name += f"{self.ext}"
+            ext = f"{self.ext}"
+            full_name += f".{ext}" if ext and not ext.startswith(".") else f"{ext}"
         return full_name

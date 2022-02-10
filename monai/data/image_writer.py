@@ -56,7 +56,7 @@ __all__ = [
 SUPPORTED_WRITERS: Dict = {}
 
 
-def register_writer(ext_name, *im_writer):
+def register_writer(ext_name, *im_writers):
     """
     Register ``ImageWriter``, so that writing a file with filename extension ``ext_name``
     could be resolved to a tuple of potentially appropriate ``ImageWriter``.
@@ -64,18 +64,20 @@ def register_writer(ext_name, *im_writer):
 
     .. code-block:: python
 
-        from monai.data import image_writer
+        from monai.data import register_writer
         # `MyWriter` must implement `ImageWriter` interface
-        image_writer.register_writer(".nii", MyWriter)
+        register_writer("nii", MyWriter)
 
     Args:
         ext_name: the filename extension of the image.
             As an indexing key, it will be converted to a lower case string.
-        im_writer: one or multiple ImageWriter classes with high priority ones first.
+        im_writers: one or multiple ImageWriter classes with high priority ones first.
     """
     fmt = f"{ext_name}".lower()
+    if fmt.startswith("."):
+        fmt = fmt[1:]
     existing = look_up_option(fmt, SUPPORTED_WRITERS, default=())
-    all_writers = im_writer + existing
+    all_writers = im_writers + existing
     SUPPORTED_WRITERS[fmt] = all_writers
 
 
@@ -93,8 +95,11 @@ def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
     if not SUPPORTED_WRITERS:
         init()
     fmt = f"{ext_name}".lower()
+    if fmt.startswith("."):
+        fmt = fmt[1:]
     avail_writers = []
-    for _writer in look_up_option(fmt, SUPPORTED_WRITERS, default=SUPPORTED_WRITERS["*"]):
+    default_writers = SUPPORTED_WRITERS.get("*", ())
+    for _writer in look_up_option(fmt, SUPPORTED_WRITERS, default=default_writers):
         try:
             _writer()  # this triggers `monai.utils.module.require_pkg` to check the system availability
             avail_writers.append(_writer)
@@ -788,9 +793,9 @@ def init():
     """
     Initialize the image writer modules according to the filename extension.
     """
-    for ext in (".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif"):
+    for ext in ("png", "jpg", "jpeg", "bmp", "tiff", "tif"):
         register_writer(ext, PILWriter)  # TODO: test 16-bit
-    for ext in (".nii.gz", ".nii"):
+    for ext in ("nii.gz", "nii"):
         register_writer(ext, NibabelWriter, ITKWriter)
-    register_writer(".nrrd", ITKWriter, NibabelWriter)
-    register_writer("*", ITKWriter, NibabelWriter)
+    register_writer("nrrd", ITKWriter, NibabelWriter)
+    register_writer("*", ITKWriter, NibabelWriter, ITKWriter)

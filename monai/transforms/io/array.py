@@ -326,7 +326,7 @@ class SaveImage(Transform):
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
         """
-        Set the options for the underlying writer by updating `kwargs` dictionaries.
+        Set the options for the underlying writer by updating the `self.*_kwargs` dictionaries.
 
         The arguments correspond to the following usage:
 
