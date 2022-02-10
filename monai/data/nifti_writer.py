@@ -19,12 +19,13 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.transforms.utils_pytorch_numpy_unification import allclose
-from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
+from monai.utils import GridSampleMode, GridSamplePadMode, deprecated, optional_import
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
 
+@deprecated(since="0.8", msg_suffix="use monai.data.NibabelWriter instead.")
 def write_nifti(
     data: NdarrayOrTensor,
     file_name: str,
@@ -98,6 +99,10 @@ def write_nifti(
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
+
+    .. deprecated:: 0.8
+        Use :py:meth:`monai.data.NibabelWriter` instead.
+
     """
     data, *_ = convert_data_type(data, np.ndarray)
     affine, *_ = convert_data_type(affine, np.ndarray)
