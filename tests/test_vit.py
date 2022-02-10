@@ -134,8 +134,6 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 dropout_rate=0.3,
             )
 
-
-class TestPatchEmbeddingBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_Vit)
     @SkipIfBeforePyTorchVersion((1, 9))
     def test_script(self, input_param, input_shape, _):
