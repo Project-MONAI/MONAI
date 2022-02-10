@@ -273,7 +273,7 @@ def pixelshuffle(
     dim, factor = spatial_dims, scale_factor
     input_size = list(x.size())
     batch_size, channels = input_size[:2]
-    scale_divisor = factor ** dim
+    scale_divisor = factor**dim
 
     if channels % scale_divisor != 0:
         raise ValueError(
