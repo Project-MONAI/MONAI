@@ -25,6 +25,8 @@ class ViT(nn.Module):
     """
     Vision Transformer (ViT), based on: "Dosovitskiy et al.,
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
+
+    ViT supports Torchscript but only works for Pytorch after 1.8.
     """
 
     def __init__(

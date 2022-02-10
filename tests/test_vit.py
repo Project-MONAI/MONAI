@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vit import ViT
-from tests.utils import test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 TEST_CASE_Vit = []
 for dropout_rate in [0.6]:
@@ -134,6 +134,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 dropout_rate=0.3,
             )
 
+    @SkipIfBeforePyTorchVersion((1, 9))
     @parameterized.expand(TEST_CASE_Vit)
     def test_script(self, input_param, input_shape, _):
         net = ViT(**(input_param))
