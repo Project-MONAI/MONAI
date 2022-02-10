@@ -111,7 +111,7 @@ function print_usage {
 
 function check_import {
     echo "Python: ${PY_EXE}"
-    ${cmdPrefix}${PY_EXE} -W error -c "import monai"
+    ${cmdPrefix}${PY_EXE} -W error -W ignore::DeprecationWarning -c "import monai"
 }
 
 function print_version {
