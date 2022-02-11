@@ -148,7 +148,7 @@ class ConfigComponent:
     def get_updated_config(self, deps: dict):
         """
         If all the dependencies are ready in `deps`, update the config content with them and return new config.
-        It can be used for lazy instantiation.
+        It can be used for lazy instantiation, the returned config has no dependencies, can be built immediately.
 
         Args:
             deps: all the dependent components with ids.
@@ -198,7 +198,7 @@ class ConfigComponent:
         """
         config = self.config if config is None else config
         if self._check_dependency(config=config):
-            warnings.warn("config content has other dependencies or executable string, skip `build`.")
+            warnings.warn("config content still has other dependencies or executable strings to run, skip `build`.")
             return config
 
         if (

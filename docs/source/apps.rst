@@ -35,6 +35,9 @@ Model Package
 .. autoclass:: ConfigComponent
     :members:
 
+.. autoclass:: ComponentScanner
+    :members:
+
 
 `Utilities`
 -----------
