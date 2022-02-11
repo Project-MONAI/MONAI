@@ -10,9 +10,9 @@
 # limitations under the License.
 
 import inspect
+import sys
 import warnings
 from importlib import import_module
-from pkgutil import walk_packages
 from typing import Any, Dict, List, Optional, Sequence
 
 from monai.apps.mmars.utils import search_configs_with_deps, update_configs_with_deps
@@ -23,47 +23,33 @@ __all__ = ["ComponentScanner", "ConfigComponent"]
 
 class ComponentScanner:
     """
-    Scan all the available classes and functions in the specified packages and modules.
+    Scan all the available classes and functions in the MONAI package.
     Map the all the names and the module names in a table.
 
     Args:
-        pkgs: the expected packages to scan modules and parse component names in the config.
-        modules: the expected modules in the packages to scan for all the components.
-            for example, to parser "LoadImage" in config, `pkgs` can be ["monai"], `modules` can be ["transforms"].
         excludes: if any string of the `excludes` exists in the full module name, don't import this module.
 
     """
 
-    def __init__(
-        self, pkgs: Sequence[str], modules: Optional[Sequence[str]] = None, excludes: Optional[Sequence[str]] = None
-    ):
-        for p in pkgs:
-            if not p.startswith("monai"):
-                raise ValueError("only support to scan MONAI package so far.")
-        self.pkgs = pkgs
-        self.modules = [] if modules is None else modules
+    def __init__(self, excludes: Optional[Sequence[str]] = None):
         self.excludes = [] if excludes is None else excludes
         self._components_table = self._create_table()
 
     def _create_table(self):
         table: Dict[str, List] = {}
-        for pkg in self.pkgs:
-            package = import_module(pkg)
-
-            for _, modname, _ in walk_packages(path=package.__path__, prefix=package.__name__ + "."):
-                # if no modules specified, load all modules in the package
-                if all(s not in modname for s in self.excludes) and (
-                    len(self.modules) == 0 or any(name in modname for name in self.modules)
-                ):
-                    try:
-                        module = import_module(modname)
-                        for name, obj in inspect.getmembers(module):
-                            if (inspect.isclass(obj) or inspect.isfunction(obj)) and obj.__module__ == modname:
-                                if name not in table:
-                                    table[name] = []
-                                table[name].append(modname)
-                    except ModuleNotFoundError:
-                        pass
+        # all the MONAI modules are already loaded by `load_submodules`
+        modnames = [m for m in sys.modules.keys() if m.startswith("monai") and all(s not in m for s in self.excludes)]
+        for modname in modnames:
+            try:
+                # scan all the classes and functions in the module
+                module = import_module(modname)
+                for name, obj in inspect.getmembers(module):
+                    if (inspect.isclass(obj) or inspect.isfunction(obj)) and obj.__module__ == modname:
+                        if name not in table:
+                            table[name] = []
+                        table[name].append(modname)
+            except ModuleNotFoundError:
+                pass
         return table
 
     def get_component_module_name(self, name):

@@ -24,43 +24,21 @@ from monai.utils import optional_import
 
 _, has_tv = optional_import("torchvision")
 
-TEST_CASE_1 = [
-    dict(pkgs=["monai"], modules=["transforms"]),
-    {"<name>": "LoadImaged", "<args>": {"keys": ["image"]}},
-    LoadImaged,
-]
+TEST_CASE_1 = [{"<name>": "LoadImaged", "<args>": {"keys": ["image"]}}, LoadImaged]
 # test python `<path>`
-TEST_CASE_2 = [
-    dict(pkgs=[], modules=[]),
-    {"<path>": "monai.transforms.LoadImaged", "<args>": {"keys": ["image"]}},
-    LoadImaged,
-]
+TEST_CASE_2 = [{"<path>": "monai.transforms.LoadImaged", "<args>": {"keys": ["image"]}}, LoadImaged]
 # test `<disabled>`
-TEST_CASE_3 = [
-    dict(pkgs=["monai"], modules=["transforms"]),
-    {"<name>": "LoadImaged", "<disabled>": True, "<args>": {"keys": ["image"]}},
-    dict,
-]
+TEST_CASE_3 = [{"<name>": "LoadImaged", "<disabled>": True, "<args>": {"keys": ["image"]}}, dict]
 # test unresolved dependency
-TEST_CASE_4 = [
-    dict(pkgs=["monai"], modules=["transforms"]),
-    {"<name>": "LoadImaged", "<args>": {"keys": ["@key_name"]}},
-    dict,
-]
+TEST_CASE_4 = [{"<name>": "LoadImaged", "<args>": {"keys": ["@key_name"]}}, dict]
 # test non-monai modules and excludes
 TEST_CASE_5 = [
-    dict(pkgs=["monai"], modules=["data"], excludes=["utils"]),
     {"<path>": "torch.optim.Adam", "<args>": {"params": torch.nn.PReLU().parameters(), "lr": 1e-4}},
     torch.optim.Adam,
 ]
-TEST_CASE_6 = [
-    dict(pkgs=["monai"], modules=["data"]),
-    {"<name>": "decollate_batch", "<args>": {"detach": True, "pad": True}},
-    partial,
-]
+TEST_CASE_6 = [{"<name>": "decollate_batch", "<args>": {"detach": True, "pad": True}}, partial]
 # test args contains "name" field
 TEST_CASE_7 = [
-    dict(pkgs=["monai"], modules=["transforms"]),
     {"<name>": "RandTorchVisiond", "<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25}},
     RandTorchVisiond,
 ]
@@ -116,8 +94,8 @@ class TestConfigComponent(unittest.TestCase):
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6]
         + ([TEST_CASE_7] if has_tv else [])
     )
-    def test_build(self, input_param, test_input, output_type):
-        scanner = ComponentScanner(**input_param)
+    def test_build(self, test_input, output_type):
+        scanner = ComponentScanner(excludes=["metrics"])
         configer = ConfigComponent(id="test", config=test_input, scanner=scanner)
         ret = configer.build()
         self.assertTrue(isinstance(ret, output_type))
@@ -129,14 +107,14 @@ class TestConfigComponent(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_8, TEST_CASE_9, TEST_CASE_10, TEST_CASE_11])
     def test_dependent_ids(self, test_input, ref_ids):
-        scanner = ComponentScanner(pkgs=[], modules=[])
+        scanner = ComponentScanner()
         configer = ConfigComponent(id="test", config=test_input, scanner=scanner)
         ret = configer.get_dependent_ids()
         self.assertListEqual(ret, ref_ids)
 
     @parameterized.expand([TEST_CASE_12, TEST_CASE_13, TEST_CASE_14, TEST_CASE_15, TEST_CASE_16, TEST_CASE_17])
     def test_update_dependencies(self, id, test_input, deps, output_type):
-        scanner = ComponentScanner(pkgs=["monai"], modules=["data", "transforms", "data"], excludes=["utils"])
+        scanner = ComponentScanner(excludes=["utils"])
         configer = ConfigComponent(id=id, config=test_input, scanner=scanner, globals={"monai": monai, "torch": torch})
         config = configer.get_updated_config(deps)
         ret = configer.build(config)
