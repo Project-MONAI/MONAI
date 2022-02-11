@@ -20,7 +20,21 @@ from importlib import import_module
 from pkgutil import walk_packages
 from re import match
 from types import FunctionType, ModuleType
-from typing import Any, Callable, Collection, Dict, Hashable, Iterable, List, Mapping, Sequence, Tuple, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    Hashable,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 import torch
 
@@ -206,12 +220,16 @@ class ComponentScanner:
         pkgs: the expected packages to scan modules and parse component names in the config.
         modules: the expected modules in the packages to scan for all the components.
             for example, to parser "LoadImage" in config, `pkgs` can be ["monai"], `modules` can be ["transforms"].
+        excludes: if any string of the `excludes` exists in the full module name, don't import this module.
 
     """
 
-    def __init__(self, pkgs: Sequence[str], modules: Sequence[str]):
+    def __init__(
+        self, pkgs: Sequence[str], modules: Optional[Sequence[str]] = None, excludes: Optional[Sequence[str]] = None
+    ):
         self.pkgs = pkgs
-        self.modules = modules
+        self.modules = [] if modules is None else modules
+        self.excludes = [] if excludes is None else excludes
         self._components_table = self._create_table()
 
     def _create_table(self):
@@ -221,7 +239,9 @@ class ComponentScanner:
 
             for _, modname, _ in walk_packages(path=package.__path__, prefix=package.__name__ + "."):
                 # if no modules specified, load all modules in the package
-                if len(self.modules) == 0 or any(name in modname for name in self.modules):
+                if all(s not in modname for s in self.excludes) and (
+                    len(self.modules) == 0 or any(name in modname for name in self.modules)
+                ):
                     try:
                         module = import_module(modname)
                         for name, obj in inspect.getmembers(module):

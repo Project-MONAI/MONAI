@@ -15,7 +15,6 @@ from typing import Callable, Iterator
 
 import torch
 from parameterized import parameterized
-from torch.optim._multi_tensor import Adam
 
 import monai
 from monai.apps import ConfigComponent
@@ -48,11 +47,11 @@ TEST_CASE_4 = [
     {"<name>": "LoadImaged", "<args>": {"keys": ["@key_name"]}},
     dict,
 ]
-# test non-monai modules
+# test non-monai modules and excludes
 TEST_CASE_5 = [
-    dict(pkgs=["torch.optim", "monai"], modules=["adam"]),
+    dict(pkgs=["torch.optim", "monai"], modules=["adam"], excludes=["_multi_tensor"]),
     {"<name>": "Adam", "<args>": {"params": torch.nn.PReLU().parameters(), "lr": 1e-4}},
-    Adam,
+    torch.optim.Adam,
 ]
 TEST_CASE_6 = [
     dict(pkgs=["monai"], modules=["data"]),
@@ -102,7 +101,7 @@ TEST_CASE_14 = [
     "optimizer",
     {"<name>": "Adam", "<args>": {"params": "$@model.parameters()", "lr": "@learning_rate"}},
     {"optimizer#<name>": "Adam", "optimizer#<args>": {"params": torch.nn.PReLU().parameters(), "lr": 1e-4}},
-    Adam,
+    torch.optim.Adam,
 ]
 # test replace dependencies with code execution result
 TEST_CASE_15 = ["optimizer#<args>#params", "$@model.parameters()", {"model": torch.nn.PReLU()}, Iterator]
@@ -137,7 +136,9 @@ class TestConfigComponent(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_12, TEST_CASE_13, TEST_CASE_14, TEST_CASE_15, TEST_CASE_16, TEST_CASE_17])
     def test_update_dependencies(self, id, test_input, deps, output_type):
-        scanner = ComponentScanner(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
+        scanner = ComponentScanner(
+            pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"], excludes=["_multi_tensor"]
+        )
         configer = ConfigComponent(id=id, config=test_input, scanner=scanner, globals={"monai": monai, "torch": torch})
         config = configer.get_updated_config(deps)
         ret = configer.build(config)
