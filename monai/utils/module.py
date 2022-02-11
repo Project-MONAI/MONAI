@@ -15,12 +15,12 @@ import os
 import re
 import sys
 import warnings
-from functools import wraps
+from functools import partial, wraps
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
-from types import FunctionType
-from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Sequence, Tuple, Union, cast
+from types import FunctionType, ModuleType
+from typing import Any, Callable, Collection, Dict, Hashable, Iterable, List, Mapping, Sequence, Tuple, Union, cast
 
 import torch
 
@@ -37,9 +37,9 @@ __all__ = [
     "optional_import",
     "require_pkg",
     "load_submodules",
-    "ClassScanner",
-    "get_class",
-    "instantiate_class",
+    "ComponentScanner",
+    "locate",
+    "instantiate",
     "get_full_type_name",
     "get_package_version",
     "get_torch_version_tuple",
@@ -197,14 +197,14 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     return submodules, err_mod
 
 
-class ClassScanner:
+class ComponentScanner:
     """
-    Scan all the available classes in the specified packages and modules.
-    Map the all the class names and the module names in a table.
+    Scan all the available classes and functions in the specified packages and modules.
+    Map the all the names and the module names in a table.
 
     Args:
-        pkgs: the expected packages to scan modules and parse class names in the config.
-        modules: the expected modules in the packages to scan for all the classes.
+        pkgs: the expected packages to scan modules and parse component names in the config.
+        modules: the expected modules in the packages to scan for all the components.
             for example, to parser "LoadImage" in config, `pkgs` can be ["monai"], `modules` can be ["transforms"].
 
     """
@@ -212,10 +212,10 @@ class ClassScanner:
     def __init__(self, pkgs: Sequence[str], modules: Sequence[str]):
         self.pkgs = pkgs
         self.modules = modules
-        self._class_table = self._create_classes_table()
+        self._components_table = self._create_table()
 
-    def _create_classes_table(self):
-        class_table = {}
+    def _create_table(self):
+        table: Dict[str, List] = {}
         for pkg in self.pkgs:
             package = import_module(pkg)
 
@@ -225,70 +225,86 @@ class ClassScanner:
                     try:
                         module = import_module(modname)
                         for name, obj in inspect.getmembers(module):
-                            if inspect.isclass(obj) and obj.__module__ == modname:
-                                class_table[name] = modname
+                            if (inspect.isclass(obj) or inspect.isfunction(obj)) and obj.__module__ == modname:
+                                if name not in table:
+                                    table[name] = []
+                                table[name].append(modname)
                     except ModuleNotFoundError:
                         pass
-        return class_table
+        return table
 
-    def get_class_module_name(self, class_name):
+    def get_component_module_name(self, name):
         """
-        Get the module name of the class with specified class name.
+        Get the full module name of the class / function with specified name.
+        If target component name exists in multiple packages or modules, return all the paths.z
 
         Args:
-            class_name: name of the expected class.
+            name: name of the expected class or function.
 
         """
-        return self._class_table.get(class_name, None)
+        mods = self._components_table.get(name, None)
+        if isinstance(mods, list) and len(mods) == 1:
+            mods = mods[0]
+        return mods
 
 
-def get_class(class_path: str):
+def locate(path: str):
     """
-    Get the class from specified class path.
+    Locate an object by name or dotted path, importing as necessary.
+    Refer to Hydra: https://github.com/facebookresearch/hydra/blob/v1.1.1/hydra/_internal/utils.py#L554.
 
     Args:
-        class_path (str): full path of the class.
-
-    Raises:
-        ValueError: invalid class_path, missing the module name.
-        ValueError: class does not exist.
-        ValueError: module does not exist.
+        path: full path of the expected component to locate and import.
 
     """
-    if len(class_path.split(".")) < 2:
-        raise ValueError(f"invalid class_path: {class_path}, missing the module name.")
-    module_name, class_name = class_path.rsplit(".", 1)
-
-    try:
-        module_ = import_module(module_name)
-
+    parts = [part for part in path.split(".") if part]
+    for n in reversed(range(1, len(parts) + 1)):
         try:
-            class_ = getattr(module_, class_name)
-        except AttributeError as e:
-            raise ValueError(f"class {class_name} does not exist.") from e
+            obj = import_module(".".join(parts[:n]))
+        except Exception as exc_import:
+            if n == 1:
+                raise ImportError(f"can not import module '{path}'.") from exc_import
+            continue
+        break
 
-    except AttributeError as e:
-        raise ValueError(f"module {module_name} does not exist.") from e
+    for m in range(n, len(parts)):
+        part = parts[m]
+        try:
+            obj = getattr(obj, part)
+        except AttributeError as exc_attr:
+            if isinstance(obj, ModuleType):
+                mod = ".".join(parts[: m + 1])
+                try:
+                    import_module(mod)
+                except ModuleNotFoundError:
+                    pass
+                except Exception as exc_import:
+                    raise ImportError(f"can not import module '{path}'.") from exc_import
+            raise ImportError(f"AttributeError while loading '{path}': {exc_attr}") from exc_attr
+    return obj
 
-    return class_
 
-
-def instantiate_class(class_path: str, **kwargs):
+def instantiate(path: str, **kwargs):
     """
-    Method for creating an instance for the specified class.
+    Method for creating an instance for the specified class / function path.
+    kwargs will be class args or default args for `partial` function.
+    The target component must be a class or a function.
 
     Args:
-        class_path: full path of the class.
-        kwargs: arguments to initialize the class instance.
+        path: full path of the target class or function component.
+        kwargs: arguments to initialize the class instance or set default args
+            for `partial` function.
 
-    Raises:
-        ValueError: class has paramenters error.
     """
 
-    try:
-        return get_class(class_path)(**kwargs)
-    except TypeError as e:
-        raise ValueError(f"class {class_path} has parameters error.") from e
+    component = locate(path)
+    if inspect.isclass(component):
+        return component(**kwargs)
+    if inspect.isfunction(component):
+        return partial(component, **kwargs)
+
+    warnings.warn(f"target component must be a valid class or function, but got {path}.")
+    return component
 
 
 def get_full_type_name(typeobj):

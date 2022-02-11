@@ -13,7 +13,7 @@ import warnings
 from typing import Any, Dict, List, Optional
 
 from monai.apps.mmars.utils import search_configs_with_deps, update_configs_with_deps
-from monai.utils.module import ClassScanner, instantiate_class
+from monai.utils.module import ComponentScanner, instantiate
 
 
 class ConfigComponent:
@@ -29,29 +29,30 @@ class ConfigComponent:
     It can search the config content and find out all the dependencies, then build the config to instance
     when all the dependencies are resolved.
 
-    Here we predefined several special marks to parse the config content:
-    - "<XXX>": like "<name>" is the name of a class, to distinguish it with regular key "name" in the config content.
-    now we have 4 keys: `<name>`, `<path>`, `<args>`, `<disabled>`.
+    Here we predefined 4 kinds special marks (`<>`, `#`, `@`, `$`) to parse the config content:
+    - "<XXX>": like "<name>" is the name of a target component, to distinguish it with regular key "name"
+    in the config content. now we have 4 keys: `<name>`, `<path>`, `<args>`, `<disabled>`.
     - "XXX#YYY": join nested config ids, like "transforms#5" is id name of the 6th transform in the transforms list.
-    - "@XXX": use an instance as config item, like `"dataset": "@dataset"` uses `dataset` instance as the parameter.
+    - "@XXX": use an component as config item, like `"input_data": "@dataset"` uses `dataset` instance as parameter.
     - "$XXX": execute the string after "$" as python code with `eval()` function, like "$@model.parameters()".
 
     Args:
         id: id name of current config component, for nested config items, use `#` to join ids.
             for list component, use index from `0` as id.
             for example: `transform`, `transform#5`, `transform#5#<args>#keys`, etc.
+            the id can be useful to quickly get the expected item in a complicated and nested config content.
         config: config content of current component, can be a `dict`, `list`, `string`, `float`, `int`, etc.
-        class_scanner: ClassScanner to help get the class name or path in the config and build instance.
+        scanner: ComponentScanner to help get the `<name>` or `<path>` in the config and build instance.
         globals: to support executable string in the config, sometimes we need to provide the global variables
             which are referred in the executable string. for example: `globals={"monai": monai} will be useful
             for config `"collate_fn": "$monai.data.list_data_collate"`.
 
     """
 
-    def __init__(self, id: str, config: Any, class_scanner: ClassScanner, globals: Optional[Dict] = None) -> None:
+    def __init__(self, id: str, config: Any, scanner: ComponentScanner, globals: Optional[Dict] = None) -> None:
         self.id = id
         self.config = config
-        self.class_scanner = class_scanner
+        self.scanner = scanner
         self.globals = globals
 
     def get_id(self) -> str:
@@ -111,21 +112,23 @@ class ConfigComponent:
                 return True
         return False
 
-    def build(self, config: Optional[Dict] = None) -> object:
+    def build(self, config: Optional[Dict] = None, **kwargs) -> object:
         """
         Build component instance based on the provided dictonary config.
+        The target component must be a class and a function.
         Supported special keys for the config:
-        - '<name>' - class name in the modules of packages.
-        - '<path>' - directly specify the class path, based on PYTHONPATH, ignore '<name>' if specified.
+        - '<name>' - class / function name in the modules of packages.
+        - '<path>' - directly specify the path, based on PYTHONPATH, ignore '<name>' if specified.
         - '<args>' - arguments to initialize the component instance.
         - '<disabled>' - if defined `'<disabled>': True`, will skip the buiding, useful for development or tuning.
 
         Args:
             config: dictionary config that defines a component.
+            kwargs: args to override / add the config args when building.
 
         Raises:
-            ValueError: must provide `<path>` or `<name>` of class to build component.
-            ValueError: can not find component class.
+            ValueError: must provide `<path>` or `<name>` of class / function to build component.
+            ValueError: can not find component class or function.
 
         """
         config = self.config if config is None else config
@@ -141,26 +144,33 @@ class ConfigComponent:
             # if marked as `disabled`, skip parsing
             return config
 
-        class_args = config.get("<args>", {})
-        class_path = self._get_class_path(config)
-        return instantiate_class(class_path, **class_args)
+        args = config.get("<args>", {})
+        args.update(kwargs)
+        path = self._get_path(config)
+        return instantiate(path, **args)
 
-    def _get_class_path(self, config):
+    def _get_path(self, config):
         """
-        Get the path of class specified in the config content.
+        Get the path of class / function specified in the config content.
 
         Args:
             config: dictionary config that defines a component.
 
         """
-        class_path = config.get("<path>", None)
-        if class_path is None:
-            class_name = config.get("<name>", None)
-            if class_name is None:
-                raise ValueError("must provide `<path>` or `<name>` of class to build component.")
-            module_name = self.class_scanner.get_class_module_name(class_name)
-            if module_name is None:
-                raise ValueError(f"can not find component class '{class_name}'.")
-            class_path = f"{module_name}.{class_name}"
+        path = config.get("<path>", None)
+        if path is None:
+            name = config.get("<name>", None)
+            if name is None:
+                raise ValueError("must provide `<path>` or `<name>` of target component to build.")
+            module = self.scanner.get_component_module_name(name)
+            if module is None:
+                raise ValueError(f"can not find component '{name}'.")
+            if isinstance(module, list):
+                warnings.warn(
+                    f"there are more than 1 component name `{name}`: {module}, use the first one `{module[0]}."
+                    f" if want to use others, please set the full python path in `<path>` directly."
+                )
+                module = module[0]
+            path = f"{module}.{name}"
 
-        return class_path
+        return path
