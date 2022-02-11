@@ -61,6 +61,7 @@ measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
+cucim, has_cucim = optional_import("cucim")
 exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
@@ -941,11 +942,22 @@ def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optio
             connectivity of ``input.ndim`` is used. for more details:
             https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
     """
+    if isinstance(img, torch.Tensor) and has_cp and has_cucim:
+        x_cupy = monai.transforms.ToCupy()(img.short())
+        x_label = cucim.skimage.measure.label(x_cupy, connectivity=connectivity)
+        vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
+        comp = x_label == vals[cp.ndarray.argmax(counts)]
+        out_tensor = monai.transforms.ToTensor(device=img.device)(comp)
+        out_tensor = out_tensor.bool()
+
+        return out_tensor  # type: ignore
+
     img_arr = convert_data_type(img, np.ndarray)[0]
     largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
     img_arr = measure.label(img_arr, connectivity=connectivity)
     if img_arr.max() != 0:
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
+
     return convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]
 
 
