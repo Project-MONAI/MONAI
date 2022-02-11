@@ -14,7 +14,7 @@ import random
 import warnings
 from contextlib import contextmanager
 from inspect import getmembers, isclass
-from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, Union
 
 import numpy as np
 import torch
@@ -34,6 +34,7 @@ from monai.transforms.utils_pytorch_numpy_unification import (
     nonzero,
     ravel,
     searchsorted,
+    unique,
     unravel_index,
     where,
 )
@@ -102,6 +103,7 @@ __all__ = [
     "print_transform_backends",
     "convert_pad_mode",
     "convert_to_contiguous",
+    "get_unique_labels",
 ]
 
 
@@ -949,6 +951,34 @@ def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optio
     return convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]
 
 
+def get_unique_labels(
+    img: NdarrayOrTensor, is_onehot: bool, discard: Optional[Union[int, Iterable[int]]] = None
+) -> Set[int]:
+    """Get list of non-background labels in an image.
+
+    Args:
+        img: Image to be processed. Shape should be [C, W, H, [D]] with C=1 if not onehot else `num_classes`.
+        is_onehot: Boolean as to whether input image is one-hotted. If one-hotted, only return channels with
+        discard: Can be used to remove labels (e.g., background). Can be any value, sequence of values, or
+            `None` (nothing is discarded).
+
+    Returns:
+        Set of labels
+    """
+    applied_labels: Set[int]
+    n_channels = img.shape[0]
+    if is_onehot:
+        applied_labels = {i for i, s in enumerate(img) if s.sum() > 0}
+    else:
+        if n_channels != 1:
+            raise ValueError("If input not one-hotted, should only be 1 channel.")
+        applied_labels = set(unique(img).tolist())
+    if discard is not None:
+        for i in ensure_tuple(discard):
+            applied_labels.discard(i)
+    return applied_labels
+
+
 def fill_holes(
     img_arr: np.ndarray, applied_labels: Optional[Iterable[int]] = None, connectivity: Optional[int] = None
 ) -> np.ndarray:
@@ -985,7 +1015,7 @@ def fill_holes(
     structure = ndimage.generate_binary_structure(spatial_dims, connectivity or spatial_dims)
 
     # Get labels if not provided. Exclude background label.
-    applied_labels = set(applied_labels or (range(num_channels) if is_one_hot else np.unique(img_arr)))
+    applied_labels = set(applied_labels) if applied_labels is not None else get_unique_labels(img_arr, is_one_hot)
     background_label = 0
     applied_labels.discard(background_label)
 
