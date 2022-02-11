@@ -18,12 +18,14 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
-from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
+from monai.transforms.utils_pytorch_numpy_unification import allclose
+from monai.utils import GridSampleMode, GridSamplePadMode, deprecated, optional_import
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
 
+@deprecated(since="0.8", msg_suffix="use monai.data.NibabelWriter instead.")
 def write_nifti(
     data: NdarrayOrTensor,
     file_name: str,
@@ -97,24 +99,26 @@ def write_nifti(
         dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
             If None, use the data type of input data.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
+
+    .. deprecated:: 0.8
+        Use :py:meth:`monai.data.NibabelWriter` instead.
+
     """
-    if isinstance(data, torch.Tensor):
-        data, *_ = convert_data_type(data, np.ndarray)
-    if isinstance(affine, torch.Tensor):
-        affine, *_ = convert_data_type(affine, np.ndarray)
+    data, *_ = convert_data_type(data, np.ndarray)
+    affine, *_ = convert_data_type(affine, np.ndarray)
     if not isinstance(data, np.ndarray):
         raise AssertionError("input data must be numpy array or torch tensor.")
     dtype = dtype or data.dtype
     sr = min(data.ndim, 3)
     if affine is None:
         affine = np.eye(4, dtype=np.float64)
-    affine = to_affine_nd(sr, affine)  # type: ignore
+    affine = to_affine_nd(sr, affine)
 
     if target_affine is None:
         target_affine = affine
-    target_affine = to_affine_nd(sr, target_affine)
+    target_affine, *_ = convert_data_type(to_affine_nd(sr, target_affine), np.ndarray)
 
-    if np.allclose(affine, target_affine, atol=1e-3):
+    if allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
         results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
@@ -127,7 +131,7 @@ def write_nifti(
     data_shape = data.shape
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
-    if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
+    if allclose(_affine, target_affine, atol=1e-3) or not resample:
         results_img = nib.Nifti1Image(data.astype(output_dtype, copy=False), to_affine_nd(3, _affine))  # type: ignore
         nib.save(results_img, file_name)
         return

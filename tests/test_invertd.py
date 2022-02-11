@@ -58,7 +58,7 @@ class TestInvertd(unittest.TestCase):
                 RandAxisFlipd(KEYS, prob=0.5),
                 RandRotate90d(KEYS, spatial_axes=(1, 2)),
                 RandZoomd(KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
-                RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True),
+                RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True, dtype=np.float64),
                 RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
                 # test EnsureTensor for complicated dict data and invert it

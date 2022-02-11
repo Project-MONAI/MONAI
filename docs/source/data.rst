@@ -150,6 +150,37 @@ WSIReader
 .. autoclass:: WSIReader
   :members:
 
+Image writer
+------------
+
+resolve_writer
+~~~~~~~~~~~~~~
+.. autofunction:: resolve_writer
+
+register_writer
+~~~~~~~~~~~~~~~
+.. autofunction:: register_writer
+
+ImageWriter
+~~~~~~~~~~~
+.. autoclass:: ImageWriter
+  :members:
+
+ITKWriter
+~~~~~~~~~
+.. autoclass:: ITKWriter
+  :members:
+
+NibabelWriter
+~~~~~~~~~~~~~
+.. autoclass:: NibabelWriter
+  :members:
+
+PILWriter
+~~~~~~~~~
+.. autoclass:: PILWriter
+  :members:
+
 Nifti format handling
 ---------------------
 

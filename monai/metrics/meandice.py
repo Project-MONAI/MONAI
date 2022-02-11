@@ -79,7 +79,7 @@ class DiceMetric(CumulativeIterationMetric):
         # compute dice (BxC) for each channel for each batch
         return compute_meandice(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_meandice`.
 

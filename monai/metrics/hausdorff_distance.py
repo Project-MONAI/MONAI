@@ -99,7 +99,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             directed=self.directed,
         )
 
-    def aggregate(self):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
 

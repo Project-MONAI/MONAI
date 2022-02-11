@@ -115,7 +115,7 @@ def gaussian_1d(
         out = out.clamp(min=0)
     elif approx.lower() == "sampled":
         x = torch.arange(-tail, tail + 1, dtype=torch.float, device=sigma.device)
-        out = torch.exp(-0.5 / (sigma * sigma) * x ** 2)
+        out = torch.exp(-0.5 / (sigma * sigma) * x**2)
         if not normalize:  # compute the normalizer
             out = out / (2.5066282 * sigma)
     elif approx.lower() == "scalespace":

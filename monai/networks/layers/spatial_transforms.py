@@ -70,13 +70,13 @@ def grid_pull(
     `bound` can be an int, a string or a BoundType.
     Possible values are::
 
-        - 0 or 'replicate' or 'nearest'      or BoundType.replicate
+        - 0 or 'replicate' or 'nearest'      or BoundType.replicate or 'border'
         - 1 or 'dct1'      or 'mirror'       or BoundType.dct1
         - 2 or 'dct2'      or 'reflect'      or BoundType.dct2
         - 3 or 'dst1'      or 'antimirror'   or BoundType.dst1
         - 4 or 'dst2'      or 'antireflect'  or BoundType.dst2
         - 5 or 'dft'       or 'wrap'         or BoundType.dft
-        - 7 or 'zero'                        or BoundType.zero
+        - 7 or 'zero'      or 'zeros'        or BoundType.zero
 
     A list of values can be provided, in the order [W, H, D],
     to specify dimension-specific boundary conditions.
@@ -115,7 +115,7 @@ def grid_pull(
         for i in ensure_tuple(interpolation)
     ]
     out: torch.Tensor
-    out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)  # type: ignore
+    out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)
     return out
 
 

@@ -306,6 +306,7 @@ from .spatial.array import (
     Rotate,
     Rotate90,
     Spacing,
+    SpatialResample,
     Zoom,
 )
 from .spatial.dictionary import (
@@ -360,6 +361,9 @@ from .spatial.dictionary import (
     Spacingd,
     SpacingD,
     SpacingDict,
+    SpatialResampled,
+    SpatialResampleD,
+    SpatialResampleDict,
     Zoomd,
     ZoomD,
     ZoomDict,
@@ -552,6 +556,7 @@ from .utils import (
     zero_margins,
 )
 from .utils_pytorch_numpy_unification import (
+    allclose,
     any_np_pt,
     ascontiguousarray,
     clip,
@@ -562,11 +567,13 @@ from .utils_pytorch_numpy_unification import (
     isfinite,
     isnan,
     maximum,
+    mode,
     moveaxis,
     nonzero,
     percentile,
     ravel,
     repeat,
+    stack,
     unravel_index,
     where,
 )
