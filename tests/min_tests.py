@@ -87,6 +87,7 @@ def run_testsuit():
         "test_header_correct",
         "test_hilbert_transform",
         "test_image_dataset",
+        "test_image_rw",
         "test_img2tensorboard",
         "test_integration_fast_train",
         "test_integration_segmentation_3d",
@@ -155,6 +156,7 @@ def run_testsuit():
         "test_zoom_affine",
         "test_zoomd",
         "test_prepare_batch_default_dist",
+        "test_parallel_execution_dist",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

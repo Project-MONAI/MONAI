@@ -114,9 +114,9 @@ def make_image(
         for y in range(tile_count):
             tiles_list.append(image[:, x * step : x * step + tile_size, y * step : y * step + tile_size])
 
-    tiles = np.stack(tiles_list, axis=0)  # type: ignore
+    tiles = np.stack(tiles_list, axis=0)
 
-    if (filter_mode == "min" or filter_mode == "max") and len(tiles) > tile_count ** 2:
+    if (filter_mode == "min" or filter_mode == "max") and len(tiles) > tile_count**2:
         tiles = tiles[np.argsort(tiles.sum(axis=(1, 2, 3)))]
 
     return imlarge, tiles

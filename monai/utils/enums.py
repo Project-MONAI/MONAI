@@ -58,7 +58,7 @@ class NumpyPadMode(Enum):
 
 class GridSampleMode(Enum):
     """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
 
     interpolation mode of `torch.nn.functional.grid_sample`
 
@@ -76,7 +76,7 @@ class GridSampleMode(Enum):
 
 class InterpolateMode(Enum):
     """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
     """
 
     NEAREST = "nearest"
@@ -108,7 +108,7 @@ class BlendMode(Enum):
 
 class PytorchPadMode(Enum):
     """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#pad
+    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
     """
 
     CONSTANT = "constant"
@@ -119,7 +119,7 @@ class PytorchPadMode(Enum):
 
 class GridSamplePadMode(Enum):
     """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
     """
 
     ZEROS = "zeros"

@@ -287,8 +287,8 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+                See also: https://numpy.org/doc/1.18/reference/ghttps://pytorch.orgenerated/numpy.pad.html
+                /docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
@@ -735,7 +735,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
@@ -933,7 +933,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
@@ -1075,7 +1075,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
@@ -1279,7 +1279,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_smaller: if `False`, an exception will be raised if the image is smaller than

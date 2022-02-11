@@ -124,7 +124,7 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
         # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
         # in_channel * s0 (activation) + 3 * out_channel * s1 (convolution, concatenation, normalization)
         # s0 = s1 * 2^(spatial_dims) = output_size / out_channel * 2^(spatial_dims)
-        self.ram_cost = in_channel / out_channel * 2 ** self._spatial_dims + 3
+        self.ram_cost = in_channel / out_channel * 2**self._spatial_dims + 3
 
 
 class MixedOp(nn.Module):
@@ -330,7 +330,7 @@ class DiNTS(nn.Module):
             # define downsample stems before DiNTS search
             if use_downsample:
                 self.stem_down[str(res_idx)] = StemTS(
-                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode=mode, align_corners=True),
+                    nn.Upsample(scale_factor=1 / (2**res_idx), mode=mode, align_corners=True),
                     conv_type(
                         in_channels=in_channels,
                         out_channels=self.filter_nums[res_idx],
@@ -373,7 +373,7 @@ class DiNTS(nn.Module):
 
             else:
                 self.stem_down[str(res_idx)] = StemTS(
-                    nn.Upsample(scale_factor=1 / (2 ** res_idx), mode=mode, align_corners=True),
+                    nn.Upsample(scale_factor=1 / (2**res_idx), mode=mode, align_corners=True),
                     conv_type(
                         in_channels=in_channels,
                         out_channels=self.filter_nums[res_idx],
@@ -789,7 +789,7 @@ class TopologySearch(TopologyConstruction):
         image_size = np.array(in_size[-self._spatial_dims :])
         sizes = []
         for res_idx in range(self.num_depths):
-            sizes.append(batch_size * self.filter_nums[res_idx] * (image_size // (2 ** res_idx)).prod())
+            sizes.append(batch_size * self.filter_nums[res_idx] * (image_size // (2**res_idx)).prod())
         sizes = torch.tensor(sizes).to(torch.float32).to(self.device) / (2 ** (int(self.use_downsample)))
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
         cell_prob = F.softmax(self.log_alpha_c, dim=-1)
@@ -807,7 +807,7 @@ class TopologySearch(TopologyConstruction):
                     * (1 + (ram_cost[blk_idx, path_idx] * cell_prob[blk_idx, path_idx]).sum())
                     * sizes[self.arch_code2out[path_idx]]
                 )
-        return usage * 32 / 8 / 1024 ** 2
+        return usage * 32 / 8 / 1024**2
 
     def get_topology_entropy(self, probs):
         """

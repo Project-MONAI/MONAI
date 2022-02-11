@@ -571,7 +571,7 @@ class Invertd(MapTransform):
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `{orig_key}_{meta_key_postfix}`.
                 meta data will also be inverted and stored in `meta_keys`.
-            meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to to fetch the
+            meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to fetch the
                 meta data from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`.
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle orig_key `image`,  read/write `affine` matrices from the
@@ -676,6 +676,7 @@ class SaveClassificationd(MapTransform):
         saver: Optional[CSVSaver] = None,
         output_dir: PathLike = "./",
         filename: str = "predictions.csv",
+        delimiter: str = ",",
         overwrite: bool = True,
         flush: bool = True,
         allow_missing_keys: bool = False,
@@ -699,6 +700,8 @@ class SaveClassificationd(MapTransform):
                 the saver must provide `save(data, meta_data)` and `finalize()` APIs.
             output_dir: if `saver=None`, specify the directory to save the CSV file.
             filename: if `saver=None`, specify the name of the saved CSV file.
+            delimiter: the delimiter character in the saved file, default to "," as the default output type is `csv`.
+                to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
             overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
                 will clear the file before saving. otherwise, will append new content to the CSV file.
             flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately
@@ -710,7 +713,9 @@ class SaveClassificationd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         if len(self.keys) != 1:
             raise ValueError("only 1 key is allowed when saving the classification result.")
-        self.saver = saver or CSVSaver(output_dir, filename, overwrite, flush)
+        self.saver = saver or CSVSaver(
+            output_dir=output_dir, filename=filename, overwrite=overwrite, flush=flush, delimiter=delimiter
+        )
         self.flush = flush
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))

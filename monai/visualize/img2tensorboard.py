@@ -49,8 +49,7 @@ def _image3_animated_gif(
     if len(image.shape) != 3:
         raise AssertionError("3D image tensors expected to be in `HWD` format, len(image.shape) != 3")
 
-    image_np: np.ndarray
-    image_np, *_ = convert_data_type(image, output_type=np.ndarray)  # type: ignore
+    image_np, *_ = convert_data_type(image, output_type=np.ndarray)
     ims = [(i * scale_factor).astype(np.uint8, copy=False) for i in np.moveaxis(image_np, frame_dim, 0)]
     ims = [GifImage.fromarray(im) for im in ims]
     img_str = b""

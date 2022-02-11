@@ -39,7 +39,9 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
             engine = Engine(_train_func)
 
             # set up testing handler
-            saver = SegmentationSaver(output_dir=tempdir, output_postfix="seg", output_ext=output_ext, scale=255)
+            saver = SegmentationSaver(
+                output_dir=tempdir, output_postfix="seg", output_ext=output_ext, scale=255, output_dtype=np.uint8
+            )
             saver.attach(engine)
 
             data = [
@@ -65,7 +67,9 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
             engine = Engine(_train_func)
 
             # set up testing handler
-            saver = SegmentationSaver(output_dir=tempdir, output_postfix="seg", output_ext=output_ext, scale=255)
+            saver = SegmentationSaver(
+                output_dir=tempdir, output_postfix="seg", output_ext=output_ext, scale=255, output_dtype=np.uint8
+            )
             saver.attach(engine)
 
             data = [

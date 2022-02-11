@@ -374,7 +374,7 @@ class SpatialCropForegroundd(MapTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `{key}_{meta_key_postfix}` to to fetch/store the meta data according
+        meta_key_postfix: if meta_keys is None, use `{key}_{meta_key_postfix}` to fetch/store the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
@@ -474,7 +474,7 @@ class AddGuidanceFromPointsd(Transform):
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             if None, will try to construct meta_keys by `{ref_image}_{meta_key_postfix}`.
-        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
@@ -589,7 +589,7 @@ class SpatialCropGuidanced(MapTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
@@ -652,7 +652,7 @@ class SpatialCropGuidanced(MapTransform):
             return d
 
         guidance = d[self.guidance]
-        original_spatial_shape = d[first_key].shape[1:]  # type: ignore
+        original_spatial_shape = d[first_key].shape[1:]
         box_start, box_end = self.bounding_box(np.array(guidance[0] + guidance[1]), original_spatial_shape)
         center = list(np.mean([box_start, box_end], axis=0).astype(int, copy=False))
         spatial_size = self.spatial_size
@@ -780,14 +780,14 @@ class RestoreLabeld(MapTransform):
             One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
         meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_key is None, use `key_{meta_key_postfix} to to fetch the meta data according
+        meta_key_postfix: if meta_key is None, use `key_{meta_key_postfix} to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
@@ -897,7 +897,7 @@ class Fetch2DSliced(MapTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: use `key_{meta_key_postfix}` to to fetch the meta data according to the key data,
+        meta_key_postfix: use `key_{meta_key_postfix}` to fetch the meta data according to the key data,
             default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
