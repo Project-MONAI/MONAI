@@ -62,7 +62,6 @@ from .misc import (
     zip_with,
 )
 from .module import (
-    ComponentScanner,
     InvalidPyTorchVersionError,
     OptionalImportError,
     damerau_levenshtein_distance,

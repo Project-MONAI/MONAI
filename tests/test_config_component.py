@@ -17,10 +17,10 @@ import torch
 from parameterized import parameterized
 
 import monai
-from monai.apps import ConfigComponent
+from monai.apps import ComponentScanner, ConfigComponent
 from monai.data import DataLoader, Dataset
 from monai.transforms import LoadImaged, RandTorchVisiond
-from monai.utils import ComponentScanner, optional_import
+from monai.utils import optional_import
 
 _, has_tv = optional_import("torchvision")
 
@@ -49,8 +49,8 @@ TEST_CASE_4 = [
 ]
 # test non-monai modules and excludes
 TEST_CASE_5 = [
-    dict(pkgs=["torch.optim", "monai"], modules=["adam"], excludes=["_multi_tensor"]),
-    {"<name>": "Adam", "<args>": {"params": torch.nn.PReLU().parameters(), "lr": 1e-4}},
+    dict(pkgs=["monai"], modules=["data"], excludes=["utils"]),
+    {"<path>": "torch.optim.Adam", "<args>": {"params": torch.nn.PReLU().parameters(), "lr": 1e-4}},
     torch.optim.Adam,
 ]
 TEST_CASE_6 = [
@@ -99,8 +99,8 @@ TEST_CASE_13 = [
 # test dependencies in code execution
 TEST_CASE_14 = [
     "optimizer",
-    {"<name>": "Adam", "<args>": {"params": "$@model.parameters()", "lr": "@learning_rate"}},
-    {"optimizer#<name>": "Adam", "optimizer#<args>": {"params": torch.nn.PReLU().parameters(), "lr": 1e-4}},
+    {"<path>": "torch.optim.Adam", "<args>": {"params": "$@model.parameters()", "lr": "@learning_rate"}},
+    {"optimizer#<path>": "torch.optim.Adam", "optimizer#<args>": {"params": torch.nn.PReLU().parameters(), "lr": 1e-4}},
     torch.optim.Adam,
 ]
 # test replace dependencies with code execution result
@@ -136,9 +136,7 @@ class TestConfigComponent(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_12, TEST_CASE_13, TEST_CASE_14, TEST_CASE_15, TEST_CASE_16, TEST_CASE_17])
     def test_update_dependencies(self, id, test_input, deps, output_type):
-        scanner = ComponentScanner(
-            pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"], excludes=["_multi_tensor"]
-        )
+        scanner = ComponentScanner(pkgs=["monai"], modules=["data", "transforms", "data"], excludes=["utils"])
         configer = ConfigComponent(id=id, config=test_input, scanner=scanner, globals={"monai": monai, "torch": torch})
         config = configer.get_updated_config(deps)
         ret = configer.build(config)

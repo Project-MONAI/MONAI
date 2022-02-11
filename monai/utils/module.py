@@ -20,21 +20,7 @@ from importlib import import_module
 from pkgutil import walk_packages
 from re import match
 from types import FunctionType, ModuleType
-from typing import (
-    Any,
-    Callable,
-    Collection,
-    Dict,
-    Hashable,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, Union, cast
 
 import torch
 
@@ -51,7 +37,6 @@ __all__ = [
     "optional_import",
     "require_pkg",
     "load_submodules",
-    "ComponentScanner",
     "locate",
     "instantiate",
     "get_full_type_name",
@@ -211,63 +196,6 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     return submodules, err_mod
 
 
-class ComponentScanner:
-    """
-    Scan all the available classes and functions in the specified packages and modules.
-    Map the all the names and the module names in a table.
-
-    Args:
-        pkgs: the expected packages to scan modules and parse component names in the config.
-        modules: the expected modules in the packages to scan for all the components.
-            for example, to parser "LoadImage" in config, `pkgs` can be ["monai"], `modules` can be ["transforms"].
-        excludes: if any string of the `excludes` exists in the full module name, don't import this module.
-
-    """
-
-    def __init__(
-        self, pkgs: Sequence[str], modules: Optional[Sequence[str]] = None, excludes: Optional[Sequence[str]] = None
-    ):
-        self.pkgs = pkgs
-        self.modules = [] if modules is None else modules
-        self.excludes = [] if excludes is None else excludes
-        self._components_table = self._create_table()
-
-    def _create_table(self):
-        table: Dict[str, List] = {}
-        for pkg in self.pkgs:
-            package = import_module(pkg)
-
-            for _, modname, _ in walk_packages(path=package.__path__, prefix=package.__name__ + "."):
-                # if no modules specified, load all modules in the package
-                if all(s not in modname for s in self.excludes) and (
-                    len(self.modules) == 0 or any(name in modname for name in self.modules)
-                ):
-                    try:
-                        module = import_module(modname)
-                        for name, obj in inspect.getmembers(module):
-                            if (inspect.isclass(obj) or inspect.isfunction(obj)) and obj.__module__ == modname:
-                                if name not in table:
-                                    table[name] = []
-                                table[name].append(modname)
-                    except ModuleNotFoundError:
-                        pass
-        return table
-
-    def get_component_module_name(self, name):
-        """
-        Get the full module name of the class / function with specified name.
-        If target component name exists in multiple packages or modules, return all the paths.z
-
-        Args:
-            name: name of the expected class or function.
-
-        """
-        mods = self._components_table.get(name, None)
-        if isinstance(mods, list) and len(mods) == 1:
-            mods = mods[0]
-        return mods
-
-
 def locate(path: str):
     """
     Locate an object by name or dotted path, importing as necessary.
@@ -308,7 +236,7 @@ def instantiate(path: str, **kwargs):
     """
     Method for creating an instance for the specified class / function path.
     kwargs will be class args or default args for `partial` function.
-    The target component must be a class or a function.
+    The target component must be a class or a function, if not, return the component directly.
 
     Args:
         path: full path of the target class or function component.
