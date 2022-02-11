@@ -935,13 +935,12 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
             https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
     """
     if isinstance(img, torch.Tensor) and has_cp and has_cucim:
-        x_cupy = monai.transforms.ToCupy()(img)
-        x_cupy_dtype = x_cupy.dtype
-        x_label = cucim.skimage.measure.label(x_cupy)
+        x_cupy = monai.transforms.ToCupy()(img.short())
+        x_label = cucim.skimage.measure.label(x_cupy, connectivity=connectivity)
         vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
         comp = x_label == vals[cp.ndarray.argmax(counts)]
-        out = comp.astype(x_cupy_dtype)
-        out_tensor = monai.transforms.ToTensor(device=img.device)(out)
+        out_tensor = monai.transforms.ToTensor(device=img.device)(comp)
+        out_tensor = out_tensor.bool()
 
         return out_tensor  # type: ignore
 
