@@ -277,15 +277,15 @@ def locate(path: str):
         path: full path of the expected component to locate and import.
 
     """
-    parts = [part for part in path.split(".") if part]
-    for n in reversed(range(1, len(parts) + 1)):
+    parts = [p for p in path.split(".") if p]
+    for n in range(len(parts), 0, -1):
         try:
             obj = import_module(".".join(parts[:n]))
+            break
         except Exception as exc_import:
             if n == 1:
                 raise ImportError(f"can not import module '{path}'.") from exc_import
             continue
-        break
 
     for m in range(n, len(parts)):
         part = parts[m]
