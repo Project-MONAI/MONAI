@@ -24,7 +24,7 @@ from typing import Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, PathLike, NdarrayOrTensor
+from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
 from monai.data.folder_layout import FolderLayout
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
