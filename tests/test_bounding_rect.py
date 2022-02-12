@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +16,7 @@ from parameterized import parameterized
 
 import monai
 from monai.transforms import BoundingRect
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_1 = [(2, 3), [[0, 0], [1, 2]]]
 
@@ -35,14 +36,16 @@ class TestBoundingRect(unittest.TestCase):
     def test_shape(self, input_shape, expected):
         test_data = np.random.randint(0, 8, size=input_shape)
         test_data = test_data == 7
-        result = BoundingRect()(test_data)
-        np.testing.assert_allclose(result, expected)
+        for p in TEST_NDARRAYS:
+            result = BoundingRect()(p(test_data))
+            np.testing.assert_allclose(result, expected)
 
     def test_select_fn(self):
         test_data = np.random.randint(0, 8, size=(2, 3))
         test_data = test_data == 7
-        bbox = BoundingRect(select_fn=lambda x: x < 1)(test_data)
-        np.testing.assert_allclose(bbox, [[0, 3], [0, 3]])
+        for p in TEST_NDARRAYS:
+            bbox = BoundingRect(select_fn=lambda x: x < 1)(p(test_data))
+            np.testing.assert_allclose(bbox, [[0, 3], [0, 3]])
 
 
 if __name__ == "__main__":

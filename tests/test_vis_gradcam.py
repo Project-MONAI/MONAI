@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,23 +40,13 @@ TEST_CASE_1 = [
 ]
 # 2D
 TEST_CASE_2 = [
-    {
-        "model": "senet2d",
-        "shape": (2, 3, 64, 64),
-        "feature_shape": (2, 1, 2, 2),
-        "target_layers": "layer4",
-    },
+    {"model": "senet2d", "shape": (2, 3, 64, 64), "feature_shape": (2, 1, 2, 2), "target_layers": "layer4"},
     (2, 1, 64, 64),
 ]
 
 # 3D
 TEST_CASE_3 = [
-    {
-        "model": "senet3d",
-        "shape": (2, 3, 8, 8, 48),
-        "feature_shape": (2, 1, 1, 1, 2),
-        "target_layers": "layer4",
-    },
+    {"model": "senet3d", "shape": (2, 3, 8, 8, 48), "feature_shape": (2, 1, 1, 1, 2), "target_layers": "layer4"},
     (2, 1, 8, 8, 48),
 ]
 
@@ -87,6 +77,16 @@ class TestGradientClassActivationMap(unittest.TestCase):
         # check result is same whether class_idx=None is used or not
         result2 = cam(x=image, layer_idx=-1, class_idx=model(image).max(1)[-1].cpu())
         torch.testing.assert_allclose(result, result2)
+
+    def test_ill(self):
+        model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
+        for name, x in model.named_parameters():
+            if "features" in name:
+                x.requires_grad = False
+        cam = GradCAM(nn_module=model, target_layers="class_layers.relu")
+        image = torch.rand((2, 1, 48, 64))
+        with self.assertRaises(RuntimeError):
+            cam(x=image)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -62,7 +62,7 @@ class PatchEmbeddingBlock(nn.Module):
 
         """
 
-        super(PatchEmbeddingBlock, self).__init__()
+        super().__init__()
 
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
@@ -80,7 +80,7 @@ class PatchEmbeddingBlock(nn.Module):
             if self.pos_embed == "perceptron" and m % p != 0:
                 raise ValueError("patch_size should be divisible by img_size for perceptron.")
         self.n_patches = np.prod([im_d // p_d for im_d, p_d in zip(img_size, patch_size)])
-        self.patch_dim = in_channels * np.prod(patch_size)
+        self.patch_dim = int(in_channels * np.prod(patch_size))
 
         self.patch_embeddings: nn.Module
         if self.pos_embed == "conv":
@@ -94,11 +94,9 @@ class PatchEmbeddingBlock(nn.Module):
             to_chars = f"b ({' '.join([c[0] for c in chars])}) ({' '.join([c[1] for c in chars])} c)"
             axes_len = {f"p{i+1}": p for i, p in enumerate(patch_size)}
             self.patch_embeddings = nn.Sequential(
-                Rearrange(f"{from_chars} -> {to_chars}", **axes_len),
-                nn.Linear(self.patch_dim, hidden_size),
+                Rearrange(f"{from_chars} -> {to_chars}", **axes_len), nn.Linear(self.patch_dim, hidden_size)
             )
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
         self.dropout = nn.Dropout(dropout_rate)
         self.trunc_normal_(self.position_embeddings, mean=0.0, std=0.02, a=-2.0, b=2.0)
         self.apply(self._init_weights)

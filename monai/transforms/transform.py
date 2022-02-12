@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,17 +21,10 @@ import torch
 
 from monai import transforms
 from monai.config import KeysCollection
-from monai.utils import MAX_SEED, ensure_tuple
+from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 
-__all__ = [
-    "ThreadUnsafe",
-    "apply_transform",
-    "Randomizable",
-    "RandomizableTransform",
-    "Transform",
-    "MapTransform",
-]
+__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -47,9 +40,9 @@ def _apply_transform(
     Otherwise `parameters` is considered as single argument to `transform`.
 
     Args:
-        transform (Callable[..., ReturnType]): a callable to be used to transform `data`.
-        parameters (Any): parameters for the `transform`.
-        unpack_parameters (bool, optional): whether to unpack parameters for `transform`. Defaults to False.
+        transform: a callable to be used to transform `data`.
+        parameters: parameters for the `transform`.
+        unpack_parameters: whether to unpack parameters for `transform`. Defaults to False.
 
     Returns:
         ReturnType: The return type of `transform`.
@@ -65,6 +58,7 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
+    log_stats: bool = False,
 ) -> Union[List[ReturnType], ReturnType]:
     """
     Transform `data` with `transform`.
@@ -74,11 +68,14 @@ def apply_transform(
     otherwise transform will be applied once with `data` as the argument.
 
     Args:
-        transform (Callable[..., ReturnType]): a callable to be used to transform `data`.
-        data (Any): an object to be transformed.
-        map_items (bool, optional): whether to apply transform to each item in `data`,
+        transform: a callable to be used to transform `data`.
+        data: an object to be transformed.
+        map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
-        unpack_items (bool, optional): [description]. Defaults to False.
+        unpack_items: whether to unpack parameters using `*`. Defaults to False.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other meta data, log the values directly. default to `False`.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -92,7 +89,7 @@ def apply_transform(
         return _apply_transform(transform, data, unpack_items)
     except Exception as e:
 
-        if not isinstance(transform, transforms.compose.Compose):
+        if log_stats and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)
@@ -103,7 +100,7 @@ def apply_transform(
             def _log_stats(data, prefix: Optional[str] = "Data"):
                 if isinstance(data, (np.ndarray, torch.Tensor)):
                     # log data type, shape, range for array
-                    datastats(img=data, data_shape=True, value_range=True, prefix=prefix)  # type: ignore
+                    datastats(img=data, data_shape=True, value_range=True, prefix=prefix)
                 else:
                     # log data type and value for other meta data
                     datastats(img=data, data_value=True, prefix=prefix)
@@ -213,10 +210,10 @@ class Transform(ABC):
         :py:class:`monai.transforms.Compose`
     """
 
+    # Transforms should add data types to this list if they are capable of performing a transform without
+    # modifying the input type. For example, ["torch.Tensor", "np.ndarray"] means that no copies of the data
+    # are required if the input is either `torch.Tensor` or `np.ndarray`.
     backend: List[TransformBackends] = []
-    """Transforms should add data types to this list if they are capable of performing a transform without
-    modifying the input type. For example, [\"torch.Tensor\", \"np.ndarray\"] means that no copies of the data
-    are required if the input is either \"torch.Tensor\" or \"np.ndarray\"."""
 
     @abstractmethod
     def __call__(self, data: Any):
@@ -226,17 +223,15 @@ class Transform(ABC):
         return an updated version of ``data``.
         To simplify the input validations, most of the transforms assume that
 
-        - ``data`` is a Numpy ndarray, PyTorch Tensor or string
+        - ``data`` is a Numpy ndarray, PyTorch Tensor or string,
         - the data shape can be:
 
-          #. string data without shape, `LoadImage` transform expects file paths
-          #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except that `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
-          #. most of the post-processing transforms expect
-             ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
+          #. string data without shape, `LoadImage` transform expects file paths,
+          #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
+             except for example: `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
+             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels),
 
-        - the channel dimension is not omitted even if number of channels is one
+        - the channel dimension is often not omitted even if number of channels is one.
 
         This method can optionally take additional arguments to help execute transformation operation.
 
@@ -333,18 +328,16 @@ class MapTransform(Transform):
 
         To simplify the input validations, this method assumes:
 
-        - ``data`` is a Python dictionary
+        - ``data`` is a Python dictionary,
         - ``data[key]`` is a Numpy ndarray, PyTorch Tensor or string, where ``key`` is an element
           of ``self.keys``, the data shape can be:
 
-          #. string data without shape, `LoadImaged` transform expects file paths
-          #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except that `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
+          #. string data without shape, `LoadImaged` transform expects file paths,
+          #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
+             except for example: `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
              `AsChannelFirstd` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
-          #. most of the post-processing transforms expect
-             ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
 
-        - the channel dimension is not omitted even if number of channels is one
+        - the channel dimension is often not omitted even if number of channels is one.
 
         Raises:
             NotImplementedError: When the subclass does not override this method.
@@ -355,11 +348,7 @@ class MapTransform(Transform):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def key_iterator(
-        self,
-        data: Dict[Hashable, Any],
-        *extra_iterables: Optional[Iterable],
-    ) -> Generator:
+    def key_iterator(self, data: Dict[Hashable, Any], *extra_iterables: Optional[Iterable]) -> Generator:
         """
         Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
         `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.
@@ -378,4 +367,18 @@ class MapTransform(Transform):
             if key in data:
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
-                raise KeyError(f"Key was missing ({key}) and allow_missing_keys==False")
+                raise KeyError(
+                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data"
+                    " and allow_missing_keys==False."
+                )
+
+    def first_key(self, data: Dict[Hashable, Any]):
+        """
+        Get the first available key of `self.keys` in the input `data` dictionary.
+        If no available key, return an empty list `[]`.
+
+        Args:
+            data: data that the transform will be applied to.
+
+        """
+        return first(self.key_iterator(data), [])

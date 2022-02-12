@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -134,7 +134,7 @@ class ParamSchedulerHandler:
         Returns:
             float: new parameter value
         """
-        return initial_value * gamma ** current_step
+        return initial_value * gamma**current_step
 
     @staticmethod
     def _step(initial_value: float, gamma: float, step_size: int, current_step: int) -> float:

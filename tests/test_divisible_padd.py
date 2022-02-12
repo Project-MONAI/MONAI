@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,11 +28,7 @@ TEST_CASE_2 = [
     np.zeros((3, 14, 7)),
 ]
 
-TEST_CASE_3 = [
-    {"keys": ["img"], "k": 0, "mode": {"constant"}},
-    {"img": np.zeros((3, 8))},
-    np.zeros((3, 8)),
-]
+TEST_CASE_3 = [{"keys": ["img"], "k": 0, "mode": {"constant"}}, {"img": np.zeros((3, 8))}, np.zeros((3, 8))]
 
 
 class TestDivisiblePadd(unittest.TestCase):

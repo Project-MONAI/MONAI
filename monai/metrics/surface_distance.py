@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,9 +37,9 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             `seg_pred` and `seg_gt`. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result. Defaults to ``"mean"``.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
             Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
 
@@ -91,7 +91,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_average_surface_distance`.
 
@@ -134,10 +134,7 @@ def compute_average_surface_distance(
     """
 
     if not include_background:
-        y_pred, y = ignore_background(
-            y_pred=y_pred,
-            y=y,
-        )
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
     if isinstance(y, torch.Tensor):
         y = y.float()
@@ -161,7 +158,7 @@ def compute_average_surface_distance(
         if surface_distance.shape == (0,):
             avg_surface_distance = np.nan
         else:
-            avg_surface_distance = surface_distance.mean()  # type: ignore
+            avg_surface_distance = surface_distance.mean()
         if not symmetric:
             asd[b, c] = avg_surface_distance
         else:
@@ -169,7 +166,7 @@ def compute_average_surface_distance(
             if surface_distance_2.shape == (0,):
                 avg_surface_distance_2 = np.nan
             else:
-                avg_surface_distance_2 = surface_distance_2.mean()  # type: ignore
+                avg_surface_distance_2 = surface_distance_2.mean()
             asd[b, c] = np.mean((avg_surface_distance, avg_surface_distance_2))
 
     return torch.from_numpy(asd)
