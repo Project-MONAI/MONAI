@@ -18,8 +18,9 @@ import warnings
 from functools import partial, wraps
 from importlib import import_module
 from pkgutil import walk_packages
+from pydoc import locate
 from re import match
-from types import FunctionType, ModuleType
+from types import FunctionType
 from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, Union, cast
 
 import torch
@@ -37,7 +38,6 @@ __all__ = [
     "optional_import",
     "require_pkg",
     "load_submodules",
-    "locate",
     "instantiate",
     "get_full_type_name",
     "get_package_version",
@@ -194,42 +194,6 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
                 pass  # could not import the optional deps., they are ignored
 
     return submodules, err_mod
-
-
-def locate(path: str):
-    """
-    Locate an object by name or dotted path, importing as necessary.
-    Refer to Hydra: https://github.com/facebookresearch/hydra/blob/v1.1.1/hydra/_internal/utils.py#L554.
-
-    Args:
-        path: full path of the expected component to locate and import.
-
-    """
-    parts = [p for p in path.split(".") if p]
-    for n in range(len(parts), 0, -1):
-        try:
-            obj = import_module(".".join(parts[:n]))
-            break
-        except Exception as exc_import:
-            if n == 1:
-                raise ImportError(f"can not import module '{path}'.") from exc_import
-            continue
-
-    for m in range(n, len(parts)):
-        part = parts[m]
-        try:
-            obj = getattr(obj, part)
-        except AttributeError as exc_attr:
-            if isinstance(obj, ModuleType):
-                mod = ".".join(parts[: m + 1])
-                try:
-                    import_module(mod)
-                except ModuleNotFoundError:
-                    pass
-                except Exception as exc_import:
-                    raise ImportError(f"can not import module '{path}'.") from exc_import
-            raise ImportError(f"AttributeError while loading '{path}': {exc_attr}") from exc_attr
-    return obj
 
 
 def instantiate(path: str, **kwargs):
