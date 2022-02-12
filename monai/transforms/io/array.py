@@ -24,11 +24,12 @@ from typing import Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, PathLike
+from monai.config import DtypeLike, PathLike, NdarrayOrTensor
 from monai.data import image_writer
 from monai.data.folder_layout import FolderLayout
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.transforms.transform import Transform
+from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, OptionalImportError, ensure_tuple, look_up_option, optional_import
@@ -91,7 +92,15 @@ class LoadImage(Transform):
 
     """
 
-    def __init__(self, reader=None, image_only: bool = False, dtype: DtypeLike = np.float32, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        reader=None,
+        image_only: bool = False,
+        dtype: DtypeLike = np.float32,
+        ensure_channel_first: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
         """
         Args:
             reader: reader to load image file and meta data
@@ -104,6 +113,8 @@ class LoadImage(Transform):
 
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
+            ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
+                the image array shape to `channel first`. default to `False`.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -121,6 +132,7 @@ class LoadImage(Transform):
         self.auto_select = reader is None
         self.image_only = image_only
         self.dtype = dtype
+        self.ensure_channel_first = ensure_channel_first
 
         self.readers: List[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -218,14 +230,19 @@ class LoadImage(Transform):
                 f"   The current registered: {self.readers}.\n{msg}"
             )
 
+        img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img)
         img_array = img_array.astype(self.dtype, copy=False)
+        if not isinstance(meta_data, dict):
+            raise ValueError("`meta_data` must be a dict.")
+        # make sure all elements in metadata are little endian
+        meta_data = switch_endianness(meta_data, "<")
+        if self.ensure_channel_first:
+            img_array = EnsureChannelFirst()(img_array, meta_data)
 
         if self.image_only:
             return img_array
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
-        # make sure all elements in metadata are little endian
-        meta_data = switch_endianness(meta_data, "<")
 
         return img_array, meta_data
 
