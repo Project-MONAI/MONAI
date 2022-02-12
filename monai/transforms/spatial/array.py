@@ -489,6 +489,11 @@ class Orientation(Transform):
         else:
             if self.axcodes is None:
                 raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
+            if sr < len(self.axcodes):
+                warnings.warn(
+                    f"axcodes ('{self.axcodes}') length is smaller than the number of input spatial dimensions D={sr}.\n"
+                    f"{self.__class__.__name__}: input spatial shape is {spatial_shape}, num. channels is {data_array.shape[0]}."
+                )
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
             if len(dst) < sr:
                 raise ValueError(
