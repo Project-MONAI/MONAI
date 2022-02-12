@@ -13,11 +13,14 @@ import unittest
 from pydoc import locate
 
 from monai.apps.mmars import ComponentScanner
+from monai.utils import optional_import
+
+_, has_ignite = optional_import("ignite")
 
 
 class TestComponentScanner(unittest.TestCase):
     def test_locate(self):
-        scanner = ComponentScanner(excludes=None)
+        scanner = ComponentScanner(excludes=None if has_ignite else ["monai.handlers"])
         self.assertGreater(len(scanner._components_table), 0)
         for _, mods in scanner._components_table.items():
             for i in mods:
