@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import glob
+import inspect
 import os
 import unittest
 
@@ -32,6 +33,24 @@ class TestAllImport(unittest.TestCase):
                 continue
             mod.append(code_folder)
         self.assertEqual(sorted(monai.__all__), sorted(mod))
+
+    def test_transform_api(self):
+        """monai subclasses of MapTransforms must have alias names ending with 'd', 'D', 'Dict'"""
+        to_exclude = {"MapTransform"}  # except for these transforms
+        xforms = {
+            name: obj
+            for name, obj in monai.transforms.__dict__.items()
+            if inspect.isclass(obj) and issubclass(obj, monai.transforms.MapTransform)
+        }
+        names = sorted(x for x in xforms if x not in to_exclude)
+        remained = set(names)
+        for n in names:
+            if not n.endswith("d"):
+                continue
+            basename = n[:-1]  # Transformd basename is Transform
+            for postfix in ("D", "d", "Dict"):
+                remained.remove(f"{basename}{postfix}")
+        self.assertFalse(remained)
 
 
 if __name__ == "__main__":
