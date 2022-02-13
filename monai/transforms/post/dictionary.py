@@ -49,6 +49,8 @@ __all__ = [
     "AsDiscreteDict",
     "AsDiscreted",
     "Ensembled",
+    "EnsembleD",
+    "EnsembleDict",
     "FillHolesD",
     "FillHolesDict",
     "FillHolesd",
@@ -746,3 +748,4 @@ MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 ProbNMSD = ProbNMSDict = ProbNMSd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
+EnsembleD = EnsembleDict = Ensembled
