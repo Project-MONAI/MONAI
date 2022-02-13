@@ -519,8 +519,8 @@ class Invertd(MapTransform):
     Utility transform to automatically invert the previously applied transforms.
 
     Taking the ``transform`` previously applied on ``orig_keys``, this ``Invertd`` will apply the inverse of it
-    to the data stored at ``keys``. ``Invertd``'s output will also include a copy of
-    the metadata dictionary (at ``orig_meta_keys``), with the relevant fields inverted and stored at ``meta_keys``.
+    to the data stored at ``keys``. ``Invertd``'s output will also include a copy of the metadata
+    dictionary (originally from  ``orig_meta_keys``), with the relevant fields inverted and stored at ``meta_keys``.
 
     A typical usage is to apply the inverse of the preprocessing on input ``image`` to the model ``pred``.
 
@@ -569,16 +569,16 @@ class Invertd(MapTransform):
                 The meta data is a dictionary optionally containing: filename, original_shape.
                 It can be a sequence of strings, maps to the `keys`.
                 If None, will try to create a meta data dict with the default key: `{orig_key}_{meta_key_postfix}`.
-                this meta data dict will also be included in the inverted dict, stored in `meta_keys`.
+                This meta data dict will also be included in the inverted dict, stored in `meta_keys`.
             meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to fetch the
-                meta data from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`.
+                meta data from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`. Default: ``"meta_dict"``.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 It also can be a list of bool, each matches to the `keys` data.
             to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
                 It also can be a list of bool, each matches to the `keys` data.
             device: if converted to Tensor, move the inverted results to target device before `post_func`,
-                Default to "cpu", it also can be a list of string or `torch.device`, each matches to the `keys` data.
+                default to "cpu", it also can be a list of string or `torch.device`, each matches to the `keys` data.
             post_func: post processing for the inverted data, should be a callable function.
                 It also can be a list of callable, each matches to the `keys` data.
             allow_missing_keys: don't raise exception if key is missing.
