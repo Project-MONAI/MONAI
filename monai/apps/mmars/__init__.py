@@ -12,4 +12,4 @@
 from .config_resolver import ComponentLocator, ConfigComponent
 from .mmars import download_mmar, get_model_spec, load_from_mmar
 from .model_desc import MODEL_DESC, RemoteMMARKeys
-from .utils import search_configs_with_deps, update_configs_with_deps
+from .utils import is_to_build, resolve_config_with_deps, search_config_with_deps

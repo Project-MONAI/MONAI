@@ -13,7 +13,23 @@ import re
 from typing import Dict, List, Optional, Union
 
 
-def search_configs_with_deps(config: Union[Dict, List, str], id: str, deps: Optional[List[str]] = None) -> List[str]:
+def is_to_build(config: Union[Dict, List, str]) -> bool:
+    """
+    Check whether the target component of the config is a `class` or `function` to build
+    with specified "<path>" or "<name>".
+
+    Args:
+        config: input config content to check.
+
+    """
+    return isinstance(config, dict) and ("<path>" in config or "<name>" in config)
+
+
+def search_config_with_deps(
+    config: Union[Dict, List, str],
+    id: Optional[str] = None,
+    deps: Optional[List[str]] = None,
+) -> List[str]:
     """
     Recursively search all the content of input config compoent to get the ids of dependencies.
     It's used to build all the dependencies before build current config component.
@@ -23,66 +39,81 @@ def search_configs_with_deps(config: Union[Dict, List, str], id: str, deps: Opti
 
     Args:
         config: input config content to search.
-        id: id name for the input config.
-        deps: list of the id name of existing dependencies, default to None.
+        id: ID name for the input config, default to `None`.
+        deps: list of the ID name of existing dependencies, default to `None`.
 
     """
     deps_: List[str] = [] if deps is None else deps
     pattern = re.compile(r"@\w*[\#\w]*")  # match ref as args: "@XXX#YYY#ZZZ"
     if isinstance(config, list):
         for i, v in enumerate(config):
-            sub_id = f"{id}#{i}"
-            # all the items in the list should be marked as dependent reference
-            deps_.append(sub_id)
-            deps_ = search_configs_with_deps(v, sub_id, deps_)
+            sub_id = f"{id}#{i}" if id is not None else f"{i}"
+            if is_to_build(v):
+                # sub-item is component need to build, mark as dependency
+                deps_.append(sub_id)
+            deps_ = search_config_with_deps(v, sub_id, deps_)
     if isinstance(config, dict):
         for k, v in config.items():
-            sub_id = f"{id}#{k}"
-            # all the items in the dict should be marked as dependent reference
-            deps_.append(sub_id)
-            deps_ = search_configs_with_deps(v, sub_id, deps_)
+            sub_id = f"{id}#{k}" if id is not None else f"{k}"
+            if is_to_build(v):
+                # sub-item is component need to build, mark as dependency
+                deps_.append(sub_id)
+            deps_ = search_config_with_deps(v, sub_id, deps_)
     if isinstance(config, str):
         result = pattern.findall(config)
         for item in result:
             if config.startswith("$") or config == item:
+                # only check when string starts with "$" or the whole content is "@XXX"
                 ref_obj_id = item[1:]
                 if ref_obj_id not in deps_:
                     deps_.append(ref_obj_id)
     return deps_
 
 
-def update_configs_with_deps(config: Union[Dict, List, str], deps: dict, id: str, globals: Optional[Dict] = None):
+def resolve_config_with_deps(
+    config: Union[Dict, List, str],
+    deps: Optional[Dict] = None,
+    id: Optional[str] = None,
+    globals: Optional[Dict] = None,
+):
     """
-    With all the dependencies in `deps`, update the config content with them and return new config.
+    With all the dependencies in `deps`, resolve the config content with them and return new config.
     It can be used for lazy instantiation.
 
     Args:
-        config: input config content to update.
-        deps: all the dependent components with ids.
-        id: id name for the input config.
+        config: input config content to resolve.
+        deps: all the dependent components with ids, default to `None`.
+        id: id name for the input config, default to `None`.
         globals: predefined global variables to execute code string with `eval()`.
 
     """
+    deps_: Dict = {} if deps is None else deps
     pattern = re.compile(r"@\w*[\#\w]*")  # match ref as args: "@XXX#YYY#ZZZ"
     if isinstance(config, list):
         # all the items in the list should be replaced with the reference
-        return [deps[f"{id}#{i}"] for i in range(len(config))]
+        ret: List = []
+        for i, v in enumerate(config):
+            sub_id = f"{id}#{i}" if id is not None else f"{i}"
+            ret.append(deps_[sub_id] if is_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals))
+        return ret
     if isinstance(config, dict):
         # all the items in the dict should be replaced with the reference
-        return {k: deps[f"{id}#{k}"] for k, _ in config.items()}
+        ret: Dict = {}
+        for k, v in config.items():
+            sub_id = f"{id}#{k}" if id is not None else f"{k}"
+            ret[k] = deps_[sub_id] if is_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals)
+        return ret
     if isinstance(config, str):
         result = pattern.findall(config)
-        config_: str = config
+        config_: str = config  # to avoid mypy CI errors
         for item in result:
             ref_obj_id = item[1:]
             if config_.startswith("$"):
-                # replace with local code and execute soon
-                config_ = config_.replace(item, f"deps['{ref_obj_id}']")
+                # replace with local code and execute later
+                config_ = config_.replace(item, f"deps_['{ref_obj_id}']")
             elif config_ == item:
-                config_ = deps[ref_obj_id]
-
-        if isinstance(config_, str):
-            if config_.startswith("$"):
-                config_ = eval(config_[1:], globals, {"deps": deps})
+                config_ = deps_[ref_obj_id]
+        if isinstance(config_, str) and config_.startswith("$"):
+            config_ = eval(config_[1:], globals, {"deps_": deps_})
         return config_
     return config
