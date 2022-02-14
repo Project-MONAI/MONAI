@@ -144,8 +144,8 @@ class SpatialResample(Transform):
                 the shape should be `(r+1, r+1)` where `r` is the spatial rank of ``img``.
             dst_affine: destination affine matrix. Defaults to ``None``, which means the same as `src_affine`.
                 the shape should be `(r+1, r+1)` where `r` is the spatial rank of ``img``.
-                when `dst` is None, the input will be returned without resampling, but the data type
-                will be `float32`.
+                when `dst_affine` and `spatial_size` are None, the input will be returned without resampling,
+                but the data type will be `float32`.
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined,
                 the transform will compute a spatial size automatically containing the previous field of view.
@@ -169,24 +169,29 @@ class SpatialResample(Transform):
 
         When both ``monai.config.USE_COMPILED`` and ``align_corners`` are set to ``True``,
         MONAI's resampling implementation will be used.
+        Set `dst_affine` and `spatial_size` to `None` to turn off the resampling step.
         """
         if src_affine is None:
             src_affine = np.eye(4, dtype=np.float64)
         spatial_rank = min(len(img.shape) - 1, src_affine.shape[0] - 1, 3)
-        if spatial_size is not -1 and spatial_size is not None:
+        if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
             spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
         src_affine = to_affine_nd(spatial_rank, src_affine)
         dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine
         dst_affine, *_ = convert_to_dst_type(dst_affine, dst_affine, dtype=torch.float32)
 
         in_spatial_size = np.asarray(img.shape[1 : spatial_rank + 1])
-        if spatial_size is -1:  # using the input spatial size
+        if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
             spatial_size = in_spatial_size
-        elif spatial_size is None:  # auto spatial size
+        elif spatial_size is None and spatial_rank > 1:  # auto spatial size
             spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine, dst_affine)  # type: ignore
         spatial_size = np.asarray(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
 
-        if allclose(src_affine, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
+        if (
+            allclose(src_affine, dst_affine, atol=AFFINE_TOL)
+            and allclose(spatial_size, in_spatial_size)
+            or spatial_rank == 1
+        ):
             # no significant change, return original image
             output_data, *_ = convert_to_dst_type(img, img, dtype=torch.float32)
             return output_data, dst_affine
@@ -484,6 +489,12 @@ class Orientation(Transform):
         else:
             if self.axcodes is None:
                 raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
+            if sr < len(self.axcodes):
+                warnings.warn(
+                    f"axcodes ('{self.axcodes}') length is smaller than the number of input spatial dimensions D={sr}.\n"
+                    f"{self.__class__.__name__}: input spatial shape is {spatial_shape}, num. channels is {data_array.shape[0]},"
+                    "please make sure the input is in the channel-first format."
+                )
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
             if len(dst) < sr:
                 raise ValueError(

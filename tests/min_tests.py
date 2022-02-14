@@ -87,6 +87,7 @@ def run_testsuit():
         "test_header_correct",
         "test_hilbert_transform",
         "test_image_dataset",
+        "test_image_rw",
         "test_img2tensorboard",
         "test_integration_fast_train",
         "test_integration_segmentation_3d",

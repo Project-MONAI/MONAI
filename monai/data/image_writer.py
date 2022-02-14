@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
@@ -22,6 +22,7 @@ from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
+    OptionalImportError,
     convert_data_type,
     look_up_option,
     optional_import,
@@ -29,6 +30,7 @@ from monai.utils import (
 )
 
 DEFAULT_FMT = "%(asctime)s %(levelname)s %(filename)s:%(lineno)d - %(message)s"
+EXT_WILDCARD = "*"
 logger = get_logger(module_name=__name__, fmt=DEFAULT_FMT)
 
 if TYPE_CHECKING:
@@ -41,7 +43,76 @@ else:
     PILImage, _ = optional_import("PIL.Image")
 
 
-__all__ = ["ImageWriter", "ITKWriter", "NibabelWriter", "PILWriter", "logger"]
+__all__ = [
+    "ImageWriter",
+    "ITKWriter",
+    "NibabelWriter",
+    "PILWriter",
+    "SUPPORTED_WRITERS",
+    "register_writer",
+    "resolve_writer",
+    "logger",
+]
+
+SUPPORTED_WRITERS: Dict = {}
+
+
+def register_writer(ext_name, *im_writers):
+    """
+    Register ``ImageWriter``, so that writing a file with filename extension ``ext_name``
+    could be resolved to a tuple of potentially appropriate ``ImageWriter``.
+    The customised writers could be registered by:
+
+    .. code-block:: python
+
+        from monai.data import register_writer
+        # `MyWriter` must implement `ImageWriter` interface
+        register_writer("nii", MyWriter)
+
+    Args:
+        ext_name: the filename extension of the image.
+            As an indexing key, it will be converted to a lower case string.
+        im_writers: one or multiple ImageWriter classes with high priority ones first.
+    """
+    fmt = f"{ext_name}".lower()
+    if fmt.startswith("."):
+        fmt = fmt[1:]
+    existing = look_up_option(fmt, SUPPORTED_WRITERS, default=())
+    all_writers = im_writers + existing
+    SUPPORTED_WRITERS[fmt] = all_writers
+
+
+def resolve_writer(ext_name, error_if_not_found=True) -> Sequence:
+    """
+    Resolves to a tuple of available ``ImageWriter`` in ``SUPPORTED_WRITERS``
+    according to the filename extension key ``ext_name``.
+
+    Args:
+        ext_name: the filename extension of the image.
+            As an indexing key it will be converted to a lower case string.
+        error_if_not_found: whether to raise an error if no suitable image writer is found.
+            if True , raise an ``OptionalImportError``, otherwise return an empty tuple. Default is ``True``.
+    """
+    if not SUPPORTED_WRITERS:
+        init()
+    fmt = f"{ext_name}".lower()
+    if fmt.startswith("."):
+        fmt = fmt[1:]
+    avail_writers = []
+    default_writers = SUPPORTED_WRITERS.get(EXT_WILDCARD, ())
+    for _writer in look_up_option(fmt, SUPPORTED_WRITERS, default=default_writers):
+        try:
+            _writer()  # this triggers `monai.utils.module.require_pkg` to check the system availability
+            avail_writers.append(_writer)
+        except OptionalImportError:
+            continue
+        except Exception:  # other writer init errors indicating it exists
+            avail_writers.append(_writer)
+    if not avail_writers and error_if_not_found:
+        raise OptionalImportError(f"No ImageWriter backend found for {fmt}.")
+    writer_tuple = ensure_tuple(avail_writers)
+    SUPPORTED_WRITERS[fmt] = writer_tuple
+    return writer_tuple
 
 
 class ImageWriter:
@@ -297,7 +368,9 @@ class ITKWriter(ImageWriter):
         """
         super().__init__(output_dtype=output_dtype, affine=None, channel_dim=0, **kwargs)
 
-    def set_data_array(self, data_array, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs):
+    def set_data_array(
+        self, data_array: NdarrayOrTensor, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs
+    ):
         """
         Convert ``data_array`` into 'channel-last' numpy ndarray.
 
@@ -309,6 +382,7 @@ class ITKWriter(ImageWriter):
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
                 currently support ``spatial_ndim`` and ``contiguous``, defauting to ``3`` and ``False`` respectively.
         """
+        _r = len(data_array.shape)
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
             channel_dim=channel_dim,
@@ -316,7 +390,7 @@ class ITKWriter(ImageWriter):
             spatial_ndim=kwargs.pop("spatial_ndim", 3),
             contiguous=kwargs.pop("contiguous", True),
         )
-        self.channel_dim = channel_dim
+        self.channel_dim = channel_dim if len(self.data_obj.shape) >= _r else None  # channel dim is at the end
 
     def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
         """
@@ -335,7 +409,7 @@ class ITKWriter(ImageWriter):
             data_array=self.data_obj,
             affine=affine,
             target_affine=original_affine if resample else None,
-            output_spatial_shape=spatial_shape,
+            output_spatial_shape=spatial_shape if resample else None,
             mode=options.pop("mode", GridSampleMode.BILINEAR),
             padding_mode=options.pop("padding_mode", GridSamplePadMode.BORDER),
             align_corners=options.pop("align_corners", False),
@@ -476,7 +550,7 @@ class NibabelWriter(ImageWriter):
             data_array=self.data_obj,
             affine=affine,
             target_affine=original_affine if resample else None,
-            output_spatial_shape=spatial_shape,
+            output_spatial_shape=spatial_shape if resample else None,
             mode=options.pop("mode", GridSampleMode.BILINEAR),
             padding_mode=options.pop("padding_mode", GridSamplePadMode.BORDER),
             align_corners=options.pop("align_corners", False),
@@ -716,3 +790,15 @@ class PILWriter(ImageWriter):
             data = np.moveaxis(data, 0, 1)
 
         return PILImage.fromarray(data, mode=kwargs.pop("image_mode", None))
+
+
+def init():
+    """
+    Initialize the image writer modules according to the filename extension.
+    """
+    for ext in ("png", "jpg", "jpeg", "bmp", "tiff", "tif"):
+        register_writer(ext, PILWriter)  # TODO: test 16-bit
+    for ext in ("nii.gz", "nii"):
+        register_writer(ext, NibabelWriter, ITKWriter)
+    register_writer("nrrd", ITKWriter, NibabelWriter)
+    register_writer(EXT_WILDCARD, ITKWriter, NibabelWriter, ITKWriter)
