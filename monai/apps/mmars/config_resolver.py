@@ -35,7 +35,7 @@ class ComponentLocator:
 
     def __init__(self, excludes: Optional[Union[Sequence[str], str]] = None):
         self.excludes = [] if excludes is None else ensure_tuple(excludes)
-        self._components_table = None
+        self._components_table: Optional[Dict[str, List]] = None
 
     def _find_module_names(self) -> List[str]:
         """
@@ -69,7 +69,7 @@ class ComponentLocator:
                 pass
         return table
 
-    def get_component_module_name(self, name) -> Union[List[str], str]:
+    def get_component_module_name(self, name) -> Optional[Union[List[str], str]]:
         """
         Get the full module name of the class / function with specified name.
         If target component name exists in multiple packages or modules, return a list of full module names.
@@ -82,7 +82,7 @@ class ComponentLocator:
             # init component and module mapping table
             self._components_table = self._find_classes_or_functions(self._find_module_names())
 
-        mods = self._components_table.get(name, None)
+        mods: Optional[Union[List[str], str]] = self._components_table.get(name, None)
         if isinstance(mods, list) and len(mods) == 1:
             mods = mods[0]
         return mods
@@ -155,7 +155,7 @@ class ConfigComponent:
         excludes: Optional[Union[Sequence[str], str]] = None,
         globals: Optional[Dict] = None,
     ) -> None:
-        self.config = None
+        self.config = config
         self.resolved_config = None
         self.is_resolved = False
         self.id = id
@@ -210,12 +210,12 @@ class ConfigComponent:
         """
         return search_config_with_deps(config=self.config, id=self.id)
 
-    def resolve_config(self, deps: Dict):
+    def resolve_config(self, deps: Optional[Dict] = None):
         """
         If all the dependencies are ready in `deps`, resolve the config content with them to construct `resolved_config`.
 
         Args:
-            deps: all the dependent components with ID as keys.
+            deps: all the dependent components with ID as keys, default to `None`.
 
         """
         self.resolved_config = resolve_config_with_deps(config=self.config, deps=deps, id=self.id, globals=self.globals)
