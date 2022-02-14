@@ -35,6 +35,16 @@ from .folder_layout import FolderLayout
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
+from .image_writer import (
+    SUPPORTED_WRITERS,
+    ImageWriter,
+    ITKWriter,
+    NibabelWriter,
+    PILWriter,
+    logger,
+    register_writer,
+    resolve_writer,
+)
 from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
@@ -60,11 +70,13 @@ from .utils import (
     iter_patch_slices,
     json_hashing,
     list_data_collate,
+    orientation_ras_lps,
     pad_list_data_collate,
     partition_dataset,
     partition_dataset_classes,
     pickle_hashing,
     rectify_header_sform_qform,
+    reorient_spatial_axes,
     resample_datalist,
     select_cross_validation_folds,
     set_rnd,
