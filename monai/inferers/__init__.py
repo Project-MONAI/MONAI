@@ -10,4 +10,4 @@
 # limitations under the License.
 
 from .inferer import Inferer, SaliencyInferer, SimpleInferer, SlidingWindowInferer
-from .utils import sliding_window_inference
+from .utils import sliding_window_inference, sliding_window_inference_multioutput
