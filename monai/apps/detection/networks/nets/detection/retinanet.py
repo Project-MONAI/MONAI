@@ -1,7 +1,7 @@
 import math
 import warnings
 from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple, Callable
+from typing import Dict, List, Optional, Tuple, Callable, Union, Sequence
 
 import torch
 import torchvision
@@ -13,11 +13,14 @@ from monai.losses.focal_loss import FocalLoss
 from monai.networks.layers.factories import Conv
 from monai.networks.nets.resnet import resnet50
 from monai.utils.module import look_up_option
+from monai.utils import BlendMode, PytorchPadMode
+from monai.inferers import SimpleInferer, SlidingWindowMultiOutputInferer
 
 from . import _utils as det_utils
 from .anchor_utils import AnchorGenerator
 from .backbone_utils import _resnet_fpn_extractor, _validate_trainable_layers
 from .transform import GeneralizedRCNNTransform
+
 
 # This script is modified from torchvision.models.detection.retinanet.py
 __all__ = ["RetinaNet", "retinanet_resnet50_fpn"]
@@ -156,25 +159,9 @@ class RetinaNetClassificationHead(nn.Module):
             cls_logits = self.conv(features)
             cls_logits = self.cls_logits(cls_logits)
 
-            # 2D: Permute classification output from (N, A * K, H, W) to (N, HWA, K).
-            spatial_dims = len(cls_logits.shape) - 2
-            if spatial_dims == 2:
-                N, _, H, W = cls_logits.shape
-                cls_logits = cls_logits.view(N, -1, self.num_classes, H, W)  # (N, A, K, H, W)
-                cls_logits = cls_logits.permute(0, 3, 4, 1, 2)  # (N, H, W, A, K)
-                cls_logits = cls_logits.reshape(N, -1, self.num_classes)  # Size=(N, HWA, 4)
-            # 3D: Permute classification output from (N, A * K, H, W, D) to (N, HWDA, K).
-            elif spatial_dims == 3:
-                N, _, H, W, D = cls_logits.shape
-                cls_logits = cls_logits.view(N, -1, self.num_classes, H, W, D)  # (N, A, K, H, W, D)
-                cls_logits = cls_logits.permute(0, 3, 4, 5, 1, 2)  # (N, H, W, D, A, K)
-                cls_logits = cls_logits.reshape(N, -1, self.num_classes)  # Size=(N, HWDA, 4)
-            else:
-                ValueError("Images can only be 2D or 3D.")
-
             all_cls_logits.append(cls_logits)
 
-        return torch.cat(all_cls_logits, dim=1)
+        return all_cls_logits
 
 
 class RetinaNetRegressionHead(nn.Module):
@@ -250,25 +237,9 @@ class RetinaNetRegressionHead(nn.Module):
             bbox_regression = self.conv(features)
             bbox_regression = self.bbox_reg(bbox_regression)
 
-            # 2D: Permute bbox regression output from (N, 4 * A, H, W) to (N, HWA, 4).
-            spatial_dims = len(bbox_regression.shape) - 2
-            if spatial_dims == 2:
-                N, _, H, W = bbox_regression.shape
-                bbox_regression = bbox_regression.view(N, -1, 4, H, W)
-                bbox_regression = bbox_regression.permute(0, 3, 4, 1, 2)
-                bbox_regression = bbox_regression.reshape(N, -1, 4)  # Size=(N, HWA, 4)
-            # 3D: Permute bbox regression output from (N, 6 * A, H, W) to (N, HWDA, 6).
-            elif spatial_dims == 3:
-                N, _, H, W, D = bbox_regression.shape
-                bbox_regression = bbox_regression.view(N, -1, 6, H, W, D)
-                bbox_regression = bbox_regression.permute(0, 3, 4, 5, 1, 2)
-                bbox_regression = bbox_regression.reshape(N, -1, 6)  # Size=(N, HWDA, 6)
-            else:
-                ValueError("Images can only be 2D or 3D.")
-
             all_bbox_regression.append(bbox_regression)
 
-        return torch.cat(all_bbox_regression, dim=1)
+        return all_bbox_regression
 
 
 class RetinaNet(nn.Module):
@@ -448,6 +419,24 @@ class RetinaNet(nn.Module):
 
         # used only on torchscript mode
         self._has_warned = False
+        self.inferer = SimpleInferer()
+
+    def define_sliding_window_inferer(
+        self,
+        roi_size: Union[Sequence[int], int],
+        sw_batch_size: int = 1,
+        overlap: float = 0.25,
+        mode: Union[BlendMode, str] = BlendMode.CONSTANT,
+        sigma_scale: Union[Sequence[float], float] = 0.125,
+        padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        cval: float = 0.0,
+        sw_device: Union[torch.device, str, None] = None,
+        device: Union[torch.device, str, None] = None,
+    ):
+        # If this function is not called, the default self.inferer = SimpleInferer()
+        self.inferer = SlidingWindowMultiOutputInferer(
+            roi_size, sw_batch_size, overlap, mode, sigma_scale, padding_mode, cval, sw_device, device
+        )
 
     @torch.jit.unused
     def eager_outputs(self, losses, detections):
@@ -477,6 +466,31 @@ class RetinaNet(nn.Module):
         return self.head.compute_loss(
             targets, head_outputs, anchors, matched_idxs, debug=self.debug, fg_bg_sampler=self.fg_bg_sampler
         )
+
+    def post_cat_map(self, x, num_channel):
+        # type: (List[Tensor]) -> Tensor
+        all_bbox_regression = []
+
+        for bbox_regression in x:
+            # 2D: Permute bbox regression output from (N, 4 * A, H, W) to (N, HWA, 4).
+            spatial_dims = self.spatial_dims
+            if spatial_dims == 2:
+                N, _, H, W = bbox_regression.shape
+                bbox_regression = bbox_regression.view(N, -1, num_channel, H, W)
+                bbox_regression = bbox_regression.permute(0, 3, 4, 1, 2)
+                bbox_regression = bbox_regression.reshape(N, -1, num_channel)  # Size=(N, HWA, 4)
+            # 3D: Permute bbox regression output from (N, 6 * A, H, W) to (N, HWDA, 6).
+            elif spatial_dims == 3:
+                N, _, H, W, D = bbox_regression.shape
+                bbox_regression = bbox_regression.view(N, -1, num_channel, H, W, D)
+                bbox_regression = bbox_regression.permute(0, 3, 4, 5, 1, 2)
+                bbox_regression = bbox_regression.reshape(N, -1, num_channel)  # Size=(N, HWDA, 6)
+            else:
+                ValueError("Images can only be 2D or 3D.")
+
+            all_bbox_regression.append(bbox_regression)
+
+        return torch.cat(all_bbox_regression, dim=1)
 
     def postprocess_detections(self, head_outputs, anchors, image_shapes):
         # type: (Dict[str, List[Tensor]], List[List[Tensor]], List[Tuple[int, int]]) -> List[Dict[str, Tensor]]
@@ -549,6 +563,18 @@ class RetinaNet(nn.Module):
 
         return detections
 
+    def forward_network(self, images):
+        features = self.backbone(images)
+        if isinstance(features, torch.Tensor):
+            features = OrderedDict([("0", features)])
+
+        # TODO: Do we want a list or a dict?
+        features = list(features.values())
+        head_outputs = self.head(features)
+        head_outputs_list = head_outputs["cls_logits"]
+        head_outputs_list += head_outputs["bbox_regression"]
+        return head_outputs_list
+
     def forward(self, images, targets=None):
         # type: (List[Tensor], Optional[List[Dict[str, Tensor]]]) -> Tuple[Dict[str, Tensor], List[Dict[str, Tensor]]]
         """
@@ -579,8 +605,6 @@ class RetinaNet(nn.Module):
         # transform the input
         images, image_sizes, targets = self.transform(images, targets)
 
-        # Check for degenerate boxes
-        # TODO: Move this to a function
         if targets is not None:
             for target_idx, target in enumerate(targets):
                 boxes = target["boxes"]
@@ -595,18 +619,28 @@ class RetinaNet(nn.Module):
                     )
 
         # get the features from the backbone
-        features = self.backbone(images)
-        if isinstance(features, torch.Tensor):
-            features = OrderedDict([("0", features)])
-
-        # TODO: Do we want a list or a dict?
-        features = list(features.values())
-
         # compute the retinanet heads outputs using the features
-        head_outputs = self.head(features)
+        if self.training:
+            head_outputs_list = self.forward_network(images)
+        else:
+            head_outputs_list = self.inferer(images, self.forward_network)
+
+        head_outputs = {}
+        head_outputs["cls_logits"] = head_outputs_list[: len(head_outputs_list) // 2]
+        head_outputs["bbox_regression"] = head_outputs_list[len(head_outputs_list) // 2 :]
 
         # create the set of anchors
-        anchors = self.anchor_generator(images, image_sizes, features)
+        grid_sizes = [
+            head_output_map.shape[-self.spatial_dims :]
+            for head_output_map in head_outputs["cls_logits"]
+        ]
+        anchors = self.anchor_generator(images, image_sizes, grid_sizes)
+        num_anchors_per_level = [x.shape[2:].numel() for x in head_outputs["cls_logits"]]
+
+        head_outputs["cls_logits"] = self.post_cat_map(head_outputs["cls_logits"], num_channel=self.num_classes)
+        head_outputs["bbox_regression"] = self.post_cat_map(
+            head_outputs["bbox_regression"], num_channel=2 * self.spatial_dims
+        )
 
         losses = {}
         detections: List[Dict[str, Tensor]] = []
@@ -617,7 +651,6 @@ class RetinaNet(nn.Module):
             losses = self.compute_loss(targets, head_outputs, anchors)
         else:
             # recover level sizes
-            num_anchors_per_level = [x.shape[2:].numel() for x in features]
             HW = 0
             for v in num_anchors_per_level:
                 HW += v
