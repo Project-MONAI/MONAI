@@ -12,17 +12,19 @@
 import unittest
 from pydoc import locate
 
-from monai.apps.mmars import ComponentScanner
+from monai.apps.mmars import ComponentLocator
 from monai.utils import optional_import
 
 _, has_ignite = optional_import("ignite")
 
 
-class TestComponentScanner(unittest.TestCase):
+class TestComponentLocator(unittest.TestCase):
     def test_locate(self):
-        scanner = ComponentScanner(excludes=None if has_ignite else ["monai.handlers"])
-        self.assertGreater(len(scanner._components_table), 0)
-        for _, mods in scanner._components_table.items():
+        locator = ComponentLocator(excludes=None if has_ignite else ["monai.handlers"])
+        # test init mapping table and get the module path of component
+        self.assertEqual(locator.get_component_module_name("LoadImage"), "monai.transforms.io.array")
+        self.assertGreater(len(locator._components_table), 0)
+        for _, mods in locator._components_table.items():
             for i in mods:
                 self.assertGreater(len(mods), 0)
                 # ensure we can locate all the items by `name`

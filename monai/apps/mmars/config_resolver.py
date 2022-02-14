@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,33 +13,37 @@ import inspect
 import sys
 import warnings
 from importlib import import_module
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from monai.apps.mmars.utils import search_configs_with_deps, update_configs_with_deps
-from monai.utils.module import instantiate
+from monai.utils import ensure_tuple, instantiate
 
-__all__ = ["ComponentScanner", "ConfigComponent"]
+__all__ = ["ComponentLocator", "ConfigComponent"]
 
 
-class ComponentScanner:
+class ComponentLocator:
     """
-    Scan all the available classes and functions in the MONAI package.
-    Map the all the names and the module names in a table.
+    Scan all the available classes and functions in the MONAI package and map them with the module paths in a table.
+    It's used to locate the module path for provided component name.
 
     Args:
         excludes: if any string of the `excludes` exists in the full module name, don't import this module.
 
     """
 
-    def __init__(self, excludes: Optional[Sequence[str]] = None):
-        self.excludes = [] if excludes is None else excludes
-        self._components_table = self._create_table()
+    MOD_START = "monai"
 
-    def _create_table(self):
+    def __init__(self, excludes: Optional[Union[Sequence[str], str]] = None):
+        self.excludes = [] if excludes is None else ensure_tuple(excludes)
+        self._components_table = None
+
+    def _find_module_names(self) -> List[str]:
+        return [m for m in sys.modules.keys() if m.startswith(self.MOD_START) and all(s not in m for s in self.excludes)]
+
+    def _find_classes_or_functions(self, modnames: Union[Sequence[str], str]):
         table: Dict[str, List] = {}
         # all the MONAI modules are already loaded by `load_submodules`
-        modnames = [m for m in sys.modules.keys() if m.startswith("monai") and all(s not in m for s in self.excludes)]
-        for modname in modnames:
+        for modname in ensure_tuple(modnames):
             try:
                 # scan all the classes and functions in the module
                 module = import_module(modname)
@@ -52,15 +56,19 @@ class ComponentScanner:
                 pass
         return table
 
-    def get_component_module_name(self, name):
+    def get_component_module_name(self, name) -> Union[List[str], str]:
         """
         Get the full module name of the class / function with specified name.
-        If target component name exists in multiple packages or modules, return all the paths.z
+        If target component name exists in multiple packages or modules, return a list of full module names.
 
         Args:
             name: name of the expected class or function.
 
         """
+        if self._components_table is None:
+            # init component and module mapping table
+            self._components_table = self._find_classes_or_functions(self._find_module_names())
+
         mods = self._components_table.get(name, None)
         if isinstance(mods, list) and len(mods) == 1:
             mods = mods[0]
@@ -70,7 +78,7 @@ class ComponentScanner:
 class ConfigComponent:
     """
     Utility class to manage every component in the config with a unique `id` name.
-    When recursively parsing a complicated config dictioanry, every item should be treated as a `ConfigComponent`.
+    When recursively parsing a complicated config dictionary, every item should be treated as a `ConfigComponent`.
     For example:
     - `{"preprocessing": [{"<name>": "LoadImage", "<args>": {"keys": "image"}}]}`
     - `{"<name>": "LoadImage", "<args>": {"keys": "image"}}`
@@ -93,17 +101,17 @@ class ConfigComponent:
             for example: `transform`, `transform#5`, `transform#5#<args>#keys`, etc.
             the id can be useful to quickly get the expected item in a complicated and nested config content.
         config: config content of current component, can be a `dict`, `list`, `string`, `float`, `int`, etc.
-        scanner: ComponentScanner to help get the `<name>` or `<path>` in the config and build instance.
+        locator: ComponentLocator to help locate the module path of `<name>` in the config and build instance.
         globals: to support executable string in the config, sometimes we need to provide the global variables
             which are referred in the executable string. for example: `globals={"monai": monai} will be useful
             for config `"collate_fn": "$monai.data.list_data_collate"`.
 
     """
 
-    def __init__(self, id: str, config: Any, scanner: ComponentScanner, globals: Optional[Dict] = None) -> None:
+    def __init__(self, id: str, config: Any, locator: ComponentLocator, globals: Optional[Dict] = None) -> None:
         self.id = id
         self.config = config
-        self.scanner = scanner
+        self.locator = locator
         self.globals = globals
 
     def get_id(self) -> str:
@@ -213,7 +221,7 @@ class ConfigComponent:
             name = config.get("<name>", None)
             if name is None:
                 raise ValueError("must provide `<path>` or `<name>` of target component to build.")
-            module = self.scanner.get_component_module_name(name)
+            module = self.locator.get_component_module_name(name)
             if module is None:
                 raise ValueError(f"can not find component '{name}'.")
             if isinstance(module, list):

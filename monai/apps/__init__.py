@@ -12,7 +12,7 @@
 from .datasets import CrossValidation, DecathlonDataset, MedNISTDataset
 from .mmars import (
     MODEL_DESC,
-    ComponentScanner,
+    ComponentLocator,
     ConfigComponent,
     RemoteMMARKeys,
     download_mmar,

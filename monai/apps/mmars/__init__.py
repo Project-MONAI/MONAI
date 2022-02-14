@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config_resolver import ComponentScanner, ConfigComponent
+from .config_resolver import ComponentLocator, ConfigComponent
 from .mmars import download_mmar, get_model_spec, load_from_mmar
 from .model_desc import MODEL_DESC, RemoteMMARKeys
 from .utils import search_configs_with_deps, update_configs_with_deps

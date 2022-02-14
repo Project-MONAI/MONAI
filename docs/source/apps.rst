@@ -32,10 +32,10 @@ Clara MMARs
 Model Package
 -------------
 
-.. autoclass:: ConfigComponent
+.. autoclass:: ComponentLocator
     :members:
 
-.. autoclass:: ComponentScanner
+.. autoclass:: ConfigComponent
     :members:
 
 
