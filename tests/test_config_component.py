@@ -48,7 +48,8 @@ TEST_CASE_8 = [{"dataset": "@dataset", "batch_size": 2}, ["dataset"]]
 TEST_CASE_9 = [{"dataset": "@dataset", "transforms": ["@trans0", "@trans1"]}, ["dataset", "trans0", "trans1"]]
 # test dependencies of execute code
 TEST_CASE_10 = [
-    {"dataset": "$@dataset.test_func()", "transforms": ["$torch.zeros([2, 2]) + @trans"]}, ["dataset", "trans"]
+    {"dataset": "$@dataset.test_func()", "transforms": ["$torch.zeros([2, 2]) + @trans"]},
+    ["dataset", "trans"],
 ]
 # test dependencies of lambda function
 TEST_CASE_11 = [
@@ -116,6 +117,20 @@ class TestConfigComponent(unittest.TestCase):
         if is_to_build(ret):
             ret = configer.build(**{})  # also test kwargs
         self.assertTrue(isinstance(ret, output_type))
+
+    def test_lazy_instantiation(self):
+        config = {"<name>": "DataLoader", "<args>": {"dataset": "@dataset", "batch_size": 2}}
+        deps = {"dataset": Dataset(data=[1, 2])}
+        configer = ConfigComponent(config=config, locator=None)
+        init_config = configer.get_config()
+        # modify config content at runtime
+        init_config["<args>"]["batch_size"] = 4
+        configer.set_config(config=init_config)
+
+        configer.resolve_config(deps=deps)
+        ret = configer.build()
+        self.assertTrue(isinstance(ret, DataLoader))
+        self.assertEqual(ret.batch_size, 4)
 
 
 if __name__ == "__main__":

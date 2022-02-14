@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from asyncio import FastChildWatcher
 import inspect
 import sys
 import warnings
@@ -39,9 +38,22 @@ class ComponentLocator:
         self._components_table = None
 
     def _find_module_names(self) -> List[str]:
-        return [m for m in sys.modules.keys() if m.startswith(self.MOD_START) and all(s not in m for s in self.excludes)]
+        """
+        Find all the modules start with MOD_START and don't contain any of `excludes`.
 
-    def _find_classes_or_functions(self, modnames: Union[Sequence[str], str]):
+        """
+        return [
+            m for m in sys.modules.keys() if m.startswith(self.MOD_START) and all(s not in m for s in self.excludes)
+        ]
+
+    def _find_classes_or_functions(self, modnames: Union[Sequence[str], str]) -> Dict[str, List]:
+        """
+        Find all the classes and functions in the modules with specified `modnames`.
+
+        Args:
+            modnames: names of the target modules to find all the classes and functions.
+
+        """
         table: Dict[str, List] = {}
         # all the MONAI modules are already loaded by `load_submodules`
         for modname in ensure_tuple(modnames):
@@ -103,6 +115,16 @@ class ConfigComponent:
     - When all the dependent components are built, update the config content with them, execute expressions in
     the config and `build` instance.
 
+    .. code-block:: python
+
+        locator = ComponentLocator(excludes=["<not_needed_modules>"])
+        config = {"<name>": "DataLoader", "<args>": {"dataset": "@dataset", "batch_size": 2}}
+
+        configer = ConfigComponent(config, id="test_config", locator=locator)
+        configer.resolve_config(deps={"dataset": Dataset(data=[1, 2])})
+        configer.get_resolved_config()
+        instance = configer.build()
+
     Args:
         config: config content of current component, can be a `dict`, `list`, `string`, `float`, `int`, etc.
         no_deps: flag to mark whether the config has dependent components, default to `False`. if `True`,
@@ -141,7 +163,7 @@ class ConfigComponent:
         self.globals = globals
         self.set_config(config=config, no_deps=no_deps)
 
-    def get_id(self) -> str:
+    def get_id(self) -> Optional[str]:
         """
         Get the unique ID of current component, useful to construct dependent components.
         For example, component A may have ID "transforms#A" and component B depends on A
@@ -152,6 +174,17 @@ class ConfigComponent:
         return self.id
 
     def set_config(self, config: Any, no_deps: bool = False):
+        """
+        Set the initial config content at runtime.
+        If having dependencies, must resolve the config again.
+        A typical usage is to modify the initial config content at runtime and do lazy instantiation.
+
+        Args:
+            config: config content of current component, can be a `dict`, `list`, `string`, `float`, `int`, etc.
+            no_deps: flag to mark whether the config has dependent components, default to `False`. if `True`,
+                no need to resolve dependencies before building.
+
+        """
         self.config = config
         self.resolved_config = None
         self.is_resolved = False
@@ -161,39 +194,49 @@ class ConfigComponent:
 
     def get_config(self):
         """
-        Get the init config content of current config component, usually set at the constructor.
-        It can be useful for lazy instantiation to dynamically update the config content before resolving
+        Get the initial config content of current config component, usually set at the constructor.
+        It can be useful for `lazy instantiation` to dynamically update the config content before resolving.
 
         """
         return self.config
 
     def get_id_of_deps(self) -> List[str]:
         """
-        Recursively search all the content of current config compoent to get the ids of dependencies.
-        It's used to build all the dependencies before build current config component.
-        For `dict` and `list`, treat every item as a dependency.
-        For example, for `{"<name>": "DataLoader", "<args>": {"dataset": "@dataset"}}`, the dependency ids:
-        `["<name>", "<args>", "<args>#dataset", "dataset"]`.
+        Recursively search all the content of current config compoent to get the IDs of dependencies.
+        It's used to detect and build all the dependencies before building current config component.
+        For `dict` and `list`, recursively check the sub-items.
+        For example: `{"<name>": "DataLoader", "<args>": {"dataset": "@dataset"}}`, the dependency IDs: `["dataset"]`.
 
         """
         return search_config_with_deps(config=self.config, id=self.id)
 
-    def resolve_config(self, deps: dict):
+    def resolve_config(self, deps: Dict):
         """
-        If all the dependencies are ready in `deps`, update the config content with them and return new config.
-        It can be used for lazy instantiation, the returned config has no dependencies, can be built immediately.
+        If all the dependencies are ready in `deps`, resolve the config content with them to construct `resolved_config`.
 
         Args:
-            deps: all the dependent components with ids.
+            deps: all the dependent components with ID as keys.
 
         """
         self.resolved_config = resolve_config_with_deps(config=self.config, deps=deps, id=self.id, globals=self.globals)
         self.is_resolved = True
 
     def get_resolved_config(self):
+        """
+        Get the resolved config content, constructed in `resolve_config`. The returned config has no dependencies.
+        Not all the config content is to build instance, some config just need to resolve the dependencies and use
+        it in the program, for example: input config `{"intervals": "@epoch / 10"}` and dependencies `{"epoch": 100}`,
+        the resolved config will be `{"intervals": 10}`.
+
+        """
         return self.resolved_config
 
     def _resolve_module_name(self):
+        """
+        Utility function used in `build()` to resolve the module name from provided config content
+        if having `<path>` or `<name>`.
+
+        """
         config = self.get_resolved_config()
         path = config.get("<path>", None)
         if path is not None:
@@ -217,15 +260,24 @@ class ConfigComponent:
         return f"{module}.{name}"
 
     def _resolve_args(self):
+        """
+        Utility function used in `build()` to resolve the arguments of target component to build.
+
+        """
         return self.get_resolved_config().get("<args>", {})
 
     def _is_disabled(self):
+        """
+        Utility function used in `build()` to check whether the target component disabled building.
+
+        """
         return self.get_resolved_config().get("<disabled>", False)
 
     def build(self, **kwargs) -> object:
         """
         Build component instance based on the resolved config content.
-        The target component must be a `class` or a `function`.
+        The target component must be a `class` or a `function`, otherwise, return `None`.
+
         Supported special keys for the config:
         - '<name>' - class / function name in the modules of packages.
         - '<path>' - directly specify the path, based on PYTHONPATH, ignore '<name>' if specified.
@@ -234,10 +286,6 @@ class ConfigComponent:
 
         Args:
             kwargs: args to override / add the config args when building.
-
-        Raises:
-            ValueError: must provide `<path>` or `<name>` of class / function to build component.
-            ValueError: can not find component class or function.
 
         """
         if not self.is_resolved:

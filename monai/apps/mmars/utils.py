@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,16 +26,13 @@ def is_to_build(config: Union[Dict, List, str]) -> bool:
 
 
 def search_config_with_deps(
-    config: Union[Dict, List, str],
-    id: Optional[str] = None,
-    deps: Optional[List[str]] = None,
+    config: Union[Dict, List, str], id: Optional[str] = None, deps: Optional[List[str]] = None
 ) -> List[str]:
     """
     Recursively search all the content of input config compoent to get the ids of dependencies.
     It's used to build all the dependencies before build current config component.
-    For `dict` and `list`, treat every item as a dependency.
-    For example, for `{"<name>": "DataLoader", "<args>": {"dataset": "@dataset"}}`, the dependency ids:
-    `["<name>", "<args>", "<args>#dataset", "dataset"]`.
+    For `dict` and `list`, recursively check the sub-items.
+    For example: `{"<name>": "DataLoader", "<args>": {"dataset": "@dataset"}}`, the dependency IDs: `["dataset"]`.
 
     Args:
         config: input config content to search.
@@ -78,7 +75,6 @@ def resolve_config_with_deps(
 ):
     """
     With all the dependencies in `deps`, resolve the config content with them and return new config.
-    It can be used for lazy instantiation.
 
     Args:
         config: input config content to resolve.
@@ -91,18 +87,18 @@ def resolve_config_with_deps(
     pattern = re.compile(r"@\w*[\#\w]*")  # match ref as args: "@XXX#YYY#ZZZ"
     if isinstance(config, list):
         # all the items in the list should be replaced with the reference
-        ret: List = []
+        ret_list: List = []
         for i, v in enumerate(config):
             sub_id = f"{id}#{i}" if id is not None else f"{i}"
-            ret.append(deps_[sub_id] if is_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals))
-        return ret
+            ret_list.append(deps_[sub_id] if is_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals))
+        return ret_list
     if isinstance(config, dict):
         # all the items in the dict should be replaced with the reference
-        ret: Dict = {}
+        ret_dict: Dict = {}
         for k, v in config.items():
             sub_id = f"{id}#{k}" if id is not None else f"{k}"
-            ret[k] = deps_[sub_id] if is_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals)
-        return ret
+            ret_dict[k] = deps_[sub_id] if is_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals)
+        return ret_dict
     if isinstance(config, str):
         result = pattern.findall(config)
         config_: str = config  # to avoid mypy CI errors
