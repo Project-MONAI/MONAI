@@ -85,7 +85,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         if not torch.all(y_pred.byte() == y_pred):
             warnings.warn("y_pred should be a binarized tensor.")
         if not torch.all(y.byte() == y):
-            raise ValueError("y should be a binarized tensor.")
+            warnings.warn("y should be a binarized tensor.")
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
