@@ -5,13 +5,13 @@ Copyright (c) 2014, Piotr Dollar and Tsung-Yi Lin
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met: 
+modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer. 
+   list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution. 
+   and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -25,7 +25,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies, 
+of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the FreeBSD Project.
 """
 """
@@ -115,7 +115,7 @@ class COCOMetric(DetectionMetric):
             results_list (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
                 per category (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
                 `dtMatches`: matched detections [T, D], where T = number of thresholds, D = number of detections
-                `gtMatches`: matched ground truth boxes [T, G], where T = number of thresholds, G = number of 
+                `gtMatches`: matched ground truth boxes [T, G], where T = number of thresholds, G = number of
                     ground truth
                 `dtScores`: prediction scores [D] detection scores
                 `gtIgnore`: ground truth boxes which should be ignored [G] indicate whether ground truth
@@ -300,13 +300,13 @@ class COCOMetric(DetectionMetric):
         Adapted from https://github.com/cocodataset/cocoapi/blob/master/PythonAPI/pycocotools/cocoeval.py
 
         Args:
-            results_list (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list) 
+            results_list (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
                 per cateory (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
                 `dtMatches`: matched detections [T, D], where T = number of thresholds, D = number of detections
                 `gtMatches`: matched ground truth boxes [T, G], where T = number of thresholds, G = number of
                     ground truth
                 `dtScores`: prediction scores [D] detection scores
-                `gtIgnore`: ground truth boxes which should be ignored [G] indicate whether ground truth should be 
+                `gtIgnore`: ground truth boxes which should be ignored [G] indicate whether ground truth should be
                     ignored
                 `dtIgnore`: detections which should be ignored [T, D], indicate which detections should be ignored
 
@@ -377,7 +377,7 @@ class COCOMetric(DetectionMetric):
         }
 
 
-def compute_stats_single_threshold(tp: np.ndarray, fp: np.ndarray, dt_scores_sorted: np.ndarray, 
+def compute_stats_single_threshold(tp: np.ndarray, fp: np.ndarray, dt_scores_sorted: np.ndarray,
                                    recall_thresholds: Sequence[float], num_gt: int) -> Tuple[
                                        float, np.ndarray, np.ndarray]:
     """
