@@ -308,6 +308,10 @@ class Orientationd(MapTransform, InvertibleTransform):
 
     After reorienting the input array, this transform will write the new affine
     to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
+
+    This transform assumes the channel-first input format.
+    In the case of using this transform for normalizing the orientations of images,
+    it should be used before any anisotropic spatial transforms.
     """
 
     backend = Orientation.backend
