@@ -13,9 +13,9 @@ import re
 from typing import Dict, List, Optional, Union
 
 
-def is_to_build(config: Union[Dict, List, str]) -> bool:
+def able_to_build(config: Union[Dict, List, str]) -> bool:
     """
-    Check whether the target component of the config is a `class` or `function` to build
+    Check whether the content of the config represents a `class` or `function` to build
     with specified "<path>" or "<name>".
 
     Args:
@@ -45,14 +45,14 @@ def search_config_with_deps(
     if isinstance(config, list):
         for i, v in enumerate(config):
             sub_id = f"{id}#{i}" if id is not None else f"{i}"
-            if is_to_build(v):
+            if able_to_build(v):
                 # sub-item is component need to build, mark as dependency
                 deps_.append(sub_id)
             deps_ = search_config_with_deps(v, sub_id, deps_)
     if isinstance(config, dict):
         for k, v in config.items():
             sub_id = f"{id}#{k}" if id is not None else f"{k}"
-            if is_to_build(v):
+            if able_to_build(v):
                 # sub-item is component need to build, mark as dependency
                 deps_.append(sub_id)
             deps_ = search_config_with_deps(v, sub_id, deps_)
@@ -90,14 +90,14 @@ def resolve_config_with_deps(
         ret_list: List = []
         for i, v in enumerate(config):
             sub_id = f"{id}#{i}" if id is not None else f"{i}"
-            ret_list.append(deps_[sub_id] if is_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals))
+            ret_list.append(deps_[sub_id] if able_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals))
         return ret_list
     if isinstance(config, dict):
         # all the items in the dict should be replaced with the reference
         ret_dict: Dict = {}
         for k, v in config.items():
             sub_id = f"{id}#{k}" if id is not None else f"{k}"
-            ret_dict[k] = deps_[sub_id] if is_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals)
+            ret_dict[k] = deps_[sub_id] if able_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals)
         return ret_dict
     if isinstance(config, str):
         result = pattern.findall(config)

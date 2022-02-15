@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 import monai
-from monai.apps import ComponentLocator, ConfigComponent, is_to_build
+from monai.apps import ComponentLocator, ConfigComponent, ConfigItem, able_to_build
 from monai.data import DataLoader, Dataset
 from monai.transforms import LoadImaged, RandTorchVisiond
 from monai.utils import optional_import
@@ -80,13 +80,13 @@ TEST_CASE_16 = ["dataloader#<args>#collate_fn", "$monai.data.list_data_collate",
 TEST_CASE_17 = ["dataloader#<args>#collate_fn", "$lambda x: monai.data.list_data_collate(x) + 100", {}, Callable]
 
 
-class TestConfigComponent(unittest.TestCase):
+class TestConfigItem(unittest.TestCase):
     @parameterized.expand(
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_5, TEST_CASE_6] + ([TEST_CASE_7] if has_tv else [])
     )
     def test_build(self, test_input, output_type):
         locator = ComponentLocator(excludes=["metrics"])
-        configer = ConfigComponent(id="test", config=test_input, locator=locator, no_deps=True)
+        configer = ConfigComponent(id="test", config=test_input, locator=locator)
         ret = configer.build()
         if test_input.get("<disabled>", False):
             # test `<disabled>` works fine
@@ -99,11 +99,12 @@ class TestConfigComponent(unittest.TestCase):
     @parameterized.expand([TEST_CASE_4])
     def test_raise_error(self, test_input):
         with self.assertRaises(KeyError):  # has unresolved keys
-            ConfigComponent(id="test", config=test_input, no_deps=True)
+            configer = ConfigItem(id="test", config=test_input)
+            configer.resolve_config()
 
     @parameterized.expand([TEST_CASE_8, TEST_CASE_9, TEST_CASE_10, TEST_CASE_11])
     def test_dependent_ids(self, test_input, ref_ids):
-        configer = ConfigComponent(id="test", config=test_input)  # also test default locator
+        configer = ConfigItem(id="test", config=test_input)  # also test default locator
         ret = configer.get_id_of_deps()
         self.assertListEqual(ret, ref_ids)
 
@@ -114,7 +115,7 @@ class TestConfigComponent(unittest.TestCase):
         )
         configer.resolve_config(deps=deps)
         ret = configer.get_resolved_config()
-        if is_to_build(ret):
+        if able_to_build(ret):
             ret = configer.build(**{})  # also test kwargs
         self.assertTrue(isinstance(ret, output_type))
 
