@@ -12,10 +12,11 @@
 import inspect
 import sys
 import warnings
+from abc import ABC, abstractmethod
 from importlib import import_module
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from monai.apps.mmars.utils import able_to_build, resolve_config_with_deps, search_config_with_deps
+from monai.apps.mmars.utils import find_refs_in_config, instantiable, resolve_config_with_refs
 from monai.utils import ensure_tuple, instantiate
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigComponent"]
@@ -100,21 +101,24 @@ class ConfigItem:
     - a string: `"transform2"`
     - a string: `"$lambda x: x"`
 
-    `ConfigItem` can set optional unique ID name, then another config item may depdend on it, for example:
+    `ConfigItem` can set optional unique ID name, then another config item may refer to it.
+    The references mean the IDs of other config items used as "@XXX" in the current config item, for example:
     config item with ID="A" is a list `[1, 2, 3]`, another config item can be `"args": {"input_list": "@A"}`.
-    It can search the config content and find out all the dependencies, and resolve the config content
-    when all the dependencies are resolved.
+    If sub-item in the config is instantiable, also treat it as reference because must instantiate it before
+    resolving current config.
+    It can search the config content and find out all the references, and resolve the config content
+    when all the references are resolved.
 
     Here we predefined 3 kinds special marks (`#`, `@`, `$`) when parsing the whole config content:
     - "XXX#YYY": join nested config IDs, like "transforms#5" is ID name of the 6th transform in a list ID="transforms".
-    - "@XXX": current config item depends on another config item XXX, like `{"args": {"data": "@dataset"}}` uses
+    - "@XXX": current config item refers to another config item XXX, like `{"args": {"data": "@dataset"}}` uses
     resolved config content of `dataset` as the parameter "data".
     - "$XXX": execute the string after "$" as python code with `eval()` function, like "$@model.parameters()".
 
     The typical usage of the APIs:
     - Initialize with config content.
-    - If having dependencies, get the IDs of its dependent components.
-    - When all the dependent components are resolved, resolve the config content with them,
+    - If having references, get the IDs of its referring components.
+    - When all the referring components are resolved, resolve the config content with them,
     and execute expressions in the config.
 
     .. code-block:: python
@@ -122,16 +126,16 @@ class ConfigItem:
         config = {"lr": "$@epoch / 1000"}
 
         configer = ConfigComponent(config, id="test")
-        dep_ids = configer.get_id_of_deps()
-        configer.resolve_config(deps={"epoch": 10})
+        dep_ids = configer.get_id_of_refs()
+        configer.resolve_config(refs={"epoch": 10})
         lr = configer.get_resolved_config()
 
     Args:
         config: content of a config item, can be a `dict`, `list`, `string`, `float`, `int`, etc.
-        id: ID name of current config item, useful to construct dependent config items.
-            for example, config item A may have ID "transforms#A" and config item B depends on A
+        id: ID name of current config item, useful to construct referring config items.
+            for example, config item A may have ID "transforms#A" and config item B refers to A
             and uses the resolved config content of A as an arg `{"args": {"other": "@transforms#A"}}`.
-            `id` defaults to `None`, if some component depends on current component, `id` must be a `string`.
+            `id` defaults to `None`, if some component refers to current component, `id` must be a `string`.
         globals: to support executable string in the config, sometimes we need to provide the global variables
             which are referred in the executable string. for example: `globals={"monai": monai} will be useful
             for config `{"collate_fn": "$monai.data.list_data_collate"}`.
@@ -144,22 +148,22 @@ class ConfigItem:
         self.is_resolved = False
         self.id = id
         self.globals = globals
-        self.set_config(config=config)
+        self.update_config(config=config)
 
     def get_id(self) -> Optional[str]:
         """
-        ID name of current config item, useful to construct dependent config items.
-        for example, config item A may have ID "transforms#A" and config item B depends on A
+        ID name of current config item, useful to construct referring config items.
+        for example, config item A may have ID "transforms#A" and config item B refers to A
         and uses the resolved config content of A as an arg `{"args": {"other": "@transforms#A"}}`.
-        `id` defaults to `None`, if some component depends on current component, `id` must be a `string`.
+        `id` defaults to `None`, if some component refers to current component, `id` must be a `string`.
 
         """
         return self.id
 
-    def set_config(self, config: Any):
+    def update_config(self, config: Any):
         """
-        Set the config content for a config item at runtime.
-        If having dependencies, need resolve the config later.
+        Update the config content for a config item at runtime.
+        If having references, need resolve the config later.
         A typical usage is to modify the initial config content at runtime and set back.
 
         Args:
@@ -169,9 +173,9 @@ class ConfigItem:
         self.config = config
         self.resolved_config = None
         self.is_resolved = False
-        if not self.get_id_of_deps():
-            # if no dependencies, can resolve the config immediately
-            self.resolve_config(deps=None)
+        if not self.get_id_of_refs():
+            # if no references, can resolve the config immediately
+            self.resolve(refs=None)
 
     def get_config(self):
         """
@@ -181,41 +185,90 @@ class ConfigItem:
         """
         return self.config
 
-    def get_id_of_deps(self) -> List[str]:
+    def get_id_of_refs(self) -> List[str]:
         """
-        Recursively search all the content of current config item to get the IDs of dependencies.
-        It's used to detect and resolve all the dependencies before resolving current config item.
+        Recursively search all the content of current config item to get the IDs of references.
+        It's used to detect and resolve all the references before resolving current config item.
         For `dict` and `list`, recursively check the sub-items.
-        For example: `{"args": {"lr": "$@epoch / 1000"}}`, the dependency IDs: `["epoch"]`.
+        For example: `{"args": {"lr": "$@epoch / 1000"}}`, the reference IDs: `["epoch"]`.
 
         """
-        return search_config_with_deps(config=self.config, id=self.id)
+        return find_refs_in_config(self.config, id=self.id)
 
-    def resolve_config(self, deps: Optional[Dict] = None):
+    def resolve(self, refs: Optional[Dict] = None):
         """
-        If all the dependencies are resolved in `deps`, resolve the config content with them to construct `resolved_config`.
+        If all the references are resolved in `refs`, resolve the config content with them to construct `resolved_config`.
 
         Args:
-            deps: all the resolved dependent items with ID as keys, default to `None`.
+            refs: all the resolved referring items with ID as keys, default to `None`.
 
         """
-        self.resolved_config = resolve_config_with_deps(config=self.config, deps=deps, id=self.id, globals=self.globals)
+        self.resolved_config = resolve_config_with_refs(self.config, id=self.id, refs=refs, globals=self.globals)
         self.is_resolved = True
 
     def get_resolved_config(self):
         """
-        Get the resolved config content, constructed in `resolve_config()`. The returned config has no dependencies,
-        then use it in the program, for example: initial config item `{"intervals": "@epoch / 10"}` and dependencies
+        Get the resolved config content, constructed in `resolve_config()`. The returned config has no references,
+        then use it in the program, for example: initial config item `{"intervals": "@epoch / 10"}` and references
         `{"epoch": 100}`, the resolved config will be `{"intervals": 10}`.
 
         """
         return self.resolved_config
 
 
-class ConfigComponent(ConfigItem):
+class Instantiable(ABC):
+    """
+    Base class for instantiable object and provide the `instantiate` API.
+
+    """
+
+    @abstractmethod
+    def _resolve_module_name(self):
+        """
+        Utility function used in `instantiate()` to resolve the target module name.
+
+        """
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+
+    @abstractmethod
+    def _resolve_args(self):
+        """
+        Utility function used in `instantiate()` to resolve the arguments.
+
+        """
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+
+    @abstractmethod
+    def _is_disabled(self):
+        """
+        Utility function used in `instantiate()` to check whether the target component is disabled.
+
+        """
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+
+    def instantiate(self, **kwargs) -> object:
+        """
+        Instantiate the target component.
+
+        Args:
+            kwargs: args to override / add the kwargs when instantiation.
+
+        """
+
+        if self._is_disabled():
+            # if marked as `disabled`, skip parsing and return `None`
+            return None
+
+        modname = self._resolve_module_name()
+        args = self._resolve_args()
+        args.update(kwargs)
+        return instantiate(modname, **args)
+
+
+class ConfigComponent(ConfigItem, Instantiable):
     """
     Subclass of :py:class:`monai.apps.ConfigItem`, the config item represents a target component of class
-    or function, and support to build the instance. Example of config item:
+    or function, and support to instantiate the component. Example of config item:
     `{"<name>": "LoadImage", "<args>": {"keys": "image"}}`
 
     Here we predefined 4 keys: `<name>`, `<path>`, `<args>`, `<disabled>` for component config:
@@ -226,10 +279,10 @@ class ConfigComponent(ConfigItem):
 
     The typical usage of the APIs:
     - Initialize with config content.
-    - If no dependencies, `build` the component if having "<name>" or "<path>" keywords and return the instance.
-    - If having dependencies, get the IDs of its dependent components.
-    - When all the dependent components are resolved, resolve the config content with them, execute expressions in
-    the config and `build` instance.
+    - If no references, `instantiate` the component if having "<name>" or "<path>" keywords and return the instance.
+    - If having references, get the IDs of its referring components.
+    - When all the referring components are resolved, resolve the config content with them, execute expressions in
+    the config and `instantiate`.
 
     .. code-block:: python
 
@@ -237,17 +290,17 @@ class ConfigComponent(ConfigItem):
         config = {"<name>": "DataLoader", "<args>": {"dataset": "@dataset", "batch_size": 2}}
 
         configer = ConfigComponent(config, id="test_config", locator=locator)
-        configer.resolve_config(deps={"dataset": Dataset(data=[1, 2])})
+        configer.resolve_config(refs={"dataset": Dataset(data=[1, 2])})
         configer.get_resolved_config()
-        dataloader: DataLoader = configer.build()
+        dataloader: DataLoader = configer.instantiate()
 
     Args:
         config: content of a component config item, should be a dict with `<name>` or `<path>` key.
-        id: ID name of current config item, useful to construct dependent config items.
-            for example, config item A may have ID "transforms#A" and config item B depends on A
+        id: ID name of current config item, useful to construct referring config items.
+            for example, config item A may have ID "transforms#A" and config item B refers to A
             and uses the resolved config content of A as an arg `{"args": {"other": "@transforms#A"}}`.
-            `id` defaults to `None`, if some component depends on current component, `id` must be a `string`.
-        locator: `ComponentLocator` to help locate the module path of `<name>` in the config and build instance.
+            `id` defaults to `None`, if some component refers to current component, `id` must be a `string`.
+        locator: `ComponentLocator` to help locate the module path of `<name>` in the config and instantiate.
             if `None`, will create a new `ComponentLocator` with specified `excludes`.
         excludes: if `locator` is None, create a new `ComponentLocator` with `excludes`. any string of the `excludes`
             exists in the module name, don't import this module.
@@ -270,7 +323,7 @@ class ConfigComponent(ConfigItem):
 
     def _resolve_module_name(self):
         """
-        Utility function used in `build()` to resolve the target module name from provided config content.
+        Utility function used in `instantiate()` to resolve the target module name from provided config content.
         The config content must have `<path>` or `<name>`.
 
         """
@@ -283,7 +336,7 @@ class ConfigComponent(ConfigItem):
 
         name = config.get("<name>", None)
         if name is None:
-            raise ValueError("must provide `<path>` or `<name>` of target component to build.")
+            raise ValueError("must provide `<path>` or `<name>` of target component to instantiate.")
 
         module = self.locator.get_component_module_name(name)
         if module is None:
@@ -298,39 +351,34 @@ class ConfigComponent(ConfigItem):
 
     def _resolve_args(self):
         """
-        Utility function used in `build()` to resolve the arguments from config content of target component to build.
+        Utility function used in `instantiate()` to resolve the arguments from config content of target component.
 
         """
         return self.get_resolved_config().get("<args>", {})
 
     def _is_disabled(self):
         """
-        Utility function used in `build()` to check whether the target component is disabled building.
+        Utility function used in `instantiate()` to check whether the target component is disabled.
 
         """
         return self.get_resolved_config().get("<disabled>", False)
 
-    def build(self, **kwargs) -> object:
+    def instantiate(self, **kwargs) -> object:
         """
-        Build component instance based on the resolved config content.
+        Instantiate component based on the resolved config content.
         The target component must be a `class` or a `function`, otherwise, return `None`.
 
         Args:
-            kwargs: args to override / add the config args when building.
+            kwargs: args to override / add the config args when instantiation.
 
         """
         if not self.is_resolved:
             warnings.warn(
                 "the config content of current component has not been resolved,"
-                " please try to resolve the dependencies first."
+                " please try to resolve the references first."
             )
             return None
-        config = self.get_resolved_config()
-        if not able_to_build(config) or self._is_disabled():
-            # if not a class or function, or marked as `disabled`, skip parsing and return `None`
+        if not instantiable(self.get_resolved_config()):
+            # if not a class or function, skip parsing and return `None`
             return None
-
-        modname = self._resolve_module_name()
-        args = self._resolve_args()
-        args.update(kwargs)
-        return instantiate(modname, **args)
+        return super().instantiate(**kwargs)

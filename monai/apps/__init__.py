@@ -16,11 +16,14 @@ from .mmars import (
     ConfigComponent,
     ConfigItem,
     RemoteMMARKeys,
-    able_to_build,
     download_mmar,
+    find_refs_in_config,
     get_model_spec,
+    instantiable,
+    is_expression,
     load_from_mmar,
-    resolve_config_with_deps,
-    search_config_with_deps,
+    match_refs_pattern,
+    resolve_config_with_refs,
+    resolve_refs_pattern,
 )
 from .utils import SUPPORTED_HASH_TYPES, check_hash, download_and_extract, download_url, extractall, get_logger, logger

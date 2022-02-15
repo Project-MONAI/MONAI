@@ -10,12 +10,144 @@
 # limitations under the License.
 
 import re
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 
-def able_to_build(config: Union[Dict, List, str]) -> bool:
+def match_refs_pattern(value: str, pattern: str = r"@\w*[\#\w]*") -> List[str]:
     """
-    Check whether the content of the config represents a `class` or `function` to build
+    Match regular expression for the input string with specified `pattern` to find the references.
+    Default to find the ID of referring item starting with "@", like: "@XXX#YYY#ZZZ".
+
+    Args:
+        value: input value to match regular expression.
+        pattern: regular expression pattern, default to match "@XXX" or "@XXX#YYY".
+
+    """
+    refs: List[str] = []
+    result = re.compile(pattern).findall(value)
+    for item in result:
+        if value.startswith("$") or value == item:
+            # only check when string starts with "$" or the whole content is "@XXX"
+            ref_obj_id = item[1:]
+            if ref_obj_id not in refs:
+                refs.append(ref_obj_id)
+    return refs
+
+
+def resolve_refs_pattern(value: str, refs: Dict, globals: Optional[Dict] = None, pattern: str = r"@\w*[\#\w]*") -> str:
+    """
+    Match regular expression for the input string with specified `pattern` to update content with
+    the references. Default to find the ID of referring item starting with "@", like: "@XXX#YYY#ZZZ".
+    References dictionary must contain the referring IDs as keys.
+
+    Args:
+        value: input value to match regular expression.
+        refs: all the referring components with ids as keys, default to `None`.
+        globals: predefined global variables to execute code string with `eval()`.
+        pattern: regular expression pattern, default to match "@XXX" or "@XXX#YYY".
+
+    """
+    result = re.compile(pattern).findall(value)
+    for item in result:
+        ref_id = item[1:]
+        if is_expression(value):
+            # replace with local code and execute later
+            value = value.replace(item, f"refs['{ref_id}']")
+        elif value == item:
+            if ref_id not in refs:
+                raise KeyError(f"can not find expected ID '{ref_id}' in the references.")
+            value = refs[ref_id]
+    if is_expression(value):
+        # execute the code string with python `eval()`
+        value = eval(value[1:], globals, {"refs": refs})
+    return value
+
+
+def find_refs_in_config(
+    config: Union[Dict, List, str],
+    id: Optional[str] = None,
+    refs: Optional[List[str]] = None,
+    match_fn: Callable = match_refs_pattern,
+) -> List[str]:
+    """
+    Recursively search all the content of input config item to get the ids of references.
+    References mean (1) referring to the ID of other item, can be extracted by `match_fn`, for example:
+    `{"lr": "$@epoch / 100"}` with "@" mark, the referring IDs: `["epoch"]`. (2) if sub-item in the config
+    is instantiable, treat it as reference because must instantiate it before resolving current config.
+    For `dict` and `list`, recursively check the sub-items.
+
+    Args:
+        config: input config content to search.
+        id: ID name for the input config, default to `None`.
+        refs: list of the ID name of existing references, default to `None`.
+        match_fn: callable function to match config item for references, take `config` as parameter.
+
+    """
+    refs_: List[str] = [] if refs is None else refs
+    if isinstance(config, str):
+        refs_ += match_fn(value=config)
+
+    if isinstance(config, list):
+        for i, v in enumerate(config):
+            sub_id = f"{id}#{i}" if id is not None else f"{i}"
+            if instantiable(v):
+                refs_.append(sub_id)
+            refs_ = find_refs_in_config(v, sub_id, refs_, match_fn)
+    if isinstance(config, dict):
+        for k, v in config.items():
+            sub_id = f"{id}#{k}" if id is not None else f"{k}"
+            if instantiable(v):
+                refs_.append(sub_id)
+            refs_ = find_refs_in_config(v, sub_id, refs_, match_fn)
+    return refs_
+
+
+def resolve_config_with_refs(
+    config: Union[Dict, List, str],
+    id: Optional[str] = None,
+    refs: Optional[Dict] = None,
+    globals: Optional[Dict] = None,
+    match_fn: Callable = resolve_refs_pattern,
+):
+    """
+    With all the references in `refs`, resolve the config content with them and return new config.
+
+    Args:
+        config: input config content to resolve.
+        id: ID name for the input config, default to `None`.
+        refs: all the referring components with ids, default to `None`.
+        globals: predefined global variables to execute code string with `eval()`.
+        match_fn: callable function to match config item for references, take `config`,
+            `refs` and `globals` as parameter.
+
+    """
+    refs_: Dict = {} if refs is None else refs
+    if isinstance(config, str):
+        config = match_fn(config, refs, globals)
+    if isinstance(config, list):
+        # all the items in the list should be replaced with the references
+        ret_list: List = []
+        for i, v in enumerate(config):
+            sub_id = f"{id}#{i}" if id is not None else f"{i}"
+            ret_list.append(
+                refs_[sub_id] if instantiable(v) else resolve_config_with_refs(v, sub_id, refs_, globals, match_fn)
+            )
+        return ret_list
+    if isinstance(config, dict):
+        # all the items in the dict should be replaced with the references
+        ret_dict: Dict = {}
+        for k, v in config.items():
+            sub_id = f"{id}#{k}" if id is not None else f"{k}"
+            ret_dict.update(
+                {k: refs_[sub_id] if instantiable(v) else resolve_config_with_refs(v, sub_id, refs_, globals, match_fn)}
+            )
+        return ret_dict
+    return config
+
+
+def instantiable(config: Union[Dict, List, str]) -> bool:
+    """
+    Check whether the content of the config represents a `class` or `function` to instantiate
     with specified "<path>" or "<name>".
 
     Args:
@@ -25,91 +157,13 @@ def able_to_build(config: Union[Dict, List, str]) -> bool:
     return isinstance(config, dict) and ("<path>" in config or "<name>" in config)
 
 
-def search_config_with_deps(
-    config: Union[Dict, List, str], id: Optional[str] = None, deps: Optional[List[str]] = None
-) -> List[str]:
+def is_expression(config: Union[Dict, List, str]) -> bool:
     """
-    Recursively search all the content of input config compoent to get the ids of dependencies.
-    It's used to build all the dependencies before build current config component.
-    For `dict` and `list`, recursively check the sub-items.
-    For example: `{"<name>": "DataLoader", "<args>": {"dataset": "@dataset"}}`, the dependency IDs: `["dataset"]`.
+    Check whether the content of the config is executable expression string.
+    If True, the string should start with "$" mark.
 
     Args:
-        config: input config content to search.
-        id: ID name for the input config, default to `None`.
-        deps: list of the ID name of existing dependencies, default to `None`.
+        config: input config content to check.
 
     """
-    deps_: List[str] = [] if deps is None else deps
-    pattern = re.compile(r"@\w*[\#\w]*")  # match ref as args: "@XXX#YYY#ZZZ"
-    if isinstance(config, list):
-        for i, v in enumerate(config):
-            sub_id = f"{id}#{i}" if id is not None else f"{i}"
-            if able_to_build(v):
-                # sub-item is component need to build, mark as dependency
-                deps_.append(sub_id)
-            deps_ = search_config_with_deps(v, sub_id, deps_)
-    if isinstance(config, dict):
-        for k, v in config.items():
-            sub_id = f"{id}#{k}" if id is not None else f"{k}"
-            if able_to_build(v):
-                # sub-item is component need to build, mark as dependency
-                deps_.append(sub_id)
-            deps_ = search_config_with_deps(v, sub_id, deps_)
-    if isinstance(config, str):
-        result = pattern.findall(config)
-        for item in result:
-            if config.startswith("$") or config == item:
-                # only check when string starts with "$" or the whole content is "@XXX"
-                ref_obj_id = item[1:]
-                if ref_obj_id not in deps_:
-                    deps_.append(ref_obj_id)
-    return deps_
-
-
-def resolve_config_with_deps(
-    config: Union[Dict, List, str],
-    deps: Optional[Dict] = None,
-    id: Optional[str] = None,
-    globals: Optional[Dict] = None,
-):
-    """
-    With all the dependencies in `deps`, resolve the config content with them and return new config.
-
-    Args:
-        config: input config content to resolve.
-        deps: all the dependent components with ids, default to `None`.
-        id: id name for the input config, default to `None`.
-        globals: predefined global variables to execute code string with `eval()`.
-
-    """
-    deps_: Dict = {} if deps is None else deps
-    pattern = re.compile(r"@\w*[\#\w]*")  # match ref as args: "@XXX#YYY#ZZZ"
-    if isinstance(config, list):
-        # all the items in the list should be replaced with the reference
-        ret_list: List = []
-        for i, v in enumerate(config):
-            sub_id = f"{id}#{i}" if id is not None else f"{i}"
-            ret_list.append(deps_[sub_id] if able_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals))
-        return ret_list
-    if isinstance(config, dict):
-        # all the items in the dict should be replaced with the reference
-        ret_dict: Dict = {}
-        for k, v in config.items():
-            sub_id = f"{id}#{k}" if id is not None else f"{k}"
-            ret_dict[k] = deps_[sub_id] if able_to_build(v) else resolve_config_with_deps(v, deps_, sub_id, globals)
-        return ret_dict
-    if isinstance(config, str):
-        result = pattern.findall(config)
-        config_: str = config  # to avoid mypy CI errors
-        for item in result:
-            ref_obj_id = item[1:]
-            if config_.startswith("$"):
-                # replace with local code and execute later
-                config_ = config_.replace(item, f"deps_['{ref_obj_id}']")
-            elif config_ == item:
-                config_ = deps_[ref_obj_id]
-        if isinstance(config_, str) and config_.startswith("$"):
-            config_ = eval(config_[1:], globals, {"deps_": deps_})
-        return config_
-    return config
+    return isinstance(config, str) and config.startswith("$")
