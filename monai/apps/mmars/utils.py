@@ -13,20 +13,20 @@ import re
 from typing import Callable, Dict, List, Optional, Union
 
 
-def match_refs_pattern(value: str, pattern: str = r"@\w*[\#\w]*") -> List[str]:
+def match_refs_pattern(value: str) -> List[str]:
     """
-    Match regular expression for the input string with specified `pattern` to find the references.
-    Default to find the ID of referring item starting with "@", like: "@XXX#YYY#ZZZ".
+    Match regular expression for the input string to find the references.
+    The reference part starts with "@", like: "@XXX#YYY#ZZZ".
 
     Args:
         value: input value to match regular expression.
-        pattern: regular expression pattern, default to match "@XXX" or "@XXX#YYY".
 
     """
     refs: List[str] = []
-    result = re.compile(pattern).findall(value)
+    # regular expression pattern to match "@XXX" or "@XXX#YYY"
+    result = re.compile(r"@\w*[\#\w]*").findall(value)
     for item in result:
-        if value.startswith("$") or value == item:
+        if is_expression(value) or value == item:
             # only check when string starts with "$" or the whole content is "@XXX"
             ref_obj_id = item[1:]
             if ref_obj_id not in refs:
@@ -34,20 +34,20 @@ def match_refs_pattern(value: str, pattern: str = r"@\w*[\#\w]*") -> List[str]:
     return refs
 
 
-def resolve_refs_pattern(value: str, refs: Dict, globals: Optional[Dict] = None, pattern: str = r"@\w*[\#\w]*") -> str:
+def resolve_refs_pattern(value: str, refs: Dict, globals: Optional[Dict] = None) -> str:
     """
-    Match regular expression for the input string with specified `pattern` to update content with
-    the references. Default to find the ID of referring item starting with "@", like: "@XXX#YYY#ZZZ".
+    Match regular expression for the input string to update content with the references.
+    The reference part starts with "@", like: "@XXX#YYY#ZZZ".
     References dictionary must contain the referring IDs as keys.
 
     Args:
         value: input value to match regular expression.
         refs: all the referring components with ids as keys, default to `None`.
         globals: predefined global variables to execute code string with `eval()`.
-        pattern: regular expression pattern, default to match "@XXX" or "@XXX#YYY".
 
     """
-    result = re.compile(pattern).findall(value)
+    # regular expression pattern to match "@XXX" or "@XXX#YYY"
+    result = re.compile(r"@\w*[\#\w]*").findall(value)
     for item in result:
         ref_id = item[1:]
         if is_expression(value):
@@ -90,13 +90,13 @@ def find_refs_in_config(
     if isinstance(config, list):
         for i, v in enumerate(config):
             sub_id = f"{id}#{i}" if id is not None else f"{i}"
-            if instantiable(v):
+            if is_instantiable(v):
                 refs_.append(sub_id)
             refs_ = find_refs_in_config(v, sub_id, refs_, match_fn)
     if isinstance(config, dict):
         for k, v in config.items():
             sub_id = f"{id}#{k}" if id is not None else f"{k}"
-            if instantiable(v):
+            if is_instantiable(v):
                 refs_.append(sub_id)
             refs_ = find_refs_in_config(v, sub_id, refs_, match_fn)
     return refs_
@@ -128,24 +128,24 @@ def resolve_config_with_refs(
         # all the items in the list should be replaced with the references
         ret_list: List = []
         for i, v in enumerate(config):
-            sub_id = f"{id}#{i}" if id is not None else f"{i}"
+            sub = f"{id}#{i}" if id is not None else f"{i}"
             ret_list.append(
-                refs_[sub_id] if instantiable(v) else resolve_config_with_refs(v, sub_id, refs_, globals, match_fn)
+                refs_[sub] if is_instantiable(v) else resolve_config_with_refs(v, sub, refs_, globals, match_fn)
             )
         return ret_list
     if isinstance(config, dict):
         # all the items in the dict should be replaced with the references
         ret_dict: Dict = {}
         for k, v in config.items():
-            sub_id = f"{id}#{k}" if id is not None else f"{k}"
+            sub = f"{id}#{k}" if id is not None else f"{k}"
             ret_dict.update(
-                {k: refs_[sub_id] if instantiable(v) else resolve_config_with_refs(v, sub_id, refs_, globals, match_fn)}
+                {k: refs_[sub] if is_instantiable(v) else resolve_config_with_refs(v, sub, refs_, globals, match_fn)}
             )
         return ret_dict
     return config
 
 
-def instantiable(config: Union[Dict, List, str]) -> bool:
+def is_instantiable(config: Union[Dict, List, str]) -> bool:
     """
     Check whether the content of the config represents a `class` or `function` to instantiate
     with specified "<path>" or "<name>".
