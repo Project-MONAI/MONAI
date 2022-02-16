@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 from importlib import import_module
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from monai.apps.mmars.utils import find_refs_in_config, instantiable, resolve_config_with_refs
+from monai.apps.mmars.utils import find_refs_in_config, is_instantiable, resolve_config_with_refs
 from monai.utils import ensure_tuple, instantiate
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigComponent"]
@@ -218,51 +218,41 @@ class ConfigItem:
 
 class Instantiable(ABC):
     """
-    Base class for instantiable object and provide the `instantiate` API.
+    Base class for instantiable object with module name and arguments.
 
     """
 
     @abstractmethod
-    def _resolve_module_name(self):
+    def resolve_module_name(self, *args: Any, **kwargs: Any):
         """
-        Utility function used in `instantiate()` to resolve the target module name.
+        Utility function to resolve the target module name.
 
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def _resolve_args(self):
+    def resolve_args(self, *args: Any, **kwargs: Any):
         """
-        Utility function used in `instantiate()` to resolve the arguments.
+        Utility function to resolve the arguments.
 
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def _is_disabled(self):
+    def is_disabled(self, *args: Any, **kwargs: Any):
         """
-        Utility function used in `instantiate()` to check whether the target component is disabled.
+        Utility function to check whether the target component is disabled.
 
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
-    def instantiate(self, **kwargs) -> object:
+    @abstractmethod
+    def instantiate(self, *args: Any, **kwargs: Any):
         """
         Instantiate the target component.
 
-        Args:
-            kwargs: args to override / add the kwargs when instantiation.
-
         """
-
-        if self._is_disabled():
-            # if marked as `disabled`, skip parsing and return `None`
-            return None
-
-        modname = self._resolve_module_name()
-        args = self._resolve_args()
-        args.update(kwargs)
-        return instantiate(modname, **args)
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
 
 class ConfigComponent(ConfigItem, Instantiable):
@@ -321,7 +311,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         super().__init__(config=config, id=id, globals=globals)
         self.locator = ComponentLocator(excludes=excludes) if locator is None else locator
 
-    def _resolve_module_name(self):
+    def resolve_module_name(self):
         """
         Utility function used in `instantiate()` to resolve the target module name from provided config content.
         The config content must have `<path>` or `<name>`.
@@ -349,21 +339,21 @@ class ConfigComponent(ConfigItem, Instantiable):
             module = module[0]
         return f"{module}.{name}"
 
-    def _resolve_args(self):
+    def resolve_args(self):
         """
         Utility function used in `instantiate()` to resolve the arguments from config content of target component.
 
         """
         return self.get_resolved_config().get("<args>", {})
 
-    def _is_disabled(self):
+    def is_disabled(self):
         """
         Utility function used in `instantiate()` to check whether the target component is disabled.
 
         """
         return self.get_resolved_config().get("<disabled>", False)
 
-    def instantiate(self, **kwargs) -> object:
+    def instantiate(self, **kwargs) -> object:  # type: ignore
         """
         Instantiate component based on the resolved config content.
         The target component must be a `class` or a `function`, otherwise, return `None`.
@@ -378,7 +368,11 @@ class ConfigComponent(ConfigItem, Instantiable):
                 " please try to resolve the references first."
             )
             return None
-        if not instantiable(self.get_resolved_config()):
-            # if not a class or function, skip parsing and return `None`
+        if not is_instantiable(self.get_resolved_config()) or self.is_disabled():
+            # if not a class or function or marked as `disabled`, skip parsing and return `None`
             return None
-        return super().instantiate(**kwargs)
+
+        modname = self.resolve_module_name()
+        args = self.resolve_args()
+        args.update(kwargs)
+        return instantiate(modname, **args)

@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 import monai
-from monai.apps import ComponentLocator, ConfigComponent, ConfigItem, instantiable
+from monai.apps import ComponentLocator, ConfigComponent, ConfigItem, is_instantiable
 from monai.data import DataLoader, Dataset
 from monai.transforms import LoadImaged, RandTorchVisiond
 from monai.utils import optional_import
@@ -115,7 +115,7 @@ class TestConfigItem(unittest.TestCase):
         )
         configer.resolve(refs=refs)
         ret = configer.get_resolved_config()
-        if instantiable(ret):
+        if is_instantiable(ret):
             ret = configer.instantiate(**{})  # also test kwargs
         self.assertTrue(isinstance(ret, output_type))
 

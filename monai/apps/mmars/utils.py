@@ -118,7 +118,7 @@ def resolve_config_with_refs(
         refs: all the referring components with ids, default to `None`.
         globals: predefined global variables to execute code string with `eval()`.
         match_fn: callable function to match config item for references, take `config`,
-            `refs` and `globals` as parameter.
+            `refs` and `globals` as parameters.
 
     """
     refs_: Dict = {} if refs is None else refs

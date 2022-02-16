@@ -14,8 +14,8 @@ from .mmars import download_mmar, get_model_spec, load_from_mmar
 from .model_desc import MODEL_DESC, RemoteMMARKeys
 from .utils import (
     find_refs_in_config,
-    instantiable,
     is_expression,
+    is_instantiable,
     match_refs_pattern,
     resolve_config_with_refs,
     resolve_refs_pattern,
