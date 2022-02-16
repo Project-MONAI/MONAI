@@ -26,7 +26,13 @@ class TestAllDownloadingMMAR(unittest.TestCase):
 
     @parameterized.expand((item,) for item in MODEL_DESC)
     def test_loading_mmar(self, item):
-        pretrained_model = load_from_mmar(item=item, mmar_dir="./", map_location="cpu")
+        if item["name"] == "clara_pt_fed_learning_brain_tumor_mri_segmentation":
+            default_model_file = os.path.join("models", "server", "best_FL_global_model.pt")
+        else:
+            default_model_file = None
+        pretrained_model = load_from_mmar(
+            item=item["name"], mmar_dir="./", map_location="cpu", api=True, model_file=default_model_file
+        )
         self.assertTrue(isinstance(pretrained_model, torch.nn.Module))
 
     def tearDown(self):
