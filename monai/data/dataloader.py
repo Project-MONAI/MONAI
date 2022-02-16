@@ -81,4 +81,4 @@ class DataLoader(_TorchDataLoader):
         if "worker_init_fn" not in kwargs:
             kwargs.update({"worker_init_fn": worker_init_fn})
 
-        super().__init__(dataset=dataset, num_workers=num_workers, **kwargs)  # type: ignore[call-overload]
+        super().__init__(dataset=dataset, num_workers=num_workers, **kwargs)

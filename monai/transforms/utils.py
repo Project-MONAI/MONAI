@@ -21,7 +21,7 @@ import torch
 
 import monai
 from monai.config import DtypeLike, IndexSelection
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.compose import Compose, OneOf
@@ -48,6 +48,7 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    get_equivalent_dtype,
     issequenceiterable,
     look_up_option,
     min_version,
@@ -60,6 +61,7 @@ measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
+cucim, has_cucim = optional_import("cucim")
 exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
@@ -155,7 +157,7 @@ def rescale_array(
     arr: NdarrayOrTensor,
     minv: Optional[float] = 0.0,
     maxv: Optional[float] = 1.0,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
+    dtype: Union[DtypeLike, torch.dtype] = np.float32,
 ) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
@@ -358,7 +360,7 @@ def map_classes_to_indices(
         label_flat = ravel(any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0))
         label_flat = img_flat & label_flat if img_flat is not None else label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
-        cls_indices, *_ = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))
+        cls_indices: NdarrayOrTensor = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))[0]
         indices.append(cls_indices)
 
     return indices
@@ -402,7 +404,7 @@ def weighted_patch_samples(
     if not v[-1] or not isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
-        r, *_ = convert_to_dst_type(r_state.random(n_samples), v)  # type: ignore
+        r, *_ = convert_to_dst_type(r_state.random(n_samples), v)
         idx = searchsorted(v, r * v[-1], right=True)  # type: ignore
     idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode
@@ -569,7 +571,7 @@ def create_grid(
     spatial_size: Sequence[int],
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
-    dtype=float,
+    dtype: Union[DtypeLike, torch.dtype] = float,
     device: Optional[torch.device] = None,
     backend=TransformBackends.NUMPY,
 ):
@@ -580,16 +582,17 @@ def create_grid(
         spatial_size: spatial size of the grid.
         spacing: same len as ``spatial_size``, defaults to 1.0 (dense grid).
         homogeneous: whether to make homogeneous coordinates.
-        dtype: output grid data type.
+        dtype: output grid data type, defaults to `float`.
         device: device to compute and store the output (when the backend is "torch").
         backend: APIs to use, ``numpy`` or ``torch``.
 
     """
     _backend = look_up_option(backend, TransformBackends)
+    _dtype = dtype or float
     if _backend == TransformBackends.NUMPY:
-        return _create_grid_numpy(spatial_size, spacing, homogeneous, dtype)
+        return _create_grid_numpy(spatial_size, spacing, homogeneous, _dtype)
     if _backend == TransformBackends.TORCH:
-        return _create_grid_torch(spatial_size, spacing, homogeneous, dtype, device)
+        return _create_grid_torch(spatial_size, spacing, homogeneous, _dtype, device)
     raise ValueError(f"backend {backend} is not supported")
 
 
@@ -597,14 +600,14 @@ def _create_grid_numpy(
     spatial_size: Sequence[int],
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
-    dtype: DtypeLike = float,
+    dtype: Union[DtypeLike, torch.dtype] = float,
 ):
     """
     compute a `spatial_size` mesh with the numpy API.
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
     ranges = [np.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d)) for d, s in zip(spatial_size, spacing)]
-    coords = np.asarray(np.meshgrid(*ranges, indexing="ij"), dtype=dtype)
+    coords = np.asarray(np.meshgrid(*ranges, indexing="ij"), dtype=get_equivalent_dtype(dtype, np.ndarray))
     if not homogeneous:
         return coords
     return np.concatenate([coords, np.ones_like(coords[:1])])
@@ -622,7 +625,13 @@ def _create_grid_torch(
     """
     spacing = spacing or tuple(1.0 for _ in spatial_size)
     ranges = [
-        torch.linspace(-(d - 1.0) / 2.0 * s, (d - 1.0) / 2.0 * s, int(d), device=device, dtype=dtype)
+        torch.linspace(
+            -(d - 1.0) / 2.0 * s,
+            (d - 1.0) / 2.0 * s,
+            int(d),
+            device=device,
+            dtype=get_equivalent_dtype(dtype, torch.Tensor),
+        )
         for d, s in zip(spatial_size, spacing)
     ]
     coords = meshgrid_ij(*ranges)
@@ -852,7 +861,7 @@ def create_translate(
             spatial_dims=spatial_dims,
             shift=shift,
             eye_func=lambda x: torch.eye(torch.as_tensor(x), device=device),  # type: ignore
-            array_func=lambda x: torch.as_tensor(x, device=device),  # type: ignore
+            array_func=lambda x: torch.as_tensor(x, device=device),
         )
     raise ValueError(f"backend {backend} is not supported")
 
@@ -874,7 +883,7 @@ def generate_spatial_bounding_box(
     margin: Union[Sequence[int], int] = 0,
 ) -> Tuple[List[int], List[int]]:
     """
-    generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
+    Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
     And it can also add margin to every dim of the bounding box.
     The output format of the coordinates is:
@@ -886,7 +895,7 @@ def generate_spatial_bounding_box(
     This function returns [-1, -1, ...], [-1, -1, ...] if there's no positive intensity.
 
     Args:
-        img: source image to generate bounding box from.
+        img: a "channel-first" image of shape (C, spatial_dim1[, spatial_dim2, ...]) to generate bounding box from.
         select_fn: function to select expected foreground, default is to select values > 0.
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
@@ -922,7 +931,7 @@ def generate_spatial_bounding_box(
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Optional[int] = None) -> NdarrayOrTensor:
+def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optional[int] = None) -> NdarrayTensor:
     """
     Gets the largest connected component mask of an image.
 
@@ -933,13 +942,23 @@ def get_largest_connected_component_mask(img: NdarrayOrTensor, connectivity: Opt
             connectivity of ``input.ndim`` is used. for more details:
             https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
     """
-    img_arr: np.ndarray = convert_data_type(img, np.ndarray)[0]  # type: ignore
+    if isinstance(img, torch.Tensor) and has_cp and has_cucim:
+        x_cupy = monai.transforms.ToCupy()(img.short())
+        x_label = cucim.skimage.measure.label(x_cupy, connectivity=connectivity)
+        vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
+        comp = x_label == vals[cp.ndarray.argmax(counts)]
+        out_tensor = monai.transforms.ToTensor(device=img.device)(comp)
+        out_tensor = out_tensor.bool()
+
+        return out_tensor  # type: ignore
+
+    img_arr = convert_data_type(img, np.ndarray)[0]
     largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
     img_arr = measure.label(img_arr, connectivity=connectivity)
     if img_arr.max() != 0:
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
-    largest_cc = convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]  # type: ignore
-    return largest_cc
+
+    return convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]
 
 
 def fill_holes(

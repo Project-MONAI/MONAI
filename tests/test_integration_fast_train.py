@@ -123,6 +123,7 @@ class IntegrationFastTrain(DistTestCase):
                     range_x=np.pi / 4,
                     mode=("bilinear", "nearest"),
                     align_corners=True,
+                    dtype=np.float64,
                 ),
                 RandAffined(keys=["image", "label"], prob=0.5, rotate_range=np.pi / 2, mode=("bilinear", "nearest")),
                 RandGaussianNoised(keys="image", prob=0.5),

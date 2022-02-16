@@ -21,6 +21,7 @@ from typing import Optional, Union
 import numpy as np
 
 from monai.config import DtypeLike, KeysCollection
+from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
@@ -48,13 +49,13 @@ class LoadImaged(MapTransform):
         - User-specified reader in the constructor of `LoadImage`.
         - Readers from the last to the first in the registered list.
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
-          (npz, npy -> NumpyReader), (others -> ITKReader).
+          (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader).
 
     Note:
 
         - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
           readers. This might introduce overheads when handling the exceptions of trying the incompatible loaders.
-          In this case, it is therefore recommended to set the most appropriate reader as
+          In this case, it is therefore recommended setting the most appropriate reader as
           the last item of the `reader` parameter.
 
     See also:
@@ -72,6 +73,7 @@ class LoadImaged(MapTransform):
         meta_key_postfix: str = DEFAULT_POST_FIX,
         overwriting: bool = False,
         image_only: bool = False,
+        ensure_channel_first: bool = False,
         allow_missing_keys: bool = False,
         *args,
         **kwargs,
@@ -84,7 +86,7 @@ class LoadImaged(MapTransform):
                 at runtime or use the default readers. If a string of reader name provided, will construct
                 a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
                 "PILReader", "ITKReader", "NumpyReader".
-            dtype: if not None convert the loaded image data to this data type.
+            dtype: if not None, convert the loaded image data to this data type.
             meta_keys: explicitly indicate the key to store the corresponding meta data dictionary.
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
@@ -92,16 +94,18 @@ class LoadImaged(MapTransform):
             meta_key_postfix: if meta_keys is None, use `key_{postfix}` to store the metadata of the nifti image,
                 default is `meta_dict`. The meta data is a dictionary object.
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
-            overwriting: whether allow to overwrite existing meta data of same key.
+            overwriting: whether allow overwriting existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
             image_only: if True return dictionary containing just only the image volumes, otherwise return
                 dictionary containing image data array and header dict per input key.
+            ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
+                the image array shape to `channel first`. default to `False`.
             allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
         super().__init__(keys, allow_missing_keys)
-        self._loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
+        self._loader = LoadImage(reader, image_only, dtype, ensure_channel_first, *args, **kwargs)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
@@ -150,68 +154,61 @@ class SaveImaged(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
-            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
-            it can be a sequence of string, map to the `keys`.
-            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None and `key_{postfix}` was used to store the metadata in `LoadImaged`.
-            need the key to extract metadata to save images, default is `meta_dict`.
-            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
-            if no corresponding metadata, set to `None`.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
+            For example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            The metadata is a dictionary contains values such as filename, original_shape.
+            This argument can be a sequence of string, map to the `keys`.
+            If `None`, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if `meta_keys` is `None`, use `key_{meta_key_postfix}` to retrieve the metadict.
         output_dir: output image directory.
         output_postfix: a string appended to all output file names, default to `trans`.
         output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.
-        resample: whether to resample before saving the data array.
-            if saving PNG format image, based on the `spatial_shape` from metadata.
-            if saving NIfTI format image, based on the `original_affine` from metadata.
-        mode: This option is used when ``resample = True``. Defaults to ``"nearest"``.
+        output_dtype: data type for saving data. Defaults to ``np.float32``.
+        resample: whether to resample image (if needed) before saving the data array,
+            based on the `spatial_shape` (and `original_affine`) from metadata.
+        mode: This option is used when ``resample=True``. Defaults to ``"nearest"``.
+            Depending on the writers, the possible options are:
 
-            - NIfTI files {``"bilinear"``, ``"nearest"``}
-                Interpolation mode to calculate output values.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            - PNG files {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
-                The interpolation mode.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            - {``"bilinear"``, ``"nearest"``, ``"bicubic"``}.
+              See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            - {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}.
+              See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
         padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
-
-            - NIfTI files {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            - PNG files
-                This option is ignored.
-
+            Possible options are {``"zeros"``, ``"border"``, ``"reflection"``}
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
-            [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
-            it's used for PNG format only.
+            [0, 255] (uint8) or [0, 65535] (uint16). Default is `None` (no scaling).
         dtype: data type during resampling computation. Defaults to ``np.float64`` for best precision.
             if None, use the data type of input data. To be compatible with other modules,
-            the output data type is always ``np.float32``.
-            it's used for NIfTI format only.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
             it's used for NIfTI format only.
         allow_missing_keys: don't raise exception if key is missing.
         squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
             has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
-            then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+            then if C==1, it will be saved as (H,W,D). If D is also 1, it will be saved as (H,W). If `false`,
             image will always be saved as (H,W,D,C).
-            it's used for NIfTI format only.
         data_root_dir: if not empty, it specifies the beginning parts of the input file's
-            absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+            absolute path. It's used to compute `input_file_rel_path`, the relative path to the file from
             `data_root_dir` to preserve folder structure when saving in case there are files in different
-            folders with the same file names. for example:
-            input_file_name: /foo/bar/test1/image.nii,
-            output_postfix: seg
-            output_ext: nii.gz
-            output_dir: /output,
-            data_root_dir: /foo/bar,
-            output will be: /output/test1/image/image_seg.nii.gz
-        separate_folder: whether to save every file in a separate folder, for example: if input filename is
-            `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
-            `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
-        print_log: whether to print log about the saved file path, etc. default to `True`.
+            folders with the same file names. For example, with the following inputs:
+
+            - input_file_name: `/foo/bar/test1/image.nii`
+            - output_postfix: `seg`
+            - output_ext: `.nii.gz`
+            - output_dir: `/output`
+            - data_root_dir: `/foo/bar`
+
+            The output will be: /output/test1/image/image_seg.nii.gz
+
+        separate_folder: whether to save every file in a separate folder. For example: for the input filename
+            `image.nii`, postfix `seg` and folder_path `output`, if `separate_folder=True`, it will be saved as:
+            `output/image/image_seg.nii`, if `False`, saving as `output/image_seg.nii`. Default to `True`.
+        print_log: whether to print logs when saving. Default to `True`.
+        output_format: an optional string to specify the output image writer.
+            see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
+        writer: a customised image writer to save data arrays.
+            if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
 
     """
 
@@ -234,11 +231,13 @@ class SaveImaged(MapTransform):
         data_root_dir: str = "",
         separate_folder: bool = True,
         print_log: bool = True,
+        output_format: str = "",
+        writer: Optional[image_writer.ImageWriter] = None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self._saver = SaveImage(
+        self.saver = SaveImage(
             output_dir=output_dir,
             output_postfix=output_postfix,
             output_ext=output_ext,
@@ -252,7 +251,12 @@ class SaveImaged(MapTransform):
             data_root_dir=data_root_dir,
             separate_folder=separate_folder,
             print_log=print_log,
+            output_format=output_format,
+            writer=writer,
         )
+
+    def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
+        self.saver.set_options(init_kwargs, data_kwargs, meta_kwargs, write_kwargs)
 
     def __call__(self, data):
         d = dict(data)
@@ -260,7 +264,7 @@ class SaveImaged(MapTransform):
             if meta_key is None and meta_key_postfix is not None:
                 meta_key = f"{key}_{meta_key_postfix}"
             meta_data = d[meta_key] if meta_key is not None else None
-            self._saver(img=d[key], meta_data=meta_data)
+            self.saver(img=d[key], meta_data=meta_data)
         return d
 
 

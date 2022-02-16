@@ -9,8 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config_parser import ConfigParser
-from .config_resolver import ConfigComponent, ConfigResolver
+from .config_item import ComponentLocator, ConfigComponent, ConfigItem
+from .config_parser import ConfigParser, ConfigResolver
 from .mmars import download_mmar, get_model_spec, load_from_mmar
 from .model_desc import MODEL_DESC, RemoteMMARKeys
-from .utils import search_configs_with_deps, update_configs_with_deps
+from .utils import (
+    find_refs_in_config,
+    is_expression,
+    is_instantiable,
+    match_refs_pattern,
+    resolve_config_with_refs,
+    resolve_refs_pattern,
+)

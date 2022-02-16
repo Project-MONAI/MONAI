@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,8 +12,117 @@
 import importlib
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from monai.apps.mmars.config_resolver import ConfigComponent, ConfigResolver
-from monai.utils.module import ClassScanner
+from monai.apps.mmars.config_item import ConfigComponent, ConfigItem, ComponentLocator
+from monai.apps.mmars.utils import is_instantiable
+
+class ConfigResolver:
+    """
+    Utility class to resolve the dependencies between config components and build instance for specified `id`.
+
+    Args:
+        components: config components to resolve, if None, can also `add()` component in runtime.
+
+    """
+
+    def __init__(self, components: Optional[Dict[str, ConfigComponent]] = None):
+        self.resolved_configs: Dict[str, str] = {}
+        self.resolved_components: Dict[str, Any] = {}
+        self.components = {} if components is None else components
+
+    def add(self, component: ConfigComponent):
+        """
+        Add a component to the resolution graph.
+
+        Args:
+            component: a config component to resolve.
+
+        """
+        id = component.get_id()
+        if id in self.components:
+            raise ValueError(f"id '{id}' is already added.")
+        self.components[id] = component
+
+    def _resolve_one_component(self, id: str, instantiate: bool = True, waiting_list: Optional[List[str]] = None):
+        """
+        Resolve one component with specified id name.
+        If has unresolved dependencies, recursively resolve the dependencies first.
+
+        Args:
+            id: id name of expected component to resolve.
+            instantiate: after resolving all the dependencies, whether to build instance.
+                if False, can support lazy instantiation with the resolved config later.
+                default to `True`.
+            waiting_list: list of components wait to resolve dependencies. it's used to detect circular dependencies
+                when resolving dependencies like: `{"name": "A", "dep": "@B"}` and `{"name": "B", "dep": "@A"}`.
+
+        """
+        if waiting_list is None:
+            waiting_list = []
+        waiting_list.append(id)
+        com = self.components[id]
+        dep_ids = com.get_dependent_ids()
+        # if current component has dependency already in the waiting list, that's circular dependencies
+        for d in dep_ids:
+            if d in waiting_list:
+                raise ValueError(f"detected circular dependencies for id='{d}' in the config content.")
+
+        deps = {}
+        if len(dep_ids) > 0:
+            # # check whether the component has any unresolved deps
+            for comp_id in dep_ids:
+                if comp_id not in self.resolved_components:
+                    # this dependent component is not resolved
+                    if comp_id not in self.components:
+                        raise RuntimeError(f"the dependent component `{comp_id}` is not in config.")
+                    # resolve the dependency first
+                    self._resolve_one_component(id=comp_id, instantiate=True, waiting_list=waiting_list)
+                deps[comp_id] = self.resolved_components[comp_id]
+            # all dependent components are resolved already
+        updated_config = com.get_updated_config(deps)
+        resolved_com = None
+
+        if instantiate:
+            resolved_com = com.build(updated_config)
+            self.resolved_configs[id] = updated_config
+            self.resolved_components[id] = resolved_com
+
+        return updated_config, resolved_com
+
+    def resolve_all(self):
+        """
+        Resolve all the components and build instances.
+
+        """
+        for k in self.components.keys():
+            self._resolve_one_component(id=k, instantiate=True)
+
+    def get_resolved_component(self, id: str):
+        """
+        Get the resolved instance component with specified id name.
+        If not resolved, try to resolve it first.
+
+        Args:
+            id: id name of the expected component.
+
+        """
+        if id not in self.resolved_components:
+            self._resolve_one_component(id=id, instantiate=True)
+        return self.resolved_components[id]
+
+    def get_resolved_config(self, id: str):
+        """
+        Get the resolved config component with specified id name, then can be used for lazy instantiation.
+        If not resolved, try to resolve it with `instantiation=False` first.
+
+        Args:
+            id: id name of the expected config component.
+
+        """
+        if id not in self.resolved_configs:
+            config, _ = self._resolve_one_component(id=id, instantiate=False)
+        else:
+            config = self.resolved_configs[id]
+        return config
 
 
 class ConfigParser:
@@ -23,9 +132,7 @@ class ConfigParser:
     For more details of the config format, please check :py:class:`monai.apps.ConfigComponent`.
 
     Args:
-        pkgs: the expected packages to scan modules and parse class names in the config.
-        modules: the expected modules in the packages to scan for all the classes.
-            for example, to parser "LoadImage" in config, `pkgs` can be ["monai"], `modules` can be ["transforms"].
+        excludes: if any string of the `excludes` exists in the full module name, don't import this module.
         global_imports: pre-import packages as global variables to execute the python `eval` commands.
             for example, pre-import `monai`, then execute `eval("monai.data.list_data_collate")`.
             default to `{"monai": "monai", "torch": "torch", "np": "numpy"}` as `numpy` and `torch`
@@ -36,15 +143,14 @@ class ConfigParser:
 
     def __init__(
         self,
-        pkgs: Sequence[str],
-        modules: Sequence[str],
+        excludes: Optional[Union[Sequence[str], str]] = None,
         global_imports: Optional[Dict[str, Any]] = None,
         config: Optional[Any] = None,
     ):
         self.config = None
         if config is not None:
             self.set_config(config=config)
-        self.class_scanner = ClassScanner(pkgs=pkgs, modules=modules)
+        self.locator = ComponentLocator(excludes=excludes)
         self.global_imports: Dict[str, Any] = {"monai": "monai", "torch": "torch", "np": "numpy"}
         if global_imports is not None:
             for k, v in global_imports.items():
@@ -124,9 +230,12 @@ class ConfigParser:
                 sub_id = i if id is None else f"{id}#{i}"
                 self._do_parse(config=v, id=sub_id)
         if id is not None:
-            self.config_resolver.add(
-                ConfigComponent(id=id, config=config, class_scanner=self.class_scanner, globals=self.global_imports)
-            )
+            if is_instantiable(config):
+                self.config_resolver.add(
+                    ConfigComponent(id=id, config=config, locator=self.locator, globals=self.global_imports)
+                )
+            else:
+                self.config_resolver.add(ConfigItem(id=id, config=config, globals=self.global_imports))
 
     def parse_config(self, resolve_all: bool = False):
         """
@@ -169,15 +278,3 @@ class ConfigParser:
         if self.config_resolver is None or not self.resolved:
             self.parse_config()
         return self.config_resolver.get_resolved_component(id=id)
-
-    def build(self, config: Dict):
-        """
-        Build a config to instance if no dependencies, usually used for lazy instantiation or ad-hoc build.
-
-        Args:
-            config: dictionary config content to build.
-
-        """
-        return ConfigComponent(
-            id="", config=config, class_scanner=self.class_scanner, globals=self.global_imports
-        ).build()

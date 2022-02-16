@@ -30,6 +30,13 @@ for p in TEST_NDARRAYS:
         )
         TESTS.append(
             [
+                dict(keys="img", padding_mode="zeros", spatial_size=(-1, 0), device=device, dtype=None),
+                {"img": p(np.arange(9, dtype=float).reshape((1, 3, 3)))},
+                p(np.arange(9).reshape(1, 3, 3)),
+            ]
+        )
+        TESTS.append(
+            [
                 dict(keys="img", padding_mode="zeros", device=device),
                 {"img": p(np.arange(4).reshape((1, 2, 2)))},
                 p(np.arange(4).reshape(1, 2, 2)),

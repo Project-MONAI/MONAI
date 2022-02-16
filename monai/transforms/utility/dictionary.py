@@ -15,7 +15,6 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-import logging
 import re
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
@@ -520,7 +519,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         data_type: str = "tensor",
-        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        dtype: Union[DtypeLike, torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
         allow_missing_keys: bool = False,
@@ -775,7 +774,7 @@ class DataStatsd(MapTransform):
         value_range: Union[Sequence[bool], bool] = True,
         data_value: Union[Sequence[bool], bool] = False,
         additional_info: Optional[Union[Sequence[Callable], Callable]] = None,
-        logger_handler: Optional[logging.Handler] = None,
+        name: str = "DataStats",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -796,9 +795,7 @@ class DataStatsd(MapTransform):
             additional_info: user can define callable function to extract
                 additional info from input data. it also can be a sequence of string, each element
                 corresponds to a key in ``keys``.
-            logger_handler: add additional handler to output data: save to file, etc.
-                all the existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html.
-                the handler should have a logging level of at least `INFO`.
+            name: identifier of `logging.logger` to use, defaulting to "DataStats".
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -809,8 +806,7 @@ class DataStatsd(MapTransform):
         self.value_range = ensure_tuple_rep(value_range, len(self.keys))
         self.data_value = ensure_tuple_rep(data_value, len(self.keys))
         self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
-        self.logger_handler = logger_handler
-        self.printer = DataStats(logger_handler=logger_handler)
+        self.printer = DataStats(name=name)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -1449,7 +1445,7 @@ class IntensityStatsd(MapTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to store the computed statistics to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.

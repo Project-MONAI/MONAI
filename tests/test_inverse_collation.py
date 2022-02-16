@@ -50,7 +50,7 @@ TESTS_3D = [
         RandAxisFlipd(keys=KEYS, prob=0.5),
         Compose([RandRotate90d(keys=KEYS, spatial_axes=(1, 2)), ToTensord(keys=KEYS)]),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
-        RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
+        RandRotated(keys=KEYS, prob=0.5, range_x=np.pi, dtype=np.float64),
         RandAffined(
             keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         ),
@@ -65,7 +65,7 @@ TESTS_2D = [
         RandAxisFlipd(keys=KEYS, prob=0.5),
         Compose([RandRotate90d(keys=KEYS, prob=0.5, spatial_axes=(0, 1)), ToTensord(keys=KEYS)]),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
-        RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
+        RandRotated(keys=KEYS, prob=0.5, range_x=np.pi, dtype=np.float64),
         RandAffined(
             keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         ),

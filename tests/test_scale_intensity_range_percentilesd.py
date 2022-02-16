@@ -75,7 +75,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
             s(self.imt)
 
     def test_channel_wise(self):
-        img = self.imt
+        img = np.tile(self.imt, (3, 1, 1, 1))
         lower = 10
         upper = 99
         b_min = 0

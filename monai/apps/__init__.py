@@ -12,14 +12,20 @@
 from .datasets import CrossValidation, DecathlonDataset, MedNISTDataset
 from .mmars import (
     MODEL_DESC,
+    ComponentLocator,
     ConfigComponent,
+    ConfigItem,
     ConfigParser,
     ConfigResolver,
     RemoteMMARKeys,
     download_mmar,
+    find_refs_in_config,
     get_model_spec,
+    is_expression,
+    is_instantiable,
     load_from_mmar,
-    search_configs_with_deps,
-    update_configs_with_deps,
+    match_refs_pattern,
+    resolve_config_with_refs,
+    resolve_refs_pattern,
 )
 from .utils import SUPPORTED_HASH_TYPES, check_hash, download_and_extract, download_url, extractall, get_logger, logger
