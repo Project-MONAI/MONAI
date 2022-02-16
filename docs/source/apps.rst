@@ -38,6 +38,9 @@ Model Package
 .. autoclass:: ConfigComponent
     :members:
 
+.. autoclass:: ConfigExpression
+    :members:
+
 .. autoclass:: ConfigItem
     :members:
 
