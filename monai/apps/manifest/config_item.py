@@ -131,34 +131,15 @@ class ComponentLocator:
 
 class ConfigItem:
     """
-    Base class of every item of the whole config content.
-    When recursively parsing a complicated config content, every item (like: dict, list, string, int, float, etc.)
-    can be treated as an "config item" then construct a `ConfigItem`.
-    For example, below are 4 config items when recursively parsing:
-    - a dict: `{"transform_keys": ["image", "label"]}`
-    - a list: `["image", "label"]`
-    - a string: `"image"`
-    - a string: `"label"`
+    Basic data structure to represent a configuration item.
 
-    `ConfigItem` can set optional unique ID name to identify itself.
-
-    A typical usage of the APIs:
-    - Initialize / update with config content.
-    - Get the config content at runtime and modify something in it.
-    - Update the config content with new one.
-
-    .. code-block:: python
-
-        config = {"lr": 0.001}
-
-        item = ConfigItem(config, id="test")
-        conf = item.get_config()
-        conf["lr"] = 0.0001
-        item.update_config(conf)
+    A `ConfigItem` instance can optionally have a string id, so that other items can refer to it.
+    It has a build-in `config` property to store the configuration object.
 
     Args:
-        config: content of a config item, can be a `dict`, `list`, `string`, `float`, `int`, etc.
-        id: optional ID name of current config item, defaults to `None`.
+        config: content of a config item, can be objects of any types,
+            a configuration resolver may interpret the content to generate a configuration object.
+        id: optional ID name of the current config item, defaults to `None`.
 
     """
 
@@ -175,11 +156,11 @@ class ConfigItem:
 
     def update_config(self, config: Any):
         """
-        Update the config content for a config item at runtime.
-        A typical usage is to modify the initial config content at runtime and set back.
+        Replace the content of `self.config` with new `config`.
+        A typical usage is to modify the initial config content at runtime.
 
         Args:
-            config: content of a config item, can be a `dict`, `list`, `string`, `float`, `int`, etc.
+            config: content of a `ConfigItem`.
 
         """
         self.config = config
@@ -187,7 +168,6 @@ class ConfigItem:
     def get_config(self):
         """
         Get the config content of current config item.
-        It can be useful to update the config content at runtime.
 
         """
         return self.config
@@ -195,35 +175,33 @@ class ConfigItem:
 
 class ConfigComponent(ConfigItem, Instantiable):
     """
-    Subclass of :py:class:`monai.apps.ConfigItem`, the config item represents a target component of `class`
-    or `function`, and support to instantiate the component. Example of config item:
-    `{"<name>": "LoadImage", "<args>": {"keys": "image"}}`
+    Subclass of :py:class:`monai.apps.ConfigItem`, this class uses a dictionary with string keys to
+    represent a component of `class` or `function` and supports instantiation.
 
-    Here we predefined 4 keys: `<name>`, `<path>`, `<args>`, `<disabled>` for component config:
-    - '<name>' - class / function name in the modules of packages.
-    - '<path>' - directly specify the module path, based on PYTHONPATH, ignore '<name>' if specified.
-    - '<args>' - arguments to initialize the component instance.
-    - '<disabled>' - if defined `'<disabled>': True`, will skip the buiding, useful for development or tuning.
+    Currently, four special keys (strings surrounded by ``<>``) are defined and interpreted beyond the regular literals:
 
-    The typical usage of the APIs:
-    - Initialize / update config content.
-    - `instantiate` the component if having "<name>" or "<path>" keywords and return the instance.
+        - class or function identifier of the python module, specified by one of the two keys.
+            - ``"<name>"``: indicates build-in python classes or functions such as "LoadImageDict".
+            - ``"<path>"``: full module name, such as "monai.transforms.LoadImageDict".
+        - ``"<args>"``: input arguments to the python module.
+        - ``"<disabled>"``: a boolean flag to indicate whether to skip the instantiation.
 
     .. code-block:: python
 
-        locator = ComponentLocator(excludes=["<not_needed_modules>"])
+        locator = ComponentLocator(excludes=["modules_to_exclude"])
         config = {"<name>": "LoadImaged", "<args>": {"keys": ["image", "label"]}}
 
         configer = ConfigComponent(config, id="test", locator=locator)
-        dataloader: DataLoader = configer.instantiate()
+        image_loader = configer.instantiate()
+        print(image_loader)  # <monai.transforms.io.dictionary.LoadImaged object at 0x7fba7ad1ee50>
 
     Args:
-        config: content of a config item, can be a `dict`, `list`, `string`, `float`, `int`, etc.
-        id: optional ID name of current config item, defaults to `None`.
-        locator: `ComponentLocator` to help locate the module path of `<name>` in the config and instantiate it.
-            if `None`, will create a new `ComponentLocator` with specified `excludes`.
-        excludes: if `locator` is None, create a new `ComponentLocator` with `excludes`. any string of the `excludes`
-            exists in the module name, don't import this module.
+        config: content of a config item.
+        id: optional name of the current config item, defaults to `None`.
+        locator: a `ComponentLocator` to convert a module name string into the actual python module.
+            if `None`, a ``ComponentLocator(excludes=excludes)`` will be used.
+        excludes: if ``locator`` is None, create a new ``ComponentLocator`` with ``excludes``.
+            See also: :py:class:`monai.apps.manifest.ComponentLocator`.
 
     """
 
@@ -243,14 +221,14 @@ class ConfigComponent(ConfigItem, Instantiable):
         The config content must have `<path>` or `<name>`.
 
         """
-        config = self.get_config()
-        path = config.get("<path>", None)
+        config = dict(self.get_config())
+        path = config.get("<path>")
         if path is not None:
             if "<name>" in config:
-                warnings.warn(f"should not set both '<path>' and '<name>', default to use '<path>': {path}.")
+                warnings.warn(f"both '<path>' and '<name>', default to use '<path>': {path}.")
             return path
 
-        name = config.get("<name>", None)
+        name = config.get("<name>")
         if name is None:
             raise ValueError("must provide `<path>` or `<name>` of target component to instantiate.")
 
