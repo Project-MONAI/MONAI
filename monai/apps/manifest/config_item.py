@@ -26,29 +26,31 @@ class Instantiable(ABC):
     """
     Base class for instantiable object with module name and arguments.
 
+    .. code-block:: python
+
+        if not is_disabled():
+            instantiate(module_name=resolve_module_name(), args=resolve_args())
+
     """
 
     @abstractmethod
     def resolve_module_name(self, *args: Any, **kwargs: Any):
         """
-        Utility function to resolve the target module name.
-
+        Resolve the target module name, it should return an object class (or function) to be instantiated.
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
     def resolve_args(self, *args: Any, **kwargs: Any):
         """
-        Utility function to resolve the arguments.
-
+        Resolve the arguments, it should return arguments to be passed to the object when instantiating.
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def is_disabled(self, *args: Any, **kwargs: Any):
+    def is_disabled(self, *args: Any, **kwargs: Any) -> bool:
         """
-        Utility function to check whether the target component is disabled.
-
+        Return a boolean flag to indicate whether the object should be instantiated.
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
@@ -56,7 +58,6 @@ class Instantiable(ABC):
     def instantiate(self, *args: Any, **kwargs: Any):
         """
         Instantiate the target component.
-
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
@@ -111,7 +112,7 @@ class ComponentLocator:
 
     def get_component_module_name(self, name) -> Optional[Union[List[str], str]]:
         """
-        Get the full module name of the class / function with specified name.
+        Get the full module name of the class or function with specified ``name``.
         If target component name exists in multiple packages or modules, return a list of full module names.
 
         Args:
