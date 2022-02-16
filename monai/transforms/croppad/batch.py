@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,8 +45,9 @@ class PadListDataCollate(InvertibleTransform):
     tensor in each dimension. This transform is useful if some of the applied transforms generate batch data of
     different sizes.
 
-    This can be used on both list and dictionary data. In the case of the dictionary data, this transform will be added
-    to the list of invertible transforms.
+    This can be used on both list and dictionary data.
+    Note that in the case of the dictionary data, it may add the transform information to the list of invertible transforms
+    if input batch have different spatial shape, so need to call static method: `inverse` before inverting other transforms.
 
     Note that normally, a user won't explicitly use the `__call__` method. Rather this would be passed to the `DataLoader`.
     This means that `__call__` handles data as it comes out of a `DataLoader`, containing batch dimension. However, the

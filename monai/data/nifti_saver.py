@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,8 +19,10 @@ from monai.data.nifti_writer import write_nifti
 from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
+from monai.utils import deprecated
 
 
+@deprecated(since="0.8", msg_suffix="use monai.transforms.SaveImage instead.")
 class NiftiSaver:
     """
     Save the data as NIfTI file, it can support single data content or a batch of data.
@@ -31,6 +33,9 @@ class NiftiSaver:
     If no meta data provided, use index from 0 as the filename prefix.
 
     Note: image should include channel dimension: [B],C,H,W,[D].
+
+    .. deprecated:: 0.8
+        Use :py:class:`monai.transforms.SaveImage` instead.
 
     """
 

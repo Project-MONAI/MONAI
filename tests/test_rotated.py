@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,7 +40,9 @@ for p in TEST_NDARRAYS:
 class TestRotated2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotated(("img", "seg"), angle, keep_size, (mode, "nearest"), padding_mode, align_corners)
+        rotate_fn = Rotated(
+            ("img", "seg"), angle, keep_size, (mode, "nearest"), padding_mode, align_corners, dtype=np.float64
+        )
         rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
@@ -69,7 +71,9 @@ class TestRotated2D(NumpyImageTestCase2D):
 class TestRotated3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotated(("img", "seg"), [0, angle, 0], keep_size, (mode, "nearest"), padding_mode, align_corners)
+        rotate_fn = Rotated(
+            ("img", "seg"), [0, angle, 0], keep_size, (mode, "nearest"), padding_mode, align_corners, dtype=np.float64
+        )
         rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)
@@ -98,7 +102,9 @@ class TestRotated3D(NumpyImageTestCase3D):
 class TestRotated3DXY(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotated(("img", "seg"), [0, 0, angle], keep_size, (mode, "nearest"), padding_mode, align_corners)
+        rotate_fn = Rotated(
+            ("img", "seg"), [0, 0, angle], keep_size, (mode, "nearest"), padding_mode, align_corners, dtype=np.float64
+        )
         rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated["img"].shape)

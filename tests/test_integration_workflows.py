@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -52,6 +52,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
+from monai.utils.enums import PostFix
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
@@ -243,7 +244,9 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
-            SaveImaged(keys="pred", meta_keys="image_meta_dict", output_dir=root_dir, output_postfix="seg_transform"),
+            SaveImaged(
+                keys="pred", meta_keys=PostFix.meta("image"), output_dir=root_dir, output_postfix="seg_transform"
+            ),
         ]
     )
     val_handlers = [
@@ -252,7 +255,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         SegmentationSaver(
             output_dir=root_dir,
             output_postfix="seg_handler",
-            batch_transform=from_engine("image_meta_dict"),
+            batch_transform=from_engine(PostFix.meta("image")),
             output_transform=from_engine("pred"),
         ),
     ]

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,9 +31,9 @@ from monai.transforms import (
     ToTensorD,
 )
 from monai.utils import Range, optional_import
+from tests.utils import HAS_CUPY
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
-_, has_cp = optional_import("cupy")
 _, has_tvt = optional_import("torchvision.transforms")
 _, has_cut = optional_import("cucim.core.operations.expose.transform")
 
@@ -103,7 +103,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         np.testing.assert_equal(output.numpy(), output3.numpy())
 
     @parameterized.expand([TEST_CASE_WRAPPER])
-    @unittest.skipUnless(has_cp, "Requires CuPy.")
+    @unittest.skipUnless(HAS_CUPY, "Requires CuPy.")
     @unittest.skipUnless(has_cut, "Requires cuCIM transforms.")
     @unittest.skipUnless(has_tvt, "Requires torchvision transforms.")
     def test_wrapper_tranforms(self, input):

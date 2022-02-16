@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -79,7 +79,7 @@ class DiceMetric(CumulativeIterationMetric):
         # compute dice (BxC) for each channel for each batch
         return compute_meandice(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_meandice`.
 

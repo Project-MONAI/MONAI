@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,6 +37,7 @@ from monai.utils import (
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
+    deprecated_arg,
     ensure_tuple,
     look_up_option,
     min_version,
@@ -56,6 +57,7 @@ __all__ = [
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
+    "AddCoordinateChannels",
     "EnsureChannelFirst",
     "EnsureType",
     "RepeatChannel",
@@ -200,6 +202,7 @@ class EnsureChannelFirst(Transform):
             strict_check: whether to raise an error when the meta information is insufficient.
         """
         self.strict_check = strict_check
+        self.add_channel = AddChannel()
 
     def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
@@ -221,7 +224,7 @@ class EnsureChannelFirst(Transform):
             warnings.warn(msg)
             return img
         if channel_dim == "no_channel":
-            return AddChannel()(img)
+            return self.add_channel(img)
         return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
@@ -322,7 +325,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayOrTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, dtype: Union[DtypeLike, torch.dtype] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
 
@@ -333,8 +336,7 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        img_out, *_ = convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)
-        return img_out
+        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]  # type: ignore
 
 
 class ToTensor(Transform):
@@ -409,6 +411,7 @@ class EnsureType(Transform):
 
         """
         output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
+        out: NdarrayOrTensor
         out, *_ = convert_data_type(
             data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
         )
@@ -1021,7 +1024,7 @@ class TorchVision:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
-        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor)
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
@@ -1113,8 +1116,7 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         if meta_data is None:
             meta_data = {}
 
@@ -1257,3 +1259,45 @@ class RandCuCIM(CuCIM, RandomizableTransform):
         if not self._do_transform:
             return data
         return super().__call__(data)
+
+
+class AddCoordinateChannels(Transform):
+    """
+    Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
+    to allow feeding of the patch's location into the network.
+
+    This can be seen as a input-only version of CoordConv:
+
+    Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
+
+    Args:
+        spatial_dims: the spatial dimensions that are to have their coordinates encoded in a channel and
+            appended to the input image. E.g., `(0, 1, 2)` represents `H, W, D` dims and append three channels
+            to the input image, encoding the coordinates of the input's three spatial dimensions.
+
+    .. deprecated:: 0.8.0
+        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    @deprecated_arg(
+        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
+    )
+    def __init__(self, spatial_dims: Sequence[int]) -> None:
+        self.spatial_dims = spatial_dims
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: data to be transformed, assuming `img` is channel first.
+        """
+        if max(self.spatial_dims) > img.ndim - 2 or min(self.spatial_dims) < 0:
+            raise ValueError(f"`spatial_dims` values must be within [0, {img.ndim - 2}]")
+
+        spatial_size = img.shape[1:]
+        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_size), indexing="ij"))
+        coord_channels, *_ = convert_to_dst_type(coord_channels, img)  # type: ignore
+        coord_channels = coord_channels[list(self.spatial_dims)]
+        return concatenate((img, coord_channels), axis=0)

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -63,15 +63,14 @@ IndexSelection = Union[Iterable[int], int]
 #: Type of datatypes: Adapted from https://github.com/numpy/numpy/blob/v1.21.4/numpy/typing/_dtype_like.py#L121
 DtypeLike = Union[np.dtype, type, str, None]
 
+#: NdarrayOrTensor: Union of numpy.ndarray and torch.Tensor to be used for typing
+NdarrayOrTensor = Union[np.ndarray, torch.Tensor]
+
 #: NdarrayTensor
 #
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
 # Unlike Union can create a dependence between parameter(s) / return(s)
-NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
-
-
-#: NdarrayOrTensor: Union of numpy.ndarray and torch.Tensor to be used for typing
-NdarrayOrTensor = Union[np.ndarray, torch.Tensor]
+NdarrayTensor = TypeVar("NdarrayTensor", bound=NdarrayOrTensor)
 
 #: TensorOrList: The TensorOrList type is used for defining `batch-first Tensor` or `list of channel-first Tensor`.
 TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]

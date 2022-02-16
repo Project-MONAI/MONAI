@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -71,6 +71,7 @@ class TestRandRotate2D(NumpyImageTestCase2D):
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
+            dtype=np.float64,
         )
         rotate_fn.set_random_state(243)
         rotated = rotate_fn(im_type(self.imt[0]))
@@ -104,6 +105,7 @@ class TestRandRotate3D(NumpyImageTestCase3D):
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
+            dtype=np.float64,
         )
         rotate_fn.set_random_state(243)
         rotated = rotate_fn(im_type(self.imt[0]))

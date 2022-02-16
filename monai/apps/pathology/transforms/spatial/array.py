@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -190,8 +190,7 @@ class TileOnGrid(Randomizable, Transform):
             self.random_idxs = np.array((0,))
 
     def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(image, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(image, np.ndarray)
 
         # add random offset
         self.randomize(img_size=img_np.shape)

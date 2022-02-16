@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,7 +75,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
             s(self.imt)
 
     def test_channel_wise(self):
-        img = self.imt
+        img = np.tile(self.imt, (3, 1, 1, 1))
         lower = 10
         upper = 99
         b_min = 0

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -39,9 +39,9 @@ def default_normalizer(x: NdarrayTensor) -> NdarrayTensor:
         return np.stack([scaler(i) for i in data], axis=0)
 
     if isinstance(x, torch.Tensor):
-        return torch.as_tensor(_compute(x.detach().cpu().numpy()), device=x.device)
+        return torch.as_tensor(_compute(x.detach().cpu().numpy()), device=x.device)  # type: ignore
 
-    return _compute(x)
+    return _compute(x)  # type: ignore
 
 
 class ModelWithHooks:

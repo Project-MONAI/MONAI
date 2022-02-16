@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,6 +22,7 @@ from monai.data import DataLoader, Dataset
 from monai.data.image_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
+from monai.utils.enums import PostFix
 from tests.utils import download_url_or_skip_test
 
 cucim, has_cucim = optional_import("cucim")
@@ -177,7 +178,7 @@ class WSIReaderTests:
             dataset = Dataset([{"image": file_path}], transform=train_transform)
             data_loader = DataLoader(dataset)
             data: dict = first(data_loader)
-            for s in data["image_meta_dict"]["spatial_shape"]:
+            for s in data[PostFix.meta("image")]["spatial_shape"]:
                 torch.testing.assert_allclose(s, expected_spatial_shape)
             self.assertTupleEqual(data["image"].shape, expected_shape)
 

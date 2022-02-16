@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.apps import download_mmar, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_quick
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 TEST_CASES = [["clara_pt_prostate_mri_segmentation"], ["clara_pt_covid19_ct_lesion_segmentation"]]
 TEST_EXTRACT_CASES = [
@@ -101,7 +101,6 @@ TEST_EXTRACT_CASES = [
 class TestMMMARDownload(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skip_if_quick
-    @SkipIfBeforePyTorchVersion((1, 6))
     def test_download(self, idx):
         with skip_if_downloading_fails():
             with self.assertLogs(level="INFO", logger="monai.apps"):

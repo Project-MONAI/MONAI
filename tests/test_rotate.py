@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -46,7 +46,7 @@ for p in TEST_NDARRAYS:
 class TestRotate2D(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotate(angle, keep_size, mode, padding_mode, align_corners)
+        rotate_fn = Rotate(angle, keep_size, mode, padding_mode, align_corners, dtype=np.float64)
         rotated = rotate_fn(im_type(self.imt[0]))
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
@@ -74,7 +74,7 @@ class TestRotate2D(NumpyImageTestCase2D):
 class TestRotate3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
-        rotate_fn = Rotate([angle, 0, 0], keep_size, mode, padding_mode, align_corners)
+        rotate_fn = Rotate([angle, 0, 0], keep_size, mode, padding_mode, align_corners, dtype=np.float64)
         rotated = rotate_fn(im_type(self.imt[0]))
         if keep_size:
             np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
@@ -100,7 +100,7 @@ class TestRotate3D(NumpyImageTestCase3D):
 
     @parameterized.expand(TEST_CASES_SHAPE_3D)
     def test_correct_shape(self, im_type, angle, mode, padding_mode, align_corners):
-        rotate_fn = Rotate(angle, True, align_corners=align_corners)
+        rotate_fn = Rotate(angle, True, align_corners=align_corners, dtype=np.float64)
         rotated = rotate_fn(im_type(self.imt[0]), mode=mode, padding_mode=padding_mode)
         np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
 

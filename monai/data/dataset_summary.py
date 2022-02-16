@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,6 +20,9 @@ from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.transforms import concatenate
 from monai.utils import convert_data_type
+from monai.utils.enums import PostFix
+
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class DatasetSummary:
@@ -42,7 +45,7 @@ class DatasetSummary:
         image_key: Optional[str] = "image",
         label_key: Optional[str] = "label",
         meta_key: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         num_workers: int = 0,
         **kwargs,
     ):

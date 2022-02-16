@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@ from monai.metrics import ROCAUCMetric
 from monai.utils import Average
 
 
-class ROCAUC(IgniteMetric):  # type: ignore[valid-type, misc]  # due to optional_import
+class ROCAUC(IgniteMetric):
     """
     Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
     accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.

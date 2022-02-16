@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -217,7 +217,7 @@ class MultiModal(BertPreTrainedModel):
     """
 
     def __init__(
-        self, num_language_layers: int, num_vision_layers: int, num_mixed_layers: int, bert_config: dict  # type: ignore
+        self, num_language_layers: int, num_vision_layers: int, num_mixed_layers: int, bert_config: dict
     ) -> None:
         """
         Args:
@@ -254,8 +254,8 @@ class Transchex(torch.nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[Sequence[int], int],  # type: ignore
-        patch_size: Union[int, Tuple[int, int]],  # type: ignore
+        img_size: Union[Sequence[int], int],
+        patch_size: Union[int, Tuple[int, int]],
         num_classes: int,
         num_language_layers: int,
         num_vision_layers: int,
@@ -352,10 +352,7 @@ class Transchex(torch.nn.Module):
         self.patch_size = patch_size
         self.num_patches = (img_size[0] // self.patch_size[0]) * (img_size[1] // self.patch_size[1])  # type: ignore
         self.vision_proj = nn.Conv2d(
-            in_channels=in_channels,
-            out_channels=hidden_size,
-            kernel_size=self.patch_size,  # type: ignore
-            stride=self.patch_size,  # type: ignore
+            in_channels=in_channels, out_channels=hidden_size, kernel_size=self.patch_size, stride=self.patch_size
         )
         self.norm_vision_pos = nn.LayerNorm(hidden_size)
         self.pos_embed_vis = nn.Parameter(torch.zeros(1, self.num_patches, hidden_size))

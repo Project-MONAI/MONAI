@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -44,6 +44,7 @@ from monai.transforms.intensity.array import (
     RandScaleIntensity,
     RandShiftIntensity,
     RandStdShiftIntensity,
+    SavitzkyGolaySmooth,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
@@ -55,6 +56,7 @@ from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.enums import PostFix
 
 __all__ = [
     "RandGaussianNoised",
@@ -73,6 +75,7 @@ __all__ = [
     "RandAdjustContrastd",
     "ScaleIntensityRangePercentilesd",
     "MaskIntensityd",
+    "SavitzkyGolaySmoothd",
     "GaussianSmoothd",
     "RandGaussianSmoothd",
     "GaussianSharpend",
@@ -115,6 +118,8 @@ __all__ = [
     "ScaleIntensityRangePercentilesDict",
     "MaskIntensityD",
     "MaskIntensityDict",
+    "SavitzkyGolaySmoothD",
+    "SavitzkyGolaySmoothDict",
     "GaussianSmoothD",
     "GaussianSmoothDict",
     "RandGaussianSmoothD",
@@ -142,6 +147,8 @@ __all__ = [
     "RandKSpaceSpikeNoiseD",
     "RandKSpaceSpikeNoiseDict",
 ]
+
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class RandGaussianNoised(RandomizableTransform, MapTransform):
@@ -281,7 +288,7 @@ class ShiftIntensityd(MapTransform):
         offset: float,
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -300,7 +307,7 @@ class ShiftIntensityd(MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
                 to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
             allow_missing_keys: don't raise exception if key is missing.
@@ -338,7 +345,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         offsets: Union[Tuple[float, float], float],
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -359,7 +366,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
                 to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
             prob: probability of rotating.
@@ -914,6 +921,43 @@ class MaskIntensityd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key], d[self.mask_key]) if self.mask_key is not None else self.converter(d[key])
+        return d
+
+
+class SavitzkyGolaySmoothd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.SavitzkyGolaySmooth`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        window_length: length of the filter window, must be a positive odd integer.
+        order: order of the polynomial to fit to each window, must be less than ``window_length``.
+        axis: optional axis along which to apply the filter kernel. Default 1 (first spatial dimension).
+        mode: optional padding mode, passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'``
+            or ``'circular'``. default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    backend = SavitzkyGolaySmooth.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        window_length: int,
+        order: int,
+        axis: int = 1,
+        mode: str = "zeros",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = SavitzkyGolaySmooth(window_length=window_length, order=order, axis=axis, mode=mode)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
         return d
 
 
@@ -1489,7 +1533,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         if first_key == []:
             return d
 
-        self.dropper.randomize(d[first_key].shape[1:])  # type: ignore
+        self.dropper.randomize(d[first_key].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.dropper(img=d[key], randomize=False)
 
@@ -1558,7 +1602,7 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         if first_key == []:
             return d
 
-        self.shuffle.randomize(d[first_key].shape[1:])  # type: ignore
+        self.shuffle.randomize(d[first_key].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.shuffle(img=d[key], randomize=False)
 
@@ -1626,6 +1670,7 @@ AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd
 MaskIntensityD = MaskIntensityDict = MaskIntensityd
+SavitzkyGolaySmoothD = SavitzkyGolaySmoothDict = SavitzkyGolaySmoothd
 GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
 RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend

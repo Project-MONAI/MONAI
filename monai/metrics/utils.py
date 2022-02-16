@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -116,7 +116,7 @@ def get_mask_edges(
     The input images can be binary or labelfield images. If labelfield images
     are supplied, they are converted to binary images using `label_idx`.
 
-    `scipy`'s binary erosion is used to to calculate the edges of the binary
+    `scipy`'s binary erosion is used to calculate the edges of the binary
     labelfield.
 
     In order to improve the computing efficiency, before getting the edges,

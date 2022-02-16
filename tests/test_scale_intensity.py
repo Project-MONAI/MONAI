@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -58,7 +58,7 @@ class TestScaleIntensity(NumpyImageTestCase2D):
     def test_channel_wise(self):
         for p in TEST_NDARRAYS:
             scaler = ScaleIntensity(minv=1.0, maxv=2.0, channel_wise=True)
-            data = p(self.imt)
+            data = p(np.tile(self.imt, (3, 1, 1, 1)))
             result = scaler(data)
             mina = self.imt.min()
             maxa = self.imt.max()

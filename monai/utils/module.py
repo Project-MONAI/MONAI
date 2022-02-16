@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +19,7 @@ from importlib import import_module
 from pkgutil import walk_packages
 from re import match
 from types import FunctionType
-from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
+from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, Union, cast
 
 import torch
 
@@ -44,7 +44,7 @@ __all__ = [
 ]
 
 
-def look_up_option(opt_str, supported: Collection, default="no_default"):
+def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default="no_default"):
     """
     Look up the option in the supported collection and return the matched item.
     Raise a value error possibly with a guess of the closest match.
@@ -421,9 +421,12 @@ def version_leq(lhs: str, rhs: str):
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    ver, has_ver = optional_import("pkg_resources", name="parse_version")
+    pkging, has_ver = optional_import("pkg_resources", name="packaging")
     if has_ver:
-        return ver(lhs) <= ver(rhs)
+        try:
+            return pkging.version.Version(lhs) <= pkging.version.Version(rhs)
+        except pkging.version.InvalidVersion:
+            return True
 
     def _try_cast(val: str):
         val = val.strip()

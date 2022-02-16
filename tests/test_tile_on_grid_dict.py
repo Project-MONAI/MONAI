@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -114,7 +114,7 @@ def make_image(
         for y in range(tile_count):
             tiles_list.append(image[:, x * step : x * step + tile_size, y * step : y * step + tile_size])
 
-    tiles = np.stack(tiles_list, axis=0)  # type: ignore
+    tiles = np.stack(tiles_list, axis=0)
 
     if (filter_mode == "min" or filter_mode == "max") and len(tiles) > tile_count**2:
         tiles = tiles[np.argsort(tiles.sum(axis=(1, 2, 3)))]

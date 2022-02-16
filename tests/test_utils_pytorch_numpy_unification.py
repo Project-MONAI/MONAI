@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,10 +13,17 @@ import unittest
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
-from monai.transforms.utils_pytorch_numpy_unification import percentile
+from monai.transforms.utils_pytorch_numpy_unification import mode, percentile
 from monai.utils import set_determinism
 from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
+
+TEST_MODE = []
+for p in TEST_NDARRAYS:
+    TEST_MODE.append([p(np.array([1, 2, 3, 4, 4, 5])), p(4), False])
+    TEST_MODE.append([p(np.array([3.1, 4.1, 4.1, 5.1])), p(4.1), False])
+    TEST_MODE.append([p(np.array([3.1, 4.1, 4.1, 5.1])), p(4), True])
 
 
 class TestPytorchNumpyUnification(unittest.TestCase):
@@ -53,6 +60,11 @@ class TestPytorchNumpyUnification(unittest.TestCase):
             # so we can only be accurate to 0.5
             atol = 0.5 if not hasattr(torch, "quantile") else 1e-4
             assert_allclose(results[0], results[-1], type_test=False, atol=atol)
+
+    @parameterized.expand(TEST_MODE)
+    def test_mode(self, array, expected, to_long):
+        res = mode(array, to_long=to_long)
+        assert_allclose(res, expected)
 
 
 if __name__ == "__main__":

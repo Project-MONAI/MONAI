@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -39,7 +39,9 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
             engine = Engine(_train_func)
 
             # set up testing handler
-            saver = SegmentationSaver(output_dir=tempdir, output_postfix="seg", output_ext=output_ext, scale=255)
+            saver = SegmentationSaver(
+                output_dir=tempdir, output_postfix="seg", output_ext=output_ext, scale=255, output_dtype=np.uint8
+            )
             saver.attach(engine)
 
             data = [
@@ -65,7 +67,9 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
             engine = Engine(_train_func)
 
             # set up testing handler
-            saver = SegmentationSaver(output_dir=tempdir, output_postfix="seg", output_ext=output_ext, scale=255)
+            saver = SegmentationSaver(
+                output_dir=tempdir, output_postfix="seg", output_ext=output_ext, scale=255, output_dtype=np.uint8
+            )
             saver.attach(engine)
 
             data = [

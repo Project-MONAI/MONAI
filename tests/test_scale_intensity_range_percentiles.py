@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -66,7 +66,7 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
         self.assertRaises(ValueError, ScaleIntensityRangePercentiles, lower=30, upper=900, b_min=0, b_max=255)
 
     def test_channel_wise(self):
-        img = self.imt[0]
+        img = np.tile(self.imt, (3, 1, 1, 1))
         lower = 10
         upper = 99
         b_min = 0
@@ -78,8 +78,8 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
         for c in img:
             a_min = np.percentile(c, lower)
             a_max = np.percentile(c, upper)
-            expected.append(((c - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min)
-        expected = np.stack(expected).astype(np.uint8)
+            expected.append((((c - a_min) / (a_max - a_min)) * (b_max - b_min) + b_min).astype(np.uint8))
+        expected = np.stack(expected)
 
         for p in TEST_NDARRAYS:
             result = scaler(p(img))

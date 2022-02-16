@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -394,13 +394,13 @@ class SpatialCrop(Transform):
                     data=roi_center, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
                 )
                 roi_size, *_ = convert_to_dst_type(src=roi_size, dst=roi_center, wrap_sequence=True)
-                _zeros = torch.zeros_like(roi_center)  # type: ignore
+                _zeros = torch.zeros_like(roi_center)
                 roi_start_torch = maximum(roi_center - floor_divide(roi_size, 2), _zeros)  # type: ignore
                 roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start_torch, *_ = convert_data_type(  # type: ignore
+                roi_start_torch, *_ = convert_data_type(
                     data=roi_start, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
                 )
                 roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))  # type: ignore
@@ -1162,7 +1162,7 @@ class ResizeWithPadOrCrop(Transform):
                 If None, defaults to the ``mode`` in construction.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
-        return self.padder(self.cropper(img), mode=mode)  # type: ignore
+        return self.padder(self.cropper(img), mode=mode)
 
 
 class BoundingRect(Transform):

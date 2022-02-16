@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -87,6 +87,7 @@ def run_testsuit():
         "test_header_correct",
         "test_hilbert_transform",
         "test_image_dataset",
+        "test_image_rw",
         "test_img2tensorboard",
         "test_integration_fast_train",
         "test_integration_segmentation_3d",
@@ -101,6 +102,7 @@ def run_testsuit():
         "test_label_filter",
         "test_lltm",
         "test_lmdbdataset",
+        "test_lmdbdataset_dist",
         "test_load_image",
         "test_load_imaged",
         "test_load_spacing_orientation",

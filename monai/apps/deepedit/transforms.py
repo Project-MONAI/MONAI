@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,6 +18,7 @@ import numpy as np
 from monai.config import KeysCollection
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.utils import optional_import
+from monai.utils.enums import PostFix
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ class ResizeGuidanceCustomd(Transform):
         d = dict(data)
         current_shape = d[self.ref_image].shape[1:]
 
-        factor = np.divide(current_shape, d["image_meta_dict"]["dim"][1:4])
+        factor = np.divide(current_shape, d[PostFix.meta("image")]["dim"][1:4])
         pos_clicks, neg_clicks = d["foreground"], d["background"]
 
         pos = np.multiply(pos_clicks, factor).astype(int, copy=False).tolist() if len(pos_clicks) else []

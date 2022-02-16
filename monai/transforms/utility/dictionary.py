@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,6 +29,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
+    AddCoordinateChannels,
     AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
@@ -60,14 +61,17 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
-from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import TraceKeys, TransformBackends
+from monai.utils import convert_to_numpy, deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
     "AddChannelD",
     "AddChannelDict",
     "AddChanneld",
+    "AddCoordinateChannelsD",
+    "AddCoordinateChannelsDict",
+    "AddCoordinateChannelsd",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
     "AddExtremePointsChanneld",
@@ -174,6 +178,8 @@ __all__ = [
     "ClassesToIndicesD",
     "ClassesToIndicesDict",
 ]
+
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class Identityd(MapTransform):
@@ -286,7 +292,7 @@ class EnsureChannelFirstd(MapTransform):
         self,
         keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         strict_check: bool = True,
     ) -> None:
         """
@@ -513,7 +519,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         data_type: str = "tensor",
-        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        dtype: Union[DtypeLike, torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
         allow_missing_keys: bool = False,
@@ -1439,7 +1445,7 @@ class IntensityStatsd(MapTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to store the computed statistics to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
@@ -1456,7 +1462,7 @@ class IntensityStatsd(MapTransform):
         mask_keys: Optional[KeysCollection] = None,
         channel_wise: bool = False,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1590,6 +1596,39 @@ class RandCuCIMd(CuCIMd, RandomizableTransform):
         return super().__call__(data)
 
 
+class AddCoordinateChannelsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddCoordinateChannels`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        spatial_dims: the spatial dimensions that are to have their coordinates encoded in a channel and
+            appended to the input image. E.g., `(0, 1, 2)` represents `H, W, D` dims and append three channels
+            to the input image, encoding the coordinates of the input's three spatial dimensions.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    .. deprecated:: 0.8.0
+        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
+
+    """
+
+    backend = AddCoordinateChannels.backend
+
+    @deprecated_arg(
+        name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."
+    )
+    def __init__(self, keys: KeysCollection, spatial_dims: Sequence[int], allow_missing_keys: bool = False) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.add_coordinate_channels = AddCoordinateChannels(spatial_dims=spatial_dims)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.add_coordinate_channels(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -1628,3 +1667,4 @@ IntensityStatsD = IntensityStatsDict = IntensityStatsd
 ToDeviceD = ToDeviceDict = ToDeviced
 CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
+AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd

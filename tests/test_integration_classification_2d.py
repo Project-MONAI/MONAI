@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -68,7 +68,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
             AddChannel(),
             Transpose(indices=[0, 2, 1]),
             ScaleIntensity(),
-            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True),
+            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True, dtype=np.float64),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
             ToTensor(),

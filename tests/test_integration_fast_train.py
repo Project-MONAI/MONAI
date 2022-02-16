@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -123,6 +123,7 @@ class IntegrationFastTrain(DistTestCase):
                     range_x=np.pi / 4,
                     mode=("bilinear", "nearest"),
                     align_corners=True,
+                    dtype=np.float64,
                 ),
                 RandAffined(keys=["image", "label"], prob=0.5, rotate_range=np.pi / 2, mode=("bilinear", "nearest")),
                 RandGaussianNoised(keys="image", prob=0.5),

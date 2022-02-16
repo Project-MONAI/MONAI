@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,6 +25,13 @@ for p in TEST_NDARRAYS:
             [
                 dict(keys="img", padding_mode="zeros", spatial_size=(-1, 0), device=device),
                 {"img": p(np.arange(9).reshape((1, 3, 3)))},
+                p(np.arange(9).reshape(1, 3, 3)),
+            ]
+        )
+        TESTS.append(
+            [
+                dict(keys="img", padding_mode="zeros", spatial_size=(-1, 0), device=device, dtype=None),
+                {"img": p(np.arange(9, dtype=float).reshape((1, 3, 3)))},
                 p(np.arange(9).reshape(1, 3, 3)),
             ]
         )

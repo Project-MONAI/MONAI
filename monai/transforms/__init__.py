@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -178,6 +178,9 @@ from .intensity.dictionary import (
     RandStdShiftIntensityd,
     RandStdShiftIntensityD,
     RandStdShiftIntensityDict,
+    SavitzkyGolaySmoothd,
+    SavitzkyGolaySmoothD,
+    SavitzkyGolaySmoothDict,
     ScaleIntensityd,
     ScaleIntensityD,
     ScaleIntensityDict,
@@ -198,7 +201,7 @@ from .intensity.dictionary import (
     ThresholdIntensityDict,
 )
 from .inverse import InvertibleTransform, TraceableTransform
-from .inverse_batch_transform import BatchInverseTransform, Decollated
+from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .nvtx import (
@@ -246,6 +249,8 @@ from .post.dictionary import (
     AsDiscreted,
     AsDiscreteDict,
     Ensembled,
+    EnsembleD,
+    EnsembleDict,
     FillHolesD,
     FillHolesd,
     FillHolesDict,
@@ -274,10 +279,24 @@ from .post.dictionary import (
     VoteEnsembled,
     VoteEnsembleDict,
 )
-from .smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity, SmoothField
-from .smooth_field.dictionary import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
+from .smooth_field.array import (
+    RandSmoothDeform,
+    RandSmoothFieldAdjustContrast,
+    RandSmoothFieldAdjustIntensity,
+    SmoothField,
+)
+from .smooth_field.dictionary import (
+    RandSmoothDeformd,
+    RandSmoothDeformD,
+    RandSmoothDeformDict,
+    RandSmoothFieldAdjustContrastd,
+    RandSmoothFieldAdjustContrastD,
+    RandSmoothFieldAdjustContrastDict,
+    RandSmoothFieldAdjustIntensityd,
+    RandSmoothFieldAdjustIntensityD,
+    RandSmoothFieldAdjustIntensityDict,
+)
 from .spatial.array import (
-    AddCoordinateChannels,
     Affine,
     AffineGrid,
     Flip,
@@ -299,12 +318,10 @@ from .spatial.array import (
     Rotate,
     Rotate90,
     Spacing,
+    SpatialResample,
     Zoom,
 )
 from .spatial.dictionary import (
-    AddCoordinateChannelsd,
-    AddCoordinateChannelsD,
-    AddCoordinateChannelsDict,
     Affined,
     AffineD,
     AffineDict,
@@ -356,6 +373,9 @@ from .spatial.dictionary import (
     Spacingd,
     SpacingD,
     SpacingDict,
+    SpatialResampled,
+    SpatialResampleD,
+    SpatialResampleDict,
     Zoomd,
     ZoomD,
     ZoomDict,
@@ -363,6 +383,7 @@ from .spatial.dictionary import (
 from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
 from .utility.array import (
     AddChannel,
+    AddCoordinateChannels,
     AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
@@ -398,6 +419,9 @@ from .utility.dictionary import (
     AddChanneld,
     AddChannelD,
     AddChannelDict,
+    AddCoordinateChannelsd,
+    AddCoordinateChannelsD,
+    AddCoordinateChannelsDict,
     AddExtremePointsChanneld,
     AddExtremePointsChannelD,
     AddExtremePointsChannelDict,
@@ -544,6 +568,7 @@ from .utils import (
     zero_margins,
 )
 from .utils_pytorch_numpy_unification import (
+    allclose,
     any_np_pt,
     ascontiguousarray,
     clip,
@@ -554,11 +579,13 @@ from .utils_pytorch_numpy_unification import (
     isfinite,
     isnan,
     maximum,
+    mode,
     moveaxis,
     nonzero,
     percentile,
     ravel,
     repeat,
+    stack,
     unravel_index,
     where,
 )

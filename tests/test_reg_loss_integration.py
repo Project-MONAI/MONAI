@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ from monai.losses import BendingEnergyLoss, GlobalMutualInformationLoss, LocalNo
 from tests.utils import SkipIfBeforePyTorchVersion
 
 TEST_CASES = [
-    [BendingEnergyLoss, {}, ["pred"]],
+    [BendingEnergyLoss, {}, ["pred"], 3],
     [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 7, "kernel_type": "rectangular"}, ["pred", "target"]],
     [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 5, "kernel_type": "triangular"}, ["pred", "target"]],
     [LocalNormalizedCrossCorrelationLoss, {"kernel_size": 3, "kernel_type": "gaussian"}, ["pred", "target"]],
@@ -42,7 +42,7 @@ class TestRegLossIntegration(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     @SkipIfBeforePyTorchVersion((1, 9))
-    def test_convergence(self, loss_type, loss_args, forward_args):
+    def test_convergence(self, loss_type, loss_args, forward_args, pred_channels=1):
         """
         The goal of this test is to assess if the gradient of the loss function
         is correct by testing if we can train a one layer neural network
@@ -64,7 +64,7 @@ class TestRegLossIntegration(unittest.TestCase):
                 self.layer = nn.Sequential(
                     nn.Conv3d(in_channels=1, out_channels=1, kernel_size=3, padding=1),
                     nn.ReLU(),
-                    nn.Conv3d(in_channels=1, out_channels=1, kernel_size=3, padding=1),
+                    nn.Conv3d(in_channels=1, out_channels=pred_channels, kernel_size=3, padding=1),
                 )
 
             def forward(self, x):

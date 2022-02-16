@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Transform
 from monai.utils import first
 
-__all__ = ["BatchInverseTransform", "Decollated"]
+__all__ = ["BatchInverseTransform", "Decollated", "DecollateD", "DecollateDict"]
 
 
 class _BatchInverseDataset(Dataset):
@@ -151,3 +151,6 @@ class Decollated(MapTransform):
                 d[key] = data[key]
 
         return decollate_batch(d, detach=self.detach, pad=self.pad_batch, fill_value=self.fill_value)
+
+
+DecollateD = DecollateDict = Decollated

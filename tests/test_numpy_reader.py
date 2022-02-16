@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,6 +19,7 @@ import torch
 
 from monai.data import DataLoader, Dataset, NumpyReader
 from monai.transforms import LoadImaged
+from monai.utils.enums import PostFix
 
 
 class TestNumpyReader(unittest.TestCase):
@@ -109,7 +110,7 @@ class TestNumpyReader(unittest.TestCase):
                     num_workers=num_workers,
                 )
                 for d in loader:
-                    for s in d["image_meta_dict"]["spatial_shape"]:
+                    for s in d[PostFix.meta("image")]["spatial_shape"]:
                         torch.testing.assert_allclose(s, torch.as_tensor([3, 4, 5]))
                     for c in d["image"]:
                         torch.testing.assert_allclose(c, test_data)
