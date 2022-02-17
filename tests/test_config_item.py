@@ -79,7 +79,7 @@ class TestConfigItem(unittest.TestCase):
     def test_expression(self, id, test_input):
         configer = ConfigExpression(id=id, config=test_input, globals={"monai": monai, "torch": torch})
         var = 100
-        ret = configer.execute(locals={"var": var})
+        ret = configer.evaluate(locals={"var": var})
         self.assertTrue(isinstance(ret, Callable))
 
     def test_lazy_instantiation(self):

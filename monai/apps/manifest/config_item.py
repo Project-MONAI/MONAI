@@ -328,7 +328,7 @@ class ConfigExpression(ConfigItem):
         super().__init__(config=config, id=id)
         self.globals = globals
 
-    def execute(self, locals: Optional[Dict] = None):
+    def evaluate(self, locals: Optional[Dict] = None):
         """
         Excute current config content and return the result if it is expression, based on python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
