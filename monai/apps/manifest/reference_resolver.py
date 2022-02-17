@@ -79,9 +79,9 @@ class ReferenceResolver:
         # all references are resolved
         new_config = self.resolve_config_with_refs(config=item_config, id=id, refs=self.resolved_content)
         item.update_config(config=new_config)
-        if ConfigComponent.is_instantiable(new_config):
+        if isinstance(item, ConfigComponent):
             self.resolved_content[id] = item.instantiate()
-        if ConfigExpression.is_expression(new_config):
+        if isinstance(item, ConfigExpression):
             self.resolved_content[id] = item.execute(locals={"refs": self.resolved_content})
         else:
             self.resolved_content[id] = new_config
