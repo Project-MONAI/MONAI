@@ -29,8 +29,8 @@ Clara MMARs
     :annotation:
 
 
-Model Package
--------------
+Model Manifest
+--------------
 
 .. autoclass:: ComponentLocator
     :members:

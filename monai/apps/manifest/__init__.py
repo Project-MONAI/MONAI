@@ -10,4 +10,3 @@
 # limitations under the License.
 
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
-from .utils import is_expression, is_instantiable

@@ -14,9 +14,8 @@ import sys
 import warnings
 from abc import ABC, abstractmethod
 from importlib import import_module
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
-from monai.apps.manifest.utils import is_expression, is_instantiable
 from monai.utils import ensure_tuple, instantiate
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigComponent"]
@@ -139,7 +138,7 @@ class ConfigItem:
     Args:
         config: content of a config item, can be objects of any types,
             a configuration resolver may interpret the content to generate a configuration object.
-        id: optional ID name of the current config item, defaults to `None`.
+        id: optional name of the current config item, defaults to `None`.
 
     """
 
@@ -184,12 +183,17 @@ class ConfigComponent(ConfigItem, Instantiable):
             - ``"<name>"``: indicates build-in python classes or functions such as "LoadImageDict".
             - ``"<path>"``: full module name, such as "monai.transforms.LoadImageDict".
         - ``"<args>"``: input arguments to the python module.
-        - ``"<disabled>"``: a boolean flag to indicate whether to skip the instantiation.
+        - ``"<disabled>"``: a flag to indicate whether to skip the instantiation.
 
     .. code-block:: python
 
         locator = ComponentLocator(excludes=["modules_to_exclude"])
-        config = {"<name>": "LoadImaged", "<args>": {"keys": ["image", "label"]}}
+        config = {
+            "<name>": "LoadImaged",
+            "<args>": {
+                "keys": ["image", "label"]
+            }
+        }
 
         configer = ConfigComponent(config, id="test", locator=locator)
         image_loader = configer.instantiate()
@@ -198,7 +202,7 @@ class ConfigComponent(ConfigItem, Instantiable):
     Args:
         config: content of a config item.
         id: optional name of the current config item, defaults to `None`.
-        locator: a `ComponentLocator` to convert a module name string into the actual python module.
+        locator: a ``ComponentLocator`` to convert a module name string into the actual python module.
             if `None`, a ``ComponentLocator(excludes=excludes)`` will be used.
         excludes: if ``locator`` is None, create a new ``ComponentLocator`` with ``excludes``.
             See also: :py:class:`monai.apps.manifest.ComponentLocator`.
@@ -215,10 +219,22 @@ class ConfigComponent(ConfigItem, Instantiable):
         super().__init__(config=config, id=id)
         self.locator = ComponentLocator(excludes=excludes) if locator is None else locator
 
+    @staticmethod
+    def is_instantiable(config: Any) -> bool:
+        """
+        Check whether this config represents a `class` or `function` that is to be instantiated.
+
+        Args:
+            config: input config content to check.
+
+        """
+        return isinstance(config, Mapping) and ("<path>" in config or "<name>" in config)
+
     def resolve_module_name(self):
         """
-        Utility function used in `instantiate()` to resolve the target module name from current config content.
-        The config content must have `<path>` or `<name>`.
+        Resolve the target module name from current config content.
+        The config content must have ``"<path>"`` or ``"<name>"``.
+        When both are specified, ``"<path>"`` will be used.
 
         """
         config = dict(self.get_config())
@@ -250,23 +266,24 @@ class ConfigComponent(ConfigItem, Instantiable):
         """
         return self.get_config().get("<args>", {})
 
-    def is_disabled(self):
+    def is_disabled(self, *_args, **_kwargs) -> bool:
         """
-        Utility function used in `instantiate()` to check whether the current component is `disabled`.
+        Utility function used in `instantiate()` to check whether to skip the instantiation.
 
         """
-        return self.get_config().get("<disabled>", False)
+        _is_disabled = self.get_config().get("<disabled>", False)
+        return _is_disabled.lower().strip() == "false" if isinstance(_is_disabled, str) else bool(_is_disabled)
 
     def instantiate(self, **kwargs) -> object:  # type: ignore
         """
-        Instantiate component based on current config content.
+        Instantiate component based on ``self.config`` content.
         The target component must be a `class` or a `function`, otherwise, return `None`.
 
         Args:
             kwargs: args to override / add the config args when instantiation.
 
         """
-        if not is_instantiable(self.get_config()) or self.is_disabled():
+        if not ConfigComponent.is_instantiable(self.get_config()) or self.is_disabled():
             # if not a class or function or marked as `disabled`, skip parsing and return `None`
             return None
 
@@ -278,29 +295,28 @@ class ConfigComponent(ConfigItem, Instantiable):
 
 class ConfigExpression(ConfigItem):
     """
-    Subclass of :py:class:`monai.apps.ConfigItem`, the config item represents an executable expression
-    string started with "$" mark, and support to execute based on python `eval()`, more details:
-    https://docs.python.org/3/library/functions.html#eval.
+    Subclass of :py:class:`monai.apps.ConfigItem`, the `ConfigItem` represents an executable expression
+    (execute based on ``eval()``).
 
-    An example of config item: `{"test_fn": "$lambda x: x + 100"}}`
+    See also:
 
-    The typical usage of the APIs:
-    - Initialize / update config content.
-    - `execute` the config content if it is expression.
+        - https://docs.python.org/3/library/functions.html#eval.
+
+    For example:
 
     .. code-block:: python
 
-        config = "$monai.data.list_data_collate"
+        import monai
+        from monai.apps.manifest import ConfigExpression
 
+        config = "$monai.__version__"
         expression = ConfigExpression(config, id="test", globals={"monai": monai})
-        dataloader = DataLoader(..., collate_fn=expression.execute())
+        print(expression.execute())
 
     Args:
-        config: content of a config item, can be a `dict`, `list`, `string`, `float`, `int`, etc.
-        id: optional ID name of current config item, defaults to `None`.
-        globals: to execute expression string, sometimes we need to provide the global variables which are
-            referred in the expression string. for example: `globals={"monai": monai}` will be useful for
-            config `{"collate_fn": "$monai.data.list_data_collate"}`.
+        config: content of a config item.
+        id: optional name of current config item, defaults to `None`.
+        globals: additional global context to evaluate the string.
 
     """
 
@@ -308,16 +324,28 @@ class ConfigExpression(ConfigItem):
         super().__init__(config=config, id=id)
         self.globals = globals
 
-    def execute(self, locals: Optional[Dict] = None):
+    def execute(self, local_vars: Optional[Dict] = None):
         """
         Excute current config content and return the result if it is expression, based on python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
 
         Args:
-            locals: besides `globals`, may also have some local variables used in the expression at runtime.
+            local_vars: besides ``globals``, may also have some local variables used in the expression at runtime.
 
         """
         value = self.get_config()
-        if not is_expression(value):
+        if not ConfigExpression.is_expression(value):
             return None
-        return eval(value[1:], self.globals, locals)
+        return eval(value[1:], self.globals, local_vars)
+
+    @staticmethod
+    def is_expression(config: Union[Dict, List, str]) -> bool:
+        """
+        Check whether the config is an executable expression string.
+        Currently A string starts with ``"$"`` character is interpreted as an expression.
+
+        Args:
+            config: input config content to check.
+
+        """
+        return isinstance(config, str) and config.startswith("$")
