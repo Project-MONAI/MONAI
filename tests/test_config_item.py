@@ -31,21 +31,23 @@ TEST_CASE_2 = [{"<name>": "LoadImaged", "<args>": {"keys": ["image"]}}, LoadImag
 TEST_CASE_3 = [{"<path>": "monai.transforms.LoadImaged", "<args>": {"keys": ["image"]}}, LoadImaged]
 # test `<disabled>`
 TEST_CASE_4 = [{"<name>": "LoadImaged", "<disabled>": True, "<args>": {"keys": ["image"]}}, dict]
+# test `<disabled>`
+TEST_CASE_5 = [{"<name>": "LoadImaged", "<disabled>": "true", "<args>": {"keys": ["image"]}}, dict]
 # test non-monai modules and excludes
-TEST_CASE_5 = [
+TEST_CASE_6 = [
     {"<path>": "torch.optim.Adam", "<args>": {"params": torch.nn.PReLU().parameters(), "lr": 1e-4}},
     torch.optim.Adam,
 ]
-TEST_CASE_6 = [{"<name>": "decollate_batch", "<args>": {"detach": True, "pad": True}}, partial]
+TEST_CASE_7 = [{"<name>": "decollate_batch", "<args>": {"detach": True, "pad": True}}, partial]
 # test args contains "name" field
-TEST_CASE_7 = [
+TEST_CASE_8 = [
     {"<name>": "RandTorchVisiond", "<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25}},
     RandTorchVisiond,
 ]
 # test execute some function in args, test pre-imported global packages `monai`
-TEST_CASE_8 = ["collate_fn", "$monai.data.list_data_collate"]
+TEST_CASE_9 = ["collate_fn", "$monai.data.list_data_collate"]
 # test lambda function, should not execute the lambda function, just change the string
-TEST_CASE_9 = ["collate_fn", "$lambda x: monai.data.list_data_collate(x) + torch.tensor(var)"]
+TEST_CASE_10 = ["collate_fn", "$lambda x: monai.data.list_data_collate(x) + torch.tensor(var)"]
 
 
 class TestConfigItem(unittest.TestCase):
@@ -58,7 +60,8 @@ class TestConfigItem(unittest.TestCase):
         self.assertEqual(item.get_config()["lr"], expected)
 
     @parameterized.expand(
-        [TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6] + ([TEST_CASE_7] if has_tv else [])
+        [TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+        + ([TEST_CASE_8] if has_tv else [])
     )
     def test_component(self, test_input, output_type):
         locator = ComponentLocator(excludes=["metrics"])
@@ -72,7 +75,7 @@ class TestConfigItem(unittest.TestCase):
         if isinstance(ret, LoadImaged):
             self.assertEqual(ret.keys[0], "image")
 
-    @parameterized.expand([TEST_CASE_8, TEST_CASE_9])
+    @parameterized.expand([TEST_CASE_9, TEST_CASE_10])
     def test_expression(self, id, test_input):
         configer = ConfigExpression(id=id, config=test_input, globals={"monai": monai, "torch": torch})
         var = 100

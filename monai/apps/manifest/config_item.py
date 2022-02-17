@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from monai.utils import ensure_tuple, instantiate
 
-__all__ = ["ComponentLocator", "ConfigItem", "ConfigComponent"]
+__all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent"]
 
 
 class Instantiable(ABC):
@@ -109,7 +109,7 @@ class ComponentLocator:
                 pass
         return table
 
-    def get_component_module_name(self, name) -> Optional[Union[List[str], str]]:
+    def get_component_module_name(self, name: str) -> Optional[Union[List[str], str]]:
         """
         Get the full module name of the class or function with specified ``name``.
         If target component name exists in multiple packages or modules, return a list of full module names.
@@ -118,6 +118,8 @@ class ComponentLocator:
             name: name of the expected class or function.
 
         """
+        if not isinstance(name, str):
+            raise ValueError(f"`name` must be a valid string, but got: {name}.")
         if self._components_table is None:
             # init component and module mapping table
             self._components_table = self._find_classes_or_functions(self._find_module_names())
@@ -240,13 +242,15 @@ class ConfigComponent(ConfigItem, Instantiable):
         config = dict(self.get_config())
         path = config.get("<path>")
         if path is not None:
+            if not isinstance(path, str):
+                raise ValueError(f"'<path>' must be a string, but got: {path}.")
             if "<name>" in config:
                 warnings.warn(f"both '<path>' and '<name>', default to use '<path>': {path}.")
             return path
 
         name = config.get("<name>")
-        if name is None:
-            raise ValueError("must provide `<path>` or `<name>` of target component to instantiate.")
+        if not isinstance(name, str):
+            raise ValueError("must provide a string for `<path>` or `<name>` of target component to instantiate.")
 
         module = self.locator.get_component_module_name(name)
         if module is None:
@@ -266,13 +270,13 @@ class ConfigComponent(ConfigItem, Instantiable):
         """
         return self.get_config().get("<args>", {})
 
-    def is_disabled(self, *_args, **_kwargs) -> bool:
+    def is_disabled(self) -> bool:  # type: ignore
         """
         Utility function used in `instantiate()` to check whether to skip the instantiation.
 
         """
         _is_disabled = self.get_config().get("<disabled>", False)
-        return _is_disabled.lower().strip() == "false" if isinstance(_is_disabled, str) else bool(_is_disabled)
+        return _is_disabled.lower().strip() == "true" if isinstance(_is_disabled, str) else bool(_is_disabled)
 
     def instantiate(self, **kwargs) -> object:  # type: ignore
         """
@@ -283,7 +287,7 @@ class ConfigComponent(ConfigItem, Instantiable):
             kwargs: args to override / add the config args when instantiation.
 
         """
-        if not ConfigComponent.is_instantiable(self.get_config()) or self.is_disabled():
+        if not self.is_instantiable(self.get_config()) or self.is_disabled():
             # if not a class or function or marked as `disabled`, skip parsing and return `None`
             return None
 
@@ -324,19 +328,19 @@ class ConfigExpression(ConfigItem):
         super().__init__(config=config, id=id)
         self.globals = globals
 
-    def execute(self, local_vars: Optional[Dict] = None):
+    def execute(self, locals: Optional[Dict] = None):
         """
         Excute current config content and return the result if it is expression, based on python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
 
         Args:
-            local_vars: besides ``globals``, may also have some local variables used in the expression at runtime.
+            locals: besides ``globals``, may also have some local symbols used in the expression at runtime.
 
         """
         value = self.get_config()
         if not ConfigExpression.is_expression(value):
             return None
-        return eval(value[1:], self.globals, local_vars)
+        return eval(value[1:], self.globals, locals)
 
     @staticmethod
     def is_expression(config: Union[Dict, List, str]) -> bool:
