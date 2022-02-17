@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import re
-from typing import Callable, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 import warnings
 
 from monai.apps.manifest.config_item import ConfigComponent, ConfigExpression, ConfigItem
@@ -81,7 +81,7 @@ class ReferenceResolver:
         item.update_config(config=new_config)
         if isinstance(item, ConfigComponent):
             self.resolved_content[id] = item.instantiate()
-        if isinstance(item, ConfigExpression):
+        elif isinstance(item, ConfigExpression):
             self.resolved_content[id] = item.execute(locals={"refs": self.resolved_content})
         else:
             self.resolved_content[id] = new_config
@@ -105,20 +105,20 @@ class ReferenceResolver:
         """
         if id not in self.resolved_content:
             self.resolve_one_item(id=id)
-        return self.resolved_content(id)
+        return self.resolved_content.get(id)
 
-    def get_resolved_config(self, id: str):
+    def get_item(self, id: str, resolve: bool = False):
         """
-        Get the resolved config content with specified id name, then can be used for lazy instantiation.
-        If not resolved, try to resolve it first.
+        Get the config item with specified id name, then can be used for lazy instantiation.
+        If `resolve=True`, try to resolve it first.
 
         Args:
             id: id name of the expected config item.
 
         """
-        if id not in self.resolved_content:
+        if resolve and id not in self.resolved_content:
             self.resolve_one_item(id=id)
-        return self.items(id)
+        return self.items.get(id)
 
     @staticmethod
     def match_refs_pattern(value: str) -> List[str]:
@@ -171,7 +171,6 @@ class ReferenceResolver:
         config: Union[Dict, List, str],
         id: Optional[str] = None,
         refs: Optional[List[str]] = None,
-        match_fn: Callable = match_refs_pattern,
     ) -> List[str]:
         """
         Recursively search all the content of input config item to get the ids of references.
@@ -184,25 +183,24 @@ class ReferenceResolver:
             config: input config content to search.
             id: ID name for the input config, default to `None`.
             refs: list of the ID name of existing references, default to `None`.
-            match_fn: callable function to match config item for references, take `config` as parameter.
 
         """
         refs_: List[str] = [] if refs is None else refs
         if isinstance(config, str):
-            refs_ += match_fn(value=config)
+            refs_ += ReferenceResolver.match_refs_pattern(value=config)
 
         if isinstance(config, list):
             for i, v in enumerate(config):
                 sub_id = f"{id}#{i}" if id is not None else f"{i}"
                 if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                     refs_.append(sub_id)
-                refs_ = ReferenceResolver.find_refs_in_config(v, sub_id, refs_, match_fn)
+                refs_ = ReferenceResolver.find_refs_in_config(v, sub_id, refs_)
         if isinstance(config, dict):
             for k, v in config.items():
                 sub_id = f"{id}#{k}" if id is not None else f"{k}"
                 if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                     refs_.append(sub_id)
-                refs_ = ReferenceResolver.find_refs_in_config(v, sub_id, refs_, match_fn)
+                refs_ = ReferenceResolver.find_refs_in_config(v, sub_id, refs_)
         return refs_
 
     @staticmethod
@@ -210,7 +208,6 @@ class ReferenceResolver:
         config: Union[Dict, List, str],
         id: Optional[str] = None,
         refs: Optional[Dict] = None,
-        match_fn: Callable = resolve_refs_pattern,
     ):
         """
         With all the references in `refs`, resolve the config content with them and return new config.
@@ -219,13 +216,11 @@ class ReferenceResolver:
             config: input config content to resolve.
             id: ID name for the input config, default to `None`.
             refs: all the referring components with ids, default to `None`.
-            match_fn: callable function to match config item for references, take `config`,
-                `refs` and `globals` as parameters.
 
         """
         refs_: Dict = {} if refs is None else refs
         if isinstance(config, str):
-            config = match_fn(config, refs, globals)
+            config = ReferenceResolver.resolve_refs_pattern(config, refs)
         if isinstance(config, list):
             # all the items in the list should be replaced with the references
             ret_list: List = []
@@ -234,7 +229,7 @@ class ReferenceResolver:
                 if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                     ret_list.append(refs_[sub_id])
                 else:
-                    ret_list.append(ReferenceResolver.resolve_config_with_refs(v, sub_id, refs_, match_fn))
+                    ret_list.append(ReferenceResolver.resolve_config_with_refs(v, sub_id, refs_))
             return ret_list
         if isinstance(config, dict):
             # all the items in the dict should be replaced with the references
@@ -244,6 +239,6 @@ class ReferenceResolver:
                 if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                     ret_dict[k] = refs_[sub_id]
                 else:
-                    ret_dict[k] = ReferenceResolver.resolve_config_with_refs(v, sub_id, refs_, match_fn)
+                    ret_dict[k] = ReferenceResolver.resolve_config_with_refs(v, sub_id, refs_)
             return ret_dict
         return config

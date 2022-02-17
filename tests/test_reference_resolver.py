@@ -10,15 +10,16 @@
 # limitations under the License.
 
 import unittest
+from monai.apps.manifest.config_item import ComponentLocator, ConfigExpression, ConfigItem
 
 import torch
 from parameterized import parameterized
 
 import monai
-from monai.apps import ConfigComponent, ConfigResolver
+from monai.apps import ConfigComponent, ReferenceResolver
 from monai.data import DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
-from monai.utils import ClassScanner, optional_import
+from monai.utils import optional_import
 
 _, has_tv = optional_import("torchvision")
 
@@ -38,7 +39,7 @@ TEST_CASE_1 = [
 # test depends on other component and executable code
 TEST_CASE_2 = [
     {
-        # all the recursively parsed config items
+        # some the recursively parsed config items
         "dataloader": {
             "<name>": "DataLoader",
             "<args>": {"dataset": "@dataset", "collate_fn": "$monai.data.list_data_collate"},
@@ -76,38 +77,49 @@ TEST_CASE_3 = [
 ]
 
 
-class TestConfigComponent(unittest.TestCase):
+class TestReferenceResolver(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2] + ([TEST_CASE_3] if has_tv else []))
     def test_resolve(self, configs, expected_id, output_type):
-        scanner = ClassScanner(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
-        resolver = ConfigResolver()
+        locator = ComponentLocator()
+        resolver = ReferenceResolver()
+        # add items to resolver
         for k, v in configs.items():
-            resolver.add(
-                ConfigComponent(id=k, config=v, class_scanner=scanner, globals={"monai": monai, "torch": torch})
-            )
-        ins = resolver.get_resolved_component(expected_id)
-        self.assertTrue(isinstance(ins, output_type))
-        # test resolve all
-        resolver.resolved_configs = {}
-        resolver.resolved_components = {}
-        resolver.resolve_all()
-        ins = resolver.get_resolved_component(expected_id)
-        self.assertTrue(isinstance(ins, output_type))
-        # test lazy instantiation
-        config = resolver.get_resolved_config(expected_id)
-        config["<disabled>"] = False
-        ins = ConfigComponent(id=expected_id, class_scanner=scanner, config=config).build()
-        self.assertTrue(isinstance(ins, output_type))
+            if ConfigComponent.is_instantiable(v):
+                resolver.add(ConfigComponent(config=v, id=k, locator=locator))
+            elif ConfigExpression.is_expression(v):
+                resolver.add(ConfigExpression(config=v, id=k, globals={"monai": monai, "torch": torch}))
+            else:
+                resolver.add(ConfigItem(config=v, id=k))
 
-    def test_circular_dependencies(self):
-        scanner = ClassScanner(pkgs=[], modules=[])
-        resolver = ConfigResolver()
+        result = resolver.get_resolved_content(expected_id)
+        self.assertTrue(isinstance(result, output_type))
+
+        # test resolve all
+        resolver.resolved_content = {}
+        resolver.resolve_all()
+        result = resolver.get_resolved_content(expected_id)
+        self.assertTrue(isinstance(result, output_type))
+
+        # test lazy instantiation
+        item = resolver.get_item(expected_id, resolve=True)
+        config = item.get_config()
+        config["<disabled>"] = False
+        item.update_config(config=config)
+        if isinstance(item, ConfigComponent):
+            result = item.instantiate()
+        else:
+            result = item.get_config()
+        self.assertTrue(isinstance(result, output_type))
+
+    def test_circular_references(self):
+        locator = ComponentLocator()
+        resolver = ReferenceResolver()
         configs = {"A": "@B", "B": "@C", "C": "@A"}
         for k, v in configs.items():
-            resolver.add(ConfigComponent(id=k, config=v, class_scanner=scanner))
+            resolver.add(ConfigComponent(config=v, id=k, locator=locator))
         for k in ["A", "B", "C"]:
             with self.assertRaises(ValueError):
-                resolver.get_resolved_component(k)
+                resolver.get_resolved_content(k)
 
 
 if __name__ == "__main__":
