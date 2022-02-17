@@ -198,8 +198,8 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
 
 def instantiate(path: str, **kwargs):
     """
-    Method for creating an instance for the specified class / function path.
-    kwargs will be class args or default args for `partial` function.
+    Create an object instance or partial function from a class or function represented by string.
+    `kwargs` will be part of the input arguments to the class constructor or function.
     The target component must be a class or a function, if not, return the component directly.
 
     Args:
@@ -210,12 +210,14 @@ def instantiate(path: str, **kwargs):
     """
 
     component = locate(path)
+    if component is None:
+        raise ModuleNotFoundError(f"Cannot locate '{path}'.")
     if inspect.isclass(component):
         return component(**kwargs)
     if inspect.isfunction(component):
         return partial(component, **kwargs)
 
-    warnings.warn(f"target component must be a valid class or function, but got {path}.")
+    warnings.warn(f"Component to instantiate must represent a valid class or function, but got {path}.")
     return component
 
 

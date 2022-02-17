@@ -29,16 +29,25 @@ Clara MMARs
     :annotation:
 
 
-Model Package
--------------
+Model Manifest
+--------------
 
-.. autoclass:: ConfigParser
+.. autoclass:: ComponentLocator
     :members:
 
 .. autoclass:: ConfigComponent
     :members:
 
-.. autoclass:: ConfigResolver
+.. autoclass:: ConfigExpression
+    :members:
+
+.. autoclass:: ConfigItem
+    :members:
+
+.. autoclass:: ConfigParser
+    :members:
+
+.. autoclass:: ReferenceResolver
     :members:
 
 
