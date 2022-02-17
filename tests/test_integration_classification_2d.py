@@ -38,10 +38,8 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, skip_if_downloading_fails, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_downloading_fails, skip_if_quick, testing_data_config
 
-TEST_DATA_URL = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
-MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
 TASK = "integration_classification_2d"
 
 
@@ -186,7 +184,14 @@ class IntegrationClassification2D(DistTestCase):
 
         if not os.path.exists(data_dir):
             with skip_if_downloading_fails():
-                download_and_extract(TEST_DATA_URL, dataset_file, self.data_dir, MD5_VALUE)
+                data_spec = testing_data_config("images", "mednist")
+                download_and_extract(
+                    data_spec["url"],
+                    dataset_file,
+                    self.data_dir,
+                    hash_val=data_spec["hash_val"],
+                    hash_type=data_spec["hash_type"],
+                )
 
         assert os.path.exists(data_dir)
 

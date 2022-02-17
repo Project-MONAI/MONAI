@@ -13,6 +13,8 @@ import copy
 import datetime
 import functools
 import importlib
+import json
+import operator
 import os
 import queue
 import sys
@@ -22,7 +24,7 @@ import traceback
 import unittest
 import warnings
 from contextlib import contextmanager
-from functools import partial
+from functools import partial, reduce
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
 from urllib.error import ContentTooShortError, HTTPError
@@ -45,6 +47,17 @@ nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
+_test_data_config: dict = {}
+
+
+def testing_data_config(*keys):
+    """get _test_data_config[keys0][keys1]...[keysN]"""
+    if not _test_data_config:
+        with open(os.path.join(os.path.dirname(__file__), "testing_data", "data_config.json")) as c:
+            _config = json.load(c)
+            for k, v in _config.items():
+                _test_data_config[k] = v
+    return reduce(operator.getitem, keys, _test_data_config)
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
