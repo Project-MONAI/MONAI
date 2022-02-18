@@ -287,7 +287,7 @@ class ConfigComponent(ConfigItem, Instantiable):
             kwargs: args to override / add the config args when instantiation.
 
         """
-        if not ConfigComponent.is_instantiable(self.get_config()) or self.is_disabled():
+        if not self.is_instantiable(self.get_config()) or self.is_disabled():
             # if not a class or function or marked as `disabled`, skip parsing and return `None`
             return None
 
@@ -328,7 +328,7 @@ class ConfigExpression(ConfigItem):
         super().__init__(config=config, id=id)
         self.globals = globals
 
-    def execute(self, locals: Optional[Dict] = None):
+    def evaluate(self, locals: Optional[Dict] = None):
         """
         Excute current config content and return the result if it is expression, based on python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
