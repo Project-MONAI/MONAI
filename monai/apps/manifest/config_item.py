@@ -33,20 +33,6 @@ class Instantiable(ABC):
     """
 
     @abstractmethod
-    def resolve_module_name(self, *args: Any, **kwargs: Any):
-        """
-        Resolve the target module name, it should return an object class (or function) to be instantiated.
-        """
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
-    def resolve_args(self, *args: Any, **kwargs: Any):
-        """
-        Resolve the arguments, it should return arguments to be passed to the object when instantiating.
-        """
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
     def is_disabled(self, *args: Any, **kwargs: Any) -> bool:
         """
         Return a boolean flag to indicate whether the object should be instantiated.
@@ -54,9 +40,9 @@ class Instantiable(ABC):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def instantiate(self, *args: Any, **kwargs: Any):
+    def instantiate(self, *args: Any, **kwargs: Any) -> object:
         """
-        Instantiate the target component.
+        Instantiate the target component and return the instance.
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
