@@ -155,7 +155,7 @@ class ConfigParser:
             self.parse_config()
         return self.reference_resolver.get_resolved_content(id=id)
 
-    def get_resolved_config(self, id: str):
+    def get_config_item(self, id: str, resolve: bool = False):
         """
         Get the resolved config component, if not resolved, try to resolve it first.
         It can be used to modify the config again and support lazy instantiation.
@@ -167,4 +167,4 @@ class ConfigParser:
         """
         if not self.parsed:
             self.parse_config()
-        return self.reference_resolver.get_item(id=id, resolve=True)
+        return self.reference_resolver.get_item(id=id, resolve=resolve)

@@ -11,6 +11,7 @@
 
 import unittest
 from unittest import skipUnless
+from monai.apps.manifest.config_item import ConfigComponent
 
 from parameterized import parameterized
 
@@ -49,7 +50,7 @@ TEST_CASE_1 = [
 
 class TestConfigComponent(unittest.TestCase):
     def test_config_content(self):
-        parser = ConfigParser(pkgs=["torch.optim", "monai"], modules=["data", "transforms", "adam"])
+        parser = ConfigParser()
         test_config = {"preprocessing": [{"name": "LoadImage"}], "dataset": {"name": "Dataset"}}
         parser.set_config(config=test_config)
         self.assertEqual(str(parser.get_config()), str(test_config))
@@ -57,21 +58,16 @@ class TestConfigComponent(unittest.TestCase):
         self.assertDictEqual(parser.get_config(id="preprocessing#0#datasets"), {"name": "CacheDataset"})
 
     @parameterized.expand([TEST_CASE_1])
-    @skipUnless(has_tv, "Requires tifffile.")
+    @skipUnless(has_tv, "Requires torchvision.")
     def test_parse(self, config, expected_ids, output_types):
-        parser = ConfigParser(
-            pkgs=["torch.optim", "monai"],
-            modules=["data", "transforms", "adam"],
-            global_imports={"monai": "monai"},
-            config=config,
-        )
+        parser = ConfigParser(global_imports={"monai": "monai"}, config=config)
         for id, cls in zip(expected_ids, output_types):
-            config = parser.get_resolved_config(id)
+            item = parser.get_config_item(id, resolve=True)
             # test lazy instantiation
-            self.assertTrue(isinstance(config, dict))
-            self.assertTrue(isinstance(parser.build(config), cls))
+            if isinstance(item, ConfigComponent):
+                self.assertTrue(isinstance(item.instantiate(), cls))
             # test get instance directly
-            self.assertTrue(isinstance(parser.get_resolved_component(id), cls))
+            self.assertTrue(isinstance(parser.get_resolved_content(id), cls))
 
 
 if __name__ == "__main__":
