@@ -23,13 +23,7 @@ __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponen
 
 class Instantiable(ABC):
     """
-    Base class for instantiable object with module name and arguments.
-
-    .. code-block:: python
-
-        if not is_disabled():
-            instantiate(module_name=resolve_module_name(), args=resolve_args())
-
+    Base class for an instantiable object.
     """
 
     @abstractmethod
@@ -316,7 +310,7 @@ class ConfigExpression(ConfigItem):
 
     def evaluate(self, locals: Optional[Dict] = None):
         """
-        Excute current config content and return the result if it is expression, based on python `eval()`.
+        Execute the current config content and return the result if it is expression, based on Python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
 
         Args:
@@ -332,7 +326,7 @@ class ConfigExpression(ConfigItem):
     def is_expression(config: Union[Dict, List, str]) -> bool:
         """
         Check whether the config is an executable expression string.
-        Currently A string starts with ``"$"`` character is interpreted as an expression.
+        Currently, a string starts with ``"$"`` character is interpreted as an expression.
 
         Args:
             config: input config content to check.

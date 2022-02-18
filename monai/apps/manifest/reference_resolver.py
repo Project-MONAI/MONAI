@@ -18,26 +18,27 @@ from monai.apps.manifest.config_item import ConfigComponent, ConfigExpression, C
 
 class ReferenceResolver:
     """
-    Utility class to manage config items and resolve the references between them.
+    Utility class to manage a set of ``ConfigItem`` and resolve the references between them.
 
-    There are 3 kinds of `references` in the config content:
-    - The IDs of other config items used as "@XXX" in this config item, for example:
-    config item with ID="A" is a list `[1, 2, 3]`, another config item "B" can be `"args": {"input_list": "@A"}`.
-    Then it means A is one reference of B.
-    - If sub-item in the config is `instantiable`, treat it as reference because must instantiate the sub-item
-    before using this config.
-    - If sub-item in the config is `expression`, also treat it as reference because must evaluate the expression
-    before using this config.
+    This class maintains a set of ``ConfigItem`` objects and their associated IDs.
+    The IDs must be unique within this set. A string in ``ConfigItem``
+    starting with ``@`` will be treated as a reference to other ``ConfigItem`` objects by ID.
+    Since ``ConfigItem`` may have a nested dictionary or list structure,
+    the reference string may also contain a ``#`` character to refer to a substructure by
+    key indexing for a dictionary or integer indexing for a list.
 
-    The typical usage of the APIs:
-    - Automatically search the content of specified config item and find out all the references.
-    - Recursively resolve the references of this config item and update them in the config content.
-    - If this config item is instantiable, try to instantiate it and save the instance in the `resolved_content`.
-    If this config item is an expression, try to evaluate it and save the result in the `resolved_content`.
-    Otherwise, save the updated config content in the `resolved_content`.
+    A typical workflow of resolving references is as follows:
+
+        - Add multiple ``ConfigItem`` objects to the ``ReferenceResolver`` by ``add_item()``.
+        - Call ``resolve()`` to automatically resolve the references. This is done recursively by:
+            - Convert the items to objects, for those do not have references to other items.
+                - If this it is instantiable, instantiate it and cache the class instance in ``resolved_content``.
+                - If this it is an expression, evaluate it and save the value in ``resolved_content``.
+            - Replace the reference strings with the actual objects.
+        - Call ``get_resolved_content()`` to get the items with reference strings replaced by the corresponding objects.
 
     Args:
-        items: config items to resolve, if None, can also `add()` component in runtime.
+        items: ``ConfigItem``s to resolve, this could be added later with ``add_item()``.
 
     """
 
@@ -62,12 +63,14 @@ class ReferenceResolver:
 
     def get_item(self, id: str, resolve: bool = False):
         """
-        Get the config item with specified id name, then can be used for lazy instantiation, etc.
-        If `resolve=True` and the item is not resolved, try to resolve it first, then it will have
-        no reference in the config content.
+        Get the ``ConfigItem`` by id.
+
+        If `resolve=True` and the returned item will be resolved, that is,
+        all the reference strings are replaced by the corresponding ``ConfigItem`` objects.
 
         Args:
-            id: id name of the expected config item.
+            id: id of the expected config item.
+            resolve: whether to resolve the item if it is not resolved, default to False.
 
         """
         if resolve and id not in self.resolved_content:
