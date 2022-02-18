@@ -11,7 +11,7 @@
 
 import re
 import warnings
-from typing import Dict, List, Optional, Sequence, Set, Union
+from typing import Any, Dict, List, Optional, Sequence, Set, Union
 
 from monai.apps.manifest.config_item import ConfigComponent, ConfigExpression, ConfigItem
 
@@ -44,7 +44,7 @@ class ReferenceResolver:
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `id` as key
         self.items = {} if items is None else {i.get_id(): i for i in items}
-        self.resolved_content = {}
+        self.resolved_content: Dict[str, Any] = {}
 
     def add_item(self, item: ConfigItem):
         """
@@ -233,7 +233,7 @@ class ReferenceResolver:
         """
         refs_: Dict = {} if refs is None else refs
         if isinstance(config, str):
-            config = ReferenceResolver.update_refs_pattern(config, refs)
+            config = ReferenceResolver.update_refs_pattern(config, refs_)
         if isinstance(config, list):
             # all the items in the list should be replaced with the references
             ret_list: List = []
