@@ -10,13 +10,13 @@
 # limitations under the License.
 
 import unittest
-from monai.apps.manifest.config_item import ComponentLocator, ConfigExpression, ConfigItem
 
 import torch
 from parameterized import parameterized
 
 import monai
 from monai.apps import ConfigComponent, ReferenceResolver
+from monai.apps.manifest.config_item import ComponentLocator, ConfigExpression, ConfigItem
 from monai.data import DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
 from monai.utils import optional_import
@@ -85,17 +85,17 @@ class TestReferenceResolver(unittest.TestCase):
         # add items to resolver
         for k, v in configs.items():
             if ConfigComponent.is_instantiable(v):
-                resolver.add(ConfigComponent(config=v, id=k, locator=locator))
+                resolver.add_item(ConfigComponent(config=v, id=k, locator=locator))
             elif ConfigExpression.is_expression(v):
-                resolver.add(ConfigExpression(config=v, id=k, globals={"monai": monai, "torch": torch}))
+                resolver.add_item(ConfigExpression(config=v, id=k, globals={"monai": monai, "torch": torch}))
             else:
-                resolver.add(ConfigItem(config=v, id=k))
+                resolver.add_item(ConfigItem(config=v, id=k))
 
         result = resolver.get_resolved_content(expected_id)
         self.assertTrue(isinstance(result, output_type))
 
         # test resolve all
-        resolver.resolved_content = {}
+        resolver.resolved_content = {}  # clear content
         resolver.resolve_all()
         result = resolver.get_resolved_content(expected_id)
         self.assertTrue(isinstance(result, output_type))
@@ -116,7 +116,7 @@ class TestReferenceResolver(unittest.TestCase):
         resolver = ReferenceResolver()
         configs = {"A": "@B", "B": "@C", "C": "@A"}
         for k, v in configs.items():
-            resolver.add(ConfigComponent(config=v, id=k, locator=locator))
+            resolver.add_item(ConfigComponent(config=v, id=k, locator=locator))
         for k in ["A", "B", "C"]:
             with self.assertRaises(ValueError):
                 resolver.get_resolved_content(k)
