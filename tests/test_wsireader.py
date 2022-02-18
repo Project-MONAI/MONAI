@@ -23,7 +23,7 @@ from monai.data.image_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from monai.utils.enums import PostFix
-from tests.utils import download_url_or_skip_test
+from tests.utils import download_url_or_skip_test, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
@@ -32,8 +32,9 @@ imsave, has_tiff = optional_import("tifffile", name="imsave")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
-FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
-base_name, extension = FILE_URL.split("id=")[1], ".tiff"
+FILE_KEY = "wsi_img"
+FILE_URL = testing_data_config("images", FILE_KEY, "url")
+base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 HEIGHT = 32914
@@ -104,7 +105,9 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
 
 @skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
 def setUpModule():  # noqa: N802
-    download_url_or_skip_test(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
+    hash_type = testing_data_config("images", FILE_KEY, "hash_type")
+    hash_val = testing_data_config("images", FILE_KEY, "hash_val")
+    download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
 
 
 class WSIReaderTests:
