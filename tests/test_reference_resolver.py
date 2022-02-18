@@ -91,13 +91,7 @@ class TestReferenceResolver(unittest.TestCase):
             else:
                 resolver.add_item(ConfigItem(config=v, id=k))
 
-        result = resolver.get_resolved_content(expected_id)
-        self.assertTrue(isinstance(result, output_type))
-
-        # test resolve all
-        resolver.resolved_content = {}  # clear content
-        resolver.resolve_all()
-        result = resolver.get_resolved_content(expected_id)
+        result = resolver.get_resolved_content(expected_id)  # the root id is `expected_id` here
         self.assertTrue(isinstance(result, output_type))
 
         # test lazy instantiation

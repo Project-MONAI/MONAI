@@ -56,6 +56,8 @@ class ReferenceResolver:
 
         """
         id = item.get_id()
+        if len(id) == 0:
+            raise ValueError("id should not be empty when resolving reference.")
         if id in self.items:
             warnings.warn(f"id '{id}' is already added.")
             return
@@ -124,14 +126,6 @@ class ReferenceResolver:
         else:
             self.resolved_content[id] = new_config
 
-    def resolve_all(self):
-        """
-        Resolve the references for all the config items.
-
-        """
-        for k in self.items:
-            self._resolve_one_item(id=k)
-
     def get_resolved_content(self, id: str):
         """
         Get the resolved content with specified id name.
@@ -194,9 +188,7 @@ class ReferenceResolver:
         return value
 
     @staticmethod
-    def find_refs_in_config(
-        config: Union[Dict, List, str], id: Optional[str] = None, refs: Optional[List[str]] = None
-    ) -> List[str]:
+    def find_refs_in_config(config: Union[Dict, List, str], id: str, refs: Optional[List[str]] = None) -> List[str]:
         """
         Recursively search all the content of input config item to get the ids of references.
         References mean: the IDs of other config items used as "@XXX" in this config item, or the
@@ -205,7 +197,7 @@ class ReferenceResolver:
 
         Args:
             config: input config content to search.
-            id: ID name for the input config item, default to `None`.
+            id: ID name for the input config item.
             refs: list of the ID name of found references, default to `None`.
 
         """
@@ -216,21 +208,21 @@ class ReferenceResolver:
         if isinstance(config, (list, dict)):
             subs = enumerate(config) if isinstance(config, list) else config.items()
             for k, v in subs:
-                sub_id = f"{id}#{k}" if id is not None else f"{k}"
+                sub_id = f"{id}#{k}" if len(id) > 0 else f"{k}"
                 if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                     refs_.append(sub_id)
                 refs_ = ReferenceResolver.find_refs_in_config(v, sub_id, refs_)
         return refs_
 
     @staticmethod
-    def update_config_with_refs(config: Union[Dict, List, str], id: Optional[str] = None, refs: Optional[Dict] = None):
+    def update_config_with_refs(config: Union[Dict, List, str], id: str, refs: Optional[Dict] = None):
         """
         With all the references in `refs`, update the input config content with references
         and return the new config.
 
         Args:
             config: input config content to update.
-            id: ID name for the input config, default to `None`.
+            id: ID name for the input config.
             refs: all the referring content with ids, default to `None`.
 
         """
@@ -241,7 +233,7 @@ class ReferenceResolver:
             # all the items in the list should be replaced with the references
             ret_list: List = []
             for i, v in enumerate(config):
-                sub_id = f"{id}#{i}" if id is not None else f"{i}"
+                sub_id = f"{id}#{i}" if len(id) > 0 else f"{i}"
                 if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                     ret_list.append(refs_[sub_id])
                 else:
@@ -251,7 +243,7 @@ class ReferenceResolver:
             # all the items in the dict should be replaced with the references
             ret_dict: Dict = {}
             for k, v in config.items():
-                sub_id = f"{id}#{k}" if id is not None else f"{k}"
+                sub_id = f"{id}#{k}" if len(id) > 0 else f"{k}"
                 if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                     ret_dict[k] = refs_[sub_id]
                 else:

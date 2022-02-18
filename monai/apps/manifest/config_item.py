@@ -120,11 +120,11 @@ class ConfigItem:
     Args:
         config: content of a config item, can be objects of any types,
             a configuration resolver may interpret the content to generate a configuration object.
-        id: optional name of the current config item, defaults to `None`.
+        id: name of the current config item, defaults to empty string.
 
     """
 
-    def __init__(self, config: Any, id: Optional[str] = None) -> None:
+    def __init__(self, config: Any, id: str = "") -> None:
         self.config = config
         self.id = id
 
@@ -183,7 +183,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     Args:
         config: content of a config item.
-        id: optional name of the current config item, defaults to `None`.
+        id: name of the current config item, defaults to empty string.
         locator: a ``ComponentLocator`` to convert a module name string into the actual python module.
             if `None`, a ``ComponentLocator(excludes=excludes)`` will be used.
         excludes: if ``locator`` is None, create a new ``ComponentLocator`` with ``excludes``.
@@ -194,7 +194,7 @@ class ConfigComponent(ConfigItem, Instantiable):
     def __init__(
         self,
         config: Any,
-        id: Optional[str] = None,
+        id: str = "",
         locator: Optional[ComponentLocator] = None,
         excludes: Optional[Union[Sequence[str], str]] = None,
     ) -> None:
@@ -299,12 +299,12 @@ class ConfigExpression(ConfigItem):
 
     Args:
         config: content of a config item.
-        id: optional name of current config item, defaults to `None`.
+        id: name of current config item, defaults to empty string.
         globals: additional global context to evaluate the string.
 
     """
 
-    def __init__(self, config: Any, id: Optional[str] = None, globals: Optional[Dict] = None) -> None:
+    def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)
         self.globals = globals
 
