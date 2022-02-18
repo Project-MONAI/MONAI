@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from distutils.command.config import config
 import unittest
 from unittest import skipUnless
 from monai.apps.manifest.config_item import ConfigComponent
@@ -50,12 +51,14 @@ TEST_CASE_1 = [
 
 class TestConfigComponent(unittest.TestCase):
     def test_config_content(self):
-        parser = ConfigParser()
-        test_config = {"preprocessing": [{"name": "LoadImage"}], "dataset": {"name": "Dataset"}}
-        parser.set_config(config=test_config)
+        parser = ConfigParser(config={})
+        test_config = {"preprocessing": [{"<name>": "LoadImage"}], "dataset": {"<name>": "Dataset"}}
+        parser.update_config(config=test_config)
         self.assertEqual(str(parser.get_config()), str(test_config))
-        parser.set_config(config={"name": "CacheDataset"}, id="preprocessing#0#datasets")
-        self.assertDictEqual(parser.get_config(id="preprocessing#0#datasets"), {"name": "CacheDataset"})
+        parser.update_config(config={"<name>": "CacheDataset"}, id="dataset")
+        self.assertDictEqual(parser.get_config(id="dataset"), {"<name>": "CacheDataset"})
+        parser.update_config(config="Dataset", id="dataset#<name>")
+        self.assertEqual(parser.get_config(id="dataset#<name>"), "Dataset")
 
     @parameterized.expand([TEST_CASE_1])
     @skipUnless(has_tv, "Requires torchvision.")

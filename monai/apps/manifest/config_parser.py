@@ -41,6 +41,7 @@ class ConfigParser:
 
     Args:
         config: input config content to parse.
+        id: specified ID name for the config content.
         excludes: when importing modules to instantiate components, if any string of the `excludes` exists
             in the full module name, don't import this module.
         globals: pre-import packages as global variables to evaluate the python `eval` expressions.
@@ -53,13 +54,12 @@ class ConfigParser:
 
     def __init__(
         self,
-        config: Optional[Any] = None,
+        config: Any,
         excludes: Optional[Union[Sequence[str], str]] = None,
         globals: Optional[Dict[str, Any]] = None,
     ):
         self.config = None
-        if config is not None:
-            self.set_config(config=config)
+        self.update_config(config=config)
 
         self.globals: Dict[str, Any] = {}
         globals = {"monai": "monai", "torch": "torch", "np": "numpy"} if globals is None else globals
@@ -72,7 +72,7 @@ class ConfigParser:
         # flag to identify the parsing status of current config content
         self.parsed = False
 
-    def update_config(self, config: Any, id: Optional[str] = None):
+    def update_config(self, config: Any, id: str = ""):
         """
         Set config content for the parser, if `id` provided, `config` will replace the config item with `id`.
 
@@ -80,9 +80,10 @@ class ConfigParser:
             config: target config content to set.
             id: id name to specify the target position, joined by "#" mark for nested content, use index from 0 for list.
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
+                default to update all the config content.
 
         """
-        if isinstance(id, str) and isinstance(self.config, (dict, list)):
+        if len(id) > 0 and isinstance(self.config, (dict, list)):
             keys = id.split("#")
             # get the last second config item and replace it
             last_id = "#".join(keys[:-1])
@@ -93,23 +94,24 @@ class ConfigParser:
         # must totally parse again as the content is modified
         self.parsed = False
 
-    def get_config(self, id: Optional[str] = None):
+    def get_config(self, id: str = ""):
         """
         Get config content of current config, if `id` provided, get the config item with `id`.
 
         Args:
             id: nested id name to specify the expected position, joined by "#" mark, use index from 0 for list.
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
+                default to get all the config content.
 
         """
         config = self.config
-        if isinstance(id, str) and len(id) > 0 and isinstance(config, (dict, list)):
+        if len(id) > 0 and isinstance(config, (dict, list)):
             keys = id.split("#")
             for k in keys:
                 config = config[k] if isinstance(config, dict) else config[int(k)]
         return config
 
-    def _do_parse(self, config, id: Optional[str] = None):
+    def _do_parse(self, config, id: str = ""):
         """
         Recursively parse the nested config content, add every config item to the resolver.
 
@@ -117,16 +119,15 @@ class ConfigParser:
             config: config content to parse.
             id: id name of current config item, nested ids are joined by "#" mark. defaults to None.
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
+                default to empty string.
 
         """
-        if isinstance(config, dict):
-            for k, v in config.items():
-                sub_id = k if id is None else f"{id}#{k}"
+        if isinstance(config, (dict, list)):
+            subs = enumerate(config) if isinstance(config, list) else config.items()
+            for k, v in subs:
+                sub_id = f"{id}#{k}" if len(id) > 0 else k
                 self._do_parse(config=v, id=sub_id)
-        if isinstance(config, list):
-            for i, v in enumerate(config):
-                sub_id = i if id is None else f"{id}#{i}"
-                self._do_parse(config=v, id=sub_id)
+
         # copy every config item to make them independent and add them to the resolver
         item_conf = deepcopy(config)
         if ConfigComponent.is_instantiable(item_conf):
