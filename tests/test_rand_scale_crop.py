@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandScaleCrop
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     {"roi_scale": [1.0, 1.0, -1.0], "random_center": True},
@@ -55,22 +56,25 @@ TEST_CASE_6 = [
 class TestRandScaleCrop(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape):
-        result = RandScaleCrop(**input_param)(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+        for p in TEST_NDARRAYS:
+            result = RandScaleCrop(**input_param)(p(input_data))
+            self.assertTupleEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_3])
     def test_value(self, input_param, input_data):
-        cropper = RandScaleCrop(**input_param)
-        result = cropper(input_data)
-        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
-        np.testing.assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
+        for p in TEST_NDARRAYS:
+            cropper = RandScaleCrop(**input_param)
+            result = cropper(p(input_data))
+            roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
+            assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test=False)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_random_shape(self, input_param, input_data, expected_shape):
-        cropper = RandScaleCrop(**input_param)
-        cropper.set_random_state(seed=123)
-        result = cropper(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+        for p in TEST_NDARRAYS:
+            cropper = RandScaleCrop(**input_param)
+            cropper.set_random_state(seed=123)
+            result = cropper(p(input_data))
+            self.assertTupleEqual(result.shape, expected_shape)
 
 
 if __name__ == "__main__":

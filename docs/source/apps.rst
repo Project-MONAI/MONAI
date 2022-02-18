@@ -29,6 +29,22 @@ Clara MMARs
     :annotation:
 
 
+Model Manifest
+--------------
+
+.. autoclass:: ComponentLocator
+    :members:
+
+.. autoclass:: ConfigComponent
+    :members:
+
+.. autoclass:: ConfigExpression
+    :members:
+
+.. autoclass:: ConfigItem
+    :members:
+
+
 `Utilities`
 -----------
 
@@ -114,7 +130,11 @@ Clara MMARs
 .. automodule:: monai.apps.pathology.transforms.spatial.array
 .. autoclass:: SplitOnGrid
     :members:
+.. autoclass:: TileOnGrid
+    :members:
 
 .. automodule:: monai.apps.pathology.transforms.spatial.dictionary
 .. autoclass:: SplitOnGridd
+    :members:
+.. autoclass:: TileOnGridd
     :members:
