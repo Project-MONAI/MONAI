@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import importlib
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 from monai.apps.manifest.config_item import ConfigComponent, ConfigExpression, ConfigItem, ComponentLocator
 from monai.apps.manifest.reference_resolver import ReferenceResolver
@@ -18,87 +18,83 @@ from monai.apps.manifest.reference_resolver import ReferenceResolver
 
 class ConfigParser:
     """
-    Parse a nested config and build components.
+    Parse a config content, access or update the items of config content with unique ID.
     A typical usage is a config dictionary contains all the necessary components to define training workflow in JSON.
     For more details of the config format, please check :py:class:`monai.apps.ConfigComponent`.
 
     Args:
-        excludes: if any string of the `excludes` exists in the full module name, don't import this module.
-        global_imports: pre-import packages as global variables to execute the python `eval` commands.
+        config: config content to parse.
+        excludes: when importing modules to instantiate components, if any string of the `excludes` exists
+            in the full module name, don't import this module.
+        globals: pre-import packages as global variables to evaluate the python `eval` expressions.
             for example, pre-import `monai`, then execute `eval("monai.data.list_data_collate")`.
             default to `{"monai": "monai", "torch": "torch", "np": "numpy"}` as `numpy` and `torch`
             are MONAI mininum requirements.
-        config: config content to parse.
+            if the value in global is string, will import it immediately.
 
     """
 
     def __init__(
         self,
-        excludes: Optional[Union[Sequence[str], str]] = None,
-        global_imports: Optional[Dict[str, Any]] = None,
         config: Optional[Any] = None,
+        excludes: Optional[Union[Sequence[str], str]] = None,
+        globals: Optional[Dict[str, Any]] = None,
     ):
         self.config = None
         if config is not None:
             self.set_config(config=config)
+
+        self.globals: Dict[str, Any] = {}
+        globals = {"monai": "monai", "torch": "torch", "np": "numpy"} if globals is None else globals
+        if globals is not None:
+            for k, v in globals.items():
+                self.globals[k] = importlib.import_module(v) if isinstance(v, str) else v
+
         self.locator = ComponentLocator(excludes=excludes)
-        self.global_imports: Dict[str, Any] = {"monai": "monai", "torch": "torch", "np": "numpy"}
-        if global_imports is not None:
-            for k, v in global_imports.items():
-                self.global_imports[k] = importlib.import_module(v)
         self.reference_resolver: Optional[ReferenceResolver] = None
+        # flag to identify the parsing status of current config content
         self.parsed = False
-
-    def _get_last_config_and_key(self, config: Union[Dict, List], id: str):
-        """
-        Utility to get the last config item and the id from the whole config content with nested id name.
-
-        Args:
-            config: the whole config content.
-            id: nested id name to get the last item, joined by "#" mark, use index from 0 for list.
-                for example: "transforms#5", "transforms#5#<args>#keys", etc.
-
-        """
-        keys = id.split("#")
-        for k in keys[:-1]:
-            config = config[k] if isinstance(config, dict) else config[int(k)]
-        key = keys[-1] if isinstance(config, dict) else int(keys[-1])
-        return config, key
 
     def set_config(self, config: Any, id: Optional[str] = None):
         """
-        Set config content for the parser, if `id` provided, `config` will used to replace the config item with `id`.
+        Set config content for the parser, if `id` provided, `config` will replace the config item with `id`.
 
         Args:
             config: target config content to set.
-            id: nested id name to specify the target position, joined by "#" mark, use index from 0 for list.
+            id: id name to specify the target position, joined by "#" mark for nested content, use index from 0 for list.
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
 
         """
         if isinstance(id, str) and isinstance(self.config, (dict, list)):
-            conf_, key = self._get_last_config_and_key(config=self.config, id=id)
-            conf_[key] = config
+            keys = id.split("#")
+            # get the last second config item and replace it
+            last_id = "#".join(keys[:-1])
+            conf_ = self.get_config(id=last_id)
+            conf_[keys[-1] if isinstance(conf_, dict) else int(keys[-1])] = config
         else:
             self.config = config
+        # must totally parse again as the content is modified
         self.parsed = False
 
     def get_config(self, id: Optional[str] = None):
         """
-        Get config content from the parser, if `id` provided, get the config item with `id`.
+        Get config content of current config, if `id` provided, get the config item with `id`.
 
         Args:
             id: nested id name to specify the expected position, joined by "#" mark, use index from 0 for list.
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
 
         """
-        if isinstance(id, str) and isinstance(self.config, (dict, list)):
-            conf_, key = self._get_last_config_and_key(config=self.config, id=id)
-            return conf_[key]
-        return self.config
+        config = self.config
+        if isinstance(id, str) and len(id) > 0 and isinstance(config, (dict, list)):
+            keys = id.split("#")
+            for k in keys:
+                config = config[k] if isinstance(config, dict) else config[int(k)]
+        return config
 
     def _do_parse(self, config, id: Optional[str] = None):
         """
-        Recursively parse the nested config content, add every config item as component to the resolver.
+        Recursively parse the nested config content, add every config item to the resolver.
         For example, `{"preprocessing": [{"<name>": "LoadImage", "<args>": {"keys": "image"}}]}` is parsed as items:
         - `id="preprocessing", config=[{"<name>": "LoadImage", "<args>": {"keys": "image"}}]`
         - `id="preprocessing#0", config={"<name>": "LoadImage", "<args>": {"keys": "image"}}`
@@ -120,22 +116,19 @@ class ConfigParser:
             for i, v in enumerate(config):
                 sub_id = i if id is None else f"{id}#{i}"
                 self._do_parse(config=v, id=sub_id)
-        if id is not None:
-            if ConfigComponent.is_instantiable(config):
-                self.reference_resolver.add(
-                    ConfigComponent(config=config, id=id, locator=self.locator)
-                )
-            elif ConfigExpression.is_expression(config):
-                self.reference_resolver.add(ConfigExpression(config=config, id=id, globals=self.global_imports))
-            else:
-                self.reference_resolver.add(ConfigItem(config=config, id=id))
+        # add config items to the resolver
+        if ConfigComponent.is_instantiable(config):
+            self.reference_resolver.add(
+                ConfigComponent(config=config, id=id, locator=self.locator)
+            )
+        elif ConfigExpression.is_expression(config):
+            self.reference_resolver.add(ConfigExpression(config=config, id=id, globals=self.global_imports))
+        else:
+            self.reference_resolver.add(ConfigItem(config=config, id=id))
 
     def parse_config(self):
         """
-        Parse the config content, add every config item as component to the resolver.
-
-        Args:
-            resolve_all: if True, resolve all the components and build instances directly.
+        Parse the config content, add every config item to the resolver and mark as `parsed`.
 
         """
         self.reference_resolver = ReferenceResolver()
@@ -144,10 +137,13 @@ class ConfigParser:
 
     def get_resolved_content(self, id: str):
         """
-        Get the resolved instance component, if not resolved, try to resolve it first.
+        Get the resolved result of config items with specified id, if not resolved, try to resolve it first.
+        If the config item is instantiable, the resolved result is the instance.
+        If the config item is an expression, the resolved result is output of when evaluating the expression.
+        Otherwise, the resolved result is the updated config content of the config item.
 
         Args:
-            id: id name of expected config component, nested ids are joined by "#" mark.
+            id: id name of expected config item, nested ids are joined by "#" mark.
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
 
         """
@@ -157,8 +153,8 @@ class ConfigParser:
 
     def get_config_item(self, id: str, resolve: bool = False):
         """
-        Get the resolved config component, if not resolved, try to resolve it first.
-        It can be used to modify the config again and support lazy instantiation.
+        Get the parsed config item, if `resolve=True` and not resolved, try to resolve it first.
+        It can be used to modify the config in other program and support lazy instantiation.
 
         Args:
             id: id name of expected config component, nested ids are joined by "#" mark.

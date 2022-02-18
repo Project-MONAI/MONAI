@@ -60,7 +60,7 @@ class TestConfigComponent(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     @skipUnless(has_tv, "Requires torchvision.")
     def test_parse(self, config, expected_ids, output_types):
-        parser = ConfigParser(global_imports={"monai": "monai"}, config=config)
+        parser = ConfigParser(config=config, globals={"monai": "monai"})
         for id, cls in zip(expected_ids, output_types):
             item = parser.get_config_item(id, resolve=True)
             # test lazy instantiation
