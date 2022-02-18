@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from copy import deepcopy
 import importlib
 from typing import Any, Dict, Optional, Sequence, Union
 
@@ -19,11 +20,27 @@ from monai.apps.manifest.reference_resolver import ReferenceResolver
 class ConfigParser:
     """
     Parse a config content, access or update the items of config content with unique ID.
-    A typical usage is a config dictionary contains all the necessary components to define training workflow in JSON.
+    A typical usage is a config dictionary contains all the necessary information to define training workflow in JSON.
     For more details of the config format, please check :py:class:`monai.apps.ConfigComponent`.
 
+    It can recursively parse the config content, treat every item as a `ConfigItem` with unique ID, the ID is joined
+    by "#" mark for nested content. For example:
+    The config content `{"preprocessing": [{"<name>": "LoadImage", "<args>": {"keys": "image"}}]}` is parsed as items:
+    - `id="preprocessing", config=[{"<name>": "LoadImage", "<args>": {"keys": "image"}}]`
+    - `id="preprocessing#0", config={"<name>": "LoadImage", "<args>": {"keys": "image"}}`
+    - `id="preprocessing#0#<name>", config="LoadImage"`
+    - `id="preprocessing#0#<args>", config={"keys": "image"}`
+    - `id="preprocessing#0#<args>#keys", config="image"`
+
+    There are 3 levels config information during the parsing:
+    - For the input config content, it supports to `get` and `update` the whole content or part of it specified with id,
+    it can be useful for lazy instantiation, etc.
+    - After parsing, all the config items are independent `ConfigItem`, can get it before / after resolving references.
+    - After resolving, the resolved output of every `ConfigItem` is python objects or instances, can be used in other
+    programs directly.
+
     Args:
-        config: config content to parse.
+        config: input config content to parse.
         excludes: when importing modules to instantiate components, if any string of the `excludes` exists
             in the full module name, don't import this module.
         globals: pre-import packages as global variables to evaluate the python `eval` expressions.
@@ -55,7 +72,7 @@ class ConfigParser:
         # flag to identify the parsing status of current config content
         self.parsed = False
 
-    def set_config(self, config: Any, id: Optional[str] = None):
+    def update_config(self, config: Any, id: Optional[str] = None):
         """
         Set config content for the parser, if `id` provided, `config` will replace the config item with `id`.
 
@@ -95,12 +112,6 @@ class ConfigParser:
     def _do_parse(self, config, id: Optional[str] = None):
         """
         Recursively parse the nested config content, add every config item to the resolver.
-        For example, `{"preprocessing": [{"<name>": "LoadImage", "<args>": {"keys": "image"}}]}` is parsed as items:
-        - `id="preprocessing", config=[{"<name>": "LoadImage", "<args>": {"keys": "image"}}]`
-        - `id="preprocessing#0", config={"<name>": "LoadImage", "<args>": {"keys": "image"}}`
-        - `id="preprocessing#0#<name>", config="LoadImage"`
-        - `id="preprocessing#0#<args>", config={"keys": "image"}`
-        - `id="preprocessing#0#<args>#keys", config="image"`
 
         Args:
             config: config content to parse.
@@ -116,15 +127,16 @@ class ConfigParser:
             for i, v in enumerate(config):
                 sub_id = i if id is None else f"{id}#{i}"
                 self._do_parse(config=v, id=sub_id)
-        # add config items to the resolver
-        if ConfigComponent.is_instantiable(config):
+        # copy every config item to make them independent and add them to the resolver
+        item_conf = deepcopy(config)
+        if ConfigComponent.is_instantiable(item_conf):
             self.reference_resolver.add(
-                ConfigComponent(config=config, id=id, locator=self.locator)
+                ConfigComponent(config=item_conf, id=id, locator=self.locator)
             )
-        elif ConfigExpression.is_expression(config):
-            self.reference_resolver.add(ConfigExpression(config=config, id=id, globals=self.global_imports))
+        elif ConfigExpression.is_expression(item_conf):
+            self.reference_resolver.add(ConfigExpression(config=item_conf, id=id, globals=self.global_imports))
         else:
-            self.reference_resolver.add(ConfigItem(config=config, id=id))
+            self.reference_resolver.add(ConfigItem(config=item_conf, id=id))
 
     def parse_config(self):
         """
