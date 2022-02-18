@@ -21,7 +21,7 @@ import monai.networks.nets.senet as se_mod
 from monai.networks import eval_mode
 from monai.networks.nets import SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
 from monai.utils import optional_import
-from tests.utils import test_is_quick, test_pretrained_networks, test_script_save
+from tests.utils import test_is_quick, test_pretrained_networks, test_script_save, testing_data_config
 
 if TYPE_CHECKING:
     import pretrainedmodels
@@ -69,27 +69,27 @@ class TestPretrainedSENET(unittest.TestCase):
             testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
             testing_data_urls = {
                 "senet154": {
-                    "url": "https://drive.google.com/uc?id=1e10LFGVIV9L8_Q5Fhwi3X5nU6mDRrCDh",
+                    "url": testing_data_config("models", "senet154-c7b49a05", "url"),
                     "filename": "senet154-c7b49a05.pth",
                 },
                 "se_resnet50": {
-                    "url": "https://drive.google.com/uc?id=1WCeveS0tvjta4Wcp1wAGRi_uyXRfXAGA",
+                    "url": testing_data_config("models", "se_resnet50-ce0d4300", "url"),
                     "filename": "se_resnet50-ce0d4300.pth",
                 },
                 "se_resnet101": {
-                    "url": "https://drive.google.com/uc?id=1Bh0PmLISUltsY8FevtlTbt6vT35clzWg",
+                    "url": testing_data_config("models", "se_resnet101-7e38fcc6", "url"),
                     "filename": "se_resnet101-7e38fcc6.pth",
                 },
                 "se_resnet152": {
-                    "url": "https://drive.google.com/uc?id=1fcqpP0ITOcALy_TZAcBdkyf7HcH687J-",
+                    "url": testing_data_config("models", "se_resnet152-d17c99b7", "url"),
                     "filename": "se_resnet152-d17c99b7.pth",
                 },
                 "se_resnext50_32x4d": {
-                    "url": "https://drive.google.com/uc?id=1kRKW8YjGaEwYdQUyhoCIDg1H9ZAoJ-jI",
+                    "url": testing_data_config("models", "se_resnext50_32x4d-a260b3a4", "url"),
                     "filename": "se_resnext50_32x4d-a260b3a4.pth",
                 },
                 "se_resnext101_32x4d": {
-                    "url": "https://drive.google.com/uc?id=1Tg6Zim1lXgmYgH7FyTXAgihbkq5Jegni",
+                    "url": testing_data_config("models", "se_resnext101_32x4d-3b2fe3d8", "url"),
                     "filename": "se_resnext101_32x4d-3b2fe3d8.pth",
                 },
             }
