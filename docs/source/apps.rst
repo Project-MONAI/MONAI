@@ -29,6 +29,22 @@ Clara MMARs
     :annotation:
 
 
+Model Manifest
+--------------
+
+.. autoclass:: ComponentLocator
+    :members:
+
+.. autoclass:: ConfigComponent
+    :members:
+
+.. autoclass:: ConfigExpression
+    :members:
+
+.. autoclass:: ConfigItem
+    :members:
+
+
 `Utilities`
 -----------
 
