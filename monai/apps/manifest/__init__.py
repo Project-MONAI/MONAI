@@ -10,4 +10,5 @@
 # limitations under the License.
 
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
+from .config_parser import ConfigParser
 from .reference_resolver import ReferenceResolver
