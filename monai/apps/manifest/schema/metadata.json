@@ -1,0 +1,71 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://monai.io/mmar_metadata_schema.json",
+    "title": "metadata",
+    "description": "metadata that defines the context information for MMAR.",
+    "type": "object",
+    "properties": {
+        "version": {
+            "description": "version number of this MMAR.",
+            "type": "string"
+        },
+        "monai_version": {
+            "description": "version number of MONAI used in this MMAR.",
+            "type": "string"
+        },
+        "pytorch_version": {
+            "description": "version number of PyTorch used in this MMAR.",
+            "type": "string"
+        },
+        "numpy_version": {
+            "description": "version number of MONAI used in this MMAR.",
+            "type": "string"
+        },
+        "network_data_format": {
+            "description": "define the input and output data format for network.",
+            "type": "object",
+            "properties": {
+                "inputs": {
+                    "type": "object",
+                    "properties": {
+                        "image": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "description": "the data format for `image`."
+                                },
+                                "format": {
+                                    "type": "string"
+                                },
+                                "num_channels": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                },
+                                "spatial_shape": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "integer",
+                                        "minumum": 1
+                                    }
+                                },
+                                "dtype": {
+                                    "type": "string"
+                                },
+                                "value_range": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "number",
+                                        "unuqueItems": true
+                                    }
+                                },
+                                "required": ["num_channels", "spatial_shape", "value_range"]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "required": ["monai_version", "pytorch_version", "network_data_format"]
+    }
+}
