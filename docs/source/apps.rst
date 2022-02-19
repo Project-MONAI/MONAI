@@ -44,9 +44,6 @@ Model Manifest
 .. autoclass:: ConfigItem
     :members:
 
-.. autoclass:: ConfigParser
-    :members:
-
 .. autoclass:: ReferenceResolver
     :members:
 
