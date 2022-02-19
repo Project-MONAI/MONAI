@@ -105,15 +105,14 @@ class ReferenceResolver:
             if d in waiting_list:
                 raise ValueError(f"detected circular references for id='{d}' in the config content.")
 
-        if ref_ids:
-            # # check whether the component has any unresolved references
-            for ref_id in ref_ids:
-                if ref_id not in self.resolved_content:
-                    # this referring item is not resolved
-                    if ref_id not in self.items:
-                        raise ValueError(f"the referring item `{ref_id}` is not defined in config.")
-                    # recursively resolve the reference first
-                    self._resolve_one_item(id=ref_id, waiting_list=waiting_list)
+        # # check whether the component has any unresolved references
+        for d in ref_ids:
+            if d not in self.resolved_content:
+                # this referring item is not resolved
+                if d not in self.items:
+                    raise ValueError(f"the referring item `{d}` is not defined in config.")
+                # recursively resolve the reference first
+                self._resolve_one_item(id=d, waiting_list=waiting_list)
 
         # all references are resolved, then try to resolve current config item
         new_config = self.update_config_with_refs(config=item_config, id=id, refs=self.resolved_content)
