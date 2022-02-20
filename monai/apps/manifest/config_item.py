@@ -128,7 +128,7 @@ class ConfigItem:
         self.config = config
         self.id = id
 
-    def get_id(self) -> Optional[str]:
+    def get_id(self) -> str:
         """
         Get the ID name of current config item, useful to identify config items during parsing.
 

@@ -33,11 +33,12 @@ class ConfigParser:
     - `id="preprocessing#0#<args>#keys", config="image"`
 
     There are 3 levels config information during the parsing:
-    - For the input config content, it supports to `get` and `update` the whole content or part of it specified with id,
-    it can be useful for lazy instantiation, etc.
-    - After parsing, all the config items are independent `ConfigItem`, can get it before / after resolving references.
-    - After resolving, the resolved output of every `ConfigItem` is python objects or instances, can be used in other
-    programs directly.
+    - `get_config()`: For the input config content, it supports to `get` and `update` the whole content or part of it
+    specified with id, it can be useful for lazy instantiation.
+    - `get_config_item(resolve=True/False)`: After parsing, all the config items are independent `ConfigItem`,
+    can get it before / after resolving references.
+    - `get_resolved_content()`: After resolving, the resolved output of `ConfigItem` is python objects or instances,
+    can be used in other programs directly.
 
     Args:
         config: input config content to parse.
@@ -59,8 +60,6 @@ class ConfigParser:
         globals: Optional[Dict[str, Any]] = None,
     ):
         self.config = None
-        self.update_config(config=config)
-
         self.globals: Dict[str, Any] = {}
         globals = {"monai": "monai", "torch": "torch", "np": "numpy"} if globals is None else globals
         if globals is not None:
@@ -68,9 +67,8 @@ class ConfigParser:
                 self.globals[k] = importlib.import_module(v) if isinstance(v, str) else v
 
         self.locator = ComponentLocator(excludes=excludes)
-        self.reference_resolver: ReferenceResolver = ReferenceResolver()
-        # flag to identify the parsing status of current config content
-        self.parsed = False
+        self.reference_resolver = ReferenceResolver()
+        self.update_config(config=config)
 
     def update_config(self, config: Any, id: str = ""):
         """
@@ -92,7 +90,7 @@ class ConfigParser:
         else:
             self.config = config
         # must totally parse again as the content is modified
-        self.parsed = False
+        self.parse_config()
 
     def get_config(self, id: str = ""):
         """
@@ -140,12 +138,11 @@ class ConfigParser:
 
     def parse_config(self):
         """
-        Parse the config content, add every config item to the resolver and mark as `parsed`.
+        Parse the config content, add every config item to the resolver.
 
         """
-        self.reference_resolver = ReferenceResolver()
+        self.reference_resolver.reset()
         self._do_parse(config=self.config)
-        self.parsed = True
 
     def get_resolved_content(self, id: str):
         """
@@ -159,8 +156,6 @@ class ConfigParser:
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
 
         """
-        if not self.parsed:
-            self.parse_config()
         return self.reference_resolver.get_resolved_content(id=id)
 
     def get_config_item(self, id: str, resolve: bool = False):
@@ -173,6 +168,4 @@ class ConfigParser:
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
 
         """
-        if not self.parsed:
-            self.parse_config()
         return self.reference_resolver.get_item(id=id, resolve=resolve)

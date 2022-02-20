@@ -44,8 +44,16 @@ class ReferenceResolver:
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
-        self.items = {} if items is None else {i.get_id(): i for i in items}
+        self.items: Dict[str, Any] = {} if items is None else {i.get_id(): i for i in items}
         self.resolved_content: Dict[str, Any] = {}
+
+    def reset(self):
+        """
+        Clear all the added `ConfigItem` and all the resolved content.
+
+        """
+        self.items = {}
+        self.resolved_content = {}
 
     def add_item(self, item: ConfigItem):
         """
