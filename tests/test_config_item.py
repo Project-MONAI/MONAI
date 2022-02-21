@@ -20,9 +20,9 @@ import monai
 from monai.apps import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.data import DataLoader, Dataset
 from monai.transforms import LoadImaged, RandTorchVisiond
-from monai.utils import optional_import
+from monai.utils import min_version, optional_import
 
-_, has_tv = optional_import("torchvision")
+_, has_tv = optional_import("torchvision", "0.8.0", min_version)
 
 TEST_CASE_1 = [{"lr": 0.001}, 0.0001]
 

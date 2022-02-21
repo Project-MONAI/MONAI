@@ -18,9 +18,9 @@ from monai.apps import ConfigParser
 from monai.apps.manifest.config_item import ConfigComponent
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
-from monai.utils import optional_import
+from monai.utils import min_version, optional_import
 
-_, has_tv = optional_import("torchvision")
+_, has_tv = optional_import("torchvision", "0.8.0", min_version)
 
 # test the resolved and parsed instances
 TEST_CASE_1 = [
@@ -88,7 +88,7 @@ class TestConfigComponent(unittest.TestCase):
         self.assertEqual(parser.get_config(id="dataset#<name>"), "Dataset")
 
     @parameterized.expand([TEST_CASE_1])
-    @skipUnless(has_tv, "Requires torchvision.")
+    @skipUnless(has_tv, "Requires torchvision >= 0.8.0.")
     def test_parse(self, config, expected_ids, output_types):
         parser = ConfigParser(config=config, globals={"monai": "monai"})
         for id, cls in zip(expected_ids, output_types):
