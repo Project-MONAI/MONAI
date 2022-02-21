@@ -6,14 +6,14 @@ MONAI Archive Specification
 Overview
 ========
 
-This is the specification for the MONAI Archive (MAR) format of portable described deep learning models. The objective of a MAR is to define a packaged network or model which includes the critical information necessary to allow users and other programs to understand how the model is used and for what purpose. A MAR includes the stored weights of a model as a state dictionary and/or a Torchscript object. Additional JSON files are included to store metadata about the model, information for constructing training, inference, and post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes to include. 
+This is the specification for the MONAI Archive (MAR) format of portable described deep learning models. The objective of a MAR is to define a packaged network or model which includes the critical information necessary to allow users and other programs to understand how the model is used and for what purpose. A MAR includes the stored weights of a model as a state dictionary and/or a Torchscript object. Additional JSON files are included to store metadata about the model, information for constructing training, inference, and post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes to include.
 
-This specification defines the directory structure a MAR must have and the necessary files it must contain. Additional files may be included and the directory packaged into a zip file or included as extra files directly in a Torchscript file. 
+This specification defines the directory structure a MAR must have and the necessary files it must contain. Additional files may be included and the directory packaged into a zip file or included as extra files directly in a Torchscript file.
 
 Directory Structure
 ===================
 
-A MAR package is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName", and should contain the following structure: 
+A MAR package is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName", and should contain the following structure:
 ::
     ModelName
     ┣━ configs
@@ -54,7 +54,7 @@ This file contains the metadata information relating to the model, including wha
 * **task**: plain-language description of what the model is meant to do.
 * **description**: longer form plain-language description of what the model is, what it does, etc.
 * **authorship**: state author(s) of the model.
-* **copyright**: state model copyright. 
+* **copyright**: state model copyright.
 * **network_data_format**: defines the format, shape, and meaning of inputs and outputs to the model, contains keys "inputs" and "outputs" relating named inputs/outputs to their format specifiers (defined below).
 
 Tensor format specifiers are used to define input and output tensors and their meanings, and must be a dictionary containing at least these keys:
@@ -135,4 +135,3 @@ An example JSON metadata file:
             }
         }
     }
-
