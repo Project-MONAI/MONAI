@@ -23,7 +23,7 @@ def read_config(filepath: str):
     Suppprt JSON and YAML formats.
 
     """
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         if filepath.lower().endswith(".json"):
             return json.load(f)
         if filepath.lower().endswith((".yml", ".yaml")):
