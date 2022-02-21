@@ -82,7 +82,7 @@ class TestConsistency(unittest.TestCase):
     def _cmp(self, filename, shape, ch_shape, reader_1, reader_2, outname, ext):
         data_dict = {"img": filename}
         keys = data_dict.keys()
-        xforms = Compose([LoadImaged(keys, reader=reader_1), EnsureChannelFirstD(keys)])
+        xforms = Compose([LoadImaged(keys, reader=reader_1, ensure_channel_first=True)])
         img_dict = xforms(data_dict)  # load dicom with itk
         self.assertTupleEqual(img_dict["img"].shape, ch_shape)
         self.assertTupleEqual(tuple(img_dict[PostFix.meta("img")]["spatial_shape"]), shape)

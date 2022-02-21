@@ -140,10 +140,10 @@ class DatasetSummary:
             image, *_ = convert_data_type(data=image, output_type=torch.Tensor)
             label, *_ = convert_data_type(data=label, output_type=torch.Tensor)
 
-            voxel_max.append(image.max().item())
-            voxel_min.append(image.min().item())
-
             image_foreground = image[torch.where(label > foreground_threshold)]
+
+            voxel_max.append(image_foreground.max().item())
+            voxel_min.append(image_foreground.min().item())
             voxel_ct += len(image_foreground)
             voxel_sum += image_foreground.sum()
             voxel_square_sum += torch.square(image_foreground).sum()

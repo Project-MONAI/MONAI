@@ -6,6 +6,55 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.8.1] - 2022-02-16
+### Added
+* Support of `matshow3d` with given `channel_dim`
+* Support of spatial 2D for `ViTAutoEnc`
+* Support of `dataframe` object input in `CSVDataset`
+* Support of tensor backend for `Orientation`
+* Support of configurable delimiter for CSV writers
+* A base workflow API
+* `DataFunc` API for dataset-level preprocessing
+* `write_scalar` API for logging with additional `engine` parameter in `TensorBoardHandler`
+* Enhancements for NVTX Range transform logging
+* Enhancements for `set_determinism`
+* Performance enhancements in the cache-based datasets
+* Configurable metadata keys for `monai.data.DatasetSummary`
+* Flexible `kwargs` for `WSIReader`
+* Logging for the learning rate schedule handler
+* `GridPatchDataset` as subclass of `monai.data.IterableDataset`
+* `is_onehot` option in `KeepLargestConnectedComponent`
+* `channel_dim` in the image readers and support of stacking images with channels
+* Skipping workflow `run` if epoch length is 0
+* Enhanced `CacheDataset` to avoid duplicated cache items
+* `save_state` utility function
+
+### Changed
+* Optionally depend on PyTorch-Ignite v0.4.8 instead of v0.4.6
+* `monai.apps.mmars.load_from_mmar` defaults to the latest version
+
+### Fixed
+* Issue when caching large items with `pickle`
+* Issue of hard-coded activation functions in `ResBlock`
+* Issue of `create_file_name` assuming local disk file creation
+* Issue of `WSIReader` when the backend is `TiffFile`
+* Issue of `deprecated_args` when the function signature contains kwargs
+* Issue of `channel_wise` computations for the intensity-based transforms
+* Issue of inverting `OneOf`
+* Issue of removing temporary caching file for the persistent dataset
+* Error messages when reader backend is not available
+* Output type casting issue in `ScaleIntensityRangePercentiles`
+* Various docstring typos and broken URLs
+* `mode` in the evaluator engine
+* Ordering of `Orientation` and `Spacing` in `monai.apps.deepgrow.dataset`
+
+### Removed
+* Additional deep supervision modules in `DynUnet`
+* Deprecated `reduction` argument for `ContrastiveLoss`
+* Decollate warning in `Workflow`
+* Unique label exception in `ROCAUCMetric`
+* Logger configuration logic in the event handlers
+
 ## [0.8.0] - 2021-11-25
 ### Added
 * Overview of [new features in v0.8](docs/source/whatsnew_0_8.md)
@@ -434,7 +483,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.8.1...HEAD
+[0.8.1]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/Project-MONAI/MONAI/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/Project-MONAI/MONAI/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/Project-MONAI/MONAI/compare/0.5.3...0.6.0
