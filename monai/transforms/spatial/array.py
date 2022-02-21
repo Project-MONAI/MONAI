@@ -273,7 +273,7 @@ class ResampleToMatch(SpatialResample):
     """Resample an image to match given meta data. The affine matrix will be aligned,
     and the size of the output image will match."""
 
-    def __call__(
+    def __call__(  # type: ignore
         self,
         img: NdarrayOrTensor,
         src_meta: Optional[Dict] = None,
