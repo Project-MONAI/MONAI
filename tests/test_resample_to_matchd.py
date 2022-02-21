@@ -14,7 +14,7 @@ import tempfile
 import unittest
 
 from monai.transforms import Compose, CopyItemsd, EnsureChannelFirstd, Lambda, LoadImaged, ResampleToMatchd, SaveImaged
-from tests.utils import assert_allclose, download_url_or_skip_test
+from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 
 def update_fname(d):
@@ -23,23 +23,18 @@ def update_fname(d):
 
 
 class TestResampleToMatchd(unittest.TestCase):
+    def setUp(self):
+        self.fnames = []
+        for key in ("0000_t2_tse_tra_4", "0000_ep2d_diff_tra_7"):
+            fname = os.path.join(os.path.dirname(__file__), "testing_data", f"test_{key}.nii.gz")
+            url = testing_data_config("images", key, "url")
+            hash_type = testing_data_config("images", key, "hash_type")
+            hash_val = testing_data_config("images", key, "hash_val")
+            download_url_or_skip_test(url=url, filepath=fname, hash_type=hash_type, hash_val=hash_val)
+            self.fnames.append(fname)
+
     def test_correct(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            url_1 = (
-                "https://github.com/rcuocolo/PROSTATEx_masks/raw/master/Files/"
-                + "lesions/Images/T2/ProstateX-0000_t2_tse_tra_4.nii.gz"
-            )
-            url_2 = (
-                "https://github.com/rcuocolo/PROSTATEx_masks/raw/master/Files/"
-                + "lesions/Images/ADC/ProstateX-0000_ep2d_diff_tra_7.nii.gz"
-            )
-            fname_1 = os.path.join(temp_dir, "file1.nii.gz")
-            fname_2 = os.path.join(temp_dir, "file2.nii.gz")
-            md5_1 = "adb3f1c4db66a6481c3e4a2a3033c7d5"
-            md5_2 = "f12a11ad0ebb0b1876e9e010564745d2"
-            download_url_or_skip_test(url=url_1, filepath=fname_1, hash_val=md5_1)
-            download_url_or_skip_test(url=url_2, filepath=fname_2, hash_val=md5_2)
-
             transforms = Compose(
                 [
                     LoadImaged(("im1", "im2")),
@@ -50,7 +45,7 @@ class TestResampleToMatchd(unittest.TestCase):
                     SaveImaged("im3", output_dir=temp_dir, output_postfix="", separate_folder=False),
                 ]
             )
-            data = transforms({"im1": fname_1, "im2": fname_2})
+            data = transforms({"im1": self.fnames[0], "im2": self.fnames[1]})
             assert_allclose(data["im1"].shape, data["im3"].shape)
 
 
