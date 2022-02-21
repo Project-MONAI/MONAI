@@ -13,7 +13,8 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 import warnings
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from copy import deepcopy
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -58,6 +59,7 @@ nib, has_nib = optional_import("nibabel")
 
 __all__ = [
     "SpatialResample",
+    "ResampleToMatch",
     "Spacing",
     "Orientation",
     "Flip",
@@ -265,6 +267,51 @@ class SpatialResample(Transform):
         # output dtype float
         output_data, *_ = convert_to_dst_type(output_data, img, dtype=torch.float32)
         return output_data, dst_affine
+
+
+class ResampleToMatch(SpatialResample):
+    """Resample an image to match given meta data. The affine matrix will be aligned,
+    and the size of the output image will match."""
+
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        src_meta: Optional[Dict] = None,
+        dst_meta: Optional[Dict] = None,
+        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
+        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        align_corners: Optional[bool] = False,
+        dtype: DtypeLike = None,
+    ):
+        if src_meta is None:
+            raise RuntimeError("`in_meta` is missing")
+        if dst_meta is None:
+            raise RuntimeError("`out_meta` is missing")
+        mode = mode or self.mode
+        padding_mode = padding_mode or self.padding_mode
+        align_corners = self.align_corners if align_corners is None else align_corners
+        dtype = dtype or self.dtype
+        src_affine = src_meta["affine"]
+        dst_affine = dst_meta["affine"]
+        ndim = len(img.shape[1:])
+        spatial_size = dst_meta["dim"][1 : ndim + 2]
+        img, updated_affine = super().__call__(
+            img=img,
+            src_affine=src_affine,
+            dst_affine=dst_affine,
+            spatial_size=spatial_size,
+            mode=mode,
+            padding_mode=padding_mode,
+            align_corners=align_corners,
+            dtype=dtype,
+        )
+        dst_meta = deepcopy(dst_meta)
+        dst_meta["affine"] = updated_affine
+        if "dim" in dst_meta:
+            dst_meta["dim"] = src_meta["dim"]
+        if "pixdim" in dst_meta:
+            dst_meta["pixdim"] = src_meta["pixdim"]
+        return img, dst_meta
 
 
 class Spacing(Transform):
