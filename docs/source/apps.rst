@@ -44,6 +44,9 @@ Model Manifest
 .. autoclass:: ConfigItem
     :members:
 
+.. autoclass:: ReferenceResolver
+    :members:
+
 
 `Utilities`
 -----------

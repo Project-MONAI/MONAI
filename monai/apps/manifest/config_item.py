@@ -23,28 +23,8 @@ __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponen
 
 class Instantiable(ABC):
     """
-    Base class for instantiable object with module name and arguments.
-
-    .. code-block:: python
-
-        if not is_disabled():
-            instantiate(module_name=resolve_module_name(), args=resolve_args())
-
+    Base class for an instantiable object.
     """
-
-    @abstractmethod
-    def resolve_module_name(self, *args: Any, **kwargs: Any):
-        """
-        Resolve the target module name, it should return an object class (or function) to be instantiated.
-        """
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
-    def resolve_args(self, *args: Any, **kwargs: Any):
-        """
-        Resolve the arguments, it should return arguments to be passed to the object when instantiating.
-        """
-        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
     def is_disabled(self, *args: Any, **kwargs: Any) -> bool:
@@ -54,9 +34,9 @@ class Instantiable(ABC):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def instantiate(self, *args: Any, **kwargs: Any):
+    def instantiate(self, *args: Any, **kwargs: Any) -> object:
         """
-        Instantiate the target component.
+        Instantiate the target component and return the instance.
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
@@ -140,11 +120,11 @@ class ConfigItem:
     Args:
         config: content of a config item, can be objects of any types,
             a configuration resolver may interpret the content to generate a configuration object.
-        id: optional name of the current config item, defaults to `None`.
+        id: name of the current config item, defaults to empty string.
 
     """
 
-    def __init__(self, config: Any, id: Optional[str] = None) -> None:
+    def __init__(self, config: Any, id: str = "") -> None:
         self.config = config
         self.id = id
 
@@ -203,7 +183,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     Args:
         config: content of a config item.
-        id: optional name of the current config item, defaults to `None`.
+        id: name of the current config item, defaults to empty string.
         locator: a ``ComponentLocator`` to convert a module name string into the actual python module.
             if `None`, a ``ComponentLocator(excludes=excludes)`` will be used.
         excludes: if ``locator`` is None, create a new ``ComponentLocator`` with ``excludes``.
@@ -214,7 +194,7 @@ class ConfigComponent(ConfigItem, Instantiable):
     def __init__(
         self,
         config: Any,
-        id: Optional[str] = None,
+        id: str = "",
         locator: Optional[ComponentLocator] = None,
         excludes: Optional[Union[Sequence[str], str]] = None,
     ) -> None:
@@ -319,18 +299,18 @@ class ConfigExpression(ConfigItem):
 
     Args:
         config: content of a config item.
-        id: optional name of current config item, defaults to `None`.
+        id: name of current config item, defaults to empty string.
         globals: additional global context to evaluate the string.
 
     """
 
-    def __init__(self, config: Any, id: Optional[str] = None, globals: Optional[Dict] = None) -> None:
+    def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)
         self.globals = globals
 
     def evaluate(self, locals: Optional[Dict] = None):
         """
-        Excute current config content and return the result if it is expression, based on python `eval()`.
+        Execute the current config content and return the result if it is expression, based on Python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
 
         Args:
@@ -346,7 +326,7 @@ class ConfigExpression(ConfigItem):
     def is_expression(config: Union[Dict, List, str]) -> bool:
         """
         Check whether the config is an executable expression string.
-        Currently A string starts with ``"$"`` character is interpreted as an expression.
+        Currently, a string starts with ``"$"`` character is interpreted as an expression.
 
         Args:
             config: input config content to check.
