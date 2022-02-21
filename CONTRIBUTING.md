@@ -124,9 +124,9 @@ the minimal CI runner will not execute it.
 
 ##### Testing data
 Testing data such as images and binary files should not be placed in the source code repository.
-Please deploy them to a reliable file sharing location (the current preferred location is [https://github.com/Project-MONAI/MONAI-extra-test-data/releases](https://github.com/Project-MONAI/MONAI-extra-test-data/releases)).
-At testing time, the URL link within `tests/testing_data/data_config.json` are accessible
-via the tests APIs: `tests.utils.testing_data_config` and `tests.utils.download_url_or_skip_test`.
+Please deploy them to a reliable file sharing location (the current preferred one is [https://github.com/Project-MONAI/MONAI-extra-test-data/releases](https://github.com/Project-MONAI/MONAI-extra-test-data/releases)).
+At test time, the URLs within `tests/testing_data/data_config.json` are accessible
+via the APIs provided in `tests.utils`: `tests.utils.testing_data_config` and `tests.utils.download_url_or_skip_test`.
 
 _If it's not tested, it's broken_
 
