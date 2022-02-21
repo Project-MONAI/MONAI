@@ -10,13 +10,13 @@
 # limitations under the License.
 
 import enum
-import inspect
 import os
 import re
 import sys
 import warnings
 from functools import partial, wraps
 from importlib import import_module
+from inspect import isclass, isfunction, ismethod
 from pkgutil import walk_packages
 from pydoc import locate
 from re import match
@@ -212,9 +212,10 @@ def instantiate(path: str, **kwargs):
     component = locate(path)
     if component is None:
         raise ModuleNotFoundError(f"Cannot locate '{path}'.")
-    if inspect.isclass(component):
+    if isclass(component):
         return component(**kwargs)
-    if inspect.isfunction(component):
+    # support regular function, static method and class method
+    if isfunction(component) or (ismethod(component) and isclass(getattr(component, "__self__", None))):
         return partial(component, **kwargs)
 
     warnings.warn(f"Component to instantiate must represent a valid class or function, but got {path}.")

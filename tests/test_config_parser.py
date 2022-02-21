@@ -48,6 +48,34 @@ TEST_CASE_1 = [
 ]
 
 
+class TestClass:
+    @staticmethod
+    def compute(a, b, func=lambda x, y: x + y):
+        return func(a, b)
+
+    @classmethod
+    def cls_compute(cls, a, b, func=lambda x, y: x + y):
+        return cls.compute(a, b, func)
+
+    def __call__(self, a, b):
+        return self.compute(a, b)
+
+
+TEST_CASE_2 = [
+    {
+        "basic_func": "$lambda x, y: x + y",
+        "static_func": "$TestClass.compute",
+        "cls_func": "$TestClass.cls_compute",
+        "lambda_static_func": "$lambda x, y: TestClass.compute(x, y)",
+        "lambda_cls_func": "$lambda x, y: TestClass.cls_compute(x, y)",
+        "compute": {"<path>": "tests.test_config_parser.TestClass.compute", "<args>": {"func": "@basic_func"}},
+        "cls_compute": {"<path>": "tests.test_config_parser.TestClass.cls_compute", "<args>": {"func": "@basic_func"}},
+        "call_compute": {"<path>": "tests.test_config_parser.TestClass"},
+        "error_func": "$TestClass.__call__",
+    }
+]
+
+
 class TestConfigComponent(unittest.TestCase):
     def test_config_content(self):
         parser = ConfigParser(config={})
@@ -70,6 +98,18 @@ class TestConfigComponent(unittest.TestCase):
                 self.assertTrue(isinstance(item.instantiate(), cls))
             # test get instance directly
             self.assertTrue(isinstance(parser.get_resolved_content(id), cls))
+
+    @parameterized.expand([TEST_CASE_2])
+    def test_function(self, config):
+        parser = ConfigParser(config=config, globals={"TestClass": TestClass})
+        for id in config:
+            func = parser.get_resolved_content(id=id)
+            self.assertTrue(id in parser.reference_resolver.resolved_content)
+            if id == "error_func":
+                with self.assertRaises(TypeError):
+                    func(1, 2)
+                continue
+            self.assertEqual(func(1, 2), 3)
 
 
 if __name__ == "__main__":
