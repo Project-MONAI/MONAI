@@ -14,7 +14,6 @@ Directory Structure
 ===================
 
 A MAR package is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName", and should contain the following structure: 
-
 ::
     ModelName
     ┣━ configs
@@ -78,7 +77,6 @@ Optional keys:
 A JSON schema for this file can be found at https://github.com/Project-MONAI/MONAI/blob/3049e280f2424962bb2a69261389fcc0b98e0036/monai/apps/mmars/schema/metadata.json
 
 An example JSON metadata file:
-
 ::
     {
         "version": "0.1.0",
