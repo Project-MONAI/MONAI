@@ -11,7 +11,7 @@
 
 
 import argparse
-from monai.apps.manifest.utils import parse_config_files
+from monai.apps.manifest.utils import parse_config_files, parse_id_value
 
 
 def run():
@@ -32,8 +32,11 @@ def run():
     )
 
     args = parser.parse_args()
-
-    config_parser = parse_config_files(config_file=args.config, meta_file=args.metadata, override=args.override)
+    override = {}
+    for pair in args.override:
+        id, v = parse_id_value(pair)
+        override[id] = v
+    config_parser = parse_config_files(config_file=args.config, meta_file=args.metadata, override=override)
 
     workflow = config_parser.get_resolved_content(id=args.target)
     workflow.run()

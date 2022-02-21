@@ -11,7 +11,7 @@
 
 from distutils.util import strtobool
 import json
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 import yaml
 
 from monai.apps.manifest.config_parser import ConfigParser
@@ -62,7 +62,7 @@ def parse_id_value(pair: str) -> Tuple[str, Any]:
     return id, value
 
 
-def parse_config_files(config_file: str, meta_file: str, override: List = []) -> ConfigParser:
+def parse_config_files(config_file: str, meta_file: str, override: Dict = {}) -> ConfigParser:
     """
     Read the config file, metadata file and override with specified `id=value` pairs.
     Put metadata in the config content with key "<meta>".
@@ -73,7 +73,7 @@ def parse_config_files(config_file: str, meta_file: str, override: List = []) ->
     Args:
         config_file: filepath of the config file.
         meta_file: filepath of the metadata file.
-        override: list of "id=value" pairs to override the config content.
+        override: dict of `{id: value}` pairs to override the config content.
 
     """
     config = read_config(config_file)
@@ -85,12 +85,11 @@ def parse_config_files(config_file: str, meta_file: str, override: List = []) ->
     parser = ConfigParser(config=config)
 
     if len(override) > 0:
-        content = {}
-        for pair in override:
-            id, v = parse_id_value(pair)
+        for id in override:
+            v = override[id]
             if isinstance(v, str) and v.startswith("<file>"):
                 v = read_config(v[6:])
-            content[id] = v
-        parser.update_config(content)
+                override[id] = v
+        parser.update_config(override)
 
     return parser
