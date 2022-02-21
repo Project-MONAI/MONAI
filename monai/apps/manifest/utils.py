@@ -65,7 +65,8 @@ def parse_id_value(pair: str) -> Tuple[str, Any]:
 def parse_config_files(config_file: str, meta_file: str, override: List = []) -> ConfigParser:
     """
     Read the config file, metadata file and override with specified `id=value` pairs.
-    The `id` identifies target position to override with the `value`.
+    Put metadata in the config content with key "<meta>".
+    The `id` in `override` identifies target position to override with the `value`.
     If `value` starts with "<file>", it will automatically read the `file`
     and use the content as `value`.
 
@@ -84,12 +85,12 @@ def parse_config_files(config_file: str, meta_file: str, override: List = []) ->
     parser = ConfigParser(config=config)
 
     if len(override) > 0:
-        kwargs = {}
+        content = {}
         for pair in override:
             id, v = parse_id_value(pair)
             if isinstance(v, str) and v.startswith("<file>"):
                 v = read_config(v[6:])
-            kwargs[id] = v
-        parser.update_config(**kwargs)
+            content[id] = v
+        parser.update_config(content)
 
     return parser
