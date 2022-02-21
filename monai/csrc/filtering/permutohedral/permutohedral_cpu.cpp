@@ -1,5 +1,5 @@
 /*
-Copyright 2020 - 2021 MONAI Consortium
+Copyright (c) MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -464,14 +464,14 @@ class PermutohedralLattice {
     // depending where we ended up, we may have to copy data
     if (oldValue != hashTableBase) {
       memcpy(hashTableBase, oldValue, hashTable.size() * vd * sizeof(scalar_t));
-      delete oldValue;
+      delete[] oldValue;
     } else {
-      delete newValue;
+      delete[] newValue;
     }
 
-    delete zero;
-    delete neighbor1;
-    delete neighbor2;
+    delete[] zero;
+    delete[] neighbor1;
+    delete[] neighbor2;
   }
 
  private:

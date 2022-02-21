@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,60 +12,79 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import CropForeground
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
-]
+TEST_COORDS, TESTS = [], []
 
-TEST_CASE_2 = [
-    {"select_fn": lambda x: x > 1, "channel_indices": None, "margin": 0},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 1, 1, 0], [0, 1, 3, 1, 0], [0, 1, 1, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[3]]]),
-]
+for p in TEST_NDARRAYS:
+    TEST_COORDS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+            p([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
+        ]
+    )
 
-TEST_CASE_3 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": 0, "margin": 0},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 1, "channel_indices": None, "margin": 0},
+            p([[[0, 0, 0, 0, 0], [0, 1, 1, 1, 0], [0, 1, 3, 1, 0], [0, 1, 1, 1, 0], [0, 0, 0, 0, 0]]]),
+            p([[[3]]]),
+        ]
+    )
 
-TEST_CASE_4 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 1},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0]]]),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": 0, "margin": 0},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+            p([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
+        ]
+    )
 
-TEST_CASE_5 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": [2, 1]},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 1},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0]]]),
+        ]
+    )
 
-TEST_CASE_6 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 4},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2, 1, 0], [2, 3, 2, 0], [1, 2, 1, 0], [0, 0, 0, 0]]]),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": [2, 1]},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
+        ]
+    )
 
-TEST_CASE_7 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10, "constant_values": 2},
-    np.array([[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-    np.zeros((1, 0, 0)),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 4},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+            p([[[1, 2, 1, 0], [2, 3, 2, 0], [1, 2, 1, 0], [0, 0, 0, 0]]]),
+        ]
+    )
+
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10},
+            p([[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
+            p(np.zeros((1, 0, 0), dtype=np.int64)),
+        ]
+    )
 
 
 class TestCropForeground(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    @parameterized.expand(TEST_COORDS + TESTS)
     def test_value(self, argments, image, expected_data):
         result = CropForeground(**argments)(image)
-        np.testing.assert_allclose(result, expected_data)
+        torch.testing.assert_allclose(result, expected_data, rtol=1e-7, atol=0)
 
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand(TEST_COORDS)
     def test_return_coords(self, argments, image, _):
         argments["return_coords"] = True
         _, start_coord, end_coord = CropForeground(**argments)(image)

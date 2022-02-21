@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,12 +19,17 @@ from monai.handlers import MeanDice, from_engine
 
 TEST_CASE_1 = [{"include_background": True, "output_transform": from_engine(["pred", "label"])}, 0.75, (4, 2)]
 TEST_CASE_2 = [{"include_background": False, "output_transform": from_engine(["pred", "label"])}, 0.66666, (4, 1)]
+TEST_CASE_3 = [
+    {"reduction": "mean_channel", "output_transform": from_engine(["pred", "label"])},
+    torch.Tensor([1.0, 0.0, 1.0, 1.0]),
+    (4, 2),
+]
 
 
 class TestHandlerMeanDice(unittest.TestCase):
     # TODO test multi node averaged dice
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_compute(self, input_params, expected_avg, details_shape):
         dice_metric = MeanDice(**input_params)
         # set up engine
@@ -46,8 +51,7 @@ class TestHandlerMeanDice(unittest.TestCase):
         engine.fire_event(Events.ITERATION_COMPLETED)
 
         engine.fire_event(Events.EPOCH_COMPLETED)
-
-        self.assertAlmostEqual(engine.state.metrics["mean_dice"], expected_avg, places=4)
+        torch.testing.assert_allclose(engine.state.metrics["mean_dice"], expected_avg)
         self.assertTupleEqual(tuple(engine.state.metric_details["mean_dice"].shape), details_shape)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
