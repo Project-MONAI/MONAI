@@ -58,6 +58,7 @@ This file contains the metadata information relating to the model, including wha
 * **network_data_format**: defines the format, shape, and meaning of inputs and outputs to the model, contains keys "inputs" and "outputs" relating named inputs/outputs to their format specifiers (defined below).
 
 Tensor format specifiers are used to define input and output tensors and their meanings, and must be a dictionary containing at least these keys:
+
 * **type**: what sort of data the tensor represents: "image", "label", etc.
 * **format**: what format of information is stored: "magnitude", "hounsfield", "kspace", "segmentation", "multiclass", etc.
 * **num_channels**: number of channels the tensor has, assumed channel dimension first.
@@ -68,6 +69,7 @@ Tensor format specifiers are used to define input and output tensors and their m
 * **channel_def**: dictionary relating channel indices to plain-language description of what the channel contains.
 
 Optional keys:
+
 * **changelog**: dictionary relating previous version names to strings describing the version.
 * **intended_use**: what the model is to be used for, ie. what task it accomplishes.
 * **data_source**: description of where training/validation can be sourced.
