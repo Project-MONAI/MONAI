@@ -68,27 +68,26 @@ class ConfigParser:
 
         self.locator = ComponentLocator(excludes=excludes)
         self.reference_resolver = ReferenceResolver()
-        self.update_config(config=config)
+        self.update_config({"": config})
 
-    def update_config(self, config: Any, id: str = ""):
+    def update_config(self, content: Dict[str, Any]):
         """
-        Set config content for the parser, if `id` provided, `config` will replace the config item with `id`.
-
-        Args:
-            config: target config content to set.
-            id: id name to specify the target position, joined by "#" mark for nested content, use index from 0 for list.
-                for example: "transforms#5", "transforms#5#<args>#keys", etc.
-                default to update all the config content.
+        Update config content for the parser, every `key` and `value` in the `content` is corresponding to
+        the target `id` position and new config value in order.
+        Nested config id is joined by "#" mark, use index from 0 for list.
+        For example: "transforms#5", "transforms#5#<args>#keys", etc.
+        If `id` is `""`, replace `self.config`.
 
         """
-        if id != "" and isinstance(self.config, (dict, list)):
-            keys = id.split("#")
-            # get the last second config item and replace it
-            last_id = "#".join(keys[:-1])
-            conf_ = self.get_config(id=last_id)
-            conf_[keys[-1] if isinstance(conf_, dict) else int(keys[-1])] = config
-        else:
-            self.config = config
+        for id, config in content.items():
+            if id != "" and isinstance(self.config, (dict, list)):
+                keys = id.split("#")
+                # get the last second config item and replace it
+                last_id = "#".join(keys[:-1])
+                conf_ = self.get_config(id=last_id)
+                conf_[keys[-1] if isinstance(conf_, dict) else int(keys[-1])] = config
+            else:
+                self.config = config
         # must totally parse again as the content is modified
         self.parse_config()
 
@@ -97,7 +96,7 @@ class ConfigParser:
         Get config content of current config, if `id` provided, get the config item with `id`.
 
         Args:
-            id: nested id name to specify the expected position, joined by "#" mark, use index from 0 for list.
+            id: id name to specify the expected position, nested config is joined by "#" mark, use index from 0 for list.
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
                 default to get all the config content.
 

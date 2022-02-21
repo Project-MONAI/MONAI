@@ -80,11 +80,11 @@ class TestConfigComponent(unittest.TestCase):
     def test_config_content(self):
         parser = ConfigParser(config={})
         test_config = {"preprocessing": [{"<name>": "LoadImage"}], "dataset": {"<name>": "Dataset"}}
-        parser.update_config(config=test_config)
+        parser.update_config(content={"": test_config})
         self.assertEqual(str(parser.get_config()), str(test_config))
-        parser.update_config(config={"<name>": "CacheDataset"}, id="dataset")
+        parser.update_config(content={"dataset": {"<name>": "CacheDataset"}})
         self.assertDictEqual(parser.get_config(id="dataset"), {"<name>": "CacheDataset"})
-        parser.update_config(config="Dataset", id="dataset#<name>")
+        parser.update_config(content={"dataset#<name>": "Dataset"})
         self.assertEqual(parser.get_config(id="dataset#<name>"), "Dataset")
 
     @parameterized.expand([TEST_CASE_1])
