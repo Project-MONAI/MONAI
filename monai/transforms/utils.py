@@ -881,6 +881,7 @@ def generate_spatial_bounding_box(
     select_fn: Callable = is_positive,
     channel_indices: Optional[IndexSelection] = None,
     margin: Union[Sequence[int], int] = 0,
+    allow_smaller: bool = True,
 ) -> Tuple[List[int], List[int]]:
     """
     Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
@@ -891,8 +892,8 @@ def generate_spatial_bounding_box(
         [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
         [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
 
-    The bounding boxes edges are aligned with the input image edges.
-    This function returns [-1, -1, ...], [-1, -1, ...] if there's no positive intensity.
+    If `allow_smaller`, the bounding boxes edges are aligned with the input image edges.
+    This function returns [0, 0, ...], [0, 0, ...] if there's no positive intensity.
 
     Args:
         img: a "channel-first" image of shape (C, spatial_dim1[, spatial_dim2, ...]) to generate bounding box from.
@@ -900,7 +901,10 @@ def generate_spatial_bounding_box(
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+        allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
+            than box size, default to `True`.
     """
+    spatial_size = img.shape[1:]
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
     data = select_fn(data).any(0)
     ndim = len(data.shape)
@@ -922,8 +926,11 @@ def generate_spatial_bounding_box(
             return [0] * ndim, [0] * ndim
 
         arg_max = where(dt == dt.max())[0]
-        min_d = max(arg_max[0] - margin[di], 0)
+        min_d = arg_max[0] - margin[di]
         max_d = arg_max[-1] + margin[di] + 1
+        if allow_smaller:
+            min_d = max(min_d, 0)
+            max_d = min(max_d, spatial_size[di])
 
         box_start[di] = min_d.detach().cpu().item() if isinstance(min_d, torch.Tensor) else min_d  # type: ignore
         box_end[di] = max_d.detach().cpu().item() if isinstance(max_d, torch.Tensor) else max_d  # type: ignore

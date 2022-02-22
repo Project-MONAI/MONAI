@@ -75,11 +75,26 @@ for p in TEST_NDARRAYS:
         [
             {
                 "img": p(
-                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]])
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])
                 ),
                 "select_fn": lambda x: x > 0,
                 "channel_indices": None,
                 "margin": [2, 1],
+                "allow_smaller": False,
+            },
+            ([-1, 0], [6, 5]),
+        ]
+    )
+    TESTS.append(
+        [
+            {
+                "img": p(
+                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])
+                ),
+                "select_fn": lambda x: x > 0,
+                "channel_indices": None,
+                "margin": [2, 1],
+                "allow_smaller": True,
             },
             ([0, 0], [5, 5]),
         ]
