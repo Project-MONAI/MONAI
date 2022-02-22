@@ -32,13 +32,44 @@ class ConfigParser:
     - `id="preprocessing#0#<args>", config={"keys": "image"}`
     - `id="preprocessing#0#<args>#keys", config="image"`
 
-    There are 3 levels config information during the parsing:
-    - `get_config()`: For the input config content, it supports to `get` and `update` the whole content or part of it
-    specified with id, it can be useful for lazy instantiation.
-    - `get_config_item(resolve=True/False)`: After parsing, all the config items are independent `ConfigItem`,
-    can get it before / after resolving references.
-    - `get_resolved_content()`: After resolving, the resolved output of `ConfigItem` is python objects or instances,
-    can be used in other programs directly.
+    A typical workflow of config parsing is as follows:
+
+    - Initialize `ConfigParser` with the `config` content.
+    - Call ``get_resolved_content()`` to get expected component with `id`, which is automatically parsed.
+
+    .. code-block:: python
+
+        config = {
+            "preprocessing": {"<name>": "LoadImage"},
+            "net": {"<name>": "UNet", "<args>": ...},
+            "trainer": {"<name>": "SupervisedTrainer", "<args>": {"network": "@net", ...}},
+        }
+        parser = ConfigParser(config=config)
+        trainer = parser.get_resolved_content(id="trainer")
+        trainer.run()
+
+    It's also flexible to modify config content and do `lazy instantiation` from 2 levels:
+
+    1. Modify original config content, then totally parse again:
+
+    .. code-block:: python
+
+        parser = ConfigParser(...)
+        config = parser.get_config()
+        config["processing"][2]["<args>"]["interp_order"] = "bilinear"
+        parser.parse_config()
+
+    2. After parsing, all the config items are independent `ConfigItem`, get the expected `ConfigItem`.
+    Its config content is already resolved references, can modify and use it directly:
+
+    .. code-block:: python
+
+        parser = ConfigParser(...)
+        trainer_config_item = parser.get_config_item(id="trainer")
+        config = trainer_config_item.get_config()
+        config["max_epochs"] = 100
+        trainer = trainer_config_item.instantiate()
+        trainer.run()
 
     Args:
         config: input config content to parse.
@@ -157,9 +188,9 @@ class ConfigParser:
         """
         return self.reference_resolver.get_resolved_content(id=id)
 
-    def get_config_item(self, id: str, resolve: bool = False):
+    def get_config_item(self, id: str):
         """
-        Get the parsed config item, if `resolve=True` and not resolved, try to resolve it first.
+        Get the parsed config item which is already resolved all the references.
         It can be used to modify the config in other program and support lazy instantiation.
 
         Args:
@@ -167,4 +198,4 @@ class ConfigParser:
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
 
         """
-        return self.reference_resolver.get_item(id=id, resolve=resolve)
+        return self.reference_resolver.get_item(id=id, resolve=True)
