@@ -1189,7 +1189,7 @@ class BoundingRect(Transform):
          Nth_spatial_dim_start, Nth_spatial_dim_end]]
 
     The bounding boxes edges are aligned with the input image edges.
-    This function returns [-1, -1, ...] if there's no positive intensity.
+    This function returns [0, 0, ...] if there's no positive intensity.
 
     Args:
         select_fn: function to select expected foreground, default is to select values > 0.
