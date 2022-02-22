@@ -182,6 +182,7 @@ To install all optional dependencies for MONAI development with `conda`:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
+conda create -n <name> --python=<ver>  # eg 3.9
 conda env update -n <name> -f environment-dev.yml
 ```
 

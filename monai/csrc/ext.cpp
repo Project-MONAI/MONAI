@@ -31,6 +31,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   py::enum_<monai::BoundType>(m, "BoundType")
       .value("replicate", monai::BoundType::Replicate, "a a a | a b c d | d d d")
       .value("nearest", monai::BoundType::Replicate, "a a a | a b c d | d d d")
+      .value("border", monai::BoundType::Replicate, "a a a | a b c d | d d d")
       .value("dct1", monai::BoundType::DCT1, "d c b | a b c d | c b a")
       .value("mirror", monai::BoundType::DCT1, "d c b | a b c d | c b a")
       .value("dct2", monai::BoundType::DCT2, "c b a | a b c d | d c b")
@@ -43,6 +44,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
       .value("wrap", monai::BoundType::DFT, "b c d | a b c d | a b c")
       //   .value("sliding", monai::BoundType::Sliding)
       .value("zero", monai::BoundType::Zero, "0 0 0 | a b c d | 0 0 0")
+      .value("zeros", monai::BoundType::Zero, "0 0 0 | a b c d | 0 0 0")
       .export_values();
 
   // resample interpolation mode

@@ -56,6 +56,7 @@ from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.enums import PostFix
 
 __all__ = [
     "RandGaussianNoised",
@@ -146,6 +147,8 @@ __all__ = [
     "RandKSpaceSpikeNoiseD",
     "RandKSpaceSpikeNoiseDict",
 ]
+
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class RandGaussianNoised(RandomizableTransform, MapTransform):
@@ -285,7 +288,7 @@ class ShiftIntensityd(MapTransform):
         offset: float,
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -304,7 +307,7 @@ class ShiftIntensityd(MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
                 to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
             allow_missing_keys: don't raise exception if key is missing.
@@ -342,7 +345,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         offsets: Union[Tuple[float, float], float],
         factor_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         prob: float = 0.1,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -363,7 +366,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
                 to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
             prob: probability of rotating.
@@ -1530,7 +1533,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         if first_key == []:
             return d
 
-        self.dropper.randomize(d[first_key].shape[1:])  # type: ignore
+        self.dropper.randomize(d[first_key].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.dropper(img=d[key], randomize=False)
 
@@ -1599,7 +1602,7 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         if first_key == []:
             return d
 
-        self.shuffle.randomize(d[first_key].shape[1:])  # type: ignore
+        self.shuffle.randomize(d[first_key].shape[1:])
         for key in self.key_iterator(d):
             d[key] = self.shuffle(img=d[key], randomize=False)
 

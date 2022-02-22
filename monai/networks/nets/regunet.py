@@ -21,6 +21,7 @@ from monai.networks.blocks.regunet_block import (
     get_conv_block,
     get_deconv_block,
 )
+from monai.networks.utils import meshgrid_ij
 
 __all__ = ["RegUNet", "AffineHead", "GlobalNet", "LocalNet"]
 
@@ -91,7 +92,7 @@ class RegUNet(nn.Module):
             raise AssertionError
         self.encode_kernel_sizes: List[int] = encode_kernel_sizes
 
-        self.num_channels = [self.num_channel_initial * (2 ** d) for d in range(self.depth + 1)]
+        self.num_channels = [self.num_channel_initial * (2**d) for d in range(self.depth + 1)]
         self.min_extract_level = min(self.extract_levels)
 
         # init layers
@@ -260,7 +261,7 @@ class AffineHead(nn.Module):
     @staticmethod
     def get_reference_grid(image_size: Union[Tuple[int], List[int]]) -> torch.Tensor:
         mesh_points = [torch.arange(0, dim) for dim in image_size]
-        grid = torch.stack(torch.meshgrid(*mesh_points), dim=0)  # (spatial_dims, ...)
+        grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         return grid.to(dtype=torch.float)
 
     def affine_transform(self, theta: torch.Tensor):
@@ -309,14 +310,14 @@ class GlobalNet(RegUNet):
         encode_kernel_sizes: Union[int, List[int]] = 3,
     ):
         for size in image_size:
-            if size % (2 ** depth) != 0:
+            if size % (2**depth) != 0:
                 raise ValueError(
                     f"given depth {depth}, "
                     f"all input spatial dimension must be divisible by {2 ** depth}, "
                     f"got input of size {image_size}"
                 )
         self.image_size = image_size
-        self.decode_size = [size // (2 ** depth) for size in image_size]
+        self.decode_size = [size // (2**depth) for size in image_size]
         super().__init__(
             spatial_dims=spatial_dims,
             in_channels=in_channels,

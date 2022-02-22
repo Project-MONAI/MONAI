@@ -43,6 +43,7 @@ This section highlights all the necessary preparation steps required before send
 To collaborate efficiently, please read through this section and follow them.
 
 * [Checking the coding style](#checking-the-coding-style)
+* [Licensing information](#licensing-information)
 * [Unit testing](#unit-testing)
 * [Building documentation](#building-the-documentation)
 * [Signing your work](#signing-your-work)
@@ -63,7 +64,9 @@ python -m pip install -U -r requirements-dev.txt
 ./runtests.sh --autofix
 ```
 
-License information: all source code files should start with this paragraph:
+#### Licensing information
+All source code files should start with this paragraph:
+
 ```
 # Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -118,6 +121,12 @@ If it requires any other external packages, please make sure:
 - the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
 - the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
 the minimal CI runner will not execute it.
+
+##### Testing data
+Testing data such as images and binary files should not be placed in the source code repository.
+Please deploy them to a reliable file sharing location (the current preferred one is [https://github.com/Project-MONAI/MONAI-extra-test-data/releases](https://github.com/Project-MONAI/MONAI-extra-test-data/releases)).
+At test time, the URLs within `tests/testing_data/data_config.json` are accessible
+via the APIs provided in `tests.utils`: `tests.utils.testing_data_config` and `tests.utils.download_url_or_skip_test`.
 
 _If it's not tested, it's broken_
 

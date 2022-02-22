@@ -120,7 +120,7 @@ class SmoothField(Randomizable):
 
         if self.spatial_zoom is not None:
             resized_field = interpolate(  # type: ignore
-                input=field,  # type: ignore
+                input=field,
                 scale_factor=self.spatial_zoom,
                 mode=look_up_option(self.mode, InterpolateMode).value,
                 align_corners=self.align_corners,
@@ -232,7 +232,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         # everything below here is to be computed using the destination type (numpy, tensor, etc.)
 
         img = (img - img_min) / (img_rng + 1e-10)  # rescale to unit values
-        img = img ** rfield  # contrast is changed by raising image data to a power, in this case the field
+        img = img**rfield  # contrast is changed by raising image data to a power, in this case the field
 
         out = (img * img_rng) + img_min  # rescale back to the original image value range
 

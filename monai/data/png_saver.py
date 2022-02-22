@@ -18,9 +18,10 @@ from monai.config.type_definitions import PathLike
 from monai.data.png_writer import write_png
 from monai.data.utils import create_file_basename
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, look_up_option
+from monai.utils import InterpolateMode, deprecated, look_up_option
 
 
+@deprecated(since="0.8", msg_suffix="use monai.transforms.SaveImage instead.")
 class PNGSaver:
     """
     Save the data as png file, it can support single data content or a batch of data.
@@ -29,6 +30,9 @@ class PNGSaver:
     The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
     where the input image name is extracted from the provided meta data dictionary.
     If no meta data provided, use index from 0 as the filename prefix.
+
+    .. deprecated:: 0.8
+        Use :py:class:`monai.transforms.SaveImage` instead.
 
     """
 
@@ -52,7 +56,7 @@ class PNGSaver:
             resample: whether to resample and resize if providing spatial_shape in the metadata.
             mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``"nearest"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
             data_root_dir: if not empty, it specifies the beginning parts of the input file's

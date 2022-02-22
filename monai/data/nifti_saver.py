@@ -19,8 +19,10 @@ from monai.data.nifti_writer import write_nifti
 from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
+from monai.utils import deprecated
 
 
+@deprecated(since="0.8", msg_suffix="use monai.transforms.SaveImage instead.")
 class NiftiSaver:
     """
     Save the data as NIfTI file, it can support single data content or a batch of data.
@@ -31,6 +33,9 @@ class NiftiSaver:
     If no meta data provided, use index from 0 as the filename prefix.
 
     Note: image should include channel dimension: [B],C,H,W,[D].
+
+    .. deprecated:: 0.8
+        Use :py:class:`monai.transforms.SaveImage` instead.
 
     """
 
@@ -60,13 +65,13 @@ class NiftiSaver:
             mode: {``"bilinear"``, ``"nearest"``}
                 This option is used when ``resample = True``.
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 This option is used when ``resample = True``.
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data.
             output_dtype: data type for saving data. Defaults to ``np.float32``.

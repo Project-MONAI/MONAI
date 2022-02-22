@@ -11,11 +11,11 @@
 
 import os
 import unittest
-from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import CrossValidation, DecathlonDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from tests.utils import skip_if_quick
+from monai.utils.enums import PostFix
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestCrossValidation(unittest.TestCase):
@@ -36,7 +36,7 @@ class TestCrossValidation(unittest.TestCase):
             self.assertEqual(len(dataset), 52)
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue("image_meta_dict" in dataset[0])
+            self.assertTrue(PostFix.meta("image") in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 34, 49, 41))
 
         cvdataset = CrossValidation(
@@ -50,14 +50,8 @@ class TestCrossValidation(unittest.TestCase):
             download=True,
         )
 
-        try:  # will start downloading if testing_dir doesn't have the Decathlon files
+        with skip_if_downloading_fails():
             data = cvdataset.get_dataset(folds=0)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, RuntimeError):
-                # FIXME: skip MD5 check as current downloading method may fail
-                self.assertTrue(str(e).startswith("md5 check"))
-            return  # skipping this test due the network connection errors
 
         _test_dataset(data)
 

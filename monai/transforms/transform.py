@@ -54,7 +54,11 @@ def _apply_transform(
 
 
 def apply_transform(
-    transform: Callable[..., ReturnType], data: Any, map_items: bool = True, unpack_items: bool = False
+    transform: Callable[..., ReturnType],
+    data: Any,
+    map_items: bool = True,
+    unpack_items: bool = False,
+    log_stats: bool = False,
 ) -> Union[List[ReturnType], ReturnType]:
     """
     Transform `data` with `transform`.
@@ -69,6 +73,9 @@ def apply_transform(
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other meta data, log the values directly. default to `False`.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -82,7 +89,7 @@ def apply_transform(
         return _apply_transform(transform, data, unpack_items)
     except Exception as e:
 
-        if not isinstance(transform, transforms.compose.Compose):
+        if log_stats and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)
@@ -93,7 +100,7 @@ def apply_transform(
             def _log_stats(data, prefix: Optional[str] = "Data"):
                 if isinstance(data, (np.ndarray, torch.Tensor)):
                     # log data type, shape, range for array
-                    datastats(img=data, data_shape=True, value_range=True, prefix=prefix)  # type: ignore
+                    datastats(img=data, data_shape=True, value_range=True, prefix=prefix)
                 else:
                     # log data type and value for other meta data
                     datastats(img=data, data_value=True, prefix=prefix)
@@ -360,7 +367,10 @@ class MapTransform(Transform):
             if key in data:
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
-                raise KeyError(f"Key was missing ({key}) and allow_missing_keys==False")
+                raise KeyError(
+                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data"
+                    " and allow_missing_keys==False."
+                )
 
     def first_key(self, data: Dict[Hashable, Any]):
         """

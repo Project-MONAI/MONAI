@@ -333,20 +333,6 @@ for p in TEST_NDARRAYS:
         ]
     )
 
-INVALID_CASES = []
-for p in TEST_NDARRAYS:
-    INVALID_CASES.append(
-        [
-            "no_applied_labels_for_single_channel",
-            {"keys": ["img"], "independent": False, "is_onehot": False},
-            {"img": p(grid_1)},
-            TypeError,
-        ]
-    )
-    INVALID_CASES.append(
-        ["no_applied_labels_for_multi_channel", {"keys": ["img"], "independent": False}, {"img": p(grid_3)}, TypeError]
-    )
-
 
 class TestKeepLargestConnectedComponentd(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
@@ -354,12 +340,6 @@ class TestKeepLargestConnectedComponentd(unittest.TestCase):
         converter = KeepLargestConnectedComponentd(**args)
         result = converter(input_dict)
         assert_allclose(result["img"], expected, type_test=False)
-
-    @parameterized.expand(INVALID_CASES)
-    def test_raise_exception(self, _, args, input_dict, expected_error):
-        with self.assertRaises(expected_error):
-            converter = KeepLargestConnectedComponentd(**args)
-            _ = converter(input_dict)
 
 
 if __name__ == "__main__":

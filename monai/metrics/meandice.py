@@ -72,14 +72,14 @@ class DiceMetric(CumulativeIterationMetric):
         if not torch.all(y_pred.byte() == y_pred):
             warnings.warn("y_pred should be a binarized tensor.")
         if not torch.all(y.byte() == y):
-            raise ValueError("y should be a binarized tensor.")
+            warnings.warn("y should be a binarized tensor.")
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute dice (BxC) for each channel for each batch
         return compute_meandice(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_meandice`.
 

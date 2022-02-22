@@ -26,7 +26,17 @@ from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple_rep
 from monai.utils.enums import TransformBackends
 
-__all__ = ["RandSmoothFieldAdjustContrastd", "RandSmoothFieldAdjustIntensityd", "RandSmoothDeformd"]
+__all__ = [
+    "RandSmoothFieldAdjustContrastd",
+    "RandSmoothFieldAdjustIntensityd",
+    "RandSmoothDeformd",
+    "RandSmoothFieldAdjustContrastD",
+    "RandSmoothFieldAdjustIntensityD",
+    "RandSmoothDeformD",
+    "RandSmoothFieldAdjustContrastDict",
+    "RandSmoothFieldAdjustIntensityDict",
+    "RandSmoothDeformDict",
+]
 
 
 InterpolateModeType = Union[InterpolateMode, str]
@@ -276,3 +286,8 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
             d[key] = self.trans(d[key], False, self.trans.device)
 
         return d
+
+
+RandSmoothDeformD = RandSmoothDeformDict = RandSmoothDeformd
+RandSmoothFieldAdjustIntensityD = RandSmoothFieldAdjustIntensityDict = RandSmoothFieldAdjustIntensityd
+RandSmoothFieldAdjustContrastD = RandSmoothFieldAdjustContrastDict = RandSmoothFieldAdjustContrastd
