@@ -55,7 +55,7 @@ for p in TEST_NDARRAYS:
 
     TESTS.append(
         [
-            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": [2, 1], "align_image_edge": True},
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": [2, 1], "allow_smaller": True},
             p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
             p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
         ]
@@ -63,7 +63,7 @@ for p in TEST_NDARRAYS:
 
     TESTS.append(
         [
-            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": [2, 1], "align_image_edge": False},
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": [2, 1], "allow_smaller": False},
             p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
             p([[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
         ]

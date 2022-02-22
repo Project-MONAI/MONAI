@@ -691,7 +691,7 @@ class CropForeground(Transform):
         select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
         margin: Union[Sequence[int], int] = 0,
-        align_image_edge: bool = True,
+        allow_smaller: bool = True,
         return_coords: bool = False,
         k_divisible: Union[Sequence[int], int] = 1,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
@@ -703,8 +703,9 @@ class CropForeground(Transform):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-            align_image_edge: when computing cropping size with `margin`, whether to align with input image edges.
-                default to `True`, if the margined size is bigger than image size, will pad with specified `mode`.
+            allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
+                than box size, default to `True`. if the margined size is bigger than image size, will pad with
+                specified `mode`.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
@@ -721,7 +722,7 @@ class CropForeground(Transform):
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
-        self.align_image_edge = align_image_edge
+        self.allow_smaller = allow_smaller
         self.return_coords = return_coords
         self.k_divisible = k_divisible
         self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
@@ -734,7 +735,7 @@ class CropForeground(Transform):
 
         """
         box_start, box_end = generate_spatial_bounding_box(
-            img, self.select_fn, self.channel_indices, self.margin, self.align_image_edge
+            img, self.select_fn, self.channel_indices, self.margin, self.allow_smaller
         )
         box_start_, *_ = convert_data_type(box_start, output_type=np.ndarray, dtype=np.int16, wrap_sequence=True)
         box_end_, *_ = convert_data_type(box_end, output_type=np.ndarray, dtype=np.int16, wrap_sequence=True)
