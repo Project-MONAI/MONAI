@@ -10,7 +10,6 @@
 # limitations under the License.
 
 
-import math
 from typing import Sequence, Union
 
 import torch
