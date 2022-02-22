@@ -2084,6 +2084,7 @@ class IntensityRemap(RandomizableTransform):
             correspond to the old intensities, and the values are the new
             values.
     """
+
     def __init__(self, kernel_size: int = 30, slope: float = 0.7):
 
         super().__init__()
@@ -2100,11 +2101,9 @@ class IntensityRemap(RandomizableTransform):
         img = img.clone()
         # sample noise
         vals_to_sample = torch.unique(img).tolist()
-        noise = torch.from_numpy(
-            self.R.choice(vals_to_sample, len(vals_to_sample) - 1 + self.kernel_size)
-        )
+        noise = torch.from_numpy(self.R.choice(vals_to_sample, len(vals_to_sample) - 1 + self.kernel_size))
         # smooth
-        noise = AvgPool1d(self.kernel_size, stride = 1)(noise.unsqueeze(0)).squeeze()
+        noise = AvgPool1d(self.kernel_size, stride=1)(noise.unsqueeze(0)).squeeze()
         # add linear component
         grid = torch.arange(len(noise)) / len(noise)
         noise += self.slope * grid
@@ -2140,6 +2139,7 @@ class RandIntensityRemap(RandomizableTransform):
             and tune the kernel_size parameter instead.
         channel_wise: set to True to treat each channel independently.
     """
+
     def __init__(self, prob: float = 0.1, kernel_size: int = 30, slope: float = 0.7, channel_wise: bool = True):
 
         RandomizableTransform.__init__(self, prob=prob)
@@ -2156,8 +2156,11 @@ class RandIntensityRemap(RandomizableTransform):
         if self._do_transform:
             if self.channel_wise:
                 img = torch.stack(
-                    [IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img[i])
-                                            for i in range(len(img))])
+                    [
+                        IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img[i])
+                        for i in range(len(img))
+                    ]
+                )
             else:
                 img = IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img)
 
