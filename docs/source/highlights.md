@@ -472,8 +472,8 @@ For example:
 train_transforms = [
     LoadImaged(...),
     AddChanneld(...),
-    Spacingd(...),
     Orientationd(...),
+    Spacingd(...),
     ScaleIntensityRanged(...),
     EnsureTyped(..., data_type="tensor"),
     ToDeviced(..., device="cuda:0"),
