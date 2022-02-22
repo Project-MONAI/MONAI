@@ -22,7 +22,7 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
 def to_onehot(x):
-    out = moveaxis(F.one_hot(torch.as_tensor(x))[0], -1, 0)
+    out = moveaxis(F.one_hot(torch.as_tensor(x).long())[0], -1, 0)
     out, *_ = convert_to_dst_type(out, x)
     return out
 
