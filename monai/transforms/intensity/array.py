@@ -2063,25 +2063,25 @@ class IntensityRemap(RandomizableTransform):
     pixel is replaced by a new values coming from an intensity remappping
     curve.
 
-    The remapping curve is created by uniformly sampling values from the 
-    possible intensities for the input image and then adding a linear 
+    The remapping curve is created by uniformly sampling values from the
+    possible intensities for the input image and then adding a linear
     component. The curve is the rescaled to the input image intensity range.
 
     Intended to be used as a means to data augmentation via:
     :py:class:`monai.transforms.RandIntensityRemap`.
 
-    Implementation is described in the work: 
-    `Intensity augmentation for domain transfer of whole breast segmentation 
-    in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_. 
+    Implementation is described in the work:
+    `Intensity augmentation for domain transfer of whole breast segmentation
+    in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_.
 
     Args:
-        kernel_size: window size for averaging operation for the remapping 
+        kernel_size: window size for averaging operation for the remapping
             curve.
         slope: slope of the linear component. Easiest to leave default value
             and tune the kernel_size parameter instead.
         return_map: set to True for the transform to return a dictionary version
             of the lookup table used in the intensity remapping. The keys
-            correspond to the old intensities, and the values are the new 
+            correspond to the old intensities, and the values are the new
             values.
     """
     def __init__(self, kernel_size: int = 30, slope: float = 0.7):
@@ -2107,7 +2107,7 @@ class IntensityRemap(RandomizableTransform):
         noise = AvgPool1d(self.kernel_size, stride = 1)(noise.unsqueeze(0)).squeeze()
         # add linear component
         grid = torch.arange(len(noise)) / len(noise)
-        noise += self.slope * grid 
+        noise += self.slope * grid
         # rescale
         noise = (noise - noise.min()) / (noise.max() - noise.min()) * img.max() + img.min()
 
@@ -2124,17 +2124,17 @@ class RandIntensityRemap(RandomizableTransform):
     pixel is replaced by a new values coming from an intensity remappping
     curve.
 
-    The remapping curve is created by uniformly sampling values from the 
-    possible intensities for the input image and then adding a linear 
+    The remapping curve is created by uniformly sampling values from the
+    possible intensities for the input image and then adding a linear
     component. The curve is the rescaled to the input image intensity range.
 
-    Implementation is described in the work: 
-    `Intensity augmentation for domain transfer of whole breast segmentation 
-    in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_. 
+    Implementation is described in the work:
+    `Intensity augmentation for domain transfer of whole breast segmentation
+    in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_.
 
     Args:
         prob: probability of applying the transform.
-        kernel_size: window size for averaging operation for the remapping 
+        kernel_size: window size for averaging operation for the remapping
             curve.
         slope: slope of the linear component. Easiest to leave default value
             and tune the kernel_size parameter instead.
@@ -2146,7 +2146,7 @@ class RandIntensityRemap(RandomizableTransform):
         self.kernel_size = kernel_size
         self.slope = slope
         self.channel_wise = True
-        
+
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -2156,9 +2156,9 @@ class RandIntensityRemap(RandomizableTransform):
         if self._do_transform:
             if self.channel_wise:
                 img = torch.stack(
-                    [IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img[i]) 
+                    [IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img[i])
                                             for i in range(len(img))])
             else:
                 img = IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img)
-  
+
         return img
