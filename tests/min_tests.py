@@ -131,6 +131,8 @@ def run_testsuit():
         "test_randtorchvisiond",
         "test_resize",
         "test_resized",
+        "test_resample_to_match",
+        "test_resample_to_matchd",
         "test_rotate",
         "test_rotated",
         "test_save_image",
