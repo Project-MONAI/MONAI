@@ -16,7 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from abc import abstractmethod
 from collections.abc import Iterable
 from functools import partial
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -2103,7 +2103,7 @@ class IntensityRemap(RandomizableTransform):
         vals_to_sample = torch.unique(img).tolist()
         noise = torch.from_numpy(self.R.choice(vals_to_sample, len(vals_to_sample) - 1 + self.kernel_size))
         # smooth
-        noise = AvgPool1d(self.kernel_size, stride=1)(noise.unsqueeze(0)).squeeze()
+        noise = torch.nn.AvgPool1d(self.kernel_size, stride=1)(noise.unsqueeze(0)).squeeze()
         # add linear component
         grid = torch.arange(len(noise)) / len(noise)
         noise += self.slope * grid

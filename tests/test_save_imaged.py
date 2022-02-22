@@ -35,9 +35,19 @@ TEST_CASE_2 = [
     False,
 ]
 
+TEST_CASE_3 = [
+    {
+        "img": torch.randint(0, 255, (1, 2, 3, 4)),
+        PostFix.meta("img"): {"filename_or_obj": "testfile0.nrrd"},
+        "patch_index": 6,
+    },
+    ".nrrd",
+    False,
+]
+
 
 class TestSaveImaged(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_saved_content(self, test_data, output_ext, resample):
         with tempfile.TemporaryDirectory() as tempdir:
             trans = SaveImaged(

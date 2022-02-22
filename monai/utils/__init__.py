@@ -70,6 +70,7 @@ from .module import (
     get_full_type_name,
     get_package_version,
     get_torch_version_tuple,
+    instantiate,
     load_submodules,
     look_up_option,
     min_version,

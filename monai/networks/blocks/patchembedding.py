@@ -80,7 +80,7 @@ class PatchEmbeddingBlock(nn.Module):
             if self.pos_embed == "perceptron" and m % p != 0:
                 raise ValueError("patch_size should be divisible by img_size for perceptron.")
         self.n_patches = np.prod([im_d // p_d for im_d, p_d in zip(img_size, patch_size)])
-        self.patch_dim = in_channels * np.prod(patch_size)
+        self.patch_dim = int(in_channels * np.prod(patch_size))
 
         self.patch_embeddings: nn.Module
         if self.pos_embed == "conv":
