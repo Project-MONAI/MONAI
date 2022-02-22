@@ -15,7 +15,6 @@ from unittest import skipUnless
 from parameterized import parameterized
 
 from monai.apps import ConfigParser
-from monai.apps.manifest.config_item import ConfigComponent
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
@@ -95,21 +94,16 @@ class TestConfigComponent(unittest.TestCase):
         config = parser.get_config()
         config["transform"]["<args>"]["transforms"][0]["<args>"]["keys"] = "label"
         parser.parse_config()
-        self.assertEqual(parser.get_resolved_content(id="transform#<args>#transforms#0").keys[0], "label")
+        self.assertEqual(parser.get_parsed_content(id="transform#<args>#transforms#0").keys[0], "label")
 
         for id, cls in zip(expected_ids, output_types):
-            item = parser.get_config_item(id=id)
-            # test lazy instantiation with resolved config item
-            if isinstance(item, ConfigComponent):
-                self.assertTrue(isinstance(item.instantiate(), cls))
-            # test get instance directly
-            self.assertTrue(isinstance(parser.get_resolved_content(id), cls))
+            self.assertTrue(isinstance(parser.get_parsed_content(id), cls))
 
     @parameterized.expand([TEST_CASE_2])
     def test_function(self, config):
         parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
-            func = parser.get_resolved_content(id=id)
+            func = parser.get_parsed_content(id=id)
             self.assertTrue(id in parser.reference_resolver.resolved_content)
             if id == "error_func":
                 with self.assertRaises(TypeError):

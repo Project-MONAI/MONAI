@@ -19,13 +19,13 @@ from monai.apps.manifest.reference_resolver import ReferenceResolver
 
 class ConfigParser:
     """
-    Parse a config content, access or update the items of config content with unique ID.
+    Parse a config source, access or update the content of the config source with unique ID.
     A typical usage is a config dictionary contains all the necessary information to define training workflow in JSON.
-    For more details of the config format, please check :py:class:`monai.apps.ConfigComponent`.
+    For more details of the config format, please check :py:class:`monai.apps.ConfigItem`.
 
-    It can recursively parse the config content, treat every item as a `ConfigItem` with unique ID, the ID is joined
-    by "#" mark for nested content. For example:
-    The config content `{"preprocessing": [{"<name>": "LoadImage", "<args>": {"keys": "image"}}]}` is parsed as items:
+    It can recursively parse the config source, treat every item as a `ConfigItem` with unique ID, the ID is joined
+    by "#" mark for nested items. For example:
+    The config source `{"preprocessing": [{"<name>": "LoadImage", "<args>": {"keys": "image"}}]}` is parsed as items:
     - `id="preprocessing", config=[{"<name>": "LoadImage", "<args>": {"keys": "image"}}]`
     - `id="preprocessing#0", config={"<name>": "LoadImage", "<args>": {"keys": "image"}}`
     - `id="preprocessing#0#<name>", config="LoadImage"`
@@ -34,8 +34,8 @@ class ConfigParser:
 
     A typical workflow of config parsing is as follows:
 
-    - Initialize `ConfigParser` with the `config` content.
-    - Call ``get_resolved_content()`` to get expected component with `id`, which is automatically parsed.
+    - Initialize `ConfigParser` with the `config` source.
+    - Call ``get_parsed_content()`` to get expected component with `id`, which will be automatically parsed.
 
     .. code-block:: python
 
@@ -45,12 +45,10 @@ class ConfigParser:
             "trainer": {"<name>": "SupervisedTrainer", "<args>": {"network": "@net", ...}},
         }
         parser = ConfigParser(config=config)
-        trainer = parser.get_resolved_content(id="trainer")
+        trainer = parser.get_parsed_content(id="trainer")
         trainer.run()
 
-    It's also flexible to modify config content and do `lazy instantiation` from 2 levels:
-
-    1. Modify original config content, then totally parse again:
+    It's also flexible to modify config source at runtime and parse again:
 
     .. code-block:: python
 
@@ -58,22 +56,12 @@ class ConfigParser:
         config = parser.get_config()
         config["processing"][2]["<args>"]["interp_order"] = "bilinear"
         parser.parse_config()
-
-    2. After parsing, all the config items are independent `ConfigItem`, get the expected `ConfigItem`.
-    Its config content is already resolved references, can modify and use it directly:
-
-    .. code-block:: python
-
-        parser = ConfigParser(...)
-        trainer_config_item = parser.get_config_item(id="trainer")
-        config = trainer_config_item.get_config()
-        config["max_epochs"] = 100
-        trainer = trainer_config_item.instantiate()
+        trainer = parser.get_parsed_content(id="trainer")
         trainer.run()
 
     Args:
-        config: input config content to parse.
-        id: specified ID name for the config content.
+        config: input config source to parse.
+        id: specified ID name for the config sources.
         excludes: when importing modules to instantiate components, if any string of the `excludes` exists
             in the full module name, don't import this module.
         globals: pre-import packages as global variables to evaluate the python `eval` expressions.
@@ -103,7 +91,7 @@ class ConfigParser:
 
     def update_config(self, content: Dict[str, Any]):
         """
-        Update config content for the parser, every `key` and `value` in the `content` is corresponding to
+        Update config source for the parser, every `key` and `value` in the `content` is corresponding to
         the target `id` position and new config value in order.
         Nested config id is joined by "#" mark, use index from 0 for list.
         For example: "transforms#5", "transforms#5#<args>#keys", etc.
@@ -124,12 +112,12 @@ class ConfigParser:
 
     def get_config(self, id: str = ""):
         """
-        Get config content of current config, if `id` provided, get the config item with `id`.
+        Get config source in the parser, if `id` provided, get the config item with `id`.
 
         Args:
             id: id name to specify the expected position, nested config is joined by "#" mark, use index from 0 for list.
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
-                default to get all the config content.
+                default to get all the config source data.
 
         """
         config = self.config
@@ -141,10 +129,10 @@ class ConfigParser:
 
     def _do_parse(self, config, id: str = ""):
         """
-        Recursively parse the nested config content, add every config item to the resolver.
+        Recursively parse the nested data in config source, add every config item to the resolver.
 
         Args:
-            config: config content to parse.
+            config: config source to parse.
             id: id name of current config item, nested ids are joined by "#" mark. defaults to None.
                 for example: "transforms#5", "transforms#5#<args>#keys", etc.
                 default to empty string.
@@ -168,18 +156,20 @@ class ConfigParser:
 
     def parse_config(self):
         """
-        Parse the config content, add every config item to the resolver.
+        Parse the config source, add every config item to the resolver.
 
         """
         self.reference_resolver.reset()
         self._do_parse(config=self.config)
 
-    def get_resolved_content(self, id: str):
+    def get_parsed_content(self, id: str):
         """
-        Get the resolved result of config items with specified id, if not resolved, try to resolve it first.
-        If the config item is instantiable, the resolved result is the instance.
-        If the config item is an expression, the resolved result is output of when evaluating the expression.
-        Otherwise, the resolved result is the updated config content of the config item.
+        Get the parsed result of config item with specified id, if having references not resolved,
+        try to resolve it first.
+
+        If the config item is `ConfigComponent`, the parsed result is the instance.
+        If the config item is `ConfigExpression`, the parsed result is output of evaluating the expression.
+        Otherwise, the parsed result is the updated `self.config` data of `ConfigItem`.
 
         Args:
             id: id name of expected config item, nested ids are joined by "#" mark.
@@ -187,15 +177,3 @@ class ConfigParser:
 
         """
         return self.reference_resolver.get_resolved_content(id=id)
-
-    def get_config_item(self, id: str):
-        """
-        Get the parsed config item which is already resolved all the references.
-        It can be used to modify the config in other program and support lazy instantiation.
-
-        Args:
-            id: id name of expected config component, nested ids are joined by "#" mark.
-                for example: "transforms#5", "transforms#5#<args>#keys", etc.
-
-        """
-        return self.reference_resolver.get_item(id=id, resolve=True)
