@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -154,7 +154,7 @@ class TestCompose(unittest.TestCase):
             c.randomize()
 
     def test_err_msg(self):
-        transforms = Compose([abs, AddChannel(), round])
+        transforms = Compose([abs, AddChannel(), round], log_stats=False)
         with self.assertRaisesRegex(Exception, "AddChannel"):
             transforms(42.1)
 

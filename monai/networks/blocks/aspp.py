@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -86,7 +86,7 @@ class SimpleASPP(nn.Module):
 
         out_channels = conv_out_channels * len(pads)  # final conv. output channels
         self.conv_k1 = Convolution(
-            dimensions=spatial_dims,
+            spatial_dims=spatial_dims,
             in_channels=out_channels,
             out_channels=out_channels,
             kernel_size=1,
