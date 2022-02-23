@@ -124,7 +124,7 @@ class ReferenceResolver:
                     raise ValueError(f"the referring item `@{d}` is not defined in the config content.") from err
                 # recursively resolve the reference first
                 self._resolve_one_item(id=d, waiting_list=waiting_list, **kwargs)
-                waiting_list.remove(d)
+                waiting_list.discard(d)
 
         # all references are resolved, then try to resolve current config item
         new_config = self.update_config_with_refs(config=item_config, id=id, refs=self.resolved_content)
