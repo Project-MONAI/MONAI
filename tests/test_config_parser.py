@@ -77,25 +77,32 @@ TEST_CASE_2 = [
 
 class TestConfigComponent(unittest.TestCase):
     def test_config_content(self):
-        parser = ConfigParser(config={})
         test_config = {"preprocessing": [{"<name>": "LoadImage"}], "dataset": {"<name>": "Dataset"}}
-        parser.update_config(content={"": test_config})
-        self.assertEqual(str(parser.get_config()), str(test_config))
-        parser.update_config(content={"dataset": {"<name>": "CacheDataset"}})
-        self.assertDictEqual(parser.get_config(id="dataset"), {"<name>": "CacheDataset"})
-        parser.update_config(content={"dataset#<name>": "Dataset"})
-        self.assertEqual(parser.get_config(id="dataset#<name>"), "Dataset")
+        parser = ConfigParser(config=test_config)
+        # test `get`, `set`, `__getitem__`, `__setitem__`
+        self.assertEqual(str(parser.get()), str(test_config))
+        parser.set(config=test_config)
+        self.assertListEqual(parser["preprocessing"], test_config["preprocessing"])
+        parser["dataset"] = {"<name>": "CacheDataset"}
+        self.assertEqual(parser["dataset"]["<name>"], "CacheDataset")
+        # test nested ids
+        parser["dataset#<name>"] = "Dataset"
+        self.assertEqual(parser["dataset#<name>"], "Dataset")
+        # test int id
+        parser.set(["test1", "test2", "test3"])
+        parser[1] = "test4"
+        self.assertEqual(parser[1], "test4")
 
     @parameterized.expand([TEST_CASE_1])
     @skipUnless(has_tv, "Requires torchvision >= 0.8.0.")
     def test_parse(self, config, expected_ids, output_types):
         parser = ConfigParser(config=config, globals={"monai": "monai"})
         # test lazy instantiation with original config content
-        config = parser.get_config()
-        config["transform"]["<args>"]["transforms"][0]["<args>"]["keys"] = "label"
-        parser.parse_config()
-        self.assertEqual(parser.get_parsed_content(id="transform#<args>#transforms#0").keys[0], "label")
-
+        parser["transform"]["<args>"]["transforms"][0]["<args>"]["keys"] = "label1"
+        self.assertEqual(parser.get_parsed_content(id="transform#<args>#transforms#0").keys[0], "label1")
+        # test nested id
+        parser["transform#<args>#transforms#0#<args>#keys"] = "label2"
+        self.assertEqual(parser.get_parsed_content(id="transform#<args>#transforms#0").keys[0], "label2")
         for id, cls in zip(expected_ids, output_types):
             self.assertTrue(isinstance(parser.get_parsed_content(id), cls))
 

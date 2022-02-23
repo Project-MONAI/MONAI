@@ -35,7 +35,7 @@ class ConfigParser:
     A typical workflow of config parsing is as follows:
 
     - Initialize `ConfigParser` with the `config` source.
-    - Call ``get_parsed_content()`` to get expected component with `id`, which will be automatically parsed.
+    - Call ``get_parsed_content()`` to get expected component with `id`.
 
     .. code-block:: python
 
@@ -53,15 +53,12 @@ class ConfigParser:
     .. code-block:: python
 
         parser = ConfigParser(...)
-        config = parser.get_config()
-        config["processing"][2]["<args>"]["interp_order"] = "bilinear"
-        parser.parse_config()
+        parser["processing"][2]["<args>"]["interp_order"] = "bilinear"
         trainer = parser.get_parsed_content(id="trainer")
         trainer.run()
 
     Args:
         config: input config source to parse.
-        id: specified ID name for the config sources.
         excludes: when importing modules to instantiate components, if any string of the `excludes` exists
             in the full module name, don't import this module.
         globals: pre-import packages as global variables to evaluate the python `eval` expressions.
@@ -87,54 +84,80 @@ class ConfigParser:
 
         self.locator = ComponentLocator(excludes=excludes)
         self.reference_resolver = ReferenceResolver()
-        self.update_config({"": config})
+        self.set(config=config)
 
-    def update_config(self, content: Dict[str, Any]):
+    def __getitem__(self, id: Union[str, int]):
         """
-        Update config source for the parser, every `key` and `value` in the `content` is corresponding to
-        the target `id` position and new config value in order.
-        Nested config id is joined by "#" mark, use index from 0 for list.
-        For example: "transforms#5", "transforms#5#<args>#keys", etc.
-        If `id` is `""`, replace `self.config`.
-
-        """
-        for id, config in content.items():
-            if id != "" and isinstance(self.config, (dict, list)):
-                keys = id.split("#")
-                # get the last second config item and replace it
-                last_id = "#".join(keys[:-1])
-                conf_ = self.get_config(id=last_id)
-                conf_[keys[-1] if isinstance(conf_, dict) else int(keys[-1])] = config
-            else:
-                self.config = config
-        # must totally parse again as the content is modified
-        self.parse_config()
-
-    def get_config(self, id: str = ""):
-        """
-        Get config source in the parser, if `id` provided, get the config item with `id`.
+        Get config source in the parser with provided `id` for target position.
 
         Args:
-            id: id name to specify the expected position, nested config is joined by "#" mark, use index from 0 for list.
-                for example: "transforms#5", "transforms#5#<args>#keys", etc.
-                default to get all the config source data.
+            id: id name to specify the expected position, nested config is joined by "#" mark,
+                use string or int index from 0 for list, for example: "transforms#5", "transforms#5#<args>#keys".
+                if `id=""`, get all the config source data in `self.config`.
 
         """
         config = self.config
-        if id != "" and isinstance(config, (dict, list)):
-            keys = id.split("#")
+        if id != "":
+            keys = str(id).split("#")
             for k in keys:
+                if not isinstance(config, (dict, list)):
+                    raise ValueError(f"config must be dict or list for key `{k}`, but got: {config}.")
                 config = config[k] if isinstance(config, dict) else config[int(k)]
         return config
 
+    def __setitem__(self, id: Union[str, int], config: Any):
+        """
+        Set config source for the parser at target position `id``.
+        Nested config `id` is joined by "#" mark, use string or int index from 0 for list item.
+        For example: "transforms#5", "transforms#5#<args>#keys".
+        If `id` is `""`, replace all the config source data in `self.config`.
+        Must totally parse again as the config source is modified.
+
+        """
+        if id != "":
+            keys = str(id).split("#")
+            # get the last second config item and replace it
+            last_id = "#".join(keys[:-1])
+            conf_ = self[last_id]
+            conf_[keys[-1] if isinstance(conf_, dict) else int(keys[-1])] = config
+        else:
+            self.config = config
+        self.reference_resolver.reset()
+
+    def get(self, id: str = "", default: Optional[Any] = None):
+        """
+        Get config source in the parser with provided `id` for target position.
+
+        Args:
+            id: id name to specify the expected position, nested config is joined by "#" mark, use index from 0 for list.
+                for example: "transforms#5", "transforms#5#<args>#keys".
+                default to get all the config source data in `self.config`.
+            default: default value to return if the specified `id` is invalid.
+
+        """
+        try:
+            return self[id]
+        except KeyError:
+            return default
+
+    def set(self, config: Any, id: str = ""):
+        """
+        Set config source for the parser at target position `id``, nested config id is joined by "#" mark,
+        use index from 0 for list. For example: "transforms#5", "transforms#5#<args>#keys".
+        If `id` is `""`, replace all the config source data in `self.config`.
+        Must totally parse again as the config source is modified.
+
+        """
+        self[id] = config
+
     def _do_parse(self, config, id: str = ""):
         """
-        Recursively parse the nested data in config source, add every config item to the resolver.
+        Recursively parse the nested data in config source, add every item as `ConfigItem` to the resolver.
 
         Args:
             config: config source to parse.
             id: id name of current config item, nested ids are joined by "#" mark. defaults to None.
-                for example: "transforms#5", "transforms#5#<args>#keys", etc.
+                for example: "transforms#5", "transforms#5#<args>#keys".
                 default to empty string.
 
         """
@@ -154,26 +177,28 @@ class ConfigParser:
             else:
                 self.reference_resolver.add_item(ConfigItem(config=item_conf, id=id))
 
-    def parse_config(self):
+    def parse(self):
         """
-        Parse the config source, add every config item to the resolver.
+        Recursively parse the config source, add every item as `ConfigItem` to the resolver.
 
         """
-        self.reference_resolver.reset()
         self._do_parse(config=self.config)
 
     def get_parsed_content(self, id: str):
         """
-        Get the parsed result of config item with specified id, if having references not resolved,
+        Get the parsed result of `ConfigItem` with specified `id`, if having references not resolved,
         try to resolve it first.
 
-        If the config item is `ConfigComponent`, the parsed result is the instance.
-        If the config item is `ConfigExpression`, the parsed result is output of evaluating the expression.
+        If the item is `ConfigComponent`, the parsed result is the instance.
+        If the item is `ConfigExpression`, the parsed result is output of evaluating the expression.
         Otherwise, the parsed result is the updated `self.config` data of `ConfigItem`.
 
         Args:
-            id: id name of expected config item, nested ids are joined by "#" mark.
-                for example: "transforms#5", "transforms#5#<args>#keys", etc.
+            id: id name of expected `ConfigItem`, nested items are joined by "#" mark as the `id`.
+                for example: "transforms#5", "transforms#5#<args>#keys".
 
         """
+        if len(self.reference_resolver.resolved_content) == 0:
+            # not parsed the config source yet, parse it
+            self.parse()
         return self.reference_resolver.get_resolved_content(id=id)
