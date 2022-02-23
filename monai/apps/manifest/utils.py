@@ -73,7 +73,7 @@ def parse_config_files(config_file: str, meta_file: str, override: Dict = {}) ->
     Args:
         config_file: filepath of the config file.
         meta_file: filepath of the metadata file.
-        override: dict of `{id: value}` pairs to override the config content.
+        override: dict of `{id: value}` pairs to override or add the config content.
 
     """
     config = read_config(config_file)
@@ -85,11 +85,9 @@ def parse_config_files(config_file: str, meta_file: str, override: Dict = {}) ->
     parser = ConfigParser(config=config)
 
     if len(override) > 0:
-        for id in override:
-            v = override[id]
+        for id, v in override.items():
             if isinstance(v, str) and v.startswith("<file>"):
                 v = read_config(v[6:])
-                override[id] = v
-        parser.update_config(override)
+            parser[id] = v
 
     return parser
