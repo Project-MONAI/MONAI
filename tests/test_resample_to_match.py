@@ -14,6 +14,8 @@ import os
 import tempfile
 import unittest
 
+import nibabel as nib
+import numpy as np
 from parameterized import parameterized
 
 from monai.data.image_reader import ITKReader, NibabelReader
@@ -47,7 +49,9 @@ class TestResampleToMatch(unittest.TestCase):
             meta["filename_or_obj"] = "file3.nii.gz"
             saver({"im3": im_mod, "im3_meta_dict": meta})
 
-            assert_allclose(im_mod.shape, data["im1"].shape)
+            saved = nib.load(os.path.join(temp_dir, meta["filename_or_obj"]))
+            assert_allclose(im_mod.shape[1:], saved.shape)
+            assert_allclose(saved.header["dim"][:4], np.array([3, 384, 384, 19]))
 
 
 if __name__ == "__main__":

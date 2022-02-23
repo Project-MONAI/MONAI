@@ -305,12 +305,6 @@ class ResampleToMatch(SpatialResample):
         )
         dst_meta = deepcopy(dst_meta)
         dst_meta["affine"] = updated_affine
-        if "spatial_shape" in dst_meta:
-            dst_meta["spatial_shape"] = src_meta.get("spatial_shape")
-        if "dim" in dst_meta:
-            dst_meta["dim"] = src_meta.get("dim", [])
-        if "pixdim" in dst_meta:
-            dst_meta["pixdim"] = src_meta.get("pixdim", [])
         return img, dst_meta
 
 
