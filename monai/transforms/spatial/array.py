@@ -293,13 +293,11 @@ class ResampleToMatch(SpatialResample):
         dtype = dtype or self.dtype
         src_affine = src_meta.get("affine")
         dst_affine = dst_meta.get("affine")
-        ndim = len(img.shape[1:])
-        spatial_size = dst_meta.get("dim", [])[1 : ndim + 2]
         img, updated_affine = super().__call__(
             img=img,
             src_affine=src_affine,
             dst_affine=dst_affine,
-            spatial_size=spatial_size,
+            spatial_size=dst_meta.get("spatial_shape"),
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
@@ -307,6 +305,8 @@ class ResampleToMatch(SpatialResample):
         )
         dst_meta = deepcopy(dst_meta)
         dst_meta["affine"] = updated_affine
+        if "spatial_shape" in dst_meta:
+            dst_meta["spatial_shape"] = src_meta.get("spatial_shape")
         if "dim" in dst_meta:
             dst_meta["dim"] = src_meta.get("dim", [])
         if "pixdim" in dst_meta:
