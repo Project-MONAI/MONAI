@@ -116,7 +116,7 @@ class ReferenceResolver:
             if d not in self.resolved_content:
                 # this referring item is not resolved
                 if d not in self.items:
-                    raise ValueError(f"the referring item `{d}` is not defined in config.")
+                    raise ValueError(f"the referring item `{d}` is not defined in the config content.")
                 # recursively resolve the reference first
                 self._resolve_one_item(id=d, waiting_list=waiting_list)
 
@@ -235,7 +235,7 @@ class ReferenceResolver:
         for idx, v in config.items() if isinstance(config, dict) else enumerate(config):
             sub_id = f"{id}#{idx}" if id != "" else f"{idx}"
             if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
-                updated = ReferenceResolver.update_config_with_refs(v, sub_id, refs_)
+                updated = refs_[sub_id]
             else:
                 updated = ReferenceResolver.update_config_with_refs(v, sub_id, refs_)
             ret.update({idx: updated}) if isinstance(ret, dict) else ret.append(updated)

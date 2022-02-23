@@ -105,6 +105,11 @@ class TestConfigComponent(unittest.TestCase):
         self.assertEqual(parser.get_parsed_content(id="transform#<args>#transforms#0").keys[0], "label2")
         for id, cls in zip(expected_ids, output_types):
             self.assertTrue(isinstance(parser.get_parsed_content(id), cls))
+        # test root content
+        root = parser.get_parsed_content(id="")
+        print("!!!!!!!!", root)
+        for v, cls in zip(root.values(), [Compose, Dataset, DataLoader]):
+            self.assertTrue(isinstance(v, cls))
 
     @parameterized.expand([TEST_CASE_2])
     def test_function(self, config):
