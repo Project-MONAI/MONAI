@@ -167,15 +167,14 @@ class ConfigParser:
                 sub_id = f"{id}#{k}" if id != "" else k
                 self._do_parse(config=v, id=sub_id)
 
-        if id != "":
-            # copy every config item to make them independent and add them to the resolver
-            item_conf = deepcopy(config)
-            if ConfigComponent.is_instantiable(item_conf):
-                self.reference_resolver.add_item(ConfigComponent(config=item_conf, id=id, locator=self.locator))
-            elif ConfigExpression.is_expression(item_conf):
-                self.reference_resolver.add_item(ConfigExpression(config=item_conf, id=id, globals=self.globals))
-            else:
-                self.reference_resolver.add_item(ConfigItem(config=item_conf, id=id))
+        # copy every config item to make them independent and add them to the resolver
+        item_conf = deepcopy(config)
+        if ConfigComponent.is_instantiable(item_conf):
+            self.reference_resolver.add_item(ConfigComponent(config=item_conf, id=id, locator=self.locator))
+        elif ConfigExpression.is_expression(item_conf):
+            self.reference_resolver.add_item(ConfigExpression(config=item_conf, id=id, globals=self.globals))
+        else:
+            self.reference_resolver.add_item(ConfigItem(config=item_conf, id=id))
 
     def parse(self):
         """

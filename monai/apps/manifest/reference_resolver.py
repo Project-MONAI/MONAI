@@ -64,8 +64,6 @@ class ReferenceResolver:
 
         """
         id = item.get_id()
-        if id == "":
-            raise ValueError("id should not be empty when resolving reference.")
         if id in self.items:
             warnings.warn(f"id '{id}' is already added.")
             return
