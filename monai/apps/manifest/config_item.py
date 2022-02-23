@@ -153,6 +153,9 @@ class ConfigItem:
         """
         return self.config
 
+    def __repr__(self) -> str:
+        return str(self.config)
+
 
 class ConfigComponent(ConfigItem, Instantiable):
     """

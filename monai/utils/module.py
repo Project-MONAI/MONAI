@@ -47,7 +47,7 @@ __all__ = [
 ]
 
 
-def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default="no_default"):
+def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default="no_default", print_all_options=True):
     """
     Look up the option in the supported collection and return the matched item.
     Raise a value error possibly with a guess of the closest match.
@@ -58,6 +58,7 @@ def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default
         default: If it is given, this method will return `default` when `opt_str` is not found,
             instead of raising a `ValueError`. Otherwise, it defaults to `"no_default"`,
             so that the method may raise a `ValueError`.
+        print_all_options: whether to print all available options when `opt_str` is not found. Defaults to True
 
     Examples:
 
@@ -113,12 +114,12 @@ def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default
         if edit_dist <= 3:
             edit_dists[key] = edit_dist
 
-    supported_msg = f"Available options are {set_to_check}.\n"
+    supported_msg = f"Available options are {set_to_check}.\n" if print_all_options else ""
     if edit_dists:
         guess_at_spelling = min(edit_dists, key=edit_dists.get)  # type: ignore
         raise ValueError(
             f"By '{opt_str}', did you mean '{guess_at_spelling}'?\n"
-            + f"'{opt_str}' is not a valid option.\n"
+            + f"'{opt_str}' is not a valid value.\n"
             + supported_msg
         )
     raise ValueError(f"Unsupported option '{opt_str}', " + supported_msg)

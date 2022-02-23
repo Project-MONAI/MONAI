@@ -107,7 +107,6 @@ class TestConfigComponent(unittest.TestCase):
             self.assertTrue(isinstance(parser.get_parsed_content(id), cls))
         # test root content
         root = parser.get_parsed_content(id="")
-        print("!!!!!!!!", root)
         for v, cls in zip(root.values(), [Compose, Dataset, DataLoader]):
             self.assertTrue(isinstance(v, cls))
 

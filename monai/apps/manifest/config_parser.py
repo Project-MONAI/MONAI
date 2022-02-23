@@ -19,53 +19,58 @@ from monai.apps.manifest.reference_resolver import ReferenceResolver
 
 class ConfigParser:
     """
-    Parse a config source, access or update the content of the config source with unique ID.
-    A typical usage is a config dictionary contains all the necessary information to define training workflow in JSON.
-    For more details of the config format, please check :py:class:`monai.apps.ConfigItem`.
+    The primary configuration parser. It traverses a structured config (in the form of nested Python dict or list),
+    creates ``ConfigItem``, and assign unique IDs according to the structures.
 
-    It can recursively parse the config source, treat every item as a `ConfigItem` with unique ID, the ID is joined
-    by "#" mark for nested items. For example:
-    The config source `{"preprocessing": [{"<name>": "LoadImage", "<args>": {"keys": "image"}}]}` is parsed as items:
-    - `id="preprocessing", config=[{"<name>": "LoadImage", "<args>": {"keys": "image"}}]`
-    - `id="preprocessing#0", config={"<name>": "LoadImage", "<args>": {"keys": "image"}}`
-    - `id="preprocessing#0#<name>", config="LoadImage"`
-    - `id="preprocessing#0#<args>", config={"keys": "image"}`
-    - `id="preprocessing#0#<args>#keys", config="image"`
-
+    This class provides convenient access to the set of ``ConfigItem`` of the config by ID.
     A typical workflow of config parsing is as follows:
 
-    - Initialize `ConfigParser` with the `config` source.
-    - Call ``get_parsed_content()`` to get expected component with `id`.
+        - Initialize ``ConfigParser`` with the ``config`` source.
+        - Call ``get_parsed_content()`` to get expected component with `id`.
 
     .. code-block:: python
+
+        from monai.apps import ConfigParser
+
 
         config = {
-            "preprocessing": {"<name>": "LoadImage"},
-            "net": {"<name>": "UNet", "<args>": ...},
-            "trainer": {"<name>": "SupervisedTrainer", "<args>": {"network": "@net", ...}},
+            "my_dims": 2,
+            "dims_1": "$@my_dims + 1",
+            "my_xform": {"<name>": "LoadImage"},
+            "my_net": {"<name>": "BasicUNet",
+                       "<args>": {"spatial_dims": "@dims_1", "in_channels": 1, "out_channels": 4}},
+            "trainer": {"<name>": "SupervisedTrainer",
+                        "<args>": {"network": "@my_net", "preprocessing": "@my_xform"}}
         }
-        parser = ConfigParser(config=config)
-        trainer = parser.get_parsed_content(id="trainer")
-        trainer.run()
+        # in the example $@my_dims + 1 is an expression, which adds 1 to the value of @my_dims
+        parser = ConfigParser(config)
 
-    It's also flexible to modify config source at runtime and parse again:
+        # get/set the configuration content, but do not instantiate the components
+        trainer = parser.get_parsed_content("trainer", instantiate=False)
+        print(trainer)
+        print(parser["my_net"]["<args>"]["in_channels"])  # original input channels 1
+        parser["my_net"]["<args>"]["in_channels"] = 4  # change input channels to 4
+        print(parser["my_net"]["<args>"]["in_channels"])
 
-    .. code-block:: python
+        # instantiate the network component
+        parser.parse(True)
+        net = parser.get_parsed_content("my_net", instantiate=True)
+        print(net)
 
-        parser = ConfigParser(...)
-        parser["processing"][2]["<args>"]["interp_order"] = "bilinear"
-        trainer = parser.get_parsed_content(id="trainer")
-        trainer.run()
 
     Args:
         config: input config source to parse.
-        excludes: when importing modules to instantiate components, if any string of the `excludes` exists
-            in the full module name, don't import this module.
-        globals: pre-import packages as global variables to evaluate the python `eval` expressions.
-            for example, pre-import `monai`, then execute `eval("monai.data.list_data_collate")`.
-            default to `{"monai": "monai", "torch": "torch", "np": "numpy"}` as `numpy` and `torch`
-            are MONAI mininum requirements.
-            if the value in global is string, will import it immediately.
+        excludes: when importing modules to instantiate components,
+            excluding components from modules specified in ``excludes``.
+        globals: pre-import packages as global variables to ``ConfigExpression``,
+            so that expressions, for example, ``"$monai.data.list_data_collate"`` can use ``monai`` modules.
+            The current supported globals and alias names are
+            ``{"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}``.
+            These are MONAI's minimal dependencies.
+
+    See also:
+
+        - :py:class:`monai.apps.ConfigItem`
 
     """
 
@@ -77,7 +82,7 @@ class ConfigParser:
     ):
         self.config = None
         self.globals: Dict[str, Any] = {}
-        globals = {"monai": "monai", "torch": "torch", "np": "numpy"} if globals is None else globals
+        globals = {"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"} if globals is None else globals
         if globals is not None:
             for k, v in globals.items():
                 self.globals[k] = importlib.import_module(v) if isinstance(v, str) else v
@@ -88,51 +93,57 @@ class ConfigParser:
 
     def __getitem__(self, id: Union[str, int]):
         """
-        Get config source in the parser with provided `id` for target position.
+        Get the config by id.
 
         Args:
-            id: id name to specify the expected position, nested config is joined by "#" mark,
-                use string or int index from 0 for list, for example: "transforms#5", "transforms#5#<args>#keys".
-                if `id=""`, get all the config source data in `self.config`.
+            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+                go one level further into the nested structures.
+                Use digits indexing from "0" for list or other strings for dict.
+                For example: ``"xform#5"``, ``"net#<args>#channels"``. ``""`` indicates the entire ``self.config``.
 
         """
+        if id == "":
+            return self.config
         config = self.config
-        if id != "":
-            keys = str(id).split("#")
-            for k in keys:
-                if not isinstance(config, (dict, list)):
-                    raise ValueError(f"config must be dict or list for key `{k}`, but got: {config}.")
-                config = config[k] if isinstance(config, dict) else config[int(k)]
+        for k in str(id).split("#"):
+            if not isinstance(config, (dict, list)):
+                raise ValueError(f"config must be dict or list for key `{k}`, but got {type(config)}: {config}.")
+            indexing = k if isinstance(config, dict) else int(k)
+            config = config[indexing]
         return config
 
     def __setitem__(self, id: Union[str, int], config: Any):
         """
-        Set config source for the parser at target position `id``.
-        Nested config `id` is joined by "#" mark, use string or int index from 0 for list item.
-        For example: "transforms#5", "transforms#5#<args>#keys".
-        If `id` is `""`, replace all the config source data in `self.config`.
-        Must totally parse again as the config source is modified.
+        Set config by ``id``.
+
+        Args:
+            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+                go one level further into the nested structures.
+                Use digits indexing from "0" for list or other strings for dict.
+                For example: ``"xform#5"``, ``"net#<args>#channels"``. ``""`` indicates the entire ``self.config``.
+            config: config to set at location ``id``.
 
         """
-        if id != "":
-            keys = str(id).split("#")
-            # get the last second config item and replace it
-            last_id = "#".join(keys[:-1])
-            conf_ = self[last_id]
-            conf_[keys[-1] if isinstance(conf_, dict) else int(keys[-1])] = config
-        else:
+        if id == "":
             self.config = config
+            self.reference_resolver.reset()
+            return
+        keys = str(id).split("#")
+        # get the last second config item and replace it
+        last_id = "#".join(keys[:-1])
+        conf_ = self[last_id]
+        indexing = keys[-1] if isinstance(conf_, dict) else int(keys[-1])
+        conf_[indexing] = config
         self.reference_resolver.reset()
+        return
 
     def get(self, id: str = "", default: Optional[Any] = None):
         """
-        Get config source in the parser with provided `id` for target position.
+        Get the config by id.
 
         Args:
-            id: id name to specify the expected position, nested config is joined by "#" mark, use index from 0 for list.
-                for example: "transforms#5", "transforms#5#<args>#keys".
-                default to get all the config source data in `self.config`.
-            default: default value to return if the specified `id` is invalid.
+            id: id to specify the expected position. See also :py:meth:`__getitem__`.
+            default: default value to return if the specified ``id`` is invalid.
 
         """
         try:
@@ -142,10 +153,7 @@ class ConfigParser:
 
     def set(self, config: Any, id: str = ""):
         """
-        Set config source for the parser at target position `id``, nested config id is joined by "#" mark,
-        use index from 0 for list. For example: "transforms#5", "transforms#5#<args>#keys".
-        If `id` is `""`, replace all the config source data in `self.config`.
-        Must totally parse again as the config source is modified.
+        Set config by ``id``. See also :py:meth:`__setitem__`.
 
         """
         self[id] = config
@@ -156,9 +164,10 @@ class ConfigParser:
 
         Args:
             config: config source to parse.
-            id: id name of current config item, nested ids are joined by "#" mark. defaults to None.
-                for example: "transforms#5", "transforms#5#<args>#keys".
-                default to empty string.
+            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+                go one level further into the nested structures.
+                Use digits indexing from "0" for list or other strings for dict.
+                For example: ``"xform#5"``, ``"net#<args>#channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if isinstance(config, (dict, list)):
@@ -176,28 +185,35 @@ class ConfigParser:
         else:
             self.reference_resolver.add_item(ConfigItem(config=item_conf, id=id))
 
-    def parse(self):
+    def parse(self, reset: bool = False):
         """
-        Recursively parse the config source, add every item as `ConfigItem` to the resolver.
-
-        """
-        self._do_parse(config=self.config)
-
-    def get_parsed_content(self, id: str):
-        """
-        Get the parsed result of `ConfigItem` with specified `id`, if having references not resolved,
-        try to resolve it first.
-
-        If the item is `ConfigComponent`, the parsed result is the instance.
-        If the item is `ConfigExpression`, the parsed result is output of evaluating the expression.
-        Otherwise, the parsed result is the updated `self.config` data of `ConfigItem`.
+        Recursively parse the config source, add every item as ``ConfigItem`` to the resolver.
 
         Args:
-            id: id name of expected `ConfigItem`, nested items are joined by "#" mark as the `id`.
-                for example: "transforms#5", "transforms#5#<args>#keys".
+            reset: whether to reset the ``reference_resolver`` before parsing. Defaults to False.
 
         """
-        if len(self.reference_resolver.resolved_content) == 0:
+        if reset:
+            self.reference_resolver.reset()
+        self._do_parse(config=self.config)
+
+    def get_parsed_content(self, id: str = "", **kwargs):
+        """
+        Get the parsed result of ``ConfigItem`` with the specified ``id``.
+
+            - If the item is ``ConfigComponent`` and ``instantiate=True``, the result is the instance.
+            - If the item is ``ConfigExpression`` and ``eval_expr=True``, the result is the evaluated output.
+
+        Args:
+            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+                go one level further into the nested structures.
+                Use digits indexing from "0" for list or other strings for dict.
+                For example: ``"xform#5"``, ``"net#<args>#channels"``. ``""`` indicates the entire ``self.config``.
+            kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
+                Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
+
+        """
+        if not self.reference_resolver.is_resolved():
             # not parsed the config source yet, parse it
             self.parse()
-        return self.reference_resolver.get_resolved_content(id=id)
+        return self.reference_resolver.get_resolved_content(id=id, **kwargs)

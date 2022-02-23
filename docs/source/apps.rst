@@ -46,6 +46,7 @@ Model Manifest
 
 .. autoclass:: ConfigParser
     :members:
+    :special-members: __getitem__, __setitem__
 
 .. autoclass:: ReferenceResolver
     :members:
