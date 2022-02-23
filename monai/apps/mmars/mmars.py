@@ -77,6 +77,7 @@ def _get_all_ngc_models(pattern, page_index=0, page_size=50):
     requests_get, has_requests = optional_import("requests", name="get")
     if has_requests:
         resp = requests_get(full_url)
+        resp.raise_for_status()
     else:
         raise ValueError("NGC API requires requests package.  Please install it.")
     model_list = json.loads(resp.text)
