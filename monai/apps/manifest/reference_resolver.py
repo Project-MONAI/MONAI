@@ -102,7 +102,10 @@ class ReferenceResolver:
                 Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
 
         """
-        item = self.items[id]  # if invalid id name, raise KeyError
+        try:
+            item = look_up_option(id, self.items, print_all_options=False)
+        except ValueError as err:
+            raise KeyError(f"id='{id}' is not found in the config resolver.") from err
         item_config = item.get_config()
 
         if waiting_list is None:

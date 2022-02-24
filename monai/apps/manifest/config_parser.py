@@ -92,6 +92,9 @@ class ConfigParser:
         self.reference_resolver = ReferenceResolver()
         self.set(config=config)
 
+    def __repr__(self):
+        return f"{self.config}"
+
     def __getitem__(self, id: Union[str, int]):
         """
         Get the config by id.
