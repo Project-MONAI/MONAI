@@ -68,7 +68,6 @@ class ReferenceResolver:
         """
         id = item.get_id()
         if id in self.items:
-            # warnings.warn(f"id '{id}' is already added.")
             return
         self.items[id] = item
 
@@ -84,6 +83,7 @@ class ReferenceResolver:
             resolve: whether to resolve the item if it is not resolved, default to False.
             kwargs: keyword arguments to pass to ``_resolve_one_item()``.
                 Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
+
         """
         if resolve and id not in self.resolved_content:
             self._resolve_one_item(id=id, **kwargs)
