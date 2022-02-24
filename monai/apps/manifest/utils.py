@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from distutils.util import strtobool
 import json
-from typing import Any, Dict, Tuple
+from distutils.util import strtobool
+from typing import Any, Dict, Optional, Tuple
+
 import yaml
 
 from monai.apps.manifest.config_parser import ConfigParser
@@ -62,7 +63,7 @@ def parse_id_value(pair: str) -> Tuple[str, Any]:
     return id, value
 
 
-def parse_config_files(config_file: str, meta_file: str, override: Dict = {}) -> ConfigParser:
+def parse_config_files(config_file: str, meta_file: str, override: Optional[Dict] = None) -> ConfigParser:
     """
     Read the config file, metadata file and override with specified `id=value` pairs.
     Put metadata in the config content with key "<meta>".
@@ -84,7 +85,7 @@ def parse_config_files(config_file: str, meta_file: str, override: Dict = {}) ->
 
     parser = ConfigParser(config=config)
 
-    if len(override) > 0:
+    if override is not None:
         for id, v in override.items():
             if isinstance(v, str) and v.startswith("<file>"):
                 v = read_config(v[6:])

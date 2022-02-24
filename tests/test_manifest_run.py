@@ -11,14 +11,16 @@
 
 import json
 import logging
-import sys
 import os
-import unittest
-import numpy as np
+import sys
 import tempfile
-import nibabel as nib
+import unittest
 
+import nibabel as nib
+import numpy as np
+import yaml
 from parameterized import parameterized
+
 from monai.transforms import LoadImage
 
 TEST_CASE_1 = [
@@ -33,93 +35,49 @@ TEST_CASE_1 = [
                 "channels": [16, 32, 64, 128, 256],
                 "strides": [2, 2, 2, 2],
                 "num_res_units": 2,
-                "norm": "batch"
-            }
+                "norm": "batch",
+            },
         },
         "network": "$@network_def.to(@device)",
         "preprocessing": {
             "<name>": "Compose",
             "<args>": {
                 "transforms": [
-                    {
-                        "<name>": "LoadImaged",
-                        "<args>": {
-                            "keys": "image"
-                        }
-                    },
-                    {
-                        "<name>": "EnsureChannelFirstd",
-                        "<args>": {
-                            "keys": "image"
-                        }
-                    },
-                    {
-                        "<name>": "ScaleIntensityd",
-                        "<args>": {
-                            "keys": "image"
-                        }
-                    },
-                    {
-                        "<name>": "EnsureTyped",
-                        "<args>": {
-                            "keys": "image"
-                        }
-                    }
+                    {"<name>": "LoadImaged", "<args>": {"keys": "image"}},
+                    {"<name>": "EnsureChannelFirstd", "<args>": {"keys": "image"}},
+                    {"<name>": "ScaleIntensityd", "<args>": {"keys": "image"}},
+                    {"<name>": "EnsureTyped", "<args>": {"keys": "image"}},
                 ]
-            }
+            },
         },
         "dataset": {
             "<name>": "Dataset",
-            "<args>": {
-                "data": "@<meta>#datalist",  # test placeholger with `datalist`
-                "transform": "@preprocessing"
-            }
+            "<args>": {"data": "@<meta>#datalist", "transform": "@preprocessing"},  # test placeholger with `datalist`
         },
         "dataloader": {
             "<name>": "DataLoader",
-            "<args>": {
-                "dataset": "@dataset",
-                "batch_size": 1,
-                "shuffle": False,
-                "num_workers": 4
-            }
+            "<args>": {"dataset": "@dataset", "batch_size": 1, "shuffle": False, "num_workers": 4},
         },
         "inferer": {
             "<name>": "SlidingWindowInferer",
-            "<args>": {
-                "roi_size": [96, 96, 96],
-                "sw_batch_size": 4,
-                "overlap": 0.5
-            }
+            "<args>": {"roi_size": [96, 96, 96], "sw_batch_size": 4, "overlap": 0.5},
         },
         "postprocessing": {
             "<name>": "Compose",
             "<args>": {
                 "transforms": [
-                    {
-                        "<name>": "Activationsd",
-                        "<args>": {
-                            "keys": "pred",
-                            "softmax": True
-                        }
-                    },
-                    {
-                        "<name>": "AsDiscreted",
-                        "<args>": {
-                            "keys": "pred",
-                            "argmax": True
-                        }
-                    },
+                    {"<name>": "Activationsd", "<args>": {"keys": "pred", "softmax": True}},
+                    {"<name>": "AsDiscreted", "<args>": {"keys": "pred", "argmax": True}},
                     {
                         "<name>": "SaveImaged",
                         "<args>": {
                             "keys": "pred",
                             "meta_keys": "image_meta_dict",
-                            "output_dir": "@<meta>#output_dir"  # test placeholger with `output_dir`
-                        }
-                    }
+                            "output_dir": "@<meta>#output_dir",  # test placeholger with `output_dir`
+                        },
+                    },
                 ]
-            }
+            },
         },
         "evaluator": {
             "<name>": "SupervisedEvaluator",
@@ -129,9 +87,9 @@ TEST_CASE_1 = [
                 "network": "@network",
                 "inferer": "@inferer",
                 "postprocessing": "@postprocessing",
-                "amp": False
-            }
-        }
+                "amp": False,
+            },
+        },
     },
     (128, 128, 128),
 ]
@@ -146,15 +104,12 @@ class TestChannelPad(unittest.TestCase):
             filename = os.path.join(tempdir, "image.nii")
             nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
 
-            meta = {
-                "datalist": [{"image": filename}],
-                "output_dir": tempdir,
-                "window": (96, 96, 96),
-            }
-            metafile = os.path.join(tempdir, "meta.json")
+            meta = {"datalist": [{"image": filename}], "output_dir": tempdir, "window": (96, 96, 96)}
+            # test YAML file
+            metafile = os.path.join(tempdir, "meta.yaml")
             with open(metafile, "w") as f:
-                json.dump(meta, f)
-
+                yaml.dump(meta, f)
+            # test JSON file
             configfile = os.path.join(tempdir, "config.json")
             with open(configfile, "w") as f:
                 json.dump(config, f)

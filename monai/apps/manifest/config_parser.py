@@ -56,6 +56,7 @@ class ConfigParser:
         print(net)
 
         # also support to get the parsed `ConfigItem` content, but do not instantiate the components
+        # changing this parsed config content will not affect the config source in the parser
         trainer = parser.get_parsed_content("trainer", instantiate=False)
         print(trainer)
 
@@ -165,8 +166,6 @@ class ConfigParser:
     def _do_parse(self, config, id: str = ""):
         """
         Recursively parse the nested data in config source, add every item as `ConfigItem` to the resolver.
-        Note that the configuration content of every `ConfigItem` will be decoupled from the config source
-        of parser during parsing.
 
         Args:
             config: config source to parse.
@@ -212,10 +211,6 @@ class ConfigParser:
             - If the item is ``ConfigComponent`` and ``instantiate=True``, the result is the instance.
             - If the item is ``ConfigExpression`` and ``eval_expr=True``, the result is the evaluated output.
             - Else, the result is the configuration content of `ConfigItem`.
-
-        Note that the configuration content of every `ConfigItem` is decoupled from the config source of parser
-        during parsing.
-
 
         Args:
             id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to

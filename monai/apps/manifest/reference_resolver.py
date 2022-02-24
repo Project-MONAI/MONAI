@@ -160,7 +160,7 @@ class ReferenceResolver:
     def match_refs_pattern(value: str) -> Set[str]:
         """
         Match regular expression for the input string to find the references.
-        The reference string starts with ``"@"``, like: ``"@XXX#YYY#ZZZ"``.
+        The reference string starts with ``"@"``, like: ``"@XXX#<YYY>#ZZZ"``.
 
         Args:
             value: input value to match regular expression.
@@ -168,7 +168,7 @@ class ReferenceResolver:
         """
         refs: Set[str] = set()
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
-        result = re.compile(r"@[<>\w]*[\#<>\w]*").findall(value)
+        result = re.compile(r"@(\<\w+\>|\w+)(\#(\<\w+\>|\w+))*").findall(value)
         for item in result:
             if ConfigExpression.is_expression(value) or value == item:
                 # only check when string starts with "$" or the whole content is "@XXX"
@@ -179,7 +179,7 @@ class ReferenceResolver:
     def update_refs_pattern(value: str, refs: Dict) -> str:
         """
         Match regular expression for the input string to update content with the references.
-        The reference part starts with ``"@"``, like: ``"@XXX#YYY#ZZZ"``.
+        The reference part starts with ``"@"``, like: ``"@XXX#<YYY>#ZZZ"``.
         References dictionary must contain the referring IDs as keys.
 
         Args:
@@ -188,7 +188,7 @@ class ReferenceResolver:
 
         """
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
-        result = re.compile(r"@[<>\w]*[\#<>\w]*").findall(value)
+        result = re.compile(r"@(\<\w+\>|\w+)(\#(\<\w+\>|\w+))*").findall(value)
         for item in result:
             ref_id = item[1:]
             if ref_id not in refs:

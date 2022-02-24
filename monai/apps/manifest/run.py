@@ -11,6 +11,7 @@
 
 
 import argparse
+
 from monai.apps.manifest.utils import parse_config_files, parse_id_value
 
 
@@ -28,7 +29,9 @@ def run():
     parser.add_argument("--config", "-c", type=str, help="filepath of the config file.", required=True)
     parser.add_argument("--override", "-o", metavar="ID=VALUE", nargs="*")
     parser.add_argument(
-        "--target", "-t", type=str,
+        "--target",
+        "-t",
+        type=str,
         help=("ID name of the target workflow, it must have the `run` method, follow MONAI `BaseWorkflow`."),
         required=True,
     )
@@ -45,5 +48,5 @@ def run():
     workflow.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()
