@@ -390,7 +390,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
 
             img, new_meta = self.resampler(
                 img=d[key],
-                src_meta=src_meta,
+                src_meta=src_meta,  # type: ignore
                 dst_meta=orig_meta,
                 mode=mode,
                 padding_mode=padding_mode,
