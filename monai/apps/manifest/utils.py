@@ -11,7 +11,7 @@
 
 import json
 from distutils.util import strtobool
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
 import yaml
 
@@ -44,7 +44,7 @@ def parse_id_value(pair: str) -> Tuple[str, Any]:
     items = pair.split("=")
     # we remove blanks around id
     id = items[0].strip()
-    value = ""
+    value: Union[str, int, float, bool] = ""
     if len(items) > 1:
         # rejoin the rest
         value = "=".join(items[1:])
