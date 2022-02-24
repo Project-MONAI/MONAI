@@ -47,6 +47,7 @@ class TestResampleToMatchd(unittest.TestCase):
             )
             data = transforms({"im1": self.fnames[0], "im2": self.fnames[1]})
             assert_allclose(data["im1"].shape, data["im3"].shape)
+            assert_allclose(data["im3"].shape[1:], data["im3_meta_dict"]["spatial_shape"], type_test=False)
 
 
 if __name__ == "__main__":
