@@ -41,6 +41,7 @@ __all__ = [
     "ascontiguousarray",
     "stack",
     "mode",
+    "unique",
 ]
 
 
@@ -417,3 +418,12 @@ def mode(x: NdarrayTensor, dim: int = -1, to_long: bool = True) -> NdarrayTensor
     o_t = torch.mode(x_t, dim).values
     o, *_ = convert_to_dst_type(o_t, x)
     return o
+
+
+def unique(x: NdarrayTensor) -> NdarrayTensor:
+    """`torch.unique` with equivalent implementation for numpy.
+
+    Args:
+        x: array/tensor
+    """
+    return torch.unique(x) if isinstance(x, torch.Tensor) else np.unique(x)  # type: ignore

@@ -834,6 +834,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
         margin: Union[Sequence[int], int] = 0,
+        allow_smaller: bool = True,
         k_divisible: Union[Sequence[int], int] = 1,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
@@ -850,6 +851,9 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+            allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
+                than box size, default to `True`. if the margined size is bigger than image size, will pad with
+                specified `mode`.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
             mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
@@ -871,7 +875,12 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
         self.cropper = CropForeground(
-            select_fn=select_fn, channel_indices=channel_indices, margin=margin, k_divisible=k_divisible, **np_kwargs
+            select_fn=select_fn,
+            channel_indices=channel_indices,
+            margin=margin,
+            allow_smaller=allow_smaller,
+            k_divisible=k_divisible,
+            **np_kwargs,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 

@@ -14,7 +14,7 @@ import random
 import warnings
 from contextlib import contextmanager
 from inspect import getmembers, isclass
-from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, Union
 
 import numpy as np
 import torch
@@ -34,6 +34,7 @@ from monai.transforms.utils_pytorch_numpy_unification import (
     nonzero,
     ravel,
     searchsorted,
+    unique,
     unravel_index,
     where,
 )
@@ -103,6 +104,7 @@ __all__ = [
     "print_transform_backends",
     "convert_pad_mode",
     "convert_to_contiguous",
+    "get_unique_labels",
 ]
 
 
@@ -881,6 +883,7 @@ def generate_spatial_bounding_box(
     select_fn: Callable = is_positive,
     channel_indices: Optional[IndexSelection] = None,
     margin: Union[Sequence[int], int] = 0,
+    allow_smaller: bool = True,
 ) -> Tuple[List[int], List[int]]:
     """
     Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
@@ -891,8 +894,8 @@ def generate_spatial_bounding_box(
         [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
         [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
 
-    The bounding boxes edges are aligned with the input image edges.
-    This function returns [-1, -1, ...], [-1, -1, ...] if there's no positive intensity.
+    If `allow_smaller`, the bounding boxes edges are aligned with the input image edges.
+    This function returns [0, 0, ...], [0, 0, ...] if there's no positive intensity.
 
     Args:
         img: a "channel-first" image of shape (C, spatial_dim1[, spatial_dim2, ...]) to generate bounding box from.
@@ -900,7 +903,10 @@ def generate_spatial_bounding_box(
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+        allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
+            than box size, default to `True`.
     """
+    spatial_size = img.shape[1:]
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
     data = select_fn(data).any(0)
     ndim = len(data.shape)
@@ -922,8 +928,11 @@ def generate_spatial_bounding_box(
             return [0] * ndim, [0] * ndim
 
         arg_max = where(dt == dt.max())[0]
-        min_d = max(arg_max[0] - margin[di], 0)
+        min_d = arg_max[0] - margin[di]
         max_d = arg_max[-1] + margin[di] + 1
+        if allow_smaller:
+            min_d = max(min_d, 0)
+            max_d = min(max_d, spatial_size[di])
 
         box_start[di] = min_d.detach().cpu().item() if isinstance(min_d, torch.Tensor) else min_d  # type: ignore
         box_end[di] = max_d.detach().cpu().item() if isinstance(max_d, torch.Tensor) else max_d  # type: ignore
@@ -959,6 +968,34 @@ def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optio
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
 
     return convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]
+
+
+def get_unique_labels(
+    img: NdarrayOrTensor, is_onehot: bool, discard: Optional[Union[int, Iterable[int]]] = None
+) -> Set[int]:
+    """Get list of non-background labels in an image.
+
+    Args:
+        img: Image to be processed. Shape should be [C, W, H, [D]] with C=1 if not onehot else `num_classes`.
+        is_onehot: Boolean as to whether input image is one-hotted. If one-hotted, only return channels with
+        discard: Can be used to remove labels (e.g., background). Can be any value, sequence of values, or
+            `None` (nothing is discarded).
+
+    Returns:
+        Set of labels
+    """
+    applied_labels: Set[int]
+    n_channels = img.shape[0]
+    if is_onehot:
+        applied_labels = {i for i, s in enumerate(img) if s.sum() > 0}
+    else:
+        if n_channels != 1:
+            raise ValueError("If input not one-hotted, should only be 1 channel.")
+        applied_labels = set(unique(img).tolist())
+    if discard is not None:
+        for i in ensure_tuple(discard):
+            applied_labels.discard(i)
+    return applied_labels
 
 
 def fill_holes(
@@ -997,7 +1034,7 @@ def fill_holes(
     structure = ndimage.generate_binary_structure(spatial_dims, connectivity or spatial_dims)
 
     # Get labels if not provided. Exclude background label.
-    applied_labels = set(applied_labels or (range(num_channels) if is_one_hot else np.unique(img_arr)))
+    applied_labels = set(applied_labels) if applied_labels is not None else get_unique_labels(img_arr, is_one_hot)
     background_label = 0
     applied_labels.discard(background_label)
 

@@ -220,7 +220,7 @@ class KeepLargestConnectedComponentd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        applied_labels: Union[Sequence[int], int],
+        applied_labels: Optional[Union[Sequence[int], int]] = None,
         is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
@@ -231,8 +231,8 @@ class KeepLargestConnectedComponentd(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             applied_labels: Labels for applying the connected component analysis on.
-                If not OneHot. The pixel whose value is in this list will be analyzed.
-                If the data is in OneHot format, this is used to determine which channels to apply.
+                If given, voxels whose value is in this list will be analyzed.
+                If `None`, all non-zero values will be analyzed.
             is_onehot: if `True`, treat the input data as OneHot format data, otherwise, not OneHot format data.
                 default to None, which treats multi-channel data as OneHot and single channel data as not OneHot.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
