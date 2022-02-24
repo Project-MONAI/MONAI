@@ -185,12 +185,12 @@ class ConfigParser:
         else:
             self.reference_resolver.add_item(ConfigItem(config=item_conf, id=id))
 
-    def parse(self, reset: bool = False):
+    def parse(self, reset: bool = True):
         """
         Recursively parse the config source, add every item as ``ConfigItem`` to the resolver.
 
         Args:
-            reset: whether to reset the ``reference_resolver`` before parsing. Defaults to False.
+            reset: whether to reset the ``reference_resolver`` before parsing. Defaults to `True`.
 
         """
         if reset:

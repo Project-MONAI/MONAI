@@ -68,7 +68,6 @@ class ReferenceResolver:
         """
         id = item.get_id()
         if id in self.items:
-            # warnings.warn(f"id '{id}' is already added.")
             return
         self.items[id] = item
 
