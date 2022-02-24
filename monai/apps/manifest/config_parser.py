@@ -92,6 +92,9 @@ class ConfigParser:
         self.reference_resolver = ReferenceResolver()
         self.set(config=config)
 
+    def __repr__(self):
+        return f"{self.config}"
+
     def __getitem__(self, id: Union[str, int]):
         """
         Get the config by id.
@@ -162,6 +165,8 @@ class ConfigParser:
     def _do_parse(self, config, id: str = ""):
         """
         Recursively parse the nested data in config source, add every item as `ConfigItem` to the resolver.
+        Note that the configuration content of every `ConfigItem` will be decoupled from the config source
+        of parser during parsing.
 
         Args:
             config: config source to parse.
@@ -193,7 +198,7 @@ class ConfigParser:
         configuration source of parser during parsing.
 
         Args:
-            reset: whether to reset the ``reference_resolver`` before parsing. Defaults to False.
+            reset: whether to reset the ``reference_resolver`` before parsing. Defaults to `True`.
 
         """
         if reset:
@@ -206,10 +211,11 @@ class ConfigParser:
 
             - If the item is ``ConfigComponent`` and ``instantiate=True``, the result is the instance.
             - If the item is ``ConfigExpression`` and ``eval_expr=True``, the result is the evaluated output.
-            - Else the result is the configurtion content of `ConfigItem`.
+            - Else, the result is the configuration content of `ConfigItem`.
 
-        Note that the configuration content in every `ConfigItem` is decoupled from the configuration
-        source during parsing.
+        Note that the configuration content of every `ConfigItem` is decoupled from the config source of parser
+        during parsing.
+
 
         Args:
             id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
