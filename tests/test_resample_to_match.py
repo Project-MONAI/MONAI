@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import itertools
 import os
 import tempfile
@@ -44,6 +45,7 @@ class TestResampleToMatch(unittest.TestCase):
             data = loader({"im1": self.fnames[0], "im2": self.fnames[1]})
 
             im_mod, meta = ResampleToMatch()(data["im2"], data["im2_meta_dict"], data["im1_meta_dict"])
+            current_dims = copy.deepcopy(meta.get("dim"))
             saver = SaveImaged("im3", output_dir=temp_dir, output_postfix="", separate_folder=False, writer=writer)
             meta["filename_or_obj"] = "file3.nii.gz"
             saver({"im3": im_mod, "im3_meta_dict": meta})
@@ -51,6 +53,8 @@ class TestResampleToMatch(unittest.TestCase):
             saved = nib.load(os.path.join(temp_dir, meta["filename_or_obj"]))
             assert_allclose(data["im1"].shape[1:], saved.shape)
             assert_allclose(saved.header["dim"][:4], np.array([3, 384, 384, 19]))
+            if current_dims is not None:
+                assert_allclose(saved.header["dim"], current_dims)
 
 
 if __name__ == "__main__":
