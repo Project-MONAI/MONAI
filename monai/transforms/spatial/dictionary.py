@@ -344,6 +344,10 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         ):
             src_meta_key = PostFix.meta(key)
             src_meta = d[src_meta_key]
+
+            orig_spatial_shape = d[key].shape[1:]
+            orig_meta = deepcopy(src_meta)
+
             img, new_meta = self.resampler(
                 img=d[key],
                 src_meta=src_meta,
@@ -355,6 +359,49 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
             )
             d[key] = img
             d[src_meta_key] = new_meta
+
+            # track the transform for the inverse
+            self.push_transform(
+                d,
+                key,
+                extra_info={
+                    "orig_meta": orig_meta,
+                    "mode": mode.value if isinstance(mode, Enum) else mode,
+                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+                },
+                orig_size=orig_spatial_shape,
+            )
+
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+        for key, dtype in self.key_iterator(d, self.dtype):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_meta = transform[TraceKeys.EXTRA_INFO]["orig_meta"]
+            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+
+            src_meta_key = PostFix.meta(key)
+            src_meta = d[src_meta_key]
+
+            img, new_meta = self.resampler(
+                img=d[key],
+                src_meta=src_meta,
+                dst_meta=orig_meta,
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+                dtype=dtype,
+            )
+            d[key] = img
+            d[src_meta_key] = new_meta
+
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 
