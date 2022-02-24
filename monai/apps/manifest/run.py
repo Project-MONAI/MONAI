@@ -28,19 +28,20 @@ def run():
     parser.add_argument("--config", "-c", type=str, help="filepath of the config file.", required=True)
     parser.add_argument("--override", "-o", metavar="ID=VALUE", nargs="*")
     parser.add_argument(
-        "--target", "-c", type=str,
+        "--target", "-t", type=str,
         help=("ID name of the target workflow, it must have the `run` method, follow MONAI `BaseWorkflow`."),
         required=True,
     )
 
     args = parser.parse_args()
     override = {}
-    for pair in args.override:
-        id, v = parse_id_value(pair)
-        override[id] = v
+    if args.override is not None:
+        for pair in args.override:
+            id, v = parse_id_value(pair)
+            override[id] = v
     config_parser = parse_config_files(config_file=args.config, meta_file=args.metadata, override=override)
 
-    workflow = config_parser.get_resolved_content(id=args.target)
+    workflow = config_parser.get_parsed_content(id=args.target)
     workflow.run()
 
 

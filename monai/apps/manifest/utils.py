@@ -11,7 +11,7 @@
 
 from distutils.util import strtobool
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 import yaml
 
 from monai.apps.manifest.config_parser import ConfigParser
