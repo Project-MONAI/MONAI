@@ -45,7 +45,7 @@ class ConfigParser:
         # in the example $@my_dims + 1 is an expression, which adds 1 to the value of @my_dims
         parser = ConfigParser(config)
 
-        # get/set configuration content
+        # get/set the configuration source content
         print(parser["my_net"]["<args>"]["in_channels"])  # original input channels 1
         parser["my_net"]["<args>"]["in_channels"] = 4  # change input channels to 4
         print(parser["my_net"]["<args>"]["in_channels"])
@@ -55,7 +55,7 @@ class ConfigParser:
         net = parser.get_parsed_content("my_net", instantiate=True)
         print(net)
 
-        # also support to get the configuration content of parsed `ConfigItem`
+        # also support to get the parsed `ConfigItem` content, but do not instantiate the components
         trainer = parser.get_parsed_content("trainer", instantiate=False)
         print(trainer)
 
@@ -194,6 +194,8 @@ class ConfigParser:
     def parse(self, reset: bool = True):
         """
         Recursively parse the config source, add every item as ``ConfigItem`` to the resolver.
+        Note that the configuration content in every `ConfigItem` will be decoupled from the
+        configuration source of parser during parsing.
 
         Args:
             reset: whether to reset the ``reference_resolver`` before parsing. Defaults to `True`.
@@ -213,6 +215,7 @@ class ConfigParser:
 
         Note that the configuration content of every `ConfigItem` is decoupled from the config source of parser
         during parsing.
+
 
         Args:
             id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
