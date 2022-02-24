@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,9 +19,9 @@ from monai.apps import ConfigComponent, ReferenceResolver
 from monai.apps.manifest.config_item import ComponentLocator, ConfigExpression, ConfigItem
 from monai.data import DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
-from monai.utils import optional_import
+from monai.utils import min_version, optional_import
 
-_, has_tv = optional_import("torchvision")
+_, has_tv = optional_import("torchvision", "0.8.0", min_version)
 
 # test instance with no dependencies
 TEST_CASE_1 = [

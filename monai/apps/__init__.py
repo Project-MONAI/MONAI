@@ -15,6 +15,7 @@ from .manifest import (
     ConfigComponent,
     ConfigExpression,
     ConfigItem,
+    ConfigParser,
     ReferenceResolver,
     parse_config_files,
     parse_id_value,
