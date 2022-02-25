@@ -32,7 +32,6 @@ class ConfigParser:
 
         from monai.apps import ConfigParser
 
-
         config = {
             "my_dims": 2,
             "dims_1": "$@my_dims + 1",
@@ -89,7 +88,7 @@ class ConfigParser:
                 self.globals[k] = importlib.import_module(v) if isinstance(v, str) else v
 
         self.locator = ComponentLocator(excludes=excludes)
-        self.reference_resolver = ReferenceResolver()
+        self.ref_resolver = ReferenceResolver()
         self.set(config=config)
 
     def __repr__(self):
@@ -109,7 +108,7 @@ class ConfigParser:
         if id == "":
             return self.config
         config = self.config
-        for k in str(id).split("#"):
+        for k in str(id).split(self.ref_resolver.sep):
             if not isinstance(config, (dict, list)):
                 raise ValueError(f"config must be dict or list for key `{k}`, but got {type(config)}: {config}.")
             indexing = k if isinstance(config, dict) else int(k)
@@ -131,15 +130,15 @@ class ConfigParser:
         """
         if id == "":
             self.config = config
-            self.reference_resolver.reset()
+            self.ref_resolver.reset()
             return
-        keys = str(id).split("#")
-        # get the last second config item and replace it
-        last_id = "#".join(keys[:-1])
+        keys = str(id).split(self.ref_resolver.sep)
+        # get the last parent level config item and replace it
+        last_id = self.ref_resolver.sep.join(keys[:-1])
         conf_ = self[last_id]
         indexing = keys[-1] if isinstance(conf_, dict) else int(keys[-1])
         conf_[indexing] = config
-        self.reference_resolver.reset()
+        self.ref_resolver.reset()
         return
 
     def get(self, id: str = "", default: Optional[Any] = None):
@@ -178,17 +177,17 @@ class ConfigParser:
         if isinstance(config, (dict, list)):
             subs = enumerate(config) if isinstance(config, list) else config.items()
             for k, v in subs:
-                sub_id = f"{id}#{k}" if id != "" else k
+                sub_id = f"{id}{self.ref_resolver.sep}{k}" if id != "" else k
                 self._do_parse(config=v, id=sub_id)
 
         # copy every config item to make them independent and add them to the resolver
         item_conf = deepcopy(config)
         if ConfigComponent.is_instantiable(item_conf):
-            self.reference_resolver.add_item(ConfigComponent(config=item_conf, id=id, locator=self.locator))
+            self.ref_resolver.add_item(ConfigComponent(config=item_conf, id=id, locator=self.locator))
         elif ConfigExpression.is_expression(item_conf):
-            self.reference_resolver.add_item(ConfigExpression(config=item_conf, id=id, globals=self.globals))
+            self.ref_resolver.add_item(ConfigExpression(config=item_conf, id=id, globals=self.globals))
         else:
-            self.reference_resolver.add_item(ConfigItem(config=item_conf, id=id))
+            self.ref_resolver.add_item(ConfigItem(config=item_conf, id=id))
 
     def parse(self, reset: bool = True):
         """
@@ -199,7 +198,7 @@ class ConfigParser:
 
         """
         if reset:
-            self.reference_resolver.reset()
+            self.ref_resolver.reset()
         self._do_parse(config=self.config)
 
     def get_parsed_content(self, id: str = "", **kwargs):
@@ -216,10 +215,10 @@ class ConfigParser:
                 Use digits indexing from "0" for list or other strings for dict.
                 For example: ``"xform#5"``, ``"net#<args>#channels"``. ``""`` indicates the entire ``self.config``.
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
-                Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
+                Currently support ``reset`` (for parse), ``instantiate`` and ``eval_expr``. All defaulting to True.
 
         """
-        if not self.reference_resolver.is_resolved():
+        if not self.ref_resolver.is_resolved():
             # not parsed the config source yet, parse it
-            self.parse()
-        return self.reference_resolver.get_resolved_content(id=id, **kwargs)
+            self.parse(kwargs.get("reset", True))
+        return self.ref_resolver.get_resolved_content(id=id, **kwargs)

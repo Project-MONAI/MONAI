@@ -307,6 +307,8 @@ class ConfigExpression(ConfigItem):
 
     """
 
+    prefix = "$"
+
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)
         self.globals = globals
@@ -323,10 +325,10 @@ class ConfigExpression(ConfigItem):
         value = self.get_config()
         if not ConfigExpression.is_expression(value):
             return None
-        return eval(value[1:], self.globals, locals)
+        return eval(value[len(self.prefix) :], self.globals, locals)
 
-    @staticmethod
-    def is_expression(config: Union[Dict, List, str]) -> bool:
+    @classmethod
+    def is_expression(cls, config: Union[Dict, List, str]) -> bool:
         """
         Check whether the config is an executable expression string.
         Currently, a string starts with ``"$"`` character is interpreted as an expression.
@@ -335,4 +337,4 @@ class ConfigExpression(ConfigItem):
             config: input config content to check.
 
         """
-        return isinstance(config, str) and config.startswith("$")
+        return isinstance(config, str) and config.startswith(cls.prefix)

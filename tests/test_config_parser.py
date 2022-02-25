@@ -71,6 +71,7 @@ TEST_CASE_2 = [
         "cls_compute": {"<path>": "tests.test_config_parser.TestClass.cls_compute", "<args>": {"func": "@basic_func"}},
         "call_compute": {"<path>": "tests.test_config_parser.TestClass"},
         "error_func": "$TestClass.__call__",
+        "<test>": "$lambda x, y: x + y",
     }
 ]
 
@@ -115,7 +116,7 @@ class TestConfigComponent(unittest.TestCase):
         parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
             func = parser.get_parsed_content(id=id)
-            self.assertTrue(id in parser.reference_resolver.resolved_content)
+            self.assertTrue(id in parser.ref_resolver.resolved_content)
             if id == "error_func":
                 with self.assertRaises(TypeError):
                     func(1, 2)

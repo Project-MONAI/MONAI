@@ -42,6 +42,12 @@ class ReferenceResolver:
 
     """
 
+    _vars = "__local_refs"
+    sep = "#"  # separator for key indexing
+    ref = "@"  # reference prefix
+    # match a reference string, e.g. "@id#key", "@id#key#0", "@<test>#<args>#key"
+    id_matcher = re.compile(rf"{ref}(?:(?:<\w*>)|(?:\w*))(?:(?:{sep}<\w*>)|(?:{sep}\w*))*")
+
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
         self.items: Dict[str, Any] = {} if items is None else {i.get_id(): i for i in items}
@@ -116,7 +122,7 @@ class ReferenceResolver:
         for d in ref_ids:
             # if current item has reference already in the waiting list, that's circular references
             if d in waiting_list:
-                raise ValueError(f"detected circular references for id='{d}' in the config content.")
+                raise ValueError(f"detected circular references '{d}' for id='{id}' in the config content.")
             # check whether the component has any unresolved references
             if d not in self.resolved_content:
                 # this referring item is not resolved
@@ -135,8 +141,9 @@ class ReferenceResolver:
         if isinstance(item, ConfigComponent):
             self.resolved_content[id] = item.instantiate() if kwargs.get("instantiate", True) else item
         elif isinstance(item, ConfigExpression):
+            run_eval = kwargs.get("eval_expr", True)
             self.resolved_content[id] = (
-                item.evaluate(locals={"refs": self.resolved_content}) if kwargs.get("eval_expr", True) else item
+                item.evaluate(locals={f"{self._vars}": self.resolved_content}) if run_eval else item
             )
         else:
             self.resolved_content[id] = new_config
@@ -155,8 +162,8 @@ class ReferenceResolver:
             self._resolve_one_item(id=id, **kwargs)
         return self.resolved_content[id]
 
-    @staticmethod
-    def match_refs_pattern(value: str) -> Set[str]:
+    @classmethod
+    def match_refs_pattern(cls, value: str) -> Set[str]:
         """
         Match regular expression for the input string to find the references.
         The reference string starts with ``"@"``, like: ``"@XXX#YYY#ZZZ"``.
@@ -167,15 +174,16 @@ class ReferenceResolver:
         """
         refs: Set[str] = set()
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
-        result = re.compile(r"@(?:(?:<\w*>)|(?:\w*)|)(?:(?:#<\w*>)|(?:#\w*))*").findall(value)
+        result = cls.id_matcher.findall(value)
+        value_is_expr = ConfigExpression.is_expression(value)
         for item in result:
-            if ConfigExpression.is_expression(value) or value == item:
+            if value_is_expr or value == item:
                 # only check when string starts with "$" or the whole content is "@XXX"
-                refs.add(item[1:])
+                refs.add(item[len(cls.ref) :])
         return refs
 
-    @staticmethod
-    def update_refs_pattern(value: str, refs: Dict) -> str:
+    @classmethod
+    def update_refs_pattern(cls, value: str, refs: Dict) -> str:
         """
         Match regular expression for the input string to update content with the references.
         The reference part starts with ``"@"``, like: ``"@XXX#YYY#ZZZ"``.
@@ -187,21 +195,22 @@ class ReferenceResolver:
 
         """
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
-        result = re.compile(r"@(?:(?:<\w*>)|(?:\w*)|)(?:(?:#<\w*>)|(?:#\w*))*").findall(value)
+        result = cls.id_matcher.findall(value)
+        value_is_expr = ConfigExpression.is_expression(value)
         for item in result:
-            ref_id = item[1:]
+            ref_id = item[len(cls.ref) :]  # remove the ref prefix "@"
             if ref_id not in refs:
                 raise KeyError(f"can not find expected ID '{ref_id}' in the references.")
-            if ConfigExpression.is_expression(value):
+            if value_is_expr:
                 # replace with local code, will be used in the `evaluate` logic with `locals={"refs": ...}`
-                value = value.replace(item, f"refs['{ref_id}']")
+                value = value.replace(item, f"{cls._vars}['{ref_id}']")
             elif value == item:
                 # the whole content is "@XXX", it will avoid the case that regular string contains "@"
                 value = refs[ref_id]
         return value
 
-    @staticmethod
-    def find_refs_in_config(config, id: str, refs: Optional[Set[str]] = None) -> Set[str]:
+    @classmethod
+    def find_refs_in_config(cls, config, id: str, refs: Optional[Set[str]] = None) -> Set[str]:
         """
         Recursively search all the content of input config item to get the ids of references.
         References mean: the IDs of other config items (``"@XXX"`` in this config item), or the
@@ -216,18 +225,18 @@ class ReferenceResolver:
         """
         refs_: Set[str] = refs or set()
         if isinstance(config, str):
-            return refs_.union(ReferenceResolver.match_refs_pattern(value=config))
+            return refs_.union(cls.match_refs_pattern(value=config))
         if not isinstance(config, (list, dict)):
             return refs_
         for k, v in config.items() if isinstance(config, dict) else enumerate(config):
-            sub_id = f"{id}#{k}" if id != "" else f"{k}"
+            sub_id = f"{id}{cls.sep}{k}" if id != "" else f"{k}"
             if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                 refs_.add(sub_id)
-            refs_ = ReferenceResolver.find_refs_in_config(v, sub_id, refs_)
+            refs_ = cls.find_refs_in_config(v, sub_id, refs_)
         return refs_
 
-    @staticmethod
-    def update_config_with_refs(config, id: str, refs: Optional[Dict] = None):
+    @classmethod
+    def update_config_with_refs(cls, config, id: str, refs: Optional[Dict] = None):
         """
         With all the references in ``refs``, update the input config content with references
         and return the new config.
@@ -240,15 +249,15 @@ class ReferenceResolver:
         """
         refs_: Dict = refs or {}
         if isinstance(config, str):
-            return ReferenceResolver.update_refs_pattern(config, refs_)
+            return cls.update_refs_pattern(config, refs_)
         if not isinstance(config, (list, dict)):
             return config
         ret = type(config)()
         for idx, v in config.items() if isinstance(config, dict) else enumerate(config):
-            sub_id = f"{id}#{idx}" if id != "" else f"{idx}"
+            sub_id = f"{id}{cls.sep}{idx}" if id != "" else f"{idx}"
             if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                 updated = refs_[sub_id]
             else:
-                updated = ReferenceResolver.update_config_with_refs(v, sub_id, refs_)
+                updated = cls.update_config_with_refs(v, sub_id, refs_)
             ret.update({idx: updated}) if isinstance(ret, dict) else ret.append(updated)
         return ret
