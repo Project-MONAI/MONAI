@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,12 +18,7 @@ class MLPBlock(nn.Module):
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
     """
 
-    def __init__(
-        self,
-        hidden_size: int,
-        mlp_dim: int,
-        dropout_rate: float = 0.0,
-    ) -> None:
+    def __init__(self, hidden_size: int, mlp_dim: int, dropout_rate: float = 0.0) -> None:
         """
         Args:
             hidden_size: dimension of hidden layer.

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,9 +20,7 @@ from monai.metrics import SurfaceDistanceMetric
 
 
 def create_spherical_seg_3d(
-    radius: float = 20.0,
-    centre: Tuple[int, int, int] = (49, 49, 49),
-    im_shape: Tuple[int, int, int] = (99, 99, 99),
+    radius: float = 20.0, centre: Tuple[int, int, int] = (49, 49, 49), im_shape: Tuple[int, int, int] = (99, 99, 99)
 ) -> np.ndarray:
     """
     Return a 3D image with a sphere inside. Voxel values will be
@@ -49,10 +47,7 @@ def create_spherical_seg_3d(
 
 
 TEST_CASES = [
-    [
-        [create_spherical_seg_3d(), create_spherical_seg_3d()],
-        [0, 0],
-    ],
+    [[create_spherical_seg_3d(), create_spherical_seg_3d()], [0, 0]],
     [
         [
             create_spherical_seg_3d(radius=20, centre=(20, 20, 20)),
@@ -66,14 +61,14 @@ TEST_CASES = [
             create_spherical_seg_3d(radius=33, centre=(19, 33, 22)),
             create_spherical_seg_3d(radius=33, centre=(20, 33, 22)),
         ],
-        [0.35021200688332677, 0.3483278807706289],
+        [0.350217, 0.3483278807706289],
     ],
     [
         [
             create_spherical_seg_3d(radius=20, centre=(20, 33, 22)),
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
         ],
-        [13.975673696300824, 12.040033513150455],
+        [15.117741, 12.040033513150455],
     ],
     [
         [
@@ -81,7 +76,7 @@ TEST_CASES = [
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
             "chessboard",
         ],
-        [10.792254295459173, 9.605067064083457],
+        [11.492719, 9.605067064083457],
     ],
     [
         [
@@ -89,23 +84,10 @@ TEST_CASES = [
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
             "taxicab",
         ],
-        [17.32691760951026, 12.432687531048186],
+        [20.214613, 12.432687531048186],
     ],
-    [
-        [
-            np.zeros([99, 99, 99]),
-            create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
-        ],
-        [np.inf, np.inf],
-    ],
-    [
-        [
-            create_spherical_seg_3d(),
-            np.zeros([99, 99, 99]),
-            "taxicab",
-        ],
-        [np.inf, np.inf],
-    ],
+    [[np.zeros([99, 99, 99]), create_spherical_seg_3d(radius=40, centre=(20, 33, 22))], [np.inf, np.inf]],
+    [[create_spherical_seg_3d(), np.zeros([99, 99, 99]), "taxicab"], [np.inf, np.inf]],
 ]
 
 TEST_CASES_NANS = [
@@ -114,8 +96,8 @@ TEST_CASES_NANS = [
             # both pred and gt do not have foreground, metric and not_nans should be 0
             np.zeros([99, 99, 99]),
             np.zeros([99, 99, 99]),
-        ],
-    ],
+        ]
+    ]
 ]
 
 
@@ -139,7 +121,7 @@ class TestAllSurfaceMetrics(unittest.TestCase):
             sur_metric(batch_seg_1, batch_seg_2)
             result = sur_metric.aggregate()
             expected_value_curr = expected_value[ct]
-            np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
+            np.testing.assert_allclose(expected_value_curr, result, rtol=1e-5)
             ct += 1
 
     @parameterized.expand(TEST_CASES_NANS)
@@ -153,8 +135,8 @@ class TestAllSurfaceMetrics(unittest.TestCase):
         batch_seg_2 = [seg_2.unsqueeze(0)]
         sur_metric(batch_seg_1, batch_seg_2)
         result, not_nans = sur_metric.aggregate()
-        np.testing.assert_allclose(0, result, rtol=1e-7)
-        np.testing.assert_allclose(0, not_nans, rtol=1e-7)
+        np.testing.assert_allclose(0, result, rtol=1e-5)
+        np.testing.assert_allclose(0, not_nans, rtol=1e-5)
 
 
 if __name__ == "__main__":
