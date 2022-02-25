@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import inspect
+import os
 import sys
 import warnings
 from abc import ABC, abstractmethod
@@ -308,6 +309,7 @@ class ConfigExpression(ConfigItem):
     """
 
     prefix = "$"
+    run_eval = False if os.environ.get("MONAI_EVAL_EXPR", "1") == "0" else True
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)
@@ -325,6 +327,8 @@ class ConfigExpression(ConfigItem):
         value = self.get_config()
         if not ConfigExpression.is_expression(value):
             return None
+        if not self.run_eval:
+            return f"{value[len(self.prefix) :]}"
         return eval(value[len(self.prefix) :], self.globals, locals)
 
     @classmethod
