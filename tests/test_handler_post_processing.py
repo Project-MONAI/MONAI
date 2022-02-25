@@ -54,6 +54,8 @@ class TestHandlerPostProcessing(unittest.TestCase):
             decollate=decollate,
         )
         engine.run()
+        # test detach method
+        engine.handlers[0].detach(engine)
 
         if isinstance(engine.state.output, list):
             # test decollated list items

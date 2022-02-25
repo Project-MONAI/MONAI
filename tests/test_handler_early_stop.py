@@ -55,6 +55,7 @@ class TestHandlerEarlyStop(unittest.TestCase):
         handler.set_trainer(trainer=trainer)
 
         trainer.run(range(3), max_epochs=5)
+        handler.detach(trainer)
         self.assertEqual(trainer.state.iteration, 12)
         self.assertEqual(trainer.state.epoch, 4)
 

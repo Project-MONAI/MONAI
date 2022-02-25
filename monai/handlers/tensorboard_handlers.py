@@ -145,6 +145,16 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.epoch_interval), self.epoch_completed)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
+            engine.remove_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED)
+        if engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
+            engine.remove_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED)
+
     def epoch_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.
@@ -330,7 +340,10 @@ class TensorBoardImageHandler(TensorBoardHandler):
             max_frames: if plot 3D RGB image as video in TensorBoardX, set the FPS to `max_frames`.
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
-        self.interval = interval
+        if epoch_level:
+            self.event = Events.EPOCH_COMPLETED(every=interval)
+        else:
+            self.event = Events.ITERATION_COMPLETED(every=interval)
         self.epoch_level = epoch_level
         self.batch_transform = batch_transform
         self.output_transform = output_transform
@@ -345,10 +358,15 @@ class TensorBoardImageHandler(TensorBoardHandler):
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        if self.epoch_level:
-            engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
-        else:
-            engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
+        engine.add_event_handler(self.event, self)
+
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, self.event):
+            engine.remove_event_handler(self, self.event)
 
     def __call__(self, engine: Engine) -> None:
         """

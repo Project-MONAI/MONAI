@@ -99,6 +99,14 @@ class CheckpointLoader:
             self.logger = engine.logger
         engine.add_event_handler(Events.STARTED, self)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, Events.STARTED):
+            engine.remove_event_handler(self, Events.STARTED)
+
     def __call__(self, engine: Engine) -> None:
         """
         Args:

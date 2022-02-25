@@ -58,8 +58,20 @@ class GarbageCollector:
         self.log_level = log_level
 
     def attach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
         if not engine.has_event_handler(self, self.trigger_event):
             engine.add_event_handler(self.trigger_event, self)
+
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, self.trigger_event):
+            engine.remove_event_handler(self, self.trigger_event)
 
     def __call__(self, engine: Engine) -> None:
         """

@@ -45,8 +45,10 @@ class ValidationHandler:
         if validator is not None and not isinstance(validator, Evaluator):
             raise TypeError(f"validator must be a monai.engines.evaluator.Evaluator but is {type(validator).__name__}.")
         self.validator = validator
-        self.interval = interval
-        self.epoch_level = epoch_level
+        if epoch_level:
+            self.event = Events.EPOCH_COMPLETED(every=interval)
+        else:
+            self.event = Events.ITERATION_COMPLETED(every=interval)
 
     def set_validator(self, validator: Evaluator):
         """
@@ -61,10 +63,15 @@ class ValidationHandler:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        if self.epoch_level:
-            engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
-        else:
-            engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
+        engine.add_event_handler(self.event, self)
+
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, self.event):
+            engine.remove_event_handler(self, self.event)
 
     def __call__(self, engine: Engine) -> None:
         """

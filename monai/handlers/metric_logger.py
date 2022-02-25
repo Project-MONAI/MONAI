@@ -87,6 +87,14 @@ class MetricLogger:
         """
         engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, Events.ITERATION_COMPLETED):
+            engine.remove_event_handler(self, Events.ITERATION_COMPLETED)
+
     def attach_evaluator(self, evaluator: Engine) -> None:
         """
         Attach event  handlers to the given evaluator to log metric values from it.

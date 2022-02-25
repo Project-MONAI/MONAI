@@ -108,6 +108,18 @@ class MLFlowHandler:
         if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        for func, event in zip(
+            (self.start, self.iteration_completed, self.epoch_completed),
+            (Events.STARTED, Events.ITERATION_COMPLETED, Events.EPOCH_COMPLETED),
+        ):
+            if engine.has_event_handler(func, event):  # type: ignore
+                engine.remove_event_handler(func, event)  # type: ignore
+
     def start(self) -> None:
         """
         Check MLFlow status and start if not active.

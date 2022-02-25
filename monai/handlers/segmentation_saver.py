@@ -155,6 +155,14 @@ class SegmentationSaver:
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, Events.ITERATION_COMPLETED):
+            engine.remove_event_handler(self, Events.ITERATION_COMPLETED)
+
     def __call__(self, engine: Engine) -> None:
         """
         This method assumes self.batch_transform will extract metadata from the input batch.

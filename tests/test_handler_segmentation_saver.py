@@ -51,6 +51,7 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
                 }
             ]
             engine.run(data, max_epochs=1)
+            saver.detach(engine)
             for i in range(8):
                 filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg" + f"_{i}" + output_ext)
                 self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))

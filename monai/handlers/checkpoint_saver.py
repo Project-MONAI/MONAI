@@ -241,6 +241,30 @@ class CheckpointSaver:
             else:
                 engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.save_interval), self.interval_completed)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        for func, event in zip(
+            (
+                self.completed,
+                self.exception_raised,
+                self.metrics_completed,
+                self.interval_completed,
+                self.interval_completed,
+            ),
+            (
+                Events.COMPLETED,
+                Events.EXCEPTION_RAISED,
+                Events.EPOCH_COMPLETED,
+                Events.EPOCH_COMPLETED,
+                Events.ITERATION_COMPLETED,
+            ),
+        ):
+            if engine.has_event_handler(func, event):  # type: ignore
+                engine.remove_event_handler(func, event)  # type: ignore
+
     def _delete_previous_final_ckpt(self):
         saved = self._final_checkpoint._saved
         if len(saved) > 0:

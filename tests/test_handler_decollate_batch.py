@@ -49,6 +49,7 @@ class TestHandlerDecollateBatch(unittest.TestCase):
             val_handlers=handlers,
         )
         engine.run()
+        handlers[0].detach(engine)
 
         expected = torch.tensor([[[[1.0], [1.0]], [[0.0], [0.0]]]])
 

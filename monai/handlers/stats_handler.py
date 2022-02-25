@@ -130,6 +130,18 @@ class StatsHandler:
         if not engine.has_event_handler(self.exception_raised, Events.EXCEPTION_RAISED):
             engine.add_event_handler(Events.EXCEPTION_RAISED, self.exception_raised)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        for func, event in zip(
+            (self.iteration_completed, self.epoch_completed, self.exception_raised),
+            (Events.ITERATION_COMPLETED, Events.EPOCH_COMPLETED, Events.EXCEPTION_RAISED),
+        ):
+            if engine.has_event_handler(func, event):  # type: ignore
+                engine.remove_event_handler(func, event)  # type: ignore
+
     def epoch_completed(self, engine: Engine) -> None:
         """
         Handler for train or validation/evaluation epoch completed Event.

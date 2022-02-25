@@ -37,10 +37,12 @@ class TestHandlerClassificationSaver(unittest.TestCase):
             # set up testing handler
             saver = CSVSaver(output_dir=tempdir, filename="predictions2.csv", delimiter="\t")
             ClassificationSaver(output_dir=tempdir, filename="predictions1.csv", delimiter="\t").attach(engine)
-            ClassificationSaver(saver=saver).attach(engine)
+            classification_saver = ClassificationSaver(saver=saver)
+            classification_saver.attach(engine)
 
             data = [{"filename_or_obj": ["testfile" + str(i) for i in range(8)]}]
             engine.run(data, max_epochs=1)
+            classification_saver.detach(engine)
 
             def _test_file(filename):
                 filepath = os.path.join(tempdir, filename)

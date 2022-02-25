@@ -62,7 +62,10 @@ class EarlyStopHandler:
         self.score_function = score_function
         self.min_delta = min_delta
         self.cumulative_delta = cumulative_delta
-        self.epoch_level = epoch_level
+        if epoch_level:
+            self.event = Events.EPOCH_COMPLETED
+        else:
+            self.event = Events.ITERATION_COMPLETED
         self._handler = None
 
         if trainer is not None:
@@ -73,10 +76,15 @@ class EarlyStopHandler:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        if self.epoch_level:
-            engine.add_event_handler(Events.EPOCH_COMPLETED, self)
-        else:
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+        engine.add_event_handler(self.event, self)
+
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, self.event):
+            engine.remove_event_handler(self, self.event)
 
     def set_trainer(self, trainer: Engine):
         """

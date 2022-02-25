@@ -38,14 +38,16 @@ class TestHandlerParameterScheduler(unittest.TestCase):
         # Testing step_constant
         net = ToyNet(value=-1)
         engine = Engine(lambda e, b: None)
-        ParamSchedulerHandler(
+        handler = ParamSchedulerHandler(
             parameter_setter=net.set_value,
             value_calculator="linear",
             vc_kwargs={"initial_value": 0, "step_constant": 2, "step_max_value": 5, "max_value": 10},
             epoch_level=True,
             event=Events.EPOCH_COMPLETED,
-        ).attach(engine)
+        )
+        handler.attach(engine)
         engine.run([0] * 8, max_epochs=2)
+        handler.detach(engine)
         torch.testing.assert_allclose(net.get_value(), 0)
 
         # Testing linear increase

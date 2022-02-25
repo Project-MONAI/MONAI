@@ -46,6 +46,7 @@ class TestHandlerTBImage(unittest.TestCase):
             )
             engine.run(data, epoch_length=10, max_epochs=1)
             stats_handler.close()
+            stats_handler.detach(engine)
 
             self.assertTrue(len(glob.glob(tempdir)) > 0)
 

@@ -42,9 +42,12 @@ class PostProcessing:
         """
         self.transform = transform
         event = event.upper()
-        if event not in ("MODEL_COMPLETED", "ITERATION_COMPLETED"):
+        if event == "MODEL_COMPLETED":
+            self.event = IterationEvents.MODEL_COMPLETED
+        elif event == "ITERATION_COMPLETED":
+            self.event = Events.ITERATION_COMPLETED
+        else:
             raise ValueError("event should be `MODEL_COMPLETED` or `ITERATION_COMPLETED`.")
-        self.event = event
 
     def attach(self, engine: Engine) -> None:
         """
@@ -54,7 +57,15 @@ class PostProcessing:
         if self.event == "MODEL_COMPLETED":
             engine.add_event_handler(IterationEvents.MODEL_COMPLETED, self)
         else:
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+            engine.add_event_handler(self.event, self)
+
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, self.event):
+            engine.remove_event_handler(self, self.event)
 
     def __call__(self, engine: Engine) -> None:
         """

@@ -74,6 +74,7 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         validation.set_validator(validator=evaluator)
 
         engine.run(data_loader)
+        prob_map_gen.detach(engine)
 
         prob_map = np.load(os.path.join(output_dir, name + ".npy"))
         self.assertListEqual(np.diag(prob_map).astype(int).tolist(), list(range(1, size + 1)))

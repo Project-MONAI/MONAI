@@ -164,6 +164,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
             handler.attach(engine)
             engine.run(data, max_epochs=2)
             engine.run(data, max_epochs=5)
+            handler.detach(engine)
             for filename in filenames:
                 self.assertTrue(os.path.exists(os.path.join(tempdir, filename)))
 

@@ -51,6 +51,7 @@ class TestHandlerMeanDice(unittest.TestCase):
         engine.fire_event(Events.ITERATION_COMPLETED)
 
         engine.fire_event(Events.EPOCH_COMPLETED)
+        dice_metric.detach(engine=engine, usage="epoch_wise")
         torch.testing.assert_allclose(engine.state.metrics["mean_dice"], expected_avg)
         self.assertTupleEqual(tuple(engine.state.metric_details["mean_dice"].shape), details_shape)
 

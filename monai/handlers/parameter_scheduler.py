@@ -91,6 +91,14 @@ class ParamSchedulerHandler:
             self.logger = engine.logger
         engine.add_event_handler(self.event, self)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, self.event):
+            engine.remove_event_handler(self, self.event)
+
     @staticmethod
     def _linear(
         initial_value: float, step_constant: int, step_max_value: int, max_value: float, current_step: int

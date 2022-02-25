@@ -41,6 +41,7 @@ class TestHandlerValidation(unittest.TestCase):
         saver.attach(engine)
 
         engine.run(data, max_epochs=5)
+        saver.detach(engine)
         self.assertEqual(evaluator.state.max_epochs, 4)
         self.assertEqual(evaluator.state.epoch_length, 8)
 

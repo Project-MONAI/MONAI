@@ -40,6 +40,7 @@ class TestHandlerTBStats(unittest.TestCase):
             stats_handler.attach(engine)
             engine.run(range(3), max_epochs=2)
             stats_handler.close()
+            stats_handler.detach(engine)
             # check logging output
             self.assertTrue(len(glob.glob(tempdir)) > 0)
 

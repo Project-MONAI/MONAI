@@ -94,6 +94,16 @@ class RangeHandler:
         engine.add_event_handler(self.events[0], self.range_push)
         engine.add_event_handler(self.events[1], self.range_pop)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self.range_push, self.events[0]):
+            engine.remove_event_handler(self.range_push, self.events[0])
+        if engine.has_event_handler(self.range_pop, self.events[1]):
+            engine.remove_event_handler(self.range_pop, self.events[1])
+
     def range_push(self):
         self.depth = _nvtx.rangePushA(self.msg)
 
@@ -125,6 +135,14 @@ class RangePushHandler:
         """
         engine.add_event_handler(self.event, self.range_push)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self.range_push, self.event):
+            engine.remove_event_handler(self.range_push, self.event)
+
     def range_push(self):
         self.depth = _nvtx.rangePushA(self.msg)
 
@@ -148,6 +166,9 @@ class RangePopHandler:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         engine.add_event_handler(self.event, self.range_pop)
+
+        if engine.has_event_handler(self.range_pop, self.event):
+            engine.remove_event_handler(self.range_pop, self.event)
 
     def range_pop(self):
         _nvtx.rangePop()
@@ -174,6 +195,9 @@ class MarkHandler:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         engine.add_event_handler(self.event, self.mark)
+
+        if engine.has_event_handler(self.mark, self.event):
+            engine.remove_event_handler(self.mark, self.event)
 
     def mark(self):
         _nvtx.markA(self.msg)

@@ -55,7 +55,10 @@ class LrScheduleHandler:
         self.lr_scheduler = lr_scheduler
         self.print_lr = print_lr
         self.logger = logging.getLogger(name)
-        self.epoch_level = epoch_level
+        if epoch_level:
+            self.event = Events.EPOCH_COMPLETED
+        else:
+            self.event = Events.ITERATION_COMPLETED
         if not callable(step_transform):
             raise TypeError(f"step_transform must be callable but is {type(step_transform).__name__}.")
         self.step_transform = step_transform
@@ -69,10 +72,15 @@ class LrScheduleHandler:
         """
         if self._name is None:
             self.logger = engine.logger
-        if self.epoch_level:
-            engine.add_event_handler(Events.EPOCH_COMPLETED, self)
-        else:
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+        engine.add_event_handler(self.event, self)
+
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, self.event):
+            engine.remove_event_handler(self, self.event)
 
     def __call__(self, engine: Engine) -> None:
         """

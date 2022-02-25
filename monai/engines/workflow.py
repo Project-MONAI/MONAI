@@ -193,6 +193,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             self._register_metrics(key_metric, additional_metrics)
         if handlers is not None:
             self._register_handlers(handlers)
+        self.handlers = handlers
 
     def _register_decollate(self):
         """

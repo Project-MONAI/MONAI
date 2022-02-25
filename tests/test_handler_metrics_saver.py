@@ -53,6 +53,7 @@ class TestHandlerMetricsSaver(unittest.TestCase):
 
             metrics_saver.attach(engine)
             engine.run(data, max_epochs=1)
+            metrics_saver.detach(engine)
 
             # check the metrics.csv and content
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metrics.csv")))

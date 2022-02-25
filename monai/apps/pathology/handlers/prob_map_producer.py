@@ -78,6 +78,16 @@ class ProbMapProducer:
         if not engine.has_event_handler(self.finalize, Events.COMPLETED):
             engine.add_event_handler(Events.COMPLETED, self.finalize)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        if engine.has_event_handler(self, Events.ITERATION_COMPLETED):
+            engine.remove_event_handler(self, Events.ITERATION_COMPLETED)
+        if engine.has_event_handler(self.finalize, Events.COMPLETED):
+            engine.remove_event_handler(self.finalize, Events.COMPLETED)
+
     def __call__(self, engine: Engine) -> None:
         """
         This method assumes self.batch_transform will extract metadata from the input batch.

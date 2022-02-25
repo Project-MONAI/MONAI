@@ -43,6 +43,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             handler.attach(engine)
             engine.run(range(3), max_epochs=2)
             handler.close()
+            handler.detach(engine)
             # check logging output
             self.assertTrue(len(glob.glob(test_path)) > 0)
 

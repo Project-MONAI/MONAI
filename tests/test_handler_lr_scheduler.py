@@ -85,6 +85,7 @@ class TestHandlerLrSchedule(unittest.TestCase):
 
         for scheduler in schedulers:
             np.testing.assert_allclose(scheduler.lr_scheduler._last_lr[0], 0.001)
+            scheduler.detach(train_engine)
 
 
 if __name__ == "__main__":

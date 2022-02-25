@@ -106,6 +106,18 @@ class MetricsSaver:
         engine.add_event_handler(Events.ITERATION_COMPLETED, self._get_filenames)
         engine.add_event_handler(Events.EPOCH_COMPLETED, self)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        for func, event in zip(
+            (self._started, self._get_filenames, self),
+            (Events.EPOCH_STARTED, Events.ITERATION_COMPLETED, Events.EPOCH_COMPLETED),
+        ):
+            if engine.has_event_handler(func, event):  # type: ignore
+                engine.remove_event_handler(func, event)  # type: ignore
+
     def _started(self, _engine: Engine) -> None:
         """
         Initialize internal buffers.

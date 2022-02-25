@@ -51,6 +51,18 @@ class SmartCacheHandler:
         engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
         engine.add_event_handler(Events.COMPLETED, self.completed)
 
+    def detach(self, engine: Engine) -> None:
+        """
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        for func, event in zip(
+            (self.started, self.epoch_completed, self.completed),
+            (Events.STARTED, Events.EPOCH_COMPLETED, Events.COMPLETED),
+        ):
+            if engine.has_event_handler(func, event):
+                engine.remove_event_handler(func, event)
+
     def started(self, engine: Engine) -> None:
         """Callback for train or validation/evaluation started Event.
         Start the replacement thread of SmartCacheDataset.

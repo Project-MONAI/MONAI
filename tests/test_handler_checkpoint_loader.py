@@ -35,7 +35,8 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine1.run([0] * 8, max_epochs=5)
             path = tempdir + "/checkpoint_final_iteration=40.pt"
             engine2 = Engine(lambda e, b: None)
-            CheckpointLoader(load_path=path, load_dict={"net": net2, "eng": engine2}, strict=True).attach(engine2)
+            loader = CheckpointLoader(load_path=path, load_dict={"net": net2, "eng": engine2}, strict=True)
+            loader.attach(engine2)
 
             @engine2.on(Events.STARTED)
             def check_epoch(engine: Engine):
@@ -43,7 +44,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
 
             engine2.run([0] * 8, max_epochs=8)
             torch.testing.assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
-
+            loader.detach(engine2)
             # test bad case with max_epochs smaller than current epoch
             engine3 = Engine(lambda e, b: None)
             CheckpointLoader(load_path=path, load_dict={"net": net2, "eng": engine3}, strict=True).attach(engine3)

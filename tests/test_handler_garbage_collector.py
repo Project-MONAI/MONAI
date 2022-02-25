@@ -52,9 +52,11 @@ class TestHandlerGarbageCollector(unittest.TestCase):
         # set up testing handler
         dataset = Dataset(data, transform=None)
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=1)
-        GarbageCollector(trigger_event=trigger_event, log_level=30).attach(engine)
+        collector = GarbageCollector(trigger_event=trigger_event, log_level=30)
+        collector.attach(engine)
 
         engine.run(data_loader, max_epochs=5)
+        collector.detach(engine)
 
         first_count = 0
         for iter, gb_count in gb_count_dict.items():
