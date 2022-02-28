@@ -20,6 +20,7 @@ def verify():
     parser.add_argument("--metadata", "-m", type=str, help="filepath of the metadata file.", required=True)
     parser.add_argument("--schema_url", "-u", type=str, help="filepath of the config file.", required=True)
     parser.add_argument("--filepath", "-f", type=str, help="filepath to store downloaded schema.", required=True)
+    parser.add_argument("--result_path", "-r", type=str, help="filepath to store verification result.", required=False)
     parser.add_argument("--hash_val", "-v", type=str, help="MD5 hash value to verify schema file.", required=False)
 
     args = parser.parse_args()
@@ -28,6 +29,7 @@ def verify():
         schema_url=args.schema_url,
         filepath=args.filepath,
         create_dir=True,
+        result_path=args.result_path,
         hash_val=args.hash_val,
     )
 

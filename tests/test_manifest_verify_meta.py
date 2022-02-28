@@ -111,7 +111,7 @@ class TestVerifyMeta(unittest.TestCase):
             with open(metafile, "w") as f:
                 json.dump(meta_data, f)
 
-            os.system(f"python -m monai.apps.manifest.verify_meta -m {metafile} -u fsdfsfs -f {filepath}")
+                os.system(f"python -m monai.apps.manifest.verify_meta -m {metafile} -u fsdfsfs -f {filepath}")
 
 
 if __name__ == "__main__":
