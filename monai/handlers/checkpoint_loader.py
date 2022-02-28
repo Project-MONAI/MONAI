@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -126,7 +126,7 @@ class CheckpointLoader:
         # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
         prior_max_epochs = engine.state.max_epochs
         Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint, strict=self.strict)
-        if engine.state.epoch > prior_max_epochs:
+        if prior_max_epochs is not None and engine.state.epoch > prior_max_epochs:
             raise ValueError(
                 f"Epoch count ({engine.state.epoch}) in checkpoint is larger than "
                 f"the `engine.state.max_epochs` ({prior_max_epochs}) of engine. To further train from checkpoint, "

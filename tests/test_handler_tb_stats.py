@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,11 +57,15 @@ class TestHandlerTBStats(unittest.TestCase):
             def _update_metric(engine):
                 current_metric = engine.state.metrics.get("acc", 0.1)
                 engine.state.metrics["acc"] = current_metric + 0.1
+                engine.state.test = current_metric
 
             # set up testing handler
             writer = SummaryWriter(log_dir=tempdir)
             stats_handler = TensorBoardStatsHandler(
-                writer, output_transform=lambda x: {"loss": x[0] * 2.0}, global_epoch_transform=lambda x: x * 3.0
+                summary_writer=writer,
+                output_transform=lambda x: {"loss": x[0] * 2.0},
+                global_epoch_transform=lambda x: x * 3.0,
+                state_attributes=["test"],
             )
             stats_handler.attach(engine)
             engine.run(range(3), max_epochs=2)

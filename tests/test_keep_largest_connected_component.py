@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,334 +12,357 @@
 import unittest
 
 import torch
+import torch.nn.functional as F
 from parameterized import parameterized
 
 from monai.transforms import KeepLargestConnectedComponent
-from tests.utils import assert_allclose, clone
+from monai.transforms.utils_pytorch_numpy_unification import moveaxis
+from monai.utils.type_conversion import convert_to_dst_type
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
-grid_1 = torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]])
-grid_2 = torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [1, 0, 1, 1, 2], [1, 0, 1, 2, 2], [0, 0, 0, 0, 1]]])
-grid_3 = torch.tensor(
+
+def to_onehot(x):
+    out = moveaxis(F.one_hot(torch.as_tensor(x).long())[0], -1, 0)
+    out, *_ = convert_to_dst_type(out, x)
+    return out
+
+
+grid_1 = [[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]
+grid_2 = [[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [1, 0, 1, 1, 2], [1, 0, 1, 2, 2], [0, 0, 0, 0, 1]]]
+grid_3 = [
     [
-        [
-            [1.0, 1.0, 0.0, 1.0, 1.0],
-            [1.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0, 1.0],
-            [0.0, 0.0, 1.0, 0.0, 1.0],
-            [0.0, 0.0, 1.0, 1.0, 0.0],
-        ],
-        [
-            [0.0, 0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 1.0, 1.0],
-            [1.0, 0.0, 1.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0],
-        ],
-        [
-            [0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0, 0.0],
-            [1.0, 1.0, 0.0, 0.0, 1.0],
-        ],
+        [1.0, 1.0, 0.0, 1.0, 1.0],
+        [1.0, 0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0, 1.0],
+        [0.0, 0.0, 1.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 1.0, 0.0],
     ],
-)
-grid_4 = torch.tensor(
     [
-        [
-            [1.0, 1.0, 1.0, 1.0, 0.0],
-            [1.0, 1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0, 0.0],
-            [1.0, 1.0, 1.0, 1.0, 0.0],
-        ],
-        [
-            [0.0, 0.0, 0.0, 0.0, 1.0],
-            [0.0, 0.0, 1.0, 1.0, 1.0],
-            [1.0, 0.0, 1.0, 1.0, 0.0],
-            [1.0, 0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 1.0],
-        ],
-        [
-            [0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 1.0],
-            [0.0, 0.0, 0.0, 1.0, 1.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0],
-        ],
+        [0.0, 0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0],
     ],
-)
-
-
-TEST_CASE_1 = [
-    "value_1",
-    {"independent": False, "applied_labels": 1},
-    grid_1,
-    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
+    [
+        [0.0, 0.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0, 0.0],
+        [1.0, 1.0, 0.0, 0.0, 1.0],
+    ],
 ]
-
-TEST_CASE_2 = [
-    "value_2",
-    {"independent": False, "applied_labels": [2]},
-    grid_1,
-    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
+grid_4 = [
+    [
+        [1.0, 1.0, 1.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0, 0.0],
+        [1.0, 1.0, 1.0, 1.0, 0.0],
+    ],
+    [
+        [0.0, 0.0, 0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0, 1.0, 0.0],
+        [1.0, 0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0, 1.0],
+    ],
+    [
+        [0.0, 0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0, 1.0],
+        [0.0, 0.0, 0.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0],
+    ],
 ]
+grid_5 = [[[0, 0, 1, 0, 0], [0, 1, 1, 1, 1], [1, 1, 1, 0, 0], [1, 1, 0, 1, 0], [1, 1, 0, 0, 1]]]
 
-TEST_CASE_3 = [
-    "independent_value_1_2",
-    {"independent": True, "applied_labels": [1, 2]},
-    grid_1,
-    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
-]
-
-TEST_CASE_4 = [
-    "dependent_value_1_2",
-    {"independent": False, "applied_labels": [1, 2]},
-    grid_1,
-    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
-]
-
-TEST_CASE_5 = [
-    "value_1",
-    {"independent": True, "applied_labels": [1]},
-    grid_2,
-    torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
-]
-
-TEST_CASE_6 = [
-    "independent_value_1_2",
-    {"independent": True, "applied_labels": [1, 2]},
-    grid_2,
-    torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
-]
-
-TEST_CASE_7 = [
-    "dependent_value_1_2",
-    {"independent": False, "applied_labels": [1, 2]},
-    grid_2,
-    torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 1]]]),
-]
-
-TEST_CASE_8 = [
-    "value_1_connect_1",
-    {"independent": False, "applied_labels": [1], "connectivity": 1},
-    grid_1,
-    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 2]]]),
-]
-
-TEST_CASE_9 = [
-    "independent_value_1_2_connect_1",
-    {"independent": True, "applied_labels": [1, 2], "connectivity": 1},
-    grid_1,
-    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
-]
-
-TEST_CASE_10 = [
-    "dependent_value_1_2_connect_1",
-    {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
-    grid_1,
-    torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
-]
-
-TEST_CASE_11 = [
-    "onehot_independent_batch_2_apply_label_1_connect_1",
-    {"independent": True, "applied_labels": [1], "connectivity": 1},
-    grid_3,
-    torch.tensor(
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
         [
-            [
-                [1.0, 1.0, 0.0, 1.0, 1.0],
-                [1.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0, 1.0],
-                [0.0, 0.0, 1.0, 0.0, 1.0],
-                [0.0, 0.0, 1.0, 1.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 1.0, 1.0],
-                [0.0, 0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0, 0.0, 1.0],
-            ],
-        ],
-    ),
-]
+            "value_1",
+            {"independent": False, "applied_labels": 1, "is_onehot": False},
+            p(grid_1),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
+        ]
+    )
 
-TEST_CASE_12 = [
-    "onehot_independent_batch_2_apply_label_1_connect_2",
-    {"independent": True, "applied_labels": [1], "connectivity": 2},
-    grid_3,
-    torch.tensor(
+    TESTS.append(
         [
-            [
-                [1.0, 1.0, 0.0, 1.0, 1.0],
-                [1.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0, 1.0],
-                [0.0, 0.0, 1.0, 0.0, 1.0],
-                [0.0, 0.0, 1.0, 1.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 1.0, 1.0],
-                [0.0, 0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0, 0.0, 1.0],
-            ],
-        ],
-    ),
-]
+            "value_2",
+            {"independent": False, "applied_labels": [2], "is_onehot": False},
+            p(grid_1),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
+        ]
+    )
 
-TEST_CASE_13 = [
-    "onehot_independent_batch_2_apply_label_1_2_connect_2",
-    {"independent": True, "applied_labels": [1, 2], "connectivity": 2},
-    grid_3,
-    torch.tensor(
+    TESTS.append(
         [
-            [
-                [1.0, 1.0, 0.0, 1.0, 1.0],
-                [1.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0, 1.0],
-                [0.0, 0.0, 1.0, 0.0, 1.0],
-                [0.0, 0.0, 1.0, 1.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 1.0, 1.0],
-                [0.0, 0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0, 0.0, 0.0],
-            ],
-        ],
-    ),
-]
+            "independent_value_1_2",
+            {"independent": True, "applied_labels": [1, 2], "is_onehot": False},
+            p(grid_1),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
+        ]
+    )
 
-TEST_CASE_14 = [
-    "onehot_dependent_batch_2_apply_label_1_2_connect_2",
-    {"independent": False, "applied_labels": [1, 2], "connectivity": 2},
-    grid_4,
-    torch.tensor(
+    TESTS.append(
         [
-            [
-                [1.0, 1.0, 1.0, 1.0, 0.0],
-                [1.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [1.0, 1.0, 1.0, 1.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0, 1.0],
-                [0.0, 0.0, 1.0, 1.0, 1.0],
-                [0.0, 0.0, 1.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 1.0],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 1.0],
-                [0.0, 0.0, 0.0, 1.0, 1.0],
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-            ],
-        ],
-    ),
-]
+            "dependent_value_1_2",
+            {"independent": False, "applied_labels": [1, 2], "is_onehot": False},
+            p(grid_1),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
+        ]
+    )
 
-TEST_CASE_15 = [
-    "onehot_dependent_batch_2_apply_label_1_2_connect_1",
-    {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
-    grid_4,
-    torch.tensor(
+    TESTS.append(
         [
-            [
-                [1.0, 1.0, 1.0, 1.0, 0.0],
-                [1.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0],
-                [1.0, 1.0, 1.0, 1.0, 0.0],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0, 1.0],
-                [0.0, 0.0, 1.0, 1.0, 1.0],
-                [0.0, 0.0, 1.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 1.0],
-            ],
-            [
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 0.0, 1.0],
-                [0.0, 0.0, 0.0, 1.0, 1.0],
-                [0.0, 0.0, 0.0, 0.0, 0.0],
-            ],
-        ],
-    ),
-]
+            "value_1",
+            {"independent": True, "applied_labels": [1], "is_onehot": False},
+            p(grid_2),
+            torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
+        ]
+    )
 
-VALID_CASES = [
-    TEST_CASE_1,
-    TEST_CASE_2,
-    TEST_CASE_3,
-    TEST_CASE_4,
-    TEST_CASE_5,
-    TEST_CASE_6,
-    TEST_CASE_7,
-    TEST_CASE_8,
-    TEST_CASE_9,
-    TEST_CASE_10,
-    TEST_CASE_11,
-    TEST_CASE_12,
-    TEST_CASE_13,
-    TEST_CASE_14,
-    TEST_CASE_15,
-]
+    TESTS.append(
+        [
+            "independent_value_1_2",
+            {"independent": True, "applied_labels": [1, 2], "is_onehot": False},
+            p(grid_2),
+            torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
+        ]
+    )
 
-ITEST_CASE_1 = ["no_applied_labels_for_single_channel", {"independent": False}, grid_1, TypeError]
+    TESTS.append(
+        [
+            "dependent_value_1_2",
+            {"independent": False, "applied_labels": [1, 2], "is_onehot": False},
+            p(grid_2),
+            torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 1]]]),
+        ]
+    )
 
-ITEST_CASE_2 = ["no_applied_labels_for_multi_channel", {"independent": False}, grid_3, TypeError]
+    TESTS.append(
+        [
+            "value_1_connect_1",
+            {"independent": False, "applied_labels": [1], "connectivity": 1, "is_onehot": False},
+            p(grid_1),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 2]]]),
+        ]
+    )
 
-INVALID_CASES = [ITEST_CASE_1, ITEST_CASE_2]
+    TESTS.append(
+        [
+            "independent_value_1_2_connect_1",
+            {"independent": True, "applied_labels": [1, 2], "connectivity": 1, "is_onehot": False},
+            p(grid_1),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
+        ]
+    )
+
+    TESTS.append(
+        [
+            "onehot_none_dependent_value_1_2_connect_1",
+            {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
+            p(grid_1),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
+        ]
+    )
+
+    TESTS.append(
+        [
+            "onehot_independent_batch_2_apply_label_1_connect_1",
+            {"independent": True, "applied_labels": [1], "connectivity": 1, "is_onehot": True},
+            p(grid_3),
+            torch.tensor(
+                [
+                    [
+                        [1.0, 1.0, 0.0, 1.0, 1.0],
+                        [1.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0, 1.0],
+                        [0.0, 0.0, 1.0, 0.0, 1.0],
+                        [0.0, 0.0, 1.0, 1.0, 0.0],
+                    ],
+                    [
+                        [0.0, 0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 1.0, 1.0],
+                        [0.0, 0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                    ],
+                    [
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [1.0, 1.0, 0.0, 0.0, 1.0],
+                    ],
+                ]
+            ),
+        ]
+    )
+
+    TESTS.append(
+        [
+            "onehot_independent_batch_2_apply_label_1_connect_2",
+            {"independent": True, "applied_labels": [1], "connectivity": 2, "is_onehot": True},
+            p(grid_3),
+            torch.tensor(
+                [
+                    [
+                        [1.0, 1.0, 0.0, 1.0, 1.0],
+                        [1.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0, 1.0],
+                        [0.0, 0.0, 1.0, 0.0, 1.0],
+                        [0.0, 0.0, 1.0, 1.0, 0.0],
+                    ],
+                    [
+                        [0.0, 0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 1.0, 1.0],
+                        [0.0, 0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                    ],
+                    [
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [1.0, 1.0, 0.0, 0.0, 1.0],
+                    ],
+                ]
+            ),
+        ]
+    )
+
+    TESTS.append(
+        [
+            "onehot_independent_batch_2_apply_label_1_2_connect_2",
+            {"independent": True, "applied_labels": [1, 2], "connectivity": 2, "is_onehot": True},
+            p(grid_3),
+            torch.tensor(
+                [
+                    [
+                        [1.0, 1.0, 0.0, 1.0, 1.0],
+                        [1.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0, 1.0],
+                        [0.0, 0.0, 1.0, 0.0, 1.0],
+                        [0.0, 0.0, 1.0, 1.0, 0.0],
+                    ],
+                    [
+                        [0.0, 0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 1.0, 1.0],
+                        [0.0, 0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                    ],
+                    [
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [1.0, 1.0, 0.0, 0.0, 0.0],
+                    ],
+                ]
+            ),
+        ]
+    )
+
+    TESTS.append(
+        [
+            "onehot_dependent_batch_2_apply_label_1_2_connect_2",
+            {"independent": False, "applied_labels": [1, 2], "connectivity": 2, "is_onehot": True},
+            p(grid_4),
+            torch.tensor(
+                [
+                    [
+                        [1.0, 1.0, 1.0, 1.0, 0.0],
+                        [1.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [1.0, 1.0, 1.0, 1.0, 0.0],
+                    ],
+                    [
+                        [0.0, 0.0, 0.0, 0.0, 1.0],
+                        [0.0, 0.0, 1.0, 1.0, 1.0],
+                        [0.0, 0.0, 1.0, 1.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 1.0],
+                    ],
+                    [
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 1.0],
+                        [0.0, 0.0, 0.0, 1.0, 1.0],
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                    ],
+                ]
+            ),
+        ]
+    )
+
+    TESTS.append(
+        [
+            "onehot_none_dependent_batch_2_apply_label_1_2_connect_1",
+            {"independent": False, "applied_labels": [1, 2], "connectivity": 1},
+            p(grid_4),
+            torch.tensor(
+                [
+                    [
+                        [1.0, 1.0, 1.0, 1.0, 0.0],
+                        [1.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0, 0.0],
+                        [1.0, 1.0, 1.0, 1.0, 0.0],
+                    ],
+                    [
+                        [0.0, 0.0, 0.0, 0.0, 1.0],
+                        [0.0, 0.0, 1.0, 1.0, 1.0],
+                        [0.0, 0.0, 1.0, 1.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 1.0],
+                    ],
+                    [
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 1.0],
+                        [0.0, 0.0, 0.0, 1.0, 1.0],
+                        [0.0, 0.0, 0.0, 0.0, 0.0],
+                    ],
+                ]
+            ),
+        ]
+    )
+
+    TESTS.append(
+        [
+            "all_non_zero_labels",
+            {"independent": True},
+            p(grid_1),
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
+        ]
+    )
 
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):
-    @parameterized.expand(VALID_CASES)
+    @parameterized.expand(TESTS)
     def test_correct_results(self, _, args, input_image, expected):
         converter = KeepLargestConnectedComponent(**args)
-        if isinstance(input_image, torch.Tensor) and torch.cuda.is_available():
-            result = converter(clone(input_image).cuda())
-
+        result = converter(input_image)
+        assert_allclose(result, expected, type_test=False)
+        if "is_onehot" in args:
+            args["is_onehot"] = not args["is_onehot"]
+        # if not onehotted, onehot it and make sure result stays the same
+        if input_image.shape[0] == 1:
+            img = to_onehot(input_image)
+            result2 = KeepLargestConnectedComponent(**args)(img)
+            result2 = result2.argmax(0)[None]
+            assert_allclose(result, result2)
+        # if onehotted, un-onehot and check result stays the same
         else:
-            result = converter(clone(input_image))
-        assert_allclose(result, expected)
-
-    @parameterized.expand(INVALID_CASES)
-    def test_raise_exception(self, _, args, input_image, expected_error):
-        with self.assertRaises(expected_error):
-            converter = KeepLargestConnectedComponent(**args)
-            if isinstance(input_image, torch.Tensor) and torch.cuda.is_available():
-                _ = converter(clone(input_image).cuda())
-            else:
-                _ = converter(clone(input_image).clone())
+            img = input_image.argmax(0)[None]
+            result2 = KeepLargestConnectedComponent(**args)(img)
+            assert_allclose(result.argmax(0)[None], result2)
 
 
 if __name__ == "__main__":
