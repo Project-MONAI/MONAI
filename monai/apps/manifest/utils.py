@@ -13,9 +13,10 @@ import json
 from distutils.util import strtobool
 from typing import Any, Dict, Optional, Tuple, Union
 
-import yaml
-
 from monai.apps.manifest.config_parser import ConfigParser
+from monai.utils import optional_import
+
+yaml, _ = optional_import("yaml")
 
 
 def read_config(filepath: str):

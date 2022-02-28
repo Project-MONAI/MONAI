@@ -44,3 +44,4 @@ mlflow
 matplotlib!=3.5.0
 tensorboardX
 types-PyYAML
+pyyaml

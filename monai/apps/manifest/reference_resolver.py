@@ -168,7 +168,7 @@ class ReferenceResolver:
         """
         refs: Set[str] = set()
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
-        result = re.compile(r"@(\<\w+\>|\w+)(\#(\<\w+\>|\w+))*").findall(value)
+        result = re.compile(r"@(?:(?:<\w*>)|(?:\w*))(?:(?:#<\w*>)|(?:#\w*))*").findall(value)
         for item in result:
             if ConfigExpression.is_expression(value) or value == item:
                 # only check when string starts with "$" or the whole content is "@XXX"
@@ -188,7 +188,7 @@ class ReferenceResolver:
 
         """
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
-        result = re.compile(r"@(\<\w+\>|\w+)(\#(\<\w+\>|\w+))*").findall(value)
+        result = re.compile(r"@(?:(?:<\w*>)|(?:\w*))(?:(?:#<\w*>)|(?:#\w*))*").findall(value)
         for item in result:
             ref_id = item[1:]
             if ref_id not in refs:
