@@ -72,4 +72,4 @@ def verify_metadata(
             _check_dir(result_path)
             with open(result_path, "w") as f:
                 f.write(str(e))
-        raise e
+        raise ValueError("detected content with incorrect format in the meta data.") from e
