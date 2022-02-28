@@ -107,18 +107,21 @@ class TestVerifyMeta(unittest.TestCase):
     def test_verify(self, meta_data):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         with tempfile.TemporaryDirectory() as tempdir:
-            #filepath = os.path.join(tempdir, "schema.json")
-            filepath = "/workspace/data/medical/MONAI/monai/apps/manifest/metadata.json"
-
+            filepath = os.path.join(tempdir, "schema.json")
             metafile = os.path.join(tempdir, "metadata.json")
             with open(metafile, "w") as f:
                 json.dump(meta_data, f)
+
+            url = (
+                "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/"
+                "meta_schema_202202281232.json"
+            )
             resultfile = os.path.join(tempdir, "results.txt")
             hash_val = "486c581cca90293d1a7f41a57991ff35"
 
             ret = os.system(
-                f"python -m monai.apps.manifest.verify_meta -m {metafile} -u fsdfsfs"
-                f" -f {filepath} -r {resultfile} -v {hash_val}"
+                f"python -m monai.apps.manifest.verify_meta -m {metafile} -u {url} -f {filepath}"
+                f" -r {resultfile} -v {hash_val}"
             )
             self.assertEqual(ret, 0)
             self.assertFalse(os.path.exists(resultfile))
