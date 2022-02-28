@@ -11,3 +11,4 @@
 
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from .reference_resolver import ReferenceResolver
+from .utils import verify_metadata
