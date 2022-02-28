@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,15 +20,11 @@ import numpy as np
 import torch
 
 from monai.data.utils import list_data_collate
-from monai.transforms.compose import Compose
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.utility.array import ToTensor
-from monai.utils.enums import InverseKeys, Method, NumpyPadMode
+from monai.utils.enums import Method, NumpyPadMode, TraceKeys
 
-__all__ = [
-    "PadListDataCollate",
-]
+__all__ = ["PadListDataCollate"]
 
 
 def replace_element(to_replace, batch, idx, key_or_idx):
@@ -49,8 +45,9 @@ class PadListDataCollate(InvertibleTransform):
     tensor in each dimension. This transform is useful if some of the applied transforms generate batch data of
     different sizes.
 
-    This can be used on both list and dictionary data. In the case of the dictionary data, this transform will be added
-    to the list of invertible transforms.
+    This can be used on both list and dictionary data.
+    Note that in the case of the dictionary data, it may add the transform information to the list of invertible transforms
+    if input batch have different spatial shape, so need to call static method: `inverse` before inverting other transforms.
 
     Note that normally, a user won't explicitly use the `__call__` method. Rather this would be passed to the `DataLoader`.
     This means that `__call__` handles data as it comes out of a `DataLoader`, containing batch dimension. However, the
@@ -97,20 +94,12 @@ class PadListDataCollate(InvertibleTransform):
             # If all same size, skip
             if np.all(np.array(max_shapes).min(axis=0) == max_shape):
                 continue
-            # Do we need to convert output to Tensor?
-            output_to_tensor = isinstance(batch[0][key_or_idx], torch.Tensor)
 
-            # Use `SpatialPadd` or `SpatialPad` to match sizes
-            # Default params are central padding, padding with 0's
-            # If input is dictionary, use the dictionary version so that the transformation is recorded
-
+            # Use `SpatialPad` to match sizes, Default params are central padding, padding with 0's
             padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.np_kwargs)
-            transform = padder if not output_to_tensor else Compose([padder, ToTensor()])
-
             for idx, batch_i in enumerate(batch):
-                im = batch_i[key_or_idx]
-                orig_size = im.shape[1:]
-                padded = transform(batch_i[key_or_idx])
+                orig_size = batch_i[key_or_idx].shape[1:]
+                padded = padder(batch_i[key_or_idx])
                 batch = replace_element(padded, batch, idx, key_or_idx)
 
                 # If we have a dictionary of data, append to list
@@ -127,11 +116,13 @@ class PadListDataCollate(InvertibleTransform):
 
         d = deepcopy(data)
         for key in d:
-            transform_key = str(key) + InverseKeys.KEY_SUFFIX
+            transform_key = InvertibleTransform.trace_key(key)
             if transform_key in d:
                 transform = d[transform_key][-1]
-                if transform[InverseKeys.CLASS_NAME] == PadListDataCollate.__name__:
-                    d[key] = CenterSpatialCrop(transform["orig_size"])(d[key])
+                if not isinstance(transform, Dict):
+                    continue
+                if transform.get(TraceKeys.CLASS_NAME) == PadListDataCollate.__name__:
+                    d[key] = CenterSpatialCrop(transform.get("orig_size", -1))(d[key])  # fallback to image size
                     # remove transform
                     d[transform_key].pop()
         return d
