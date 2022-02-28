@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from typing import Dict, Optional
 
-from monai.apps.utils import download_and_extract
+from monai.apps.utils import download_url
 from monai.config import PathLike
 from monai.utils import optional_import
 
@@ -31,14 +31,7 @@ def verify_metadata(
         else:
             raise ValueError(f"the directory of specified path is not existing: {path_dir}.")
 
-    download_and_extract(
-        url=schema_url,
-        filepath=filepath,
-        output_dir=path_dir,
-        hash_val=hash_val,
-        hash_type="md5",
-        progress=True,
-    )
+    download_url(url=schema_url, filepath=filepath, hash_val=hash_val, hash_type="md5", progress=True)
 
     # FIXME: will update to use `load_config_file()` when PR 3832 is merged
     with open(filepath) as f:

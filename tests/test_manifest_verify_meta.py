@@ -10,18 +10,11 @@
 # limitations under the License.
 
 import json
-import logging
 import os
-import sys
 import tempfile
 import unittest
 
-import nibabel as nib
-import numpy as np
-import yaml
 from parameterized import parameterized
-
-from monai.transforms import LoadImage
 
 TEST_CASE_1 = [
     {
