@@ -10,9 +10,7 @@
 # limitations under the License.
 
 import json
-import logging
 import os
-import sys
 import tempfile
 import unittest
 
@@ -95,10 +93,9 @@ TEST_CASE_1 = [
 ]
 
 
-class TestChannelPad(unittest.TestCase):
+class TestManifestRun(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, config, expected_shape):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "image.nii")

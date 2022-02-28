@@ -11,6 +11,8 @@
 
 
 import argparse
+import logging
+import sys
 
 from monai.apps.manifest.utils import parse_config_files, parse_id_value
 
@@ -37,6 +39,8 @@ def run():
     )
 
     args = parser.parse_args()
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
     override = {}
     if args.override is not None:
         for pair in args.override:
