@@ -16,6 +16,11 @@ from monai.apps.manifest.utils import verify_metadata
 
 
 def verify():
+    """
+    Verify the provided `metadata` file based on the predefined `schema`.
+    The schema standard follows: http://json-schema.org/.
+
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--metadata", "-m", type=str, help="filepath of the metadata file.", required=True)
     parser.add_argument("--schema_url", "-u", type=str, help="filepath of the config file.", required=True)
@@ -28,8 +33,8 @@ def verify():
         metadata=args.metadata,
         schema_url=args.schema_url,
         filepath=args.filepath,
-        create_dir=True,
         result_path=args.result_path,
+        create_dir=True,
         hash_val=args.hash_val,
     )
 
