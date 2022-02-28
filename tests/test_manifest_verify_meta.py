@@ -10,7 +10,9 @@
 # limitations under the License.
 
 import json
+import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -103,6 +105,7 @@ TEST_CASE_1 = [
 class TestVerifyMeta(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_verify(self, meta_data):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         with tempfile.TemporaryDirectory() as tempdir:
             #filepath = os.path.join(tempdir, "schema.json")
             filepath = "/workspace/data/medical/MONAI/monai/apps/manifest/metadata.json"
@@ -110,8 +113,15 @@ class TestVerifyMeta(unittest.TestCase):
             metafile = os.path.join(tempdir, "metadata.json")
             with open(metafile, "w") as f:
                 json.dump(meta_data, f)
+            resultfile = os.path.join(tempdir, "results.txt")
+            hash_val = "486c581cca90293d1a7f41a57991ff35"
 
-                os.system(f"python -m monai.apps.manifest.verify_meta -m {metafile} -u fsdfsfs -f {filepath}")
+            ret = os.system(
+                f"python -m monai.apps.manifest.verify_meta -m {metafile} -u fsdfsfs"
+                f" -f {filepath} -r {resultfile} -v {hash_val}"
+            )
+            self.assertEqual(ret, 0)
+            self.assertFalse(os.path.exists(resultfile))
 
 
 if __name__ == "__main__":

@@ -48,13 +48,12 @@ def verify_metadata(
     # FIXME: will update to use `load_config_file()` when PR 3832 is merged
     with open(filepath) as f:
         schema = json.load(f)
-    meta = metadata
     if isinstance(metadata, str):
         with open(metadata) as f:
-            meta = json.load(f)
+            metadata = json.load(f)
 
     try:
-        validate(instance=meta, schema=schema, **kwargs)
+        validate(instance=metadata, schema=schema, **kwargs)
     except ValidationError as e:
         if result_path is not None:
             result_path = Path(result_path)

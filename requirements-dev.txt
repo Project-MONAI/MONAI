@@ -43,3 +43,4 @@ transformers
 mlflow
 matplotlib!=3.5.0
 tensorboardX
+jsonschema
