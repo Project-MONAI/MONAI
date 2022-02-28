@@ -365,7 +365,7 @@ Models ensemble is a popular strategy in machine learning and deep learning area
 4. Compute the average values with weights or vote the most common value as the final result.
 
 ![model ensemble](../images/models_ensemble.png)
-More details of practice is at [Model ensemble tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/cross_validation_models_ensemble.ipynb).
+More details of practice is at [Cross validation and model ensemble tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/cross_validation_models_ensemble.ipynb).
 
 
 ### 3. Transfer learning for different input / output classes
