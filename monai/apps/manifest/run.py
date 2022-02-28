@@ -17,9 +17,9 @@ from monai.apps.manifest.utils import parse_config_files, parse_id_value
 
 def run():
     """
-    Specify the metadata file, config file to run a standard training or evaluation program.
-    It's used to execute most of the supervised training or evaluation cases.
-    It supports to override the config content with specified `id` and `value`.
+    Specify a metadata file and a config file to run a regular training or evaluation program.
+    It's used to execute most of the supervised training, evaluation or inference cases.
+    It supports to override the config content with specified `id` and `value` pairs.
     The `override` arg can also be used to provide default value for placeholders. For example:
     put a placeholder `"data": "@runtime_value"` in the config, then define `runtime_value` in `override`.
 

@@ -11,31 +11,40 @@
 
 import json
 from distutils.util import strtobool
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 from monai.apps.manifest.config_parser import ConfigParser
-from monai.utils import optional_import
+from monai.utils import ensure_tuple, optional_import
 
 yaml, _ = optional_import("yaml")
 
 
-def read_config(filepath: str):
+def load_config_file(filepath: str, **kwargs):
     """
-    Read config file with specified file path.
+    Load config file with specified file path.
     Suppprt JSON and YAML formats.
+
+    Args:
+        filepath: path of target file to load, supported postfixes: `.json`, `yml`, `yaml`.
+        kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+            for more details, please check:
+            https://docs.python.org/3/library/json.html#json.load.
+            https://pyyaml.org/wiki/PyYAMLDocumentation.
 
     """
     with open(filepath) as f:
         if filepath.lower().endswith(".json"):
-            return json.load(f)
+            return json.load(f, **kwargs)
         if filepath.lower().endswith((".yml", ".yaml")):
-            return yaml.load(f, Loader=yaml.FullLoader)
+            if "Loader" not in kwargs:
+                kwargs["Loader"] = yaml.FullLoader
+            return yaml.load(f, **kwargs)
         raise ValueError("only support JSON or YAML config file so far.")
 
 
 def parse_id_value(pair: str) -> Tuple[str, Any]:
     """
-    Parse the "id=value" pair to `id` and `value`.
+    Parse the "id=value" pair string to `id` and `value`.
     Will try to convert the correct data type of `value` from string.
 
     Args:
@@ -43,7 +52,7 @@ def parse_id_value(pair: str) -> Tuple[str, Any]:
 
     """
     items = pair.split("=")
-    # we remove blanks around id
+    # remove blanks around id
     id = items[0].strip()
     value: Union[str, int, float, bool] = ""
     if len(items) > 1:
@@ -64,7 +73,9 @@ def parse_id_value(pair: str) -> Tuple[str, Any]:
     return id, value
 
 
-def parse_config_files(config_file: str, meta_file: str, override: Optional[Dict] = None) -> ConfigParser:
+def parse_config_files(
+    config_file: Union[str, Sequence[str]], meta_file: Union[str, Sequence[str]], override: Optional[Dict] = None
+) -> ConfigParser:
     """
     Read the config file, metadata file and override with specified `id=value` pairs.
     Put metadata in the config content with key "<meta>".
@@ -73,23 +84,32 @@ def parse_config_files(config_file: str, meta_file: str, override: Optional[Dict
     and use the content as `value`.
 
     Args:
-        config_file: filepath of the config file.
-        meta_file: filepath of the metadata file.
+        config_file: filepath of the config file, the config content must be a dictionary,
+            if providing a list of files, wil merge the content of them.
+        meta_file: filepath of the metadata file, the config content must be a dictionary,
+            if providing a list of files, wil merge the content of them.
         override: dict of `{id: value}` pairs to override or add the config content.
 
     """
-    config = read_config(config_file)
-    if not isinstance(config, dict):
-        raise ValueError("input config file must be a dictionary.")
+    config: Dict = {"<meta>": {}}
+    for f in ensure_tuple(config_file):
+        content = load_config_file(f)
+        if not isinstance(content, dict):
+            raise ValueError("input config content must be a dictionary.")
+        config.update(content)
 
-    config["<meta>"] = read_config(meta_file)
+    for f in ensure_tuple(meta_file):
+        content = load_config_file(f)
+        if not isinstance(content, dict):
+            raise ValueError("meta data content must be a dictionary.")
+        config["<meta>"].update(content)
 
     parser = ConfigParser(config=config)
 
     if override is not None:
         for id, v in override.items():
             if isinstance(v, str) and v.startswith("<file>"):
-                v = read_config(v[6:])
+                v = load_config_file(v[6:])
             parser[id] = v
 
     return parser
