@@ -18,6 +18,7 @@ from .manifest import (
     ConfigParser,
     ReferenceResolver,
     load_config_file,
+    load_config_file_content,
     parse_config_files,
     parse_id_value,
 )

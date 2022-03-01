@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import json
+import re
 from distutils.util import strtobool
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
@@ -40,6 +41,31 @@ def load_config_file(filepath: str, **kwargs):
                 kwargs["Loader"] = yaml.FullLoader
             return yaml.load(f, **kwargs)
         raise ValueError("only support JSON or YAML config file so far.")
+
+
+def load_config_file_content(path: str, **kwargs):
+    """
+    Load part of the content from a config file with specified `id` in the path.
+    Suppprt JSON and YAML formats file.
+
+    Args:
+        path: path of target file to load, it can only load part of it appending target `id`
+            in the path with "#" mark. for example: `/data/config.json`, `/data/config.json#net#<args>`.
+        kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+            for more details, please check:
+            https://docs.python.org/3/library/json.html#json.load.
+            https://pyyaml.org/wiki/PyYAMLDocumentation.
+
+    """
+    pattern = r"(json|yaml|yml)"
+    result = re.findall(pattern, path, re.IGNORECASE)
+    if len(result) != 1:
+        raise ValueError(f"path should only contain 1 file, but got: {path}.")
+
+    # split the path into filepath and target id of the content
+    paths = path.split(result[0])
+    parser = ConfigParser(config=load_config_file(paths[0] + result[0], **kwargs))
+    return parser[paths[1][1:] if paths[1] != "" else ""]
 
 
 def parse_id_value(pair: str) -> Tuple[str, Any]:
@@ -109,7 +135,7 @@ def parse_config_files(
     if override is not None:
         for id, v in override.items():
             if isinstance(v, str) and v.startswith("<file>"):
-                v = load_config_file(v[6:])
+                v = load_config_file_content(v[6:])
             parser[id] = v
 
     return parser

@@ -12,4 +12,4 @@
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from .config_parser import ConfigParser
 from .reference_resolver import ReferenceResolver
-from .utils import load_config_file, parse_config_files, parse_id_value
+from .utils import load_config_file, load_config_file_content, parse_config_files, parse_id_value

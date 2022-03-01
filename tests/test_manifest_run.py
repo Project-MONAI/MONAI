@@ -36,7 +36,7 @@ TEST_CASE_1 = [
                 "norm": "batch",
             },
         },
-        "network": "$@network_def.to(@device)",
+        "network": "will be overrided",
         "preprocessing": {
             "<name>": "Compose",
             "<args>": {
@@ -49,7 +49,7 @@ TEST_CASE_1 = [
             },
         },
         "dataset": {
-            "<name>": "Dataset",
+            "<name>": "will be overrided",
             "<args>": {"data": "@<meta>#datalist", "transform": "@preprocessing"},  # test placeholger with `datalist`
         },
         "dataloader": {
@@ -111,9 +111,20 @@ class TestManifestRun(unittest.TestCase):
             with open(configfile, "w") as f:
                 json.dump(config, f)
 
+            # test override with file, up case postfix
+            overridefile1 = os.path.join(tempdir, "override1.JSON")
+            with open(overridefile1, "w") as f:
+                # test override with part of the overriding file
+                json.dump({"move_net": "$@network_def.to(@device)"}, f)
+            overridefile2 = os.path.join(tempdir, "override2.JSON")
+            with open(overridefile2, "w") as f:
+                # test override with the whole overriding file
+                json.dump("Dataset", f)
+
             os.system(
                 f"python -m monai.apps.manifest.run -m {metafile} -c {configfile}"
-                f" -o 'evaluator#<args>#amp'=False -t evaluator"
+                f" -o 'evaluator#<args>#amp'=False 'network'='<file>{overridefile1}#move_net'"
+                f" 'dataset#<name>'='<file>{overridefile2}' -t evaluator"
             )
 
             saved = LoadImage(image_only=True)(os.path.join(tempdir, "image", "image_trans.nii.gz"))
