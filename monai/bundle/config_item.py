@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import inspect
+import os
 import sys
 import warnings
 from abc import ABC, abstractmethod
@@ -128,7 +129,7 @@ class ConfigItem:
         self.config = config
         self.id = id
 
-    def get_id(self) -> Optional[str]:
+    def get_id(self) -> str:
         """
         Get the ID name of current config item, useful to identify config items during parsing.
 
@@ -152,6 +153,9 @@ class ConfigItem:
 
         """
         return self.config
+
+    def __repr__(self) -> str:
+        return str(self.config)
 
 
 class ConfigComponent(ConfigItem, Instantiable):
@@ -187,7 +191,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         locator: a ``ComponentLocator`` to convert a module name string into the actual python module.
             if `None`, a ``ComponentLocator(excludes=excludes)`` will be used.
         excludes: if ``locator`` is None, create a new ``ComponentLocator`` with ``excludes``.
-            See also: :py:class:`monai.apps.manifest.ComponentLocator`.
+            See also: :py:class:`monai.bundle.ComponentLocator`.
 
     """
 
@@ -291,7 +295,7 @@ class ConfigExpression(ConfigItem):
     .. code-block:: python
 
         import monai
-        from monai.apps.manifest import ConfigExpression
+        from monai.bundle import ConfigExpression
 
         config = "$monai.__version__"
         expression = ConfigExpression(config, id="test", globals={"monai": monai})
@@ -303,6 +307,9 @@ class ConfigExpression(ConfigItem):
         globals: additional global context to evaluate the string.
 
     """
+
+    prefix = "$"
+    run_eval = False if os.environ.get("MONAI_EVAL_EXPR", "1") == "0" else True
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)
@@ -320,10 +327,12 @@ class ConfigExpression(ConfigItem):
         value = self.get_config()
         if not ConfigExpression.is_expression(value):
             return None
-        return eval(value[1:], self.globals, locals)
+        if not self.run_eval:
+            return f"{value[len(self.prefix) :]}"
+        return eval(value[len(self.prefix) :], self.globals, locals)
 
-    @staticmethod
-    def is_expression(config: Union[Dict, List, str]) -> bool:
+    @classmethod
+    def is_expression(cls, config: Union[Dict, List, str]) -> bool:
         """
         Check whether the config is an executable expression string.
         Currently, a string starts with ``"$"`` character is interpreted as an expression.
@@ -332,4 +341,4 @@ class ConfigExpression(ConfigItem):
             config: input config content to check.
 
         """
-        return isinstance(config, str) and config.startswith("$")
+        return isinstance(config, str) and config.startswith(cls.prefix)
