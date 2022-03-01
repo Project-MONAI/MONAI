@@ -176,7 +176,7 @@ class CSVIterableDataset(IterableDataset):
         seed: random seed to initialize the random state for all the workers if `shuffle` is True,
             set `seed += 1` in every iter() call, refer to the PyTorch idea:
             https://github.com/pytorch/pytorch/blob/v1.10.0/torch/utils/data/distributed.py#L98.
-        kwargs_read_csv: dictionary args to pass to pandas `read_csv` function. Default to ``{"chunksize", chunksize}``.
+        kwargs_read_csv: dictionary args to pass to pandas `read_csv` function. Default to ``{"chunksize": chunksize}``.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
     .. deprecated:: 0.8.0
@@ -207,7 +207,7 @@ class CSVIterableDataset(IterableDataset):
         self.col_groups = col_groups
         self.shuffle = shuffle
         self.seed = seed
-        self.kwargs_read_csv = kwargs_read_csv or {"chunksize", chunksize}
+        self.kwargs_read_csv = kwargs_read_csv or {"chunksize": chunksize}
         # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
         kwargs.pop("filename", None)
         self.kwargs = kwargs
