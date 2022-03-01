@@ -51,6 +51,14 @@ class MedNISTDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
+        progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cached content
+            (for example, randomly crop from the cached image and deepcopy the crop region)
+            or if every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -58,7 +66,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
     """
 
-    resource = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
+    resource = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/MedNIST.tar.gz"
     md5 = "0bc7306e7427e00ad1c5526a6677552d"
     compressed_file_name = "MedNIST.tar.gz"
     dataset_folder_name = "MedNIST"
@@ -75,6 +83,9 @@ class MedNISTDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
+        progress: bool = True,
+        copy_cache: bool = True,
+        as_contiguous: bool = True,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -87,7 +98,14 @@ class MedNISTDataset(Randomizable, CacheDataset):
         dataset_dir = root_dir / self.dataset_folder_name
         self.num_class = 0
         if download:
-            download_and_extract(self.resource, tarfile_name, root_dir, self.md5)
+            download_and_extract(
+                url=self.resource,
+                filepath=tarfile_name,
+                output_dir=root_dir,
+                hash_val=self.md5,
+                hash_type="md5",
+                progress=progress,
+            )
 
         if not dataset_dir.is_dir():
             raise RuntimeError(
@@ -97,10 +115,18 @@ class MedNISTDataset(Randomizable, CacheDataset):
         if transform == ():
             transform = LoadImaged("image")
         CacheDataset.__init__(
-            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
+            self,
+            data=data,
+            transform=transform,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_workers=num_workers,
+            progress=progress,
+            copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
         )
 
-    def randomize(self, data: List[int]) -> None:
+    def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
     def get_num_classes(self) -> int:
@@ -177,6 +203,14 @@ class DecathlonDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             if 0 a single thread will be used. Default is 0.
+        progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cached content
+            (for example, randomly crop from the cached image and deepcopy the crop region)
+            or if every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -241,6 +275,9 @@ class DecathlonDataset(Randomizable, CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: int = 0,
+        progress: bool = True,
+        copy_cache: bool = True,
+        as_contiguous: bool = True,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -253,7 +290,14 @@ class DecathlonDataset(Randomizable, CacheDataset):
         dataset_dir = root_dir / task
         tarfile_name = f"{dataset_dir}.tar"
         if download:
-            download_and_extract(self.resource[task], tarfile_name, root_dir, self.md5[task])
+            download_and_extract(
+                url=self.resource[task],
+                filepath=tarfile_name,
+                output_dir=root_dir,
+                hash_val=self.md5[task],
+                hash_type="md5",
+                progress=progress,
+            )
 
         if not dataset_dir.exists():
             raise RuntimeError(
@@ -277,7 +321,15 @@ class DecathlonDataset(Randomizable, CacheDataset):
         if transform == ():
             transform = LoadImaged(["image", "label"])
         CacheDataset.__init__(
-            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
+            self,
+            data=data,
+            transform=transform,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_workers=num_workers,
+            progress=progress,
+            copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
         )
 
     def get_indices(self) -> np.ndarray:
@@ -287,7 +339,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         """
         return self.indices
 
-    def randomize(self, data: List[int]) -> None:
+    def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
     def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):

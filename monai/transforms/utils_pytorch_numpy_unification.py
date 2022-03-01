@@ -14,10 +14,12 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
-from monai.utils.misc import is_module_ver_at_least
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.utils.misc import ensure_tuple, is_module_ver_at_least
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
+    "allclose",
     "moveaxis",
     "in1d",
     "clip",
@@ -36,31 +38,44 @@ __all__ = [
     "searchsorted",
     "repeat",
     "isnan",
+    "ascontiguousarray",
+    "stack",
+    "mode",
+    "unique",
 ]
 
 
-def moveaxis(x: NdarrayOrTensor, src: int, dst: int) -> NdarrayOrTensor:
-    """`moveaxis` for pytorch and numpy, using `permute` for pytorch ver < 1.8"""
+def allclose(a: NdarrayTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:
+    """`np.allclose` with equivalent implementation for torch."""
+    b, *_ = convert_to_dst_type(b, a)
+    if isinstance(a, np.ndarray):
+        return np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    return torch.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)  # type: ignore
+
+
+def moveaxis(x: NdarrayOrTensor, src: Union[int, Sequence[int]], dst: Union[int, Sequence[int]]) -> NdarrayOrTensor:
+    """`moveaxis` for pytorch and numpy, using `permute` for pytorch version < 1.7"""
     if isinstance(x, torch.Tensor):
-        if hasattr(torch, "moveaxis"):  # `moveaxis` is new in torch 1.8.0
-            return torch.moveaxis(x, src, dst)
-        return _moveaxis_with_permute(x, src, dst)  # type: ignore
-    if isinstance(x, np.ndarray):
-        return np.moveaxis(x, src, dst)
-    raise RuntimeError()
+        if hasattr(torch, "movedim"):  # `movedim` is new in torch 1.7.0
+            # torch.moveaxis is a recent alias since torch 1.8.0
+            return torch.movedim(x, src, dst)  # type: ignore
+        return _moveaxis_with_permute(x, src, dst)
+    return np.moveaxis(x, src, dst)
 
 
-def _moveaxis_with_permute(x, src, dst):
+def _moveaxis_with_permute(
+    x: torch.Tensor, src: Union[int, Sequence[int]], dst: Union[int, Sequence[int]]
+) -> torch.Tensor:
     # get original indices
     indices = list(range(x.ndim))
-    # make src and dst positive
-    if src < 0:
-        src = len(indices) + src
-    if dst < 0:
-        dst = len(indices) + dst
-    # remove desired index and insert it in new position
-    indices.pop(src)
-    indices.insert(dst, src)
+    len_indices = len(indices)
+    for s, d in zip(ensure_tuple(src), ensure_tuple(dst)):
+        # make src and dst positive
+        # remove desired index and insert it in new position
+        pos_s = len_indices + s if s < 0 else s
+        pos_d = len_indices + d if d < 0 else d
+        indices.pop(pos_s)
+        indices.insert(pos_d, pos_s)
     return x.permute(indices)
 
 
@@ -81,7 +96,9 @@ def clip(a: NdarrayOrTensor, a_min, a_max) -> NdarrayOrTensor:
     return result
 
 
-def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None) -> Union[NdarrayOrTensor, float, int]:
+def percentile(
+    x: NdarrayOrTensor, q, dim: Optional[int] = None, keepdim: bool = False, **kwargs
+) -> Union[NdarrayOrTensor, float, int]:
     """`np.percentile` with equivalent implementation for torch.
 
     Pytorch uses `quantile`, but this functionality is only available from v1.7.
@@ -96,22 +113,25 @@ def percentile(x: NdarrayOrTensor, q, dim: Optional[int] = None) -> Union[Ndarra
         q: percentile to compute (should in range 0 <= q <= 100)
         dim: the dim along which the percentiles are computed. default is to compute the percentile
             along a flattened version of the array. only work for numpy array or Tensor with PyTorch >= 1.7.0.
+        keepdim: whether the output data has dim retained or not.
+        kwargs: if `x` is numpy array, additional args for `np.percentile`, more details:
+            https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
 
     Returns:
         Resulting value (scalar)
     """
     if np.isscalar(q):
-        if not 0 <= q <= 100:
+        if not 0 <= q <= 100:  # type: ignore
             raise ValueError
     elif any(q < 0) or any(q > 100):
         raise ValueError
     result: Union[NdarrayOrTensor, float, int]
     if isinstance(x, np.ndarray):
-        result = np.percentile(x, q, axis=dim)
+        result = np.percentile(x, q, axis=dim, keepdims=keepdim, **kwargs)
     else:
         q = torch.tensor(q, device=x.device)
         if hasattr(torch, "quantile"):  # `quantile` is new in torch 1.7.0
-            result = torch.quantile(x, q / 100.0, dim=dim)
+            result = torch.quantile(x, q / 100.0, dim=dim, keepdim=keepdim)
         else:
             # Note that ``kthvalue()`` works one-based, i.e., the first sorted value
             # corresponds to k=1, not k=0. Thus, we need the `1 +`.
@@ -134,7 +154,7 @@ def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
         if x is not None:
             result = np.where(condition, x, y)
         else:
-            result = np.where(condition)
+            result = np.where(condition)  # type: ignore
     else:
         if x is not None:
             x = torch.as_tensor(x, device=condition.device)
@@ -145,7 +165,7 @@ def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
     return result
 
 
-def nonzero(x: NdarrayOrTensor):
+def nonzero(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.nonzero` with equivalent implementation for torch.
 
     Args:
@@ -179,7 +199,7 @@ def floor_divide(a: NdarrayOrTensor, b) -> NdarrayOrTensor:
     return np.floor_divide(a, b)
 
 
-def unravel_index(idx, shape):
+def unravel_index(idx, shape) -> NdarrayOrTensor:
     """`np.unravel_index` with equivalent implementation for torch.
 
     Args:
@@ -198,7 +218,7 @@ def unravel_index(idx, shape):
     return np.asarray(np.unravel_index(idx, shape))
 
 
-def unravel_indices(idx, shape):
+def unravel_indices(idx, shape) -> NdarrayOrTensor:
     """Computing unravel coordinates from indices.
 
     Args:
@@ -209,10 +229,10 @@ def unravel_indices(idx, shape):
         Stacked indices unravelled for given shape
     """
     lib_stack = torch.stack if isinstance(idx[0], torch.Tensor) else np.stack
-    return lib_stack([unravel_index(i, shape) for i in idx])
+    return lib_stack([unravel_index(i, shape) for i in idx])  # type: ignore
 
 
-def ravel(x: NdarrayOrTensor):
+def ravel(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.ravel` with equivalent implementation for torch.
 
     Args:
@@ -228,7 +248,7 @@ def ravel(x: NdarrayOrTensor):
     return np.ravel(x)
 
 
-def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]):
+def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]) -> NdarrayOrTensor:
     """`np.any` with equivalent implementation for torch.
 
     For pytorch, convert to boolean for compatibility with older versions.
@@ -241,7 +261,7 @@ def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]):
         Return a contiguous flattened array/tensor.
     """
     if isinstance(x, np.ndarray):
-        return np.any(x, axis)
+        return np.any(x, axis)  # type: ignore
 
     # pytorch can't handle multiple dimensions to `any` so loop across them
     axis = [axis] if not isinstance(axis, Sequence) else axis
@@ -281,37 +301,69 @@ def concatenate(to_cat: Sequence[NdarrayOrTensor], axis: int = 0, out=None) -> N
     return torch.cat(to_cat, dim=axis, out=out)  # type: ignore
 
 
-def cumsum(a: NdarrayOrTensor, axis=None):
-    """`np.cumsum` with equivalent implementation for torch."""
+def cumsum(a: NdarrayOrTensor, axis=None, **kwargs) -> NdarrayOrTensor:
+    """
+    `np.cumsum` with equivalent implementation for torch.
+
+    Args:
+        a: input data to compute cumsum.
+        axis: expected axis to compute cumsum.
+        kwargs: if `a` is PyTorch Tensor, additional args for `torch.cumsum`, more details:
+            https://pytorch.org/docs/stable/generated/torch.cumsum.html.
+
+    """
+
     if isinstance(a, np.ndarray):
         return np.cumsum(a, axis)
     if axis is None:
-        return torch.cumsum(a[:], 0)
-    return torch.cumsum(a, dim=axis)
+        return torch.cumsum(a[:], 0, **kwargs)
+    return torch.cumsum(a, dim=axis, **kwargs)
 
 
-def isfinite(x):
+def isfinite(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.isfinite` with equivalent implementation for torch."""
     if not isinstance(x, torch.Tensor):
         return np.isfinite(x)
     return torch.isfinite(x)
 
 
-def searchsorted(a: NdarrayOrTensor, v: NdarrayOrTensor, right=False, sorter=None):
+def searchsorted(a: NdarrayTensor, v: NdarrayOrTensor, right=False, sorter=None, **kwargs) -> NdarrayTensor:
+    """
+    `np.searchsorted` with equivalent implementation for torch.
+
+    Args:
+        a: numpy array or tensor, containing monotonically increasing sequence on the innermost dimension.
+        v: containing the search values.
+        right: if False, return the first suitable location that is found, if True, return the last such index.
+        sorter: if `a` is numpy array, optional array of integer indices that sort array `a` into ascending order.
+        kwargs: if `a` is PyTorch Tensor, additional args for `torch.searchsorted`, more details:
+            https://pytorch.org/docs/stable/generated/torch.searchsorted.html.
+
+    """
     side = "right" if right else "left"
     if isinstance(a, np.ndarray):
         return np.searchsorted(a, v, side, sorter)  # type: ignore
-    return torch.searchsorted(a, v, right=right)  # type: ignore
+    return torch.searchsorted(a, v, right=right, **kwargs)  # type: ignore
 
 
-def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None):
-    """`np.repeat` with equivalent implementation for torch (`repeat_interleave`)."""
+def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None, **kwargs) -> NdarrayOrTensor:
+    """
+    `np.repeat` with equivalent implementation for torch (`repeat_interleave`).
+
+    Args:
+        a: input data to repeat.
+        repeats: number of repetitions for each element, repeats is broadcasted to fit the shape of the given axis.
+        axis: axis along which to repeat values.
+        kwargs: if `a` is PyTorch Tensor, additional args for `torch.repeat_interleave`, more details:
+            https://pytorch.org/docs/stable/generated/torch.repeat_interleave.html.
+
+    """
     if isinstance(a, np.ndarray):
         return np.repeat(a, repeats, axis)
-    return torch.repeat_interleave(a, repeats, dim=axis)
+    return torch.repeat_interleave(a, repeats, dim=axis, **kwargs)
 
 
-def isnan(x: NdarrayOrTensor):
+def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.isnan` with equivalent implementation for torch.
 
     Args:
@@ -321,3 +373,57 @@ def isnan(x: NdarrayOrTensor):
     if isinstance(x, np.ndarray):
         return np.isnan(x)
     return torch.isnan(x)
+
+
+def ascontiguousarray(x: NdarrayTensor, **kwargs) -> NdarrayOrTensor:
+    """`np.ascontiguousarray` with equivalent implementation for torch (`contiguous`).
+
+    Args:
+        x: array/tensor
+        kwargs: if `x` is PyTorch Tensor, additional args for `torch.contiguous`, more details:
+            https://pytorch.org/docs/stable/generated/torch.Tensor.contiguous.html.
+
+    """
+    if isinstance(x, np.ndarray):
+        if x.ndim == 0:
+            return x
+        return np.ascontiguousarray(x)
+    if isinstance(x, torch.Tensor):
+        return x.contiguous(**kwargs)
+    return x
+
+
+def stack(x: Sequence[NdarrayTensor], dim: int) -> NdarrayTensor:
+    """`np.stack` with equivalent implementation for torch.
+
+    Args:
+        x: array/tensor
+        dim: dimension along which to perform the stack (referred to as `axis` by numpy)
+    """
+    if isinstance(x[0], np.ndarray):
+        return np.stack(x, dim)  # type: ignore
+    return torch.stack(x, dim)  # type: ignore
+
+
+def mode(x: NdarrayTensor, dim: int = -1, to_long: bool = True) -> NdarrayTensor:
+    """`torch.mode` with equivalent implementation for numpy.
+
+    Args:
+        x: array/tensor
+        dim: dimension along which to perform `mode` (referred to as `axis` by numpy)
+        to_long: convert input to long before performing mode.
+    """
+    dtype = torch.int64 if to_long else None
+    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype)
+    o_t = torch.mode(x_t, dim).values
+    o, *_ = convert_to_dst_type(o_t, x)
+    return o
+
+
+def unique(x: NdarrayTensor) -> NdarrayTensor:
+    """`torch.unique` with equivalent implementation for numpy.
+
+    Args:
+        x: array/tensor
+    """
+    return torch.unique(x) if isinstance(x, torch.Tensor) else np.unique(x)  # type: ignore

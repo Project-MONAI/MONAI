@@ -122,6 +122,12 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
         progress: whether to display a progress bar when caching for the first epoch.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cache content
+            or every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
 
     """
 
@@ -139,6 +145,8 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         num_init_workers: Optional[int] = None,
         num_replace_workers: Optional[int] = None,
         progress: bool = True,
+        copy_cache: bool = True,
+        as_contiguous: bool = True,
     ):
         patch_wsi_dataset = PatchWSIDataset(
             data=data,
@@ -157,6 +165,8 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             num_replace_workers=num_replace_workers,
             progress=progress,
             shuffle=False,
+            copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
         )
 
 

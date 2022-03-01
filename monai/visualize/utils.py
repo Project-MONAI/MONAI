@@ -93,7 +93,7 @@ def matshow3d(
         >>> plt.show()
 
     """
-    vol: np.ndarray = convert_data_type(data=volume, output_type=np.ndarray)[0]  # type: ignore
+    vol = convert_data_type(data=volume, output_type=np.ndarray)[0]
     if channel_dim is not None:
         if channel_dim not in [0, 1] or vol.shape[channel_dim] not in [1, 3, 4]:
             raise ValueError("channel_dim must be: None, 0 or 1, and channels of image must be 1, 3 or 4.")
@@ -109,11 +109,11 @@ def matshow3d(
         while len(vol.shape) < 3:
             vol = np.expand_dims(vol, 0)  # so that we display 2d as well
 
-    if channel_dim is not None:
-        vol = np.moveaxis(vol, frame_dim, -4)  # move the expected dim to construct frames with `B` dim
+    if channel_dim is not None:  # move the expected dim to construct frames with `B` dim
+        vol = np.moveaxis(vol, frame_dim, -4)  # type: ignore
         vol = vol.reshape((-1, vol.shape[-3], vol.shape[-2], vol.shape[-1]))
     else:
-        vol = np.moveaxis(vol, frame_dim, -3)
+        vol = np.moveaxis(vol, frame_dim, -3)  # type: ignore
         vol = vol.reshape((-1, vol.shape[-2], vol.shape[-1]))
     vmin = np.nanmin(vol) if vmin is None else vmin
     vmax = np.nanmax(vol) if vmax is None else vmax
@@ -129,7 +129,7 @@ def matshow3d(
     if channel_dim is not None:
         width += [[0, 0]]  # add pad width for the channel dim
     width += [[margin, margin]] * 2
-    vol = np.pad(vol.astype(dtype, copy=False), width, mode="constant", constant_values=fill_value)
+    vol = np.pad(vol.astype(dtype, copy=False), width, mode="constant", constant_values=fill_value)  # type: ignore
     im = np.block([[vol[i * cols + j] for j in range(cols)] for i in range(rows)])
     if channel_dim is not None:
         # move channel dim to the end
@@ -186,8 +186,7 @@ def blend_images(
 
     def get_label_rgb(cmap: str, label: NdarrayOrTensor):
         _cmap = cm.get_cmap(cmap)
-        label_np: np.ndarray
-        label_np, *_ = convert_data_type(label, np.ndarray)  # type: ignore
+        label_np, *_ = convert_data_type(label, np.ndarray)
         label_rgb_np = _cmap(label_np[0])
         label_rgb_np = np.moveaxis(label_rgb_np, -1, 0)[:3]
         label_rgb, *_ = convert_to_dst_type(label_rgb_np, label)

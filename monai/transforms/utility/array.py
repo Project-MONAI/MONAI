@@ -202,6 +202,7 @@ class EnsureChannelFirst(Transform):
             strict_check: whether to raise an error when the meta information is insufficient.
         """
         self.strict_check = strict_check
+        self.add_channel = AddChannel()
 
     def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
         """
@@ -223,7 +224,7 @@ class EnsureChannelFirst(Transform):
             warnings.warn(msg)
             return img
         if channel_dim == "no_channel":
-            return AddChannel()(img)
+            return self.add_channel(img)
         return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
@@ -324,7 +325,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayOrTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, dtype: Union[DtypeLike, torch.dtype] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
 
@@ -335,8 +336,7 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        img_out, *_ = convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)
-        return img_out
+        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]  # type: ignore
 
 
 class ToTensor(Transform):
@@ -411,6 +411,7 @@ class EnsureType(Transform):
 
         """
         output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
+        out: NdarrayOrTensor
         out, *_ = convert_data_type(
             data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
         )
@@ -546,6 +547,11 @@ class DataStats(Transform):
     It can be inserted into any place of a transform chain and check results of previous transforms.
     It support both `numpy.ndarray` and `torch.tensor` as input data,
     so it can be used in pre-processing and post-processing.
+
+    It gets logger from `logging.getLogger(name)`, we can setup a logger outside first with the same `name`.
+    If the log level of `logging.RootLogger` is higher than `INFO`, will add a separate `StreamHandler`
+    log handler with `INFO` level and record to `stdout`.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -558,7 +564,7 @@ class DataStats(Transform):
         value_range: bool = True,
         data_value: bool = False,
         additional_info: Optional[Callable] = None,
-        logger_handler: Optional[logging.Handler] = None,
+        name: str = "DataStats",
     ) -> None:
         """
         Args:
@@ -569,9 +575,7 @@ class DataStats(Transform):
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
             additional_info: user can define callable function to extract additional info from input data.
-            logger_handler: add additional handler to output data: save to file, etc.
-                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
-                the handler should have a logging level of at least `INFO`.
+            name: identifier of `logging.logger` to use, defaulting to "DataStats".
 
         Raises:
             TypeError: When ``additional_info`` is not an ``Optional[Callable]``.
@@ -587,14 +591,14 @@ class DataStats(Transform):
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
-        self._logger_name = "DataStats"
+        self._logger_name = name
         _logger = logging.getLogger(self._logger_name)
         _logger.setLevel(logging.INFO)
-        console = logging.StreamHandler(sys.stdout)  # always stdout
-        console.setLevel(logging.INFO)
-        _logger.addHandler(console)
-        if logger_handler is not None:
-            _logger.addHandler(logger_handler)
+        if logging.root.getEffectiveLevel() > logging.INFO:
+            # if the root log level is higher than INFO, set a separate stream handler to record
+            console = logging.StreamHandler(sys.stdout)
+            console.setLevel(logging.INFO)
+            _logger.addHandler(console)
 
     def __call__(
         self,
@@ -789,7 +793,7 @@ class LabelToMask(Transform):
         if img.shape[0] > 1:
             data = img[[*select_labels]]
         else:
-            where = np.where if isinstance(img, np.ndarray) else torch.where
+            where: Callable = np.where if isinstance(img, np.ndarray) else torch.where  # type: ignore
             if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
                 data = where(in1d(img, select_labels), True, False).reshape(img.shape)
             # pre pytorch 1.8.0, need to use 1/0 instead of True/False
@@ -1020,7 +1024,7 @@ class TorchVision:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
-        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor)
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
@@ -1112,8 +1116,7 @@ class IntensityStats(Transform):
                 mask must have the same shape as input `img`.
 
         """
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         if meta_data is None:
             meta_data = {}
 

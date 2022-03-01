@@ -15,9 +15,9 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import ToTensor
-from tests.utils import TEST_NDARRAYS, assert_allclose, optional_import
+from tests.utils import HAS_CUPY, TEST_NDARRAYS, assert_allclose, optional_import
 
-cp, has_cp = optional_import("cupy")
+cp, _ = optional_import("cupy")
 
 im = [[1, 2], [3, 4]]
 
@@ -47,7 +47,7 @@ class TestToTensor(unittest.TestCase):
         assert_allclose(result, test_data, type_test=False)
         self.assertEqual(result.ndim, 0)
 
-    @unittest.skipUnless(has_cp, "CuPy is required.")
+    @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
     def test_cupy(self):
         test_data = [[1, 2], [3, 4]]
         cupy_array = cp.ascontiguousarray(cp.asarray(test_data))

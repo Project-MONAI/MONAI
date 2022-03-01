@@ -116,6 +116,7 @@ class TestRandRotated2D(NumpyImageTestCase2D):
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
+            dtype=np.float64,
         )
         rotate_fn.set_random_state(243)
         rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
@@ -151,6 +152,7 @@ class TestRandRotated3D(NumpyImageTestCase3D):
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
+            dtype=np.float64,
         )
         rotate_fn.set_random_state(243)
         rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})

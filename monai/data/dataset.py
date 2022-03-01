@@ -31,7 +31,7 @@ from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
-from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
+from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, convert_to_contiguous
 from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
@@ -269,7 +269,7 @@ class PersistentDataset(Dataset):
             random transform object
 
         """
-        for _transform in self.transform.transforms:  # type:ignore
+        for _transform in self.transform.transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
@@ -335,7 +335,9 @@ class PersistentDataset(Dataset):
                     raise e
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
-        if hashfile is not None:
+        if hashfile is None:
+            return _item_transformed
+        try:
             # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
             #       to make the cache more robust to manual killing of parent process
             #       which may leave partially written cache files in an incomplete state
@@ -354,6 +356,8 @@ class PersistentDataset(Dataset):
                         shutil.move(temp_hash_file, hashfile)
                     except FileExistsError:
                         pass
+        except PermissionError:  # project-monai/monai issue #3613
+            pass
         return _item_transformed
 
     def _transform(self, index: int):
@@ -509,7 +513,7 @@ class LMDBDataset(PersistentDataset):
         self.db_file = self.cache_dir / f"{db_name}.lmdb"
         self.lmdb_kwargs = lmdb_kwargs or {}
         if not self.lmdb_kwargs.get("map_size", 0):
-            self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
+            self.lmdb_kwargs["map_size"] = 1024**4  # default map_size
         # lmdb is single-writer multi-reader by default
         # the cache is created without multi-threading
         self._read_env = None
@@ -671,6 +675,9 @@ class CacheDataset(Dataset):
         num_workers: Optional[int] = None,
         progress: bool = True,
         copy_cache: bool = True,
+        as_contiguous: bool = True,
+        hash_as_key: bool = False,
+        hash_func: Callable[..., bytes] = pickle_hashing,
     ) -> None:
         """
         Args:
@@ -688,17 +695,31 @@ class CacheDataset(Dataset):
                 (for example, randomly crop from the cached image and deepcopy the crop region)
                 or if every cache item is only used once in a `multi-processing` environment,
                 may set `copy=False` for better performance.
+            as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+                it may help improve the performance of following logic.
+            hash_as_key: whether to compute hash value of input data as the key to save cache,
+                if key exists, avoid saving duplicated content. it can help save memory when
+                the dataset has duplicated items or augmented dataset.
+            hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
+
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
+        self.set_num = cache_num  # tracking the user-provided `cache_num` option
+        self.set_rate = cache_rate  # tracking the user-provided `cache_rate` option
         self.progress = progress
         self.copy_cache = copy_cache
-        self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
+        self.as_contiguous = as_contiguous
+        self.hash_as_key = hash_as_key
+        self.hash_func = hash_func
         self.num_workers = num_workers
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
-        self._cache: List = self._fill_cache()
+        self.cache_num = 0
+        self._cache: Union[List, Dict] = []
+        self.set_data(data)
 
     def set_data(self, data: Sequence):
         """
@@ -709,8 +730,21 @@ class CacheDataset(Dataset):
         generated cache content.
 
         """
-        self.data = data
-        self._cache = self._fill_cache()
+
+        def _compute_cache():
+            self.cache_num = min(int(self.set_num), int(len(self.data) * self.set_rate), len(self.data))
+            return self._fill_cache()
+
+        if self.hash_as_key:
+            # only compute cache for the unique items of dataset
+            mapping = {self.hash_func(v): v for v in data}
+            self.data = list(mapping.values())
+            cache_ = _compute_cache()
+            self._cache = dict(zip(list(mapping)[: self.cache_num], cache_))
+            self.data = data
+        else:
+            self.data = data
+            self._cache = _compute_cache()
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
@@ -740,17 +774,26 @@ class CacheDataset(Dataset):
                 break
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item = apply_transform(_xform, item)
+        if self.as_contiguous:
+            item = convert_to_contiguous(item, memory_format=torch.contiguous_format)
         return item
 
     def _transform(self, index: int):
-        if index % len(self) >= self.cache_num:  # support negative index
+        index_: Any = index
+        if self.hash_as_key:
+            key = self.hash_func(self.data[index])
+            if key in self._cache:
+                # if existing in cache, get the index
+                index_ = key  # if using hash as cache keys, set the key
+
+        if isinstance(index_, int) and index_ % len(self) >= self.cache_num:  # support negative index
             # no cache for this index, execute all the transforms directly
-            return super()._transform(index)
+            return super()._transform(index_)
         # load data from cache and execute from the first random transform
         start_run = False
         if self._cache is None:
             self._cache = self._fill_cache()
-        data = self._cache[index]
+        data = self._cache[index_]
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
@@ -829,6 +872,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             default to `True`. if the random transforms don't modify the cache content
             or every cache item is only used once in a `multi-processing` environment,
             may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
+
     """
 
     def __init__(
@@ -844,14 +890,19 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         shuffle: bool = True,
         seed: int = 0,
         copy_cache: bool = True,
+        as_contiguous: bool = True,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
-            data = copy(data)
-            self.randomize(data)
         self.shuffle = shuffle
 
-        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache)
+        self._start_pos: int = 0
+        self._update_lock: threading.Lock = threading.Lock()
+        self._round: int = 1
+        self._replace_done: bool = False
+        self._replace_mgr: Optional[threading.Thread] = None
+
+        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache, as_contiguous)
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
@@ -869,13 +920,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
         self._replacements: List[Any] = [None for _ in range(self._replace_num)]
         self._replace_data_idx: List[int] = list(range(self._replace_num))
-
-        self._start_pos: int = 0
-        self._update_lock: threading.Lock = threading.Lock()
-        self._round: int = 1
-        self._replace_done: bool = False
-        self._replace_mgr: Optional[threading.Thread] = None
-
         self._compute_data_idx()
 
     def set_data(self, data: Sequence):

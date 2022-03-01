@@ -34,13 +34,28 @@ class StatsHandler:
     It can be used for any Ignite Engine(trainer, validator and evaluator).
     And it can support logging for epoch level and iteration level with pre-defined loggers.
 
+    Note that if `name` arg is None, will leverage `engine.logger` as default logger directly, otherwise,
+    get logger from `logging.getLogger(name)`, we can setup a logger outside first with the same `name`.
+    As the default log level of `RootLogger` is `WARNING`, may need to call
+    `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` before running this handler to enable
+    the stats logging.
+
     Default behaviors:
         - When EPOCH_COMPLETED, logs ``engine.state.metrics`` using ``self.logger``.
         - When ITERATION_COMPLETED, logs
           ``self.output_transform(engine.state.output)`` using ``self.logger``.
 
-    Usage example is available in the tutorial:
-    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_ignite.ipynb.
+    Usage example::
+
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
+        trainer = SupervisedTrainer(...)
+        StatsHandler(name="train_stats").attach(trainer)
+
+        trainer.run()
+
+    More details of example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/modules/engines/unet_training_dict.py.
 
     """
 
@@ -54,7 +69,6 @@ class StatsHandler:
         name: Optional[str] = None,
         tag_name: str = DEFAULT_TAG,
         key_var_format: str = DEFAULT_KEY_VAL_FORMAT,
-        logger_handler: Optional[logging.Handler] = None,
     ) -> None:
         """
 
@@ -77,12 +91,11 @@ class StatsHandler:
                 with the trainer engine.
             state_attributes: expected attributes from `engine.state`, if provided, will extract them
                 when epoch completed.
-            name: identifier of logging.logger to use, defaulting to ``engine.logger``.
+            name: identifier of `logging.logger` to use, if None, defaulting to ``engine.logger``.
             tag_name: when iteration output is a scalar, tag_name is used to print
                 tag_name: scalar_value to logger. Defaults to ``'Loss'``.
             key_var_format: a formatting string to control the output string format of key: value.
-            logger_handler: add additional handler to handle the stats data: save to file, etc.
-                Add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+
         """
 
         self.epoch_print_logger = epoch_print_logger
@@ -90,13 +103,10 @@ class StatsHandler:
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
         self.state_attributes = state_attributes
-        self.logger = logging.getLogger(name)
-        self._name = name
-
         self.tag_name = tag_name
         self.key_var_format = key_var_format
-        if logger_handler is not None:
-            self.logger.addHandler(logger_handler)
+        self.logger = logging.getLogger(name)  # if `name` is None, will default to `engine.logger` when attached
+        self.name = name
 
     def attach(self, engine: Engine) -> None:
         """
@@ -106,8 +116,13 @@ class StatsHandler:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
-        if self._name is None:
+        if self.name is None:
             self.logger = engine.logger
+        if self.logger.getEffectiveLevel() > logging.INFO or logging.root.getEffectiveLevel() > logging.INFO:
+            warnings.warn(
+                "the effective log level of engine logger or RootLogger is higher than INFO, may not record log,"
+                " please call `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` to enable it."
+            )
         if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
         if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):

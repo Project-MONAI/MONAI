@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -75,6 +75,8 @@ __all__ = [
     "RandCoarseDropout",
     "RandCoarseShuffle",
     "HistogramNormalize",
+    "IntensityRemap",
+    "RandIntensityRemap",
 ]
 
 
@@ -106,7 +108,7 @@ class RandGaussianNoise(RandomizableTransform):
         rand_std = self.R.uniform(0, self.std)
         noise = self.R.normal(self.mean if mean is None else mean, rand_std, size=img.shape)
         # noise is float64 array, convert to the output dtype to save memory
-        self.noise, *_ = convert_data_type(noise, dtype=self.dtype)  # type: ignore
+        self.noise, *_ = convert_data_type(noise, dtype=self.dtype)
 
     def __call__(self, img: NdarrayOrTensor, mean: Optional[float] = None, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -182,9 +184,9 @@ class RandRicianNoise(RandomizableTransform):
         if isinstance(img, torch.Tensor):
             n1 = torch.tensor(self._noise1, device=img.device)
             n2 = torch.tensor(self._noise2, device=img.device)
-            return torch.sqrt((img + n1) ** 2 + n2 ** 2)
+            return torch.sqrt((img + n1) ** 2 + n2**2)
 
-        return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
+        return np.sqrt((img + self._noise1) ** 2 + self._noise2**2)
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -443,6 +445,7 @@ class ScaleIntensity(Transform):
             ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
 
         """
+        ret: NdarrayOrTensor
         if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
                 out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
@@ -591,7 +594,7 @@ class RandBiasField(RandomizableTransform):
             axis=0,
         )
         img_np, *_ = convert_data_type(img, np.ndarray)
-        out = img_np * np.exp(_bias_fields)
+        out: NdarrayOrTensor = img_np * np.exp(_bias_fields)
         out, *_ = convert_to_dst_type(src=out, dst=img, dtype=self.dtype or img.dtype)
         return out
 
@@ -693,7 +696,7 @@ class NormalizeIntensity(Transform):
         else:
             img = self._normalize(img, self.subtrahend, self.divisor)
 
-        out, *_ = convert_data_type(img, dtype=dtype)
+        out = convert_to_dst_type(img, img, dtype=dtype)[0]
         return out
 
 
@@ -778,7 +781,7 @@ class ScaleIntensityRange(Transform):
             img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
             img = clip(img, self.b_min, self.b_max)
-        ret, *_ = convert_data_type(img, dtype=dtype)
+        ret: NdarrayOrTensor = convert_data_type(img, dtype=dtype)[0]
 
         return ret
 
@@ -973,8 +976,8 @@ class ScaleIntensityRangePercentiles(Transform):
         Apply the transform to `img`.
         """
         if self.channel_wise:
-            for i, d in enumerate(img):
-                img[i] = self._normalize(img=d)  # type: ignore
+            out = [self._normalize(img=d) for d in img]
+            img = torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
         else:
             img = self._normalize(img=img)
 
@@ -1114,8 +1117,7 @@ class DetectEnvelope(Transform):
             np.ndarray containing envelope of data in img along the specified axis.
 
         """
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor)
         # add one to transform axis because a batch axis will be added at dimension 0
         hilbert_transform = HilbertTransform(self.axis + 1, self.n)
         # convert to Tensor and add Batch axis expected by HilbertTransform
@@ -1145,9 +1147,8 @@ class GaussianSmooth(Transform):
         self.sigma = sigma
         self.approx = approx
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         sigma: Union[Sequence[torch.Tensor], torch.Tensor]
         if isinstance(self.sigma, Sequence):
             sigma = [torch.as_tensor(s, device=img_t.device) for s in self.sigma]
@@ -1254,9 +1255,8 @@ class GaussianSharpen(Transform):
         self.alpha = alpha
         self.approx = approx
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)
 
         gf1, gf2 = (
             GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device)
@@ -1401,8 +1401,7 @@ class RandHistogramShift(RandomizableTransform):
 
         if self.reference_control_points is None or self.floating_control_points is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         img_min, img_max = img_np.min(), img_np.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
@@ -1625,13 +1624,13 @@ class KSpaceSpikeNoise(Transform, Fourier):
         # FT
         k = self.shift_fourier(img, n_dims)
         lib = np if isinstance(k, np.ndarray) else torch
-        log_abs = lib.log(lib.abs(k) + 1e-10)  # type: ignore
-        phase = lib.angle(k)  # type: ignore
+        log_abs = lib.log(lib.abs(k) + 1e-10)
+        phase = lib.angle(k)
 
         k_intensity = self.k_intensity
         # default log intensity
         if k_intensity is None:
-            k_intensity = tuple(lib.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)  # type: ignore
+            k_intensity = tuple(lib.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)
 
         # highlight
         if isinstance(self.loc[0], Sequence):
@@ -1640,7 +1639,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
         else:
             self._set_spike(log_abs, self.loc, k_intensity)
         # map back
-        k = lib.exp(log_abs) * lib.exp(1j * phase)  # type: ignore
+        k = lib.exp(log_abs) * lib.exp(1j * phase)
         img, *_ = convert_to_dst_type(self.inv_shift_fourier(k, n_dims), dst=img)
 
         return img
@@ -1815,8 +1814,10 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 
         k = self.shift_fourier(img, n_dims)
         mod = torch if isinstance(k, torch.Tensor) else np
-        log_abs = mod.log(mod.absolute(k) + 1e-10)  # type: ignore
-        shifted_means = mod.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5  # type: ignore
+        log_abs = mod.log(mod.absolute(k) + 1e-10)
+        shifted_means = mod.mean(log_abs, tuple(range(-n_dims, 0))) * 2.5
+        if isinstance(shifted_means, torch.Tensor):
+            shifted_means = shifted_means.to("cpu")
         return tuple((i * 0.95, i * 1.1) for i in shifted_means)
 
 
@@ -1891,8 +1892,7 @@ class RandCoarseTransform(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         out = self._transform_holes(img=img_np)
         ret, *_ = convert_to_dst_type(src=out, dst=img)
         return ret
@@ -2047,14 +2047,123 @@ class HistogramNormalize(Transform):
         self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         mask = mask if mask is not None else self.mask
         mask_np: Optional[np.ndarray] = None
         if mask is not None:
-            mask_np, *_ = convert_data_type(mask, np.ndarray)  # type: ignore
+            mask_np, *_ = convert_data_type(mask, np.ndarray)
 
         ret = equalize_hist(img=img_np, mask=mask_np, num_bins=self.num_bins, min=self.min, max=self.max)
         out, *_ = convert_to_dst_type(src=ret, dst=img, dtype=self.dtype or img.dtype)
 
         return out
+
+
+class IntensityRemap(RandomizableTransform):
+    """
+    Transform for intensity remapping of images. The intensity at each
+    pixel is replaced by a new values coming from an intensity remappping
+    curve.
+
+    The remapping curve is created by uniformly sampling values from the
+    possible intensities for the input image and then adding a linear
+    component. The curve is the rescaled to the input image intensity range.
+
+    Intended to be used as a means to data augmentation via:
+    :py:class:`monai.transforms.RandIntensityRemap`.
+
+    Implementation is described in the work:
+    `Intensity augmentation for domain transfer of whole breast segmentation
+    in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_.
+
+    Args:
+        kernel_size: window size for averaging operation for the remapping
+            curve.
+        slope: slope of the linear component. Easiest to leave default value
+            and tune the kernel_size parameter instead.
+        return_map: set to True for the transform to return a dictionary version
+            of the lookup table used in the intensity remapping. The keys
+            correspond to the old intensities, and the values are the new
+            values.
+    """
+
+    def __init__(self, kernel_size: int = 30, slope: float = 0.7):
+
+        super().__init__()
+
+        self.kernel_size = kernel_size
+        self.slope = slope
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            img: image to remap.
+        """
+
+        img = img.clone()
+        # sample noise
+        vals_to_sample = torch.unique(img).tolist()
+        noise = torch.from_numpy(self.R.choice(vals_to_sample, len(vals_to_sample) - 1 + self.kernel_size))
+        # smooth
+        noise = torch.nn.AvgPool1d(self.kernel_size, stride=1)(noise.unsqueeze(0)).squeeze()
+        # add linear component
+        grid = torch.arange(len(noise)) / len(noise)
+        noise += self.slope * grid
+        # rescale
+        noise = (noise - noise.min()) / (noise.max() - noise.min()) * img.max() + img.min()
+
+        # intensity remapping function
+        index_img = torch.bucketize(img, torch.tensor(vals_to_sample))
+        img = noise[index_img]
+
+        return img
+
+
+class RandIntensityRemap(RandomizableTransform):
+    """
+    Transform for intensity remapping of images. The intensity at each
+    pixel is replaced by a new values coming from an intensity remappping
+    curve.
+
+    The remapping curve is created by uniformly sampling values from the
+    possible intensities for the input image and then adding a linear
+    component. The curve is the rescaled to the input image intensity range.
+
+    Implementation is described in the work:
+    `Intensity augmentation for domain transfer of whole breast segmentation
+    in MRI <https://ieeexplore.ieee.org/abstract/document/9166708>`_.
+
+    Args:
+        prob: probability of applying the transform.
+        kernel_size: window size for averaging operation for the remapping
+            curve.
+        slope: slope of the linear component. Easiest to leave default value
+            and tune the kernel_size parameter instead.
+        channel_wise: set to True to treat each channel independently.
+    """
+
+    def __init__(self, prob: float = 0.1, kernel_size: int = 30, slope: float = 0.7, channel_wise: bool = True):
+
+        RandomizableTransform.__init__(self, prob=prob)
+        self.kernel_size = kernel_size
+        self.slope = slope
+        self.channel_wise = True
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            img: image to remap.
+        """
+        super().randomize(None)
+        if self._do_transform:
+            if self.channel_wise:
+                img = torch.stack(
+                    [
+                        IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img[i])
+                        for i in range(len(img))
+                    ]
+                )
+            else:
+                img = IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img)
+
+        return img

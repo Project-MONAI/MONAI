@@ -145,8 +145,16 @@ from monai.transforms.intensity.dictionary import (
 )
 from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour
 from monai.transforms.post.dictionary import AsDiscreted, KeepLargestConnectedComponentd, LabelFilterd, LabelToContourd
-from monai.transforms.smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity
-from monai.transforms.smooth_field.dictionary import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
+from monai.transforms.smooth_field.array import (
+    RandSmoothDeform,
+    RandSmoothFieldAdjustContrast,
+    RandSmoothFieldAdjustIntensity,
+)
+from monai.transforms.smooth_field.dictionary import (
+    RandSmoothDeformd,
+    RandSmoothFieldAdjustContrastd,
+    RandSmoothFieldAdjustIntensityd,
+)
 from monai.transforms.spatial.array import (
     GridDistortion,
     Rand2DElastic,
@@ -236,7 +244,8 @@ def update_docstring(code_path, transform_name):
     contents.insert(image_line + 1, "    :alt: example of " + transform_name + "\n")
 
     # check that we've only added two lines
-    assert len(contents) == len(contents_orig) + 2
+    if len(contents) != len(contents_orig) + 2:
+        raise AssertionError
 
     # write the updated doc to overwrite the original
     with open(code_path, "w") as f:
@@ -374,7 +383,7 @@ def get_images(data, is_label=False):
         # we might need to panel the images. this happens if a transform produces e.g. 4 output images.
         # In this case, we create a 2-by-2 grid from them. Output will be a list containing n_orthog_views,
         # each element being either the image (if num_samples is 1) or the panelled image.
-        nrows = int(np.floor(num_samples ** 0.5))
+        nrows = int(np.floor(num_samples**0.5))
         for view in range(num_orthog_views):
             result = np.asarray([d[view] for d in data])
             nindex, height, width = result.shape
@@ -689,20 +698,38 @@ if __name__ == "__main__":
         data,
     )
     create_transform_im(
-        RandSmoothFieldAdjustContrast, dict(spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0), data
+        RandSmoothFieldAdjustContrast, dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0), data
     )
     create_transform_im(
         RandSmoothFieldAdjustContrastd,
-        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0),
+        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0),
         data,
     )
     create_transform_im(
         RandSmoothFieldAdjustIntensity,
-        dict(spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0, gamma=(0.5, 4.5)),
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, gamma=(0.5, 4.5)),
         data,
     )
     create_transform_im(
         RandSmoothFieldAdjustIntensityd,
-        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(100, 100, 100), prob=1.0, gamma=(0.5, 4.5)),
+        dict(keys=keys, spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, gamma=(0.5, 4.5)),
+        data,
+    )
+
+    create_transform_im(
+        RandSmoothDeform,
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="blinear"),
+        data,
+    )
+    create_transform_im(
+        RandSmoothDeformd,
+        dict(
+            keys=keys,
+            spatial_size=(217, 217, 217),
+            rand_size=(10, 10, 10),
+            prob=1.0,
+            def_range=0.05,
+            grid_mode="blinear",
+        ),
         data,
     )

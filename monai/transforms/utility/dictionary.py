@@ -15,7 +15,6 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-import logging
 import re
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
@@ -63,7 +62,7 @@ from monai.transforms.utility.array import (
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import convert_to_numpy, deprecated_arg, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import TraceKeys, TransformBackends
+from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -180,6 +179,8 @@ __all__ = [
     "ClassesToIndicesDict",
 ]
 
+DEFAULT_POST_FIX = PostFix.meta()
+
 
 class Identityd(MapTransform):
     """
@@ -291,7 +292,7 @@ class EnsureChannelFirstd(MapTransform):
         self,
         keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         strict_check: bool = True,
     ) -> None:
         """
@@ -518,7 +519,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         data_type: str = "tensor",
-        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        dtype: Union[DtypeLike, torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
         allow_missing_keys: bool = False,
@@ -773,7 +774,7 @@ class DataStatsd(MapTransform):
         value_range: Union[Sequence[bool], bool] = True,
         data_value: Union[Sequence[bool], bool] = False,
         additional_info: Optional[Union[Sequence[Callable], Callable]] = None,
-        logger_handler: Optional[logging.Handler] = None,
+        name: str = "DataStats",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -794,9 +795,7 @@ class DataStatsd(MapTransform):
             additional_info: user can define callable function to extract
                 additional info from input data. it also can be a sequence of string, each element
                 corresponds to a key in ``keys``.
-            logger_handler: add additional handler to output data: save to file, etc.
-                add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
-                the handler should have a logging level of at least `INFO`.
+            name: identifier of `logging.logger` to use, defaulting to "DataStats".
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -807,8 +806,7 @@ class DataStatsd(MapTransform):
         self.value_range = ensure_tuple_rep(value_range, len(self.keys))
         self.data_value = ensure_tuple_rep(data_value, len(self.keys))
         self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
-        self.logger_handler = logger_handler
-        self.printer = DataStats(logger_handler=logger_handler)
+        self.printer = DataStats(name=name)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -858,17 +856,22 @@ class CopyItemsd(MapTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, keys: KeysCollection, times: int, names: KeysCollection, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        times: int = 1,
+        names: Optional[KeysCollection] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             times: expected copy times, for example, if keys is "img", times is 3,
-                it will add 3 copies of "img" data to the dictionary.
+                it will add 3 copies of "img" data to the dictionary, default to 1.
             names: the names corresponding to the newly copied data,
                 the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
                 and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
+                if None, use "{key}_{index}" as key for copy times `N`, index from `0` to `N-1`.
             allow_missing_keys: don't raise exception if key is missing.
 
         Raises:
@@ -880,7 +883,7 @@ class CopyItemsd(MapTransform):
         if times < 1:
             raise ValueError(f"times must be positive, got {times}.")
         self.times = times
-        names = ensure_tuple(names)
+        names = [f"{k}_{i}" for k in self.keys for i in range(self.times)] if names is None else ensure_tuple(names)
         if len(names) != (len(self.keys) * times):
             raise ValueError(
                 "len(names) must match len(keys) * times, "
@@ -1442,7 +1445,7 @@ class IntensityStatsd(MapTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to store the computed statistics to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
@@ -1459,7 +1462,7 @@ class IntensityStatsd(MapTransform):
         mask_keys: Optional[KeysCollection] = None,
         channel_wise: bool = False,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

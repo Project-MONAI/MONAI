@@ -557,6 +557,12 @@ Post-processing
 Spatial
 ^^^^^^^
 
+`SpatialResample`
+"""""""""""""""""
+.. autoclass:: SpatialResample
+    :members:
+    :special-members: __call__
+
 `Spacing`
 """""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Spacing.png
@@ -741,6 +747,14 @@ Smooth Field
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustIntensity.png
     :alt: example of RandSmoothFieldAdjustIntensity
 .. autoclass:: RandSmoothFieldAdjustIntensity
+    :members:
+    :special-members: __call__
+
+`RandSmoothDeform`
+""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothDeform.png
+    :alt: example of RandSmoothDeform
+.. autoclass:: RandSmoothDeform
     :members:
     :special-members: __call__
 
@@ -1390,6 +1404,12 @@ Post-processing (Dict)
 Spatial (Dict)
 ^^^^^^^^^^^^^^
 
+`SpatialResampled`
+""""""""""""""""""
+.. autoclass:: SpatialResampled
+    :members:
+    :special-members: __call__
+
 `Spacingd`
 """"""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Spacingd.png
@@ -1550,6 +1570,14 @@ Smooth Field (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustIntensityd.png
     :alt: example of RandSmoothFieldAdjustIntensityd
 .. autoclass:: RandSmoothFieldAdjustIntensityd
+    :members:
+    :special-members: __call__
+
+`RandSmoothDeformd`
+"""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothDeformd.png
+    :alt: example of RandSmoothDeformd
+.. autoclass:: RandSmoothDeformd
     :members:
     :special-members: __call__
 

@@ -85,6 +85,7 @@ from .intensity.array import (
     GaussianSmooth,
     GibbsNoise,
     HistogramNormalize,
+    IntensityRemap,
     KSpaceSpikeNoise,
     MaskIntensity,
     NormalizeIntensity,
@@ -98,6 +99,7 @@ from .intensity.array import (
     RandGaussianSmooth,
     RandGibbsNoise,
     RandHistogramShift,
+    RandIntensityRemap,
     RandKSpaceSpikeNoise,
     RandRicianNoise,
     RandScaleIntensity,
@@ -201,7 +203,7 @@ from .intensity.dictionary import (
     ThresholdIntensityDict,
 )
 from .inverse import InvertibleTransform, TraceableTransform
-from .inverse_batch_transform import BatchInverseTransform, Decollated
+from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .nvtx import (
@@ -249,6 +251,8 @@ from .post.dictionary import (
     AsDiscreted,
     AsDiscreteDict,
     Ensembled,
+    EnsembleD,
+    EnsembleDict,
     FillHolesD,
     FillHolesd,
     FillHolesDict,
@@ -277,8 +281,23 @@ from .post.dictionary import (
     VoteEnsembled,
     VoteEnsembleDict,
 )
-from .smooth_field.array import RandSmoothFieldAdjustContrast, RandSmoothFieldAdjustIntensity, SmoothField
-from .smooth_field.dictionary import RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
+from .smooth_field.array import (
+    RandSmoothDeform,
+    RandSmoothFieldAdjustContrast,
+    RandSmoothFieldAdjustIntensity,
+    SmoothField,
+)
+from .smooth_field.dictionary import (
+    RandSmoothDeformd,
+    RandSmoothDeformD,
+    RandSmoothDeformDict,
+    RandSmoothFieldAdjustContrastd,
+    RandSmoothFieldAdjustContrastD,
+    RandSmoothFieldAdjustContrastDict,
+    RandSmoothFieldAdjustIntensityd,
+    RandSmoothFieldAdjustIntensityD,
+    RandSmoothFieldAdjustIntensityDict,
+)
 from .spatial.array import (
     Affine,
     AffineGrid,
@@ -297,10 +316,12 @@ from .spatial.array import (
     RandRotate90,
     RandZoom,
     Resample,
+    ResampleToMatch,
     Resize,
     Rotate,
     Rotate90,
     Spacing,
+    SpatialResample,
     Zoom,
 )
 from .spatial.dictionary import (
@@ -343,6 +364,9 @@ from .spatial.dictionary import (
     RandZoomd,
     RandZoomD,
     RandZoomDict,
+    ResampleToMatchd,
+    ResampleToMatchD,
+    ResampleToMatchDict,
     Resized,
     ResizeD,
     ResizeDict,
@@ -355,6 +379,9 @@ from .spatial.dictionary import (
     Spacingd,
     SpacingD,
     SpacingDict,
+    SpatialResampled,
+    SpatialResampleD,
+    SpatialResampleDict,
     Zoomd,
     ZoomD,
     ZoomDict,
@@ -513,6 +540,7 @@ from .utils import (
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
     convert_pad_mode,
+    convert_to_contiguous,
     copypaste_arrays,
     create_control_grid,
     create_grid,
@@ -546,7 +574,9 @@ from .utils import (
     zero_margins,
 )
 from .utils_pytorch_numpy_unification import (
+    allclose,
     any_np_pt,
+    ascontiguousarray,
     clip,
     concatenate,
     cumsum,
@@ -555,11 +585,13 @@ from .utils_pytorch_numpy_unification import (
     isfinite,
     isnan,
     maximum,
+    mode,
     moveaxis,
     nonzero,
     percentile,
     ravel,
     repeat,
+    stack,
     unravel_index,
     where,
 )

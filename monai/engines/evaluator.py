@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional,
 import torch
 from torch.utils.data import DataLoader
 
-from monai.config import IgniteInfo
+from monai.config import IgniteInfo, KeysCollection
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
@@ -114,7 +114,7 @@ class Evaluator(Workflow):
             event_to_attr=event_to_attr,
             decollate=decollate,
         )
-        self.mode = look_up_option(mode, ForwardMode)
+        mode = look_up_option(mode, ForwardMode)
         if mode == ForwardMode.EVAL:
             self.mode = eval_mode
         elif mode == ForwardMode.TRAIN:
@@ -281,6 +281,7 @@ class EnsembleEvaluator(Evaluator):
         networks: networks to evaluate in order in the evaluator, should be regular PyTorch `torch.nn.Module`.
         pred_keys: the keys to store every prediction data.
             the length must exactly match the number of networks.
+            if None, use "pred_{index}" as key corresponding to N networks, index from `0` to `N-1`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
         prepare_batch: function to parse expected data (usually `image`, `label` and other network args)
@@ -321,7 +322,7 @@ class EnsembleEvaluator(Evaluator):
         device: torch.device,
         val_data_loader: Union[Iterable, DataLoader],
         networks: Sequence[torch.nn.Module],
-        pred_keys: Sequence[str],
+        pred_keys: Optional[KeysCollection] = None,
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
@@ -358,7 +359,11 @@ class EnsembleEvaluator(Evaluator):
         )
 
         self.networks = ensure_tuple(networks)
-        self.pred_keys = ensure_tuple(pred_keys)
+        self.pred_keys = (
+            [f"{Keys.PRED}_{i}" for i in range(len(self.networks))] if pred_keys is None else ensure_tuple(pred_keys)
+        )
+        if len(self.pred_keys) != len(self.networks):
+            raise ValueError("length of `pred_keys` must be same as the length of `networks`.")
         self.inferer = SimpleInferer() if inferer is None else inferer
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):

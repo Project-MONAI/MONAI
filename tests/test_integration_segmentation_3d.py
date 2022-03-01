@@ -21,7 +21,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import NiftiSaver, create_test_image_3d, decollate_batch
+from monai.data import create_test_image_3d, decollate_batch
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks import eval_mode
@@ -34,12 +34,14 @@ from monai.transforms import (
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    SaveImage,
     ScaleIntensityd,
     Spacingd,
     ToTensor,
     ToTensord,
 )
 from monai.utils import set_determinism
+from monai.utils.enums import PostFix
 from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
@@ -212,17 +214,25 @@ def run_inference_test(root_dir, device="cuda:0"):
     with eval_mode(model):
         # resampling with align_corners=True or dtype=float64 will generate
         # slight different results between PyTorch 1.5 an 1.6
-        saver = NiftiSaver(output_dir=os.path.join(root_dir, "output"), dtype=np.float32)
+        saver = SaveImage(
+            output_dir=os.path.join(root_dir, "output"),
+            dtype=np.float32,
+            output_ext=".nii.gz",
+            output_postfix="seg",
+            mode="bilinear",
+        )
         for val_data in val_loader:
             val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
             # define sliding window size and batch size for windows inference
             sw_batch_size, roi_size = 4, (96, 96, 96)
             val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
-            # decollate prediction into a list and execute post processing for every item
+            # decollate prediction into a list
             val_outputs = [val_post_tran(i) for i in decollate_batch(val_outputs)]
+            val_meta = decollate_batch(val_data[PostFix.meta("img")])
             # compute metrics
             dice_metric(y_pred=val_outputs, y=val_labels)
-            saver.save_batch(val_outputs, val_data["img_meta_dict"])
+            for img, meta in zip(val_outputs, val_meta):  # save a decollated batch of files
+                saver(img, meta)
 
     return dice_metric.aggregate().item()
 

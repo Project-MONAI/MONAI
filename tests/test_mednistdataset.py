@@ -13,11 +13,11 @@ import os
 import shutil
 import unittest
 from pathlib import Path
-from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import MedNISTDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from tests.utils import skip_if_quick
+from monai.utils.enums import PostFix
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 MEDNIST_FULL_DATASET_LENGTH = 58954
 
@@ -39,17 +39,13 @@ class TestMedNISTDataset(unittest.TestCase):
             self.assertEqual(len(dataset), int(MEDNIST_FULL_DATASET_LENGTH * dataset.test_frac))
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue("image_meta_dict" in dataset[0])
+            self.assertTrue(PostFix.meta("image") in dataset[0])
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
 
-        try:  # will start downloading if testing_dir doesn't have the MedNIST files
-            data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=True)
-        except (ContentTooShortError, HTTPError, RuntimeError) as e:
-            print(str(e))
-            if isinstance(e, RuntimeError):
-                # FIXME: skip MD5 check as current downloading method may fail
-                self.assertTrue(str(e).startswith("md5 check"))
-            return  # skipping this test due the network connection errors
+        with skip_if_downloading_fails():
+            data = MedNISTDataset(
+                root_dir=testing_dir, transform=transform, section="test", download=True, copy_cache=False
+            )
 
         _test_dataset(data)
 

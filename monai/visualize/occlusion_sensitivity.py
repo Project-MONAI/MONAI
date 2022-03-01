@@ -149,6 +149,7 @@ class OcclusionSensitivity:
         mask_size: Union[int, Sequence] = 15,
         n_batch: int = 128,
         stride: Union[int, Sequence] = 1,
+        per_channel: bool = True,
         upsampler: Optional[Callable] = default_upsampler,
         verbose: bool = True,
     ) -> None:
@@ -163,7 +164,10 @@ class OcclusionSensitivity:
             n_batch: Number of images in a batch for inference.
             stride: Stride in spatial directions for performing occlusions. Can be single
                 value or sequence (for varying stride in the different directions).
-                Should be >= 1. Striding in the channel direction will always be 1.
+                Should be >= 1. Striding in the channel direction depends on the `per_channel` argument.
+            per_channel: If `True`, `mask_size` and `stride` both equal 1 in the channel dimension. If `False`,
+                then both `mask_size` equals the number of channels in the image. If `True`, the output image will be:
+                `[B, C, H, W, D, num_seg_classes]`. Else, will be `[B, 1, H, W, D, num_seg_classes]`
             upsampler: An upsampling method to upsample the output image. Default is
                 N-dimensional linear (bilinear, trilinear, etc.) depending on num spatial
                 dimensions of input.
@@ -176,6 +180,7 @@ class OcclusionSensitivity:
         self.mask_size = mask_size
         self.n_batch = n_batch
         self.stride = stride
+        self.per_channel = per_channel
         self.verbose = verbose
 
     def _compute_occlusion_sensitivity(self, x, b_box):
@@ -201,32 +206,39 @@ class OcclusionSensitivity:
         output_im_shape = im_shape if b_box is None else b_box_max - b_box_min + 1
 
         # Get the stride and mask_size as numpy arrays
-        self.stride = _get_as_np_array(self.stride, len(im_shape))
-        self.mask_size = _get_as_np_array(self.mask_size, len(im_shape))
+        stride = _get_as_np_array(self.stride, len(im_shape))
+        mask_size = _get_as_np_array(self.mask_size, len(im_shape))
+
+        # If not doing it on a per-channel basis, then the output image will have 1 output channel
+        # (since all will be occluded together)
+        if not self.per_channel:
+            output_im_shape[0] = 1
+            stride[0] = x.shape[1]
+            mask_size[0] = x.shape[1]
 
         # For each dimension, ...
-        for o, s in zip(output_im_shape, self.stride):
+        for o, s in zip(output_im_shape, stride):
             # if the size is > 1, then check that the stride is a factor of the output image shape
             if o > 1 and o % s != 0:
                 raise ValueError(
                     "Stride should be a factor of the image shape. Im shape "
-                    + f"(taking bounding box into account): {output_im_shape}, stride: {self.stride}"
+                    + f"(taking bounding box into account): {output_im_shape}, stride: {stride}"
                 )
 
         # to ensure the occluded area is nicely centred if stride is even, ensure that so is the mask_size
-        if np.any(self.mask_size % 2 != self.stride % 2):
+        if np.any(mask_size % 2 != stride % 2):
             raise ValueError(
                 "Stride and mask size should both be odd or even (element-wise). "
-                + f"``stride={self.stride}``, ``mask_size={self.mask_size}``"
+                + f"``stride={stride}``, ``mask_size={mask_size}``"
             )
 
-        downsampled_im_shape = (output_im_shape / self.stride).astype(np.int32)
+        downsampled_im_shape = (output_im_shape / stride).astype(np.int32)
         downsampled_im_shape[downsampled_im_shape == 0] = 1  # make sure dimension sizes are >= 1
         num_required_predictions = np.prod(downsampled_im_shape)
 
         # Get bottom left and top right corners of occluded region
-        lower_corner = (self.stride - self.mask_size) // 2
-        upper_corner = (self.stride + self.mask_size) // 2
+        lower_corner = (stride - mask_size) // 2
+        upper_corner = (stride + mask_size) // 2
 
         # Loop 1D over image
         verbose_range = trange if self.verbose else range
@@ -234,7 +246,7 @@ class OcclusionSensitivity:
             # Get corresponding ND index
             idx = np.unravel_index(i, downsampled_im_shape)
             # Multiply by stride
-            idx *= self.stride
+            idx *= stride
             # If a bounding box is being used, we need to add on
             # the min to shift to start of region of interest
             if b_box_min is not None:
@@ -264,9 +276,7 @@ class OcclusionSensitivity:
 
         return sensitivity_ims, output_im_shape
 
-    def __call__(  # type: ignore
-        self, x: torch.Tensor, b_box: Optional[Sequence] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __call__(self, x: torch.Tensor, b_box: Optional[Sequence] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             x: Image to use for inference. Should be a tensor consisting of 1 batch.
@@ -283,6 +293,7 @@ class OcclusionSensitivity:
                     Hence, more -ve values imply that region was important in the decision process.
                 * The map will have shape ``BCHW(D)N``, where N is the number of classes to be inferred by the
                     network. Hence, the occlusion for class ``i`` can be seen with ``map[...,i]``.
+                * If `per_channel==False`, output ``C`` will equal 1: ``B1HW(D)N``
             * Most probable class:
                 * The most probable class when the corresponding part of the image is occluded (``argmax(dim=-1)``).
             Both images will be cropped if a bounding box used, but voxel sizes will always match the input.

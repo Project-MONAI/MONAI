@@ -21,7 +21,7 @@ jobs:
   coverage-py3:
     if: github.repository == 'Project-MONAI/MONAI'
     container:
-      image: nvcr.io/nvidia/pytorch:20.03-py3  # CUDA 10.2
+      image: nvcr.io/nvidia/pytorch:21.06-py3  # CUDA 11.3
       options: --gpus all
     runs-on: [self-hosted, linux, x64, common]
     steps:
@@ -59,8 +59,8 @@ jobs:
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --coverage --unittests  # unit tests with coverage report
-        BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
+        BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with coverage report
+        BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
         coverage xml
         if pgrep python; then pkill python; fi
       shell: bash
@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -104,7 +104,7 @@ jobs:
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=1 ./runtests.sh --quick --unittests
+        BUILD_MONAI=1 ./runtests.sh --build --quick --unittests --disttests
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
