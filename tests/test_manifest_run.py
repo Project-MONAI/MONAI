@@ -121,11 +121,12 @@ class TestManifestRun(unittest.TestCase):
                 # test override with the whole overriding file
                 json.dump("Dataset", f)
 
-            os.system(
+            ret = os.system(
                 f"python -m monai.apps.manifest.run -m {metafile} -c {configfile}"
                 f" -o 'evaluator#<args>#amp'=False 'network'='<file>{overridefile1}#move_net'"
                 f" 'dataset#<name>'='<file>{overridefile2}' -t evaluator"
             )
+            self.assertEqual(ret, 0)
 
             saved = LoadImage(image_only=True)(os.path.join(tempdir, "image", "image_trans.nii.gz"))
             self.assertTupleEqual(saved.shape, expected_shape)
