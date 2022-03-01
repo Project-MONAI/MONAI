@@ -92,6 +92,13 @@ class TestRandKSpaceSpikeNoise(unittest.TestCase):
         self.assertGreaterEqual(t.sampled_k_intensity[0], 14)
         self.assertLessEqual(t.sampled_k_intensity[0], 14.1)
 
+    @parameterized.expand(TESTS)
+    def test_default_intensity(self, im_shape, im_type, channel_wise):
+        im = self.get_data(im_shape, im_type)
+        t = RandKSpaceSpikeNoise(1.0, intensity_range=None, channel_wise=channel_wise)
+        out = t(deepcopy(im))
+        self.assertEqual(out.shape, im.shape)
+
 
 if __name__ == "__main__":
     unittest.main()
