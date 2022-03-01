@@ -1342,6 +1342,7 @@ class CSVDataset(Dataset):
             be the new column name, the `value` is the names of columns to combine. for example:
             `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
         transform: transform to apply on the loaded items of a dictionary data.
+        kwargs_read_csv: dictionary args to pass to pandas `read_csv` function.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
     .. deprecated:: 0.8.0
@@ -1358,13 +1359,14 @@ class CSVDataset(Dataset):
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
         col_groups: Optional[Dict[str, Sequence[str]]] = None,
         transform: Optional[Callable] = None,
+        kwargs_read_csv: Optional[Dict] = None,
         **kwargs,
     ):
         srcs = (src,) if not isinstance(src, (tuple, list)) else src
         dfs: List = []
         for i in srcs:
             if isinstance(i, str):
-                dfs.append(pd.read_csv(i))
+                dfs.append(pd.read_csv(i, **kwargs_read_csv) if kwargs_read_csv else pd.read_csv(i))
             elif isinstance(i, pd.DataFrame):
                 dfs.append(i)
             else:
