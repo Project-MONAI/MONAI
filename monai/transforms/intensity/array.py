@@ -1816,7 +1816,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         mod = torch if isinstance(k, torch.Tensor) else np
         log_abs = mod.log(mod.absolute(k) + 1e-10)
         shifted_means = mod.mean(log_abs, tuple(range(-n_dims, 0))) * 2.5
-        if isinstance(k, torch.Tensor):
+        if isinstance(shifted_means, torch.Tensor):
             shifted_means = shifted_means.to("cpu")
         return tuple((i * 0.95, i * 1.1) for i in shifted_means)
 
