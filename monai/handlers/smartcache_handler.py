@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from monai.config import IgniteInfo
 from monai.data import SmartCacheDataset
@@ -41,27 +41,17 @@ class SmartCacheHandler:
         if not isinstance(smartcacher, SmartCacheDataset):
             raise TypeError("smartcacher must be a monai.data.SmartCacheDataset.")
         self.smartcacher = smartcacher
+        self.removables: List = []
 
     def attach(self, engine: Engine) -> None:
         """
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        engine.add_event_handler(Events.STARTED, self.started)
-        engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
-        engine.add_event_handler(Events.COMPLETED, self.completed)
-
-    def detach(self, engine: Engine) -> None:
-        """
-        Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
-        """
-        for func, event in zip(
-            (self.started, self.epoch_completed, self.completed),
-            (Events.STARTED, Events.EPOCH_COMPLETED, Events.COMPLETED),
-        ):
-            if engine.has_event_handler(func, event):
-                engine.remove_event_handler(func, event)
+        self.removables = []
+        self.removables.append(engine.add_event_handler(Events.STARTED, self.started))
+        self.removables.append(engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed))
+        self.removables.append(engine.add_event_handler(Events.COMPLETED, self.completed))
 
     def started(self, engine: Engine) -> None:
         """Callback for train or validation/evaluation started Event.
