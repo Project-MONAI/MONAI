@@ -1298,6 +1298,7 @@ class CSVDataset(Dataset):
             be the new column name, the `value` is the names of columns to combine. for example:
             `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
         transform: transform to apply on the loaded items of a dictionary data.
+        kwargs_read_csv: dictionary args to pass to pandas `read_csv` function.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
     .. deprecated:: 0.8.0
@@ -1314,23 +1315,23 @@ class CSVDataset(Dataset):
         col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
         col_groups: Optional[Dict[str, Sequence[str]]] = None,
         transform: Optional[Callable] = None,
-        **kwargs_read_csv: Optional[Dict] = {},
-        **kwargs_merge: Optional[Dict] = {},
+        kwargs_read_csv: Optional[Dict] = None,
+        **kwargs,
     ):
         srcs = (src,) if not isinstance(src, (tuple, list)) else src
         dfs: List = []
         for i in srcs:
             if isinstance(i, str):
-                dfs.append(pd.read_csv(i, **kwargs_read_csv))
+                dfs.append(pd.read_csv(i, **kwargs_read_csv) if kwargs_read_csv else pd.read_csv(i))
             elif isinstance(i, pd.DataFrame):
                 dfs.append(i)
             else:
                 raise ValueError("`src` must be file path or pandas `DataFrame`.")
 
-        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs_merge`
-        kwargs_merge.pop("filename", None)
+        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
+        kwargs.pop("filename", None)
 
         data = convert_tables_to_dicts(
-            dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs_merge
+            dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
         super().__init__(data=data, transform=transform)
