@@ -16,7 +16,7 @@ import torch
 import torch.nn as nn
 
 from monai.inferers.utils import sliding_window_inference
-from monai.utils import BlendMode, PytorchPadMode
+from monai.utils import BlendMode, PytorchPadMode, ensure_tuple
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
 __all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
@@ -110,7 +110,7 @@ class SlidingWindowInferer(Inferer):
             spatial dimensions.
         padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
             Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
-            See also: https://pytorch.org/docs/stable/nn.functional.html#pad
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         cval: fill value for 'constant' padding mode. Default: 0
         sw_device: device for the window data.
             By default the device (and accordingly the memory) of the `inputs` is used.
@@ -259,17 +259,16 @@ class SliceInferer(SlidingWindowInferer):
             raise ValueError("`spatial_dim` can only be `0, 1, 2` with `[H, W, D]` respectively.")
 
         # Check if ``roi_size`` tuple is 2D and ``inputs`` tensor is 3D
+        self.roi_size = ensure_tuple(self.roi_size)
         if len(self.roi_size) == 2 and len(inputs.shape[2:]) == 3:
             self.roi_size = list(self.roi_size)
             self.roi_size.insert(self.spatial_dim, 1)
         else:
             raise RuntimeError("Currently, only 2D `roi_size` with 3D `inputs` tensor is supported.")
 
-        return super().__call__(inputs, lambda x: self.network_wrapper(network, x, *args, **kwargs))
+        return super().__call__(inputs=inputs, network=lambda x: self.network_wrapper(network, x, *args, **kwargs))
 
-    def network_wrapper(
-        self, network: Callable[..., torch.Tensor], x: torch.Tensor, *args, **kwargs
-    ) -> Callable[..., torch.Tensor]:
+    def network_wrapper(self, network: Callable[..., torch.Tensor], x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         """
         Wrapper handles inference for 2D models over 3D volume inputs.
         """

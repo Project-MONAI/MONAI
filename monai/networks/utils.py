@@ -20,8 +20,9 @@ from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
+from monai.config import PathLike
 from monai.utils.deprecate_utils import deprecated, deprecated_arg
-from monai.utils.misc import ensure_tuple, set_determinism
+from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import pytorch_after
 
 __all__ = [
@@ -35,7 +36,9 @@ __all__ = [
     "pixelshuffle",
     "eval_mode",
     "train_mode",
+    "get_state_dict",
     "copy_model_state",
+    "save_state",
     "convert_to_torchscript",
     "meshgrid_ij",
 ]
@@ -270,7 +273,7 @@ def pixelshuffle(
     dim, factor = spatial_dims, scale_factor
     input_size = list(x.size())
     batch_size, channels = input_size[:2]
-    scale_divisor = factor ** dim
+    scale_divisor = factor**dim
 
     if channels % scale_divisor != 0:
         raise ValueError(
@@ -357,6 +360,20 @@ def train_mode(*nets: nn.Module):
             n.eval()
 
 
+def get_state_dict(obj: Union[torch.nn.Module, Mapping]):
+    """
+    Get the state dict of input object if has `state_dict`, otherwise, return object directly.
+    For data parallel model, automatically convert it to regular model first.
+
+    Args:
+        obj: input object to check and get the state_dict.
+
+    """
+    if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+        obj = obj.module
+    return obj.state_dict() if hasattr(obj, "state_dict") else obj  # type: ignore
+
+
 def copy_model_state(
     dst: Union[torch.nn.Module, Mapping],
     src: Union[torch.nn.Module, Mapping],
@@ -401,15 +418,10 @@ def copy_model_state(
             # <All keys matched successfully>
 
     Returns: an OrderedDict of the updated `dst` state, the changed, and unchanged keys.
-    """
 
-    if isinstance(src, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
-        src = src.module
-    if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
-        dst = dst.module
-    src_dict = src.state_dict() if isinstance(src, torch.nn.Module) else src
-    dst_dict = dst.state_dict() if isinstance(dst, torch.nn.Module) else dst
-    dst_dict = OrderedDict(dst_dict)
+    """
+    src_dict = get_state_dict(src)
+    dst_dict = OrderedDict(get_state_dict(dst))
 
     to_skip = {s_key for s_key in src_dict if exclude_vars and re.compile(exclude_vars).search(s_key)}
 
@@ -434,6 +446,40 @@ def copy_model_state(
     if inplace and isinstance(dst, torch.nn.Module):
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
+
+
+def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
+    """
+    Save the state dict of input source data with PyTorch `save`.
+    It can save `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
+    And automatically convert the data parallel module to regular module.
+    For example::
+
+        save_state(net, path)
+        save_state(net.state_dict(), path)
+        save_state({"net": net, "opt": opt}, path)
+        net_dp = torch.nn.DataParallel(net)
+        save_state(net_dp, path)
+
+    Refer to: https://pytorch.org/ignite/v0.4.8/generated/ignite.handlers.DiskSaver.html.
+
+    Args:
+        src: input data to save, can be `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
+        path: target file path to save the input object.
+        kwargs: other args for the `save_obj` except for the `obj` and `path`.
+            default `func` is `torch.save()`, details of the args of it:
+            https://pytorch.org/docs/stable/generated/torch.save.html.
+
+    """
+
+    ckpt: Dict = {}
+    if isinstance(src, dict):
+        for k, v in src.items():
+            ckpt[k] = get_state_dict(v)
+    else:
+        ckpt = get_state_dict(src)
+
+    save_obj(obj=ckpt, path=path, **kwargs)
 
 
 def convert_to_torchscript(

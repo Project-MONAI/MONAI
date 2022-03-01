@@ -13,6 +13,8 @@ import copy
 import datetime
 import functools
 import importlib
+import json
+import operator
 import os
 import queue
 import sys
@@ -21,10 +23,11 @@ import time
 import traceback
 import unittest
 import warnings
-from functools import partial
+from contextlib import contextmanager
+from functools import partial, reduce
 from subprocess import PIPE, Popen
 from typing import Callable, Optional, Tuple
-from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
 import torch
@@ -44,6 +47,17 @@ nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
+_test_data_config: dict = {}
+
+
+def testing_data_config(*keys):
+    """get _test_data_config[keys0][keys1]...[keysN]"""
+    if not _test_data_config:
+        with open(os.path.join(os.path.dirname(__file__), "testing_data", "data_config.json")) as c:
+            _config = json.load(c)
+            for k, v in _config.items():
+                _test_data_config[k] = v
+    return reduce(operator.getitem, keys, _test_data_config)
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -93,15 +107,25 @@ def assert_allclose(
     np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
-def test_pretrained_networks(network, input_param, device):
+@contextmanager
+def skip_if_downloading_fails():
     try:
+        yield
+    except (ContentTooShortError, HTTPError, ConnectionError) as e:
+        raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except RuntimeError as rt_e:
+        if "network issue" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "gdown dependency" in str(rt_e):  # no gdown installed
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "md5 check" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        raise rt_e
+
+
+def test_pretrained_networks(network, input_param, device):
+    with skip_if_downloading_fails():
         return network(**input_param).to(device)
-    except (URLError, HTTPError) as e:
-        raise unittest.SkipTest(e) from e
-    except RuntimeError as r_error:
-        if "unexpected EOF" in f"{r_error}":  # The file might be corrupted.
-            raise unittest.SkipTest(f"{r_error}") from r_error
-        raise
 
 
 def test_is_quick():
@@ -649,16 +673,8 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
 
 def download_url_or_skip_test(*args, **kwargs):
     """``download_url`` and skip the tests if any downloading error occurs."""
-    try:
+    with skip_if_downloading_fails():
         download_url(*args, **kwargs)
-    except (ContentTooShortError, HTTPError) as e:
-        raise unittest.SkipTest(f"error while downloading: {e}") from e
-    except RuntimeError as rt_e:
-        if "network issue" in str(rt_e):
-            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
-        if "gdown dependency" in str(rt_e):  # no gdown installed
-            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
-        raise rt_e
 
 
 def query_memory(n=2):

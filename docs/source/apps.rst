@@ -19,8 +19,8 @@ Applications
     :members:
 
 
-Clara MMARs
------------
+`Clara MMARs`
+-------------
 .. autofunction:: download_mmar
 
 .. autofunction:: load_from_mmar

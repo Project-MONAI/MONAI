@@ -12,7 +12,6 @@
 import os
 import unittest
 import warnings
-from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
 import torch
@@ -39,10 +38,8 @@ from monai.transforms import (
 )
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_downloading_fails, skip_if_quick, testing_data_config
 
-TEST_DATA_URL = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
-MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
 TASK = "integration_classification_2d"
 
 
@@ -69,7 +66,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
             AddChannel(),
             Transpose(indices=[0, 2, 1]),
             ScaleIntensity(),
-            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True),
+            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True, dtype=np.float64),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
             ToTensor(),
@@ -186,14 +183,15 @@ class IntegrationClassification2D(DistTestCase):
         dataset_file = os.path.join(self.data_dir, "MedNIST.tar.gz")
 
         if not os.path.exists(data_dir):
-            try:
-                download_and_extract(TEST_DATA_URL, dataset_file, self.data_dir, MD5_VALUE)
-            except (ContentTooShortError, HTTPError, RuntimeError) as e:
-                print(str(e))
-                if isinstance(e, RuntimeError):
-                    # FIXME: skip MD5 check as current downloading method may fail
-                    self.assertTrue(str(e).startswith("md5 check"))
-                return  # skipping this test due the network connection errors
+            with skip_if_downloading_fails():
+                data_spec = testing_data_config("images", "mednist")
+                download_and_extract(
+                    data_spec["url"],
+                    dataset_file,
+                    self.data_dir,
+                    hash_val=data_spec["hash_val"],
+                    hash_type=data_spec["hash_type"],
+                )
 
         assert os.path.exists(data_dir)
 

@@ -140,17 +140,17 @@ class DatasetSummary:
             image, *_ = convert_data_type(data=image, output_type=torch.Tensor)
             label, *_ = convert_data_type(data=label, output_type=torch.Tensor)
 
-            voxel_max.append(image.max().item())
-            voxel_min.append(image.min().item())
-
             image_foreground = image[torch.where(label > foreground_threshold)]
+
+            voxel_max.append(image_foreground.max().item())
+            voxel_min.append(image_foreground.min().item())
             voxel_ct += len(image_foreground)
             voxel_sum += image_foreground.sum()
             voxel_square_sum += torch.square(image_foreground).sum()
 
         self.data_max, self.data_min = max(voxel_max), min(voxel_min)
         self.data_mean = (voxel_sum / voxel_ct).item()
-        self.data_std = (torch.sqrt(voxel_square_sum / voxel_ct - self.data_mean ** 2)).item()
+        self.data_std = (torch.sqrt(voxel_square_sum / voxel_ct - self.data_mean**2)).item()
 
     def calculate_percentiles(
         self,

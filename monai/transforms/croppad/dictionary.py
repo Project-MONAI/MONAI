@@ -287,8 +287,8 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+                See also: https://numpy.org/doc/1.18/reference/ghttps://pytorch.orgenerated/numpy.pad.html
+                /docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
@@ -735,7 +735,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
@@ -834,6 +834,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
         margin: Union[Sequence[int], int] = 0,
+        allow_smaller: bool = True,
         k_divisible: Union[Sequence[int], int] = 1,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
@@ -850,6 +851,9 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+            allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
+                than box size, default to `True`. if the margined size is bigger than image size, will pad with
+                specified `mode`.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
             mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
@@ -871,7 +875,12 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
         self.cropper = CropForeground(
-            select_fn=select_fn, channel_indices=channel_indices, margin=margin, k_divisible=k_divisible, **np_kwargs
+            select_fn=select_fn,
+            channel_indices=channel_indices,
+            margin=margin,
+            allow_smaller=allow_smaller,
+            k_divisible=k_divisible,
+            **np_kwargs,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
@@ -933,7 +942,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
@@ -1075,7 +1084,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
@@ -1279,7 +1288,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             the meta data is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_smaller: if `False`, an exception will be raised if the image is smaller than

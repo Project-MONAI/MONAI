@@ -23,7 +23,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter, apply_filter
 from monai.transforms.transform import Transform
-from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
+from monai.transforms.utils import fill_holes, get_largest_connected_component_mask, get_unique_labels
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
 from monai.utils import TransformBackends, convert_data_type, deprecated_arg, ensure_tuple, look_up_option
 from monai.utils.type_conversion import convert_to_dst_type
@@ -95,8 +95,7 @@ class Activations(Transform):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
         # convert to float as activation must operate on float tensor
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if sigmoid or self.sigmoid:
             img_t = torch.sigmoid(img_t)
         if softmax or self.softmax:
@@ -232,8 +231,7 @@ class AsDiscrete(Transform):
             warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
             threshold = logit_thresh if threshold else None
 
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        img_t, *_ = convert_data_type(img, torch.Tensor)
         if argmax or self.argmax:
             img_t = torch.argmax(img_t, dim=0, keepdim=True)
 
@@ -304,7 +302,7 @@ class KeepLargestConnectedComponent(Transform):
 
     def __init__(
         self,
-        applied_labels: Union[Sequence[int], int],
+        applied_labels: Optional[Union[Sequence[int], int]] = None,
         is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
@@ -312,8 +310,8 @@ class KeepLargestConnectedComponent(Transform):
         """
         Args:
             applied_labels: Labels for applying the connected component analysis on.
-                If not OneHot. The pixel whose value is in this list will be analyzed.
-                If the data is in OneHot format, this is used to determine which channels to apply.
+                If given, voxels whose value is in this list will be analyzed.
+                If `None`, all non-zero values will be analyzed.
             is_onehot: if `True`, treat the input data as OneHot format data, otherwise, not OneHot format data.
                 default to None, which treats multi-channel data as OneHot and single channel data as not OneHot.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
@@ -328,7 +326,7 @@ class KeepLargestConnectedComponent(Transform):
 
         """
         super().__init__()
-        self.applied_labels = ensure_tuple(applied_labels)
+        self.applied_labels = ensure_tuple(applied_labels) if applied_labels is not None else None
         self.is_onehot = is_onehot
         self.independent = independent
         self.connectivity = connectivity
@@ -342,8 +340,13 @@ class KeepLargestConnectedComponent(Transform):
             An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
         is_onehot = img.shape[0] > 1 if self.is_onehot is None else self.is_onehot
+        if self.applied_labels is not None:
+            applied_labels = self.applied_labels
+        else:
+            applied_labels = tuple(get_unique_labels(img, is_onehot, discard=0))
+
         if self.independent:
-            for i in self.applied_labels:
+            for i in applied_labels:
                 foreground = img[i] > 0 if is_onehot else img[0] == i
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
                 if is_onehot:
@@ -352,15 +355,15 @@ class KeepLargestConnectedComponent(Transform):
                     img[0][foreground != mask] = 0
             return img
         if not is_onehot:  # not one-hot, union of labels
-            labels, *_ = convert_to_dst_type(self.applied_labels, dst=img, wrap_sequence=True)
+            labels, *_ = convert_to_dst_type(applied_labels, dst=img, wrap_sequence=True)
             foreground = (img[..., None] == labels).any(-1)[0]
             mask = get_largest_connected_component_mask(foreground, self.connectivity)
             img[0][foreground != mask] = 0
             return img
         # one-hot, union of labels
-        foreground = (img[self.applied_labels, ...] == 1).any(0)
+        foreground = (img[applied_labels, ...] == 1).any(0)
         mask = get_largest_connected_component_mask(foreground, self.connectivity)
-        for i in self.applied_labels:
+        for i in applied_labels:
             img[i][foreground != mask] = 0
         return img
 
@@ -496,8 +499,7 @@ class FillHoles(Transform):
         """
         if not isinstance(img, (np.ndarray, torch.Tensor)):
             raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(img, np.ndarray)
         out_np: np.ndarray = fill_holes(img_np, self.applied_labels, self.connectivity)
         out, *_ = convert_to_dst_type(out_np, img)
         return out
@@ -539,7 +541,7 @@ class LabelToContour(Transform):
                    ideally the edge should be thin enough, but now it has a thickness.
 
         """
-        img_: torch.Tensor = convert_data_type(img, torch.Tensor)[0]  # type: ignore
+        img_: torch.Tensor = convert_data_type(img, torch.Tensor)[0]
         spatial_dims = len(img_.shape) - 1
         img_ = img_.unsqueeze(0)  # adds a batch dim
         if spatial_dims == 2:

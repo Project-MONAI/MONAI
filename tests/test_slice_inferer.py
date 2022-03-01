@@ -34,7 +34,7 @@ class TestSliceInferer(unittest.TestCase):
         model.eval()
 
         # Initialize a dummy 3D tensor volume with shape (N,C,D,H,W)
-        input_volume = torch.ones(1, 1, 64, 256, 256)
+        input_volume = torch.ones(1, 1, 64, 256, 256, device=device)
 
         # Remove spatial dim to slide across from the roi_size
         roi_size = list(input_volume.shape[2:])
