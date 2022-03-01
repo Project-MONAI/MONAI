@@ -13,16 +13,7 @@ import os
 import tempfile
 import unittest
 
-from monai.transforms import (
-    Compose,
-    CopyItemsd,
-    EnsureChannelFirstd,
-    Invertd,
-    Lambda,
-    LoadImaged,
-    ResampleToMatchd,
-    SaveImaged,
-)
+from monai.transforms import Compose, CopyItemsd, EnsureChannelFirstd, Lambda, LoadImaged, ResampleToMatchd, SaveImaged
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 
@@ -70,9 +61,6 @@ class TestResampleToMatchd(unittest.TestCase):
                     )
                 )
             )
-            # test the inverse
-            data = Invertd("im3", transforms, "im3")(data)
-            assert_allclose(data["im2"].shape, data["im3"].shape)
 
 
 if __name__ == "__main__":
