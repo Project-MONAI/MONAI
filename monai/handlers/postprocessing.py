@@ -54,10 +54,7 @@ class PostProcessing:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        if self.event == "MODEL_COMPLETED":
-            engine.add_event_handler(IterationEvents.MODEL_COMPLETED, self)
-        else:
-            engine.add_event_handler(self.event, self)
+        engine.add_event_handler(self.event, self)
 
     def detach(self, engine: Engine) -> None:
         """
