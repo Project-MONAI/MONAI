@@ -9,7 +9,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
-from .config_parser import ConfigParser
-from .reference_resolver import ReferenceResolver
 from .utils import load_config_file, load_config_file_content, parse_config_files, parse_id_value
