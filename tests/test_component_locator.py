@@ -12,7 +12,7 @@
 import unittest
 from pydoc import locate
 
-from monai.apps.manifest import ComponentLocator
+from monai.bundle import ComponentLocator
 from monai.utils import optional_import
 
 _, has_ignite = optional_import("ignite")
