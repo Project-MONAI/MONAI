@@ -7,6 +7,7 @@ API Reference
    :maxdepth: 1
 
    apps
+   bundle
    transforms
    losses
    networks
