@@ -19,37 +19,14 @@ Applications
     :members:
 
 
-Clara MMARs
------------
+`Clara MMARs`
+-------------
 .. autofunction:: download_mmar
 
 .. autofunction:: load_from_mmar
 
 .. autodata:: monai.apps.MODEL_DESC
     :annotation:
-
-
-Model Manifest
---------------
-
-.. autoclass:: ComponentLocator
-    :members:
-
-.. autoclass:: ConfigComponent
-    :members:
-
-.. autoclass:: ConfigExpression
-    :members:
-
-.. autoclass:: ConfigItem
-    :members:
-
-.. autoclass:: ConfigParser
-    :members:
-    :special-members: __getitem__, __setitem__
-
-.. autoclass:: ReferenceResolver
-    :members:
 
 
 `Utilities`

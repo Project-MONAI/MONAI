@@ -12,7 +12,7 @@
 import re
 from typing import Any, Dict, Optional, Sequence, Set
 
-from monai.apps.manifest.config_item import ConfigComponent, ConfigExpression, ConfigItem
+from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.utils import look_up_option
 
 

@@ -13,8 +13,8 @@ import importlib
 from copy import deepcopy
 from typing import Any, Dict, Optional, Sequence, Union
 
-from monai.apps.manifest.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
-from monai.apps.manifest.reference_resolver import ReferenceResolver
+from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
+from monai.bundle.reference_resolver import ReferenceResolver
 
 
 class ConfigParser:

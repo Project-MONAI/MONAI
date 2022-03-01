@@ -14,7 +14,7 @@ from unittest import skipUnless
 
 from parameterized import parameterized
 
-from monai.apps import ConfigParser
+from monai.bundle.config_parser import ConfigParser
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import

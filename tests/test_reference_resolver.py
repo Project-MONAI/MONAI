@@ -15,8 +15,8 @@ import torch
 from parameterized import parameterized
 
 import monai
-from monai.apps import ConfigComponent, ReferenceResolver
-from monai.apps.manifest.config_item import ComponentLocator, ConfigExpression, ConfigItem
+from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
+from monai.bundle.reference_resolver import ReferenceResolver
 from monai.data import DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import

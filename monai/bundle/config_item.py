@@ -191,7 +191,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         locator: a ``ComponentLocator`` to convert a module name string into the actual python module.
             if `None`, a ``ComponentLocator(excludes=excludes)`` will be used.
         excludes: if ``locator`` is None, create a new ``ComponentLocator`` with ``excludes``.
-            See also: :py:class:`monai.apps.manifest.ComponentLocator`.
+            See also: :py:class:`monai.bundle.ComponentLocator`.
 
     """
 
@@ -295,7 +295,7 @@ class ConfigExpression(ConfigItem):
     .. code-block:: python
 
         import monai
-        from monai.apps.manifest import ConfigExpression
+        from monai.bundle import ConfigExpression
 
         config = "$monai.__version__"
         expression = ConfigExpression(config, id="test", globals={"monai": monai})
