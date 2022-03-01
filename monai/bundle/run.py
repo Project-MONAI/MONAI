@@ -13,7 +13,7 @@ import argparse
 import logging
 import sys
 
-from monai.apps.manifest.utils import parse_config_files, parse_id_value
+from monai.bundle.utils import parse_config_files, parse_id_value
 
 
 def run():

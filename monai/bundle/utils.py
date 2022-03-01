@@ -14,7 +14,7 @@ import re
 from distutils.util import strtobool
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
-from monai.apps.manifest.config_parser import ConfigParser
+from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple, optional_import
 
 yaml, _ = optional_import("yaml")

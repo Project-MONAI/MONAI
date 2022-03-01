@@ -93,7 +93,7 @@ TEST_CASE_1 = [
 ]
 
 
-class TestManifestRun(unittest.TestCase):
+class TestBundleRun(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, config, expected_shape):
         test_image = np.random.rand(128, 128, 128)
@@ -122,7 +122,7 @@ class TestManifestRun(unittest.TestCase):
                 json.dump("Dataset", f)
 
             ret = os.system(
-                f"python -m monai.apps.manifest.run -m {metafile} -c {configfile}"
+                f"python -m monai.bundle.run -m {metafile} -c {configfile}"
                 f" -o 'evaluator#<args>#amp'=False 'network'='<file>{overridefile1}#move_net'"
                 f" 'dataset#<name>'='<file>{overridefile2}' -t evaluator"
             )
