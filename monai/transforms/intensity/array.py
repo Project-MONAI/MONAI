@@ -1813,9 +1813,11 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         n_dims = len(img.shape[1:])
 
         k = self.shift_fourier(img, n_dims)
-        k, *_ = convert_data_type(k, output_type=np.ndarray)
-        log_abs = np.log(np.absolute(k) + 1e-10)
-        shifted_means = np.mean(log_abs, tuple(range(-n_dims, 0))) * 2.5
+        mod = torch if isinstance(k, torch.Tensor) else np
+        log_abs = mod.log(mod.absolute(k) + 1e-10)
+        shifted_means = mod.mean(log_abs, tuple(range(-n_dims, 0))) * 2.5
+        if isinstance(k, torch.Tensor):
+            shifted_means = shifted_means.to("cpu")
         return tuple((i * 0.95, i * 1.1) for i in shifted_means)
 
 
