@@ -22,6 +22,7 @@ import yaml
 from parameterized import parameterized
 
 from monai.transforms import LoadImage
+from tests.utils import skip_if_windows
 
 TEST_CASE_1 = [
     {
@@ -96,6 +97,7 @@ TEST_CASE_1 = [
 
 
 class TestBundleRun(unittest.TestCase):
+    @skip_if_windows
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, config, expected_shape):
         test_image = np.random.rand(128, 128, 128)
@@ -142,29 +144,28 @@ class TestBundleRun(unittest.TestCase):
             self.assertEqual(ret, 0)
             self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
-            if sys.platform != "win32":
-                # here test the script with `google fire` tool as CLI
-                ret = subprocess.check_call(
-                    [
-                        f"{sys.executable}",
-                        "-m",
-                        "fire",
-                        "monai.bundle",
-                        "run",
-                        "--meta_file",
-                        f"{meta_file}",
-                        "--config_file",
-                        f"{config_file}",
-                        "--override",
-                        # `fire` can parse below string as a dictionary in Linux env
-                        f"{{'evaluator#<args>#amp':False,'network':'<file>{overridefile1}#move_net', \
-                        'dataset#<name>':'<file>{overridefile2}'}}",
-                        "--target",
-                        "evaluator",
-                    ]
-                )
-                self.assertEqual(ret, 0)
-                self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
+            # here test the script with `google fire` tool as CLI
+            ret = subprocess.check_call(
+                [
+                    f"{sys.executable}",
+                    "-m",
+                    "fire",
+                    "monai.bundle",
+                    "run",
+                    "--meta_file",
+                    f"{meta_file}",
+                    "--config_file",
+                    f"{config_file}",
+                    "--override",
+                    # `fire` can parse below string as a dictionary
+                    f"{{'evaluator#<args>#amp':False,'network':'<file>{overridefile1}#move_net', \
+                    'dataset#<name>':'<file>{overridefile2}'}}",
+                    "--target",
+                    "evaluator",
+                ]
+            )
+            self.assertEqual(ret, 0)
+            self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
 
 
 if __name__ == "__main__":
