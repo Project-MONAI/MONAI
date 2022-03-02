@@ -12,6 +12,9 @@
 from typing import Dict, Optional, Sequence, Union
 
 from monai.bundle.utils import id_value_str_to_dict, parse_config_file, update_default_args
+from monai.utils import optional_import
+
+fire, _ = optional_import("fire")
 
 
 def run(
@@ -55,3 +58,7 @@ def run(
     # get expected workflow to run
     workflow = config_parser.get_parsed_content(id=args["target"])
     workflow.run()
+
+
+if __name__ == "__main__":
+    fire.Fire()

@@ -128,6 +128,8 @@ class TestBundleRun(unittest.TestCase):
                 # test override with the whole overriding file
                 json.dump("Dataset", f)
 
+            saver = LoadImage(image_only=True)
+
             # here test the script with `google fire` tool as CLI
             ret = subprocess.check_call(
                 f"{sys.executable} -m fire monai.bundle run --meta_file={meta_file} --config_file={config_file}"
@@ -136,9 +138,17 @@ class TestBundleRun(unittest.TestCase):
                 shell=True,
             )
             self.assertEqual(ret, 0)
-
-            saved = LoadImage(image_only=True)(os.path.join(tempdir, "image", "image_trans.nii.gz"))
-            self.assertTupleEqual(saved.shape, expected_shape)
+            self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
+            # test with `monai.bundle.scripts` as CLI entry directly
+            ret = subprocess.check_call(
+                f"{sys.executable} -m monai.bundle.scripts run --meta_file={meta_file} --config_file={config_file}"
+                f" --override='{{postprocessing#<args>#transforms#2#<args>#output_postfix: seg,"
+                f" network: <file>{overridefile1}#move_net,"
+                f" dataset#<name>: <file>{overridefile2}}}' --target=evaluator",
+                shell=True,
+            )
+            self.assertEqual(ret, 0)
+            self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
 
 if __name__ == "__main__":
