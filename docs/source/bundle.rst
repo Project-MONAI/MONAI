@@ -33,12 +33,20 @@ Model Bundle
 .. autoclass:: ConfigParser
     :members:
 
+`Scripts`
+---------
+.. autofunction:: run
+
 `Utilities`
 -----------
 .. autofunction:: load_config_file
 
 .. autofunction:: load_config_file_content
 
-.. autofunction:: parse_config_files
+.. autofunction:: update_default_args
 
 .. autofunction:: parse_id_value
+
+.. autofunction:: id_value_str_to_dict
+
+.. autofunction:: parse_config_file

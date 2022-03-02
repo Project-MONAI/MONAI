@@ -37,9 +37,7 @@ def load_config_file(filepath: str, **kwargs):
         if filepath.lower().endswith(".json"):
             return json.load(f, **kwargs)
         if filepath.lower().endswith((".yml", ".yaml")):
-            if "Loader" not in kwargs:
-                kwargs["Loader"] = yaml.FullLoader
-            return yaml.load(f, **kwargs)
+            return yaml.safe_load(f, **kwargs)
         raise ValueError("only support JSON or YAML config file so far.")
 
 
@@ -68,22 +66,42 @@ def load_config_file_content(path: str, **kwargs):
     return parser[paths[1][1:] if paths[1] != "" else ""]
 
 
+def update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> Dict:
+    """
+    Update the `args` with the input `kwargs`.
+    For dict data, recursively update the content based on the keys.
+
+    Args:
+        args: source args to update.
+        kwargs: destination args to update.
+
+    """
+    args = {} if args is None else args
+    if isinstance(args, str):
+        args = load_config_file_content(args)
+
+    # recursively update the default args with new args
+    for k, v in kwargs.items():
+        args[k] = update_default_args(args[k], **v) if isinstance(v, dict) and isinstance(args.get(k), dict) else v
+    return args
+
+
 def parse_id_value(pair: str) -> Tuple[str, Any]:
     """
-    Parse the "id=value" pair string to `id` and `value`.
+    Parse the "id:value" pair string to `id` and `value`.
     Will try to convert the correct data type of `value` from string.
 
     Args:
-        pair (str): input "id=value" pair to parse.
+        pair (str): input "id:value" pair to parse.
 
     """
-    items = pair.split("=")
+    items = pair.split(":")
     # remove blanks around id
     id = items[0].strip()
     value: Union[str, int, float, bool] = ""
     if len(items) > 1:
-        # rejoin the rest
-        value = "=".join(items[1:])
+        # rejoin the rest, and remove blanks around value
+        value = ":".join(items[1:]).strip()
 
     # try to convert the correct data type
     try:
@@ -99,7 +117,16 @@ def parse_id_value(pair: str) -> Tuple[str, Any]:
     return id, value
 
 
-def parse_config_files(
+def id_value_str_to_dict(pairs: str) -> Dict[str, Any]:
+    """
+    Utility to convert a string which represents a dict of `id:value` pairs to a python dict.
+    Will try to convert the correct data type of `value` from string.
+
+    """
+    return dict(map(parse_id_value, pairs[1:-1].split(",")))
+
+
+def parse_config_file(
     config_file: Union[str, Sequence[str]], meta_file: Union[str, Sequence[str]], override: Optional[Dict] = None
 ) -> ConfigParser:
     """

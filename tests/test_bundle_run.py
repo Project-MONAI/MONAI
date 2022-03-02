@@ -11,6 +11,8 @@
 
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -101,14 +103,19 @@ class TestBundleRun(unittest.TestCase):
             filename = os.path.join(tempdir, "image.nii")
             nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
 
+            # generate default args in a file
+            def_args = os.path.join(tempdir, "def_args.json")
+            with open(def_args, "w") as f:
+                json.dump({"config_file": "will be overrided by `config_file` arg"}, f)
+
             meta = {"datalist": [{"image": filename}], "output_dir": tempdir, "window": (96, 96, 96)}
             # test YAML file
-            metafile = os.path.join(tempdir, "meta.yaml")
-            with open(metafile, "w") as f:
-                yaml.dump(meta, f)
+            meta_file = os.path.join(tempdir, "meta.yaml")
+            with open(meta_file, "w") as f:
+                yaml.safe_dump(meta, f)
             # test JSON file
-            configfile = os.path.join(tempdir, "config.json")
-            with open(configfile, "w") as f:
+            config_file = os.path.join(tempdir, "config.json")
+            with open(config_file, "w") as f:
                 json.dump(config, f)
 
             # test override with file, up case postfix
@@ -121,10 +128,12 @@ class TestBundleRun(unittest.TestCase):
                 # test override with the whole overriding file
                 json.dump("Dataset", f)
 
-            ret = os.system(
-                f"python -m monai.bundle.run -m {metafile} -c {configfile}"
-                f" -o 'evaluator#<args>#amp'=False 'network'='<file>{overridefile1}#move_net'"
-                f" 'dataset#<name>'='<file>{overridefile2}' -t evaluator"
+            # here test the script with `google fire` tool as CLI
+            ret = subprocess.check_call(
+                f"{sys.executable} -m fire monai.bundle run --meta_file={meta_file} --config_file={config_file}"
+                f" --override='{{evaluator#<args>#amp: False, network: <file>{overridefile1}#move_net,"
+                f" dataset#<name>: <file>{overridefile2}}}' --target=evaluator",
+                shell=True,
             )
             self.assertEqual(ret, 0)
 
