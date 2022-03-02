@@ -15,8 +15,8 @@ from monai.bundle.utils import id_value_str_to_dict, parse_config_file, update_d
 
 
 def run(
-    meta_file: Union[str, Sequence[str]] = None,
-    config_file: Union[str, Sequence[str]] = None,
+    meta_file: Optional[Union[str, Sequence[str]]] = None,
+    config_file: Optional[Union[str, Sequence[str]]] = None,
     override: Optional[Union[Dict, str]] = None,
     target: Optional[str] = None,
     args_file: Optional[str] = None,
@@ -50,8 +50,8 @@ def run(
     )
 
     config_parser = parse_config_file(
-        config_file=args.get("config_file"), meta_file=args.get("meta_file"), override=args.get("override")
+        config_file=args["config_file"], meta_file=args["meta_file"], override=args["override"]
     )
     # get expected workflow to run
-    workflow = config_parser.get_parsed_content(id=args.get("target"))
+    workflow = config_parser.get_parsed_content(id=args["target"])
     workflow.run()

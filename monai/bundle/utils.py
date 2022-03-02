@@ -76,14 +76,14 @@ def update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> Di
         kwargs: destination args to update.
 
     """
-    args = {} if args is None else args
+    args_: Dict = args if isinstance(args, dict) is None else {}  # type: ignore
     if isinstance(args, str):
-        args = load_config_file_content(args)
+        args_ = load_config_file_content(args)
 
     # recursively update the default args with new args
     for k, v in kwargs.items():
-        args[k] = update_default_args(args[k], **v) if isinstance(v, dict) and isinstance(args.get(k), dict) else v
-    return args
+        args_[k] = update_default_args(args_[k], **v) if isinstance(v, dict) and isinstance(args_.get(k), dict) else v
+    return args_
 
 
 def parse_id_value(pair: str) -> Tuple[str, Any]:
