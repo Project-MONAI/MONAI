@@ -132,16 +132,30 @@ class TestBundleRun(unittest.TestCase):
 
             # here test the script with `google fire` tool as CLI
             ret = subprocess.check_call(
-                f"{sys.executable} -m fire monai.bundle run --meta_file={meta_file} --config_file={config_file}"
-                f" --override='{{evaluator#<args>#amp: False, network: <file>{overridefile1}#move_net,"
-                f" dataset#<name>: <file>{overridefile2}}}' --target=evaluator",
-                shell=True,
+                [
+                    f"{sys.executable}",
+                    "-m",
+                    "fire",
+                    "monai.bundle",
+                    "run",
+                    "--meta_file",
+                    f"{meta_file}",
+                    "--config_file",
+                    f"{config_file}",
+                    "--override",
+                    # `fire` can parse below string as a dictionary
+                    f"{{'evaluator#<args>#amp':False,'network':'<file>{overridefile1}#move_net', \
+                    'dataset#<name>':'<file>{overridefile2}'}}",
+                    "--target",
+                    "evaluator",
+                ]
             )
             self.assertEqual(ret, 0)
             self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
             # test with `monai.bundle.scripts` as CLI entry directly
             ret = subprocess.check_call(
                 f"{sys.executable} -m monai.bundle.scripts run --meta_file={meta_file} --config_file={config_file}"
+                # `fire` can not parse below string as a dictionary, will pass to `run` as a string representing a dict
                 f" --override='{{postprocessing#<args>#transforms#2#<args>#output_postfix: seg,"
                 f" network: <file>{overridefile1}#move_net,"
                 f" dataset#<name>: <file>{overridefile2}}}' --target=evaluator",
