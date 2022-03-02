@@ -400,7 +400,7 @@ class SplitDimd(MapTransform):
                 reflect the cropped image
             allow_missing_keys: don't raise exception if key is missing.
         """
-        MapTransform.__init__(self, keys, allow_missing_keys)
+        super().__init__(keys, allow_missing_keys)
         self.output_postfixes = output_postfixes
         self.splitter = SplitDim(dim, keepdim)
         self.update_meta = update_meta
@@ -425,7 +425,7 @@ class SplitDimd(MapTransform):
                         d[split_meta_key] = deepcopy(orig_meta)
                         dim = self.splitter.dim
                         if dim > 0:  # don't update affine if channel dim
-                            shift = np.zeros_like(d[split_meta_key]["affine"])
+                            shift = np.zeros_like(d[split_meta_key]["affine"])  # type: ignore
                             shift[dim - 1, -1] = i * d[split_meta_key]["pixdim"][dim]  # type: ignore
                             d[split_meta_key]["affine"] += shift @ d[split_meta_key]["affine"]  # type: ignore
 
