@@ -574,6 +574,7 @@ class NibabelWriter(ImageWriter):
         self.data_obj = self.create_backend_obj(
             self.data_obj, affine=self.affine, dtype=self.output_dtype, **obj_kwargs  # type: ignore
         )
+        # ITK 15aa8d58a01a1279e1fafa2214c82edd80b17e92 Modules/IO/NIFTI/src/itkNiftiImageIO.cxx#L2174-L2176
         self.data_obj.set_sform(to_affine_nd(r=3, affine=self.affine), code=1)
         self.data_obj.set_qform(to_affine_nd(r=3, affine=self.affine), code=1)
         nib.save(self.data_obj, filename)
