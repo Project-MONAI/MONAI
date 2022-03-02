@@ -426,7 +426,7 @@ class SplitDimd(MapTransform):
                         dim = self.splitter.dim
                         if dim > 0:  # don't update affine if channel dim
                             shift = np.zeros_like(d[split_meta_key]["affine"])
-                            shift[dim - 1, -1] = i * d[split_meta_key]["pixdim"][dim]  # type: ignore
+                            shift[dim - 1, -1] = i * d[split_meta_key]["pixdim"][dim]  # type: ignore
                             d[split_meta_key]["affine"] += shift @ d[split_meta_key]["affine"]  # type: ignore
 
         return d
