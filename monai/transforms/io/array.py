@@ -300,8 +300,10 @@ class SaveImage(Transform):
         print_log: whether to print logs when saving. Default to `True`.
         output_format: an optional string of filename extension to specify the output image writer.
             see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
-        writer: a customised image writer to save data arrays.
+        writer: a customised `monai.data.ImageWriter` subclass to save data arrays.
             if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
+            if it's a string, it's treated as a built-in class name of the writer.
+            supported values are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
         channel_dim: the index of the channel dimension. Default to `0`.
             `None` to indicate no channel dimension.
     """
@@ -322,7 +324,7 @@ class SaveImage(Transform):
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Optional[image_writer.ImageWriter] = None,
+        writer: Union[image_writer.ImageWriter, str, None] = None,
         channel_dim: Optional[int] = 0,
     ) -> None:
         self.folder_layout = FolderLayout(
@@ -335,6 +337,8 @@ class SaveImage(Transform):
         )
 
         self.output_ext = output_ext.lower() or output_format.lower()
+        if isinstance(writer, str):
+            writer, _ = optional_import("monai.data", name=f"{writer}")
         self.writers = image_writer.resolve_writer(self.output_ext) if writer is None else (writer,)
         self.writer_obj = None
 

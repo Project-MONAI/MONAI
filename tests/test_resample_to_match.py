@@ -20,7 +20,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data.image_reader import ITKReader, NibabelReader
-from monai.data.image_writer import ITKWriter, NibabelWriter
+from monai.data.image_writer import ITKWriter
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ResampleToMatch, SaveImaged
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
@@ -38,7 +38,7 @@ class TestResampleToMatch(unittest.TestCase):
             download_url_or_skip_test(url=url, filepath=fname, hash_type=hash_type, hash_val=hash_val)
             self.fnames.append(fname)
 
-    @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, ITKWriter]))
+    @parameterized.expand(itertools.product([NibabelReader, ITKReader], ["NibabelWriter", ITKWriter]))
     def test_correct(self, reader, writer):
         with tempfile.TemporaryDirectory() as temp_dir:
             loader = Compose([LoadImaged(("im1", "im2"), reader=reader), EnsureChannelFirstd(("im1", "im2"))])

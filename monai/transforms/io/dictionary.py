@@ -207,8 +207,10 @@ class SaveImaged(MapTransform):
         print_log: whether to print logs when saving. Default to `True`.
         output_format: an optional string to specify the output image writer.
             see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
-        writer: a customised image writer to save data arrays.
+        writer: a customised `monai.data.ImageWriter` subclass to save data arrays.
             if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
+            if it's a string, it's treated as a built-in class name of the writer.
+            supported values are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
 
     """
 
@@ -232,7 +234,7 @@ class SaveImaged(MapTransform):
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Optional[image_writer.ImageWriter] = None,
+        writer: Union[image_writer.ImageWriter, str, None] = None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
