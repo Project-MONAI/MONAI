@@ -28,6 +28,30 @@ def run(
     Specify metadata file and config file to run a regular training or evaluation program.
     It's used to execute most of the supervised training, evaluation or inference cases.
 
+    Typical usage examples:
+
+    1. Execute the `run` API with other CLI tools, take `fire` for example:
+    `python -m fire monai.bundle run --meta_file=<meta path> --config_file=<config path> --target=trainer`
+
+    2. Execute this module as CLI entry based on `fire`:
+    `python -m monai.bundle.scripts run --meta_file=<meta path> --config_file=<config path> --target=trainer`
+
+    3. Override some config values at runtime, set `override` as a dict:
+    `python -m monai.bundle.scripts run --override={"'net#<args>#ndims'": 2} ...`
+
+    4. Override some config values at runtime, set `override` as a string:
+    `python -m monai.bundle.scripts run --override="{net#<args>#ndims: 2}" ...`
+
+    5. Override some config values with another config file:
+    `python -m monai.bundle.scripts run --override={"'net#<args>'": "'<file>/data/other.json'"} ...`
+
+    6. Override some config values with part content of another config file:
+    `python -m monai.bundle.scripts run --override={"'net#<args>'": "'<file>/data/other.json#net_arg'"} ...`
+
+    7. Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
+    Other args still can override the default args at runtime:
+    `python -m monai.bundle.scripts run --args_file="'/data/args.json'" --config_file=<config path>`
+
     Args:
         meta_file: filepath of the metadata file, if None, must provide it in `arg_file`.
             if providing a list of files, wil merge the content of them.

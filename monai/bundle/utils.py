@@ -119,7 +119,8 @@ def parse_id_value(pair: str) -> Tuple[str, Any]:
 
 def id_value_str_to_dict(pairs: str) -> Dict[str, Any]:
     """
-    Utility to convert a string which represents a dict of `id:value` pairs to a python dict.
+    Utility to convert a string which represents a dict of `id:value` pairs to a python dict. For example:
+    `"{postprocessing#<args>#postfix: output, network: <file>other.json#net_args}"`
     Will try to convert the correct data type of `value` from string.
 
     """
