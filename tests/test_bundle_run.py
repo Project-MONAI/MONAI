@@ -22,7 +22,6 @@ import yaml
 from parameterized import parameterized
 
 from monai.transforms import LoadImage
-from tests.utils import skip_if_windows
 
 TEST_CASE_1 = [
     {
@@ -96,7 +95,6 @@ TEST_CASE_1 = [
 ]
 
 
-@skip_if_windows
 class TestBundleRun(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, config, expected_shape):
@@ -134,12 +132,22 @@ class TestBundleRun(unittest.TestCase):
 
             # test with `monai.bundle.scripts` as CLI entry directly
             ret = subprocess.check_call(
-                f"{sys.executable} -m monai.bundle.scripts run --meta_file={meta_file} --config_file={config_file}"
-                # `fire` can not parse below string as a dictionary, will pass to `run` as a string representing a dict
-                f" --override='{{postprocessing#<args>#transforms#2#<args>#output_postfix: seg,"
-                f" network: <file>{overridefile1}#move_net,"
-                f" dataset#<name>: <file>{overridefile2}}}' --target=evaluator",
-                shell=True,
+                [
+                    f"{sys.executable}",
+                    "-m",
+                    "monai.bundle.scripts",
+                    "run",
+                    "--meta_file",
+                    f"{meta_file}",
+                    "--config_file",
+                    f"{config_file}",
+                    # `fire` can not parse below string, will pass to `run` as a string representing a dict
+                    "--override",
+                    f"{{postprocessing#<args>#transforms#2#<args>#output_postfix: seg, \
+                    network: <file>{overridefile1}#move_net, dataset#<name>: <file>{overridefile2}}}",
+                    "--target",
+                    "evaluator",
+                ]
             )
             self.assertEqual(ret, 0)
             self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
