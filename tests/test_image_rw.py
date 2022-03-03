@@ -111,7 +111,7 @@ class TestLoadSavePNG(unittest.TestCase):
         test_data = np.arange(48, dtype=np.uint8).reshape(1, 6, 8)
         self.png_rw(test_data, reader, writer, np.uint8)
 
-    @parameterized.expand(itertools.product([PILReader, ITKReader], [PILWriter, ITKWriter]))
+    @parameterized.expand(itertools.product([PILReader, ITKReader], ["monai.data.PILWriter", ITKWriter]))
     def test_rgb(self, reader, writer):
         test_data = np.arange(48, dtype=np.uint8).reshape(3, 2, 8)
         self.png_rw(test_data, reader, writer, np.uint8, False)

@@ -209,8 +209,8 @@ class SaveImaged(MapTransform):
             see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
         writer: a customised `monai.data.ImageWriter` subclass to save data arrays.
             if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
-            if it's a string, it's treated as a built-in class name of the writer.
-            supported values are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
+            if it's a string, it's treated as a class name or dotted path;
+            the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
 
     """
 

@@ -38,7 +38,7 @@ class TestResampleToMatch(unittest.TestCase):
             download_url_or_skip_test(url=url, filepath=fname, hash_type=hash_type, hash_val=hash_val)
             self.fnames.append(fname)
 
-    @parameterized.expand(itertools.product([NibabelReader, ITKReader], ["NibabelWriter", ITKWriter]))
+    @parameterized.expand(itertools.product([NibabelReader, ITKReader], ["monai.data.NibabelWriter", ITKWriter]))
     def test_correct(self, reader, writer):
         with tempfile.TemporaryDirectory() as temp_dir:
             loader = Compose([LoadImaged(("im1", "im2"), reader=reader), EnsureChannelFirstd(("im1", "im2"))])
