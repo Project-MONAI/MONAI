@@ -96,8 +96,8 @@ TEST_CASE_1 = [
 ]
 
 
+@skip_if_windows
 class TestBundleRun(unittest.TestCase):
-    @skip_if_windows
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, config, expected_shape):
         test_image = np.random.rand(128, 128, 128)
