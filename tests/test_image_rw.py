@@ -63,7 +63,7 @@ class TestLoadSaveNifti(unittest.TestCase):
             assert_allclose(meta["sform_code"], 1, type_test=False)
             assert_allclose(data, _test_data)
 
-    @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, ITKWriter]))
+    @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, "ITKWriter"]))
     def test_2d(self, reader, writer):
         test_data = np.arange(48, dtype=np.uint8).reshape(1, 6, 8)
         self.nifti_rw(test_data, reader, writer, np.uint8)
@@ -75,7 +75,7 @@ class TestLoadSaveNifti(unittest.TestCase):
         self.nifti_rw(test_data, reader, writer, int)
         self.nifti_rw(test_data, reader, writer, int, False)
 
-    @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, ITKWriter]))
+    @parameterized.expand(itertools.product([NibabelReader, ITKReader], ["NibabelWriter", ITKWriter]))
     def test_4d(self, reader, writer):
         test_data = np.arange(48, dtype=np.uint8).reshape(2, 1, 3, 8)
         self.nifti_rw(test_data, reader, writer, np.float16)
@@ -113,7 +113,7 @@ class TestLoadSavePNG(unittest.TestCase):
         test_data = np.arange(48, dtype=np.uint8).reshape(1, 6, 8)
         self.png_rw(test_data, reader, writer, np.uint8)
 
-    @parameterized.expand(itertools.product([PILReader, ITKReader], [PILWriter, ITKWriter]))
+    @parameterized.expand(itertools.product([PILReader, ITKReader], ["monai.data.PILWriter", ITKWriter]))
     def test_rgb(self, reader, writer):
         test_data = np.arange(48, dtype=np.uint8).reshape(3, 2, 8)
         self.png_rw(test_data, reader, writer, np.uint8, False)
