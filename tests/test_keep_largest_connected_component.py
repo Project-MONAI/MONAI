@@ -356,7 +356,7 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
     @SkipIfBeforePyTorchVersion((1, 7))
     def test_correct_results_before_after_onehot(self, _, args, input_image, expected):
         """
-        From torch==1.7.0, torch.argmax changes its mechanism that if there are multiple maximal values then the
+        From torch==1.7, torch.argmax changes its mechanism that if there are multiple maximal values then the
         indices of the first maximal value are returned (before this version, the indices of the last maximal value
         are returned).
         Therefore, we can may use of this changes to convert the onehotted labels into un-onehot format directly
