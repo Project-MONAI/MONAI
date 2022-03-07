@@ -114,6 +114,8 @@ def skip_if_downloading_fails():
     except (ContentTooShortError, HTTPError, ConnectionError) as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
     except RuntimeError as rt_e:
+        if "unexpected EOF" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
         if "network issue" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         if "gdown dependency" in str(rt_e):  # no gdown installed
