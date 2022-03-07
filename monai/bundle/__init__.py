@@ -12,12 +12,10 @@
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
 from .config_parser import ConfigParser
 from .reference_resolver import ReferenceResolver
-from .scripts import run
+from .script import Script, Run
 from .utils import (
     id_value_str_to_dict,
     load_config_file,
     load_config_file_content,
-    parse_config_file,
     parse_id_value,
-    update_default_args,
 )
