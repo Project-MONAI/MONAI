@@ -152,7 +152,7 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
     y_pred = y_pred.float()
 
     if y.shape != y_pred.shape:
-        raise ValueError("y_pred and y should have same shapes.")
+        raise ValueError("y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
     # get confusion matrix related metric
     batch_size, n_class = y_pred.shape[:2]
