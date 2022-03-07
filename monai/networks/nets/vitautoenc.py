@@ -10,7 +10,6 @@
 # limitations under the License.
 
 
-import math
 from typing import Sequence, Union
 
 import torch
@@ -19,6 +18,7 @@ import torch.nn as nn
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 from monai.networks.layers import Conv
+from monai.utils import ensure_tuple_rep
 
 __all__ = ["ViTAutoEnc"]
 
@@ -74,6 +74,7 @@ class ViTAutoEnc(nn.Module):
 
         super().__init__()
 
+        self.patch_size = ensure_tuple_rep(patch_size, spatial_dims)
         self.spatial_dims = spatial_dims
 
         self.patch_embedding = PatchEmbeddingBlock(
@@ -105,6 +106,7 @@ class ViTAutoEnc(nn.Module):
             x: input tensor must have isotropic spatial dimensions,
                 such as ``[batch_size, channels, sp_size, sp_size[, sp_size]]``.
         """
+        spatial_size = x.shape[2:]
         x = self.patch_embedding(x)
         hidden_states_out = []
         for blk in self.blocks:
@@ -112,7 +114,7 @@ class ViTAutoEnc(nn.Module):
             hidden_states_out.append(x)
         x = self.norm(x)
         x = x.transpose(1, 2)
-        d = [round(math.pow(x.shape[2], 1 / self.spatial_dims))] * self.spatial_dims
+        d = [s // p for s, p in zip(spatial_size, self.patch_size)]
         x = torch.reshape(x, [x.shape[0], x.shape[1], *d])
         x = self.conv3d_transpose(x)
         x = self.conv3d_transpose_1(x)

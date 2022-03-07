@@ -18,18 +18,15 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.apps import RemoteMMARKeys, download_mmar, get_model_spec, load_from_mmar
+from monai.apps import download_mmar, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
 from tests.utils import skip_if_downloading_fails, skip_if_quick
 
-TEST_CASES = [["clara_pt_prostate_mri_segmentation_1"], ["clara_pt_covid19_ct_lesion_segmentation_1"]]
+TEST_CASES = [["clara_pt_prostate_mri_segmentation"], ["clara_pt_covid19_ct_lesion_segmentation"]]
 TEST_EXTRACT_CASES = [
     (
-        {
-            "item": "clara_pt_prostate_mri_segmentation_1",
-            "map_location": "cuda" if torch.cuda.is_available() else "cpu",
-        },
+        {"item": "clara_pt_prostate_mri_segmentation", "map_location": "cuda" if torch.cuda.is_available() else "cpu"},
         "UNet",
         np.array(
             [
@@ -41,7 +38,7 @@ TEST_EXTRACT_CASES = [
     ),
     (
         {
-            "item": "clara_pt_covid19_ct_lesion_segmentation_1",
+            "item": "clara_pt_covid19_ct_lesion_segmentation",
             "map_location": "cuda" if torch.cuda.is_available() else "cpu",
         },
         "SegResNet",
@@ -67,8 +64,9 @@ TEST_EXTRACT_CASES = [
     ),
     (
         {
-            "item": "clara_pt_fed_learning_brain_tumor_mri_segmentation_1",
+            "item": "clara_pt_fed_learning_brain_tumor_mri_segmentation",
             "map_location": "cuda" if torch.cuda.is_available() else "cpu",
+            "model_file": os.path.join("models", "server", "best_FL_global_model.pt"),
         },
         "SegResNet",
         np.array(
@@ -81,7 +79,7 @@ TEST_EXTRACT_CASES = [
     ),
     (
         {
-            "item": "clara_pt_pathology_metastasis_detection_1",
+            "item": "clara_pt_pathology_metastasis_detection",
             "map_location": "cuda" if torch.cuda.is_available() else "cpu",
         },
         "TorchVisionFullyConvModel",
@@ -105,9 +103,6 @@ class TestMMMARDownload(unittest.TestCase):
     @skip_if_quick
     def test_download(self, idx):
         with skip_if_downloading_fails():
-            # test model specification
-            cand = get_model_spec(idx)
-            self.assertEqual(cand[RemoteMMARKeys.ID], idx)
             with self.assertLogs(level="INFO", logger="monai.apps"):
                 download_mmar(idx)
             download_mmar(idx, progress=False)  # repeated to check caching

@@ -43,6 +43,7 @@ from monai.transforms.spatial.array import (
     RandGridDistortion,
     RandRotate,
     RandZoom,
+    ResampleToMatch,
     Resize,
     Rotate,
     Rotate90,
@@ -71,6 +72,7 @@ nib, _ = optional_import("nibabel")
 
 __all__ = [
     "SpatialResampled",
+    "ResampleToMatchd",
     "Spacingd",
     "Orientationd",
     "Rotate90d",
@@ -290,6 +292,119 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         return d
 
 
+class ResampleToMatchd(MapTransform, InvertibleTransform):
+    """Dictionary-based wrapper of :py:class:`monai.transforms.ResampleToMatch`."""
+
+    backend = ResampleToMatch.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        template_key: str,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
+        align_corners: Union[Sequence[bool], bool] = False,
+        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        allow_missing_keys: bool = False,
+    ):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            template_key: key to meta data that output should be resampled to match.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``.
+                It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.template_key = template_key
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.resampler = ResampleToMatch()
+
+    def __call__(self, data):
+        d = deepcopy(dict(data))
+        dst_meta = d[self.template_key]
+        for (key, mode, padding_mode, align_corners, dtype) in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        ):
+            src_meta_key = PostFix.meta(key)
+            src_meta = d[src_meta_key]
+
+            orig_spatial_shape = d[key].shape[1:]
+            orig_meta = deepcopy(src_meta)
+
+            img, new_meta = self.resampler(
+                img=d[key],
+                src_meta=src_meta,
+                dst_meta=dst_meta,
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+                dtype=dtype,
+            )
+            d[key] = img
+            d[src_meta_key] = new_meta
+
+            # track the transform for the inverse
+            self.push_transform(
+                d,
+                key,
+                extra_info={
+                    "orig_meta": orig_meta,
+                    "mode": mode.value if isinstance(mode, Enum) else mode,
+                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+                },
+                orig_size=orig_spatial_shape,
+            )
+
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+        for key, dtype in self.key_iterator(d, self.dtype):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_meta = transform[TraceKeys.EXTRA_INFO]["orig_meta"]
+            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+
+            src_meta_key = PostFix.meta(key)
+            src_meta = d[src_meta_key]
+
+            img, new_meta = self.resampler(
+                img=d[key],
+                src_meta=src_meta,  # type: ignore
+                dst_meta=orig_meta,
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+                dtype=dtype,
+            )
+            d[key] = img
+            d[src_meta_key] = new_meta
+
+            # Remove the applied transform
+            self.pop_transform(d, key)
+        return d
+
+
 class Spacingd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
@@ -464,6 +579,10 @@ class Orientationd(MapTransform, InvertibleTransform):
 
     After reorienting the input array, this transform will write the new affine
     to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
+
+    This transform assumes the channel-first input format.
+    In the case of using this transform for normalizing the orientations of images,
+    it should be used before any anisotropic spatial transforms.
     """
 
     backend = Orientation.backend
@@ -2031,6 +2150,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
 
 
 SpatialResampleD = SpatialResampleDict = SpatialResampled
+ResampleToMatchD = ResampleToMatchDict = ResampleToMatchd
 SpacingD = SpacingDict = Spacingd
 OrientationD = OrientationDict = Orientationd
 Rotate90D = Rotate90Dict = Rotate90d

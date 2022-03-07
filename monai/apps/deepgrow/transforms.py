@@ -369,6 +369,9 @@ class SpatialCropForegroundd(MapTransform):
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+        allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
+            than box size, default to `True`. if the margined size is bigger than image size, will pad with
+            specified `mode`.
         meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
             the meta data is a dictionary object which contains: filename, original_shape, etc.
@@ -393,6 +396,7 @@ class SpatialCropForegroundd(MapTransform):
         select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
+        allow_smaller: bool = True,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix=DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
@@ -408,6 +412,7 @@ class SpatialCropForegroundd(MapTransform):
         self.select_fn = select_fn
         self.channel_indices = channel_indices
         self.margin = margin
+        self.allow_smaller = allow_smaller
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
@@ -420,7 +425,7 @@ class SpatialCropForegroundd(MapTransform):
     def __call__(self, data):
         d = dict(data)
         box_start, box_end = generate_spatial_bounding_box(
-            d[self.source_key], self.select_fn, self.channel_indices, self.margin
+            d[self.source_key], self.select_fn, self.channel_indices, self.margin, self.allow_smaller
         )
 
         center = list(np.mean([box_start, box_end], axis=0).astype(int, copy=False))
