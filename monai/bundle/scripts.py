@@ -72,12 +72,16 @@ def run(
     if isinstance(override, str):
         # if override is a string representing a dict (usually from command line), convert it to dict
         override = id_value_str_to_dict(override)
-    args = update_default_args(
-        args=args_file, meta_file=meta_file, config_file=config_file, override=override, target=target
-    )
+
+    kwargs = {}
+    for k, v in {"meta_file": meta_file, "config_file": config_file, "override": override, "target": target}.items():
+        if v is not None:
+            # skip None args
+            kwargs[k] = v
+    args = update_default_args(args=args_file, **kwargs)
 
     config_parser = parse_config_file(
-        config_file=args["config_file"], meta_file=args["meta_file"], override=args["override"]
+        config_file=args["config_file"], meta_file=args["meta_file"], override=args.get("override")
     )
     # get expected workflow to run
     workflow = config_parser.get_parsed_content(id=args["target"])
