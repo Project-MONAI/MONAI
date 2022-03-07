@@ -11,7 +11,7 @@
 
 from typing import Dict, Optional, Sequence, Union
 
-from monai.bundle.utils import id_value_str_to_dict, parse_config_file, update_default_args
+from monai.bundle.utils import parse_config_file, update_default_args
 from monai.utils import optional_import
 
 fire, _ = optional_import("fire")
@@ -68,10 +68,6 @@ def run(
             to put the args as a dictionary in a JSON or YAML file.
 
     """
-
-    if isinstance(override, str):
-        # if override is a string representing a dict (usually from command line), convert it to dict
-        override = id_value_str_to_dict(override)
 
     kwargs = {}
     for k, v in {"meta_file": meta_file, "config_file": config_file, "override": override, "target": target}.items():
