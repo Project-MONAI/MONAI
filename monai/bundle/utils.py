@@ -76,7 +76,7 @@ def update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> Di
         kwargs: destination args to update.
 
     """
-    args_: Dict = args if isinstance(args, dict) is None else {}  # type: ignore
+    args_: Dict = args if isinstance(args, dict) else {}  # type: ignore
     if isinstance(args, str):
         args_ = load_config_file_content(args)
 
