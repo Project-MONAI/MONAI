@@ -10,19 +10,26 @@
 # limitations under the License.
 
 import json
-from pathlib import Path
 import re
 from copy import deepcopy
+from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
-from monai.config import PathLike
 from monai.bundle.config_parser import ConfigParser
+from monai.config import PathLike
 from monai.utils import ensure_tuple, optional_import
 
 yaml, _ = optional_import("yaml")
 
 
 class ConfigReader:
+    """
+    Read metadata, config from structured JSON or YAML files.
+    Support to override the config content with specified `id` and value.
+    Support to resolve the macro tokens in the config content.
+
+    """
+
     suffixes = ["json", "yaml", "yml"]
     macro = "%"  # macro prefix
     meta_key = "<meta>"  # field key to save meta data
@@ -53,6 +60,20 @@ class ConfigReader:
             raise ValueError("only support JSON or YAML config file so far.")
 
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
+        """
+        Read the metadata from specified JSON or YAML file.
+        Will put metadata in the config content with key "<meta>".
+
+        Args:
+            f: filepath of the meta data file, the content must be a dictionary,
+                if providing a list of files, wil merge the content of them.
+                if providing a dictionary directly, use it as meta data.
+            kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+                for more details, please check:
+                https://docs.python.org/3/library/json.html#json.load.
+                https://pyyaml.org/wiki/PyYAMLDocumentation.
+
+        """
         content = {}
         if isinstance(f, dict):
             # already loaded in dict
@@ -63,6 +84,20 @@ class ConfigReader:
         self.config[self.meta_key] = content
 
     def read_config(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
+        """
+        Read the config from specified JSON or YAML file.
+        Will store the config content in the `self.config` property.
+
+        Args:
+            f: filepath of the config file, the content must be a dictionary,
+                if providing a list of files, wil merge the content of them.
+                if providing a dictionary directly, use it as config.
+            kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+                for more details, please check:
+                https://docs.python.org/3/library/json.html#json.load.
+                https://pyyaml.org/wiki/PyYAMLDocumentation.
+
+        """
         content = {self.meta_key: self.config[self.meta_key]}
         if isinstance(f, dict):
             # already loaded in dict
@@ -73,6 +108,10 @@ class ConfigReader:
         self.config = content
 
     def get(self):
+        """
+        Get the loaded config content.
+
+        """
         return self.config
 
     def override(self, data: Dict[str, Any]):
@@ -82,6 +121,15 @@ class ConfigReader:
 
     @classmethod
     def split_file_path_id(cls, path: str) -> Optional[Tuple[str, str]]:
+        """
+        In order to load part of the content from a config file with specified `id`, split the full path
+        to `filepath` and target `id`.
+
+        Args:
+            path: path of target file to load, it can specify part of it with appending target `id`
+                in the path with "#" mark. for example: `/data/config.json`, `/data/config.json#net#<args>`.
+
+        """
         pattern = "|".join(cls.suffixes)
         result = re.findall(pattern, path, re.IGNORECASE)
         if len(result) != 1:
@@ -91,14 +139,27 @@ class ConfigReader:
         # return file path and target id
         return paths[0] + result[0], paths[1][1:] if paths[1] != "" else ""
 
-    def _do_resolve(self, config, **kwargs):
+    def _do_resolve(self, config: Any, **kwargs):
+        """
+        Recursively resolve the config content to replace the macro tokens with target content.
+        The macro tokens are marked as starting with "%", can be from another structured file, like:
+        `"net": "%default_net"`, `"net": "%/data/config.json#net#<args>"`.
+
+        Args:
+            config: input config file to resolve.
+            kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+                for more details, please check:
+                https://docs.python.org/3/library/json.html#json.load.
+                https://pyyaml.org/wiki/PyYAMLDocumentation.
+
+        """
         if isinstance(config, (dict, list)):
             subs = enumerate(config) if isinstance(config, list) else config.items()
             for k, v in subs:
                 config[k] = self._do_resolve(v, **kwargs)
         if isinstance(config, str) and config.startswith(self.macro):
             # only support macro mark at the beginning of a string
-            id = config[len(self.macro):]
+            id = config[len(self.macro) :]
             paths = self.split_file_path_id(id)
             if paths is None:
                 # id is in the current config file
@@ -113,4 +174,16 @@ class ConfigReader:
         return config
 
     def resolve_macro(self, **kwargs):
-        self.config = self._do_resolve(config=deepcopy(self.config))
+        """
+        Recursively resolve `self.config` to replace the macro tokens with target content.
+        The macro tokens are marked as starting with "%", can be from another structured file, like:
+        `"net": "%default_net"`, `"net": "%/data/config.json#net#<args>"`.
+
+        Args:
+            kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+                for more details, please check:
+                https://docs.python.org/3/library/json.html#json.load.
+                https://pyyaml.org/wiki/PyYAMLDocumentation.
+
+        """
+        self.config = self._do_resolve(config=deepcopy(self.config), **kwargs)
