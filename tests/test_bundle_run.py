@@ -18,9 +18,9 @@ import unittest
 
 import nibabel as nib
 import numpy as np
-import yaml
 from parameterized import parameterized
 
+from monai.bundle import ConfigReader
 from monai.transforms import LoadImage
 
 TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json"), (128, 128, 128)]
@@ -36,16 +36,17 @@ class TestBundleRun(unittest.TestCase):
             filename = os.path.join(tempdir, "image.nii")
             nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
 
-            # generate default args in a file
+            reader = ConfigReader()
+            # generate default args in a JSON file
+            reader.read_config({"config_file": "will be overrided by `config_file` arg"})
             def_args = os.path.join(tempdir, "def_args.json")
-            with open(def_args, "w") as f:
-                json.dump({"config_file": "will be overrided by `config_file` arg"}, f)
+            reader.export_config_file(filepath=def_args)
 
             meta = {"datalist": [{"image": filename}], "output_dir": tempdir, "window": (96, 96, 96)}
             # test YAML file
+            reader.read_config(meta)
             meta_file = os.path.join(tempdir, "meta.yaml")
-            with open(meta_file, "w") as f:
-                yaml.safe_dump(meta, f)
+            reader.export_config_file(filepath=meta_file)
 
             # test override with file, up case postfix
             overridefile1 = os.path.join(tempdir, "override1.JSON")

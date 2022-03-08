@@ -45,18 +45,39 @@ class ConfigReader:
 
         Args:
             filepath: path of target file to load, supported postfixes: `.json`, `.yml`, `.yaml`.
-            kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+            kwargs: other arguments for `json.load` or `yaml.safe_load`, depends on file format.
                 for more details, please check:
                 https://docs.python.org/3/library/json.html#json.load.
                 https://pyyaml.org/wiki/PyYAMLDocumentation.
 
         """
         _filepath: str = str(Path(filepath))
-        with open(_filepath) as f:
+        with open(_filepath, "r") as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
                 return json.load(f, **kwargs)
             if _filepath.lower().endswith(tuple(cls.suffixes[1:])):
                 return yaml.safe_load(f, **kwargs)
+            raise ValueError("only support JSON or YAML config file so far.")
+
+    def export_config_file(self, filepath: PathLike, **kwargs):
+        """
+        Export the config content to the specified file path.
+        Suppprt JSON and YAML formats.
+
+        Args:
+            filepath: target file path to save, supported postfixes: `.json`, `.yml`, `.yaml`.
+            kwargs: other arguments for `json.dump` or `yaml.safe_dump`, depends on file format.
+                for more details, please check:
+                https://docs.python.org/3/library/json.html#json.dump.
+                https://pyyaml.org/wiki/PyYAMLDocumentation.
+
+        """
+        _filepath: str = str(Path(filepath))
+        with open(_filepath, "w") as f:
+            if _filepath.lower().endswith(self.suffixes[0]):
+                return json.dump(self.config, f, **kwargs)
+            if _filepath.lower().endswith(tuple(self.suffixes[1:])):
+                return yaml.safe_dump(self.config, f, **kwargs)
             raise ValueError("only support JSON or YAML config file so far.")
 
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
@@ -68,7 +89,7 @@ class ConfigReader:
             f: filepath of the meta data file, the content must be a dictionary,
                 if providing a list of files, wil merge the content of them.
                 if providing a dictionary directly, use it as meta data.
-            kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+            kwargs: other arguments for `json.load` or `yaml.safe_load`, depends on file format.
                 for more details, please check:
                 https://docs.python.org/3/library/json.html#json.load.
                 https://pyyaml.org/wiki/PyYAMLDocumentation.
@@ -92,7 +113,7 @@ class ConfigReader:
             f: filepath of the config file, the content must be a dictionary,
                 if providing a list of files, wil merge the content of them.
                 if providing a dictionary directly, use it as config.
-            kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+            kwargs: other arguments for `json.load` or `yaml.safe_load`, depends on file format.
                 for more details, please check:
                 https://docs.python.org/3/library/json.html#json.load.
                 https://pyyaml.org/wiki/PyYAMLDocumentation.
@@ -147,7 +168,7 @@ class ConfigReader:
 
         Args:
             config: input config file to resolve.
-            kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+            kwargs: other arguments for `json.load` or `yaml.safe_load`, depends on file format.
                 for more details, please check:
                 https://docs.python.org/3/library/json.html#json.load.
                 https://pyyaml.org/wiki/PyYAMLDocumentation.
@@ -180,7 +201,7 @@ class ConfigReader:
         `"net": "%default_net"`, `"net": "%/data/config.json#net#<args>"`.
 
         Args:
-            kwargs: other arguments for `json.load` or `yaml.load`, depends on file format.
+            kwargs: other arguments for `json.load` or `yaml.safe_load`, depends on file format.
                 for more details, please check:
                 https://docs.python.org/3/library/json.html#json.load.
                 https://pyyaml.org/wiki/PyYAMLDocumentation.
