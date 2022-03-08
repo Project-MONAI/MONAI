@@ -52,7 +52,7 @@ class ConfigReader:
 
         """
         _filepath: str = str(Path(filepath))
-        with open(_filepath, "r") as f:
+        with open(_filepath) as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
                 return json.load(f, **kwargs)
             if _filepath.lower().endswith(tuple(cls.suffixes[1:])):
