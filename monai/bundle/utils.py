@@ -11,8 +11,7 @@
 
 import json
 import re
-from distutils.util import strtobool
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Union
 
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple, optional_import
@@ -84,47 +83,6 @@ def update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> Di
     for k, v in kwargs.items():
         args_[k] = update_default_args(args_[k], **v) if isinstance(v, dict) and isinstance(args_.get(k), dict) else v
     return args_
-
-
-def parse_id_value(pair: str) -> Tuple[str, Any]:
-    """
-    Parse the "id:value" pair string to `id` and `value`.
-    Will try to convert the data type of `value` from string to the correct type.
-
-    Args:
-        pair: input "id:value" pair to parse.
-
-    """
-    items = pair.split(":")
-    # remove blanks around id
-    id = items[0].strip()
-    value: Union[str, int, float, bool] = ""
-    if len(items) > 1:
-        # rejoin the rest, and remove blanks around value
-        value = ":".join(items[1:]).strip()
-
-    # try to convert the correct data type
-    try:
-        value = int(value)
-    except ValueError:
-        try:
-            value = float(value)
-        except ValueError:
-            try:
-                value = bool(strtobool(str(value)))
-            except ValueError:
-                pass
-    return id, value
-
-
-def id_value_str_to_dict(pairs: str) -> Dict[str, Any]:
-    """
-    Utility to convert a string which represents a dict of `id:value` pairs to a python dict. For example:
-    `"{postprocessing#<args>#postfix: output, network: <file>other.json#net_args}"`
-    Will try to convert the correct data type of `value` from string.
-
-    """
-    return dict(map(parse_id_value, pairs[1:-1].split(",")))
 
 
 def parse_config_file(

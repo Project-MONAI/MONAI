@@ -45,8 +45,4 @@ Model Bundle
 
 .. autofunction:: update_default_args
 
-.. autofunction:: parse_id_value
-
-.. autofunction:: id_value_str_to_dict
-
 .. autofunction:: parse_config_file

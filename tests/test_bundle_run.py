@@ -23,81 +23,14 @@ from parameterized import parameterized
 
 from monai.transforms import LoadImage
 
-TEST_CASE_1 = [
-    {
-        "device": "$torch.device('cuda' if torch.cuda.is_available() else 'cpu')",
-        "network_def": {
-            "<name>": "UNet",
-            "<args>": {
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "out_channels": 2,
-                "channels": [16, 32, 64, 128, 256],
-                "strides": [2, 2, 2, 2],
-                "num_res_units": 2,
-                "norm": "batch",
-            },
-        },
-        "network": "will be overrided",
-        "preprocessing": {
-            "<name>": "Compose",
-            "<args>": {
-                "transforms": [
-                    {"<name>": "LoadImaged", "<args>": {"keys": "image"}},
-                    {"<name>": "EnsureChannelFirstd", "<args>": {"keys": "image"}},
-                    {"<name>": "ScaleIntensityd", "<args>": {"keys": "image"}},
-                    {"<name>": "EnsureTyped", "<args>": {"keys": "image"}},
-                ]
-            },
-        },
-        "dataset": {
-            "<name>": "will be overrided",
-            "<args>": {"data": "@<meta>#datalist", "transform": "@preprocessing"},  # test placeholger with `datalist`
-        },
-        "dataloader": {
-            "<name>": "DataLoader",
-            "<args>": {"dataset": "@dataset", "batch_size": 1, "shuffle": False, "num_workers": 4},
-        },
-        "inferer": {
-            "<name>": "SlidingWindowInferer",
-            "<args>": {"roi_size": [96, 96, 96], "sw_batch_size": 4, "overlap": 0.5},
-        },
-        "postprocessing": {
-            "<name>": "Compose",
-            "<args>": {
-                "transforms": [
-                    {"<name>": "Activationsd", "<args>": {"keys": "pred", "softmax": True}},
-                    {"<name>": "AsDiscreted", "<args>": {"keys": "pred", "argmax": True}},
-                    {
-                        "<name>": "SaveImaged",
-                        "<args>": {
-                            "keys": "pred",
-                            "meta_keys": "image_meta_dict",
-                            "output_dir": "@<meta>#output_dir",  # test placeholger with `output_dir`
-                        },
-                    },
-                ]
-            },
-        },
-        "evaluator": {
-            "<name>": "SupervisedEvaluator",
-            "<args>": {
-                "device": "@device",
-                "val_data_loader": "@dataloader",
-                "network": "@network",
-                "inferer": "@inferer",
-                "postprocessing": "@postprocessing",
-                "amp": False,
-            },
-        },
-    },
-    (128, 128, 128),
-]
+TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json"), (128, 128, 128)]
+
+TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml"), (128, 128, 128)]
 
 
 class TestBundleRun(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
-    def test_shape(self, config, expected_shape):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_shape(self, config_file, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "image.nii")
@@ -113,10 +46,6 @@ class TestBundleRun(unittest.TestCase):
             meta_file = os.path.join(tempdir, "meta.yaml")
             with open(meta_file, "w") as f:
                 yaml.safe_dump(meta, f)
-            # test JSON file
-            config_file = os.path.join(tempdir, "config.json")
-            with open(config_file, "w") as f:
-                json.dump(config, f)
 
             # test override with file, up case postfix
             overridefile1 = os.path.join(tempdir, "override1.JSON")
@@ -134,7 +63,7 @@ class TestBundleRun(unittest.TestCase):
                 override = "'network':'$@network_def.to(@device)','dataset#<name>':'Dataset'"
             else:
                 override = f"'network':'<file>{overridefile1}#move_net','dataset#<name>':'<file>{overridefile2}'"
-            # test with `monai.bundle.scripts` as CLI entry directly
+            # test with `monai.bundle` as CLI entry directly
             ret = subprocess.check_call(
                 [
                     f"{sys.executable}",
