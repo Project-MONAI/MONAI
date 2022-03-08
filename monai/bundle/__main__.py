@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
-from monai.bundle.config_parser import ConfigParser
-from monai.bundle.config_reader import ConfigReader
-from monai.bundle.reference_resolver import ReferenceResolver
-from monai.bundle.utils import update_default_args
+
+from monai.bundle.scripts import run  # noqa: F401
+
+if __name__ == "__main__":
+    from monai.utils import optional_import
+
+    fire, _ = optional_import("fire")
+    fire.Fire()

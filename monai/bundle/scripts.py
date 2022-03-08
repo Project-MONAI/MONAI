@@ -14,9 +14,6 @@ from typing import Dict, Optional, Sequence, Union
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.config_reader import ConfigReader
 from monai.bundle.utils import update_default_args
-from monai.utils import optional_import
-
-fire, _ = optional_import("fire")
 
 
 def run(
@@ -77,7 +74,6 @@ def run(
             # skip None args
             kwargs[k] = v
     args = update_default_args(args=args_file, **kwargs)
-
     reader = ConfigReader()
     reader.read_config(f=args["config_file"])
     reader.read_meta(f=args["meta_file"])
@@ -92,7 +88,3 @@ def run(
     parser = ConfigParser(reader.get())
     workflow = parser.get_parsed_content(id=args["target"])
     workflow.run()
-
-
-if __name__ == "__main__":
-    fire.Fire()

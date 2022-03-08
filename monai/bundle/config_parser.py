@@ -16,6 +16,8 @@ from typing import Any, Dict, Optional, Sequence, Union
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
 
+__all__ = ["ConfigParser"]
+
 
 class ConfigParser:
     """

@@ -65,45 +65,18 @@ class TestBundleRun(unittest.TestCase):
             else:
                 override = f"'network':'%{overridefile1}#move_net','dataset#<name>':'%{overridefile2}'"
             # test with `monai.bundle` as CLI entry directly
-            ret = subprocess.check_call(
-                [
-                    f"{sys.executable}",
-                    "-m",
-                    "monai.bundle.scripts",
-                    "run",
-                    "--meta_file",
-                    f"{meta_file}",
-                    "--config_file",
-                    f"{config_file}",
-                    # `fire` can not parse below string, will pass to `run` as a string representing a dict
-                    "--override",
-                    f"{{'postprocessing#<args>#transforms#2#<args>#output_postfix':'seg',{override}}}",
-                    "--target",
-                    "evaluator",
-                ]
-            )
+            cmd = f"{sys.executable} -m monai.bundle run --meta_file {meta_file} --config_file {config_file}"
+            cmd += f" --override {{'postprocessing#<args>#transforms#2#<args>#output_postfix':'seg',{override}}}"
+            cmd += " --target evaluator"
+            ret = subprocess.check_call(cmd.split(" "))
             self.assertEqual(ret, 0)
             self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
             # here test the script with `google fire` tool as CLI
-            ret = subprocess.check_call(
-                [
-                    f"{sys.executable}",
-                    "-m",
-                    "fire",
-                    "monai.bundle",
-                    "run",
-                    "--meta_file",
-                    f"{meta_file}",
-                    "--config_file",
-                    f"{config_file}",
-                    "--override",
-                    # `fire` can parse below string as a dictionary
-                    f"{{'evaluator#<args>#amp':False,{override}}}",
-                    "--target",
-                    "evaluator",
-                ]
-            )
+            cmd = f"{sys.executable} -m monai.bundle run --meta_file {meta_file} --config_file {config_file}"
+            cmd += f" --override {{'evaluator#<args>#amp':False,{override}}}"
+            cmd += " --target evaluator"
+            ret = subprocess.check_call(cmd.split(" "))
             self.assertEqual(ret, 0)
             self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
 

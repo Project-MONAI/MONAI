@@ -15,6 +15,8 @@ from typing import Any, Dict, Optional, Sequence, Set
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.utils import look_up_option
 
+__all__ = ["ReferenceResolver"]
+
 
 class ReferenceResolver:
     """

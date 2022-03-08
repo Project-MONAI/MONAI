@@ -21,6 +21,8 @@ from monai.utils import ensure_tuple, optional_import
 
 yaml, _ = optional_import("yaml")
 
+__all__ = ["ConfigReader"]
+
 
 class ConfigReader:
     """
