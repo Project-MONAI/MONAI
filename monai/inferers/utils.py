@@ -15,7 +15,9 @@ import torch
 import torch.nn.functional as F
 
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
-from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple, look_up_option
+from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple, look_up_option, optional_import
+
+tqdm, _ = optional_import("tqdm", name="tqdm")
 
 __all__ = ["sliding_window_inference"]
 
@@ -32,6 +34,7 @@ def sliding_window_inference(
     cval: float = 0.0,
     sw_device: Union[torch.device, str, None] = None,
     device: Union[torch.device, str, None] = None,
+    progress: bool = False,
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor:
@@ -74,6 +77,7 @@ def sliding_window_inference(
             By default the device (and accordingly the memory) of the `inputs` is used. If for example
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             `inputs` and `roi_size`. Output is on the `device`.
+        progress: whether to print a `tqdm` progress bar.
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
 
@@ -120,7 +124,7 @@ def sliding_window_inference(
     # Perform predictions
     output_image, count_map = torch.tensor(0.0, device=device), torch.tensor(0.0, device=device)
     _initialized = False
-    for slice_g in range(0, total_slices, sw_batch_size):
+    for slice_g in tqdm(range(0, total_slices, sw_batch_size)) if progress else range(0, total_slices, sw_batch_size):
         slice_range = range(slice_g, min(slice_g + sw_batch_size, total_slices))
         unravel_slice = [
             [slice(int(idx / num_win), int(idx / num_win) + 1), slice(None)] + list(slices[idx % num_win])
