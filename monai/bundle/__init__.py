@@ -13,4 +13,5 @@ from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigEx
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.config_reader import ConfigReader
 from monai.bundle.reference_resolver import ReferenceResolver
+from monai.bundle.scripts import run
 from monai.bundle.utils import update_default_args
