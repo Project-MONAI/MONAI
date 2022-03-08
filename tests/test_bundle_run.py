@@ -73,8 +73,8 @@ class TestBundleRun(unittest.TestCase):
             self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
             # here test the script with `google fire` tool as CLI
-            cmd = f"{sys.executable} -m monai.bundle run --meta_file {meta_file} --config_file {config_file}"
-            cmd += f" --override {{'evaluator#<args>#amp':False,{override}}}"
+            cmd = f"{sys.executable} -m fire monai.bundle.scripts run --meta_file {meta_file}"
+            cmd += f" --config_file {config_file} --override {{'evaluator#<args>#amp':False,{override}}}"
             cmd += " --target evaluator"
             ret = subprocess.check_call(cmd.split(" "))
             self.assertEqual(ret, 0)
