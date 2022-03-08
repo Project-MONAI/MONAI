@@ -130,6 +130,10 @@ class TestBundleRun(unittest.TestCase):
 
             saver = LoadImage(image_only=True)
 
+            if sys.platform == "win32":
+                override = "'network':'$@network_def.to(@device)','dataset#<name>':'Dataset'"
+            else:
+                override = f"'network':'<file>{overridefile1}#move_net','dataset#<name>':'<file>{overridefile2}'"
             # test with `monai.bundle.scripts` as CLI entry directly
             ret = subprocess.check_call(
                 [
@@ -143,8 +147,7 @@ class TestBundleRun(unittest.TestCase):
                     f"{config_file}",
                     # `fire` can not parse below string, will pass to `run` as a string representing a dict
                     "--override",
-                    f"{{'postprocessing#<args>#transforms#2#<args>#output_postfix':'seg',\
-                    'network':'<file>{overridefile1}#move_net','dataset#<name>':'<file>{overridefile2}'}}",
+                    f"{{'postprocessing#<args>#transforms#2#<args>#output_postfix':'seg',{override}}}",
                     "--target",
                     "evaluator",
                 ]
@@ -166,8 +169,7 @@ class TestBundleRun(unittest.TestCase):
                     f"{config_file}",
                     "--override",
                     # `fire` can parse below string as a dictionary
-                    f"{{'evaluator#<args>#amp':False,'network':'<file>{overridefile1}#move_net',\
-                    'dataset#<name>':'<file>{overridefile2}'}}",
+                    f"{{'evaluator#<args>#amp':False,{override}}}",
                     "--target",
                     "evaluator",
                 ]
