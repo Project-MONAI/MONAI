@@ -11,7 +11,9 @@
 
 from typing import Dict, Optional, Sequence, Union
 
-from monai.bundle.utils import parse_config_file, update_default_args
+from monai.bundle.config_parser import ConfigParser
+from monai.bundle.config_reader import ConfigReader
+from monai.bundle.utils import update_default_args
 from monai.utils import optional_import
 
 fire, _ = optional_import("fire")
@@ -76,11 +78,19 @@ def run(
             kwargs[k] = v
     args = update_default_args(args=args_file, **kwargs)
 
-    config_parser = parse_config_file(
-        config_file=args["config_file"], meta_file=args["meta_file"], override=args.get("override")
-    )
+    reader = ConfigReader()
+    reader.read_config(f=args["config_file"])
+    reader.read_meta(f=args["meta_file"])
+
+    override = args.get("override")
+    if override is not None:
+        reader.override(data=override)
+
+    reader.resolve_macro()
+
     # get expected workflow to run
-    workflow = config_parser.get_parsed_content(id=args["target"])
+    parser = ConfigParser(reader.get())
+    workflow = parser.get_parsed_content(id=args["target"])
     workflow.run()
 
 

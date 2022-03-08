@@ -62,7 +62,7 @@ class TestBundleRun(unittest.TestCase):
             if sys.platform == "win32":
                 override = "'network':'$@network_def.to(@device)','dataset#<name>':'Dataset'"
             else:
-                override = f"'network':'<file>{overridefile1}#move_net','dataset#<name>':'<file>{overridefile2}'"
+                override = f"'network':'%{overridefile1}#move_net','dataset#<name>':'%{overridefile2}'"
             # test with `monai.bundle` as CLI entry directly
             ret = subprocess.check_call(
                 [

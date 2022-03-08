@@ -33,16 +33,15 @@ Model Bundle
 .. autoclass:: ConfigParser
     :members:
 
+`Config Reader`
+---------------
+.. autoclass:: ConfigReader
+    :members:
+
 `Scripts`
 ---------
 .. autofunction:: run
 
 `Utilities`
 -----------
-.. autofunction:: load_config_file
-
-.. autofunction:: load_config_file_content
-
 .. autofunction:: update_default_args
-
-.. autofunction:: parse_config_file
