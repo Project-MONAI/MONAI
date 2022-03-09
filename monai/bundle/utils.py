@@ -51,7 +51,7 @@ def verify_metadata(
             if create_dir:
                 path_dir.mkdir(parents=True)
             else:
-                raise ValueError(f"the directory of specified path is not existing: {path_dir}.")
+                raise ValueError(f"the directory of specified path `{path_dir}` does not exist.")
 
     filepath = Path(filepath)
     _check_dir(path=filepath)
@@ -72,4 +72,4 @@ def verify_metadata(
             _check_dir(result_path)
             with open(result_path, "w") as f:
                 f.write(str(e))
-        raise ValueError("detected content with incorrect format in the meta data.") from e
+        raise ValueError(f"metadata failed to validate against schema `{schema_url}`.") from e
