@@ -25,26 +25,25 @@ def run(
     **kwargs,
 ):
     """
-    Specify metadata file and config file to run a regular training or evaluation program.
-    It's used to execute most of the supervised training, evaluation or inference cases.
+    Specify `meta_file` and `config_file` to run monai bundle components and workflows.
 
     Typical usage examples:
 
     .. code-block:: bash
 
-        # Execute this module as CLI entry:
+        # Execute this module as a CLI entry:
         python -m monai.bundle run --meta_file=<meta path> --config_file=<config path> --target=trainer
 
-        # Override some config values at runtime, set `override` as a dict:
+        # Override config values at runtime, set `override` as a dictionary:
         python -m monai.bundle run --override='{"net#<args>#ndims": 2}' ...
 
-        # Override some config values at runtime:
+        # Override config values at runtime by specifying the component id and its new value:
         python -m monai.bundle run --"net#<args>#input_chns" 1 ...
 
-        # Override some config values with another config file:
-        python -m monai.bundle run --override='{"net#<args>": "%/data/other.json"}' ...
+        # Override config values with another config file `/path/to/another.json`:
+        python -m monai.bundle run --override='{"net#<args>": "%/path/to/another.json"}' ...
 
-        # Override some config values with part content of another config file:
+        # Override config values with part content of another config file:
         python -m monai.bundle run --override='{"net#<args>": "%/data/other.json#net_arg"}' ...
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
@@ -52,19 +51,16 @@ def run(
         python -m monai.bundle run --args_file="'/workspace/data/args.json'" --config_file=<config path>
 
     Args:
-        meta_file: filepath of the metadata file, if `None`, must provide it in `args_file`.
-            if providing a list of files, wil merge the content of them.
-        config_file: filepath of the config file, if `None`, must provide it in `args_file`.
-            if providing a list of files, wil merge the content of them.
-        override: override config content with specified `id` and `value` pairs.
-            it can also be used to provide default value for placeholders. for example:
-            put a placeholder `"data": "@runtime_value"` in the config, then define `runtime_value` in `override`.
-            it also supports a string representing a dict, like: "{'AA#BB': 123}", usually from command line.
-        target: ID name of the target workflow, it must have the `run` method, follow MONAI `BaseWorkflow`.
-            if None, must provide it in `arg_file`.
-        args_file: to avoid providing same args every time running the program, it supports
-            to put the args as a dictionary in a JSON or YAML file.
-        kwargs: additional id-value pairs to override the config content.
+        meta_file: filepath of the metadata file, if `None`, must be provided in `args_file`.
+            if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file, if `None`, must be provided in `args_file`.
+            if it is a list of file paths, the content of them will be merged.
+        override: values to override in the config content provided in `meta_file`.
+        target: ID name of the target component or workflow, it must have a `run` method.
+        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`, `target`.
+            so that the command line inputs can be simplified.
+        kwargs: additional id-value pairs to override the corresponding config content by id.
+            e.g. ``--"net#<args>#input_chns" 42``.
 
     """
     k_v = zip(
@@ -73,15 +69,15 @@ def run(
     )
     input_args = {k: v for k, v in k_v if v is not None}
     _args = update_default_args(args=args_file, **input_args)
-    for k in ("meta_file", "config_file", "target"):
+    for k in ("meta_file", "config_file"):
         if k not in _args:
-            raise ValueError(f"{k} is required.")
+            raise ValueError(f"{k} is required for 'monai.bundle run'.\n{run.__doc__}")
 
     reader = ConfigReader()
     reader.read_config(f=_args["config_file"])
     reader.read_meta(f=_args["meta_file"])
 
-    parser = ConfigParser(reader.get())
+    parser = ConfigParser(config=reader.get())
 
     override = _args.get("override", {})
     if isinstance(override, dict):
@@ -90,6 +86,7 @@ def run(
         for k, v in override.items():
             parser[k] = v
 
-    # get expected workflow to run
-    workflow = parser.get_parsed_content(id=_args["target"])
+    workflow = parser.get_parsed_content(id=_args.get("target", ""))
+    if not hasattr(workflow, "run"):
+        raise ValueError(f"The parsed workflow {type(workflow)} does not have a `run` method.\n{run.__doc__}")
     workflow.run()

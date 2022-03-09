@@ -31,7 +31,7 @@ class ConfigReader:
 
     See also:
 
-        - https://docs.python.org/3/library/json.html#json.load
+        - https://docs.python.org/3/library/json.html
         - https://pyyaml.org/wiki/PyYAMLDocumentation
 
     """
@@ -62,6 +62,21 @@ class ConfigReader:
             if _filepath.lower().endswith(cls.suffixes[1:]):
                 return yaml.safe_load(f, **kwargs)
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")
+
+    @classmethod
+    def load_config_files(cls, files: Union[PathLike, Sequence[PathLike], dict], **kwargs) -> dict:
+        """
+        Load config files into a single config dict.
+
+        Args:
+            files: path of target files to load, supported postfixes: `.json`, `.yml`, `.yaml`.
+        """
+        if isinstance(files, dict):  # already a config dict
+            return files
+        content = {}
+        for i in ensure_tuple(files):
+            content.update(cls.load_config_file(i, **kwargs))
+        return content
 
     @classmethod
     def export_config_file(cls, config: Dict, filepath: PathLike, fmt="json", **kwargs):
@@ -115,14 +130,7 @@ class ConfigReader:
             kwargs: other arguments for ``json.load`` or ``yaml.safe_load``, depends on the file format.
 
         """
-        if isinstance(f, dict):
-            # already loaded in dict
-            content = f
-        else:
-            content = {}
-            for i in ensure_tuple(f):
-                content.update(self.load_config_file(i, **kwargs))
-        self.config[self.meta_key] = content
+        self.config[self.meta_key] = self.load_config_files(f, **kwargs)
 
     def read_config(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
         """
@@ -137,12 +145,7 @@ class ConfigReader:
 
         """
         content = {self.meta_key: self.config.get(self.meta_key)}
-        if isinstance(f, dict):
-            # already loaded in dict
-            content.update(f)
-        else:
-            for i in ensure_tuple(f):
-                content.update(self.load_config_file(i, **kwargs))
+        content.update(self.load_config_files(f, **kwargs))
         self.config = content
 
     def get(self):
