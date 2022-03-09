@@ -160,7 +160,7 @@ class ConfigItem:
 
 class ConfigComponent(ConfigItem, Instantiable):
     """
-    Subclass of :py:class:`monai.apps.ConfigItem`, this class uses a dictionary with string keys to
+    Subclass of :py:class:`monai.bundle.ConfigItem`, this class uses a dictionary with string keys to
     represent a component of `class` or `function` and supports instantiation.
 
     Currently, four special keys (strings surrounded by ``<>``) are defined and interpreted beyond the regular literals:
@@ -283,7 +283,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
 class ConfigExpression(ConfigItem):
     """
-    Subclass of :py:class:`monai.apps.ConfigItem`, the `ConfigItem` represents an executable expression
+    Subclass of :py:class:`monai.bundle.ConfigItem`, the `ConfigItem` represents an executable expression
     (execute based on ``eval()``).
 
     See also:

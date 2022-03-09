@@ -50,7 +50,8 @@ class TestBundleRun(unittest.TestCase):
             with open(overridefile1, "w") as f:
                 # test override with part of the overriding file
                 json.dump({"move_net": "$@network_def.to(@device)"}, f)
-            overridefile2 = os.path.join(tempdir, "override2.JSON")
+            overridefile2 = os.path.join(tempdir, "jsons/override2.JSON")
+            os.mkdir(os.path.join(tempdir, "jsons"))
             with open(overridefile2, "w") as f:
                 # test override with the whole overriding file
                 json.dump("Dataset", f)

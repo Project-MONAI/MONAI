@@ -33,7 +33,7 @@ class ConfigParser:
 
     .. code-block:: python
 
-        from monai.apps import ConfigParser
+        from monai.bundle import ConfigParser
 
         config = {
             "my_dims": 2,
@@ -73,7 +73,7 @@ class ConfigParser:
 
     See also:
 
-        - :py:class:`monai.apps.ConfigItem`
+        - :py:class:`monai.bundle.ConfigItem`
 
     """
 
