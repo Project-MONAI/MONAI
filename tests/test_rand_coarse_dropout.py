@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandCoarseDropout
@@ -52,12 +53,20 @@ TEST_CASE_6 = [
     np.random.randint(0, 2, size=[3, 3, 3, 4]),
 ]
 
+TEST_CASE_7 = [
+    {"holes": 2, "spatial_size": [2, 2, 2], "dropout_holes": False, "fill_value": (3, 6), "prob": 1.0},
+    torch.randint(0, 2, size=[3, 3, 3, 4]),
+]
+
 
 class TestRandCoarseDropout(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand(
+        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+    )
     def test_value(self, input_param, input_data):
         dropout = RandCoarseDropout(**input_param)
         result = dropout(input_data)
+        self.assertEqual(type(result), type(input_data))
         holes = input_param.get("holes")
         max_holes = input_param.get("max_holes")
         spatial_size = fall_back_tuple(input_param.get("spatial_size"), input_data.shape[1:])

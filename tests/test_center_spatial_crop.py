@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,11 +38,13 @@ class TestCenterSpatialCrop(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_3])
     def test_shape(self, input_param, input_data, expected_shape):
         result = CenterSpatialCrop(**input_param)(input_data)
+        self.assertEqual(isinstance(result, torch.Tensor), isinstance(input_data, torch.Tensor))
         np.testing.assert_allclose(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_2])
     def test_value(self, input_param, input_data, expected_value):
         result = CenterSpatialCrop(**input_param)(input_data)
+        self.assertEqual(isinstance(result, torch.Tensor), isinstance(input_data, torch.Tensor))
         np.testing.assert_allclose(result, expected_value)
 
 
