@@ -94,7 +94,7 @@ class TestVerifyMeta(unittest.TestCase):
             hash_val = "486c581cca90293d1a7f41a57991ff35"
 
             ret = os.system(
-                f"python -m monai.apps.manifest.verify_meta -m {metafile} -u {url} -f {filepath}"
+                f"python -m monai.bundle.verify_meta -m {metafile} -u {url} -f {filepath}"
                 f" -r {resultfile} -v {hash_val}"
             )
             self.assertEqual(ret, 0)

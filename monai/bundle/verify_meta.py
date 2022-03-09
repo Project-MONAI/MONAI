@@ -12,7 +12,7 @@
 
 import argparse
 
-from monai.apps.manifest.utils import verify_metadata
+from monai.bundle.utils import verify_metadata
 
 
 def verify():
