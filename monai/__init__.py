@@ -49,6 +49,7 @@ load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
 
 __all__ = [
     "apps",
+    "bundle",
     "config",
     "data",
     "engines",
