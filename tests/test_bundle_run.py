@@ -43,15 +43,15 @@ class TestBundleRun(unittest.TestCase):
             meta = {"datalist": [{"image": filename}], "output_dir": tempdir, "window": (96, 96, 96)}
             # test YAML file
             meta_file = os.path.join(tempdir, "meta.yaml")
-            ConfigReader.export_config_file(config=meta, filepath=meta_file)
+            ConfigReader.export_config_file(config=meta, filepath=meta_file, fmt="yaml")
 
             # test override with file, up case postfix
             overridefile1 = os.path.join(tempdir, "override1.JSON")
             with open(overridefile1, "w") as f:
                 # test override with part of the overriding file
                 json.dump({"move_net": "$@network_def.to(@device)"}, f)
+            os.makedirs(os.path.join(tempdir, "jsons"), exist_ok=True)
             overridefile2 = os.path.join(tempdir, "jsons/override2.JSON")
-            os.mkdir(os.path.join(tempdir, "jsons"))
             with open(overridefile2, "w") as f:
                 # test override with the whole overriding file
                 json.dump("Dataset", f)

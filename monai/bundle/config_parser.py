@@ -170,38 +170,27 @@ class ConfigParser:
     def _do_resolve(self, config: Any):
         """
         Recursively resolve the config content to replace the macro tokens with target content.
-        The macro tokens are marked as starting with "%", can be from another structured file, like:
-        `"net": "%default_net"`, `"net": "%/data/config.json#net#<args>"`.
+        The macro tokens start with "%", can be from another structured file, like:
+        ``{"net": "%default_net"}``, ``{"net": "%/data/config.json#net#<args>"}}``.
 
         Args:
             config: input config file to resolve.
 
         """
         if isinstance(config, (dict, list)):
-            subs = enumerate(config) if isinstance(config, list) else config.items()
-            for k, v in subs:
+            for k, v in enumerate(config) if isinstance(config, list) else config.items():
                 config[k] = self._do_resolve(v)
         if isinstance(config, str) and config.startswith(self.macro):
-            # only support macro mark at the beginning of a string
-            id = config[len(self.macro) :]
-            paths = ConfigReader.extract_file_path(id)
-            if paths is None:
-                # id is in the current config file
-                parser = ConfigParser(config=self.get())
-                data = deepcopy(parser[id])
-            else:
-                # id is in another config file
-                parser = ConfigParser(config=ConfigReader.load_config_file(paths[0]))
-                data = parser[paths[1][len(self.ref_resolver.sep) :] if paths[1] != "" else ""]
-            # recursively check the resolved content
-            return self._do_resolve(data)
+            path, ids = ConfigReader.split_path_id(config[len(self.macro) :])
+            parser = ConfigParser(config=self.get() if not path else ConfigReader.load_config_file(path))
+            return self._do_resolve(config=deepcopy(parser[ids]))
         return config
 
     def resolve_macro(self):
         """
         Recursively resolve `self.config` to replace the macro tokens with target content.
         The macro tokens are marked as starting with "%", can be from another structured file, like:
-        `"net": "%default_net"`, `"net": "%/data/config.json#net#<args>"`.
+        ``"%default_net"``, ``"%/data/config.json#net#<args>"``.
 
         """
         self.set(self._do_resolve(config=deepcopy(self.get())))

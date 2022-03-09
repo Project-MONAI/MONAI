@@ -22,6 +22,7 @@ def run(
     override: Optional[Union[Dict, str]] = None,
     target: Optional[str] = None,
     args_file: Optional[str] = None,
+    **kwargs,
 ):
     """
     Specify metadata file and config file to run a regular training or evaluation program.
@@ -29,63 +30,65 @@ def run(
 
     Typical usage examples:
 
-    1. Execute the `run` API with other CLI tools, take `fire` for example:
-    `python -m fire monai.bundle run --meta_file=<meta path> --config_file=<config path> --target=trainer`
+    .. code-block:: bash
 
-    2. Execute this module as CLI entry based on `fire`:
-    `python -m monai.bundle.scripts run --meta_file=<meta path> --config_file=<config path> --target=trainer`
+        # Execute this module as CLI entry:
+        python -m monai.bundle run --meta_file=<meta path> --config_file=<config path> --target=trainer
 
-    3. Override some config values at runtime, set `override` as a dict:
-    `python -m monai.bundle.scripts run --override={"'net#<args>#ndims'": 2} ...`
+        # Override some config values at runtime, set `override` as a dict:
+        python -m monai.bundle run --override='{"net#<args>#ndims": 2}' ...
 
-    4. Override some config values at runtime, set `override` as a string:
-    `python -m monai.bundle.scripts run --override="{net#<args>#ndims: 2}" ...`
+        # Override some config values at runtime:
+        python -m monai.bundle run --"net#<args>#input_chns" 1 ...
 
-    5. Override some config values with another config file:
-    `python -m monai.bundle.scripts run --override={"'net#<args>'": "'<file>/data/other.json'"} ...`
+        # Override some config values with another config file:
+        python -m monai.bundle run --override='{"net#<args>": "%/data/other.json"}' ...
 
-    6. Override some config values with part content of another config file:
-    `python -m monai.bundle.scripts run --override={"'net#<args>'": "'<file>/data/other.json#net_arg'"} ...`
+        # Override some config values with part content of another config file:
+        python -m monai.bundle run --override='{"net#<args>": "%/data/other.json#net_arg"}' ...
 
-    7. Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
-    Other args still can override the default args at runtime:
-    `python -m monai.bundle.scripts run --args_file="'/data/args.json'" --config_file=<config path>`
+        # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
+        # Other args still can override the default args at runtime:
+        python -m monai.bundle run --args_file="'/workspace/data/args.json'" --config_file=<config path>
 
     Args:
-        meta_file: filepath of the metadata file, if None, must provide it in `arg_file`.
+        meta_file: filepath of the metadata file, if `None`, must provide it in `args_file`.
             if providing a list of files, wil merge the content of them.
-        config_file: filepath of the config file, if None, must provide it in `arg_file`.
+        config_file: filepath of the config file, if `None`, must provide it in `args_file`.
             if providing a list of files, wil merge the content of them.
-        override: override above config content with specified `id` and `value` pairs.
+        override: override config content with specified `id` and `value` pairs.
             it can also be used to provide default value for placeholders. for example:
-            put a placeholder `"data": "@runtime_value"` in the config, then define
-            `runtime_value` in `override`.
+            put a placeholder `"data": "@runtime_value"` in the config, then define `runtime_value` in `override`.
             it also supports a string representing a dict, like: "{'AA#BB': 123}", usually from command line.
         target: ID name of the target workflow, it must have the `run` method, follow MONAI `BaseWorkflow`.
             if None, must provide it in `arg_file`.
         args_file: to avoid providing same args every time running the program, it supports
             to put the args as a dictionary in a JSON or YAML file.
+        kwargs: additional id-value pairs to override the config content.
 
     """
-
-    kwargs = {}
-    for k, v in {"meta_file": meta_file, "config_file": config_file, "override": override, "target": target}.items():
-        if v is not None:
-            # skip None args
-            kwargs[k] = v
-    args = update_default_args(args=args_file, **kwargs)
+    k_v = zip(
+        ["meta_file", "config_file", "override", "target", "args_file"],
+        [meta_file, config_file, override, target, args_file],
+    )
+    input_args = {k: v for k, v in k_v if v is not None}
+    _args = update_default_args(args=args_file, **input_args)
+    for k in ("meta_file", "config_file", "target"):
+        if k not in _args:
+            raise ValueError(f"{k} is required.")
 
     reader = ConfigReader()
-    reader.read_config(f=args["config_file"])
-    reader.read_meta(f=args["meta_file"])
+    reader.read_config(f=_args["config_file"])
+    reader.read_meta(f=_args["meta_file"])
 
     parser = ConfigParser(reader.get())
 
-    override = args.get("override")
-    if override is not None:
+    override = _args.get("override", {})
+    override.update(kwargs)
+    if override:
         for k, v in override.items():
             parser[k] = v
 
     # get expected workflow to run
-    workflow = parser.get_parsed_content(id=args["target"])
+    workflow = parser.get_parsed_content(id=_args["target"])
     workflow.run()
