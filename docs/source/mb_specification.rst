@@ -1,20 +1,22 @@
 
-===========================
-MONAI Archive Specification
-===========================
+==========================
+MONAI Bundle Specification
+==========================
 
 Overview
 ========
 
-This is the specification for the MONAI Archive (MAR) format of portable described deep learning models. The objective of a MAR is to define a packaged network or model which includes the critical information necessary to allow users and other programs to understand how the model is used and for what purpose. A MAR includes the stored weights of a model as a state dictionary and/or a Torchscript object. Additional JSON files are included to store metadata about the model, information for constructing training, inference, and post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes to include.
+This is the specification for the MONAI Bundle (MB) format of portable described deep learning models. The objective of a MB is to define a packaged network or model which includes the critical information necessary to allow users and  programs to understand how the model is used and for what purpose. A bundle includes the stored weights of a model as a pickled state dictionary and/or a Torchscript object. Additional JSON files are included to store metadata about the model, information for constructing training, inference, and post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes to include.
 
-This specification defines the directory structure a MAR must have and the necessary files it must contain. Additional files may be included and the directory packaged into a zip file or included as extra files directly in a Torchscript file.
+This specification defines the directory structure a bundle must have and the necessary files it must contain. Additional files may be included and the directory packaged into a zip file or included as extra files directly in a Torchscript file.
 
 Directory Structure
 ===================
 
-A MAR package is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName", and should contain the following structure:
+A MONAI Bundle is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName" in this exmaple, and should contain the following structure:
+
 ::
+    
   ModelName
   ┣━ configs
   ┃  ┗━ metadata.json
@@ -26,9 +28,9 @@ A MAR package is defined primarily as a directory with a set of specifically nam
      ┗━ license.txt
 
 
-These files mostly are required to be present with the given names for the directory to define a valid MAR:
+These files mostly are required to be present with the given names for the directory to define a valid bundle:
 
-* **metadata.json**: netadata information in JSON format relating to the type of model, definition of input and output tensors, versions of the model and used software, and other information described below.
+* **metadata.json**: metadata information in JSON format relating to the type of model, definition of input and output tensors, versions of the model and used software, and other information described below.
 * **model.pt**: the state dictionary of a saved model, the information to instantiate the model must be found in the metadata file.
 * **model.ts**: the Torchscript saved model if the model is compatible with being saved correctly in this format.
 * **README.md**: plain-language information on the model, how to use it, author information, etc. in Markdown format.
@@ -37,20 +39,20 @@ These files mostly are required to be present with the given names for the direc
 Archive Format
 ==============
 
-The MAR directory and its contents can be compressed into a zip file to constitute a single file package. When unzipped into a directory this file will reproduce the above directory structure, and should itself also be named after the model it contains.
+The bundle directory and its contents can be compressed into a zip file to constitute a single file package. When unzipped into a directory this file will reproduce the above directory structure, and should itself also be named after the model it contains.
 
-The Torchscript file format is also just a zip file with a specific structure. When creating such an archive with `save_net_with_metadata` a MAR-compliant Torchscript file can be created by including the contents of `metadata.json` as the `meta_values` argument of the function, and other files included as `more_extra_files` entries. These will be stored in a `extras` directory in the zip file and can be retrieved with `load_net_with_metadata` or with any other library/tool that can read zip data. In this format the `model.*` files are obviously not needed by `README.md` and `license.txt` can be added as more extra files.
+The Torchscript file format is also just a zip file with a specific structure. When creating such an archive with `save_net_with_metadata` a MB-compliant Torchscript file can be created by including the contents of `metadata.json` as the `meta_values` argument of the function, and other files included as `more_extra_files` entries. These will be stored in a `extras` directory in the zip file and can be retrieved with `load_net_with_metadata` or with any other library/tool that can read zip data. In this format the `model.*` files are obviously not needed by `README.md` and `license.txt` can be added as more extra files.
 
 metadata.json File
 ==================
 
 This file contains the metadata information relating to the model, including what the shape and format of inputs and outputs are, what the meaning of the outputs are, what type of model is present, and other information. The JSON structure is a dictionary containing a defined set of keys with additional user-specified keys. The mandatory keys are as follows:
 
-* **version**: version of the stored model.
-* **monai_version**: version of MONAI the MAR was generated on, later versions expected to work.
-* **pytorch_version**: version of Pytorch the MAR was generated on, later versions expected to work.
-* **numpy_version**: version of Numpy the MAR was generated on, later versions expected to work.
-* **optional_packages_version**: dictionary relating optional package names to their versions, these packages are not needed but are recommended to be isntalled with this stated minimum version.
+* **version**: version of the stored model, this allows multiple versions of the same model to be differentiated. 
+* **monai_version**: version of MONAI the bundle was generated on, later versions expected to work.
+* **pytorch_version**: version of Pytorch the bundle was generated on, later versions expected to work.
+* **numpy_version**: version of Numpy the bundle was generated on, later versions expected to work.
+* **optional_packages_version**: dictionary relating optional package names to their versions, these packages are not needed but are recommended to be installed with this stated minimum version.
 * **task**: plain-language description of what the model is meant to do.
 * **description**: longer form plain-language description of what the model is, what it does, etc.
 * **authorship**: state author(s) of the model.
@@ -61,12 +63,12 @@ Tensor format specifiers are used to define input and output tensors and their m
 
 * **type**: what sort of data the tensor represents: "image", "label", etc.
 * **format**: what format of information is stored: "magnitude", "hounsfield", "kspace", "segmentation", "multiclass", etc.
-* **num_channels**: number of channels the tensor has, assumed channel dimension first.
-* **spatial_shape**: shape of the spatial dimensions of the form "[H]", "[H, W]", or "[H, W, D]"
+* **num_channels**: number of channels the tensor has, assumed channel dimension first
+* **spatial_shape**: shape of the spatial dimensions of the form "[H]", "[H, W]", or "[H, W, D]", see below for possible values of H, W, and D
 * **dtype**: data type of tensor, eg. "float32", "int32"
-* **value_range**: minimum and maximum values the input data is expected to have of the form "[MIN, MAX]" or "[]" if not known.
-* **is_patch_data**: "true" if the data is a patch of an input/output tensor or the entirely of the tensor, "false" otherwise.
-* **channel_def**: dictionary relating channel indices to plain-language description of what the channel contains.
+* **value_range**: minimum and maximum values the input data is expected to have of the form "[MIN, MAX]" or "[]" if not known
+* **is_patch_data**: "true" if the data is a patch of an input/output tensor or the entirely of the tensor, "false" otherwise
+* **channel_def**: dictionary relating channel indices to plain-language description of what the channel contains
 
 Optional keys:
 
@@ -76,10 +78,14 @@ Optional keys:
 * **data_type**: type of source data used for training/validation.
 * **references**: list of published referenced relating to the model.
 
+Spatial shape definition can be complex for models accepting inputs of varying shapes, especially if there are specific conditions on what those shapes can be. Shapes are specified as lists of either positive integers for fixed sizes or strings containing expressions defining the condition a size depends on. This can be "*" to mean any size, or use an expression with Python mathematical operators and one character variables to represent dependence on an unknown quantity. For example, "2**n" represents a size which must be a power of 2, "2**n*m" must be a multiple of a power of 2. Variables are shared between dimension expressions, so a spatial shape of `["2**n", "2**n"]` states that the dimensions must be the same powers of 2 given by `n`. 
+
 A JSON schema for this file can be found at https://github.com/Project-MONAI/MONAI/blob/3049e280f2424962bb2a69261389fcc0b98e0036/monai/apps/mmars/schema/metadata.json
 
 An example JSON metadata file:
+
 ::
+    
   {
       "version": "0.1.0",
       "changelog": {
