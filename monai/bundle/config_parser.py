@@ -14,6 +14,7 @@ from copy import deepcopy
 from typing import Any, Dict, Optional, Sequence, Union
 
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
+from monai.bundle.config_reader import ConfigReader
 from monai.bundle.reference_resolver import ReferenceResolver
 
 __all__ = ["ConfigParser"]
@@ -75,6 +76,8 @@ class ConfigParser:
         - :py:class:`monai.apps.ConfigItem`
 
     """
+
+    macro = "%"  # macro prefix
 
     def __init__(
         self,
@@ -164,6 +167,45 @@ class ConfigParser:
         """
         self[id] = config
 
+    def _do_resolve(self, config: Any):
+        """
+        Recursively resolve the config content to replace the macro tokens with target content.
+        The macro tokens are marked as starting with "%", can be from another structured file, like:
+        `"net": "%default_net"`, `"net": "%/data/config.json#net#<args>"`.
+
+        Args:
+            config: input config file to resolve.
+
+        """
+        if isinstance(config, (dict, list)):
+            subs = enumerate(config) if isinstance(config, list) else config.items()
+            for k, v in subs:
+                config[k] = self._do_resolve(v)
+        if isinstance(config, str) and config.startswith(self.macro):
+            # only support macro mark at the beginning of a string
+            id = config[len(self.macro) :]
+            paths = ConfigReader.extract_file_path(id)
+            if paths is None:
+                # id is in the current config file
+                parser = ConfigParser(config=self.get())
+                data = deepcopy(parser[id])
+            else:
+                # id is in another config file
+                parser = ConfigParser(config=ConfigReader.load_config_file(paths[0]))
+                data = parser[paths[1][len(self.ref_resolver.sep) :] if paths[1] != "" else ""]
+            # recursively check the resolved content
+            return self._do_resolve(data)
+        return config
+
+    def resolve_macro(self):
+        """
+        Recursively resolve `self.config` to replace the macro tokens with target content.
+        The macro tokens are marked as starting with "%", can be from another structured file, like:
+        `"net": "%default_net"`, `"net": "%/data/config.json#net#<args>"`.
+
+        """
+        self.set(self._do_resolve(config=deepcopy(self.get())))
+
     def _do_parse(self, config, id: str = ""):
         """
         Recursively parse the nested data in config source, add every item as `ConfigItem` to the resolver.
@@ -193,7 +235,8 @@ class ConfigParser:
 
     def parse(self, reset: bool = True):
         """
-        Recursively parse the config source, add every item as ``ConfigItem`` to the resolver.
+        Recursively resolve `self.config` to replace the macro tokens with target content.
+        Then recursively parse the config source, add every item as ``ConfigItem`` to the reference resolver.
 
         Args:
             reset: whether to reset the ``reference_resolver`` before parsing. Defaults to `True`.
@@ -201,7 +244,8 @@ class ConfigParser:
         """
         if reset:
             self.ref_resolver.reset()
-        self._do_parse(config=self.config)
+        self.resolve_macro()
+        self._do_parse(config=self.get())
 
     def get_parsed_content(self, id: str = "", **kwargs):
         """

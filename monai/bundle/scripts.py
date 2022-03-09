@@ -74,17 +74,18 @@ def run(
             # skip None args
             kwargs[k] = v
     args = update_default_args(args=args_file, **kwargs)
+
     reader = ConfigReader()
     reader.read_config(f=args["config_file"])
     reader.read_meta(f=args["meta_file"])
 
+    parser = ConfigParser(reader.get())
+
     override = args.get("override")
     if override is not None:
-        reader.override(data=override)
-
-    reader.resolve_macro()
+        for k, v in override.items():
+            parser[k] = v
 
     # get expected workflow to run
-    parser = ConfigParser(reader.get())
     workflow = parser.get_parsed_content(id=args["target"])
     workflow.run()

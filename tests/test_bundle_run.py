@@ -36,17 +36,14 @@ class TestBundleRun(unittest.TestCase):
             filename = os.path.join(tempdir, "image.nii")
             nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
 
-            reader = ConfigReader()
             # generate default args in a JSON file
-            reader.read_config({"config_file": "will be overrided by `config_file` arg"})
-            def_args = os.path.join(tempdir, "def_args.json")
-            reader.export_config_file(filepath=def_args)
+            def_args = {"config_file": "will be overrided by `config_file` arg"}
+            ConfigReader.export_config_file(config=def_args, filepath=os.path.join(tempdir, "def_args.json"))
 
             meta = {"datalist": [{"image": filename}], "output_dir": tempdir, "window": (96, 96, 96)}
             # test YAML file
-            reader.read_config(meta)
             meta_file = os.path.join(tempdir, "meta.yaml")
-            reader.export_config_file(filepath=meta_file)
+            ConfigReader.export_config_file(config=meta, filepath=meta_file)
 
             # test override with file, up case postfix
             overridefile1 = os.path.join(tempdir, "override1.JSON")
