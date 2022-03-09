@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
-from monai.bundle.config_parser import ConfigParser
-from monai.bundle.config_reader import ConfigReader
-from monai.bundle.reference_resolver import ReferenceResolver
-from monai.bundle.scripts import run
-from monai.bundle.utils import update_default_args
+from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
+from .config_parser import ConfigParser
+from .config_reader import ConfigReader
+from .reference_resolver import ReferenceResolver
+from .scripts import run
+from .utils import update_default_args
