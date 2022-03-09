@@ -36,6 +36,7 @@ from monai.handlers import (
     TensorBoardStatsHandler,
     ValidationHandler,
     from_engine,
+    ignore_data,
 )
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.transforms import (
@@ -126,8 +127,8 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             pass
 
     val_handlers = [
-        StatsHandler(output_transform=lambda x: None),
-        TensorBoardStatsHandler(summary_writer=summary_writer, output_transform=lambda x: None),
+        StatsHandler(output_transform=ignore_data),
+        TensorBoardStatsHandler(summary_writer=summary_writer, output_transform=ignore_data),
         TensorBoardImageHandler(
             log_dir=root_dir, batch_transform=from_engine(["image", "label"]), output_transform=from_engine("pred")
         ),
@@ -250,7 +251,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         ]
     )
     val_handlers = [
-        StatsHandler(output_transform=lambda x: None),
+        StatsHandler(output_transform=ignore_data),
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
         SegmentationSaver(
             output_dir=root_dir,

@@ -11,7 +11,7 @@
 
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -194,3 +194,12 @@ def from_engine(keys: KeysCollection, first: bool = False):
             return tuple(ret) if len(ret) > 1 else ret[0]
 
     return _wrapper
+
+
+def ignore_data(x: Any):
+    """
+    Always return `None` for any input data.
+    A typical usage is to avoid logging the engine output of every iteration during evaluation.
+
+    """
+    return None
