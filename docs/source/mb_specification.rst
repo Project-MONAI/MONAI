@@ -16,7 +16,7 @@ Directory Structure
 A MONAI Bundle is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName" in this exmaple, and should contain the following structure:
 
 ::
-    
+
   ModelName
   ┣━ configs
   ┃  ┗━ metadata.json
@@ -48,7 +48,7 @@ metadata.json File
 
 This file contains the metadata information relating to the model, including what the shape and format of inputs and outputs are, what the meaning of the outputs are, what type of model is present, and other information. The JSON structure is a dictionary containing a defined set of keys with additional user-specified keys. The mandatory keys are as follows:
 
-* **version**: version of the stored model, this allows multiple versions of the same model to be differentiated. 
+* **version**: version of the stored model, this allows multiple versions of the same model to be differentiated.
 * **monai_version**: version of MONAI the bundle was generated on, later versions expected to work.
 * **pytorch_version**: version of Pytorch the bundle was generated on, later versions expected to work.
 * **numpy_version**: version of Numpy the bundle was generated on, later versions expected to work.
@@ -78,14 +78,14 @@ Optional keys:
 * **data_type**: type of source data used for training/validation.
 * **references**: list of published referenced relating to the model.
 
-Spatial shape definition can be complex for models accepting inputs of varying shapes, especially if there are specific conditions on what those shapes can be. Shapes are specified as lists of either positive integers for fixed sizes or strings containing expressions defining the condition a size depends on. This can be "*" to mean any size, or use an expression with Python mathematical operators and one character variables to represent dependence on an unknown quantity. For example, "2**n" represents a size which must be a power of 2, "2**n*m" must be a multiple of a power of 2. Variables are shared between dimension expressions, so a spatial shape of `["2**n", "2**n"]` states that the dimensions must be the same powers of 2 given by `n`. 
+Spatial shape definition can be complex for models accepting inputs of varying shapes, especially if there are specific conditions on what those shapes can be. Shapes are specified as lists of either positive integers for fixed sizes or strings containing expressions defining the condition a size depends on. This can be "*" to mean any size, or use an expression with Python mathematical operators and one character variables to represent dependence on an unknown quantity. For example, "2**n" represents a size which must be a power of 2, "2**n*m" must be a multiple of a power of 2. Variables are shared between dimension expressions, so a spatial shape of `["2**n", "2**n"]` states that the dimensions must be the same powers of 2 given by `n`.
 
 A JSON schema for this file can be found at https://github.com/Project-MONAI/MONAI/blob/3049e280f2424962bb2a69261389fcc0b98e0036/monai/apps/mmars/schema/metadata.json
 
 An example JSON metadata file:
 
 ::
-    
+
   {
       "version": "0.1.0",
       "changelog": {
