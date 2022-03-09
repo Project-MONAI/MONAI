@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from monai.bundle.scripts import run  # noqa: F401
+from monai.bundle.scripts import run
 
 if __name__ == "__main__":
     from monai.utils import optional_import
