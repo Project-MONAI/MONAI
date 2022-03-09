@@ -84,8 +84,9 @@ def run(
     parser = ConfigParser(reader.get())
 
     override = _args.get("override", {})
-    override.update(kwargs)
-    if override:
+    if isinstance(override, dict):
+        override.update(kwargs)
+    if override and isinstance(override, dict):
         for k, v in override.items():
             parser[k] = v
 

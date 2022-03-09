@@ -95,13 +95,13 @@ class ConfigReader:
 
         """
         path, *ids = f"{src}".rsplit(ReferenceResolver.sep, 1)
-        ids = ids[0] if ids else ""
         path_name = cls.path_match.findall(path)
         if not path_name:
             return "", src  # the src is a pure id
         if len(path_name) < 1 and len(path_name[0]) < 1:
             raise ValueError(f"invalid config file path: {path}")
-        return path_name[0][0], ids
+        ids_string: str = ids[0] if ids else ""
+        return path_name[0][0], ids_string
 
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
         """
