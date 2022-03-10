@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pprint
 from typing import Dict, Optional, Sequence, Union
 
 from monai.bundle.config_parser import ConfigParser
@@ -81,6 +82,16 @@ def run(
     for k, v in k_v:
         if v is not None:
             override[k] = v
+
+    full_kv = zip(
+        ("meta_file", "config_file", "target_id", "args_file", "override"),
+        (meta_file, config_file, target_id, args_file, override),
+    )
+    print("\n--- input summary of monai.bundle.scripts.run ---")
+    for name, val in full_kv:
+        print(f"> {name}: {pprint.pformat(val)}")
+    print("---\n\n")
+
     _args = _update_default_args(args=args_file, **override)
     for k in ("meta_file", "config_file"):
         if k not in _args:
