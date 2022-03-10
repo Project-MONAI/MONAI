@@ -19,7 +19,7 @@ from monai.bundle.utils import update_default_args
 def run(
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
-    override: Optional[Union[Dict, str]] = None,
+    override: Optional[Dict] = None,
     target: Optional[str] = None,
     args_file: Optional[str] = None,
     **kwargs,

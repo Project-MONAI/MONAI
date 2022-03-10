@@ -70,6 +70,7 @@ class ConfigReader:
 
         Args:
             files: path of target files to load, supported postfixes: `.json`, `.yml`, `.yaml`.
+            kwargs: other arguments for ``json.load`` or ```yaml.safe_load``, depends on the file format.
         """
         if isinstance(files, dict):  # already a config dict
             return files

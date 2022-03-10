@@ -171,7 +171,7 @@ class ConfigParser:
         """
         Recursively resolve the config content to replace the macro tokens with target content.
         The macro tokens start with "%", can be from another structured file, like:
-        ``{"net": "%default_net"}``, ``{"net": "%/data/config.json#net#<args>"}}``.
+        ``{"net": "%default_net"}``, ``{"net": "%/data/config.json#net#<args>"}``.
 
         Args:
             config: input config file to resolve.
