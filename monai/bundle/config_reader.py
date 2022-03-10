@@ -38,7 +38,7 @@ class ConfigReader:
     suffixes = ("json", "yaml", "yml")
     suffix_match = rf"\.({'|'.join(suffixes)})"
     path_match = rf"(.*{suffix_match}$)"
-    meta_key = "<meta>"  # field key to save metadata
+    meta_key = "_meta_"  # field key to save metadata
     sep = "#"  # separator for file path and the id of content in the file
 
     def __init__(self):
@@ -122,7 +122,7 @@ class ConfigReader:
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
         """
         Read the metadata from specified JSON or YAML file.
-        The metadata as a dictionary will be stored at ``self.config["<meta>"]``.
+        The metadata as a dictionary will be stored at ``self.config["_meta_"]``.
 
         Args:
             f: filepath of the metadata file, the content must be a dictionary,

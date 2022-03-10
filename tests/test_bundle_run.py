@@ -60,12 +60,12 @@ class TestBundleRun(unittest.TestCase):
             saver = LoadImage(image_only=True)
 
             if sys.platform == "win32":
-                override = "--network $@network_def.to(@device) --dataset#<name> Dataset"
+                override = "--network $@network_def.to(@device) --dataset#_name_ Dataset"
             else:
-                override = f"--network %{overridefile1}#move_net --dataset#<name> %{overridefile2}"
+                override = f"--network %{overridefile1}#move_net --dataset#_name_ %{overridefile2}"
             # test with `monai.bundle` as CLI entry directly
             cmd = "-m monai.bundle run --target_id evaluator"
-            cmd += f" --postprocessing#<args>#transforms#2#<args>#output_postfix seg {override}"
+            cmd += f" --postprocessing#transforms#2#output_postfix seg {override}"
             la = [f"{sys.executable}"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
             ret = subprocess.check_call(la + ["--args_file", def_args_file])
             self.assertEqual(ret, 0)
@@ -73,7 +73,7 @@ class TestBundleRun(unittest.TestCase):
 
             # here test the script with `google fire` tool as CLI
             cmd = "-m fire monai.bundle.scripts run --target_id evaluator"
-            cmd += f" --evaluator#<args>#amp False {override}"
+            cmd += f" --evaluator#amp False {override}"
             la = [f"{sys.executable}"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
             ret = subprocess.check_call(la)
             self.assertEqual(ret, 0)

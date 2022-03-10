@@ -38,19 +38,17 @@ class ConfigParser:
         config = {
             "my_dims": 2,
             "dims_1": "$@my_dims + 1",
-            "my_xform": {"<name>": "LoadImage"},
-            "my_net": {"<name>": "BasicUNet",
-                       "<args>": {"spatial_dims": "@dims_1", "in_channels": 1, "out_channels": 4}},
-            "trainer": {"<name>": "SupervisedTrainer",
-                        "<args>": {"network": "@my_net", "preprocessing": "@my_xform"}}
+            "my_xform": {"_name_": "LoadImage"},
+            "my_net": {"_name_": "BasicUNet", "spatial_dims": "@dims_1", "in_channels": 1, "out_channels": 4},
+            "trainer": {"_name_": "SupervisedTrainer", "network": "@my_net", "preprocessing": "@my_xform"}
         }
         # in the example $@my_dims + 1 is an expression, which adds 1 to the value of @my_dims
         parser = ConfigParser(config)
 
         # get/set configuration content, the set method should happen before calling parse()
-        print(parser["my_net"]["<args>"]["in_channels"])  # original input channels 1
-        parser["my_net"]["<args>"]["in_channels"] = 4  # change input channels to 4
-        print(parser["my_net"]["<args>"]["in_channels"])
+        print(parser["my_net"]["in_channels"])  # original input channels 1
+        parser["my_net"]["in_channels"] = 4  # change input channels to 4
+        print(parser["my_net"]["in_channels"])
 
         # instantiate the network component
         parser.parse(True)
@@ -107,7 +105,7 @@ class ConfigParser:
             id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#<args>#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if id == "":
@@ -129,7 +127,7 @@ class ConfigParser:
             id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#<args>#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
             config: config to set at location ``id``.
 
         """
@@ -171,7 +169,7 @@ class ConfigParser:
         """
         Recursively resolve the config content to replace the macro tokens with target content.
         The macro tokens start with "%", can be from another structured file, like:
-        ``{"net": "%default_net"}``, ``{"net": "%/data/config.json#net#<args>"}``.
+        ``{"net": "%default_net"}``, ``{"net": "%/data/config.json#net"}``.
 
         Args:
             config: input config file to resolve.
@@ -190,7 +188,7 @@ class ConfigParser:
         """
         Recursively resolve `self.config` to replace the macro tokens with target content.
         The macro tokens are marked as starting with "%", can be from another structured file, like:
-        ``"%default_net"``, ``"%/data/config.json#net#<args>"``.
+        ``"%default_net"``, ``"%/data/config.json#net"``.
 
         """
         self.set(self._do_resolve(config=deepcopy(self.get())))
@@ -204,7 +202,7 @@ class ConfigParser:
             id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#<args>#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if isinstance(config, (dict, list)):
@@ -248,7 +246,7 @@ class ConfigParser:
             id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#<args>#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
                 Currently support ``reset`` (for parse), ``instantiate`` and ``eval_expr``. All defaulting to True.
 

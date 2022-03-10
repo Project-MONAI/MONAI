@@ -34,10 +34,7 @@ TEST_CASE_4 = [{"_name_": "LoadImaged", "_disabled_": True, "keys": ["image"]}, 
 # test `_disabled_` with string
 TEST_CASE_5 = [{"_name_": "LoadImaged", "_disabled_": "true", "keys": ["image"]}, dict]
 # test non-monai modules and excludes
-TEST_CASE_6 = [
-    {"_path_": "torch.optim.Adam", "params": torch.nn.PReLU().parameters(), "lr": 1e-4},
-    torch.optim.Adam,
-]
+TEST_CASE_6 = [{"_path_": "torch.optim.Adam", "params": torch.nn.PReLU().parameters(), "lr": 1e-4}, torch.optim.Adam]
 TEST_CASE_7 = [{"_name_": "decollate_batch", "detach": True, "pad": True}, partial]
 # test args contains "name" field
 TEST_CASE_8 = [

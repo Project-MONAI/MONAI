@@ -47,8 +47,8 @@ class ReferenceResolver:
     _vars = "__local_refs"
     sep = "#"  # separator for key indexing
     ref = "@"  # reference prefix
-    # match a reference string, e.g. "@id#key", "@id#key#0", "@<test>#<args>#key"
-    id_matcher = re.compile(rf"{ref}(?:(?:<\w*>)|(?:\w*))(?:(?:{sep}<\w*>)|(?:{sep}\w*))*")
+    # match a reference string, e.g. "@id#key", "@id#key#0", "@_name_#key"
+    id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
