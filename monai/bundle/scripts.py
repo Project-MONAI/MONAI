@@ -12,7 +12,6 @@
 from typing import Dict, Optional, Sequence, Union
 
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.config_reader import ConfigReader
 
 
 def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> Dict:
@@ -28,7 +27,7 @@ def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> D
     args_: Dict = args if isinstance(args, dict) else {}  # type: ignore
     if isinstance(args, str):
         # args are defined in a structured file
-        args_ = ConfigReader.load_config_file(args)
+        args_ = ConfigParser.load_config_file(args)
 
     # recursively update the default args with new args
     for k, v in kwargs.items():
@@ -87,12 +86,11 @@ def run(
         if k not in _args:
             raise ValueError(f"{k} is required for 'monai.bundle run'.\n{run.__doc__}")
 
-    reader = ConfigReader()
-    reader.read_config(f=_args.pop("config_file"))
-    reader.read_meta(f=_args.pop("meta_file"))
+    parser = ConfigParser()
+    parser.read_config(f=_args.pop("config_file"))
+    parser.read_meta(f=_args.pop("meta_file"))
     id = _args.pop("target_id", "")
 
-    parser = ConfigParser(config=reader.get())
     # the rest key-values in the args are to override config content
     for k, v in _args.items():
         parser[k] = v

@@ -33,11 +33,6 @@ Model Bundle
 .. autoclass:: ConfigParser
     :members:
 
-`Config Reader`
----------------
-.. autoclass:: ConfigReader
-    :members:
-
 `Scripts`
 ---------
 .. autofunction:: run

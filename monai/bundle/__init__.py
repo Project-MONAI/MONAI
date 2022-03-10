@@ -11,7 +11,6 @@
 
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
 from .config_parser import ConfigParser
-from .config_reader import ConfigReader
 from .reference_resolver import ReferenceResolver
 from .scripts import run
 from .utils import EXPR_KEY, ID_REF_KEY, ID_SEP_KEY, MACRO_KEY
