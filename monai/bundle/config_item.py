@@ -163,22 +163,21 @@ class ConfigComponent(ConfigItem, Instantiable):
     Subclass of :py:class:`monai.bundle.ConfigItem`, this class uses a dictionary with string keys to
     represent a component of `class` or `function` and supports instantiation.
 
-    Currently, four special keys (strings surrounded by ``<>``) are defined and interpreted beyond the regular literals:
+    Currently, four special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
 
         - class or function identifier of the python module, specified by one of the two keys.
-            - ``"<name>"``: indicates build-in python classes or functions such as "LoadImageDict".
-            - ``"<path>"``: full module name, such as "monai.transforms.LoadImageDict".
-        - ``"<args>"``: input arguments to the python module.
-        - ``"<disabled>"``: a flag to indicate whether to skip the instantiation.
+            - ``"_name_"``: indicates build-in python classes or functions such as "LoadImageDict".
+            - ``"_path_"``: full module name, such as "monai.transforms.LoadImageDict".
+        - ``"_disabled_"``: a flag to indicate whether to skip the instantiation.
+
+    Other fields in the config content are input arguments to the python module.
 
     .. code-block:: python
 
         locator = ComponentLocator(excludes=["modules_to_exclude"])
         config = {
-            "<name>": "LoadImaged",
-            "<args>": {
-                "keys": ["image", "label"]
-            }
+            "_name_": "LoadImaged",
+            "keys": ["image", "label"]
         }
 
         configer = ConfigComponent(config, id="test", locator=locator)
@@ -194,6 +193,8 @@ class ConfigComponent(ConfigItem, Instantiable):
             See also: :py:class:`monai.bundle.ComponentLocator`.
 
     """
+
+    not_arg_keys = ["_name_", "_path_", "_disabled_"]
 
     def __init__(
         self,
@@ -214,27 +215,27 @@ class ConfigComponent(ConfigItem, Instantiable):
             config: input config content to check.
 
         """
-        return isinstance(config, Mapping) and ("<path>" in config or "<name>" in config)
+        return isinstance(config, Mapping) and ("_path_" in config or "_name_" in config)
 
     def resolve_module_name(self):
         """
         Resolve the target module name from current config content.
-        The config content must have ``"<path>"`` or ``"<name>"``.
-        When both are specified, ``"<path>"`` will be used.
+        The config content must have ``"_path_"`` or ``"_name_"`` key.
+        When both are specified, ``"_path_"`` will be used.
 
         """
         config = dict(self.get_config())
-        path = config.get("<path>")
+        path = config.get("_path_")
         if path is not None:
             if not isinstance(path, str):
-                raise ValueError(f"'<path>' must be a string, but got: {path}.")
-            if "<name>" in config:
-                warnings.warn(f"both '<path>' and '<name>', default to use '<path>': {path}.")
+                raise ValueError(f"'_path_' must be a string, but got: {path}.")
+            if "_name_" in config:
+                warnings.warn(f"both '_path_' and '_name_', default to use '_path_': {path}.")
             return path
 
-        name = config.get("<name>")
+        name = config.get("_name_")
         if not isinstance(name, str):
-            raise ValueError("must provide a string for `<path>` or `<name>` of target component to instantiate.")
+            raise ValueError("must provide a string for `_path_` or `_name_` of target component to instantiate.")
 
         module = self.locator.get_component_module_name(name)
         if module is None:
@@ -242,7 +243,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         if isinstance(module, list):
             warnings.warn(
                 f"there are more than 1 component have name `{name}`: {module}, use the first one `{module[0]}."
-                f" if want to use others, please set its module path in `<path>` directly."
+                f" if want to use others, please set its module path in `_path_` directly."
             )
             module = module[0]
         return f"{module}.{name}"
@@ -252,14 +253,14 @@ class ConfigComponent(ConfigItem, Instantiable):
         Utility function used in `instantiate()` to resolve the arguments from current config content.
 
         """
-        return self.get_config().get("<args>", {})
+        return {k: v for k, v in self.get_config().items() if k not in self.not_arg_keys}
 
     def is_disabled(self) -> bool:  # type: ignore
         """
         Utility function used in `instantiate()` to check whether to skip the instantiation.
 
         """
-        _is_disabled = self.get_config().get("<disabled>", False)
+        _is_disabled = self.get_config().get("_disabled_", False)
         return _is_disabled.lower().strip() == "true" if isinstance(_is_disabled, str) else bool(_is_disabled)
 
     def instantiate(self, **kwargs) -> object:  # type: ignore
