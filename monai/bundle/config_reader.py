@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from typing import Dict, Sequence, Tuple, Union
 
+from monai.bundle.utils import ID_SEP_KEY
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, optional_import
 
@@ -36,10 +37,10 @@ class ConfigReader:
     """
 
     suffixes = ("json", "yaml", "yml")
-    suffix_match = rf"\.({'|'.join(suffixes)})"
-    path_match = rf"(.*{suffix_match}$)"
+    suffix_match = rf".*\.({'|'.join(suffixes)})"
+    path_match = rf"({suffix_match}$)"
     meta_key = "_meta_"  # field key to save metadata
-    sep = "#"  # separator for file path and the id of content in the file
+    sep = ID_SEP_KEY  # separator for file path and the id of content in the file
 
     def __init__(self):
         self.config: Dict = {self.meta_key: {}}
@@ -112,7 +113,7 @@ class ConfigReader:
             src: source string to split.
 
         """
-        result = re.compile(rf"(.*{cls.suffix_match}(?=(?:{cls.sep}.*)|$))", re.IGNORECASE).findall(src)
+        result = re.compile(rf"({cls.suffix_match}(?=(?:{cls.sep}.*)|$))", re.IGNORECASE).findall(src)
         if not result:
             return "", src  # the src is a pure id
         path_name = result[0][0]  # at most one path_name

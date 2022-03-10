@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.config_reader import ConfigReader
 from monai.bundle.reference_resolver import ReferenceResolver
+from monai.bundle.utils import MACRO_KEY
 
 __all__ = ["ConfigParser"]
 
@@ -75,7 +76,7 @@ class ConfigParser:
 
     """
 
-    macro = "%"  # macro prefix
+    macro = MACRO_KEY  # macro prefix
 
     def __init__(
         self,

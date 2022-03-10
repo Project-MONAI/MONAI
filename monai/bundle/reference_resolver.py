@@ -13,6 +13,7 @@ import re
 from typing import Any, Dict, Optional, Sequence, Set
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
+from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY
 from monai.utils import look_up_option
 
 __all__ = ["ReferenceResolver"]
@@ -45,8 +46,8 @@ class ReferenceResolver:
     """
 
     _vars = "__local_refs"
-    sep = "#"  # separator for key indexing
-    ref = "@"  # reference prefix
+    sep = ID_SEP_KEY  # separator for key indexing
+    ref = ID_REF_KEY  # reference prefix
     # match a reference string, e.g. "@id#key", "@id#key#0", "@_name_#key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
 

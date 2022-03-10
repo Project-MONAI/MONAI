@@ -13,6 +13,14 @@ from typing import Dict, Optional, Union
 
 from monai.bundle.config_reader import ConfigReader
 
+__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "update_default_args"]
+
+
+ID_REF_KEY = "@"  # start of a reference to a ConfigItem
+ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
+EXPR_KEY = "$"  # start of an ConfigExpression
+MACRO_KEY = "%"  # start of a macro of a config
+
 
 def update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> Dict:
     """

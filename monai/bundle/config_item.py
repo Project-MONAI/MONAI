@@ -17,6 +17,7 @@ from abc import ABC, abstractmethod
 from importlib import import_module
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
+from monai.bundle.utils import EXPR_KEY
 from monai.utils import ensure_tuple, instantiate
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent"]
@@ -194,7 +195,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    not_arg_keys = ["_name_", "_path_", "_disabled_"]
+    non_arg_keys = {"_name_", "_path_", "_disabled_"}
 
     def __init__(
         self,
@@ -253,7 +254,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         Utility function used in `instantiate()` to resolve the arguments from current config content.
 
         """
-        return {k: v for k, v in self.get_config().items() if k not in self.not_arg_keys}
+        return {k: v for k, v in self.get_config().items() if k not in self.non_arg_keys}
 
     def is_disabled(self) -> bool:  # type: ignore
         """
@@ -309,7 +310,7 @@ class ConfigExpression(ConfigItem):
 
     """
 
-    prefix = "$"
+    prefix = EXPR_KEY
     run_eval = False if os.environ.get("MONAI_EVAL_EXPR", "1") == "0" else True
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
