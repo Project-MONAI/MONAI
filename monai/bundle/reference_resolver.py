@@ -259,6 +259,9 @@ class ReferenceResolver:
             sub_id = f"{id}{cls.sep}{idx}" if id != "" else f"{idx}"
             if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                 updated = refs_[sub_id]
+                if ConfigComponent.is_instantiable(v) and updated is None:
+                    # the component is disabled
+                    continue
             else:
                 updated = cls.update_config_with_refs(v, sub_id, refs_)
             ret.update({idx: updated}) if isinstance(ret, dict) else ret.append(updated)

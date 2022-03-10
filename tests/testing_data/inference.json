@@ -38,6 +38,11 @@
                 "keys": "image"
             },
             {
+                "_name_": "RandRotated",
+                "_disabled_": true,
+                "keys": "image"
+            },
+            {
                 "_name_": "EnsureTyped",
                 "keys": "image"
             }
