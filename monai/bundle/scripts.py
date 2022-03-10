@@ -9,11 +9,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union
 
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.config_reader import ConfigReader
-from monai.bundle.utils import update_default_args
+
+
+def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> Dict:
+    """
+    Update the `args` with the input `kwargs`.
+    For dict data, recursively update the content based on the keys.
+
+    Args:
+        args: source args to update.
+        kwargs: destination args to update.
+
+    """
+    args_: Dict = args if isinstance(args, dict) else {}  # type: ignore
+    if isinstance(args, str):
+        # args are defined in a structured file
+        args_ = ConfigReader.load_config_file(args)
+
+    # recursively update the default args with new args
+    for k, v in kwargs.items():
+        args_[k] = _update_default_args(args_[k], **v) if isinstance(v, dict) and isinstance(args_.get(k), dict) else v
+    return args_
 
 
 def run(
@@ -62,7 +82,7 @@ def run(
     for k, v in k_v:
         if v is not None:
             override[k] = v
-    _args = update_default_args(args=args_file, **override)
+    _args = _update_default_args(args=args_file, **override)
     for k in ("meta_file", "config_file"):
         if k not in _args:
             raise ValueError(f"{k} is required for 'monai.bundle run'.\n{run.__doc__}")

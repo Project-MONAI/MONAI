@@ -41,7 +41,3 @@ Model Bundle
 `Scripts`
 ---------
 .. autofunction:: run
-
-`Utilities`
------------
-.. autofunction:: update_default_args
