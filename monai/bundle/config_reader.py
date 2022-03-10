@@ -14,7 +14,6 @@ import re
 from pathlib import Path
 from typing import Dict, Sequence, Tuple, Union
 
-from monai.bundle.reference_resolver import ReferenceResolver
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, optional_import
 
@@ -37,8 +36,10 @@ class ConfigReader:
     """
 
     suffixes = ("json", "yaml", "yml")
-    path_match = re.compile(rf"(.*\.({'|'.join(suffixes)})$)", re.IGNORECASE)
+    suffix_match = rf"\.({'|'.join(suffixes)})"
+    path_match = rf"(.*{suffix_match}$)"
     meta_key = "<meta>"  # field key to save metadata
+    sep = "#"  # separator for file path and the id of content in the file
 
     def __init__(self):
         self.config: Dict = {self.meta_key: {}}
@@ -54,7 +55,7 @@ class ConfigReader:
 
         """
         _filepath: str = str(Path(filepath))
-        if not cls.path_match.findall(_filepath):
+        if not re.compile(cls.path_match, re.IGNORECASE).findall(_filepath):
             raise ValueError(f'unknown file input: "{filepath}"')
         with open(_filepath) as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
@@ -105,17 +106,18 @@ class ConfigReader:
         """
         Split `src` string into two parts: a config file path and component id.
         The file path should end with `(json|yaml|yml)`. The component id should be separated by `#` if it exists.
+        If no path or no id, return "".
 
         Args:
             src: source string to split.
 
         """
-        path, *ids = src.rsplit(ReferenceResolver.sep, 1)
-        path_name = cls.path_match.findall(path)
-        if not path_name:
+        result = re.compile(cls.suffix_match, re.IGNORECASE).findall(src)
+        if len(result) != 1:
             return "", src  # the src is a pure id
-        ids_string: str = ids[0] if ids else ""
-        return path_name[0][0], ids_string
+        items = src.split(result[0])
+        # return file path and the
+        return items[0] + result[0], items[1][len(cls.sep) :] if items[1] != "" else ""
 
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
         """
