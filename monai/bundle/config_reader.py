@@ -112,12 +112,12 @@ class ConfigReader:
             src: source string to split.
 
         """
-        result = re.compile(cls.suffix_match, re.IGNORECASE).findall(src)
-        if len(result) != 1:
+        result = re.compile(rf"(.*{cls.suffix_match}(?=(?:{cls.sep}.*)|$))", re.IGNORECASE).findall(src)
+        if not result:
             return "", src  # the src is a pure id
-        items = src.split(result[0])
-        # return file path and the
-        return items[0] + result[0], items[1][len(cls.sep) :] if items[1] != "" else ""
+        path_name = result[0][0]  # at most one path_name
+        _, ids = src.rsplit(path_name, 1)
+        return path_name, ids[len(cls.sep) :] if ids.startswith(cls.sep) else ""
 
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
         """
