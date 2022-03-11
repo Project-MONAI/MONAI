@@ -7,7 +7,6 @@ on:
       - main
       - releasing/*
       - feature/*
-      - torch111
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
