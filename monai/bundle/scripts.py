@@ -42,6 +42,13 @@ def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> D
     return args_
 
 
+def _log_input_summary(tag: str, args: Dict):
+    print(f"\n--- input summary of monai.bundle.scripts.{tag} ---")
+    for name, val in args.items():
+        print(f"> {name}: {pprint.pformat(val)}")
+    print("---\n\n")
+
+
 def run(
     runner_id: Optional[str] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
@@ -89,19 +96,11 @@ def run(
         if v is not None:
             override[k] = v
 
-    full_kv = zip(
-        ("runner_id", "meta_file", "config_file", "args_file", "override"),
-        (runner_id, meta_file, config_file, args_file, override),
-    )
-    print("\n--- input summary of monai.bundle.scripts.run ---")
-    for name, val in full_kv:
-        print(f"> {name}: {pprint.pformat(val)}")
-    print("---\n\n")
-
     _args = _update_default_args(args=args_file, **override)
     for k in ("meta_file", "config_file"):
         if k not in _args:
             raise ValueError(f"{k} is required for 'monai.bundle run'.\n{run.__doc__}")
+    _log_input_summary(tag="run", args=_args)
 
     parser = ConfigParser()
     parser.read_config(f=_args.pop("config_file"))
@@ -155,6 +154,7 @@ def verify_metadata(
         if v is not None:
             kwargs[k] = v
     _args = _update_default_args(args=args_file, **kwargs)
+    _log_input_summary(tag="run", args=_args)
 
     filepath_ = _args.pop("filepath")
     create_dir_ = _args.pop("create_dir", True)
