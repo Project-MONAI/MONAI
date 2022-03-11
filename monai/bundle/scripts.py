@@ -12,13 +12,15 @@
 import pprint
 from typing import Dict, Optional, Sequence, Union
 
-from monai.apps.utils import download_url
+from monai.apps.utils import download_url, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
 from monai.utils import optional_import, verify_parent_dir
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
+
+logger = get_logger(module_name=__name__)
 
 
 def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> Dict:
@@ -43,10 +45,10 @@ def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> D
 
 
 def _log_input_summary(tag: str, args: Dict):
-    print(f"\n--- input summary of monai.bundle.scripts.{tag} ---")
+    logger.info(f"\n--- input summary of monai.bundle.scripts.{tag} ---")
     for name, val in args.items():
-        print(f"> {name}: {pprint.pformat(val)}")
-    print("---\n\n")
+        logger.info(f"> {name}: {pprint.pformat(val)}")
+    logger.info("---\n\n")
 
 
 def run(
@@ -176,3 +178,4 @@ def verify_metadata(
             with open(result_path_, "w") as f:
                 f.write(str(e))
         raise ValueError(f"metadata failed to validate against schema `{url_}`.") from e
+    logger.info("metadata verification completed.")
