@@ -45,7 +45,7 @@ def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> D
 def run(
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
-    target_id: Optional[str] = None,
+    runner_id: Optional[str] = None,
     args_file: Optional[str] = None,
     **override,
 ):
@@ -57,7 +57,7 @@ def run(
     .. code-block:: bash
 
         # Execute this module as a CLI entry:
-        python -m monai.bundle run --meta_file <meta path> --config_file <config path> --target_id trainer
+        python -m monai.bundle run --meta_file <meta path> --config_file <config path> --runner_id trainer
 
         # Override config values at runtime by specifying the component id and its new value:
         python -m monai.bundle run --net#input_chns 1 ...
@@ -77,21 +77,21 @@ def run(
             if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
-        target_id: ID name of the target component or workflow, it must have a `run` method.
+        runner_id: ID name of the runner component or workflow, it must have a `run` method.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
-            `target_id` and override pairs. so that the command line inputs can be simplified.
+            `runner_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``.
 
     """
-    k_v = zip(["meta_file", "config_file", "target_id"], [meta_file, config_file, target_id])
+    k_v = zip(["meta_file", "config_file", "runner_id"], [meta_file, config_file, runner_id])
     for k, v in k_v:
         if v is not None:
             override[k] = v
 
     full_kv = zip(
-        ("meta_file", "config_file", "target_id", "args_file", "override"),
-        (meta_file, config_file, target_id, args_file, override),
+        ("meta_file", "config_file", "runner_id", "args_file", "override"),
+        (meta_file, config_file, runner_id, args_file, override),
     )
     print("\n--- input summary of monai.bundle.scripts.run ---")
     for name, val in full_kv:
@@ -106,7 +106,7 @@ def run(
     parser = ConfigParser()
     parser.read_config(f=_args.pop("config_file"))
     parser.read_meta(f=_args.pop("meta_file"))
-    id = _args.pop("target_id", "")
+    id = _args.pop("runner_id", "")
 
     # the rest key-values in the _args are to override config content
     for k, v in _args.items():
