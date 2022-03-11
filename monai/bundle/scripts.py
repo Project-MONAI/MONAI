@@ -23,13 +23,14 @@ ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationEr
 logger = get_logger(module_name=__name__)
 
 
-def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> Dict:
+def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = True, **kwargs) -> Dict:
     """
     Update the `args` with the input `kwargs`.
     For dict data, recursively update the content based on the keys.
 
     Args:
         args: source args to update.
+        ignore_none: whether to ignore input args with None value, default to `True`.
         kwargs: destination args to update.
 
     """
@@ -40,7 +41,12 @@ def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> D
 
     # recursively update the default args with new args
     for k, v in kwargs.items():
-        args_[k] = _update_default_args(args_[k], **v) if isinstance(v, dict) and isinstance(args_.get(k), dict) else v
+        if ignore_none and v is None:
+            continue
+        if isinstance(v, dict) and isinstance(args_.get(k), dict):
+            args_[k] = _update_args(args_[k], ignore_none, **v)
+        else:
+            args_[k] = v
     return args_
 
 
@@ -93,12 +99,8 @@ def run(
             e.g. ``--net#input_chns 42``.
 
     """
-    k_v = zip(["runner_id", "meta_file", "config_file"], [runner_id, meta_file, config_file])
-    for k, v in k_v:
-        if v is not None:
-            override[k] = v
 
-    _args = _update_default_args(args=args_file, **override)
+    _args = _update_args(args=args_file, runner_id=runner_id, meta_file=meta_file, config_file=config_file, **override)
     for k in ("meta_file", "config_file"):
         if k not in _args:
             raise ValueError(f"{k} is required for 'monai.bundle run'.\n{run.__doc__}")
@@ -148,14 +150,16 @@ def verify_metadata(
 
     """
 
-    k_v = zip(
-        ["meta_file", "schema_url", "filepath", "result_path", "create_dir", "hash_val"],
-        [meta_file, schema_url, filepath, result_path, create_dir, hash_val],
+    _args = _update_args(
+        args=args_file,
+        meta_file=meta_file,
+        schema_url=schema_url,
+        filepath=filepath,
+        result_path=result_path,
+        create_dir=create_dir,
+        hash_val=hash_val,
+        **kwargs,
     )
-    for k, v in k_v:
-        if v is not None:
-            kwargs[k] = v
-    _args = _update_default_args(args=args_file, **kwargs)
     _log_input_summary(tag="run", args=_args)
 
     filepath_ = _args.pop("filepath")
