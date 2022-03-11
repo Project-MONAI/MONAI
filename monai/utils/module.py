@@ -212,7 +212,7 @@ def instantiate(path: str, **kwargs):
 
     component = locate(path)
     if component is None:
-        raise ModuleNotFoundError(f"Cannot locate '{path}'.")
+        raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
     if isclass(component):
         return component(**kwargs)
     # support regular function, static method and class method
