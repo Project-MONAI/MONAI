@@ -24,7 +24,7 @@ TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "metadata
 url = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/" "meta_schema_202202281232.json"
 
 
-class TestVerifyMeta(unittest.TestCase):
+class TestVerifyMetaData(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_verify(self, metafile):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -33,11 +33,23 @@ class TestVerifyMeta(unittest.TestCase):
             resultfile = os.path.join(tempdir, "results.txt")
             hash_val = "486c581cca90293d1a7f41a57991ff35"
 
-            cmd = (
-                f"{sys.executable} -m monai.bundle.verify_meta -m {metafile} -u {url} -f {filepath}"
-                f" -r {resultfile} -v {hash_val}"
-            )
-            ret = subprocess.check_call(cmd.split(" "))
+            cmd = [
+                sys.executable,
+                "-m",
+                "monai.bundle",
+                "verify_metadata",
+                "--meta_file",
+                metafile,
+                "--schema_url",
+                url,
+                "--filepath",
+                filepath,
+                "--result_path",
+                resultfile,
+                "--hash_val",
+                hash_val,
+            ]
+            ret = subprocess.check_call(cmd)
             self.assertEqual(ret, 0)
             self.assertFalse(os.path.exists(resultfile))
 
@@ -50,9 +62,22 @@ class TestVerifyMeta(unittest.TestCase):
                 json.dump({"wrong_meta": "wrong content"}, f)
             resultfile = os.path.join(tempdir, "results.txt")
 
-            cmd = f"{sys.executable} -m monai.bundle.verify_meta -m {metafile} -u {url} -f {filepath} -r {resultfile}"
+            cmd = [
+                sys.executable,
+                "-m",
+                "monai.bundle",
+                "verify_metadata",
+                "--meta_file",
+                metafile,
+                "--schema_url",
+                url,
+                "--filepath",
+                filepath,
+                "--result_path",
+                resultfile,
+            ]
             with self.assertRaises(subprocess.CalledProcessError):
-                subprocess.check_call(cmd.split(" "))
+                subprocess.check_call(cmd)
             self.assertTrue(os.path.exists(resultfile))
 
 
