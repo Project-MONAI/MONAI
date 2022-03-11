@@ -43,9 +43,9 @@ def _update_default_args(args: Optional[Union[str, Dict]] = None, **kwargs) -> D
 
 
 def run(
+    runner_id: Optional[str] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
-    runner_id: Optional[str] = None,
     args_file: Optional[str] = None,
     **override,
 ):
@@ -57,41 +57,41 @@ def run(
     .. code-block:: bash
 
         # Execute this module as a CLI entry:
-        python -m monai.bundle run --meta_file <meta path> --config_file <config path> --runner_id trainer
+        python -m monai.bundle run trainer --meta_file <meta path> --config_file <config path>
 
         # Override config values at runtime by specifying the component id and its new value:
-        python -m monai.bundle run --net#input_chns 1 ...
+        python -m monai.bundle run trainer --net#input_chns 1 ...
 
         # Override config values with another config file `/path/to/another.json`:
-        python -m monai.bundle run --net %/path/to/another.json ...
+        python -m monai.bundle run evaluator --net %/path/to/another.json ...
 
         # Override config values with part content of another config file:
-        python -m monai.bundle run --net %/data/other.json#net_arg ...
+        python -m monai.bundle run trainer --net %/data/other.json#net_arg ...
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
+        runner_id: ID name of the runner component or workflow, it must have a `run` method.
         meta_file: filepath of the metadata file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
-        runner_id: ID name of the runner component or workflow, it must have a `run` method.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
             `runner_id` and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``.
 
     """
-    k_v = zip(["meta_file", "config_file", "runner_id"], [meta_file, config_file, runner_id])
+    k_v = zip(["runner_id", "meta_file", "config_file"], [runner_id, meta_file, config_file])
     for k, v in k_v:
         if v is not None:
             override[k] = v
 
     full_kv = zip(
-        ("meta_file", "config_file", "runner_id", "args_file", "override"),
-        (meta_file, config_file, runner_id, args_file, override),
+        ("runner_id", "meta_file", "config_file", "args_file", "override"),
+        (runner_id, meta_file, config_file, args_file, override),
     )
     print("\n--- input summary of monai.bundle.scripts.run ---")
     for name, val in full_kv:
