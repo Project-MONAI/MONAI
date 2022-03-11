@@ -60,9 +60,9 @@ class TestBundleRun(unittest.TestCase):
             saver = LoadImage(image_only=True)
 
             if sys.platform == "win32":
-                override = "--network $@network_def.to(@device) --dataset#_name_ Dataset"
+                override = "--network $@network_def.to(@device) --dataset#_target_ Dataset"
             else:
-                override = f"--network %{overridefile1}#move_net --dataset#_name_ %{overridefile2}"
+                override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
             # test with `monai.bundle` as CLI entry directly
             cmd = "-m monai.bundle run --target_id evaluator"
             cmd += f" --postprocessing#transforms#2#output_postfix seg {override}"

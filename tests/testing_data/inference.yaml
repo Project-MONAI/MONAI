@@ -1,7 +1,7 @@
 ---
 device: "$torch.device('cuda' if torch.cuda.is_available() else 'cpu')"
 network_def:
-  _name_: UNet
+  _target_: UNet
   spatial_dims: 3
   in_channels: 1
   out_channels: 2
@@ -20,31 +20,31 @@ network_def:
   norm: batch
 network: need override
 preprocessing:
-  _name_: Compose
+  _target_: Compose
   transforms:
-  - _name_: LoadImaged
+  - _target_: LoadImaged
     keys: image
-  - _name_: EnsureChannelFirstd
+  - _target_: EnsureChannelFirstd
     keys: image
-  - _name_: ScaleIntensityd
+  - _target_: ScaleIntensityd
     keys: image
-  - _name_: RandRotated
+  - _target_: RandRotated
     _disabled_: true
     keys: image
-  - _name_: EnsureTyped
+  - _target_: EnsureTyped
     keys: image
 dataset:
-  _name_: need override
+  _target_: need override
   data: "@_meta_#datalist"
   transform: "@preprocessing"
 dataloader:
-  _name_: DataLoader
+  _target_: DataLoader
   dataset: "@dataset"
   batch_size: 1
   shuffle: false
   num_workers: 4
 inferer:
-  _name_: SlidingWindowInferer
+  _target_: SlidingWindowInferer
   roi_size:
   - 96
   - 96
@@ -52,20 +52,20 @@ inferer:
   sw_batch_size: 4
   overlap: 0.5
 postprocessing:
-  _name_: Compose
+  _target_: Compose
   transforms:
-  - _name_: Activationsd
+  - _target_: Activationsd
     keys: pred
     softmax: true
-  - _name_: AsDiscreted
+  - _target_: AsDiscreted
     keys: pred
     argmax: true
-  - _name_: SaveImaged
+  - _target_: SaveImaged
     keys: pred
     meta_keys: image_meta_dict
     output_dir: "@_meta_#output_dir"
 evaluator:
-  _name_: SupervisedEvaluator
+  _target_: SupervisedEvaluator
   device: "@device"
   val_data_loader: "@dataloader"
   network: "@network"

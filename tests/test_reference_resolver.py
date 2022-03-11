@@ -27,8 +27,8 @@ _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 TEST_CASE_1 = [
     {
         # all the recursively parsed config items
-        "transform#1": {"_name_": "LoadImaged", "keys": ["image"]},
-        "transform#1#_name_": "LoadImaged",
+        "transform#1": {"_target_": "LoadImaged", "keys": ["image"]},
+        "transform#1#_target_": "LoadImaged",
         "transform#1#keys": ["image"],
         "transform#1#keys#0": "image",
     },
@@ -39,12 +39,12 @@ TEST_CASE_1 = [
 TEST_CASE_2 = [
     {
         # some the recursively parsed config items
-        "dataloader": {"_name_": "DataLoader", "dataset": "@dataset", "collate_fn": "$monai.data.list_data_collate"},
-        "dataset": {"_name_": "Dataset", "data": [1, 2]},
-        "dataloader#_name_": "DataLoader",
+        "dataloader": {"_target_": "DataLoader", "dataset": "@dataset", "collate_fn": "$monai.data.list_data_collate"},
+        "dataset": {"_target_": "Dataset", "data": [1, 2]},
+        "dataloader#_target_": "DataLoader",
         "dataloader#dataset": "@dataset",
         "dataloader#collate_fn": "$monai.data.list_data_collate",
-        "dataset#_name_": "Dataset",
+        "dataset#_target_": "Dataset",
         "dataset#data": [1, 2],
         "dataset#data#0": 1,
         "dataset#data#1": 2,
@@ -56,8 +56,8 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [
     {
         # all the recursively parsed config items
-        "transform#1": {"_name_": "RandTorchVisiond", "keys": "image", "name": "ColorJitter", "brightness": 0.25},
-        "transform#1#_name_": "RandTorchVisiond",
+        "transform#1": {"_target_": "RandTorchVisiond", "keys": "image", "name": "ColorJitter", "brightness": 0.25},
+        "transform#1#_target_": "RandTorchVisiond",
         "transform#1#keys": "image",
         "transform#1#name": "ColorJitter",
         "transform#1#brightness": 0.25,

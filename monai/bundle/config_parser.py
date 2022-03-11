@@ -45,9 +45,9 @@ class ConfigParser:
         config = {
             "my_dims": 2,
             "dims_1": "$@my_dims + 1",
-            "my_xform": {"_name_": "LoadImage"},
-            "my_net": {"_name_": "BasicUNet", "spatial_dims": "@dims_1", "in_channels": 1, "out_channels": 4},
-            "trainer": {"_name_": "SupervisedTrainer", "network": "@my_net", "preprocessing": "@my_xform"}
+            "my_xform": {"_target_": "LoadImage"},
+            "my_net": {"_target_": "BasicUNet", "spatial_dims": "@dims_1", "in_channels": 1, "out_channels": 4},
+            "trainer": {"_target_": "SupervisedTrainer", "network": "@my_net", "preprocessing": "@my_xform"}
         }
         # in the example $@my_dims + 1 is an expression, which adds 1 to the value of @my_dims
         parser = ConfigParser(config)

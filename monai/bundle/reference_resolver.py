@@ -48,7 +48,7 @@ class ReferenceResolver:
     _vars = "__local_refs"
     sep = ID_SEP_KEY  # separator for key indexing
     ref = ID_REF_KEY  # reference prefix
-    # match a reference string, e.g. "@id#key", "@id#key#0", "@_name_#key"
+    # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
