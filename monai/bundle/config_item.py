@@ -164,7 +164,7 @@ class ConfigComponent(ConfigItem, Instantiable):
     Subclass of :py:class:`monai.bundle.ConfigItem`, this class uses a dictionary with string keys to
     represent a component of `class` or `function` and supports instantiation.
 
-    Currently, four special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
+    Currently, two special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
 
         - class or function identifier of the python module, specified by one of the two keys.
             - ``"_target_"``: indicates build-in python classes or functions such as "LoadImageDict",
