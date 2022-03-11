@@ -39,24 +39,9 @@ class TestVerifyMetaData(unittest.TestCase):
             resultfile = os.path.join(tempdir, "results.txt")
             hash_val = "486c581cca90293d1a7f41a57991ff35"
 
-            cmd = [
-                sys.executable,
-                "-m",
-                "monai.bundle",
-                "verify_metadata",
-                "--meta_file",
-                metafile,
-                "--schema_url",
-                url,
-                "--filepath",
-                filepath,
-                "--result_path",
-                resultfile,
-                "--hash_val",
-                hash_val,
-                "--args_file",
-                def_args_file,
-            ]
+            cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", metafile]
+            cmd += ["--schema_url", url, "--filepath", filepath, "--result_path", resultfile]
+            cmd += ["--hash_val", hash_val, "--args_file", def_args_file]
             ret = subprocess.check_call(cmd)
             self.assertEqual(ret, 0)
             self.assertFalse(os.path.exists(resultfile))
@@ -70,20 +55,8 @@ class TestVerifyMetaData(unittest.TestCase):
                 json.dump({"wrong_meta": "wrong content"}, f)
             resultfile = os.path.join(tempdir, "results.txt")
 
-            cmd = [
-                sys.executable,
-                "-m",
-                "monai.bundle",
-                "verify_metadata",
-                "--meta_file",
-                metafile,
-                "--schema_url",
-                url,
-                "--filepath",
-                filepath,
-                "--result_path",
-                resultfile,
-            ]
+            cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", metafile]
+            cmd += ["--schema_url", url, "--filepath", filepath, "--result_path", resultfile]
             with self.assertRaises(subprocess.CalledProcessError):
                 subprocess.check_call(cmd)
             self.assertTrue(os.path.exists(resultfile))
