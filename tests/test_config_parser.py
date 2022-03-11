@@ -64,9 +64,9 @@ TEST_CASE_2 = [
         "cls_func": "$TestClass.cls_compute",
         "lambda_static_func": "$lambda x, y: TestClass.compute(x, y)",
         "lambda_cls_func": "$lambda x, y: TestClass.cls_compute(x, y)",
-        "compute": {"_path_": "tests.test_config_parser.TestClass.compute", "func": "@basic_func"},
-        "cls_compute": {"_path_": "tests.test_config_parser.TestClass.cls_compute", "func": "@basic_func"},
-        "call_compute": {"_path_": "tests.test_config_parser.TestClass"},
+        "compute": {"_name_": "tests.test_config_parser.TestClass.compute", "func": "@basic_func"},
+        "cls_compute": {"_name_": "tests.test_config_parser.TestClass.cls_compute", "func": "@basic_func"},
+        "call_compute": {"_name_": "tests.test_config_parser.TestClass"},
         "error_func": "$TestClass.__call__",
         "<test>": "$lambda x, y: x + y",
     }

@@ -167,8 +167,8 @@ class ConfigComponent(ConfigItem, Instantiable):
     Currently, four special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
 
         - class or function identifier of the python module, specified by one of the two keys.
-            - ``"_name_"``: indicates build-in python classes or functions such as "LoadImageDict".
-            - ``"_path_"``: full module name, such as "monai.transforms.LoadImageDict".
+            - ``"_name_"``: indicates build-in python classes or functions such as "LoadImageDict",
+            or full module name, such as "monai.transforms.LoadImageDict".
         - ``"_disabled_"``: a flag to indicate whether to skip the instantiation.
 
     Other fields in the config content are input arguments to the python module.
@@ -195,7 +195,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    non_arg_keys = {"_name_", "_path_", "_disabled_"}
+    non_arg_keys = {"_name_", "_disabled_"}
 
     def __init__(
         self,
@@ -216,38 +216,31 @@ class ConfigComponent(ConfigItem, Instantiable):
             config: input config content to check.
 
         """
-        return isinstance(config, Mapping) and ("_path_" in config or "_name_" in config)
+        return isinstance(config, Mapping) and "_name_" in config
 
     def resolve_module_name(self):
         """
         Resolve the target module name from current config content.
-        The config content must have ``"_path_"`` or ``"_name_"`` key.
-        When both are specified, ``"_path_"`` will be used.
+        The config content must have ``"_name_"`` key.
 
         """
         config = dict(self.get_config())
-        path = config.get("_path_")
-        if path is not None:
-            if not isinstance(path, str):
-                raise ValueError(f"'_path_' must be a string, but got: {path}.")
-            if "_name_" in config:
-                warnings.warn(f"both '_path_' and '_name_', default to use '_path_': {path}.")
-            return path
+        target = config.get("_name_")
+        if not isinstance(target, str):
+            raise ValueError("must provide a string for the `_name_` of component to instantiate.")
 
-        name = config.get("_name_")
-        if not isinstance(name, str):
-            raise ValueError("must provide a string for `_path_` or `_name_` of target component to instantiate.")
-
-        module = self.locator.get_component_module_name(name)
+        module = self.locator.get_component_module_name(target)
         if module is None:
-            raise ModuleNotFoundError(f"can not find component '{name}' in {self.locator.MOD_START} modules.")
+            # target is the full module name, no need to parse
+            return target
+
         if isinstance(module, list):
             warnings.warn(
-                f"there are more than 1 component have name `{name}`: {module}, use the first one `{module[0]}."
-                f" if want to use others, please set its module path in `_path_` directly."
+                f"there are more than 1 component have name `{target}`: {module}, use the first one `{module[0]}."
+                f" if want to use others, please set its full module path in `_name_` directly."
             )
             module = module[0]
-        return f"{module}.{name}"
+        return f"{module}.{target}"
 
     def resolve_args(self):
         """

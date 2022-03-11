@@ -27,14 +27,14 @@ _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 TEST_CASE_1 = [{"lr": 0.001}, 0.0001]
 
 TEST_CASE_2 = [{"_name_": "LoadImaged", "keys": ["image"]}, LoadImaged]
-# test python `_path_`
-TEST_CASE_3 = [{"_path_": "monai.transforms.LoadImaged", "keys": ["image"]}, LoadImaged]
+# test full module path
+TEST_CASE_3 = [{"_name_": "monai.transforms.LoadImaged", "keys": ["image"]}, LoadImaged]
 # test `_disabled_`
 TEST_CASE_4 = [{"_name_": "LoadImaged", "_disabled_": True, "keys": ["image"]}, dict]
 # test `_disabled_` with string
 TEST_CASE_5 = [{"_name_": "LoadImaged", "_disabled_": "true", "keys": ["image"]}, dict]
 # test non-monai modules and excludes
-TEST_CASE_6 = [{"_path_": "torch.optim.Adam", "params": torch.nn.PReLU().parameters(), "lr": 1e-4}, torch.optim.Adam]
+TEST_CASE_6 = [{"_name_": "torch.optim.Adam", "params": torch.nn.PReLU().parameters(), "lr": 1e-4}, torch.optim.Adam]
 TEST_CASE_7 = [{"_name_": "decollate_batch", "detach": True, "pad": True}, partial]
 # test args contains "name" field
 TEST_CASE_8 = [
