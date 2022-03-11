@@ -107,7 +107,7 @@ def matshow3d(
         vol = np.concatenate([pad(v) for v in vol], axis=0)
     else:  # ndarray
         while len(vol.shape) < 3:
-            vol = np.expand_dims(vol, 0)  # so that we display 2d as well
+            vol = np.expand_dims(vol, 0)  # type: ignore  # so that we display 2d as well
 
     if channel_dim is not None:  # move the expected dim to construct frames with `B` dim
         vol = np.moveaxis(vol, frame_dim, -4)  # type: ignore
