@@ -42,6 +42,8 @@ dependencies:
   - transformers
   - mlflow
   - tensorboardX
+  - pyyaml
+  - fire
   - pip
   - pip:
     # pip for itk as conda-forge version only up to v5.1
