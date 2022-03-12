@@ -84,6 +84,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         self,
         summary_writer: Optional[SummaryWriter] = None,
         log_dir: str = "./runs",
+        iteration_log: bool = True,
+        epoch_log: bool = True,
         epoch_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
         epoch_interval: int = 1,
         iteration_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
@@ -98,6 +100,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
             summary_writer: user can specify TensorBoard or TensorBoardX SummaryWriter,
                 default to create a new TensorBoard writer.
             log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
+            iteration_log: whether to write data to TensorBoard when iteration completed, default to `True`.
+            epoch_log: whether to write data to TensorBoard when epoch completed, default to `True`.
             epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
             epoch_interval: the epoch interval at which the epoch_event_writer is called. Defaults to 1.
@@ -121,6 +125,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
             tag_name: when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
+        self.iteration_log = iteration_log
+        self.epoch_log = epoch_log
         self.epoch_event_writer = epoch_event_writer
         self.epoch_interval = epoch_interval
         self.iteration_event_writer = iteration_event_writer
@@ -138,11 +144,11 @@ class TensorBoardStatsHandler(TensorBoardHandler):
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
-        if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
+        if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             engine.add_event_handler(
                 Events.ITERATION_COMPLETED(every=self.iteration_interval), self.iteration_completed
             )
-        if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
+        if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.epoch_interval), self.epoch_completed)
 
     def epoch_completed(self, engine: Engine) -> None:
