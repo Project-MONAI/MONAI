@@ -40,10 +40,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             # set up testing handler
             test_path = os.path.join(tempdir, "mlflow_test")
             handler = MLFlowHandler(
-                iteration_log=False,
-                epoch_log=True,
-                tracking_uri=Path(test_path).as_uri(),
-                state_attributes=["test"],
+                iteration_log=False, epoch_log=True, tracking_uri=Path(test_path).as_uri(), state_attributes=["test"]
             )
             handler.attach(engine)
             engine.run(range(3), max_epochs=2)
