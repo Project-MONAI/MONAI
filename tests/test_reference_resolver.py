@@ -27,11 +27,10 @@ _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 TEST_CASE_1 = [
     {
         # all the recursively parsed config items
-        "transform#1": {"<name>": "LoadImaged", "<args>": {"keys": ["image"]}},
-        "transform#1#<name>": "LoadImaged",
-        "transform#1#<args>": {"keys": ["image"]},
-        "transform#1#<args>#keys": ["image"],
-        "transform#1#<args>#keys#0": "image",
+        "transform#1": {"_target_": "LoadImaged", "keys": ["image"]},
+        "transform#1#_target_": "LoadImaged",
+        "transform#1#keys": ["image"],
+        "transform#1#keys#0": "image",
     },
     "transform#1",
     LoadImaged,
@@ -40,20 +39,15 @@ TEST_CASE_1 = [
 TEST_CASE_2 = [
     {
         # some the recursively parsed config items
-        "dataloader": {
-            "<name>": "DataLoader",
-            "<args>": {"dataset": "@dataset", "collate_fn": "$monai.data.list_data_collate"},
-        },
-        "dataset": {"<name>": "Dataset", "<args>": {"data": [1, 2]}},
-        "dataloader#<name>": "DataLoader",
-        "dataloader#<args>": {"dataset": "@dataset", "collate_fn": "$monai.data.list_data_collate"},
-        "dataloader#<args>#dataset": "@dataset",
-        "dataloader#<args>#collate_fn": "$monai.data.list_data_collate",
-        "dataset#<name>": "Dataset",
-        "dataset#<args>": {"data": [1, 2]},
-        "dataset#<args>#data": [1, 2],
-        "dataset#<args>#data#0": 1,
-        "dataset#<args>#data#1": 2,
+        "dataloader": {"_target_": "DataLoader", "dataset": "@dataset", "collate_fn": "$monai.data.list_data_collate"},
+        "dataset": {"_target_": "Dataset", "data": [1, 2]},
+        "dataloader#_target_": "DataLoader",
+        "dataloader#dataset": "@dataset",
+        "dataloader#collate_fn": "$monai.data.list_data_collate",
+        "dataset#_target_": "Dataset",
+        "dataset#data": [1, 2],
+        "dataset#data#0": 1,
+        "dataset#data#1": 2,
     },
     "dataloader",
     DataLoader,
@@ -62,15 +56,11 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [
     {
         # all the recursively parsed config items
-        "transform#1": {
-            "<name>": "RandTorchVisiond",
-            "<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25},
-        },
-        "transform#1#<name>": "RandTorchVisiond",
-        "transform#1#<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25},
-        "transform#1#<args>#keys": "image",
-        "transform#1#<args>#name": "ColorJitter",
-        "transform#1#<args>#brightness": 0.25,
+        "transform#1": {"_target_": "RandTorchVisiond", "keys": "image", "name": "ColorJitter", "brightness": 0.25},
+        "transform#1#_target_": "RandTorchVisiond",
+        "transform#1#keys": "image",
+        "transform#1#name": "ColorJitter",
+        "transform#1#brightness": 0.25,
     },
     "transform#1",
     RandTorchVisiond,
@@ -97,7 +87,7 @@ class TestReferenceResolver(unittest.TestCase):
         # test lazy instantiation
         item = resolver.get_item(expected_id, resolve=True)
         config = item.get_config()
-        config["<disabled>"] = False
+        config["_disabled_"] = False
         item.update_config(config=config)
         if isinstance(item, ConfigComponent):
             result = item.instantiate()
