@@ -61,6 +61,8 @@ class StatsHandler:
 
     def __init__(
         self,
+        iteration_log: bool = True,
+        epoch_log: bool = True,
         epoch_print_logger: Optional[Callable[[Engine], Any]] = None,
         iteration_print_logger: Optional[Callable[[Engine], Any]] = None,
         output_transform: Callable = lambda x: x[0],
@@ -73,6 +75,8 @@ class StatsHandler:
         """
 
         Args:
+            iteration_log: whether to log data when iteration completed, default to `True`.
+            epoch_log: whether to log data when epoch completed, default to `True`.
             epoch_print_logger: customized callable printer for epoch level logging.
                 Must accept parameter "engine", use default printer if None.
             iteration_print_logger: customized callable printer for iteration level logging.
@@ -98,6 +102,8 @@ class StatsHandler:
 
         """
 
+        self.iteration_log = iteration_log
+        self.epoch_log = epoch_log
         self.epoch_print_logger = epoch_print_logger
         self.iteration_print_logger = iteration_print_logger
         self.output_transform = output_transform
@@ -123,9 +129,9 @@ class StatsHandler:
                 "the effective log level of engine logger or RootLogger is higher than INFO, may not record log,"
                 " please call `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` to enable it."
             )
-        if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
+        if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
-        if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
+        if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
         if not engine.has_event_handler(self.exception_raised, Events.EXCEPTION_RAISED):
             engine.add_event_handler(Events.EXCEPTION_RAISED, self.exception_raised)
