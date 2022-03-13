@@ -20,6 +20,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser
+from tests.utils import skip_if_windows
 
 TEST_CASE_1 = [
     os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json"),
@@ -27,6 +28,7 @@ TEST_CASE_1 = [
 ]
 
 
+@skip_if_windows
 class TestVerifyMetaData(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_verify(self, meta_file, schema_file):
