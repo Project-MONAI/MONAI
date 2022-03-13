@@ -1,0 +1,250 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "schema": {
+            "description": "URL of the schema file.",
+            "type": "string"
+        },
+        "version": {
+            "description": "version number of the model package.",
+            "type": "string"
+        },
+        "changelog": {
+            "description": "dictionary relating previous version names to strings describing the version.",
+            "type": "object"
+        },
+        "monai_version": {
+            "description": "version of MONAI the model package was generated on.",
+            "type": "string"
+        },
+        "pytorch_version": {
+            "description": "version of PyTorch the model package was generated on.",
+            "type": "string"
+        },
+        "numpy_version": {
+            "description": "version of NumPy the model package was generated on.",
+            "type": "string"
+        },
+        "optional_packages_version": {
+            "description": "dictionary relating optional package names to their versions.",
+            "type": "object"
+        },
+        "task": {
+            "description": "plain-language description of what the model is meant to do.",
+            "type": "string"
+        },
+        "description": {
+            "description": "longer form plain-language description of what the model is, what it does, etc.",
+            "type": "string"
+        },
+        "authorship": {
+            "description": "state author(s) of the model package.",
+            "type": "string"
+        },
+        "copyright": {
+            "description": "state copyright of the model package.",
+            "type": "string"
+        },
+        "data_source": {
+            "description": "where to download or prepare the data used in this model package.",
+            "type": "string"
+        },
+        "data_type": {
+            "description": "type of the data, like: `dicom`, `nibabel`, etc.",
+            "type": "string"
+        },
+        "dataset_dir": {
+            "description": "state the expected path of data in file system.",
+            "type": "string"
+        },
+        "image_classes": {
+            "description": "description for every class of the input image.",
+            "type": "string"
+        },
+        "label_classes": {
+            "description": "description for every class of the input label.",
+            "type": "string"
+        },
+        "pred_classes": {
+            "description": "description for every class of the output prediction.",
+            "type": "string"
+        },
+        "eval_metrics": {
+            "description": "dictionary relating evaluation metrics to the achieved scores.",
+            "type": "object"
+        },
+        "intended_use": {
+            "description": "what the model package is to be used for, ie. what task it accomplishes.",
+            "type": "string"
+        },
+        "references": {
+            "description": "list of published referenced relating to the model package.",
+            "type": "array"
+        },
+        "network_data_format": {
+            "description": "defines the format, shape, and meaning of inputs and outputs to the model.",
+            "type": "object",
+            "properties": {
+                "inputs": {
+                    "type": "object",
+                    "properties": {
+                        "image": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string"
+                                },
+                                "format": {
+                                    "type": "string"
+                                },
+                                "num_channels": {
+                                    "type": "integer"
+                                },
+                                "spatial_shape": {
+                                    "type": "array"
+                                },
+                                "dtype": {
+                                    "type": "string"
+                                },
+                                "value_range": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "number"
+                                    }
+                                },
+                                "is_patch_data": {
+                                    "type": "boolean"
+                                },
+                                "channel_def": {
+                                    "type": "object"
+                                }
+                            },
+                            "required": [
+                                "type",
+                                "format",
+                                "num_channels",
+                                "spatial_shape",
+                                "dtype",
+                                "value_range"
+                            ]
+                        },
+                        "label": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string"
+                                },
+                                "format": {
+                                    "type": "string"
+                                },
+                                "num_channels": {
+                                    "type": "integer"
+                                },
+                                "spatial_shape": {
+                                    "type": "array"
+                                },
+                                "dtype": {
+                                    "type": "string"
+                                },
+                                "value_range": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "number"
+                                    }
+                                },
+                                "is_patch_data": {
+                                    "type": "boolean"
+                                },
+                                "channel_def": {
+                                    "type": "object"
+                                }
+                            },
+                            "required": [
+                                "type",
+                                "format",
+                                "num_channels",
+                                "spatial_shape",
+                                "dtype",
+                                "value_range"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "image"
+                    ]
+                },
+                "outputs": {
+                    "type": "object",
+                    "properties": {
+                        "pred": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string"
+                                },
+                                "format": {
+                                    "type": "string"
+                                },
+                                "num_channels": {
+                                    "type": "integer"
+                                },
+                                "spatial_shape": {
+                                    "type": "array"
+                                },
+                                "dtype": {
+                                    "type": "string"
+                                },
+                                "value_range": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "number"
+                                    }
+                                },
+                                "is_patch_data": {
+                                    "type": "boolean"
+                                },
+                                "channel_def": {
+                                    "type": "object"
+                                }
+                            },
+                            "required": [
+                                "type",
+                                "format",
+                                "num_channels",
+                                "spatial_shape",
+                                "dtype",
+                                "value_range"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "pred"
+                    ]
+                }
+            },
+            "required": [
+                "inputs",
+                "outputs"
+            ]
+        }
+    },
+    "required": [
+        "schema",
+        "version",
+        "monai_version",
+        "pytorch_version",
+        "numpy_version",
+        "optional_packages_version",
+        "task",
+        "description",
+        "authorship",
+        "copyright",
+        "dataset_dir",
+        "image_classes",
+        "label_classes",
+        "pred_classes",
+        "eval_metrics",
+        "network_data_format"
+    ]
+}

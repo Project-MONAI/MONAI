@@ -21,26 +21,26 @@ from parameterized import parameterized
 
 from monai.bundle import ConfigParser
 
-TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")]
-
-url = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/" "meta_schema_202202281232.json"
+TEST_CASE_1 = [
+    os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json"),
+    os.path.join(os.path.dirname(__file__), "testing_data", "schema.json"),
+]
 
 
 class TestVerifyMetaData(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
-    def test_verify(self, metafile):
+    def test_verify(self, meta_file, schema_file):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg"}
             def_args_file = os.path.join(tempdir, "def_args.json")
             ConfigParser.export_config_file(config=def_args, filepath=def_args_file)
 
-            filepath = os.path.join(tempdir, "schema.json")
             resultfile = os.path.join(tempdir, "results.txt")
-            hash_val = "486c581cca90293d1a7f41a57991ff35"
+            hash_val = "b11acc946148c0186924f8234562b947"
 
-            cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", metafile]
-            cmd += ["--schema_url", url, "--filepath", filepath, "--result_path", resultfile]
+            cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", meta_file]
+            cmd += ["--filepath", schema_file, "--result_path", resultfile]
             cmd += ["--hash_val", hash_val, "--args_file", def_args_file]
             ret = subprocess.check_call(cmd)
             self.assertEqual(ret, 0)
@@ -52,11 +52,18 @@ class TestVerifyMetaData(unittest.TestCase):
             filepath = os.path.join(tempdir, "schema.json")
             metafile = os.path.join(tempdir, "metadata.json")
             with open(metafile, "w") as f:
-                json.dump({"wrong_meta": "wrong content"}, f)
+                json.dump(
+                    {
+                        "schema": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/"
+                        "download/0.8.1/meta_schema_202203130950.json",
+                        "wrong_meta": "wrong content",
+                    },
+                    f,
+                )
             resultfile = os.path.join(tempdir, "results.txt")
 
             cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", metafile]
-            cmd += ["--schema_url", url, "--filepath", filepath, "--result_path", resultfile]
+            cmd += ["--filepath", filepath, "--result_path", resultfile]
             with self.assertRaises(subprocess.CalledProcessError):
                 subprocess.check_call(cmd)
             self.assertTrue(os.path.exists(resultfile))

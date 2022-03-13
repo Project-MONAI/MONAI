@@ -123,7 +123,6 @@ def run(
 
 def verify_metadata(
     meta_file: Optional[Union[str, Sequence[str]]] = None,
-    schema_url: Optional[str] = None,
     filepath: Optional[PathLike] = None,
     result_path: Optional[PathLike] = None,
     create_dir: Optional[bool] = None,
@@ -133,12 +132,12 @@ def verify_metadata(
 ):
     """
     Verify the provided `metadata` file based on the predefined `schema`.
+    `metadata` content must contain the `schema` field for the URL of shcema file to download.
     The schema standard follows: http://json-schema.org/.
 
     Args:
         meta_file: filepath of the metadata file to verify, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
-        schema_url: URL to download the expected schema file.
         filepath: file path to store the downloaded schema.
         result_path: if not None, save the validation error into the result file.
         create_dir: whether to create directories if not existing, default to `True`.
@@ -153,7 +152,6 @@ def verify_metadata(
     _args = _update_args(
         args=args_file,
         meta_file=meta_file,
-        schema_url=schema_url,
         filepath=filepath,
         result_path=result_path,
         create_dir=create_dir,
@@ -165,12 +163,13 @@ def verify_metadata(
     filepath_ = _args.pop("filepath")
     create_dir_ = _args.pop("create_dir", True)
     verify_parent_dir(path=filepath_, create_dir=create_dir_)
-    url_ = _args.pop("schema_url", None)
-    download_url(url=url_, filepath=filepath_, hash_val=_args.pop("hash_val", None), hash_type="md5", progress=True)
-
-    schema = ConfigParser.load_config_file(filepath=filepath_)
 
     metadata = ConfigParser.load_config_files(files=_args.pop("meta_file"))
+    url = metadata.get("schema")
+    if url is None:
+        raise ValueError("must provide the `schema` field in the metadata for the URL of schema file.")
+    download_url(url=url, filepath=filepath_, hash_val=_args.pop("hash_val", None), hash_type="md5", progress=True)
+    schema = ConfigParser.load_config_file(filepath=filepath_)
     result_path_ = _args.pop("result_path", None)
 
     try:
@@ -181,5 +180,5 @@ def verify_metadata(
             verify_parent_dir(result_path_, create_dir=create_dir_)
             with open(result_path_, "w") as f:
                 f.write(str(e))
-        raise ValueError(f"metadata failed to validate against schema `{url_}`.") from e
+        raise ValueError(f"metadata failed to validate against schema `{url}`.") from e
     logger.info("metadata verification completed.")
