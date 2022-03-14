@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -73,6 +73,8 @@ def get_optional_config_values():
     output["psutil"] = psutil_version
     output["pandas"] = get_package_version("pandas")
     output["einops"] = get_package_version("einops")
+    output["transformers"] = get_package_version("transformers")
+    output["mlflow"] = get_package_version("mlflow")
 
     return output
 
@@ -88,6 +90,7 @@ def print_config(file=sys.stdout):
         print(f"{k} version: {v}", file=file, flush=True)
     print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}")
     print(f"MONAI rev id: {monai.__revision_id__}")
+    print(f"MONAI __file__: {monai.__file__}")
 
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
@@ -121,7 +124,7 @@ def get_system_info() -> OrderedDict:
     elif output["System"] == "Darwin":
         _dict_append(output, "Mac version", lambda: platform.mac_ver()[0])
     else:
-        with open("/etc/os-release", "r") as rel_f:
+        with open("/etc/os-release") as rel_f:
             linux_ver = re.search(r'PRETTY_NAME="(.*)"', rel_f.read())
         if linux_ver:
             _dict_append(output, "Linux version", lambda: linux_ver.group(1))
@@ -158,9 +161,9 @@ def get_system_info() -> OrderedDict:
                 ),
             )
             mem = psutil.virtual_memory()
-            _dict_append(output, "Total physical memory (GB)", lambda: round(mem.total / 1024 ** 3, 1))
-            _dict_append(output, "Available memory (GB)", lambda: round(mem.available / 1024 ** 3, 1))
-            _dict_append(output, "Used memory (GB)", lambda: round(mem.used / 1024 ** 3, 1))
+            _dict_append(output, "Total physical memory (GB)", lambda: round(mem.total / 1024**3, 1))
+            _dict_append(output, "Available memory (GB)", lambda: round(mem.available / 1024**3, 1))
+            _dict_append(output, "Used memory (GB)", lambda: round(mem.used / 1024**3, 1))
 
     return output
 
@@ -198,8 +201,7 @@ def get_gpu_info() -> OrderedDict:
 
     if num_gpus > 0:
         _dict_append(output, "Current device", torch.cuda.current_device)
-        if hasattr(torch.cuda, "get_arch_list"):  # get_arch_list is new in torch 1.7.1
-            _dict_append(output, "Library compiled for CUDA architectures", torch.cuda.get_arch_list)
+        _dict_append(output, "Library compiled for CUDA architectures", torch.cuda.get_arch_list)
 
     for gpu in range(num_gpus):
         gpu_info = torch.cuda.get_device_properties(gpu)
@@ -207,7 +209,7 @@ def get_gpu_info() -> OrderedDict:
         _dict_append(output, f"GPU {gpu} Is integrated", lambda: bool(gpu_info.is_integrated))
         _dict_append(output, f"GPU {gpu} Is multi GPU board", lambda: bool(gpu_info.is_multi_gpu_board))
         _dict_append(output, f"GPU {gpu} Multi processor count", lambda: gpu_info.multi_processor_count)
-        _dict_append(output, f"GPU {gpu} Total memory (GB)", lambda: round(gpu_info.total_memory / 1024 ** 3, 1))
+        _dict_append(output, f"GPU {gpu} Total memory (GB)", lambda: round(gpu_info.total_memory / 1024**3, 1))
         _dict_append(output, f"GPU {gpu} CUDA capability (maj.min)", lambda: f"{gpu_info.major}.{gpu_info.minor}")
 
     return output

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ from .activation import MemoryEfficientSwish, Mish, Swish
 from .aspp import SimpleASPP
 from .convolutions import Convolution, ResidualUnit
 from .crf import CRF
+from .dints_block import ActiConvNormBlock, FactorizedIncreaseBlock, FactorizedReduceBlock, P3DActiConvNormBlock
 from .downsample import MaxAvgPool
 from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock, get_output_padding, get_padding
 from .fcn import FCN, GCN, MCFCN, Refine
