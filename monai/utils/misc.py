@@ -50,7 +50,7 @@ __all__ = [
     "is_module_ver_at_least",
     "has_option",
     "sample_slices",
-    "verify_parent_dir",
+    "check_parent_dir",
     "save_obj",
 ]
 
@@ -401,12 +401,12 @@ def sample_slices(data: NdarrayOrTensor, dim: int = 1, as_indices: bool = True, 
     return data[tuple(slices)]
 
 
-def verify_parent_dir(path: PathLike, create_dir: bool = True):
+def check_parent_dir(path: PathLike, create_dir: bool = True):
     """
-    Utility to verify whether the parent directory of the `path` exists.
+    Utility to check whether the parent directory of the `path` exists.
 
     Args:
-        path: input path to verify the parent directory.
+        path: input path to check the parent directory.
         create_dir: if True, when the parent directory doesn't exist, create the directory,
             otherwise, raise exception.
 
@@ -441,7 +441,7 @@ def save_obj(
 
     """
     path = Path(path)
-    verify_parent_dir(path=path, create_dir=create_dir)
+    check_parent_dir(path=path, create_dir=create_dir)
     if path.exists():
         # remove the existing file
         os.remove(path)

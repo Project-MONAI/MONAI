@@ -16,7 +16,7 @@ from typing import Dict, Optional, Sequence, Union
 from monai.apps.utils import download_url, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
-from monai.utils import optional_import, verify_parent_dir
+from monai.utils import check_parent_dir, optional_import
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
@@ -155,7 +155,7 @@ def verify_metadata(
 
     filepath_ = _args.pop("filepath")
     create_dir_ = _args.pop("create_dir", True)
-    verify_parent_dir(path=filepath_, create_dir=create_dir_)
+    check_parent_dir(path=filepath_, create_dir=create_dir_)
 
     metadata = ConfigParser.load_config_files(files=_args.pop("meta_file"))
     url = metadata.get("schema")
