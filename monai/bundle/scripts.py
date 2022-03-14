@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import pprint
+import re
 from typing import Dict, Optional, Sequence, Union
 
 from monai.apps.utils import download_url, get_logger
@@ -124,7 +125,6 @@ def run(
 def verify_metadata(
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     filepath: Optional[PathLike] = None,
-    result_path: Optional[PathLike] = None,
     create_dir: Optional[bool] = None,
     hash_val: Optional[str] = None,
     args_file: Optional[str] = None,
@@ -139,7 +139,6 @@ def verify_metadata(
         meta_file: filepath of the metadata file to verify, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
         filepath: file path to store the downloaded schema.
-        result_path: if not None, save the validation error into the result file.
         create_dir: whether to create directories if not existing, default to `True`.
         hash_val: if not None, define the hash value to verify the downloaded schema file.
         args_file: a JSON or YAML file to provide default values for all the args in this function.
@@ -153,7 +152,6 @@ def verify_metadata(
         args=args_file,
         meta_file=meta_file,
         filepath=filepath,
-        result_path=result_path,
         create_dir=create_dir,
         hash_val=hash_val,
         **kwargs,
@@ -170,15 +168,12 @@ def verify_metadata(
         raise ValueError("must provide the `schema` field in the metadata for the URL of schema file.")
     download_url(url=url, filepath=filepath_, hash_val=_args.pop("hash_val", None), hash_type="md5", progress=True)
     schema = ConfigParser.load_config_file(filepath=filepath_)
-    result_path_ = _args.pop("result_path", None)
 
     try:
         # the rest key-values in the _args are for `validate` API
         validate(instance=metadata, schema=schema, **_args)
     except ValidationError as e:
-        if result_path_ is not None:
-            verify_parent_dir(result_path_, create_dir=create_dir_)
-            with open(result_path_, "w") as f:
-                f.write(str(e))
-        raise ValueError(f"metadata failed to validate against schema `{url}`.") from e
-    logger.info("metadata verification completed.")
+        # as the error message is very long, only extract the key information
+        logger.info(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
+        return
+    logger.info("metadata is verified with no error.")

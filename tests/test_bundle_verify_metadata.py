@@ -38,15 +38,12 @@ class TestVerifyMetaData(unittest.TestCase):
             def_args_file = os.path.join(tempdir, "def_args.json")
             ConfigParser.export_config_file(config=def_args, filepath=def_args_file)
 
-            resultfile = os.path.join(tempdir, "results.txt")
             hash_val = "b11acc946148c0186924f8234562b947"
 
             cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", meta_file]
-            cmd += ["--filepath", schema_file, "--result_path", resultfile]
-            cmd += ["--hash_val", hash_val, "--args_file", def_args_file]
+            cmd += ["--filepath", schema_file, "--hash_val", hash_val, "--args_file", def_args_file]
             ret = subprocess.check_call(cmd)
             self.assertEqual(ret, 0)
-            self.assertFalse(os.path.exists(resultfile))
 
     def test_verify_error(self):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -62,13 +59,12 @@ class TestVerifyMetaData(unittest.TestCase):
                     },
                     f,
                 )
-            resultfile = os.path.join(tempdir, "results.txt")
 
-            cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", metafile]
-            cmd += ["--filepath", filepath, "--result_path", resultfile]
-            with self.assertRaises(subprocess.CalledProcessError):
-                subprocess.check_call(cmd)
-            self.assertTrue(os.path.exists(resultfile))
+            cmd = [
+                sys.executable, "-m", "monai.bundle", "verify_metadata", metafile, "--filepath", filepath
+            ]
+            ret = subprocess.check_call(cmd)
+            self.assertEqual(ret, 0)
 
 
 if __name__ == "__main__":
