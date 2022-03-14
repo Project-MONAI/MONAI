@@ -54,7 +54,18 @@ def _log_input_summary(tag: str, args: Dict):
     logger.info("---\n\n")
 
 
-def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int = 1, any: int = 1):
+def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int = 1, any: int = 1) -> Tuple[int]:
+    """
+    Get spatial shape for fake data according to the specified shape pattern.
+    It supports `int` number and `string` with formats like: "32", "32 * n", "32 ** p", "32 ** p *n".
+
+    Args:
+        shape: specified pattern for the spatial shape.
+        p: power factor to generate fake data shape if dim of expected shape is "x**p", default to 1.
+        p: multiply factor to generate fake data shape if dim of expected shape is "x*n", default to 1.
+        any: specified size to generate fake data shape if dim of expected shape is "*", default to 1.
+
+    """
     ret = []
     for i in shape:
         if isinstance(i, int):
@@ -142,17 +153,15 @@ def verify_net_in_out(
     **override,
 ):
     """
-    Verify the input and output shape of network defined in the metadata.
+    Verify the input and output data shape and data type of network defined in the metadata.
     Will test with fake Tensor data according to the network args with id:
     input data:
     "_meta_#network_data_format#inputs#image#num_channels"
     "_meta_#network_data_format#inputs#image#spatial_shape"
     "_meta_#network_data_format#inputs#image#dtype"
-    "_meta_#network_data_format#inputs#image#value_range"
     output data:
     "_meta_#network_data_format#outputs#pred#num_channels"
     "_meta_#network_data_format#outputs#pred#dtype"
-    "_meta_#network_data_format#outputs#pred#value_range"
 
     Args:
         net_id: ID name of the network component to verify, it must be `torch.nn.Module`.
@@ -201,11 +210,9 @@ def verify_net_in_out(
     input_channels = parser["_meta_#network_data_format#inputs#image#num_channels"]
     input_spatial_shape = tuple(parser["_meta_#network_data_format#inputs#image#spatial_shape"])
     input_dtype = get_equivalent_dtype(parser["_meta_#network_data_format#inputs#image#dtype"], data_type=torch.Tensor)
-    input_value_range = tuple(parser["_meta_#network_data_format#inputs#image#value_range"])
 
     output_channels = parser["_meta_#network_data_format#outputs#pred#num_channels"]
     output_dtype = get_equivalent_dtype(parser["_meta_#network_data_format#output#pred#dtype"], data_type=torch.Tensor)
-    output_value_range = tuple(parser["_meta_#network_data_format#output#pred#value_range"])
 
     net.eval()
     with torch.no_grad():
