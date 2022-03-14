@@ -4,6 +4,7 @@
 1. [From PyPI](#from-pypi)
 	1. [Milestone release](#milestone-release)
 	2. [Weekly preview release](#weekly-preview-release)
+1. [From conda-forge](#from-conda-forge)
 2. [From GitHub](#from-github)
 	1. [System-wide](#milestone-release)
 	2. [Editable](#weekly-preview-release)
@@ -14,7 +15,7 @@
 
 ---
 
-MONAI's core functionality is written in Python 3 (>= 3.6) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
+MONAI's core functionality is written in Python 3 (>= 3.7) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
 
 The package is currently distributed via Github as the primary source code repository,
 and the Python package index (PyPI). The pre-built Docker images are made available on DockerHub.
@@ -45,6 +46,13 @@ The weekly build is released to PyPI every Sunday with a pre-release build numbe
 To report any issues on the weekly preview, please include the version and commit information:
 ```bash
 python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
+```
+
+## From conda-forge
+
+To install the [current milestone release](https://pypi.org/project/monai/):
+```bash
+conda install -c conda-forge monai
 ```
 
 ## From GitHub
@@ -163,20 +171,28 @@ cd MONAI/
 pip install -e '.[all]'
 ```
 
-To install all optional dependencies for MONAI development:
+To install all optional dependencies for MONAI development with `pip`:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -r requirements-dev.txt
 ```
 
+To install all optional dependencies for MONAI development with `conda`:
+```bash
+git clone https://github.com/Project-MONAI/MONAI.git
+cd MONAI/
+conda create -n <name> --python=<ver>  # eg 3.9
+conda env update -n <name> -f environment-dev.yml
+```
+
 Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is available via PyPI.
 
 - The options are
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops]
+[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire]
 ```
 which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas` and `einops`, respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

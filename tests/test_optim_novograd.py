@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,37 +38,19 @@ def build_test_cases(data):
     return test_cases
 
 
-TEST_CASES_ALL = build_test_cases(  # normal parameters
-    [
-        torch.randn(10, 5),
-        torch.randn(10),
-        torch.randn(5),
-    ]
-)
+TEST_CASES_ALL = build_test_cases([torch.randn(10, 5), torch.randn(10), torch.randn(5)])  # normal parameters
 
 TEST_CASES_ALL += build_test_cases(  # non-contiguous parameters
-    [
-        torch.randn(10, 5, 2)[..., 0],
-        torch.randn(10, 2)[..., 0],
-        torch.randn(5),
-    ]
+    [torch.randn(10, 5, 2)[..., 0], torch.randn(10, 2)[..., 0], torch.randn(5)]
 )
 
 if torch.cuda.is_available():
     TEST_CASES_ALL += build_test_cases(  # gpu parameters
-        [
-            torch.randn(10, 5).cuda(),
-            torch.randn(10).cuda(),
-            torch.randn(5).cuda(),
-        ]
+        [torch.randn(10, 5).cuda(), torch.randn(10).cuda(), torch.randn(5).cuda()]
     )
 if torch.cuda.device_count() > 1:
     TEST_CASES_ALL += build_test_cases(  # multi-gpu parameters
-        [
-            torch.randn(10, 5).cuda(0),
-            torch.randn(10).cuda(1),
-            torch.randn(5).cuda(0),
-        ]
+        [torch.randn(10, 5).cuda(0), torch.randn(10).cuda(1), torch.randn(5).cuda(0)]
     )
 
 

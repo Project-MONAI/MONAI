@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,6 +25,19 @@ class Classifier(Regressor):
     Defines a classification network from Regressor by specifying the output shape as a single dimensional tensor
     with size equal to the number of classes to predict. The final activation function can also be specified, eg.
     softmax or sigmoid.
+
+    Args:
+        in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
+        classes: integer stating the dimension of the final output tensor
+        channels: tuple of integers stating the output channels of each convolutional layer
+        strides: tuple of integers stating the stride (downscale factor) of each convolutional layer
+        kernel_size: integer or tuple of integers stating size of convolutional kernels
+        num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
+        act: name or type defining activation layers
+        norm: name or type defining normalization layers
+        dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
+        bias: boolean stating if convolution layers should have a bias component
+        last_act: name defining the last activation layer
     """
 
     def __init__(
@@ -41,20 +54,6 @@ class Classifier(Regressor):
         bias: bool = True,
         last_act: Optional[str] = None,
     ) -> None:
-        """
-        Args:
-            in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
-            classes: integer stating the dimension of the final output tensor
-            channels: tuple of integers stating the output channels of each convolutional layer
-            strides: tuple of integers stating the stride (downscale factor) of each convolutional layer
-            kernel_size: integer or tuple of integers stating size of convolutional kernels
-            num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
-            act: name or type defining activation layers
-            norm: name or type defining normalization layers
-            dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
-            bias: boolean stating if convolution layers should have a bias component
-            last_act: name defining the last activation layer
-        """
         super().__init__(in_shape, (classes,), channels, strides, kernel_size, num_res_units, act, norm, dropout, bias)
 
         if last_act is not None:
@@ -68,6 +67,18 @@ class Discriminator(Classifier):
     """
     Defines a discriminator network from Classifier with a single output value and sigmoid activation by default. This
     is meant for use with GANs or other applications requiring a generic discriminator network.
+
+    Args:
+        in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
+        channels: tuple of integers stating the output channels of each convolutional layer
+        strides: tuple of integers stating the stride (downscale factor) of each convolutional layer
+        kernel_size: integer or tuple of integers stating size of convolutional kernels
+        num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
+        act: name or type defining activation layers
+        norm: name or type defining normalization layers
+        dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
+        bias: boolean stating if convolution layers should have a bias component
+        last_act: name defining the last activation layer
     """
 
     def __init__(
@@ -83,19 +94,6 @@ class Discriminator(Classifier):
         bias: bool = True,
         last_act=Act.SIGMOID,
     ) -> None:
-        """
-        Args:
-            in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
-            channels: tuple of integers stating the output channels of each convolutional layer
-            strides: tuple of integers stating the stride (downscale factor) of each convolutional layer
-            kernel_size: integer or tuple of integers stating size of convolutional kernels
-            num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
-            act: name or type defining activation layers
-            norm: name or type defining normalization layers
-            dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
-            bias: boolean stating if convolution layers should have a bias component
-            last_act: name defining the last activation layer
-        """
         super().__init__(in_shape, 1, channels, strides, kernel_size, num_res_units, act, norm, dropout, bias, last_act)
 
 
@@ -104,6 +102,17 @@ class Critic(Classifier):
     Defines a critic network from Classifier with a single output value and no final activation. The final layer is
     `nn.Flatten` instead of `nn.Linear`, the final result is computed as the mean over the first dimension. This is
     meant to be used with Wasserstein GANs.
+
+    Args:
+        in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
+        channels: tuple of integers stating the output channels of each convolutional layer
+        strides: tuple of integers stating the stride (downscale factor) of each convolutional layer
+        kernel_size: integer or tuple of integers stating size of convolutional kernels
+        num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
+        act: name or type defining activation layers
+        norm: name or type defining normalization layers
+        dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
+        bias: boolean stating if convolution layers should have a bias component
     """
 
     def __init__(
@@ -118,18 +127,6 @@ class Critic(Classifier):
         dropout: Optional[float] = 0.25,
         bias: bool = True,
     ) -> None:
-        """
-        Args:
-            in_shape: tuple of integers stating the dimension of the input tensor (minus batch dimension)
-            channels: tuple of integers stating the output channels of each convolutional layer
-            strides: tuple of integers stating the stride (downscale factor) of each convolutional layer
-            kernel_size: integer or tuple of integers stating size of convolutional kernels
-            num_res_units: integer stating number of convolutions in residual units, 0 means no residual units
-            act: name or type defining activation layers
-            norm: name or type defining normalization layers
-            dropout: optional float value in range [0, 1] stating dropout probability for layers, None for no dropout
-            bias: boolean stating if convolution layers should have a bias component
-        """
         super().__init__(in_shape, 1, channels, strides, kernel_size, num_res_units, act, norm, dropout, bias, None)
 
     def _get_final_layer(self, in_shape: Sequence[int]):
