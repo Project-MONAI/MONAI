@@ -149,12 +149,7 @@ def verify_metadata(
     """
 
     _args = _update_args(
-        args=args_file,
-        meta_file=meta_file,
-        filepath=filepath,
-        create_dir=create_dir,
-        hash_val=hash_val,
-        **kwargs,
+        args=args_file, meta_file=meta_file, filepath=filepath, create_dir=create_dir, hash_val=hash_val, **kwargs
     )
     _log_input_summary(tag="verify_metadata", args=_args)
 

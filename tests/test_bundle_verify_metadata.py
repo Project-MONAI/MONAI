@@ -60,9 +60,7 @@ class TestVerifyMetaData(unittest.TestCase):
                     f,
                 )
 
-            cmd = [
-                sys.executable, "-m", "monai.bundle", "verify_metadata", metafile, "--filepath", filepath
-            ]
+            cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", metafile, "--filepath", filepath]
             ret = subprocess.check_call(cmd)
             self.assertEqual(ret, 0)
 
