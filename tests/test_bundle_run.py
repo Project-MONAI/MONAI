@@ -64,15 +64,14 @@ class TestBundleRun(unittest.TestCase):
             else:
                 override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
             # test with `monai.bundle` as CLI entry directly
-            cmd = "-m monai.bundle run --target_id evaluator"
-            cmd += f" --postprocessing#transforms#2#output_postfix seg {override}"
+            cmd = f"-m monai.bundle run evaluator --postprocessing#transforms#2#output_postfix seg {override}"
             la = [f"{sys.executable}"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
             ret = subprocess.check_call(la + ["--args_file", def_args_file])
             self.assertEqual(ret, 0)
             self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
             # here test the script with `google fire` tool as CLI
-            cmd = "-m fire monai.bundle.scripts run --target_id evaluator"
+            cmd = "-m fire monai.bundle.scripts run --runner_id evaluator"
             cmd += f" --evaluator#amp False {override}"
             la = [f"{sys.executable}"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
             ret = subprocess.check_call(la)
