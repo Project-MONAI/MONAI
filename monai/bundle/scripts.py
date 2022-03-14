@@ -158,7 +158,7 @@ def verify_metadata(
         hash_val=hash_val,
         **kwargs,
     )
-    _log_input_summary(tag="run", args=_args)
+    _log_input_summary(tag="verify_metadata", args=_args)
 
     filepath_ = _args.pop("filepath")
     create_dir_ = _args.pop("create_dir", True)
