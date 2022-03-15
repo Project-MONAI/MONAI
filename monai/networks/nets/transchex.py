@@ -185,12 +185,15 @@ class BertMixedLayer(nn.Module):
 
     def __init__(self, config) -> None:
         super().__init__()
-        self.att = BertAttention(config)
-        self.output = BertOutput(config)
+        self.att_x = BertAttention(config)
+        self.output_x = BertOutput(config)
+        self.att_y = BertAttention(config)
+        self.output_y = BertOutput(config)
 
     def forward(self, x, y):
-        output = self.att(x, y)
-        return self.output(output, x)
+        output_x = self.att_x(x, y)
+        output_y = self.att_y(y, x)
+        return self.output_x(output_x, x), self.output_y(output_y, y)
 
 
 class Pooler(nn.Module):
@@ -237,12 +240,12 @@ class MultiModal(BertPreTrainedModel):
     def forward(self, input_ids, token_type_ids=None, vision_feats=None, attention_mask=None):
         language_features = self.embeddings(input_ids, token_type_ids)
         for layer in self.vision_encoder:
-            hidden_state_vision = layer(vision_feats, None)[0]
+            vision_feats = layer(vision_feats, None)[0]
         for layer in self.language_encoder:
-            hidden_state_language = layer(language_features, attention_mask)[0]
+            language_features = layer(language_features, attention_mask)[0]
         for layer in self.mixed_encoder:
-            hidden_state_mixed = layer(hidden_state_language, hidden_state_vision)
-        return hidden_state_mixed
+            language_features, vision_feats = layer(language_features, vision_feats)
+        return language_features, vision_feats
 
 
 class Transchex(torch.nn.Module):
@@ -367,9 +370,9 @@ class Transchex(torch.nn.Module):
         vision_feats = self.vision_proj(vision_feats).flatten(2).transpose(1, 2)
         vision_feats = self.norm_vision_pos(vision_feats)
         vision_feats = vision_feats + self.pos_embed_vis
-        hidden_state_mixed = self.multimodal(
+        hidden_state_lang, hidden_state_vis = self.multimodal(
             input_ids=input_ids, token_type_ids=token_type_ids, vision_feats=vision_feats, attention_mask=attention_mask
         )
-        pooled_features = self.pooler(hidden_state_mixed)
+        pooled_features = self.pooler(hidden_state_lang)
         logits = self.cls_head(self.drop(pooled_features))
         return logits

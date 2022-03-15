@@ -82,10 +82,13 @@ class LoadImaged(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            reader: register reader to load image file and meta data, if None, still can register readers
-                at runtime or use the default readers. If a string of reader name provided, will construct
-                a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
-                "PILReader", "ITKReader", "NumpyReader".
+            reader: reader to load image file and meta data
+                - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
+                - if `reader` is a string, it's treated as a class name or dotted path
+                (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
+                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
+                a reader instance will be constructed with the `*args` and `**kwargs` parameters.
+                - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
             dtype: if not None, convert the loaded image data to this data type.
             meta_keys: explicitly indicate the key to store the corresponding meta data dictionary.
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
@@ -207,8 +210,10 @@ class SaveImaged(MapTransform):
         print_log: whether to print logs when saving. Default to `True`.
         output_format: an optional string to specify the output image writer.
             see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
-        writer: a customised image writer to save data arrays.
+        writer: a customised `monai.data.ImageWriter` subclass to save data arrays.
             if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
+            if it's a string, it's treated as a class name or dotted path;
+            the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
 
     """
 
@@ -232,7 +237,7 @@ class SaveImaged(MapTransform):
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Optional[image_writer.ImageWriter] = None,
+        writer: Union[image_writer.ImageWriter, str, None] = None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))

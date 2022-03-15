@@ -119,6 +119,7 @@ class SlidingWindowInferer(Inferer):
             By default the device (and accordingly the memory) of the `inputs` is used. If for example
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             `inputs` and `roi_size`. Output is on the `device`.
+        progress: whether to print a tqdm progress bar.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -137,6 +138,7 @@ class SlidingWindowInferer(Inferer):
         cval: float = 0.0,
         sw_device: Union[torch.device, str, None] = None,
         device: Union[torch.device, str, None] = None,
+        progress: bool = False,
     ) -> None:
         Inferer.__init__(self)
         self.roi_size = roi_size
@@ -148,6 +150,7 @@ class SlidingWindowInferer(Inferer):
         self.cval = cval
         self.sw_device = sw_device
         self.device = device
+        self.progress = progress
 
     def __call__(
         self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
@@ -174,6 +177,7 @@ class SlidingWindowInferer(Inferer):
             self.cval,
             self.sw_device,
             self.device,
+            self.progress,
             *args,
             **kwargs,
         )

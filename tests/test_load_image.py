@@ -126,7 +126,7 @@ TEST_CASE_15 = [{"reader": "nibabelreader", "channel_dim": 2}, "test_image.nii.g
 
 TEST_CASE_16 = [{"reader": "itkreader", "channel_dim": 0}, "test_image.nii.gz", (3, 128, 128, 128)]
 
-TEST_CASE_17 = [{"reader": "ITKReader", "channel_dim": -1}, "test_image.nii.gz", (128, 128, 128, 3)]
+TEST_CASE_17 = [{"reader": "monai.data.ITKReader", "channel_dim": -1}, "test_image.nii.gz", (128, 128, 128, 3)]
 
 TEST_CASE_18 = [
     {"reader": "ITKReader", "channel_dim": 2, "ensure_channel_first": True},
