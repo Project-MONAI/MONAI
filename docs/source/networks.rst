@@ -473,6 +473,13 @@ Nets
 .. autoclass:: Unet
 .. autoclass:: unet
 
+`AttentionUnet`
+~~~~~~~~~~~~~~~
+.. autoclass:: AttentionUnet
+  :members:
+.. autoclass:: AttentionUNet
+.. autoclass:: Attentionunet
+
 `UNETR`
 ~~~~~~~
 .. autoclass:: UNETR
