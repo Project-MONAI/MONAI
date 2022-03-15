@@ -10,12 +10,17 @@
 # limitations under the License.
 
 import pprint
+import re
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 import torch
-from monai.apps.utils import get_logger
+from monai.apps.utils import download_url, get_logger
 from monai.bundle.config_parser import ConfigParser
-from monai.utils.type_conversion import get_equivalent_dtype
+from monai.config import PathLike
+from monai.utils import check_parent_dir, get_equivalent_dtype, optional_import
+
+validate, _ = optional_import("jsonschema", name="validate")
+ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 
 logger = get_logger(module_name=__name__)
 
@@ -141,6 +146,58 @@ def run(
     workflow.run()
 
 
+def verify_metadata(
+    meta_file: Optional[Union[str, Sequence[str]]] = None,
+    filepath: Optional[PathLike] = None,
+    create_dir: Optional[bool] = None,
+    hash_val: Optional[str] = None,
+    args_file: Optional[str] = None,
+    **kwargs,
+):
+    """
+    Verify the provided `metadata` file based on the predefined `schema`.
+    `metadata` content must contain the `schema` field for the URL of shcema file to download.
+    The schema standard follows: http://json-schema.org/.
+
+    Args:
+        meta_file: filepath of the metadata file to verify, if `None`, must be provided in `args_file`.
+            if it is a list of file paths, the content of them will be merged.
+        filepath: file path to store the downloaded schema.
+        create_dir: whether to create directories if not existing, default to `True`.
+        hash_val: if not None, define the hash value to verify the downloaded schema file.
+        args_file: a JSON or YAML file to provide default values for all the args in this function.
+            so that the command line inputs can be simplified.
+        kwargs: other arguments for `jsonschema.validate()`. for more details:
+            https://python-jsonschema.readthedocs.io/en/stable/validate/#jsonschema.validate.
+
+    """
+
+    _args = _update_args(
+        args=args_file, meta_file=meta_file, filepath=filepath, create_dir=create_dir, hash_val=hash_val, **kwargs
+    )
+    _log_input_summary(tag="verify_metadata", args=_args)
+
+    filepath_ = _args.pop("filepath")
+    create_dir_ = _args.pop("create_dir", True)
+    check_parent_dir(path=filepath_, create_dir=create_dir_)
+
+    metadata = ConfigParser.load_config_files(files=_args.pop("meta_file"))
+    url = metadata.get("schema")
+    if url is None:
+        raise ValueError("must provide the `schema` field in the metadata for the URL of schema file.")
+    download_url(url=url, filepath=filepath_, hash_val=_args.pop("hash_val", None), hash_type="md5", progress=True)
+    schema = ConfigParser.load_config_file(filepath=filepath_)
+
+    try:
+        # the rest key-values in the _args are for `validate` API
+        validate(instance=metadata, schema=schema, **_args)
+    except ValidationError as e:
+        # as the error message is very long, only extract the key information
+        logger.info(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
+        return
+    logger.info("metadata is verified with no error.")
+
+
 def verify_net_in_out(
     net_id: Optional[str] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
@@ -197,7 +254,7 @@ def verify_net_in_out(
     parser.read_config(f=_args.pop("config_file"))
     parser.read_meta(f=_args.pop("meta_file"))
     id = _args.pop("net_id", "")
-    device = torch.device(_args.pop("device", "cuda" if torch.cuda.is_available() else "cpu"))
+    device = torch.device(_args.pop("device", "cuda:0" if torch.cuda.is_available() else "cpu:0"))
     p = _args.pop("p", 1)
     n = _args.pop("n", 1)
     any = _args.pop("any", 1)

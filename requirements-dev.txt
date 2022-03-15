@@ -46,3 +46,4 @@ tensorboardX
 types-PyYAML
 pyyaml
 fire
+jsonschema

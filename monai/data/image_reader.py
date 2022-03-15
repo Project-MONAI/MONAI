@@ -18,7 +18,7 @@ import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import DtypeLike, KeysCollection, PathLike
-from monai.data.utils import correct_nifti_header_if_necessary, is_supported_format
+from monai.data.utils import correct_nifti_header_if_necessary, is_supported_format, orientation_ras_lps
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
 
@@ -161,6 +161,8 @@ class ITKReader(ImageReader):
             This option does not affect the metadata.
         series_meta: whether to load the metadata of the DICOM series (using the metadata from the first slice).
             This flag is checked only when loading DICOM series. Default is ``False``.
+        affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+            Set to ``True`` to be consistent with ``NibabelReader``, otherwise the affine matrix remains in the ITK convention.
         kwargs: additional args for `itk.imread` API. more details about available args:
             https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itk/support/extras.py
 
@@ -172,6 +174,7 @@ class ITKReader(ImageReader):
         series_name: str = "",
         reverse_indexing: bool = False,
         series_meta: bool = False,
+        affine_lps_to_ras: bool = True,
         **kwargs,
     ):
         super().__init__()
@@ -180,6 +183,7 @@ class ITKReader(ImageReader):
         self.series_name = series_name
         self.reverse_indexing = reverse_indexing
         self.series_meta = series_meta
+        self.affine_lps_to_ras = affine_lps_to_ras
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
@@ -261,7 +265,7 @@ class ITKReader(ImageReader):
             data = self._get_array_data(i)
             img_array.append(data)
             header = self._get_meta_dict(i)
-            header["original_affine"] = self._get_affine(i)
+            header["original_affine"] = self._get_affine(i, self.affine_lps_to_ras)
             header["affine"] = header["original_affine"].copy()
             header["spatial_shape"] = self._get_spatial_shape(i)
             if self.channel_dim is None:  # default to "no_channel" or -1
@@ -286,13 +290,14 @@ class ITKReader(ImageReader):
         meta_dict["spacing"] = np.asarray(img.GetSpacing())
         return meta_dict
 
-    def _get_affine(self, img):
+    def _get_affine(self, img, lps_to_ras: bool = True):
         """
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
 
         Args:
             img: an ITK image object loaded from an image file.
+            lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to True.
 
         """
         direction = itk.array_from_matrix(img.GetDirection())
@@ -304,8 +309,8 @@ class ITKReader(ImageReader):
         affine: np.ndarray = np.eye(sr + 1)
         affine[:sr, :sr] = direction[:sr, :sr] @ np.diag(spacing[:sr])
         affine[:sr, -1] = origin[:sr]
-        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1]  # itk to nibabel affine
-        affine = np.diag(flip_diag) @ affine
+        if lps_to_ras:
+            affine = orientation_ras_lps(affine)
         return affine
 
     def _get_spatial_shape(self, img):

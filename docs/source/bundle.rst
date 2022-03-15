@@ -36,3 +36,4 @@ Model Bundle
 `Scripts`
 ---------
 .. autofunction:: run
+.. autofunction:: verify_metadata
