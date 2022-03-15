@@ -82,10 +82,13 @@ class LoadImaged(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            reader: register reader to load image file and meta data, if None, still can register readers
-                at runtime or use the default readers. If a string of reader name provided, will construct
-                a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
-                "PILReader", "ITKReader", "NumpyReader".
+            reader: reader to load image file and meta data
+                - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
+                - if `reader` is a string, it's treated as a class name or dotted path
+                (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
+                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
+                a reader instance will be constructed with the `*args` and `**kwargs` parameters.
+                - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
             dtype: if not None, convert the loaded image data to this data type.
             meta_keys: explicitly indicate the key to store the corresponding meta data dictionary.
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
