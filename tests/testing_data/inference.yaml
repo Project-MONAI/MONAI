@@ -1,5 +1,7 @@
 ---
 device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
+set_seed: "$monai.utils.set_determinism(0)"
+print_test_name: "$print('yaml_test')"
 network_def:
   _target_: UNet
   spatial_dims: 3
@@ -66,6 +68,10 @@ postprocessing:
     output_dir: "@_meta_#output_dir"
 evaluator:
   _target_: SupervisedEvaluator
+  _requires_:
+    - "$print('test_in_line_yaml')"
+    - "@set_seed"
+    - "@print_test_name"
   device: "@device"
   val_data_loader: "@dataloader"
   network: "@network"

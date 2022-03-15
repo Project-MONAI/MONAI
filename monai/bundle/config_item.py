@@ -164,16 +164,21 @@ class ConfigComponent(ConfigItem, Instantiable):
     Subclass of :py:class:`monai.bundle.ConfigItem`, this class uses a dictionary with string keys to
     represent a component of `class` or `function` and supports instantiation.
 
-    Currently, two special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
+    Currently, three special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
 
-        - class or function identifier of the python module, specified by one of the two keys.
-            - ``"_target_"``: indicates build-in python classes or functions such as "LoadImageDict",
-                or full module name, such as "monai.transforms.LoadImageDict".
+        - class or function identifier of the python module, specified by ``"_target_"``,
+          indicating a build-in python class or function such as ``"LoadImageDict"``,
+          or a full module name, such as ``"monai.transforms.LoadImageDict"``.
+        - ``"_requires_"``: specifies reference IDs (string starts with ``"@"``) or ``ConfigExpression``
+          of the dependencies for this ``ConfigComponent`` object. These dependencies will be
+          evaluated/instantiated before this object is instantiated.
         - ``"_disabled_"``: a flag to indicate whether to skip the instantiation.
 
     Other fields in the config content are input arguments to the python module.
 
     .. code-block:: python
+
+        from monai.bundle import ComponentLocator, ConfigComponent
 
         locator = ComponentLocator(excludes=["modules_to_exclude"])
         config = {
@@ -195,7 +200,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    non_arg_keys = {"_target_", "_disabled_"}
+    non_arg_keys = {"_target_", "_disabled_", "_requires_"}
 
     def __init__(
         self,
