@@ -344,7 +344,7 @@ class SavitzkyGolayFilter(nn.Module):
         x = x.to(dtype=torch.float)
 
         if (self.axis < 0) or (self.axis > len(x.shape) - 1):
-            raise ValueError("Invalid axis for shape of x.")
+            raise ValueError("Invalid axis for shape of x, got axis {self.axis} and shape {x.shape}.")
 
         # Create list of filter kernels (1 per spatial dimension). The kernel for self.axis will be the savgol coeffs,
         # while the other kernels will be set to [1].
@@ -409,7 +409,7 @@ class HilbertTransform(nn.Module):
         x = x.to(dtype=torch.float)
 
         if (self.axis < 0) or (self.axis > len(x.shape) - 1):
-            raise ValueError("Invalid axis for shape of x.")
+            raise ValueError("Invalid axis for shape of x, got axis {self.axis} and shape {x.shape}.")
 
         n = x.shape[self.axis] if self.n is None else self.n
         if n <= 0:

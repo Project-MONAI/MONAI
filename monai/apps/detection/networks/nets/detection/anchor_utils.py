@@ -153,7 +153,7 @@ class AnchorGenerator(nn.Module):
 
         return anchors
 
-    def forward(self, images, orig_image_size_list, grid_sizes: List) -> List[Tensor]:      
+    def forward(self, images, orig_image_size_list, grid_sizes: List) -> List[Tensor]:
         image_size = images.shape[-self.spatial_dims :]
         dtype, device = images[0].dtype, images[0].device
         strides = [

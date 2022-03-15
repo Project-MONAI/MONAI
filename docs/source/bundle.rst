@@ -32,3 +32,8 @@ Model Bundle
 ---------------
 .. autoclass:: ConfigParser
     :members:
+
+`Scripts`
+---------
+.. autofunction:: run
+.. autofunction:: verify_metadata

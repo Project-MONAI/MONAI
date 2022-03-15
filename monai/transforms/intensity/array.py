@@ -1405,7 +1405,7 @@ class RandHistogramShift(RandomizableTransform):
         img_min, img_max = img_np.min(), img_np.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-        img_np = np.asarray(
+        img_np = np.asarray(  # type: ignore
             np.interp(img_np, reference_control_points_scaled, floating_control_points_scaled), dtype=img_np.dtype
         )
         img, *_ = convert_to_dst_type(img_np, dst=img)

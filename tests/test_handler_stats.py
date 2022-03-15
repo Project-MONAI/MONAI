@@ -46,7 +46,7 @@ class TestHandlerStats(unittest.TestCase):
         logger = logging.getLogger(key_to_handler)
         logger.setLevel(logging.INFO)
         logger.addHandler(log_handler)
-        stats_handler = StatsHandler(name=key_to_handler)
+        stats_handler = StatsHandler(iteration_log=False, epoch_log=True, name=key_to_handler)
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
@@ -78,7 +78,7 @@ class TestHandlerStats(unittest.TestCase):
         logger = logging.getLogger(key_to_handler)
         logger.setLevel(logging.INFO)
         logger.addHandler(log_handler)
-        stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print)
+        stats_handler = StatsHandler(iteration_log=True, epoch_log=False, name=key_to_handler, tag_name=key_to_print)
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
