@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Union, cast
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -78,12 +78,17 @@ class MILModel(nn.Module):
             nfc = net.fc.in_features  # save the number of final features
             net.fc = torch.nn.Identity()  # remove final linear layer
 
-            self.extra_outputs = {}  # type: Dict[str, torch.Tensor]
+            self.extra_outputs: Dict[str, torch.Tensor] = {
+                "layer1": torch.rand(1),
+                "layer2": torch.rand(1),
+                "layer3": torch.rand(1),
+                "layer4": torch.rand(1),
+            }
 
             if mil_mode == "att_trans_pyramid":
                 # register hooks to capture outputs of intermediate layers
-                def forward_hook(layer_name):
-                    def hook(module, input, output):
+                def forward_hook(layer_name: str):
+                    def hook(module, input: Tuple[torch.Tensor], output: torch.Tensor):
                         self.extra_outputs[layer_name] = output
 
                     return hook
@@ -205,17 +210,18 @@ class MILModel(nn.Module):
 
         elif self.mil_mode == "att_trans_pyramid" and self.transformer is not None:
 
+            if not isinstance(self.transformer, nn.ModuleList):
+                raise TypeError("In `att_trans_pyramid` mode, self.transformer should have the type nn.ModuleList.")
+
             l1 = torch.mean(self.extra_outputs["layer1"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
             l2 = torch.mean(self.extra_outputs["layer2"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
             l3 = torch.mean(self.extra_outputs["layer3"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
             l4 = torch.mean(self.extra_outputs["layer4"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
 
-            transformer_list = cast(nn.ModuleList, self.transformer)
-
-            x = transformer_list[0](l1)
-            x = transformer_list[1](torch.cat((x, l2), dim=2))
-            x = transformer_list[2](torch.cat((x, l3), dim=2))
-            x = transformer_list[3](torch.cat((x, l4), dim=2))
+            x = self.transformer[0](l1)
+            x = self.transformer[1](torch.cat((x, l2), dim=2))
+            x = self.transformer[2](torch.cat((x, l3), dim=2))
+            x = self.transformer[3](torch.cat((x, l4), dim=2))
 
             x = x.permute(1, 0, 2)
 
