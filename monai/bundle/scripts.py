@@ -15,6 +15,7 @@ import re
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 import torch
+
 from monai.apps.utils import download_url, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
@@ -103,7 +104,7 @@ def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int
                 for c in _get_var_names(i):
                     if c not in ["p", "n"]:
                         raise ValueError(f"only support variables 'm' and 'p' so far, but got: {c}.")
-                eval(i, {"p": p, "n": n})
+                ret.append(eval(i, {"p": p, "n": n}))
         else:
             raise ValueError(f"spatial shape items must be int or string, but got: {type(i)} {i}.")
     return tuple(ret)
@@ -290,20 +291,21 @@ def verify_net_in_out(
     for k, v in _args.items():
         parser[k] = v
 
-    net = parser[id].to(device)
+    net = parser.get_parsed_content(id).to(device)
     input_channels = parser["_meta_#network_data_format#inputs#image#num_channels"]
     input_spatial_shape = tuple(parser["_meta_#network_data_format#inputs#image#spatial_shape"])
     input_dtype = get_equivalent_dtype(parser["_meta_#network_data_format#inputs#image#dtype"], data_type=torch.Tensor)
 
     output_channels = parser["_meta_#network_data_format#outputs#pred#num_channels"]
-    output_dtype = get_equivalent_dtype(parser["_meta_#network_data_format#output#pred#dtype"], data_type=torch.Tensor)
+    output_dtype = get_equivalent_dtype(parser["_meta_#network_data_format#outputs#pred#dtype"], data_type=torch.Tensor)
 
     net.eval()
     with torch.no_grad():
         spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
-        test_data = torch.rand(*(input_channels, *spatial_shape), dtype=input_dtype, device=device)
+        test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device)
         output = net(test_data)
-        if output.shape[0] != output_channels:
-            raise ValueError(f"output channel number `{output.shape[0]}` doesn't match: `{output_channels}`.")
+        if output.shape[1] != output_channels:
+            raise ValueError(f"output channel number `{output.shape[1]}` doesn't match: `{output_channels}`.")
         if output.dtype != output_dtype:
             raise ValueError(f"dtype of output data `{output.dtype}` doesn't match: {output_dtype}.")
+    logger.info("data shape of network is verified with no error.")
