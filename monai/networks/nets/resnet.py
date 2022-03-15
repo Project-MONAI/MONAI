@@ -17,6 +17,7 @@ import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Norm, Pool
 from monai.networks.layers.utils import get_pool_layer
+from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option
 
 __all__ = ["ResNet", "resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
@@ -204,19 +205,8 @@ class ResNet(nn.Module):
         self.in_planes = block_inplanes[0]
         self.no_max_pool = no_max_pool
 
-        if isinstance(conv1_t_size, int):
-            conv1_kernel_size = (conv1_t_size,) * spatial_dims
-        else:
-            if len(conv1_t_size) != spatial_dims:
-                raise ValueError("Tuple conv1_t_size should have length {spatial_dims}.")
-            conv1_kernel_size = conv1_t_size
-
-        if isinstance(conv1_t_stride, int):
-            conv1_stride = (conv1_t_stride,) * spatial_dims
-        else:
-            if len(conv1_t_stride) != spatial_dims:
-                raise ValueError("Tuple conv1_t_stride should have length {spatial_dims}.")
-            conv1_stride = conv1_t_stride
+        conv1_kernel_size = ensure_tuple_rep(conv1_t_size, spatial_dims)
+        conv1_stride = ensure_tuple_rep(conv1_t_stride, spatial_dims)
 
         self.conv1 = conv_type(
             n_input_channels,
