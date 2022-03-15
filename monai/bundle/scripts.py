@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ast
 import pprint
 import re
 from typing import Dict, Optional, Sequence, Tuple, Union
@@ -53,10 +54,30 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
 
 
 def _log_input_summary(tag: str, args: Dict):
+    """
+    Log the arguments of bundle scripts.
+
+    Args:
+        tag: tag to identify the script in the log.
+        args: arguments of the script to log.
+
+    """
     logger.info(f"\n--- input summary of monai.bundle.scripts.{tag} ---")
     for name, val in args.items():
         logger.info(f"> {name}: {pprint.pformat(val)}")
     logger.info("---\n\n")
+
+
+def _get_var_names(expr: str):
+    """
+    Parse the expression and discover what variables are present in it based on ast module.
+
+    Args:
+        expr: source expression to parse.
+
+    """
+    tree = ast.parse(expr)
+    return [m.id for m in ast.walk(tree) if isinstance(m, ast.Name)]
 
 
 def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int = 1, any: int = 1) -> Tuple[int]:
@@ -76,7 +97,13 @@ def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int
         if isinstance(i, int):
             ret.append(i)
         elif isinstance(i, str):
-            ret.append(any if i == "*" else eval(i, {"p": p, "n": n}))
+            if i == "*":
+                ret.append(any)
+            else:
+                for c in _get_var_names(i):
+                    if c not in ["p", "n"]:
+                        raise ValueError(f"only support variables 'm' and 'p' so far, but got: {c}.")
+                eval(i, {"p": p, "n": n})
         else:
             raise ValueError(f"spatial shape items must be int or string, but got: {type(i)} {i}.")
     return tuple(ret)
@@ -254,7 +281,7 @@ def verify_net_in_out(
     parser.read_config(f=_args.pop("config_file"))
     parser.read_meta(f=_args.pop("meta_file"))
     id = _args.pop("net_id", "")
-    device = torch.device(_args.pop("device", "cuda:0" if torch.cuda.is_available() else "cpu:0"))
+    device = torch.device(_args.pop("device", "cuda" if torch.cuda.is_available() else "cpu"))
     p = _args.pop("p", 1)
     n = _args.pop("n", 1)
     any = _args.pop("any", 1)
