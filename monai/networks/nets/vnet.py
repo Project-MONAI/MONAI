@@ -213,7 +213,7 @@ class VNet(nn.Module):
             The value should meet the condition that ``16 % in_channels == 0``.
         out_channels: number of output channels for the network. Defaults to 1.
         act: activation type in the network. Defaults to ``("elu", {"inplace": True})``.
-        dropout_prob: dropout ratio. Defaults to 0.5. Defaults to 3.
+        dropout_prob: dropout ratio. Defaults to 0.5.
         dropout_dim: determine the dimensions of dropout. Defaults to 3.
 
             - ``dropout_dim = 1``, randomly zeroes some of the elements for each channel.
