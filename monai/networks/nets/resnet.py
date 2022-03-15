@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from functools import partial
-from typing import Any, Callable, List, Optional, Type, Union
+from typing import Any, Callable, List, Optional, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
@@ -30,14 +30,6 @@ def get_inplanes():
 
 def get_avgpool():
     return [0, 1, (1, 1), (1, 1, 1)]
-
-
-def get_conv1(conv1_t_size: int, conv1_t_stride: int):
-    return (
-        [0, conv1_t_size, (conv1_t_size, 7), (conv1_t_size, 7, 7)],
-        [0, conv1_t_stride, (conv1_t_stride, 2), (conv1_t_stride, 2, 2)],
-        [0, (conv1_t_size // 2), (conv1_t_size // 2, 3), (conv1_t_size // 2, 3, 3)],
-    )
 
 
 class ResNetBlock(nn.Module):
@@ -184,8 +176,8 @@ class ResNet(nn.Module):
         block_inplanes: List[int],
         spatial_dims: int = 3,
         n_input_channels: int = 3,
-        conv1_t_size: int = 7,
-        conv1_t_stride: int = 1,
+        conv1_t_size: Union[Tuple[int], int] = 7,
+        conv1_t_stride: Union[Tuple[int], int] = 1,
         no_max_pool: bool = False,
         shortcut_type: str = "B",
         widen_factor: float = 1.0,
@@ -207,18 +199,31 @@ class ResNet(nn.Module):
         ]
 
         block_avgpool = get_avgpool()
-        conv1_kernel, conv1_stride, conv1_padding = get_conv1(conv1_t_size, conv1_t_stride)
         block_inplanes = [int(x * widen_factor) for x in block_inplanes]
 
         self.in_planes = block_inplanes[0]
         self.no_max_pool = no_max_pool
 
+        if isinstance(conv1_t_size, int):
+            conv1_kernel_size = (conv1_t_size,) * spatial_dims
+        else:
+            if len(conv1_t_size) != spatial_dims:
+                raise ValueError("Tuple conv1_t_size should have length {spatial_dims}.")
+            conv1_kernel_size = conv1_t_size
+
+        if isinstance(conv1_t_stride, int):
+            conv1_stride = (conv1_t_stride,) * spatial_dims
+        else:
+            if len(conv1_t_stride) != spatial_dims:
+                raise ValueError("Tuple conv1_t_stride should have length {spatial_dims}.")
+            conv1_stride = conv1_t_stride
+
         self.conv1 = conv_type(
             n_input_channels,
             self.in_planes,
-            kernel_size=conv1_kernel[spatial_dims],
-            stride=conv1_stride[spatial_dims],
-            padding=conv1_padding[spatial_dims],
+            kernel_size=conv1_kernel_size,  # type: ignore
+            stride=conv1_stride,  # type: ignore
+            padding=tuple([k // 2 for k in conv1_kernel_size]),  # type: ignore
             bias=False,
         )
         self.bn1 = norm_type(self.in_planes)
