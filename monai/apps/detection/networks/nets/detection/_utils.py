@@ -7,6 +7,7 @@ from torch import Tensor, nn
 from torchvision.ops.misc import FrozenBatchNorm2d
 
 from monai.utils.module import look_up_option
+from monai.data import box_utils
 
 # class BalancedPositiveNegativeSampler:
 #     """
@@ -76,11 +77,12 @@ def encode_boxes(reference_boxes: Tensor, proposals: Tensor, weights: Tensor) ->
     """
     Encode a set of proposals with respect to some
     reference boxes
+    Assuming all boxes are with xyxy or xyzxyz mode
 
     Args:
         reference_boxes (Tensor): reference boxes
         proposals (Tensor): boxes to be encoded
-        weights (Tensor[4] or Tensor[6]): the weights for ``(x, y, w, h) or (x,y,z, w,h,d)``
+        weights (Tensor[4] or Tensor[6]): the weights for ``(cx, cy, w, h) or (cx,cy,cz, w,h,d)``
     """
 
     spatial_dims = look_up_option(len(weights), [4, 6]) // 2
@@ -88,11 +90,11 @@ def encode_boxes(reference_boxes: Tensor, proposals: Tensor, weights: Tensor) ->
     targets_dxyz = []
     targets_dwhd = []
     for axis in range(spatial_dims):
-        ex_whd_axis = proposals[:, 2 * axis + 1] - proposals[:, 2 * axis]
-        ex_ctr_xyz_axis = proposals[:, 2 * axis] + 0.5 * ex_whd_axis
+        ex_whd_axis = proposals[:, axis + spatial_dims] - proposals[:, axis]
+        ex_ctr_xyz_axis = proposals[:, axis] + 0.5 * ex_whd_axis
 
-        gt_whd_axis = reference_boxes[:, 2 * axis + 1] - reference_boxes[:, 2 * axis]
-        gt_ctr_xyz_axis = reference_boxes[:, 2 * axis] + 0.5 * gt_whd_axis
+        gt_whd_axis = reference_boxes[:, axis + spatial_dims] - reference_boxes[:, axis]
+        gt_ctr_xyz_axis = reference_boxes[:, axis] + 0.5 * gt_whd_axis
 
         targets_dxyz.append(weights[axis] * (gt_ctr_xyz_axis - ex_ctr_xyz_axis) / ex_whd_axis)
         targets_dwhd.append(weights[axis + spatial_dims] * torch.log(gt_whd_axis / ex_whd_axis))
@@ -158,7 +160,7 @@ class BoxCoder:
     def decode_single(self, rel_codes: Tensor, boxes: Tensor) -> Tensor:
         """
         From a set of original boxes and encoded relative box offsets,
-        get the decoded boxes.
+        get the decoded boxes with xyxy or xyzxyz mode
 
         Args:
             rel_codes (Tensor): encoded boxes
@@ -173,8 +175,8 @@ class BoxCoder:
 
         pred_boxes = []
         for axis in range(spatial_dims):
-            whd_axis = boxes[:, 2 * axis + 1] - boxes[:, 2 * axis]
-            ctr_xyz_axis = boxes[:, 2 * axis] + 0.5 * whd_axis
+            whd_axis = boxes[:, axis + spatial_dims] - boxes[:, axis]
+            ctr_xyz_axis = boxes[:, axis] + 0.5 * whd_axis
             dxyz_axis = rel_codes[:, axis] / self.weights[axis]
             dwhd_axis = rel_codes[:, spatial_dims + axis] / self.weights[axis + spatial_dims]
 
@@ -192,8 +194,8 @@ class BoxCoder:
             pred_boxes.append(pred_ctr_xyx_axis - c_to_c_whd_axis)
             pred_boxes.append(pred_ctr_xyx_axis + c_to_c_whd_axis)
 
-        pred_boxes = torch.stack(pred_boxes, dim=1)
-        return pred_boxes
+        pred_boxes_xxyyzz = torch.stack(pred_boxes, dim=1)
+        return box_utils.box_convert_standard_mode(pred_boxes_xxyyzz,mode=box_utils.XXYYZZ_MODE[spatial_dims-2])
 
 
 # class BoxLinearCoder:

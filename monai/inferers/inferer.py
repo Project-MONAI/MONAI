@@ -15,7 +15,7 @@ from typing import Any, Callable, Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
-from monai.inferers.utils import sliding_window_inference
+from monai.inferers.utils import sliding_window_inference, sliding_window_inference_multioutput
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple
 from monai.visualize import CAM, GradCAM, GradCAMpp
 

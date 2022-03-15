@@ -24,6 +24,15 @@ from .box.dictionary import (
     BoxFlipD,
     BoxFlipd,
     BoxFlipDict,
+    BoxToImageCoordinateD,
+    BoxToImageCoordinated,
+    BoxToImageCoordinateDict,
+    BoxMaskToBoxd,
+    BoxMaskToBoxD,
+    BoxMaskToBoxDict,
+    BoxToBoxMaskd,
+    BoxToBoxMaskD,
+    BoxToBoxMaskDict,
 )
 from .compose import Compose, OneOf
 from .croppad.array import (

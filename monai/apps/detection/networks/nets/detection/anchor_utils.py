@@ -97,10 +97,10 @@ class AnchorGenerator(nn.Module):
         ws = (w_ratios[:, None] * scales[None, :]).view(-1)
         hs = (h_ratios[:, None] * scales[None, :]).view(-1)
         if self.spatial_dims == 2:
-            base_anchors = torch.stack([-ws, ws, -hs, hs], dim=1) / 2
+            base_anchors = torch.stack([-ws, -hs, ws, hs], dim=1) / 2
         elif self.spatial_dims == 3:
             ds = (d_ratios[:, None] * scales[None, :]).view(-1)
-            base_anchors = torch.stack([-ws, ws, -hs, hs, -ds, ds], dim=1) / 2
+            base_anchors = torch.stack([-ws, -hs, -ds, ws, hs, ds], dim=1) / 2
 
         return base_anchors.round()
 
@@ -137,10 +137,10 @@ class AnchorGenerator(nn.Module):
                 shifts_xyz[axis] = shifts_xyz[axis].reshape(-1)
 
             if self.spatial_dims == 2:
-                shifts = torch.stack((shifts_xyz[0], shifts_xyz[0], shifts_xyz[1], shifts_xyz[1]), dim=1)
+                shifts = torch.stack((shifts_xyz[0], shifts_xyz[1], shifts_xyz[0], shifts_xyz[1]), dim=1)
             elif self.spatial_dims == 3:
                 shifts = torch.stack(
-                    (shifts_xyz[0], shifts_xyz[0], shifts_xyz[1], shifts_xyz[1], shifts_xyz[2], shifts_xyz[2]), dim=1
+                    (shifts_xyz[0], shifts_xyz[1], shifts_xyz[2], shifts_xyz[0], shifts_xyz[1], shifts_xyz[2]), dim=1
                 )
 
             # For every (base anchor, output anchor) pair,

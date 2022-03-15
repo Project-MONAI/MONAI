@@ -260,6 +260,8 @@ def sliding_window_inference_multioutput(
     dict_key = None
     output_image_list, count_map_list = [], []
     _initialized_list = [False]
+
+    # for each patch
     for slice_g in range(0, total_slices, sw_batch_size):
         slice_range = range(slice_g, min(slice_g + sw_batch_size, total_slices))
         unravel_slice = [
@@ -272,8 +274,9 @@ def sliding_window_inference_multioutput(
             dict_key = sorted(list(seg_prob_list.keys()))
             seg_prob_list = [seg_prob_list[k] for k in dict_key]
 
-        for ss in range(len(seg_prob_list)):
-            seg_prob = seg_prob_list[ss].to(device)
+        # for each output in multi-output list
+        for ss in range(len(seg_prob_list)): 
+            seg_prob = seg_prob_list[ss].to(device) # BxCxMxNxP or BxCxMxN
             zoom_scale = [
                 seg_prob_map_shape_d / roi_size_d
                 for seg_prob_map_shape_d, roi_size_d in zip(seg_prob.shape[2:], roi_size)
@@ -292,14 +295,15 @@ def sliding_window_inference_multioutput(
 
             # store the result in the proper location of the full output. Apply weights from importance map.
             for idx, original_idx in zip(slice_range, unravel_slice):
-                original_idx_step = deepcopy(original_idx)
+                original_idx_step = deepcopy(original_idx) # 4D for 2D image, 5D for 3D image
                 for axis in range(2, len(original_idx_step)):
                     original_idx_step[axis] = slice(
                         int(round(original_idx[axis].start * zoom_scale[axis - 2])),
                         int(round(original_idx[axis].stop * zoom_scale[axis - 2])),
                         None,
-                    )
-                importance_map_step = F.interpolate(importance_map, scale_factor=zoom_scale)
+                    )  
+                importance_map_step = torch.stack([importance_map.unsqueeze(0)]*seg_prob.shape[1],dim=1)
+                importance_map_step = F.interpolate(importance_map_step, scale_factor=zoom_scale)
                 output_image_list[ss][original_idx_step] += importance_map_step * seg_prob[idx - slice_g]
                 count_map_list[ss][original_idx_step] += importance_map_step
 
