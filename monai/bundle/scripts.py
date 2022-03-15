@@ -81,7 +81,7 @@ def _get_var_names(expr: str):
     return [m.id for m in ast.walk(tree) if isinstance(m, ast.Name)]
 
 
-def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int = 1, any: int = 1) -> Tuple[int]:
+def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int = 1, any: int = 1) -> Tuple:
     """
     Get spatial shape for fake data according to the specified shape pattern.
     It supports `int` number and `string` with formats like: "32", "32 * n", "32 ** p", "32 ** p *n".
@@ -282,7 +282,7 @@ def verify_net_in_out(
     parser.read_config(f=_args.pop("config_file"))
     parser.read_meta(f=_args.pop("meta_file"))
     id = _args.pop("net_id", "")
-    device = torch.device(_args.pop("device", "cuda" if torch.cuda.is_available() else "cpu"))
+    device_ = torch.device(_args.pop("device", "cuda" if torch.cuda.is_available() else "cpu"))
     p = _args.pop("p", 1)
     n = _args.pop("n", 1)
     any = _args.pop("any", 1)
@@ -291,7 +291,7 @@ def verify_net_in_out(
     for k, v in _args.items():
         parser[k] = v
 
-    net = parser.get_parsed_content(id).to(device)
+    net = parser.get_parsed_content(id).to(device_)
     input_channels = parser["_meta_#network_data_format#inputs#image#num_channels"]
     input_spatial_shape = tuple(parser["_meta_#network_data_format#inputs#image#spatial_shape"])
     input_dtype = get_equivalent_dtype(parser["_meta_#network_data_format#inputs#image#dtype"], data_type=torch.Tensor)
@@ -301,8 +301,8 @@ def verify_net_in_out(
 
     net.eval()
     with torch.no_grad():
-        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)
-        test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device)
+        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)  # type: ignore
+        test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device_)
         output = net(test_data)
         if output.shape[1] != output_channels:
             raise ValueError(f"output channel number `{output.shape[1]}` doesn't match: `{output_channels}`.")
