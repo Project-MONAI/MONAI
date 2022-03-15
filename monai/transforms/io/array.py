@@ -105,14 +105,12 @@ class LoadImage(Transform):
         """
         Args:
             reader: reader to load image file and meta data
-
                 - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
                 - if `reader` is a string, it's treated as a class name or dotted path
                 (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
                 ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
-                  a reader instance will be constructed with the `*args` and `**kwargs` parameters.
+                a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
-
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
             ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
