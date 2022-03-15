@@ -107,11 +107,9 @@ class LoadImage(Transform):
             reader: reader to load image file and meta data
 
                 - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
-                - if `reader` is a string, it will follow the order to get target reader class:
-                  1. search all the reader classes in `monai.data` module.
-                  2. for any other subclass of `ImageImage`, provide the full path, like "my.custom.Reader".
-                  3. search the corresponding item in `SUPPORTED_READERS`, supported reader names are:
-                  "nibabelreader", "pilreader", "itkreader", "numpyreader".
+                - if `reader` is a string, it's treated as a class name or dotted path
+                (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
+                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
                   a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
 
