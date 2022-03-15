@@ -223,7 +223,7 @@ class ResNet(nn.Module):
             self.in_planes,
             kernel_size=conv1_kernel_size,  # type: ignore
             stride=conv1_stride,  # type: ignore
-            padding=tuple([k // 2 for k in conv1_kernel_size]),  # type: ignore
+            padding=tuple(k // 2 for k in conv1_kernel_size),  # type: ignore
             bias=False,
         )
         self.bn1 = norm_type(self.in_planes)
