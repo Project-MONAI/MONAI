@@ -41,6 +41,7 @@ from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (
     MAX_SEED,
     ImageMetaKey,
+    check_parent_dir,
     copy_to_device,
     ensure_tuple,
     ensure_tuple_rep,

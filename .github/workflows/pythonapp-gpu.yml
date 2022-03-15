@@ -19,10 +19,10 @@ jobs:
     strategy:
       matrix:
         environment:
+          - "PT19+CUDA114"
           - "PT17+CUDA102"
           - "PT18+CUDA102"
           - "PT18+CUDA112"
-          - "PT19+CUDA114"
           - "PT110+CUDA116"
           - "PT110+CUDA102"
           - "PT111+CUDA102"
