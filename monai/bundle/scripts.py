@@ -54,15 +54,7 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
     return args_
 
 
-def _log_input_summary(tag: str, args: Dict):
-    """
-    Log the arguments of bundle scripts.
-
-    Args:
-        tag: tag to identify the script in the log.
-        args: arguments of the script to log.
-
-    """
+def _log_input_summary(tag, args: Dict):
     logger.info(f"\n--- input summary of monai.bundle.scripts.{tag} ---")
     for name, val in args.items():
         logger.info(f"> {name}: {pprint.pformat(val)}")
