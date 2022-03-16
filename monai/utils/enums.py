@@ -25,6 +25,7 @@ __all__ = [
     "Average",
     "MetricReduction",
     "LossReduction",
+    "DiceCEReduction",
     "Weight",
     "ChannelMatching",
     "SkipMode",
@@ -162,6 +163,16 @@ class LossReduction(Enum):
     """
 
     NONE = "none"
+    MEAN = "mean"
+    SUM = "sum"
+
+
+class DiceCEReduction(Enum):
+    """
+    See also:
+        - :py:class:`monai.losses.dice.DiceCELoss`
+    """
+
     MEAN = "mean"
     SUM = "sum"
 
