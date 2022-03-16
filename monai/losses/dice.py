@@ -21,7 +21,7 @@ from torch.nn.modules.loss import _Loss
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
 from monai.networks import one_hot
-from monai.utils import LossReduction, Weight, look_up_option
+from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option
 
 
 class DiceLoss(_Loss):
@@ -625,7 +625,7 @@ class DiceCELoss(_Loss):
         other_act: Optional[Callable] = None,
         squared_pred: bool = False,
         jaccard: bool = False,
-        reduction: str = "mean",
+        reduction: Union[DiceCEReduction, str] = DiceCEReduction.MEAN,
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
@@ -671,6 +671,7 @@ class DiceCELoss(_Loss):
 
         """
         super().__init__()
+        reduction = DiceCEReduction(reduction).value
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=to_onehot_y,
