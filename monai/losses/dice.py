@@ -625,7 +625,7 @@ class DiceCELoss(_Loss):
         other_act: Optional[Callable] = None,
         squared_pred: bool = False,
         jaccard: bool = False,
-        reduction: Union[DiceCEReduction, str] = DiceCEReduction.MEAN,
+        reduction: str = "mean",
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
@@ -671,7 +671,7 @@ class DiceCELoss(_Loss):
 
         """
         super().__init__()
-        reduction = DiceCEReduction(reduction).value
+        reduction = look_up_option(reduction, DiceCEReduction).value
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=to_onehot_y,
