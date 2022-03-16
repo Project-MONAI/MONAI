@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -83,26 +83,44 @@ class ThreadDataLoader(DataLoader):
     iterate over data from the loader as expected however the data is generated on a separate thread. Use this class
     where a `DataLoader` instance is required and not just an iterable object.
 
+    The default behaviour with `repeats` set to 1 is to yield each batch as it is generated, however with a higher
+    value the generated batch is yielded that many times while underlying dataset asynchronously generates the next.
+    Typically not all relevant information is learned from a batch in a single iteration so training multiple times
+    on the same batch will still produce good training with minimal short-term overfitting while allowing a slow batch
+    generation process more time to produce a result.
+
+    Another typical usage is to accelerate light-weight preprocessing (usually cached all the deterministic transforms
+    and no IO operations), because it leverages the separate thread to execute preprocessing to avoid unnecessary IPC
+    between multiple workers of DataLoader. And as CUDA may not work well with the multi-processing of DataLoader,
+    `ThreadDataLoader` can be useful for GPU transforms. For more details:
+    https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md.
+
+    See:
+        * Fischetti et al. "Faster SGD training by minibatch persistency." ArXiv (2018) https://arxiv.org/abs/1806.07353
+        * Dami et al., "Faster Neural Network Training with Data Echoing" ArXiv (2020) https://arxiv.org/abs/1907.05550
+        * Ramezani et al. "GCN meets GPU: Decoupling "When to Sample" from "How to Sample"." NeurIPS (2020).
+          https://proceedings.neurips.cc/paper/2020/file/d714d2c5a796d5814c565d78dd16188d-Paper.pdf
+
     Args:
         dataset: input dataset.
         buffer_size: number of items to buffer from the data source.
         buffer_timeout: time to wait for an item from the buffer, or to wait while the buffer is full when adding items.
-        num_workers: number of the multi-prcessing workers in PyTorch DataLoader.
+        repeats: number of times to yield the same batch.
+        kwargs: other arguments for `DataLoader` except for `dataset`.
 
     """
 
     def __init__(
-        self,
-        dataset: Dataset,
-        buffer_size: int = 1,
-        buffer_timeout: float = 0.01,
-        num_workers: int = 0,
-        **kwargs,
+        self, dataset: Dataset, buffer_size: int = 1, buffer_timeout: float = 0.01, repeats: int = 1, **kwargs
     ):
-        super().__init__(dataset, num_workers, **kwargs)
+        super().__init__(dataset, **kwargs)
         self.buffer_size = buffer_size
         self.buffer_timeout = buffer_timeout
+        self.repeats = repeats
 
     def __iter__(self):
         buffer = ThreadBuffer(src=super().__iter__(), buffer_size=self.buffer_size, timeout=self.buffer_timeout)
-        yield from buffer
+
+        for batch in buffer:
+            for _ in range(self.repeats):
+                yield batch
