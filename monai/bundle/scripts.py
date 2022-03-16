@@ -274,7 +274,7 @@ def verify_net_in_out(
     parser.read_config(f=_args.pop("config_file"))
     parser.read_meta(f=_args.pop("meta_file"))
     id = _args.pop("net_id", "")
-    device_ = torch.device(_args.pop("device", "cuda" if torch.cuda.is_available() else "cpu"))
+    device_ = torch.device(_args.pop("device", "cuda:0" if torch.cuda.is_available() else "cpu:0"))
     p = _args.pop("p", 1)
     n = _args.pop("n", 1)
     any = _args.pop("any", 1)
