@@ -95,6 +95,7 @@ def run_testsuit():
         "test_integration_unet_2d",
         "test_integration_workflows",
         "test_integration_workflows_gan",
+        "test_integration_bundle_run",
         "test_invertd",
         "test_iterable_dataset",
         "test_keep_largest_connected_component",
@@ -159,7 +160,6 @@ def run_testsuit():
         "test_zoomd",
         "test_prepare_batch_default_dist",
         "test_parallel_execution_dist",
-        "test_bundle_run",
         "test_bundle_verify_metadata",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
