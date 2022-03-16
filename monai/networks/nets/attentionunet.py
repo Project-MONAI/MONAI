@@ -23,7 +23,13 @@ __all__ = ["AttentionUnet"]
 
 class ConvBlock(nn.Module):
     def __init__(
-        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: int = 3, strides: int = 1, dropout=0.0
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        strides: int = 1,
+        dropout=0.0,
     ):
         super().__init__()
         layers = [
@@ -33,7 +39,7 @@ class ConvBlock(nn.Module):
                 out_channels=out_channels,
                 kernel_size=kernel_size,
                 strides=strides,
-                padding="same" if strides == 1 else None,
+                padding=None,
                 adn_ordering="NDA",
                 act="relu",
                 norm=Norm.BATCH,
@@ -45,7 +51,7 @@ class ConvBlock(nn.Module):
                 out_channels=out_channels,
                 kernel_size=kernel_size,
                 strides=1,
-                padding="same",
+                padding=None,
                 adn_ordering="NDA",
                 act="relu",
                 norm=Norm.BATCH,
@@ -135,9 +141,24 @@ class AttentionBlock(nn.Module):
         return x * psi
 
 
-@export("monai.networks.nets")
-@alias("Attentionunet")
-@alias("AttentionUNet")
+class AttentionLayer(nn.Module):
+    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, submodule: nn.Module, dropout=0.0):
+        super().__init__()
+        self.attention = AttentionBlock(
+            spatial_dims=spatial_dims, F_g=in_channels, F_l=in_channels, F_int=in_channels // 2
+        )
+        self.upconv = UpConv(spatial_dims=spatial_dims, in_channels=out_channels, out_channels=in_channels, strides=2)
+        self.merge = Convolution(
+            spatial_dims=spatial_dims, in_channels=2 * in_channels, out_channels=in_channels, dropout=dropout
+        )
+        self.submodule = submodule
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        fromlower = self.upconv(self.submodule(x))
+        att = self.attention(g=fromlower, x=x)
+        return self.merge(torch.cat((att, fromlower), dim=1))
+
+
 class AttentionUnet(nn.Module):
     """
     Attention Unet based on
@@ -231,19 +252,3 @@ class AttentionUnet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
-
-
-class AttentionLayer(nn.Module):
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, submodule: nn.Module, dropout=0.0):
-        super().__init__()
-        self.attention = AttentionBlock(spatial_dims=spatial_dims, F_g=in_channels, F_l=in_channels, F_int=in_channels // 2)
-        self.upconv = UpConv(spatial_dims=spatial_dims, in_channels=out_channels, out_channels=in_channels, strides=2)
-        self.merge = Convolution(
-            spatial_dims=spatial_dims, in_channels=2 * in_channels, out_channels=in_channels, dropout=dropout
-        )
-        self.submodule = submodule
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        fromlower = self.upconv(self.submodule(x))
-        att = self.attention(g=fromlower, x=x)
-        return self.merge(torch.cat((att, fromlower), dim=1))

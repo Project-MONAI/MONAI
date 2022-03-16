@@ -477,8 +477,6 @@ Nets
 ~~~~~~~~~~~~~~~
 .. autoclass:: AttentionUnet
   :members:
-.. autoclass:: AttentionUNet
-.. autoclass:: Attentionunet
 
 `UNETR`
 ~~~~~~~
