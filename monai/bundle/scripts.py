@@ -231,14 +231,13 @@ def verify_net_in_out(
 ):
     """
     Verify the input and output data shape and data type of network defined in the metadata.
-    Will test with fake Tensor data according to the network args with id:
-    input data:
-    "_meta_#network_data_format#inputs#image#num_channels"
-    "_meta_#network_data_format#inputs#image#spatial_shape"
-    "_meta_#network_data_format#inputs#image#dtype"
-    output data:
-    "_meta_#network_data_format#outputs#pred#num_channels"
-    "_meta_#network_data_format#outputs#pred#dtype"
+    Will test with fake Tensor data according to the required data shape in `metadata`.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle verify_net_in_out network --meta_file <meta path> --config_file <config path>
 
     Args:
         net_id: ID name of the network component to verify, it must be `torch.nn.Module`.
