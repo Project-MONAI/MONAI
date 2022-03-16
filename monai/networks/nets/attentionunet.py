@@ -85,40 +85,40 @@ class UpConv(nn.Module):
 
 
 class AttentionBlock(nn.Module):
-    def __init__(self, spatial_dims: int, F_int: int, F_g: int, F_l: int, dropout=0.0):
+    def __init__(self, spatial_dims: int, f_int: int, f_g: int, f_l: int, dropout=0.0):
         super().__init__()
         self.W_g = nn.Sequential(
             Convolution(
                 spatial_dims=spatial_dims,
-                in_channels=F_g,
-                out_channels=F_int,
+                in_channels=f_g,
+                out_channels=f_int,
                 kernel_size=1,
                 strides=1,
                 padding=0,
                 dropout=dropout,
                 conv_only=True,
             ),
-            Norm[Norm.BATCH, spatial_dims](F_int),
+            Norm[Norm.BATCH, spatial_dims](f_int),
         )
 
         self.W_x = nn.Sequential(
             Convolution(
                 spatial_dims=spatial_dims,
-                in_channels=F_l,
-                out_channels=F_int,
+                in_channels=f_l,
+                out_channels=f_int,
                 kernel_size=1,
                 strides=1,
                 padding=0,
                 dropout=dropout,
                 conv_only=True,
             ),
-            Norm[Norm.BATCH, spatial_dims](F_int),
+            Norm[Norm.BATCH, spatial_dims](f_int),
         )
 
         self.psi = nn.Sequential(
             Convolution(
                 spatial_dims=spatial_dims,
-                in_channels=F_int,
+                in_channels=f_int,
                 out_channels=1,
                 kernel_size=1,
                 strides=1,
@@ -145,7 +145,7 @@ class AttentionLayer(nn.Module):
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, submodule: nn.Module, dropout=0.0):
         super().__init__()
         self.attention = AttentionBlock(
-            spatial_dims=spatial_dims, F_g=in_channels, F_l=in_channels, F_int=in_channels // 2
+            spatial_dims=spatial_dims, f_g=in_channels, f_l=in_channels, f_int=in_channels // 2
         )
         self.upconv = UpConv(spatial_dims=spatial_dims, in_channels=out_channels, out_channels=in_channels, strides=2)
         self.merge = Convolution(
