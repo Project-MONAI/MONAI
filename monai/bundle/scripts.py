@@ -55,7 +55,7 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
 
 
 def _log_input_summary(tag, args: Dict):
-    logger.info(f"\n--- input summary of monai.bundle.scripts.{tag} ---")
+    logger.info(f"--- input summary of monai.bundle.scripts.{tag} ---")
     for name, val in args.items():
         logger.info(f"> {name}: {pprint.pformat(val)}")
     logger.info("---\n\n")
@@ -95,7 +95,7 @@ def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int
             else:
                 for c in _get_var_names(i):
                     if c not in ["p", "n"]:
-                        raise ValueError(f"only support variables 'm' and 'p' so far, but got: {c}.")
+                        raise ValueError(f"only support variables 'p' and 'n' so far, but got: {c}.")
                 ret.append(eval(i, {"p": p, "n": n}))
         else:
             raise ValueError(f"spatial shape items must be int or string, but got: {type(i)} {i}.")
