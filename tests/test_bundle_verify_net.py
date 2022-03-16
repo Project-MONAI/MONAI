@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
 import subprocess
 import sys
@@ -31,7 +30,6 @@ TEST_CASE_1 = [
 class TestVerifyNetwork(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_verify(self, meta_file, config_file):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg", "p": 2}
             def_args_file = os.path.join(tempdir, "def_args.json")

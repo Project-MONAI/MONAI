@@ -282,13 +282,21 @@ def verify_net_in_out(
     for k, v in _args.items():
         parser[k] = v
 
-    net = parser.get_parsed_content(id).to(device_)
-    input_channels = parser["_meta_#network_data_format#inputs#image#num_channels"]
-    input_spatial_shape = tuple(parser["_meta_#network_data_format#inputs#image#spatial_shape"])
-    input_dtype = get_equivalent_dtype(parser["_meta_#network_data_format#inputs#image#dtype"], data_type=torch.Tensor)
-
-    output_channels = parser["_meta_#network_data_format#outputs#pred#num_channels"]
-    output_dtype = get_equivalent_dtype(parser["_meta_#network_data_format#outputs#pred#dtype"], data_type=torch.Tensor)
+    try:
+        key: str = id  # mark the full id when KeyError
+        net = parser.get_parsed_content(key).to(device_)
+        key = "_meta_#network_data_format#inputs#image#num_channels"
+        input_channels = parser[key]
+        key = "_meta_#network_data_format#inputs#image#spatial_shape"
+        input_spatial_shape = tuple(parser[key])
+        key = "_meta_#network_data_format#inputs#image#dtype"
+        input_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
+        key = "_meta_#network_data_format#outputs#pred#num_channels"
+        output_channels = parser[key]
+        key = "_meta_#network_data_format#outputs#pred#dtype"
+        output_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
+    except KeyError as e:
+        raise KeyError(f"Failed to verify due to missing expected key in the config: {key}.") from e
 
     net.eval()
     with torch.no_grad():
