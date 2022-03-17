@@ -161,6 +161,7 @@ def run_testsuit():
         "test_prepare_batch_default_dist",
         "test_parallel_execution_dist",
         "test_bundle_verify_metadata",
+        "test_bundle_verify_net",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
