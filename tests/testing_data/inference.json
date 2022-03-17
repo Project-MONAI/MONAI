@@ -1,4 +1,5 @@
 {
+    "dataset_dir": "/workspace/data/Task09_Spleen",
     "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
     "network_def": {
         "_target_": "UNet",
