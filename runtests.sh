@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,12 +38,15 @@ doNetTests=false
 doDryRun=false
 doZooTests=false
 doUnitTests=false
+doBuild=false
 doBlackFormat=false
 doBlackFix=false
 doIsortFormat=false
 doIsortFix=false
 doFlake8Format=false
+doPylintFormat=false
 doClangFormat=false
+doCopyRight=false
 doPytypeFormat=false
 doMypyFormat=false
 doCleanup=false
@@ -54,8 +57,9 @@ NUM_PARALLEL=1
 PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
-    echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--clangformat] [--pytype] [--mypy]"
+    echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--list_tests]"
+    echo "            [--copyright] [--build] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -72,6 +76,7 @@ function print_usage {
     echo "    --autofix         : format code using \"isort\" and \"black\""
     echo "    --isort           : perform \"isort\" import sort checks"
     echo "    --flake8          : perform \"flake8\" code format checks"
+    echo "    --pylint          : perform \"pylint\" code format checks"
     echo "    --clangformat     : format csrc code using \"clang-format\""
     echo ""
     echo "Python type check options:"
@@ -86,10 +91,12 @@ function print_usage {
     echo "    -q, --quick       : skip long running unit tests and integration tests"
     echo "    -m, --min         : only run minimal unit tests which do not require optional packages"
     echo "    --net             : perform integration testing"
+    echo "    -b, --build       : compile and install the source code folder an editable release."
     echo "    --list_tests      : list unit tests and exit"
     echo ""
     echo "Misc. options:"
     echo "    --dryrun          : display the commands to the screen without running"
+    echo "    --copyright       : check whether every source code has a copyright header"
     echo "    -f, --codeformat  : shorthand to run all code style and static analysis tests"
     echo "    -c, --clean       : clean temporary files from tests and exit"
     echo "    -h, --help        : show this help message and exit"
@@ -103,8 +110,8 @@ function print_usage {
 }
 
 function check_import {
-    echo "python: ${PY_EXE}"
-    ${cmdPrefix}${PY_EXE} -c "import monai"
+    echo "Python: ${PY_EXE}"
+    ${cmdPrefix}${PY_EXE} -W error -W ignore::DeprecationWarning -c "import monai"
 }
 
 function print_version {
@@ -236,8 +243,10 @@ do
             doBlackFormat=true
             doIsortFormat=true
             doFlake8Format=true
+            doPylintFormat=true
             doPytypeFormat=true
             doMypyFormat=true
+            doCopyRight=true
         ;;
         --disttests)
             doDistTests=true
@@ -250,6 +259,7 @@ do
             doBlackFix=true
             doIsortFormat=true
             doBlackFormat=true
+            doCopyRight=true
         ;;
         --clangformat)
             doClangFormat=true
@@ -260,6 +270,9 @@ do
         --flake8)
             doFlake8Format=true
         ;;
+        --pylint)
+            doPylintFormat=true
+        ;;
         --pytype)
             doPytypeFormat=true
         ;;
@@ -269,6 +282,12 @@ do
         -j|--jobs)
             NUM_PARALLEL=$2
             shift
+        ;;
+        --copyright)
+            doCopyRight=true
+        ;;
+        -b|--build)
+            doBuild=true
         ;;
         -c|--clean)
             doCleanup=true
@@ -314,6 +333,14 @@ else
     check_import
 fi
 
+if [ $doBuild = true ]
+then
+    echo "${separator}${blue}compile and install${noColor}"
+    # try to compile MONAI cpp
+    compile_cpp
+
+    echo "${green}done! (to uninstall and clean up, please use \"./runtests.sh --clean\")${noColor}"
+fi
 
 if [ $doCleanup = true ]
 then
@@ -335,11 +362,32 @@ then
     exit
 fi
 
-# try to compile MONAI cpp
-compile_cpp
-
 # unconditionally report on the state of monai
 print_version
+
+if [ $doCopyRight = true ]
+then
+    # check copyright headers
+    copyright_bad=0
+    copyright_all=0
+    while read -r fname; do
+        copyright_all=$((copyright_all + 1))
+        if ! grep "http://www.apache.org/licenses/LICENSE-2.0" "$fname" > /dev/null; then
+            print_error_msg "Missing the license header in file: $fname"
+            copyright_bad=$((copyright_bad + 1))
+        fi
+    done <<< "$(find "$(pwd)/monai" "$(pwd)/tests" -type f \
+        ! -wholename "*_version.py" -and -name "*.py" -or -name "*.cpp" -or -name "*.cu" -or -name "*.h")"
+    if [[ ${copyright_bad} -eq 0 ]];
+    then
+        echo "${green}Source code copyright headers checked ($copyright_all).${noColor}"
+    else
+        echo "Please add the licensing header to the file ($copyright_bad of $copyright_all files)."
+        echo "  See also: https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md#checking-the-coding-style"
+        echo ""
+        exit 1
+    fi
+fi
 
 
 if [ $doIsortFormat = true ]
@@ -397,9 +445,9 @@ then
 
     if [ $doBlackFix = true ]
     then
-        ${cmdPrefix}${PY_EXE} -m black "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma "$(pwd)"
     else
-        ${cmdPrefix}${PY_EXE} -m black --check "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma --check "$(pwd)"
     fi
 
     black_status=$?
@@ -421,7 +469,7 @@ then
 
     # ensure that the necessary packages for code format testing are installed
     if ! is_pip_installed flake8
-	then
+    then
         install_deps
     fi
     ${cmdPrefix}${PY_EXE} -m flake8 --version
@@ -439,19 +487,47 @@ then
     set -e # enable exit on failure
 fi
 
+if [ $doPylintFormat = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    echo "${separator}${blue}pylint${noColor}"
+
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed flake8
+    then
+        install_deps
+    fi
+    ${cmdPrefix}${PY_EXE} -m pylint --version
+
+    ignore_codes="E1101,E1102,E0601,E1130,E1123,E0102,E1120,E1137,E1136"
+    ${cmdPrefix}${PY_EXE} -m pylint monai tests -E --disable=$ignore_codes -j $NUM_PARALLEL
+    pylint_status=$?
+
+    if [ ${pylint_status} -ne 0 ]
+    then
+        print_style_fail_msg
+        exit ${pylint_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
+fi
+
 
 if [ $doPytypeFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
     echo "${separator}${blue}pytype${noColor}"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "${red}pytype not working on macOS (https://github.com/Project-MONAI/MONAI/issues/2391), skipping the tests.${noColor}"
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed pytype
+    then
+        install_deps
+    fi
+    pytype_ver=$(${cmdPrefix}${PY_EXE} -m pytype --version)
+    if [[ "$OSTYPE" == "darwin"* && "$pytype_ver" == "2021."* ]]; then
+        echo "${red}pytype not working on macOS 2021 (https://github.com/Project-MONAI/MONAI/issues/2391). Please upgrade to 2022*.${noColor}"
+        exit 1
     else
-        # ensure that the necessary packages for code format testing are installed
-        if ! is_pip_installed pytype
-        then
-            install_deps
-        fi
         ${cmdPrefix}${PY_EXE} -m pytype --version
 
         ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
@@ -535,7 +611,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_((?!integration).)"
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "^(?!test_integration).*(?<!_dist)$"  # excluding integration/dist tests
 fi
 
 # distributed test only
@@ -543,7 +619,11 @@ if [ $doDistTests = true ]
 then
     echo "${separator}${blue}run distributed unit test cases${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_.*_dist$"
+    for i in tests/test_*_dist.py
+    do
+        echo "$i"
+        ${cmdPrefix}${cmd} "$i"
+    done
 fi
 
 # network training/inference/eval integration tests

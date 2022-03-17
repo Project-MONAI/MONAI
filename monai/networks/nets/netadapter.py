@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,11 +24,12 @@ class NetAdapter(torch.nn.Module):
     then replace the model's last two layers with an optional `pooling` and a `conv` or `linear` layer.
 
     Args:
-        model: a PyTorch model, support both 2D and 3D models. typically, it can be a pretrained model in Torchvision,
-            like: ``resnet18``, ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``, etc.
+        model: a PyTorch model, which can be both 2D and 3D models. typically, it can be a pretrained model
+            in Torchvision, like: ``resnet18``, ``resnet34``, ``resnet50``, ``resnet101``, ``resnet152``, etc.
             more details: https://pytorch.org/vision/stable/models.html.
         num_classes: number of classes for the last classification layer. Default to 1.
-        dim: number of spatial dimensions, default to 2.
+        dim: number of supported spatial dimensions in the specified model, depends on the model implementation.
+            default to 2 as most Torchvision models are for 2D image processing.
         in_channels: number of the input channels of last layer. if None, get it from `in_features` of last layer.
         use_conv: whether use convolutional layer to replace the last layer, default to False.
         pool: parameters for the pooling layer, it should be a tuple, the first item is name of the pooling layer,
@@ -36,6 +37,9 @@ class NetAdapter(torch.nn.Module):
             default to `("avg", {"kernel_size": 7, "stride": 1})`.
         bias: the bias value when replacing the last layer. if False, the layer will not learn an additive bias,
             default to True.
+
+    .. deprecated:: 0.6.0
+        ``n_classes`` is deprecated, use ``num_classes`` instead.
 
     """
 
@@ -67,32 +71,23 @@ class NetAdapter(torch.nn.Module):
             in_channels_ = in_channels
 
         if pool is None:
-            self.pool = None
             # remove the last layer
             self.features = torch.nn.Sequential(*layers[:-1])
+            self.pool = None
         else:
-            self.pool = get_pool_layer(name=pool, spatial_dims=dim)
             # remove the last 2 layers
             self.features = torch.nn.Sequential(*layers[:-2])
+            self.pool = get_pool_layer(name=pool, spatial_dims=dim)
 
         self.fc: Union[torch.nn.Linear, torch.nn.Conv2d, torch.nn.Conv3d]
         if use_conv:
             # add 1x1 conv (it behaves like a FC layer)
-            self.fc = Conv[Conv.CONV, dim](
-                in_channels=in_channels_,
-                out_channels=num_classes,
-                kernel_size=1,
-                bias=bias,
-            )
+            self.fc = Conv[Conv.CONV, dim](in_channels=in_channels_, out_channels=num_classes, kernel_size=1, bias=bias)
         else:
             # remove the last Linear layer (fully connected)
             self.features = torch.nn.Sequential(*layers[:-1])
             # replace the out_features of FC layer
-            self.fc = torch.nn.Linear(
-                in_features=in_channels_,
-                out_features=num_classes,
-                bias=bias,
-            )
+            self.fc = torch.nn.Linear(in_features=in_channels_, out_features=num_classes, bias=bias)
         self.use_conv = use_conv
 
     def forward(self, x):
