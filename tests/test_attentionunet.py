@@ -14,24 +14,25 @@ import unittest
 import torch
 
 import monai.networks.nets.attentionunet as att
+from tests.utils import skip_if_no_cuda
 
 
 class TestAttentionUnet(unittest.TestCase):
     def test_attention_block(self):
         for dims in [2, 3]:
-            block = att.AttentionBlock(dims, F_int=16, F_g=64, F_l=64)
+            block = att.AttentionBlock(dims, f_int=16, f_g=64, f_l=64)
             shape = (4, 64) + (30,) * dims
             x = torch.rand(*shape, dtype=torch.float32)
             output = block(x, x)
-            assert output.shape == x.shape
+            self.assertEqual(output.shape, x.shape)
 
-            block = att.AttentionBlock(dims, F_int=16, F_g=32, F_l=64)
+            block = att.AttentionBlock(dims, f_int=16, f_g=32, f_l=64)
             xshape = (4, 64) + (30,) * dims
             x = torch.rand(*xshape, dtype=torch.float32)
             gshape = (4, 32) + (30,) * dims
             g = torch.rand(*gshape, dtype=torch.float32)
             output = block(g, x)
-            assert output.shape == x.shape
+            self.assertEqual(output.shape, x.shape)
 
     def test_attentionunet(self):
         for dims in [2, 3]:
@@ -41,23 +42,23 @@ class TestAttentionUnet(unittest.TestCase):
                 spatial_dims=dims, in_channels=1, out_channels=2, channels=(16, 32, 64), strides=(2, 2)
             )
             output = model(input)
-            assert output.shape[2:] == input.shape[2:]
-            assert output.shape[0] == input.shape[0]
-            assert output.shape[1] == 2
+            self.assertEqual(output.shape[2:], input.shape[2:])
+            self.assertEqual(output.shape[0], input.shape[0])
+            self.assertEqual(output.shape[1], 2)
 
+    @skip_if_no_cuda
     def test_attentionunet_gpu(self):
-        if torch.cuda.is_available():
-            for dims in [2, 3]:
-                shape = (3, 1) + (92,) * dims
-                input = torch.rand(*shape).to("cuda:0")
-                model = att.AttentionUnet(
-                    spatial_dims=dims, in_channels=1, out_channels=2, channels=(16, 32, 64), strides=(2, 2)
-                ).to("cuda:0")
-                with torch.no_grad():
-                    output = model(input)
-                    assert output.shape[2:] == input.shape[2:]
-                    assert output.shape[0] == input.shape[0]
-                    assert output.shape[1] == 2
+        for dims in [2, 3]:
+            shape = (3, 1) + (92,) * dims
+            input = torch.rand(*shape).to("cuda:0")
+            model = att.AttentionUnet(
+                spatial_dims=dims, in_channels=1, out_channels=2, channels=(16, 32, 64), strides=(2, 2)
+            ).to("cuda:0")
+            with torch.no_grad():
+                output = model(input)
+                self.assertEqual(output.shape[2:], input.shape[2:])
+                self.assertEqual(output.shape[0], input.shape[0])
+                self.assertEqual(output.shape[1], 2)
 
 
 if __name__ == "__main__":

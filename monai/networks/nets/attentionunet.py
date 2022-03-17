@@ -16,7 +16,6 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Norm
-from monai.utils import alias, export
 
 __all__ = ["AttentionUnet"]
 
@@ -61,7 +60,8 @@ class ConvBlock(nn.Module):
         self.conv = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.conv(x)
+        x_c: torch.Tensor = self.conv(x)
+        return x_c
 
 
 class UpConv(nn.Module):
@@ -81,7 +81,8 @@ class UpConv(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.up(x)
+        x_u: torch.Tensor = self.up(x)
+        return x_u
 
 
 class AttentionBlock(nn.Module):
@@ -135,7 +136,7 @@ class AttentionBlock(nn.Module):
     def forward(self, g: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         g1 = self.W_g(g)
         x1 = self.W_x(x)
-        psi = self.relu(g1 + x1)
+        psi: torch.Tensor = self.relu(g1 + x1)
         psi = self.psi(psi)
 
         return x * psi
@@ -156,7 +157,8 @@ class AttentionLayer(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         fromlower = self.upconv(self.submodule(x))
         att = self.attention(g=fromlower, x=x)
-        return self.merge(torch.cat((att, fromlower), dim=1))
+        att_m: torch.Tensor = self.merge(torch.cat((att, fromlower), dim=1))
+        return att_m
 
 
 class AttentionUnet(nn.Module):
@@ -251,4 +253,5 @@ class AttentionUnet(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
+        x_m: torch.Tensor = self.model(x)
+        return x_m
