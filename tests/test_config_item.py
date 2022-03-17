@@ -91,11 +91,24 @@ class TestConfigItem(unittest.TestCase):
         self.assertTrue(isinstance(ret, DataLoader))
         self.assertEqual(ret.batch_size, 4)
 
-    def test_import(self):
-        import_string = "$import json"
+    @parameterized.expand([("$import json", "json"), ("$import json as j", "j")])
+    def test_import(self, stmt, mod_name):
         test_globals = {}
-        ConfigExpression(id="", config=import_string, globals=test_globals).evaluate()
-        self.assertTrue(callable(test_globals["json"].dump))
+        ConfigExpression(id="", config=stmt, globals=test_globals).evaluate()
+        self.assertTrue(callable(test_globals[mod_name].dump))
+
+    @parameterized.expand(
+        [
+            ("$from json import dump", "dump"),
+            ("$from json import dump, dumps", "dump"),
+            ("$from json import dump as jd", "jd"),
+            ("$from json import dump as jd, dumps as ds", "jd"),
+        ]
+    )
+    def test_import_from(self, stmt, mod_name):
+        test_globals = {}
+        ConfigExpression(id="", config=stmt, globals=test_globals).evaluate()
+        self.assertTrue(callable(test_globals[mod_name]))
 
 
 if __name__ == "__main__":
