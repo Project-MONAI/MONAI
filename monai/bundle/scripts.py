@@ -9,17 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import pprint
 import re
 from typing import Dict, Optional, Sequence, Union
 
+import torch
 from monai.apps.utils import download_url, get_logger
 from monai.bundle.config_parser import ConfigParser
-from monai.config import PathLike
-from monai.utils import check_parent_dir, optional_import
+from monai.config import PathLike, IgniteInfo
+
+from monai.data import save_net_with_metadata
+from monai.networks import convert_to_torchscript, copy_model_state
+from monai.utils import check_parent_dir, min_version, optional_import
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
+Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 
 logger = get_logger(module_name=__name__)
 
@@ -172,3 +178,60 @@ def verify_metadata(
         logger.info(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
         return
     logger.info("metadata is verified with no error.")
+
+
+def export(
+    net_id: Optional[str] = None,
+    filepath: Optional[PathLike] = None,
+    meta_file: Optional[Union[str, Sequence[str]]] = None,
+    config_file: Optional[Union[str, Sequence[str]]] = None,
+    ckpt_file: Optional[str] = None,
+    key_in_ckpt: Optional[str] = None,
+    args_file: Optional[str] = None,
+    **override,
+):
+    _args = _update_args(
+        args=args_file,
+        net_id=net_id,
+        filepath=filepath,
+        meta_file=meta_file,
+        config_file=config_file,
+        ckpt_file=ckpt_file,
+        key_in_ckpt=key_in_ckpt,
+        **override,
+    )
+    _log_input_summary(tag="export", args=_args)
+
+    parser = ConfigParser()
+    config_file_ = _args.pop("config_file")
+    parser.read_config(f=config_file_)
+    meta_file = _args.pop("meta_file")
+    if meta_file is not None:
+        parser.read_meta(f=meta_file)
+    id = _args.pop("net_id", "")
+    path = _args.pop("filepath")
+    ckpt = torch.load(_args.pop("ckpt_file"))
+    key = _args.pop("key_in_ckpt", "")
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    net = parser.get_parsed_content(id)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key: net}, checkpoint=ckpt)
+    else:
+        copy_model_state(dst=net, src=ckpt if key == "" else ckpt[key])
+
+    # convert to TorchScript model and save with meta data, config content
+    net = convert_to_torchscript(model=net)
+
+    save_net_with_metadata(
+        jit_obj=net,
+        filename_prefix_or_stream=path,
+        include_config_vals=False,
+        append_timestamp=False,
+        meta_values=parser.get().pop("_meta_", None),
+        more_extra_files={"config": json.dumps(parser.get()).encode()},
+    )
