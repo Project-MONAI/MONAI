@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
 import json
 import re
 from copy import deepcopy
@@ -103,7 +102,7 @@ class ConfigParser:
             _globals.update(globals)
         if _globals is not None:
             for k, v in _globals.items():
-                self.globals[k] = importlib.import_module(v) if isinstance(v, str) else v
+                self.globals[k] = optional_import(v)[0] if isinstance(v, str) else v
 
         self.locator = ComponentLocator(excludes=excludes)
         self.ref_resolver = ReferenceResolver()

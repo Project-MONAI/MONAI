@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ast
 import inspect
 import os
 import sys
@@ -18,7 +19,7 @@ from importlib import import_module
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from monai.bundle.utils import EXPR_KEY
-from monai.utils import ensure_tuple, instantiate
+from monai.utils import ensure_tuple, instantiate, optional_import
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent"]
 
@@ -284,7 +285,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 class ConfigExpression(ConfigItem):
     """
     Subclass of :py:class:`monai.bundle.ConfigItem`, the `ConfigItem` represents an executable expression
-    (execute based on ``eval()``).
+    (execute based on ``eval()``, or import the module to the `globals` if it's an import statement).
 
     See also:
 
@@ -313,7 +314,26 @@ class ConfigExpression(ConfigItem):
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)
-        self.globals = globals
+        self.globals = globals if globals is not None else {}
+
+    def _parse_import_string(self, import_string: str):
+        # parse single import statement such as "from monai.transforms import Resize"
+        for n in ast.iter_child_nodes(ast.parse(import_string)):
+            if not isinstance(n, (ast.Import, ast.ImportFrom)):
+                return None
+            if len(n.names) < 1:
+                return None
+            if len(n.names) > 1:
+                warnings.warn(f"ignoring multiple import alias '{import_string}'.")
+            name, asname = f"{n.names[0].name}", n.names[0].asname
+            asname = name if asname is None else f"{asname}"
+            if isinstance(n, ast.ImportFrom):
+                self.globals[asname], _ = optional_import(f"{n.module}", name=f"{name}")
+                return self.globals[asname]
+            elif isinstance(n, ast.Import):
+                self.globals[asname], _ = optional_import(f"{name}")
+                return self.globals[asname]
+        return None
 
     def evaluate(self, locals: Optional[Dict] = None):
         """
@@ -327,6 +347,9 @@ class ConfigExpression(ConfigItem):
         value = self.get_config()
         if not ConfigExpression.is_expression(value):
             return None
+        optional_module = self._parse_import_string(value[len(self.prefix) :])
+        if optional_module is not None:
+            return optional_module
         if not self.run_eval:
             return f"{value[len(self.prefix) :]}"
         return eval(value[len(self.prefix) :], self.globals, locals)

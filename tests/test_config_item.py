@@ -91,6 +91,12 @@ class TestConfigItem(unittest.TestCase):
         self.assertTrue(isinstance(ret, DataLoader))
         self.assertEqual(ret.batch_size, 4)
 
+    def test_import(self):
+        import_string = "$import json"
+        test_globals = {}
+        ConfigExpression(id="", config=import_string, globals=test_globals).evaluate()
+        self.assertTrue(callable(test_globals["json"].dump))
+
 
 if __name__ == "__main__":
     unittest.main()
