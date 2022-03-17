@@ -38,7 +38,7 @@ class TestVerifyMetaData(unittest.TestCase):
             def_args_file = os.path.join(tempdir, "def_args.json")
             ConfigParser.export_config_file(config=def_args, filepath=def_args_file)
 
-            hash_val = "b11acc946148c0186924f8234562b947"
+            hash_val = "e3a7e23d1113a1f3e6c69f09b6f9ce2c"
 
             cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", meta_file]
             cmd += ["--filepath", schema_file, "--hash_val", hash_val, "--args_file", def_args_file]
@@ -54,7 +54,7 @@ class TestVerifyMetaData(unittest.TestCase):
                 json.dump(
                     {
                         "schema": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/"
-                        "download/0.8.1/meta_schema_202203130950.json",
+                        "download/0.8.1/meta_schema_202203171008.json",
                         "wrong_meta": "wrong content",
                     },
                     f,
