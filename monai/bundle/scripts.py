@@ -9,14 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ast
 import pprint
 import re
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Tuple, Union
+
+import torch
 
 from monai.apps.utils import download_url, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
-from monai.utils import check_parent_dir, optional_import
+from monai.utils import check_parent_dir, get_equivalent_dtype, optional_import
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
@@ -51,11 +54,52 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
     return args_
 
 
-def _log_input_summary(tag: str, args: Dict):
-    logger.info(f"\n--- input summary of monai.bundle.scripts.{tag} ---")
+def _log_input_summary(tag, args: Dict):
+    logger.info(f"--- input summary of monai.bundle.scripts.{tag} ---")
     for name, val in args.items():
         logger.info(f"> {name}: {pprint.pformat(val)}")
     logger.info("---\n\n")
+
+
+def _get_var_names(expr: str):
+    """
+    Parse the expression and discover what variables are present in it based on ast module.
+
+    Args:
+        expr: source expression to parse.
+
+    """
+    tree = ast.parse(expr)
+    return [m.id for m in ast.walk(tree) if isinstance(m, ast.Name)]
+
+
+def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int = 1, any: int = 1) -> Tuple:
+    """
+    Get spatial shape for fake data according to the specified shape pattern.
+    It supports `int` number and `string` with formats like: "32", "32 * n", "32 ** p", "32 ** p *n".
+
+    Args:
+        shape: specified pattern for the spatial shape.
+        p: power factor to generate fake data shape if dim of expected shape is "x**p", default to 1.
+        p: multiply factor to generate fake data shape if dim of expected shape is "x*n", default to 1.
+        any: specified size to generate fake data shape if dim of expected shape is "*", default to 1.
+
+    """
+    ret = []
+    for i in shape:
+        if isinstance(i, int):
+            ret.append(i)
+        elif isinstance(i, str):
+            if i == "*":
+                ret.append(any)
+            else:
+                for c in _get_var_names(i):
+                    if c not in ["p", "n"]:
+                        raise ValueError(f"only support variables 'p' and 'n' so far, but got: {c}.")
+                ret.append(eval(i, {"p": p, "n": n}))
+        else:
+            raise ValueError(f"spatial shape items must be int or string, but got: {type(i)} {i}.")
+    return tuple(ret)
 
 
 def run(
@@ -89,27 +133,26 @@ def run(
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
-        runner_id: ID name of the runner component or workflow, it must have a `run` method.
-        meta_file: filepath of the metadata file, if `None`, must be provided in `args_file`.
-            if it is a list of file paths, the content of them will be merged.
+        runner_id: ID name of the runner component or workflow, it must have a `run` method. Defaults to ``""``.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
-        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
-            `runner_id` and override pairs. so that the command line inputs can be simplified.
+        args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
+            `config_file`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``.
 
     """
 
     _args = _update_args(args=args_file, runner_id=runner_id, meta_file=meta_file, config_file=config_file, **override)
-    for k in ("meta_file", "config_file"):
-        if k not in _args:
-            raise ValueError(f"{k} is required for 'monai.bundle run'.\n{run.__doc__}")
+    if "config_file" not in _args:
+        raise ValueError(f"`config_file` is required for 'monai.bundle run'.\n{run.__doc__}")
     _log_input_summary(tag="run", args=_args)
 
     parser = ConfigParser()
     parser.read_config(f=_args.pop("config_file"))
-    parser.read_meta(f=_args.pop("meta_file"))
+    if "meta_file" in _args:
+        parser.read_meta(f=_args.pop("meta_file"))
     id = _args.pop("runner_id", "")
 
     # the rest key-values in the _args are to override config content
@@ -118,8 +161,8 @@ def run(
 
     workflow = parser.get_parsed_content(id=id)
     if not hasattr(workflow, "run"):
-        raise ValueError(f"The parsed workflow {type(workflow)} does not have a `run` method.\n{run.__doc__}")
-    workflow.run()
+        raise ValueError(f"The parsed workflow {type(workflow)} (id={id}) does not have a `run` method.\n{run.__doc__}")
+    return workflow.run()
 
 
 def verify_metadata(
@@ -127,6 +170,7 @@ def verify_metadata(
     filepath: Optional[PathLike] = None,
     create_dir: Optional[bool] = None,
     hash_val: Optional[str] = None,
+    hash_type: Optional[str] = None,
     args_file: Optional[str] = None,
     **kwargs,
 ):
@@ -141,6 +185,7 @@ def verify_metadata(
         filepath: file path to store the downloaded schema.
         create_dir: whether to create directories if not existing, default to `True`.
         hash_val: if not None, define the hash value to verify the downloaded schema file.
+        hash_type: if not None, define the hash type to verify the downloaded schema file. Defaults to "md5".
         args_file: a JSON or YAML file to provide default values for all the args in this function.
             so that the command line inputs can be simplified.
         kwargs: other arguments for `jsonschema.validate()`. for more details:
@@ -149,7 +194,13 @@ def verify_metadata(
     """
 
     _args = _update_args(
-        args=args_file, meta_file=meta_file, filepath=filepath, create_dir=create_dir, hash_val=hash_val, **kwargs
+        args=args_file,
+        meta_file=meta_file,
+        filepath=filepath,
+        create_dir=create_dir,
+        hash_val=hash_val,
+        hash_type=hash_type,
+        **kwargs,
     )
     _log_input_summary(tag="verify_metadata", args=_args)
 
@@ -161,7 +212,13 @@ def verify_metadata(
     url = metadata.get("schema")
     if url is None:
         raise ValueError("must provide the `schema` field in the metadata for the URL of schema file.")
-    download_url(url=url, filepath=filepath_, hash_val=_args.pop("hash_val", None), hash_type="md5", progress=True)
+    download_url(
+        url=url,
+        filepath=filepath_,
+        hash_val=_args.pop("hash_val", None),
+        hash_type=_args.pop("hash_type", "md5"),
+        progress=True,
+    )
     schema = ConfigParser.load_config_file(filepath=filepath_)
 
     try:
@@ -172,3 +229,95 @@ def verify_metadata(
         logger.info(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
         return
     logger.info("metadata is verified with no error.")
+
+
+def verify_net_in_out(
+    net_id: Optional[str] = None,
+    meta_file: Optional[Union[str, Sequence[str]]] = None,
+    config_file: Optional[Union[str, Sequence[str]]] = None,
+    device: Optional[str] = None,
+    p: Optional[int] = None,
+    n: Optional[int] = None,
+    any: Optional[int] = None,
+    args_file: Optional[str] = None,
+    **override,
+):
+    """
+    Verify the input and output data shape and data type of network defined in the metadata.
+    Will test with fake Tensor data according to the required data shape in `metadata`.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle verify_net_in_out network --meta_file <meta path> --config_file <config path>
+
+    Args:
+        net_id: ID name of the network component to verify, it must be `torch.nn.Module`.
+        meta_file: filepath of the metadata file to get network args, if `None`, must be provided in `args_file`.
+            if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file to get network definition, if `None`, must be provided in `args_file`.
+            if it is a list of file paths, the content of them will be merged.
+        device: target device to run the network forward computation, if None, prefer to "cuda" if existing.
+        p: power factor to generate fake data shape if dim of expected shape is "x**p", default to 1.
+        p: multiply factor to generate fake data shape if dim of expected shape is "x*n", default to 1.
+        any: specified size to generate fake data shape if dim of expected shape is "*", default to 1.
+        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
+            `net_id` and override pairs. so that the command line inputs can be simplified.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
+
+    """
+
+    _args = _update_args(
+        args=args_file,
+        net_id=net_id,
+        meta_file=meta_file,
+        config_file=config_file,
+        device=device,
+        p=p,
+        n=n,
+        any=any,
+        **override,
+    )
+    _log_input_summary(tag="verify_net_in_out", args=_args)
+
+    parser = ConfigParser()
+    parser.read_config(f=_args.pop("config_file"))
+    parser.read_meta(f=_args.pop("meta_file"))
+    id = _args.pop("net_id", "")
+    device_ = torch.device(_args.pop("device", "cuda:0" if torch.cuda.is_available() else "cpu"))
+    p = _args.pop("p", 1)
+    n = _args.pop("n", 1)
+    any = _args.pop("any", 1)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    try:
+        key: str = id  # mark the full id when KeyError
+        net = parser.get_parsed_content(key).to(device_)
+        key = "_meta_#network_data_format#inputs#image#num_channels"
+        input_channels = parser[key]
+        key = "_meta_#network_data_format#inputs#image#spatial_shape"
+        input_spatial_shape = tuple(parser[key])
+        key = "_meta_#network_data_format#inputs#image#dtype"
+        input_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
+        key = "_meta_#network_data_format#outputs#pred#num_channels"
+        output_channels = parser[key]
+        key = "_meta_#network_data_format#outputs#pred#dtype"
+        output_dtype = get_equivalent_dtype(parser[key], torch.Tensor)
+    except KeyError as e:
+        raise KeyError(f"Failed to verify due to missing expected key in the config: {key}.") from e
+
+    net.eval()
+    with torch.no_grad():
+        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)  # type: ignore
+        test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device_)
+        output = net(test_data)
+        if output.shape[1] != output_channels:
+            raise ValueError(f"output channel number `{output.shape[1]}` doesn't match: `{output_channels}`.")
+        if output.dtype != output_dtype:
+            raise ValueError(f"dtype of output data `{output.dtype}` doesn't match: {output_dtype}.")
+    logger.info("data shape of network is verified with no error.")

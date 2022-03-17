@@ -1,4 +1,5 @@
 {
+    "dataset_dir": "/workspace/data/Task09_Spleen",
     "import_glob": "$import glob",
     "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
     "set_seed": "$monai.utils.set_determinism(0)",
