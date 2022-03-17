@@ -138,9 +138,8 @@ def run(
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
-        runner_id: ID name of the runner component or workflow, it must have a `run` method.
-        meta_file: filepath of the metadata file, if `None`, must be provided in `args_file`.
-            if it is a list of file paths, the content of them will be merged.
+        runner_id: ID name of the runner component or workflow, it must have a `run` method. Defaults to ``""``.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
@@ -151,14 +150,14 @@ def run(
     """
 
     _args = _update_args(args=args_file, runner_id=runner_id, meta_file=meta_file, config_file=config_file, **override)
-    for k in ("meta_file", "config_file"):
-        if k not in _args:
-            raise ValueError(f"{k} is required for 'monai.bundle run'.\n{run.__doc__}")
+    if "config_file" not in _args:
+        raise ValueError(f"`config_file` is required for 'monai.bundle run'.\n{run.__doc__}")
     _log_input_summary(tag="run", args=_args)
 
     parser = ConfigParser()
     parser.read_config(f=_args.pop("config_file"))
-    parser.read_meta(f=_args.pop("meta_file"))
+    if "meta_file" in _args:
+        parser.read_meta(f=_args.pop("meta_file"))
     id = _args.pop("runner_id", "")
 
     # the rest key-values in the _args are to override config content
@@ -167,8 +166,8 @@ def run(
 
     workflow = parser.get_parsed_content(id=id)
     if not hasattr(workflow, "run"):
-        raise ValueError(f"The parsed workflow {type(workflow)} does not have a `run` method.\n{run.__doc__}")
-    workflow.run()
+        raise ValueError(f"The parsed workflow {type(workflow)} (id={id}) does not have a `run` method.\n{run.__doc__}")
+    return workflow.run()
 
 
 def verify_metadata(
@@ -176,6 +175,7 @@ def verify_metadata(
     filepath: Optional[PathLike] = None,
     create_dir: Optional[bool] = None,
     hash_val: Optional[str] = None,
+    hash_type: Optional[str] = None,
     args_file: Optional[str] = None,
     **kwargs,
 ):
@@ -190,6 +190,7 @@ def verify_metadata(
         filepath: file path to store the downloaded schema.
         create_dir: whether to create directories if not existing, default to `True`.
         hash_val: if not None, define the hash value to verify the downloaded schema file.
+        hash_type: if not None, define the hash type to verify the downloaded schema file. Defaults to "md5".
         args_file: a JSON or YAML file to provide default values for all the args in this function.
             so that the command line inputs can be simplified.
         kwargs: other arguments for `jsonschema.validate()`. for more details:
@@ -198,7 +199,13 @@ def verify_metadata(
     """
 
     _args = _update_args(
-        args=args_file, meta_file=meta_file, filepath=filepath, create_dir=create_dir, hash_val=hash_val, **kwargs
+        args=args_file,
+        meta_file=meta_file,
+        filepath=filepath,
+        create_dir=create_dir,
+        hash_val=hash_val,
+        hash_type=hash_type,
+        **kwargs,
     )
     _log_input_summary(tag="verify_metadata", args=_args)
 
@@ -210,7 +217,13 @@ def verify_metadata(
     url = metadata.get("schema")
     if url is None:
         raise ValueError("must provide the `schema` field in the metadata for the URL of schema file.")
-    download_url(url=url, filepath=filepath_, hash_val=_args.pop("hash_val", None), hash_type="md5", progress=True)
+    download_url(
+        url=url,
+        filepath=filepath_,
+        hash_val=_args.pop("hash_val", None),
+        hash_type=_args.pop("hash_type", "md5"),
+        progress=True,
+    )
     schema = ConfigParser.load_config_file(filepath=filepath_)
 
     try:
