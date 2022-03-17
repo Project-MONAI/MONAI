@@ -20,16 +20,16 @@ from tests.utils import skip_if_no_cuda
 class TestAttentionUnet(unittest.TestCase):
     def test_attention_block(self):
         for dims in [2, 3]:
-            block = att.AttentionBlock(dims, f_int=16, f_g=64, f_l=64)
-            shape = (4, 64) + (30,) * dims
+            block = att.AttentionBlock(dims, f_int=2, f_g=6, f_l=6)
+            shape = (4, 6) + (30,) * dims
             x = torch.rand(*shape, dtype=torch.float32)
             output = block(x, x)
             self.assertEqual(output.shape, x.shape)
 
-            block = att.AttentionBlock(dims, f_int=16, f_g=32, f_l=64)
-            xshape = (4, 64) + (30,) * dims
+            block = att.AttentionBlock(dims, f_int=2, f_g=3, f_l=6)
+            xshape = (4, 6) + (30,) * dims
             x = torch.rand(*xshape, dtype=torch.float32)
-            gshape = (4, 32) + (30,) * dims
+            gshape = (4, 3) + (30,) * dims
             g = torch.rand(*gshape, dtype=torch.float32)
             output = block(g, x)
             self.assertEqual(output.shape, x.shape)
@@ -39,7 +39,7 @@ class TestAttentionUnet(unittest.TestCase):
             shape = (3, 1) + (92,) * dims
             input = torch.rand(*shape)
             model = att.AttentionUnet(
-                spatial_dims=dims, in_channels=1, out_channels=2, channels=(16, 32, 64), strides=(2, 2)
+                spatial_dims=dims, in_channels=1, out_channels=2, channels=(3, 4, 5), strides=(2, 2)
             )
             output = model(input)
             self.assertEqual(output.shape[2:], input.shape[2:])
@@ -52,7 +52,7 @@ class TestAttentionUnet(unittest.TestCase):
             shape = (3, 1) + (92,) * dims
             input = torch.rand(*shape).to("cuda:0")
             model = att.AttentionUnet(
-                spatial_dims=dims, in_channels=1, out_channels=2, channels=(16, 32, 64), strides=(2, 2)
+                spatial_dims=dims, in_channels=1, out_channels=2, channels=(3, 4, 5), strides=(2, 2)
             ).to("cuda:0")
             with torch.no_grad():
                 output = model(input)
