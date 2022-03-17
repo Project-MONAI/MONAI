@@ -35,6 +35,7 @@ Model Bundle
 
 `Scripts`
 ---------
+.. autofunction:: export
 .. autofunction:: run
 .. autofunction:: verify_metadata
 .. autofunction:: verify_net_in_out
