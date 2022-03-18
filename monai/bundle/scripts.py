@@ -406,3 +406,5 @@ def export(
         meta_values=parser.get().pop("_meta_", None),
         more_extra_files={"config": json.dumps(parser.get()).encode()},
     )
+    logger.info(f"exported to TorchScript file: {path}.")
+
