@@ -17,10 +17,9 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 import torch
 
-import torch
 from monai.apps.utils import download_url, get_logger
 from monai.bundle.config_parser import ConfigParser
-from monai.config import PathLike, IgniteInfo
+from monai.config import IgniteInfo, PathLike
 from monai.data import save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
@@ -267,8 +266,8 @@ def verify_net_in_out(
         p: power factor to generate fake data shape if dim of expected shape is "x**p", default to 1.
         p: multiply factor to generate fake data shape if dim of expected shape is "x*n", default to 1.
         any: specified size to generate fake data shape if dim of expected shape is "*", default to 1.
-        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
-            `net_id` and override pairs. so that the command line inputs can be simplified.
+        args_file: a JSON or YAML file to provide default values for `net_id`, `meta_file`, `config_file`,
+            `device`, `p`, `n`, `any`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
@@ -331,13 +330,37 @@ def verify_net_in_out(
 def export(
     net_id: Optional[str] = None,
     filepath: Optional[PathLike] = None,
+    ckpt_file: Optional[str] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
-    ckpt_file: Optional[str] = None,
     key_in_ckpt: Optional[str] = None,
     args_file: Optional[str] = None,
     **override,
 ):
+    """
+    Export the model checkpoint the to the given filepath with metadata and config included as JSON files.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle export network --filepath <export path> --ckpt_file <checkpoint path> ...
+
+    Args:
+        net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+        filepath: filepath to export, if filename has no extension it becomes `.pt`.
+        ckpt_file: filepath of the model checkpoint to load.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file, if `None`, must be provided in `args_file`.
+            if it is a list of file paths, the content of them will be merged.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
+            `net_id` and override pairs. so that the command line inputs can be simplified.
+        override: id-value pairs to override or add the corresponding config content.
+            e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
+
+    """
     _args = _update_args(
         args=args_file,
         net_id=net_id,

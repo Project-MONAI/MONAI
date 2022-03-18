@@ -11,10 +11,10 @@
 
 import unittest
 from unittest import skipUnless
-from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 
 from parameterized import parameterized
 
+from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.config_parser import ConfigParser, ReferenceResolver
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
@@ -131,5 +131,5 @@ class TestConfigParser(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    
+
     unittest.main()

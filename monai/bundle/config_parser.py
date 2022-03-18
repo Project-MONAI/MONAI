@@ -75,6 +75,11 @@ class ConfigParser:
             The current supported globals and alias names are
             ``{"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}``.
             These are MONAI's minimal dependencies.
+        item_types: list of supported config item types, must be subclass of `ConfigComponent`,
+            `ConfigExpression`, `ConfigItem`, will check the type in order for every config item.
+            if `None`, default to: ``(ConfigComponent, ConfigExpression, ConfigItem)``.
+        resolver: manage a set of ``ConfigItem`` and resolve the references between them.
+            if `None`, will create a default `ReferenceResolver` instance.
 
     See also:
 
