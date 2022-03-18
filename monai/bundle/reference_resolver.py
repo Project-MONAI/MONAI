@@ -123,7 +123,6 @@ class ReferenceResolver:
             waiting_list = set()
         waiting_list.add(id)
 
-        ref_ids = self.find_refs_in_config(config=item_config, id=id)
         for t, v in self.items.items():
             if (
                 t not in self.resolved_content
@@ -131,7 +130,7 @@ class ReferenceResolver:
                 and v.is_import_statement(v.get_config())
             ):
                 self.resolved_content[t] = v.evaluate() if kwargs.get("eval_expr", True) else v
-        for d in ref_ids:
+        for d in self.find_refs_in_config(config=item_config, id=id):
             # if current item has reference already in the waiting list, that's circular references
             if d in waiting_list:
                 raise ValueError(f"detected circular references '{d}' for id='{id}' in the config content.")
