@@ -4,7 +4,7 @@
     "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
     "set_seed": "$monai.utils.set_determinism(0)",
     "print_test_name": "$print('json_test')",
-    "print_glob_file": "$print(@import_glob.__file__)",
+    "print_glob_file": "$print(glob.__file__)",
     "network_def": {
         "_target_": "UNet",
         "spatial_dims": 3,

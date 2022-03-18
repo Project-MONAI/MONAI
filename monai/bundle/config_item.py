@@ -19,7 +19,7 @@ from importlib import import_module
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from monai.bundle.utils import EXPR_KEY
-from monai.utils import ensure_tuple, instantiate, optional_import
+from monai.utils import ensure_tuple, first, instantiate, optional_import
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent"]
 
@@ -317,22 +317,22 @@ class ConfigExpression(ConfigItem):
         self.globals = globals if globals is not None else {}
 
     def _parse_import_string(self, import_string: str):
-        # parse single import statement such as "from monai.transforms import Resize"
-        for n in ast.iter_child_nodes(ast.parse(import_string)):
-            if not isinstance(n, (ast.Import, ast.ImportFrom)):
-                return None
-            if len(n.names) < 1:
-                return None
-            if len(n.names) > 1:
-                warnings.warn(f"ignoring multiple import alias '{import_string}'.")
-            name, asname = f"{n.names[0].name}", n.names[0].asname
-            asname = name if asname is None else f"{asname}"
-            if isinstance(n, ast.ImportFrom):
-                self.globals[asname], _ = optional_import(f"{n.module}", name=f"{name}")
-                return self.globals[asname]
-            elif isinstance(n, ast.Import):
-                self.globals[asname], _ = optional_import(f"{name}")
-                return self.globals[asname]
+        """parse single import statement such as "from monai.transforms import Resize"""
+        node = first(ast.iter_child_nodes(ast.parse(import_string)))
+        if not isinstance(node, (ast.Import, ast.ImportFrom)):
+            return None
+        if len(node.names) < 1:
+            return None
+        if len(node.names) > 1:
+            warnings.warn(f"ignoring multiple import alias '{import_string}'.")
+        name, asname = f"{node.names[0].name}", node.names[0].asname
+        asname = name if asname is None else f"{asname}"
+        if isinstance(node, ast.ImportFrom):
+            self.globals[asname], _ = optional_import(f"{node.module}", name=f"{name}")
+            return self.globals[asname]
+        if isinstance(node, ast.Import):
+            self.globals[asname], _ = optional_import(f"{name}")
+            return self.globals[asname]
         return None
 
     def evaluate(self, locals: Optional[Dict] = None):
@@ -365,3 +365,19 @@ class ConfigExpression(ConfigItem):
 
         """
         return isinstance(config, str) and config.startswith(cls.prefix)
+
+    @classmethod
+    def is_import_statement(cls, config: Union[Dict, List, str]) -> bool:
+        """
+        Check whether the config is an import statement (a special case of expression).
+
+        Args:
+            config: input config content to check.
+        """
+        if not cls.is_expression(config):
+            return False
+        if "import" not in config:
+            return False
+        return isinstance(
+            first(ast.iter_child_nodes(ast.parse(f"{config[len(cls.prefix) :]}"))), (ast.Import, ast.ImportFrom)
+        )
