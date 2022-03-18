@@ -14,7 +14,7 @@ import json
 import re
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
 
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
@@ -93,6 +93,8 @@ class ConfigParser:
         config: Any = None,
         excludes: Optional[Union[Sequence[str], str]] = None,
         globals: Optional[Dict[str, Any]] = None,
+        item_types: Optional[Union[Sequence[Type[ConfigItem]], Type[ConfigItem]]] = None,
+        resolver: Optional[ReferenceResolver] = None,
     ):
         self.config = None
         self.globals: Dict[str, Any] = {}
@@ -100,9 +102,17 @@ class ConfigParser:
         if globals is not None:
             for k, v in globals.items():
                 self.globals[k] = importlib.import_module(v) if isinstance(v, str) else v
+        self.item_types = (
+            (ConfigComponent, ConfigExpression, ConfigItem) if item_types is None else ensure_tuple(item_types)
+        )
 
         self.locator = ComponentLocator(excludes=excludes)
-        self.ref_resolver = ReferenceResolver()
+        if resolver is not None:
+            if not isinstance(resolver, ReferenceResolver):
+                raise TypeError(f"resolver must be subclass of ReferenceResolver, but got: {type(resolver)}.")
+            self.ref_resolver = resolver
+        else:
+            self.ref_resolver = ReferenceResolver()
         if config is None:
             config = {self.meta_key: {}}
         self.set(config=config)
@@ -292,12 +302,20 @@ class ConfigParser:
 
         # copy every config item to make them independent and add them to the resolver
         item_conf = deepcopy(config)
-        if ConfigComponent.is_instantiable(item_conf):
-            self.ref_resolver.add_item(ConfigComponent(config=item_conf, id=id, locator=self.locator))
-        elif ConfigExpression.is_expression(item_conf):
-            self.ref_resolver.add_item(ConfigExpression(config=item_conf, id=id, globals=self.globals))
-        else:
-            self.ref_resolver.add_item(ConfigItem(config=item_conf, id=id))
+        for item_type in self.item_types:
+            if issubclass(item_type, ConfigComponent):
+                if item_type.is_instantiable(item_conf):
+                    return self.ref_resolver.add_item(item_type(config=item_conf, id=id, locator=self.locator))
+                continue
+            if issubclass(item_type, ConfigExpression):
+                if item_type.is_expression(item_conf):
+                    return self.ref_resolver.add_item(item_type(config=item_conf, id=id, globals=self.globals))
+                continue
+            if issubclass(item_type, ConfigItem):
+                return self.ref_resolver.add_item(item_type(config=item_conf, id=id))
+            raise TypeError(
+                f"item type must be subclass of `ConfigComponent`, `ConfigExpression`, `ConfigItem`, got: {item_type}."
+            )
 
     @classmethod
     def load_config_file(cls, filepath: PathLike, **kwargs):

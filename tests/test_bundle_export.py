@@ -21,16 +21,17 @@ from monai.bundle import ConfigParser
 from monai.networks import save_state
 from tests.utils import skip_if_windows
 
-TEST_CASE_1 = [
-    os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json"),
-    os.path.join(os.path.dirname(__file__), "testing_data", "inference.json"),
-]
+TEST_CASE_1 = [""]
+
+TEST_CASE_2 = ["model"]
 
 
 @skip_if_windows
 class TestExport(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
-    def test_export(self, meta_file, config_file):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_export(self, key_in_ckpt):
+        meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
+        config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg"}
             def_args_file = os.path.join(tempdir, "def_args.json")
@@ -41,11 +42,11 @@ class TestExport(unittest.TestCase):
             parser.export_config_file(config=def_args, filepath=def_args_file)
             parser.read_config(config_file)
             net = parser.get_parsed_content("network_def")
-            save_state(src=net, path=ckpt_file)
+            save_state(src=net if key_in_ckpt == "" else {key_in_ckpt: net}, path=ckpt_file)
 
             cmd = [sys.executable, "-m", "monai.bundle", "export", "network_def", "--filepath", ts_file]
             cmd += ["--meta_file", meta_file, "--config_file", config_file, "--ckpt_file", ckpt_file]
-            cmd += ["--args_file", def_args_file]
+            cmd += ["--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
             ret = subprocess.check_call(cmd)
             self.assertEqual(ret, 0)
             self.assertTrue(os.path.exists(ts_file))
