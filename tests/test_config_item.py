@@ -109,6 +109,15 @@ class TestConfigItem(unittest.TestCase):
         test_globals = {}
         ConfigExpression(id="", config=stmt, globals=test_globals).evaluate()
         self.assertTrue(callable(test_globals[mod_name]))
+        self.assertTrue(ConfigExpression.is_import_statement(ConfigExpression(id="", config=stmt).config))
+
+    @parameterized.expand(
+        [("$from json import dump", True), ("$print()", False), ("$import json", True), ("import json", False)]
+    )
+    def test_is_import_stmt(self, stmt, expected):
+        expr = ConfigExpression(id="", config=stmt)
+        flag = expr.is_import_statement(expr.config)
+        self.assertEqual(flag, expected)
 
 
 if __name__ == "__main__":

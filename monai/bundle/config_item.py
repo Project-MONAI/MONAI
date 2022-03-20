@@ -172,12 +172,12 @@ class ConfigComponent(ConfigItem, Instantiable):
           or a full module name, such as ``"monai.transforms.LoadImageDict"``.
         - ``"_requires_"`` (optional): specifies reference IDs (string starts with ``"@"``) or ``ConfigExpression``
           of the dependencies for this ``ConfigComponent`` object. These dependencies will be
-          evaluated/instantiated before this object is instantiated.
+          evaluated/instantiated before this object is instantiated.  It is useful when the
+          component doesn't explicitly depends on the other `ConfigItems` via its arguments,
+          but requires the dependencies to be instantiated/evaluated beforehand.
         - ``"_disabled_"`` (optional): a flag to indicate whether to skip the instantiation.
 
-    Other fields in the config content are input arguments to the python module. ``"_requires_"`` is only useful when the
-    component doesn't explicitly depends on the other `ConfigItems` via its arguments,
-    but requires the dependencies to be instantiated/evaluated beforehand.
+    Other fields in the config content are input arguments to the python module.
 
     .. code-block:: python
 
