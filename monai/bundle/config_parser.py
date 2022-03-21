@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
 import json
 import re
 from copy import deepcopy
@@ -25,6 +24,8 @@ from monai.utils import ensure_tuple, look_up_option, optional_import
 yaml, _ = optional_import("yaml")
 
 __all__ = ["ConfigParser"]
+
+_default_globals = {"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}
 
 
 class ConfigParser:
@@ -74,7 +75,7 @@ class ConfigParser:
             so that expressions, for example, ``"$monai.data.list_data_collate"`` can use ``monai`` modules.
             The current supported globals and alias names are
             ``{"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}``.
-            These are MONAI's minimal dependencies.
+            These are MONAI's minimal dependencies. Additional packages could be included with `globals={"itk": "itk"}`.
 
     See also:
 
@@ -96,10 +97,12 @@ class ConfigParser:
     ):
         self.config = None
         self.globals: Dict[str, Any] = {}
-        globals = {"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"} if globals is None else globals
-        if globals is not None:
-            for k, v in globals.items():
-                self.globals[k] = importlib.import_module(v) if isinstance(v, str) else v
+        _globals = _default_globals.copy()
+        if isinstance(_globals, dict) and globals is not None:
+            _globals.update(globals)
+        if _globals is not None:
+            for k, v in _globals.items():
+                self.globals[k] = optional_import(v)[0] if isinstance(v, str) else v
 
         self.locator = ComponentLocator(excludes=excludes)
         self.ref_resolver = ReferenceResolver()
