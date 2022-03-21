@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,12 +42,7 @@ class TestCacheDatasetParallel(unittest.TestCase):
                     "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
                 }
             ] * dataset_size
-            dataset = CacheDataset(
-                data=test_data,
-                transform=transform,
-                cache_rate=1,
-                num_workers=num_workers,
-            )
+            dataset = CacheDataset(data=test_data, transform=transform, cache_rate=1, num_workers=num_workers)
 
         self.assertEqual(len(dataset._cache), dataset.cache_num)
         for i in range(dataset.cache_num):
