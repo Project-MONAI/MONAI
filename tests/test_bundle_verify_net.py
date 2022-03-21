@@ -38,7 +38,10 @@ class TestVerifyNetwork(unittest.TestCase):
             cmd = [sys.executable, "-m", "monai.bundle", "verify_net_in_out", "network_def", "--meta_file", meta_file]
             cmd += ["--config_file", config_file, "-n", "2", "--any", "32", "--args_file", def_args_file]
             cmd += ["--_meta_#network_data_format#inputs#image#spatial_shape", "[32,'*','4**p*n']"]
-            ret = subprocess.check_call(cmd)
+
+            test_env = os.environ.copy()
+            print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
+            ret = subprocess.check_call(cmd, env=test_env)
             self.assertEqual(ret, 0)
 
 
