@@ -47,7 +47,7 @@ def compute_fp_tp_probs(
     """
     if not (probs.shape == y_coord.shape == x_coord.shape):
         raise ValueError(
-            "the shapes between probs {probs.shape}, y_coord {y_coord.shape} and x_coord {x_coord.shape} should be the same."
+            f"the shapes between probs {probs.shape}, y_coord {y_coord.shape} and x_coord {x_coord.shape} should be the same."
         )
 
     if isinstance(probs, torch.Tensor):

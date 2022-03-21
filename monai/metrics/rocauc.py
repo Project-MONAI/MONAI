@@ -137,10 +137,10 @@ def compute_roc_auc(y_pred: torch.Tensor, y: torch.Tensor, average: Union[Averag
     y_ndim = y.ndimension()
     if y_pred_ndim not in (1, 2):
         raise ValueError(
-            "Predictions should be of shape (batch_size, num_classes) or (batch_size, ), got {y_pred.shape}."
+            f"Predictions should be of shape (batch_size, num_classes) or (batch_size, ), got {y_pred.shape}."
         )
     if y_ndim not in (1, 2):
-        raise ValueError("Targets should be of shape (batch_size, num_classes) or (batch_size, ), got {y.shape}.")
+        raise ValueError(f"Targets should be of shape (batch_size, num_classes) or (batch_size, ), got {y.shape}.")
     if y_pred_ndim == 2 and y_pred.shape[1] == 1:
         y_pred = y_pred.squeeze(dim=-1)
         y_pred_ndim = 1
@@ -151,7 +151,7 @@ def compute_roc_auc(y_pred: torch.Tensor, y: torch.Tensor, average: Union[Averag
         return _calculate(y_pred, y)
 
     if y.shape != y_pred.shape:
-        raise ValueError("data shapes of y_pred and y do not match, got {y_pred.shape} and {y.shape}.")
+        raise ValueError(f"data shapes of y_pred and y do not match, got {y_pred.shape} and {y.shape}.")
 
     average = look_up_option(average, Average)
     if average == Average.MICRO:
