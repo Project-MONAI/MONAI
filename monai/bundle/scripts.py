@@ -264,7 +264,7 @@ def verify_net_in_out(
             if it is a list of file paths, the content of them will be merged.
         device: target device to run the network forward computation, if None, prefer to "cuda" if existing.
         p: power factor to generate fake data shape if dim of expected shape is "x**p", default to 1.
-        p: multiply factor to generate fake data shape if dim of expected shape is "x*n", default to 1.
+        n: multiply factor to generate fake data shape if dim of expected shape is "x*n", default to 1.
         any: specified size to generate fake data shape if dim of expected shape is "*", default to 1.
         args_file: a JSON or YAML file to provide default values for `net_id`, `meta_file`, `config_file`,
             `device`, `p`, `n`, `any`, and override pairs. so that the command line inputs can be simplified.

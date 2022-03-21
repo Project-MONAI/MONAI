@@ -171,18 +171,18 @@ cd MONAI/
 pip install -e '.[all]'
 ```
 
-To install all optional dependencies for MONAI development with `pip`:
+To install all optional dependencies with `pip` based on MONAI development environment settings:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -r requirements-dev.txt
 ```
 
-To install all optional dependencies for MONAI development with `conda`:
+To install all optional dependencies with `conda` based on MONAI development environment settings:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-conda create -n <name> --python=<ver>  # eg 3.9
+conda create -n <name> python=<ver>  # eg 3.9
 conda env update -n <name> -f environment-dev.yml
 ```
 
