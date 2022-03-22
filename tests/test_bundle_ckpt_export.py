@@ -27,7 +27,7 @@ TEST_CASE_2 = ["model"]
 
 
 @skip_if_windows
-class TestExport(unittest.TestCase):
+class TestCKPTExport(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_export(self, key_in_ckpt):
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
@@ -44,7 +44,7 @@ class TestExport(unittest.TestCase):
             net = parser.get_parsed_content("network_def")
             save_state(src=net if key_in_ckpt == "" else {key_in_ckpt: net}, path=ckpt_file)
 
-            cmd = [sys.executable, "-m", "monai.bundle", "export", "network_def", "--filepath", ts_file]
+            cmd = [sys.executable, "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", ts_file]
             cmd += ["--meta_file", meta_file, "--config_file", config_file, "--ckpt_file", ckpt_file]
             cmd += ["--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
             subprocess.check_call(cmd)

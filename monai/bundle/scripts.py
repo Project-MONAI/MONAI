@@ -327,7 +327,7 @@ def verify_net_in_out(
     logger.info("data shape of network is verified with no error.")
 
 
-def export(
+def ckpt_export(
     net_id: Optional[str] = None,
     filepath: Optional[PathLike] = None,
     ckpt_file: Optional[str] = None,
@@ -338,7 +338,7 @@ def export(
     **override,
 ):
     """
-    Export the model checkpoint the to the given filepath with metadata and config included as JSON files.
+    Export the model checkpoint to the given filepath with metadata and config included as JSON files.
 
     Typical usage examples:
 
