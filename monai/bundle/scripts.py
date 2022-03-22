@@ -348,7 +348,7 @@ def ckpt_export(
 
     Args:
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
-        filepath: filepath to export, if filename has no extension it becomes `.pt`.
+        filepath: filepath to export, if filename has no extension it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.

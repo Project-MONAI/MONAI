@@ -34,7 +34,7 @@ class TestTorchscript(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             save_net_with_metadata(m, f"{tempdir}/test")
 
-            self.assertTrue(os.path.isfile(f"{tempdir}/test.pt"))
+            self.assertTrue(os.path.isfile(f"{tempdir}/test.ts"))
 
     def test_save_net_with_metadata_ext(self):
         """Save a network without metadata to a file."""
@@ -54,7 +54,7 @@ class TestTorchscript(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             save_net_with_metadata(m, f"{tempdir}/test", meta_values=test_metadata)
 
-            self.assertTrue(os.path.isfile(f"{tempdir}/test.pt"))
+            self.assertTrue(os.path.isfile(f"{tempdir}/test.ts"))
 
     def test_load_net_with_metadata(self):
         """Save then load a network with no metadata or other extra files."""
@@ -62,7 +62,7 @@ class TestTorchscript(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tempdir:
             save_net_with_metadata(m, f"{tempdir}/test")
-            _, meta, extra_files = load_net_with_metadata(f"{tempdir}/test.pt")
+            _, meta, extra_files = load_net_with_metadata(f"{tempdir}/test.ts")
 
         del meta[JITMetadataKeys.TIMESTAMP.value]  # no way of knowing precisely what this value would be
 
@@ -77,7 +77,7 @@ class TestTorchscript(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tempdir:
             save_net_with_metadata(m, f"{tempdir}/test", meta_values=test_metadata)
-            _, meta, extra_files = load_net_with_metadata(f"{tempdir}/test.pt")
+            _, meta, extra_files = load_net_with_metadata(f"{tempdir}/test.ts")
 
         del meta[JITMetadataKeys.TIMESTAMP.value]  # no way of knowing precisely what this value would be
 
@@ -98,9 +98,9 @@ class TestTorchscript(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             save_net_with_metadata(m, f"{tempdir}/test", meta_values=test_metadata, more_extra_files=more_extra_files)
 
-            self.assertTrue(os.path.isfile(f"{tempdir}/test.pt"))
+            self.assertTrue(os.path.isfile(f"{tempdir}/test.ts"))
 
-            _, _, loaded_extra_files = load_net_with_metadata(f"{tempdir}/test.pt", more_extra_files=("test.txt",))
+            _, _, loaded_extra_files = load_net_with_metadata(f"{tempdir}/test.ts", more_extra_files=("test.txt",))
 
             if pytorch_after(1, 7):
                 self.assertEqual(more_extra_files["test.txt"], loaded_extra_files["test.txt"])
