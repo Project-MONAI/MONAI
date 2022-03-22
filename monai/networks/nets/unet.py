@@ -177,7 +177,7 @@ class UNet(nn.Module):
 
             if len(channels) > 2:
                 subblock = _create_block(c, c, channels[1:], strides[1:], False)  # continue recursion down
-                upc = c * 2
+                upc = c * s
             else:
                 # the next layer is the bottom so stop recursion, create the bottom layer as the sublock for this layer
                 subblock = self._get_bottom_layer(c, channels[1])
@@ -186,12 +186,29 @@ class UNet(nn.Module):
             down = self._get_down_layer(inc, c, s, is_top)  # create layer in downsampling path
             up = self._get_up_layer(upc, outc, s, is_top)  # create layer in upsampling path
 
-            return nn.Sequential(down, SkipConnection(subblock), up)
+            return self._get_connection_block(down, up, subblock)
 
         self.model = _create_block(in_channels, out_channels, self.channels, self.strides, True)
 
+    def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
+        """
+        Returns the block object defining a layer of the UNet structure including the implementation of the skip
+        between encoding (down) and and decoding (up) sides of the network.
+
+        Args:
+            down_path: encoding half of the layer
+            up_path: decoding half of the layer
+            subblock: block defining the next layer in the network.
+        Returns: block for this layer: `nn.Sequential(down_path, SkipConnection(subblock), up_path)`
+        """
+        return nn.Sequential(down_path, SkipConnection(subblock), up_path)
+
     def _get_down_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
         """
+        Returns the encoding (down) part of a layer of the network. This typically will downsample data at some point
+        in its structure. Its output is used as input to the next layer down and is concatenated with output from the
+        next layer to form the input for the decode (up) part of the layer.
+
         Args:
             in_channels: number of input channels.
             out_channels: number of output channels.
@@ -229,6 +246,8 @@ class UNet(nn.Module):
 
     def _get_bottom_layer(self, in_channels: int, out_channels: int) -> nn.Module:
         """
+        Returns the bottom or bottleneck layer at the bottom of the network linking encode to decode halves.
+
         Args:
             in_channels: number of input channels.
             out_channels: number of output channels.
@@ -237,6 +256,9 @@ class UNet(nn.Module):
 
     def _get_up_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
         """
+        Returns the decoding (up) part of a layer of the network. This typically will upsample data at some point
+        in its structure. Its output is used as input to the next layer up.
+
         Args:
             in_channels: number of input channels.
             out_channels: number of output channels.
