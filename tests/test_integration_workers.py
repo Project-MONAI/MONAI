@@ -31,7 +31,7 @@ def run_loading_test(num_workers=50, device="cuda:0" if torch.cuda.is_available(
             x = batch_data.to(device)
             mem = torch.cuda.memory_allocated()
             np.testing.assert_equal(mem > 0 and mem < 5000, True)
-        answer.append((x[-1].item()))
+        answer.append(x[-1].item())
         del x
     return answer
 
