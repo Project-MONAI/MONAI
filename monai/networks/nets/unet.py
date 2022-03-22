@@ -158,7 +158,7 @@ class UNet(nn.Module):
 
         def _create_block(
             inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool
-        ) -> nn.Sequential:
+        ) -> nn.Module:
             """
             Builds the UNet structure from the bottom up by recursing down to the bottom block, then creating sequential
             blocks containing the downsample path, a skip connection around the previous block, and the upsample path.
