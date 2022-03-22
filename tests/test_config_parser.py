@@ -14,8 +14,7 @@ from unittest import skipUnless
 
 from parameterized import parameterized
 
-from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
-from monai.bundle.config_parser import ConfigParser, ReferenceResolver
+from monai.bundle.config_parser import ConfigParser
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
@@ -58,10 +57,6 @@ class TestClass:
         return self.compute(a, b)
 
 
-class TestConfigComponent(ConfigComponent):
-    pass
-
-
 TEST_CASE_2 = [
     {
         "basic_func": "$lambda x, y: x + y",
@@ -78,7 +73,7 @@ TEST_CASE_2 = [
 ]
 
 
-class TestConfigParser(unittest.TestCase):
+class TestConfigComponent(unittest.TestCase):
     def test_config_content(self):
         test_config = {"preprocessing": [{"_target_": "LoadImage"}], "dataset": {"_target_": "Dataset"}}
         parser = ConfigParser(config=test_config)
@@ -99,7 +94,7 @@ class TestConfigParser(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     @skipUnless(has_tv, "Requires torchvision >= 0.8.0.")
     def test_parse(self, config, expected_ids, output_types):
-        parser = ConfigParser(config=config, globals={"monai": "monai"}, resolver=ReferenceResolver())
+        parser = ConfigParser(config=config, globals={"monai": "monai"})
         # test lazy instantiation with original config content
         parser["transform"]["transforms"][0]["keys"] = "label1"
         self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label1")
@@ -115,11 +110,7 @@ class TestConfigParser(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_2])
     def test_function(self, config):
-        parser = ConfigParser(
-            config=config,
-            globals={"TestClass": TestClass},
-            item_types=(TestConfigComponent, ConfigExpression, ConfigItem),
-        )
+        parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
             func = parser.get_parsed_content(id=id)
             self.assertTrue(id in parser.ref_resolver.resolved_content)
