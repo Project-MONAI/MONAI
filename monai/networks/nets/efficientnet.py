@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,14 @@ from monai.networks.layers.factories import Act, Conv, Pad, Pool
 from monai.networks.layers.utils import get_norm_layer
 from monai.utils.module import look_up_option
 
-__all__ = ["EfficientNet", "EfficientNetBN", "get_efficientnet_image_size", "drop_connect"]
+__all__ = [
+    "EfficientNet",
+    "EfficientNetBN",
+    "get_efficientnet_image_size",
+    "drop_connect",
+    "EfficientNetBNFeatures",
+    "BlockArgs",
+]
 
 efficientnet_params = {
     # model_name: (width_mult, depth_mult, image_size, dropout_rate, dropconnect_rate)
@@ -82,7 +89,7 @@ class MBConvBlock(nn.Module):
         Args:
             spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
-            out_classes: number of output channels.
+            out_channels: number of output channels.
             kernel_size: size of the kernel for conv ops.
             stride: stride to use for conv ops.
             image_size: input image resolution.
@@ -369,10 +376,7 @@ class EfficientNet(nn.Module):
                 )
                 idx += 1  # increment blocks index counter
 
-            self._blocks.add_module(
-                str(stack_idx),
-                sub_stack,
-            )
+            self._blocks.add_module(str(stack_idx), sub_stack)
 
         # sanity check to see if len(self._blocks) equal expected num_blocks
         if idx != num_blocks:
@@ -534,7 +538,7 @@ class EfficientNetBN(EfficientNet):
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
 
         # create model and initialize random weights
-        super(EfficientNetBN, self).__init__(
+        super().__init__(
             blocks_args_str=blocks_args_str,
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -594,7 +598,7 @@ class EfficientNetBNFeatures(EfficientNet):
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
 
         # create model and initialize random weights
-        super(EfficientNetBNFeatures, self).__init__(
+        super().__init__(
             blocks_args_str=blocks_args_str,
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -669,7 +673,7 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     e.g. 1D activations [B, C, H], 2D activations [B, C, H, W] and 3D activations [B, C, H, W, D]
 
     Args:
-        input: input tensor with [B, C, dim_1, dim_2, ..., dim_N] where N=spatial_dims.
+        inputs: input tensor with [B, C, dim_1, dim_2, ..., dim_N] where N=spatial_dims.
         p: probability to use for dropping connections.
         training: whether in training or evaluation mode.
 
@@ -677,7 +681,7 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
         output: output tensor after applying drop connection.
     """
     if p < 0.0 or p > 1.0:
-        raise ValueError("p must be in range of [0, 1], found {}".format(p))
+        raise ValueError(f"p must be in range of [0, 1], found {p}")
 
     # eval mode: drop_connect is switched off - so return input without modifying
     if not training:
@@ -708,7 +712,7 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool, adv_prop: bool
         arch = arch.split("efficientnet-")[-1] + "-ap"
     model_url = look_up_option(arch, url_map, None)
     if model_url is None:
-        print("pretrained weights of {} is not provided".format(arch))
+        print(f"pretrained weights of {arch} is not provided")
     else:
         # load state dict from url
         model_url = url_map[arch]
@@ -852,7 +856,7 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
     if isinstance(stride, tuple):
         all_strides_equal = all(stride[0] == s for s in stride)
         if not all_strides_equal:
-            raise ValueError("unequal strides are not possible, got {}".format(stride))
+            raise ValueError(f"unequal strides are not possible, got {stride}")
 
         stride = stride[0]
 

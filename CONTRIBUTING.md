@@ -43,6 +43,7 @@ This section highlights all the necessary preparation steps required before send
 To collaborate efficiently, please read through this section and follow them.
 
 * [Checking the coding style](#checking-the-coding-style)
+* [Licensing information](#licensing-information)
 * [Unit testing](#unit-testing)
 * [Building documentation](#building-the-documentation)
 * [Signing your work](#signing-your-work)
@@ -63,9 +64,11 @@ python -m pip install -U -r requirements-dev.txt
 ./runtests.sh --autofix
 ```
 
-License information: all source code files should start with this paragraph:
+#### Licensing information
+All source code files should start with this paragraph:
+
 ```
-# Copyright <Year> MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -113,11 +116,17 @@ or (for new features that would not break existing functionality):
 ```
 
 It is recommended that the new test `test_[module_name].py` is constructed by using only
-python 3.6+ build-in functions, `torch`, `numpy`, `coverage` (for reporting code coverages) and `parameterized` (for organising test cases) packages.
+python 3.7+ build-in functions, `torch`, `numpy`, `coverage` (for reporting code coverages) and `parameterized` (for organising test cases) packages.
 If it requires any other external packages, please make sure:
 - the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
 - the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
 the minimal CI runner will not execute it.
+
+##### Testing data
+Testing data such as images and binary files should not be placed in the source code repository.
+Please deploy them to a reliable file sharing location (the current preferred one is [https://github.com/Project-MONAI/MONAI-extra-test-data/releases](https://github.com/Project-MONAI/MONAI-extra-test-data/releases)).
+At test time, the URLs within `tests/testing_data/data_config.json` are accessible
+via the APIs provided in `tests.utils`: `tests.utils.testing_data_config` and `tests.utils.download_url_or_skip_test`.
 
 _If it's not tested, it's broken_
 
@@ -228,7 +237,7 @@ Notably,
 for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.transforms.spatial.array.Spacing`` if
 ``class Spacing`` defined in file `monai/transforms/spatial/array.py` is decorated with ``@export("monai.transforms")``.
 
-For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print` from python 3.6. So please try to use `f-string` if you need to define any string object.
+For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print`. So please try to use `f-string` if you need to define any string object.
 
 #### Backwards compatibility
 MONAI is currently under active development, and with major version zero (following the [Semantic Versioning](https://semver.org/)).
@@ -289,9 +298,9 @@ When major features are ready for a milestone, to prepare for a new release:
   repository's artifacts (e.g. the file at https://github.com/Project-MONAI/MONAI/actions/runs/66570977).
 - Check the release test at [TestPyPI](https://test.pypi.org/project/monai/), download the artifacts when the CI finishes.
 - Optionally run [the cron testing jobs](https://github.com/Project-MONAI/MONAI/blob/dev/.github/workflows/cron.yml) on `releasing/[version number]`.
+- Rebase `releasing/[version number]` to `main`, make sure all the test pipelines succeed.
 - Once the release candidate is verified, tag and push a milestone, for example, `git push origin 0.1.0`.
   The tag must be with the latest commit of `releasing/[version number]`.
-- Rebase `releasing/[version number]` to `main`, make sure all the test pipelines succeed.
 - Upload the packages to [PyPI](https://pypi.org/project/monai/).
   This could be done manually by ``twine upload dist/*``, given the artifacts are unzipped to the folder ``dist/``.
 - Merge `releasing/[version number]` to `dev`, this step must make sure that the tagging commit unchanged on `dev`.
