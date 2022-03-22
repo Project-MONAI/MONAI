@@ -192,10 +192,9 @@ class WSIReaderTests:
         def test_read_malformats(self, img_expected):
             reader = WSIReader(self.backend)
             file_path = save_gray_tiff(
-                img_expected,
-                os.path.join(os.path.dirname(__file__), "testing_data", "temp_tiff_image_gray.tiff"),
+                img_expected, os.path.join(os.path.dirname(__file__), "testing_data", "temp_tiff_image_gray.tiff")
             )
-            with self.assertRaises((RuntimeError, ValueError, openslide.OpenSlideError)):
+            with self.assertRaises((RuntimeError, ValueError, openslide.OpenSlideError if has_osl else ValueError)):
                 with reader.read(file_path) as img_obj:
                     reader.get_data(img_obj)
 
