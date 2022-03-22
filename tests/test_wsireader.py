@@ -28,7 +28,7 @@ from tests.utils import download_url_or_skip_test, testing_data_config
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
 _, has_osl = optional_import("openslide")
-imsave, has_tiff = optional_import("tifffile", name="imsave")
+imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
@@ -98,7 +98,7 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
         array = np.concatenate([array, 255 * np.ones_like(array[0])[np.newaxis]]).astype(np.uint8)
 
     img_rgb = array.transpose(1, 2, 0)
-    imsave(filename, img_rgb, shape=img_rgb.shape, tile=(16, 16))
+    imwrite(filename, img_rgb, shape=img_rgb.shape, tile=(16, 16))
 
     return filename
 
