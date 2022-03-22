@@ -267,7 +267,10 @@ def has_cupy():
         kernel = cp.ElementwiseKernel(
             "float32 x, float32 y", "float32 z", """ if (x - 2 > y) { z = x * y; } else { z = x + y; } """, "my_kernel"
         )
-        return kernel(x, y)[0, 0] == 0
+        flag = kernel(x, y)[0, 0] == 0
+        del x, y, kernel
+        cp.get_default_memory_pool().free_all_blocks()
+        return flag
     except Exception:
         return False
 
