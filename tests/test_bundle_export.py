@@ -47,8 +47,7 @@ class TestExport(unittest.TestCase):
             cmd = [sys.executable, "-m", "monai.bundle", "export", "network_def", "--filepath", ts_file]
             cmd += ["--meta_file", meta_file, "--config_file", config_file, "--ckpt_file", ckpt_file]
             cmd += ["--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
-            ret = subprocess.check_call(cmd)
-            self.assertEqual(ret, 0)
+            subprocess.check_call(cmd)
             self.assertTrue(os.path.exists(ts_file))
 
 

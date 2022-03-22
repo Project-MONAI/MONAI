@@ -48,8 +48,7 @@ class TestVerifyMetaData(unittest.TestCase):
 
             cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", meta_file]
             cmd += ["--filepath", schema_file, "--hash_val", self.config["hash_val"], "--args_file", def_args_file]
-            ret = subprocess.check_call(cmd)
-            self.assertEqual(ret, 0)
+            subprocess.check_call(cmd)
 
     def test_verify_error(self):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -61,8 +60,7 @@ class TestVerifyMetaData(unittest.TestCase):
                 json.dump(meta_dict, f)
 
             cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", metafile, "--filepath", filepath]
-            ret = subprocess.check_call(cmd)
-            self.assertEqual(ret, 0)
+            subprocess.check_call(cmd)
 
 
 if __name__ == "__main__":

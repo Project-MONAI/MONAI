@@ -50,8 +50,7 @@ class TestBundleRun(unittest.TestCase):
         with open(config_file, "w") as f:
             json.dump({"": {"_target_": "tests.test_integration_bundle_run._Runnable42", "val": 42}}, f)
         cmd = [sys.executable, "-m", "monai.bundle", "run", "--config_file", config_file]
-        ret = subprocess.check_call(cmd)
-        self.assertEqual(ret, 0)
+        subprocess.check_call(cmd)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, config_file, expected_shape):
@@ -92,16 +91,14 @@ class TestBundleRun(unittest.TestCase):
         la = [f"{sys.executable}"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()
         print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
-        ret = subprocess.check_call(la + ["--args_file", def_args_file], env=test_env)
-        self.assertEqual(ret, 0)
+        subprocess.check_call(la + ["--args_file", def_args_file], env=test_env)
         self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
         # here test the script with `google fire` tool as CLI
         cmd = "-m fire monai.bundle.scripts run --runner_id evaluator"
         cmd += f" --evaluator#amp False {override}"
         la = [f"{sys.executable}"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
-        ret = subprocess.check_call(la, env=test_env)
-        self.assertEqual(ret, 0)
+        subprocess.check_call(la, env=test_env)
         self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
 
 

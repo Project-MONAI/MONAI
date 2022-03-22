@@ -41,8 +41,7 @@ class TestVerifyNetwork(unittest.TestCase):
 
             test_env = os.environ.copy()
             print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
-            ret = subprocess.check_call(cmd, env=test_env)
-            self.assertEqual(ret, 0)
+            subprocess.check_call(cmd, env=test_env)
 
 
 if __name__ == "__main__":
