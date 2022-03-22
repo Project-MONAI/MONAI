@@ -302,7 +302,7 @@ class ConfigExpression(ConfigItem):
 
         config = "$monai.__version__"
         expression = ConfigExpression(config, id="test", globals={"monai": monai})
-        print(expression.execute())
+        print(expression.evaluate())
 
     Args:
         config: content of a config item.

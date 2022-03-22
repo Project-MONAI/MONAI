@@ -209,12 +209,16 @@ class ConfigParser:
                 Use digits indexing from "0" for list or other strings for dict.
                 For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
-                Currently support ``reset`` (for parse), ``instantiate`` and ``eval_expr``. All defaulting to True.
+                Currently support ``lazy`` (whether to retain the current config cache, default to `False`),
+                ``instantiate`` (whether to instantiate the `ConfigComponent`, default to `True`) and
+                ``eval_expr`` (whether to evaluate the `ConfigExpression`, default to `True`).
 
         """
         if not self.ref_resolver.is_resolved():
             # not parsed the config source yet, parse it
-            self.parse(kwargs.get("reset", True))
+            self.parse(reset=True)
+        elif not kwargs.get("lazy", False):
+            self.parse(reset=not kwargs.get("lazy", False))
         return self.ref_resolver.get_resolved_content(id=id, **kwargs)
 
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
