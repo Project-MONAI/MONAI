@@ -177,7 +177,7 @@ class UNet(nn.Module):
 
             if len(channels) > 2:
                 subblock = _create_block(c, c, channels[1:], strides[1:], False)  # continue recursion down
-                upc = c * s
+                upc = c * 2
             else:
                 # the next layer is the bottom so stop recursion, create the bottom layer as the sublock for this layer
                 subblock = self._get_bottom_layer(c, channels[1])
