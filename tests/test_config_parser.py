@@ -85,7 +85,7 @@ TEST_CASE_3 = [
 ]
 
 
-class TestConfigComponent(unittest.TestCase):
+class TestConfigParser(unittest.TestCase):
     def test_config_content(self):
         test_config = {"preprocessing": [{"_target_": "LoadImage"}], "dataset": {"_target_": "Dataset"}}
         parser = ConfigParser(config=test_config)
