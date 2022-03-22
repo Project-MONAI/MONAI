@@ -245,11 +245,20 @@ class SkipIfAtLeastPyTorchVersion:
         )(obj)
 
 
+def is_main_test_process():
+    ps = torch.multiprocessing.current_process()
+    if not ps or not hasattr(ps, "name"):
+        return False
+    return ps.name.startswith("Main")
+
+
 def has_cupy():
     """
     Returns True if the user has installed a version of cupy.
     """
     cp, has_cp = optional_import("cupy")
+    if not is_main_test_process():
+        return has_cp  # skip the check if we are running in subprocess
     if not has_cp:
         return False
     try:  # test cupy installation with a basic example
