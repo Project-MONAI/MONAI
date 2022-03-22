@@ -37,4 +37,3 @@ or additionally tune the input parameters then :
 >>> net = config.get_parsed_content("demo_net", instantiate=True)
 BasicUNet features: (32, 32, 32, 64, 64, 64).
 ```
-
