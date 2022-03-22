@@ -197,7 +197,7 @@ class ReferenceResolver:
         current_id = id.split(cls.sep)
 
         for p in prefixes:
-            length = len(p[len(cls.ref) :]) // len(cls.sep)
+            length = p[len(cls.ref) :].count(cls.sep)
             if length > len(current_id):
                 raise ValueError(f"the relative id in `{value}` is out of the range of config content.")
             if length == len(current_id):
