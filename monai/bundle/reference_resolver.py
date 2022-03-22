@@ -101,7 +101,7 @@ class ReferenceResolver:
 
     def _resolve_one_item(self, id: str, waiting_list: Optional[Set[str]] = None, **kwargs):
         """
-        Resolve one ``ConfigItem`` of ``id``, cache the resolved result in ``resolved_content``.
+        Resolve and return one ``ConfigItem`` of ``id``, cache the resolved result in ``resolved_content``.
         If it has unresolved references, recursively resolve the referring items first.
 
         Args:
@@ -113,6 +113,8 @@ class ReferenceResolver:
                 Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
 
         """
+        if id in self.resolved_content:
+            return self.resolved_content[id]
         try:
             item = look_up_option(id, self.items, print_all_options=False)
         except ValueError as err:
@@ -123,8 +125,14 @@ class ReferenceResolver:
             waiting_list = set()
         waiting_list.add(id)
 
-        ref_ids = self.find_refs_in_config(config=item_config, id=id)
-        for d in ref_ids:
+        for t, v in self.items.items():
+            if (
+                t not in self.resolved_content
+                and isinstance(v, ConfigExpression)
+                and v.is_import_statement(v.get_config())
+            ):
+                self.resolved_content[t] = v.evaluate() if kwargs.get("eval_expr", True) else v
+        for d in self.find_refs_in_config(config=item_config, id=id):
             # if current item has reference already in the waiting list, that's circular references
             if d in waiting_list:
                 raise ValueError(f"detected circular references '{d}' for id='{id}' in the config content.")
@@ -152,10 +160,11 @@ class ReferenceResolver:
             )
         else:
             self.resolved_content[id] = new_config
+        return self.resolved_content[id]
 
     def get_resolved_content(self, id: str, **kwargs):
         """
-        Get the resolved ``ConfigItem`` by id. If there are unresolved references, try to resolve them first.
+        Get the resolved ``ConfigItem`` by id.
 
         Args:
             id: id name of the expected item.
@@ -163,9 +172,7 @@ class ReferenceResolver:
                 Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
 
         """
-        if id not in self.resolved_content:
-            self._resolve_one_item(id=id, **kwargs)
-        return self.resolved_content[id]
+        return self._resolve_one_item(id=id, **kwargs)
 
     @classmethod
     def resolve_relative_ids(cls, id: str, value: str) -> str:

@@ -1122,9 +1122,9 @@ class IntensityStats(Transform):
 
         if mask is not None:
             if mask.shape != img_np.shape:
-                raise ValueError("mask must have the same shape as input `img`, got {mask.shape} and {img_np.shape}.")
+                raise ValueError(f"mask must have the same shape as input `img`, got {mask.shape} and {img_np.shape}.")
             if mask.dtype != bool:
-                raise TypeError("mask must be bool array, got type {mask.dtype}.")
+                raise TypeError(f"mask must be bool array, got type {mask.dtype}.")
             img_np = img_np[mask]
 
         supported_ops = {
