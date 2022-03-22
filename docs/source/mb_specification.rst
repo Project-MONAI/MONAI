@@ -102,7 +102,6 @@ An example JSON metadata file:
       "copyright": "Copyright (c) MONAI Consortium",
       "data_source": "Task09_Spleen.tar from http://medicaldecathlon.com/",
       "data_type": "dicom",
-      "dataset_dir": "/workspace/data/Task09_Spleen",
       "image_classes": "single channel data, intensity scaled to [0, 1]",
       "label_classes": "single channel data, 1 is spleen, 0 is everything else",
       "pred_classes": "2 channels OneHot data, channel 1 is spleen, channel 0 is background",
