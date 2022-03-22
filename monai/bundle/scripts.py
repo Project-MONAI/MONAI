@@ -16,6 +16,7 @@ import re
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 import torch
+from torch.cuda import is_available
 
 from monai.apps.utils import download_url, get_logger
 from monai.bundle.config_parser import ConfigParser
@@ -56,6 +57,14 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
         else:
             args_[k] = v
     return args_
+
+
+def _pop_args(src: Dict, *args, **kwargs):
+    """
+    Pop args from the `src` dictionary based on specified keys in `args` and (key, default value) pairs in `kwargs`.
+
+    """
+    return tuple([src.pop(i) for i in args] + [src.pop(k, v) for k, v in kwargs.items()])
 
 
 def _log_input_summary(tag, args: Dict):
@@ -152,20 +161,22 @@ def run(
     if "config_file" not in _args:
         raise ValueError(f"`config_file` is required for 'monai.bundle run'.\n{run.__doc__}")
     _log_input_summary(tag="run", args=_args)
+    config_file_, meta_file_, runner_id_ = _pop_args(_args, "config_file", meta_file=None, runner_id="")
 
     parser = ConfigParser()
-    parser.read_config(f=_args.pop("config_file"))
-    if "meta_file" in _args:
-        parser.read_meta(f=_args.pop("meta_file"))
-    id = _args.pop("runner_id", "")
+    parser.read_config(f=config_file_)
+    if meta_file_ is not None:
+        parser.read_meta(f=meta_file_)
 
     # the rest key-values in the _args are to override config content
     for k, v in _args.items():
         parser[k] = v
 
-    workflow = parser.get_parsed_content(id=id)
+    workflow = parser.get_parsed_content(id=runner_id_)
     if not hasattr(workflow, "run"):
-        raise ValueError(f"The parsed workflow {type(workflow)} (id={id}) does not have a `run` method.\n{run.__doc__}")
+        raise ValueError(
+            f"The parsed workflow {type(workflow)} (id={runner_id_}) does not have a `run` method.\n{run.__doc__}"
+        )
     return workflow.run()
 
 
@@ -207,22 +218,16 @@ def verify_metadata(
         **kwargs,
     )
     _log_input_summary(tag="verify_metadata", args=_args)
+    filepath_, meta_file_, create_dir_, hash_val_, hash_type_ = _pop_args(
+        _args, "filepath", "meta_file", create_dir=True, hash_val=None, hash_type="md5"
+    )
 
-    filepath_ = _args.pop("filepath")
-    create_dir_ = _args.pop("create_dir", True)
     check_parent_dir(path=filepath_, create_dir=create_dir_)
-
-    metadata = ConfigParser.load_config_files(files=_args.pop("meta_file"))
+    metadata = ConfigParser.load_config_files(files=meta_file_)
     url = metadata.get("schema")
     if url is None:
         raise ValueError("must provide the `schema` field in the metadata for the URL of schema file.")
-    download_url(
-        url=url,
-        filepath=filepath_,
-        hash_val=_args.pop("hash_val", None),
-        hash_type=_args.pop("hash_type", "md5"),
-        progress=True,
-    )
+    download_url(url=url, filepath=filepath_, hash_val=hash_val_, hash_type=hash_type_, progress=True)
     schema = ConfigParser.load_config_file(filepath=filepath_)
 
     try:
@@ -285,22 +290,20 @@ def verify_net_in_out(
         **override,
     )
     _log_input_summary(tag="verify_net_in_out", args=_args)
+    config_file_, meta_file_, net_id_, device_, p_, n_, any_ = _pop_args(
+        _args, "config_file", "meta_file", net_id="", device="cuda:0" if is_available() else "cpu", p=1, n=1, any=1
+    )
 
     parser = ConfigParser()
-    parser.read_config(f=_args.pop("config_file"))
-    parser.read_meta(f=_args.pop("meta_file"))
-    id = _args.pop("net_id", "")
-    device_ = torch.device(_args.pop("device", "cuda:0" if torch.cuda.is_available() else "cpu"))
-    p = _args.pop("p", 1)
-    n = _args.pop("n", 1)
-    any = _args.pop("any", 1)
+    parser.read_config(f=config_file_)
+    parser.read_meta(f=meta_file_)
 
     # the rest key-values in the _args are to override config content
     for k, v in _args.items():
         parser[k] = v
 
     try:
-        key: str = id  # mark the full id when KeyError
+        key: str = net_id_  # mark the full id when KeyError
         net = parser.get_parsed_content(key).to(device_)
         key = "_meta_#network_data_format#inputs#image#num_channels"
         input_channels = parser[key]
@@ -317,7 +320,7 @@ def verify_net_in_out(
 
     net.eval()
     with torch.no_grad():
-        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p, n=n, any=any)  # type: ignore
+        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p_, n=n_, any=any_)  # type: ignore
         test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device_)
         output = net(test_data)
         if output.shape[1] != output_channels:
@@ -372,38 +375,36 @@ def ckpt_export(
         **override,
     )
     _log_input_summary(tag="export", args=_args)
+    filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_ = _pop_args(
+        _args, "filepath", "ckpt_file", "config_file", net_id="", meta_file=None, key_in_ckpt=""
+    )
 
     parser = ConfigParser()
-    config_file_ = _args.pop("config_file")
+
     parser.read_config(f=config_file_)
-    meta_file = _args.pop("meta_file")
-    if meta_file is not None:
-        parser.read_meta(f=meta_file)
-    id = _args.pop("net_id", "")
-    path = _args.pop("filepath")
-    ckpt = torch.load(_args.pop("ckpt_file"))
-    key = _args.pop("key_in_ckpt", "")
+    if meta_file_ is not None:
+        parser.read_meta(f=meta_file_)
 
     # the rest key-values in the _args are to override config content
     for k, v in _args.items():
         parser[k] = v
 
-    net = parser.get_parsed_content(id)
+    net = parser.get_parsed_content(net_id_)
     if has_ignite:
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key: net}, checkpoint=ckpt)
+        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
     else:
-        copy_model_state(dst=net, src=ckpt if key == "" else ckpt[key])
+        copy_model_state(dst=net, src=ckpt_file_ if key_in_ckpt_ == "" else ckpt_file_[key_in_ckpt_])
 
     # convert to TorchScript model and save with meta data, config content
     net = convert_to_torchscript(model=net)
 
     save_net_with_metadata(
         jit_obj=net,
-        filename_prefix_or_stream=path,
+        filename_prefix_or_stream=filepath_,
         include_config_vals=False,
         append_timestamp=False,
         meta_values=parser.get().pop("_meta_", None),
         more_extra_files={"config": json.dumps(parser.get()).encode()},
     )
-    logger.info(f"exported to TorchScript file: {path}.")
+    logger.info(f"exported to TorchScript file: {filepath_}.")
