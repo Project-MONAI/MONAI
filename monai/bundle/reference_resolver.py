@@ -177,15 +177,18 @@ class ReferenceResolver:
     @classmethod
     def resolve_relative_ids(cls, id: str, value: str) -> str:
         """
-        Resolve the relative reference ids to absolute ids. For example:
+        To simplify the reference ID in the nested config content, it's available to use relative ID name which starts
+        with the `sep` symbol, for example, "@#A" means `A` in the same level, `@##A` means `A` in the upper level.
+        It resolves the relative reference ids to absolute ids. For example, if the input data is:
 
         .. code-block:: python
 
             {
                 "A": 1,
-                "B": "@#A",
-                "C": {"key": "@##A", "value1": 2, "value2": "@#value1", "value3": [3, 4, "@#1"]},
+                "B": {"key": "@##A", "value1": 2, "value2": "@#value1", "value3": [3, 4, "@#1"]},
             }
+
+        It will resolve `B` to `{"key": "@A", "value1": 2, "value2": "@B#value1", "value3": [3, 4, "@B#value3#1"]}`.
 
         Args:
             id: id name for current config item to compute relative id.
