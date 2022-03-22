@@ -27,8 +27,8 @@ from tests.utils import download_url_or_skip_test, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
-_, has_osl = optional_import("openslide")
-imsave, has_tiff = optional_import("tifffile", name="imsave")
+openslide, has_osl = optional_import("openslide")
+imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
@@ -84,6 +84,9 @@ TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
 TEST_CASE_RGB_1 = [np.ones((3, 100, 100), dtype=np.uint8)]  # CHW
 
+TEST_CASE_ERROR_GRAY = [np.ones((16, 16), dtype=np.uint8)]  # no color channel
+TEST_CASE_ERROR_3D = [np.ones((16, 16, 16, 3), dtype=np.uint8)]  # 3D + color
+
 
 def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
     """
@@ -91,14 +94,28 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
 
     Args:
         array: numpy ndarray with the shape of CxHxW and C==3 representing a RGB image
-        file_prefix: the filename to be used for the tiff file. '_RGB.tiff' or '_RGBA.tiff' will be appended to this filename.
+        filename: the filename to be used for the tiff file. '_RGB.tiff' or '_RGBA.tiff' will be appended to this filename.
         mode: RGB or RGBA
     """
     if mode == "RGBA":
         array = np.concatenate([array, 255 * np.ones_like(array[0])[np.newaxis]]).astype(np.uint8)
 
     img_rgb = array.transpose(1, 2, 0)
-    imsave(filename, img_rgb, shape=img_rgb.shape, tile=(16, 16))
+    imwrite(filename, img_rgb, shape=img_rgb.shape, tile=(16, 16))
+
+    return filename
+
+
+def save_gray_tiff(array: np.ndarray, filename: str):
+    """
+    Save numpy array into a TIFF file
+
+    Args:
+        array: numpy ndarray with any shape
+        filename: the filename to be used for the tiff file.
+    """
+    img_gray = array
+    imwrite(filename, img_gray, shape=img_gray.shape, photometric="rgb")
 
     return filename
 
@@ -169,6 +186,17 @@ class WSIReaderTests:
 
             self.assertIsNone(assert_array_equal(image["RGB"], img_expected))
             self.assertIsNone(assert_array_equal(image["RGBA"], img_expected))
+
+        @parameterized.expand([TEST_CASE_ERROR_GRAY, TEST_CASE_ERROR_3D])
+        @skipUnless(has_tiff, "Requires tifffile.")
+        def test_read_malformats(self, img_expected):
+            reader = WSIReader(self.backend)
+            file_path = save_gray_tiff(
+                img_expected, os.path.join(os.path.dirname(__file__), "testing_data", "temp_tiff_image_gray.tiff")
+            )
+            with self.assertRaises((RuntimeError, ValueError, openslide.OpenSlideError if has_osl else ValueError)):
+                with reader.read(file_path) as img_obj:
+                    reader.get_data(img_obj)
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
         def test_with_dataloader(self, file_path, level, expected_spatial_shape, expected_shape):
