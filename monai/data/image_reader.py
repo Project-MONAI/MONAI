@@ -923,19 +923,20 @@ class WSIReader(ImageReader):
 
         # convert to numpy (if not already in numpy)
         raw_region = np.asarray(raw_region, dtype=dtype)
-        
+
         # check if the image has three dimensions (2D + color)
         if raw_region.ndim != 3:
             raise ValueError(
                 f"The input image dimension should be 3 but {raw_region.ndim} is given. "
                 "`WSIReader` is designed to work only with 2D colored images."
-                )
+            )
 
         # check if the color channel is 3 (RGB) or 4 (RGBA)
         if raw_region.shape[-1] not in [3, 4]:
             raise ValueError(
                 f"There should be three or four color channels but {raw_region.shape[-1]} is given. "
-                "`WSIReader` is designed to work only with 2D colored images.")
+                "`WSIReader` is designed to work only with 2D colored images."
+            )
 
         # remove alpha channel if exist (RGBA)
         if raw_region.shape[-1] > 3:
