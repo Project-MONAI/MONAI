@@ -924,7 +924,7 @@ class WSIReader(ImageReader):
         # convert to numpy (if not already in numpy)
         raw_region = np.asarray(raw_region, dtype=dtype)
         
-        # # check if the image has three dimensions (2D + color)
+        # check if the image has three dimensions (2D + color)
         if raw_region.ndim != 3:
             raise ValueError(
                 f"The input image dimension should be 3 but {raw_region.ndim} is given. "
