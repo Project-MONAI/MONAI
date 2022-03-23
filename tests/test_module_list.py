@@ -57,7 +57,7 @@ class TestAllImport(unittest.TestCase):
                 for docname in (f"{basename}", f"{basename}d"):
                     if docname in to_exclude_docs:
                         continue
-                    if contents is not None and f"`{docname}`" not in contents:
+                    if (contents is not None) and f"`{docname}`" not in contents:  # type: ignore
                         self.assertTrue(False, f"please add `{docname}` to docs/source/transforms.rst")
                 for postfix in ("D", "d", "Dict"):
                     remained.remove(f"{basename}{postfix}")
