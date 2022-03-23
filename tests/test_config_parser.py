@@ -28,15 +28,17 @@ TEST_CASE_1 = [
             "_target_": "Compose",
             "transforms": [
                 {"_target_": "LoadImaged", "keys": "image"},
-                {"_target_": "RandTorchVisiond", "keys": "image", "name": "ColorJitter", "brightness": 0.25},
+                # test relative id in `keys`
+                {"_target_": "RandTorchVisiond", "keys": "@##0#keys", "name": "ColorJitter", "brightness": 0.25},
             ],
         },
         "dataset": {"_target_": "Dataset", "data": [1, 2], "transform": "@transform"},
         "dataloader": {
             "_target_": "DataLoader",
-            "dataset": "@dataset",
+            # test relative id in `dataset`
+            "dataset": "@##dataset",
             "batch_size": 2,
-            "collate_fn": "monai.data.list_data_collate",
+            "collate_fn": "$monai.data.list_data_collate",
         },
     },
     ["transform", "transform#transforms#0", "transform#transforms#1", "dataset", "dataloader"],
@@ -73,7 +75,17 @@ TEST_CASE_2 = [
 ]
 
 
-class TestConfigComponent(unittest.TestCase):
+TEST_CASE_3 = [
+    {
+        "A": 1,
+        "B": "@A",
+        "C": "@#A",
+        "D": {"key": "@##A", "value1": 2, "value2": "%#value1", "value3": [3, 4, "@#1", "$100 + @#0 + @##value1"]},
+    }
+]
+
+
+class TestConfigParser(unittest.TestCase):
     def test_config_content(self):
         test_config = {"preprocessing": [{"_target_": "LoadImage"}], "dataset": {"_target_": "Dataset"}}
         parser = ConfigParser(config=test_config)
@@ -119,6 +131,16 @@ class TestConfigComponent(unittest.TestCase):
                     func(1, 2)
                 continue
             self.assertEqual(func(1, 2), 3)
+
+    @parameterized.expand([TEST_CASE_3])
+    def test_relative_id(self, config):
+        parser = ConfigParser(config=config)
+        for id in config:
+            item = parser.get_parsed_content(id=id)
+            if isinstance(item, int):
+                self.assertEqual(item, 1)
+            if isinstance(item, dict):
+                self.assertEqual(str(item), str({"key": 1, "value1": 2, "value2": 2, "value3": [3, 4, 4, 105]}))
 
 
 if __name__ == "__main__":
