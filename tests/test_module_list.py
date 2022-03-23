@@ -12,6 +12,7 @@
 import glob
 import inspect
 import os
+import pathlib
 import unittest
 
 import monai
@@ -37,6 +38,8 @@ class TestAllImport(unittest.TestCase):
     def test_transform_api(self):
         """monai subclasses of MapTransforms must have alias names ending with 'd', 'D', 'Dict'"""
         to_exclude = {"MapTransform"}  # except for these transforms
+        to_exclude_docs = {"Decollate", "Ensemble", "Invert", "SaveClassification", "RandTorchVision"}
+        to_exclude_docs.update({"DeleteItems", "SelectItems", "CopyItems", "ConcatItems"})
         xforms = {
             name: obj
             for name, obj in monai.transforms.__dict__.items()
@@ -44,10 +47,20 @@ class TestAllImport(unittest.TestCase):
         }
         names = sorted(x for x in xforms if x not in to_exclude)
         remained = set(names)
+        doc_file = os.path.join(pathlib.Path(__file__).parent.parent, "docs", "source", "transforms.rst")
+        with open(doc_file) as f:
+            contents = f.readlines()
+        contents = "".join(contents)
+
         for n in names:
             if not n.endswith("d"):
                 continue
             basename = n[:-1]  # Transformd basename is Transform
+            for docname in (f"{basename}", f"{basename}d"):
+                if docname in to_exclude_docs:
+                    continue
+                if f"`{docname}`" not in contents:
+                    self.assertTrue(False, f"please add {docname} to docs/source/transforms.rst")
             for postfix in ("D", "d", "Dict"):
                 remained.remove(f"{basename}{postfix}")
         self.assertFalse(remained)
