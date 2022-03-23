@@ -19,12 +19,13 @@ jobs:
     strategy:
       matrix:
         environment:
+          - "PT19+CUDA114"
           - "PT17+CUDA102"
           - "PT18+CUDA102"
           - "PT18+CUDA112"
-          - "PT19+CUDA114"
           - "PT110+CUDA116"
           - "PT110+CUDA102"
+          - "PT111+CUDA102"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
           - environment: PT17+CUDA102
@@ -45,11 +46,14 @@ jobs:
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
           - environment: PT110+CUDA116
             # we explicitly set pytorch to -h to avoid pip install error
-            # 22.01: 1.11.0a0+bfe5ad2
+            # 22.02: 1.11.0a0+17540c5
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:22.01-py3"
+            base: "nvcr.io/nvidia/pytorch:22.02-py3"
           - environment: PT110+CUDA102
             pytorch: "torch==1.10.1 torchvision==0.11.2"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT111+CUDA102
+            pytorch: "torch==1.11.0 torchvision==0.12.0"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
@@ -61,7 +65,8 @@ jobs:
       run: |
         if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
-          [ ${{ matrix.environment }} = "PT110+CUDA102" ]
+          [ ${{ matrix.environment }} = "PT110+CUDA102" ] || \
+          [ ${{ matrix.environment }} = "PT111+CUDA102" ]
         then
         PYVER=3.7 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \

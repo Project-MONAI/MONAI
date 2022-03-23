@@ -9,5 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
-from .reference_resolver import ReferenceResolver
+
+from monai.bundle.scripts import run, verify_metadata, verify_net_in_out
+
+if __name__ == "__main__":
+    from monai.utils import optional_import
+
+    fire, _ = optional_import("fire")
+    fire.Fire()

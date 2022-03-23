@@ -130,6 +130,7 @@ temp/
 tests/testing_data/MedNIST*
 tests/testing_data/*Hippocampus*
 tests/testing_data/*.tiff
+tests/testing_data/schema.json
 
 # clang format tool
 .clang-format-bin/

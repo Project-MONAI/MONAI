@@ -50,6 +50,7 @@ __all__ = [
     "is_module_ver_at_least",
     "has_option",
     "sample_slices",
+    "check_parent_dir",
     "save_obj",
 ]
 
@@ -239,6 +240,13 @@ def set_determinism(
         use_deterministic_algorithms: Set whether PyTorch operations must use "deterministic" algorithms.
         additional_settings: additional settings that need to set random seed.
 
+    Note:
+
+        This function will not affect the randomizable objects in :py:class:`monai.transforms.Randomizable`, which
+        have independent random states. For those objects, the ``set_random_state()`` method should be used to
+        ensure the deterministic behavior (alternatively, :py:class:`monai.data.DataLoader` by default sets the seeds
+        according to the global random state, please see also: :py:class:`monai.data.utils.worker_init_fn` and
+        :py:class:`monai.data.utils.set_rnd`).
     """
     if seed is None:
         # cast to 32 bit seed for CUDA
@@ -393,6 +401,25 @@ def sample_slices(data: NdarrayOrTensor, dim: int = 1, as_indices: bool = True, 
     return data[tuple(slices)]
 
 
+def check_parent_dir(path: PathLike, create_dir: bool = True):
+    """
+    Utility to check whether the parent directory of the `path` exists.
+
+    Args:
+        path: input path to check the parent directory.
+        create_dir: if True, when the parent directory doesn't exist, create the directory,
+            otherwise, raise exception.
+
+    """
+    path = Path(path)
+    path_dir = path.parent
+    if not path_dir.exists():
+        if create_dir:
+            path_dir.mkdir(parents=True)
+        else:
+            raise ValueError(f"the directory of specified path does not exist: `{path_dir}`.")
+
+
 def save_obj(
     obj, path: PathLike, create_dir: bool = True, atomic: bool = True, func: Optional[Callable] = None, **kwargs
 ):
@@ -414,12 +441,7 @@ def save_obj(
 
     """
     path = Path(path)
-    path_dir = path.parent
-    if not path_dir.exists():
-        if create_dir:
-            path_dir.mkdir(parents=True)
-        else:
-            raise ValueError(f"the directory of specified path is not existing: {path_dir}.")
+    check_parent_dir(path=path, create_dir=create_dir)
     if path.exists():
         # remove the existing file
         os.remove(path)

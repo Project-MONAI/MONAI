@@ -19,6 +19,7 @@ import sys
 import traceback
 import warnings
 from pathlib import Path
+from pydoc import locate
 from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
@@ -104,13 +105,12 @@ class LoadImage(Transform):
         """
         Args:
             reader: reader to load image file and meta data
-
                 - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
-                - if `reader` is a string, the corresponding item in `SUPPORTED_READERS` will be used,
-                  and a reader instance will be constructed with the `*args` and `**kwargs` parameters.
-                  the supported reader names are: "nibabelreader", "pilreader", "itkreader", "numpyreader".
+                - if `reader` is a string, it's treated as a class name or dotted path
+                (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
+                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
+                a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
-
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
             ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
@@ -152,15 +152,19 @@ class LoadImage(Transform):
 
         for _r in ensure_tuple(reader):
             if isinstance(_r, str):
-                the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
+                the_reader, has_built_in = optional_import("monai.data", name=f"{_r}")  # search built-in
+                if not has_built_in:
+                    the_reader = locate(f"{_r}")  # search dotted path
+                if the_reader is None:
+                    the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
                 try:
                     self.register(the_reader(*args, **kwargs))
                 except OptionalImportError:
                     warnings.warn(
-                        f"required package for reader {r} is not installed, or the version doesn't match requirement."
+                        f"required package for reader {_r} is not installed, or the version doesn't match requirement."
                     )
                 except TypeError:  # the reader doesn't have the corresponding args/kwargs
-                    warnings.warn(f"{r} is not supported with the given parameters {args} {kwargs}.")
+                    warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.")
                     self.register(the_reader())
             elif inspect.isclass(_r):
                 self.register(_r(*args, **kwargs))
@@ -300,8 +304,10 @@ class SaveImage(Transform):
         print_log: whether to print logs when saving. Default to `True`.
         output_format: an optional string of filename extension to specify the output image writer.
             see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
-        writer: a customised image writer to save data arrays.
+        writer: a customised `monai.data.ImageWriter` subclass to save data arrays.
             if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
+            if it's a string, it's treated as a class name or dotted path (such as ``"monai.data.ITKWriter"``);
+            the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
         channel_dim: the index of the channel dimension. Default to `0`.
             `None` to indicate no channel dimension.
     """
@@ -322,7 +328,7 @@ class SaveImage(Transform):
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Optional[image_writer.ImageWriter] = None,
+        writer: Union[image_writer.ImageWriter, str, None] = None,
         channel_dim: Optional[int] = 0,
     ) -> None:
         self.folder_layout = FolderLayout(
@@ -335,6 +341,13 @@ class SaveImage(Transform):
         )
 
         self.output_ext = output_ext.lower() or output_format.lower()
+        if isinstance(writer, str):
+            writer_, has_built_in = optional_import("monai.data", name=f"{writer}")  # search built-in
+            if not has_built_in:
+                writer_ = locate(f"{writer}")  # search dotted path
+            if writer_ is None:
+                raise ValueError(f"writer {writer} not found")
+            writer = writer_  # type: ignore
         self.writers = image_writer.resolve_writer(self.output_ext) if writer is None else (writer,)
         self.writer_obj = None
 

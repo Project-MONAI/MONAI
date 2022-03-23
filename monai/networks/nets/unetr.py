@@ -179,24 +179,25 @@ class UNETR(nn.Module):
             res_block=res_block,
         )
         self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
+        self.proj_axes = (0, spatial_dims + 1) + tuple(d + 1 for d in range(spatial_dims))
+        self.proj_view_shape = list(self.feat_size) + [self.hidden_size]
 
-    def proj_feat(self, x, hidden_size, feat_size):
-        new_view = (x.size(0), *feat_size, hidden_size)
+    def proj_feat(self, x):
+        new_view = [x.size(0)] + self.proj_view_shape
         x = x.view(new_view)
-        new_axes = (0, len(x.shape) - 1) + tuple(d + 1 for d in range(len(feat_size)))
-        x = x.permute(new_axes).contiguous()
+        x = x.permute(self.proj_axes).contiguous()
         return x
 
     def forward(self, x_in):
         x, hidden_states_out = self.vit(x_in)
         enc1 = self.encoder1(x_in)
         x2 = hidden_states_out[3]
-        enc2 = self.encoder2(self.proj_feat(x2, self.hidden_size, self.feat_size))
+        enc2 = self.encoder2(self.proj_feat(x2))
         x3 = hidden_states_out[6]
-        enc3 = self.encoder3(self.proj_feat(x3, self.hidden_size, self.feat_size))
+        enc3 = self.encoder3(self.proj_feat(x3))
         x4 = hidden_states_out[9]
-        enc4 = self.encoder4(self.proj_feat(x4, self.hidden_size, self.feat_size))
-        dec4 = self.proj_feat(x, self.hidden_size, self.feat_size)
+        enc4 = self.encoder4(self.proj_feat(x4))
+        dec4 = self.proj_feat(x)
         dec3 = self.decoder5(dec4, enc4)
         dec2 = self.decoder4(dec3, enc3)
         dec1 = self.decoder3(dec2, enc2)

@@ -120,7 +120,7 @@ def compute_meandice(y_pred: torch.Tensor, y: torch.Tensor, include_background: 
     y_pred = y_pred.float()
 
     if y.shape != y_pred.shape:
-        raise ValueError("y_pred and y should have same shapes.")
+        raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
     # reducing only spatial dimensions (not batch nor channels)
     n_len = len(y_pred.shape)

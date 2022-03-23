@@ -1405,7 +1405,7 @@ class RandHistogramShift(RandomizableTransform):
         img_min, img_max = img_np.min(), img_np.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-        img_np = np.asarray(
+        img_np = np.asarray(  # type: ignore
             np.interp(img_np, reference_control_points_scaled, floating_control_points_scaled), dtype=img_np.dtype
         )
         img, *_ = convert_to_dst_type(img_np, dst=img)
@@ -1815,7 +1815,9 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         k = self.shift_fourier(img, n_dims)
         mod = torch if isinstance(k, torch.Tensor) else np
         log_abs = mod.log(mod.absolute(k) + 1e-10)
-        shifted_means = mod.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5
+        shifted_means = mod.mean(log_abs, tuple(range(-n_dims, 0))) * 2.5
+        if isinstance(shifted_means, torch.Tensor):
+            shifted_means = shifted_means.to("cpu")
         return tuple((i * 0.95, i * 1.1) for i in shifted_means)
 
 

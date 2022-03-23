@@ -10,6 +10,5 @@
 # limitations under the License.
 
 from .datasets import CrossValidation, DecathlonDataset, MedNISTDataset
-from .manifest import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, ReferenceResolver
 from .mmars import MODEL_DESC, RemoteMMARKeys, download_mmar, get_model_spec, load_from_mmar
 from .utils import SUPPORTED_HASH_TYPES, check_hash, download_and_extract, download_url, extractall, get_logger, logger

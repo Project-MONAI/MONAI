@@ -25,3 +25,6 @@ mlflow
 tensorboardX
 imagecodecs; platform_system == "Linux"
 tifffile; platform_system == "Linux"
+pyyaml
+fire
+jsonschema

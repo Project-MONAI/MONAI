@@ -142,7 +142,7 @@ def compute_average_surface_distance(
         y_pred = y_pred.float()
 
     if y.shape != y_pred.shape:
-        raise ValueError("y_pred and y should have same shapes.")
+        raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
     batch_size, n_class = y_pred.shape[:2]
     asd = np.empty((batch_size, n_class))
