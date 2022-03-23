@@ -195,7 +195,7 @@ class TransPyramidModule(nn.Module):
 
         super().__init__()
 
-        self.backbone = backbone
+        self.backbone: models.ResNet = backbone  # type: ignore
         transformer_list = nn.ModuleList(
             [
                 nn.TransformerEncoder(
@@ -224,19 +224,19 @@ class TransPyramidModule(nn.Module):
 
     def forward(self, x: torch.Tensor, batch: int, channel: int, no_head: bool = False):
 
-        x = self.backbone.conv1(x)  # type: ignore
-        x = self.backbone.bn1(x)  # type: ignore
-        x = self.backbone.relu(x)  # type: ignore
-        x = self.backbone.maxpool(x)  # type: ignore
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
 
-        x_l1 = self.backbone.layer1(x)  # type: ignore
-        x_l2 = self.backbone.layer2(x_l1)  # type: ignore
-        x_l3 = self.backbone.layer3(x_l2)  # type: ignore
-        x_l4 = self.backbone.layer4(x_l3)  # type: ignore
+        x_l1 = self.backbone.layer1(x)
+        x_l2 = self.backbone.layer2(x_l1)
+        x_l3 = self.backbone.layer3(x_l2)
+        x_l4 = self.backbone.layer4(x_l3)
 
-        x = self.backbone.avgpool(x_l4)  # type: ignore
+        x = self.backbone.avgpool(x_l4)
         x = torch.flatten(x, 1)
-        x = self.backbone.fc(x)  # type: ignore
+        x = self.backbone.fc(x)
 
         x = x.reshape(batch, channel, -1)
 
