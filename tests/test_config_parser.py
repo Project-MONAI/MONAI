@@ -25,24 +25,23 @@ _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 TEST_CASE_1 = [
     {
         "transform": {
-            "<name>": "Compose",
-            "<args>": {
-                "transforms": [
-                    {"<name>": "LoadImaged", "<args>": {"keys": "image"}},
-                    {
-                        "<name>": "RandTorchVisiond",
-                        "<args>": {"keys": "image", "name": "ColorJitter", "brightness": 0.25},
-                    },
-                ]
-            },
+            "_target_": "Compose",
+            "transforms": [
+                {"_target_": "LoadImaged", "keys": "image"},
+                # test relative id in `keys`
+                {"_target_": "RandTorchVisiond", "keys": "@##0#keys", "name": "ColorJitter", "brightness": 0.25},
+            ],
         },
-        "dataset": {"<name>": "Dataset", "<args>": {"data": [1, 2], "transform": "@transform"}},
+        "dataset": {"_target_": "Dataset", "data": [1, 2], "transform": "@transform"},
         "dataloader": {
-            "<name>": "DataLoader",
-            "<args>": {"dataset": "@dataset", "batch_size": 2, "collate_fn": "monai.data.list_data_collate"},
+            "_target_": "DataLoader",
+            # test relative id in `dataset`
+            "dataset": "@##dataset",
+            "batch_size": 2,
+            "collate_fn": "$monai.data.list_data_collate",
         },
     },
-    ["transform", "transform#<args>#transforms#0", "transform#<args>#transforms#1", "dataset", "dataloader"],
+    ["transform", "transform#transforms#0", "transform#transforms#1", "dataset", "dataloader"],
     [Compose, LoadImaged, RandTorchVisiond, Dataset, DataLoader],
 ]
 
@@ -67,28 +66,38 @@ TEST_CASE_2 = [
         "cls_func": "$TestClass.cls_compute",
         "lambda_static_func": "$lambda x, y: TestClass.compute(x, y)",
         "lambda_cls_func": "$lambda x, y: TestClass.cls_compute(x, y)",
-        "compute": {"<path>": "tests.test_config_parser.TestClass.compute", "<args>": {"func": "@basic_func"}},
-        "cls_compute": {"<path>": "tests.test_config_parser.TestClass.cls_compute", "<args>": {"func": "@basic_func"}},
-        "call_compute": {"<path>": "tests.test_config_parser.TestClass"},
+        "compute": {"_target_": "tests.test_config_parser.TestClass.compute", "func": "@basic_func"},
+        "cls_compute": {"_target_": "tests.test_config_parser.TestClass.cls_compute", "func": "@basic_func"},
+        "call_compute": {"_target_": "tests.test_config_parser.TestClass"},
         "error_func": "$TestClass.__call__",
         "<test>": "$lambda x, y: x + y",
     }
 ]
 
 
-class TestConfigComponent(unittest.TestCase):
+TEST_CASE_3 = [
+    {
+        "A": 1,
+        "B": "@A",
+        "C": "@#A",
+        "D": {"key": "@##A", "value1": 2, "value2": "%#value1", "value3": [3, 4, "@#1", "$100 + @#0 + @##value1"]},
+    }
+]
+
+
+class TestConfigParser(unittest.TestCase):
     def test_config_content(self):
-        test_config = {"preprocessing": [{"<name>": "LoadImage"}], "dataset": {"<name>": "Dataset"}}
+        test_config = {"preprocessing": [{"_target_": "LoadImage"}], "dataset": {"_target_": "Dataset"}}
         parser = ConfigParser(config=test_config)
         # test `get`, `set`, `__getitem__`, `__setitem__`
         self.assertEqual(str(parser.get()), str(test_config))
         parser.set(config=test_config)
         self.assertListEqual(parser["preprocessing"], test_config["preprocessing"])
-        parser["dataset"] = {"<name>": "CacheDataset"}
-        self.assertEqual(parser["dataset"]["<name>"], "CacheDataset")
+        parser["dataset"] = {"_target_": "CacheDataset"}
+        self.assertEqual(parser["dataset"]["_target_"], "CacheDataset")
         # test nested ids
-        parser["dataset#<name>"] = "Dataset"
-        self.assertEqual(parser["dataset#<name>"], "Dataset")
+        parser["dataset#_target_"] = "Dataset"
+        self.assertEqual(parser["dataset#_target_"], "Dataset")
         # test int id
         parser.set(["test1", "test2", "test3"])
         parser[1] = "test4"
@@ -99,11 +108,11 @@ class TestConfigComponent(unittest.TestCase):
     def test_parse(self, config, expected_ids, output_types):
         parser = ConfigParser(config=config, globals={"monai": "monai"})
         # test lazy instantiation with original config content
-        parser["transform"]["<args>"]["transforms"][0]["<args>"]["keys"] = "label1"
-        self.assertEqual(parser.get_parsed_content(id="transform#<args>#transforms#0").keys[0], "label1")
+        parser["transform"]["transforms"][0]["keys"] = "label1"
+        self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label1")
         # test nested id
-        parser["transform#<args>#transforms#0#<args>#keys"] = "label2"
-        self.assertEqual(parser.get_parsed_content(id="transform#<args>#transforms#0").keys[0], "label2")
+        parser["transform#transforms#0#keys"] = "label2"
+        self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label2")
         for id, cls in zip(expected_ids, output_types):
             self.assertTrue(isinstance(parser.get_parsed_content(id), cls))
         # test root content
@@ -122,6 +131,16 @@ class TestConfigComponent(unittest.TestCase):
                     func(1, 2)
                 continue
             self.assertEqual(func(1, 2), 3)
+
+    @parameterized.expand([TEST_CASE_3])
+    def test_relative_id(self, config):
+        parser = ConfigParser(config=config)
+        for id in config:
+            item = parser.get_parsed_content(id=id)
+            if isinstance(item, int):
+                self.assertEqual(item, 1)
+            if isinstance(item, dict):
+                self.assertEqual(str(item), str({"key": 1, "value1": 2, "value2": 2, "value3": [3, 4, 4, 105]}))
 
 
 if __name__ == "__main__":

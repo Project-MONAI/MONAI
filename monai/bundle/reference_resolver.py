@@ -13,7 +13,10 @@ import re
 from typing import Any, Dict, Optional, Sequence, Set
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
+from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY
 from monai.utils import look_up_option
+
+__all__ = ["ReferenceResolver"]
 
 
 class ReferenceResolver:
@@ -43,10 +46,10 @@ class ReferenceResolver:
     """
 
     _vars = "__local_refs"
-    sep = "#"  # separator for key indexing
-    ref = "@"  # reference prefix
-    # match a reference string, e.g. "@id#key", "@id#key#0", "@<test>#<args>#key"
-    id_matcher = re.compile(rf"{ref}(?:(?:<\w*>)|(?:\w*))(?:(?:{sep}<\w*>)|(?:{sep}\w*))*")
+    sep = ID_SEP_KEY  # separator for key indexing
+    ref = ID_REF_KEY  # reference prefix
+    # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
+    id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
@@ -96,7 +99,7 @@ class ReferenceResolver:
 
     def _resolve_one_item(self, id: str, waiting_list: Optional[Set[str]] = None, **kwargs):
         """
-        Resolve one ``ConfigItem`` of ``id``, cache the resolved result in ``resolved_content``.
+        Resolve and return one ``ConfigItem`` of ``id``, cache the resolved result in ``resolved_content``.
         If it has unresolved references, recursively resolve the referring items first.
 
         Args:
@@ -108,6 +111,8 @@ class ReferenceResolver:
                 Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
 
         """
+        if id in self.resolved_content:
+            return self.resolved_content[id]
         try:
             item = look_up_option(id, self.items, print_all_options=False)
         except ValueError as err:
@@ -118,8 +123,14 @@ class ReferenceResolver:
             waiting_list = set()
         waiting_list.add(id)
 
-        ref_ids = self.find_refs_in_config(config=item_config, id=id)
-        for d in ref_ids:
+        for t, v in self.items.items():
+            if (
+                t not in self.resolved_content
+                and isinstance(v, ConfigExpression)
+                and v.is_import_statement(v.get_config())
+            ):
+                self.resolved_content[t] = v.evaluate() if kwargs.get("eval_expr", True) else v
+        for d in self.find_refs_in_config(config=item_config, id=id):
             # if current item has reference already in the waiting list, that's circular references
             if d in waiting_list:
                 raise ValueError(f"detected circular references '{d}' for id='{id}' in the config content.")
@@ -147,10 +158,11 @@ class ReferenceResolver:
             )
         else:
             self.resolved_content[id] = new_config
+        return self.resolved_content[id]
 
     def get_resolved_content(self, id: str, **kwargs):
         """
-        Get the resolved ``ConfigItem`` by id. If there are unresolved references, try to resolve them first.
+        Get the resolved ``ConfigItem`` by id.
 
         Args:
             id: id name of the expected item.
@@ -158,9 +170,7 @@ class ReferenceResolver:
                 Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
 
         """
-        if id not in self.resolved_content:
-            self._resolve_one_item(id=id, **kwargs)
-        return self.resolved_content[id]
+        return self._resolve_one_item(id=id, **kwargs)
 
     @classmethod
     def match_refs_pattern(cls, value: str) -> Set[str]:
@@ -257,6 +267,9 @@ class ReferenceResolver:
             sub_id = f"{id}{cls.sep}{idx}" if id != "" else f"{idx}"
             if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                 updated = refs_[sub_id]
+                if ConfigComponent.is_instantiable(v) and updated is None:
+                    # the component is disabled
+                    continue
             else:
                 updated = cls.update_config_with_refs(v, sub_id, refs_)
             ret.update({idx: updated}) if isinstance(ret, dict) else ret.append(updated)

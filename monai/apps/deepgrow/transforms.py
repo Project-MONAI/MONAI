@@ -54,10 +54,10 @@ class FindAllValidSlicesd(Transform):
         d: Dict = dict(data)
         label = d[self.label]
         if label.shape[0] != 1:
-            raise ValueError("Only supports single channel labels!")
+            raise ValueError(f"Only supports single channel labels, got label shape {label.shape}!")
 
         if len(label.shape) != 4:  # only for 3D
-            raise ValueError("Only supports label with shape CDHW!")
+            raise ValueError(f"Only supports label with shape CDHW, got label shape {label.shape}!")
 
         sids = self._apply(label)
         if sids is not None and len(sids):
