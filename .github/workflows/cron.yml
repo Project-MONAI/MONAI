@@ -62,7 +62,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10"]  # 21.02 for backward comp.
+        container: ["pytorch:21.02", "pytorch:22.02"]  # 21.02 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
@@ -106,7 +106,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10"]  # 21.02 for backward comp.
+        container: ["pytorch:21.02", "pytorch:22.02"]  # 21.02 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
