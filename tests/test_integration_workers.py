@@ -49,8 +49,8 @@ class IntegrationLoading(DistTestCase):
         for pw in (False, True):
             result = run_loading_test(pw=pw)
             if expected is None:
-                expected = result
-        np.testing.assert_allclose(result, expected)  # test for deterministic in two settings
+                expected = result[0]
+        np.testing.assert_allclose(result[0], expected)  # test for deterministic first epoch in two settings
 
 
 if __name__ == "__main__":
