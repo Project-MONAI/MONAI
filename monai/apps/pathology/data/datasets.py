@@ -119,8 +119,10 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is speficied, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is speficied, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cache content
@@ -142,8 +144,8 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         replace_rate: float = 0.5,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_init_workers: Optional[int] = None,
-        num_replace_workers: Optional[int] = None,
+        num_init_workers: Optional[int] = 1,
+        num_replace_workers: Optional[int] = 1,
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,

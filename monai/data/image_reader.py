@@ -678,7 +678,7 @@ class PILReader(ImageReader):
         It computes `spatial_shape` and stores it in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the meta data of the first image is used to represent the output meta data.
-        Note that it will switch axis 0 and 1 after loading the array because the `HW` definition in PIL
+        Note that it will swap axis 0 and 1 after loading the array because the `HW` definition in PIL
         is different from other common medical packages.
 
         Args:
@@ -923,6 +923,20 @@ class WSIReader(ImageReader):
 
         # convert to numpy (if not already in numpy)
         raw_region = np.asarray(raw_region, dtype=dtype)
+
+        # check if the image has three dimensions (2D + color)
+        if raw_region.ndim != 3:
+            raise ValueError(
+                f"The input image dimension should be 3 but {raw_region.ndim} is given. "
+                "`WSIReader` is designed to work only with 2D colored images."
+            )
+
+        # check if the color channel is 3 (RGB) or 4 (RGBA)
+        if raw_region.shape[-1] not in [3, 4]:
+            raise ValueError(
+                f"There should be three or four color channels but {raw_region.shape[-1]} is given. "
+                "`WSIReader` is designed to work only with 2D colored images."
+            )
 
         # remove alpha channel if exist (RGBA)
         if raw_region.shape[-1] > 3:
