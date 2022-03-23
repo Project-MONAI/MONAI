@@ -10,10 +10,8 @@
 # limitations under the License.
 
 import json
-import logging
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 
@@ -40,18 +38,16 @@ class TestVerifyMetaData(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1])
     def test_verify(self, meta_file, schema_file):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg"}
             def_args_file = os.path.join(tempdir, "def_args.json")
             ConfigParser.export_config_file(config=def_args, filepath=def_args_file)
 
-            cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", "--meta_file", meta_file]
+            cmd = ["coverage", "run", "-m", "monai.bundle", "verify_metadata", "--meta_file", meta_file]
             cmd += ["--filepath", schema_file, "--hash_val", self.config["hash_val"], "--args_file", def_args_file]
             subprocess.check_call(cmd)
 
     def test_verify_error(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         with tempfile.TemporaryDirectory() as tempdir:
             filepath = os.path.join(tempdir, "schema.json")
             metafile = os.path.join(tempdir, "metadata.json")
@@ -59,7 +55,7 @@ class TestVerifyMetaData(unittest.TestCase):
             with open(metafile, "w") as f:
                 json.dump(meta_dict, f)
 
-            cmd = [sys.executable, "-m", "monai.bundle", "verify_metadata", metafile, "--filepath", filepath]
+            cmd = ["coverage", "run", "-m", "monai.bundle", "verify_metadata", metafile, "--filepath", filepath]
             subprocess.check_call(cmd)
 
 

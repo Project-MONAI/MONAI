@@ -11,7 +11,6 @@
 
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 
@@ -44,7 +43,7 @@ class TestCKPTExport(unittest.TestCase):
             net = parser.get_parsed_content("network_def")
             save_state(src=net if key_in_ckpt == "" else {key_in_ckpt: net}, path=ckpt_file)
 
-            cmd = [sys.executable, "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", ts_file]
+            cmd = ["coverage", "run", "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", ts_file]
             cmd += ["--meta_file", meta_file, "--config_file", config_file, "--ckpt_file", ckpt_file]
             cmd += ["--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
             subprocess.check_call(cmd)
