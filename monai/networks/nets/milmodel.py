@@ -190,12 +190,7 @@ class MILModel(nn.Module):
 
 class TransPyramidModule(nn.Module):
     def __init__(
-        self,
-        num_classes: int,
-        backbone: nn.Module,
-        trans_blocks: int,
-        trans_dropout: float,
-        nfc: int,
+        self, num_classes: int, backbone: nn.Module, trans_blocks: int, trans_dropout: float, nfc: int
     ) -> None:
 
         super().__init__()
@@ -209,20 +204,17 @@ class TransPyramidModule(nn.Module):
                 nn.Sequential(
                     nn.Linear(768, 256),
                     nn.TransformerEncoder(
-                        nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout),
-                        num_layers=trans_blocks,
+                        nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout), num_layers=trans_blocks
                     ),
                 ),
                 nn.Sequential(
                     nn.Linear(1280, 256),
                     nn.TransformerEncoder(
-                        nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout),
-                        num_layers=trans_blocks,
+                        nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout), num_layers=trans_blocks
                     ),
                 ),
                 nn.TransformerEncoder(
-                    nn.TransformerEncoderLayer(d_model=2304, nhead=8, dropout=trans_dropout),
-                    num_layers=trans_blocks,
+                    nn.TransformerEncoderLayer(d_model=2304, nhead=8, dropout=trans_dropout), num_layers=trans_blocks
                 ),
             ]
         )
