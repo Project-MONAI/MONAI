@@ -50,8 +50,6 @@ class ReferenceResolver:
     ref = ID_REF_KEY  # reference prefix
     # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
-    # match relative id names, e.g. "@#data", "@##transform#1"
-    relative_id_prefix = re.compile(rf"{ref}{sep}+")
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
@@ -175,42 +173,6 @@ class ReferenceResolver:
         return self._resolve_one_item(id=id, **kwargs)
 
     @classmethod
-    def resolve_relative_ids(cls, id: str, value: str) -> str:
-        """
-        To simplify the reference ID in the nested config content, it's available to use relative ID name which starts
-        with the `sep` symbol, for example, "@#A" means `A` in the same level, `@##A` means `A` in the upper level.
-        It resolves the relative reference ids to absolute ids. For example, if the input data is:
-
-        .. code-block:: python
-
-            {
-                "A": 1,
-                "B": {"key": "@##A", "value1": 2, "value2": "@#value1", "value3": [3, 4, "@#1"]},
-            }
-
-        It will resolve `B` to `{"key": "@A", "value1": 2, "value2": "@B#value1", "value3": [3, 4, "@B#value3#1"]}`.
-
-        Args:
-            id: id name for current config item to compute relative id.
-            value: input value to resolve relative ids.
-
-        """
-        # get the prefixes like: "@####", "@###", "@#"
-        prefixes = sorted(set().union(cls.relative_id_prefix.findall(value)), reverse=True)
-        current_id = id.split(cls.sep)
-
-        for p in prefixes:
-            length = p[len(cls.ref) :].count(cls.sep)
-            if length > len(current_id):
-                raise ValueError(f"the relative id in `{value}` is out of the range of config content.")
-            if length == len(current_id):
-                new = ""  # root id is `""`
-            else:
-                new = cls.sep.join(current_id[:-length]) + cls.sep
-            value = value.replace(p, cls.ref + new)
-        return value
-
-    @classmethod
     def match_refs_pattern(cls, value: str) -> Set[str]:
         """
         Match regular expression for the input string to find the references.
@@ -273,7 +235,6 @@ class ReferenceResolver:
         """
         refs_: Set[str] = refs or set()
         if isinstance(config, str):
-            config = cls.resolve_relative_ids(id=id, value=config)
             return refs_.union(cls.match_refs_pattern(value=config))
         if not isinstance(config, (list, dict)):
             return refs_
@@ -298,7 +259,6 @@ class ReferenceResolver:
         """
         refs_: Dict = refs or {}
         if isinstance(config, str):
-            config = cls.resolve_relative_ids(id=id, value=config)
             return cls.update_refs_pattern(config, refs_)
         if not isinstance(config, (list, dict)):
             return config

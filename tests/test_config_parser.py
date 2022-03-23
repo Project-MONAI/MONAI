@@ -80,7 +80,7 @@ TEST_CASE_3 = [
         "A": 1,
         "B": "@A",
         "C": "@#A",
-        "D": {"key": "@##A", "value1": 2, "value2": "@#value1", "value3": [3, 4, "@#1", "$100 + @#0 + @##value1"]},
+        "D": {"key": "@##A", "value1": 2, "value2": "%#value1", "value3": [3, 4, "@#1", "$100 + @#0 + @##value1"]},
     }
 ]
 
