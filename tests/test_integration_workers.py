@@ -16,7 +16,7 @@ import torch
 
 from monai.data import DataLoader
 from monai.utils import set_determinism
-from tests.utils import DistTestCase, TimedCall, skip_if_no_cuda, skip_if_quick
+from tests.utils import DistTestCase, SkipIfBeforePyTorchVersion, TimedCall, skip_if_no_cuda, skip_if_quick
 
 
 def run_loading_test(num_workers=50, device="cuda:0" if torch.cuda.is_available() else "cpu", pw=False):
@@ -38,15 +38,19 @@ def run_loading_test(num_workers=50, device="cuda:0" if torch.cuda.is_available(
 
 @skip_if_quick
 @skip_if_no_cuda
+@SkipIfBeforePyTorchVersion((1, 9))
 class IntegrationLoading(DistTestCase):
     def tearDown(self):
         set_determinism(seed=None)
 
     @TimedCall(seconds=5000, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
-        for pw, expected in zip((False, True), ((6966, 7714), (6966, 4112))):
+        expected = None
+        for pw in (False, True):
             result = run_loading_test(pw=pw)
-            np.testing.assert_allclose(result, expected)
+            if expected is None:
+                expected = result
+        np.testing.assert_allclose(result, expected)  # test for deterministic in two settings
 
 
 if __name__ == "__main__":
