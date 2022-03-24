@@ -3,12 +3,14 @@
 The `monai.bundle` module supports building Python-based workflows via structured configurations.
 
 The main benefits are threefold:
-  - it provides good readability and usability by separating system parameter settings from the Python code.
-  - it describes workflow at a relatively high level and allows for different low-level implementations.
-  - learning paradigms at a higher level such as federated learning and AutoML can be decoupled from the component details.
+
+- it provides good readability and usability by separating system parameter settings from the Python code.
+- it describes workflow at a relatively high level and allows for different low-level implementations.
+- learning paradigms at a higher level such as federated learning and AutoML can be decoupled from the component details.
 
 Components as part of a workflow can be specified using `JSON` or `YAML` syntax, for example, a network architecture
 definition could be stored in a `demo_config.json` file with the following content:
+
 ```json
 {
   "demo_net": {
@@ -21,7 +23,8 @@ definition could be stored in a `demo_config.json` file with the following conte
 }
 ```
 
-The configuration parser can instantiate the components as a Python object:
+The configuration parser can instantiate the component as a Python object:
+
 ```py
 >>> from monai.bundle import ConfigParser
 >>> config = ConfigParser()
@@ -31,7 +34,9 @@ BasicUNet features: (16, 16, 32, 32, 64, 64).
 >>> print(type(net))
 <class 'monai.networks.nets.basic_unet.BasicUNet'>
 ```
-or additionally tune the input parameters then :
+
+or additionally, tune the input parameters then instantiate the component:
+
 ```py
 >>> config["demo_net"]["features"] = [32, 32, 32, 64, 64, 64]
 >>> net = config.get_parsed_content("demo_net", instantiate=True)
