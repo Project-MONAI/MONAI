@@ -175,7 +175,8 @@ def run(
         _args, "config_file", meta_file=None, runner_id="", logging_file=None
     )
     if logging_file_ is not None:
-        fileConfig(logging_file_)
+        logger.info(f"set logging properties based on config: {logging_file_}.")
+        fileConfig(logging_file_, disable_existing_loggers=False)
 
     parser = ConfigParser()
     parser.read_config(f=config_file_)
