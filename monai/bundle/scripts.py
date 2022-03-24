@@ -13,6 +13,7 @@ import ast
 import json
 import pprint
 import re
+from logging.config import fileConfig
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 import torch
@@ -119,6 +120,7 @@ def run(
     runner_id: Optional[str] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
+    logging_file: Optional[str] = None,
     args_file: Optional[str] = None,
     **override,
 ):
@@ -150,18 +152,32 @@ def run(
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
+        logging_file: config file for `logging` module in the program, default to `None`. for more details:
+            https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
-            `config_file`, and override pairs. so that the command line inputs can be simplified.
+            `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``.
 
     """
 
-    _args = _update_args(args=args_file, runner_id=runner_id, meta_file=meta_file, config_file=config_file, **override)
+    _args = _update_args(
+        args=args_file,
+        runner_id=runner_id,
+        meta_file=meta_file,
+        config_file=config_file,
+        logging_file=logging_file,
+        **override,
+    )
     if "config_file" not in _args:
         raise ValueError(f"`config_file` is required for 'monai.bundle run'.\n{run.__doc__}")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_ = _pop_args(_args, "config_file", meta_file=None, runner_id="")
+    config_file_, meta_file_, runner_id_, logging_file_ = _pop_args(
+        _args, "config_file", meta_file=None, runner_id="", logging_file=None
+    )
+    if logging_file_ is not None:
+        logger.info(f"set logging properties based on config: {logging_file_}.")
+        fileConfig(logging_file_, disable_existing_loggers=False)
 
     parser = ConfigParser()
     parser.read_config(f=config_file_)
