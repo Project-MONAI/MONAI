@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -50,7 +50,7 @@ class ChannelSELayer(nn.Module):
             :py:class:`monai.networks.layers.Act`
 
         """
-        super(ChannelSELayer, self).__init__()
+        super().__init__()
 
         self.add_residual = add_residual
 
@@ -181,21 +181,21 @@ class SEBlock(nn.Module):
             :py:class:`monai.networks.blocks.ChannelSELayer`
 
         """
-        super(SEBlock, self).__init__()
+        super().__init__()
 
         if not conv_param_1:
             conv_param_1 = {"kernel_size": 1, "norm": Norm.BATCH, "act": ("relu", {"inplace": True})}
         self.conv1 = Convolution(
-            dimensions=spatial_dims, in_channels=in_channels, out_channels=n_chns_1, **conv_param_1
+            spatial_dims=spatial_dims, in_channels=in_channels, out_channels=n_chns_1, **conv_param_1
         )
 
         if not conv_param_2:
             conv_param_2 = {"kernel_size": 3, "norm": Norm.BATCH, "act": ("relu", {"inplace": True})}
-        self.conv2 = Convolution(dimensions=spatial_dims, in_channels=n_chns_1, out_channels=n_chns_2, **conv_param_2)
+        self.conv2 = Convolution(spatial_dims=spatial_dims, in_channels=n_chns_1, out_channels=n_chns_2, **conv_param_2)
 
         if not conv_param_3:
             conv_param_3 = {"kernel_size": 1, "norm": Norm.BATCH, "act": None}
-        self.conv3 = Convolution(dimensions=spatial_dims, in_channels=n_chns_2, out_channels=n_chns_3, **conv_param_3)
+        self.conv3 = Convolution(spatial_dims=spatial_dims, in_channels=n_chns_2, out_channels=n_chns_3, **conv_param_3)
 
         self.se_layer = ChannelSELayer(
             spatial_dims=spatial_dims, in_channels=n_chns_3, r=r, acti_type_1=acti_type_1, acti_type_2=acti_type_2
@@ -264,7 +264,7 @@ class SEBottleneck(SEBlock):
         }
         conv_param_3 = {"strides": 1, "kernel_size": 1, "act": None, "norm": Norm.BATCH, "bias": False}
 
-        super(SEBottleneck, self).__init__(
+        super().__init__(
             spatial_dims=spatial_dims,
             in_channels=inplanes,
             n_chns_1=planes * 2,
@@ -315,7 +315,7 @@ class SEResNetBottleneck(SEBlock):
         }
         conv_param_3 = {"strides": 1, "kernel_size": 1, "act": None, "norm": Norm.BATCH, "bias": False}
 
-        super(SEResNetBottleneck, self).__init__(
+        super().__init__(
             spatial_dims=spatial_dims,
             in_channels=inplanes,
             n_chns_1=planes,

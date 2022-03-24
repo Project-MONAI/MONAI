@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -88,7 +88,7 @@ class DecollateBatch:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        if self.batch_transform is not None:
+        if self.batch_transform is not None and isinstance(engine.state.batch, (list, dict)):
             engine.state.batch = self.batch_transform(engine.state.batch)
-        if self.output_transform is not None:
+        if self.output_transform is not None and isinstance(engine.state.output, (list, dict)):
             engine.state.output = self.output_transform(engine.state.output)

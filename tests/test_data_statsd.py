@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,6 +11,7 @@
 
 import logging
 import os
+import sys
 import tempfile
 import unittest
 
@@ -29,7 +30,7 @@ TEST_CASE_1 = [
         "value_range": False,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     {"img": np.array([[0, 1], [1, 2]])},
     "test data statistics:",
@@ -44,7 +45,7 @@ TEST_CASE_2 = [
         "value_range": False,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     {"img": np.array([[0, 1], [1, 2]])},
     "test data statistics:\nType: <class 'numpy.ndarray'>",
@@ -59,7 +60,7 @@ TEST_CASE_3 = [
         "value_range": False,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     {"img": np.array([[0, 1], [1, 2]])},
     "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)",
@@ -74,7 +75,7 @@ TEST_CASE_4 = [
         "value_range": True,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     {"img": np.array([[0, 1], [1, 2]])},
     "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)",
@@ -89,7 +90,7 @@ TEST_CASE_5 = [
         "value_range": True,
         "data_value": True,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     {"img": np.array([[0, 1], [1, 2]])},
     "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)\nValue: [[0 1]\n [1 2]]",
@@ -104,7 +105,7 @@ TEST_CASE_6 = [
         "value_range": True,
         "data_value": True,
         "additional_info": np.mean,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     {"img": np.array([[0, 1], [1, 2]])},
     (
@@ -122,7 +123,7 @@ TEST_CASE_7 = [
         "value_range": True,
         "data_value": True,
         "additional_info": lambda x: torch.mean(x.float()),
-        "logger_handler": None,
+        "name": "DataStats",
     },
     {"img": torch.tensor([[0, 1], [1, 2]]).to("cuda" if torch.cuda.is_available() else "cpu")},
     (
@@ -140,6 +141,7 @@ TEST_CASE_8 = [
         "value_range": (True, False),
         "data_value": (False, True),
         "additional_info": (np.mean, None),
+        "name": "DataStats",
     },
     {"img": np.array([[0, 1], [1, 2]]), "affine": np.eye(2, 2)},
     "affine statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue: [[1. 0.]\n [0. 1.]]",
@@ -147,23 +149,14 @@ TEST_CASE_8 = [
 
 TEST_CASE_9 = [
     {"img": np.array([[0, 1], [1, 2]])},
-    "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)\n"
+    "test data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)\n"
     "Value: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
 
 class TestDataStatsd(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-            TEST_CASE_7,
-            TEST_CASE_8,
-        ]
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
     )
     def test_value(self, input_param, input_data, expected_print):
         transform = DataStatsd(**input_param)
@@ -176,6 +169,9 @@ class TestDataStatsd(unittest.TestCase):
             filename = os.path.join(tempdir, "test_stats.log")
             handler = logging.FileHandler(filename, mode="w")
             handler.setLevel(logging.INFO)
+            name = "DataStats"
+            logger = logging.getLogger(name)
+            logger.addHandler(handler)
             input_param = {
                 "keys": "img",
                 "prefix": "test data",
@@ -183,18 +179,18 @@ class TestDataStatsd(unittest.TestCase):
                 "value_range": True,
                 "data_value": True,
                 "additional_info": np.mean,
-                "logger_handler": handler,
+                "name": name,
             }
             transform = DataStatsd(**input_param)
             _ = transform(input_data)
-            _logger = logging.getLogger(transform.printer._logger_name)
-            for h in _logger.handlers[:]:
+            for h in logger.handlers[:]:
                 h.close()
-                _logger.removeHandler(h)
+                logger.removeHandler(h)
             del handler
-            with open(filename, "r") as f:
+            with open(filename) as f:
                 content = f.read()
-            self.assertEqual(content, expected_print)
+            if sys.platform != "win32":
+                self.assertEqual(content, expected_print)
 
 
 if __name__ == "__main__":

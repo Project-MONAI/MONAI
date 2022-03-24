@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,10 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 import warnings
@@ -54,6 +52,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
+from monai.utils.enums import PostFix
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
@@ -98,7 +97,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     # create UNet, DiceLoss and Adam optimizer
     net = monai.networks.nets.UNet(
-        dimensions=3,
+        spatial_dims=3,
         in_channels=1,
         out_channels=1,
         channels=(16, 32, 64, 128, 256),
@@ -114,7 +113,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         [
             ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=True),
+            AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
@@ -127,8 +126,8 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             pass
 
     val_handlers = [
-        StatsHandler(output_transform=lambda x: None),
-        TensorBoardStatsHandler(summary_writer=summary_writer, output_transform=lambda x: None),
+        StatsHandler(iteration_log=False),
+        TensorBoardStatsHandler(summary_writer=summary_writer, iteration_log=False),
         TensorBoardImageHandler(
             log_dir=root_dir, batch_transform=from_engine(["image", "label"]), output_transform=from_engine("pred")
         ),
@@ -155,7 +154,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         [
             ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=True),
+            AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
@@ -230,7 +229,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
 
     # create UNet, DiceLoss and Adam optimizer
     net = monai.networks.nets.UNet(
-        dimensions=3,
+        spatial_dims=3,
         in_channels=1,
         out_channels=1,
         channels=(16, 32, 64, 128, 256),
@@ -242,24 +241,21 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         [
             ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
-            AsDiscreted(keys="pred", threshold_values=True),
+            AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
             SaveImaged(
-                keys="pred",
-                meta_keys="image_meta_dict",
-                output_dir=root_dir,
-                output_postfix="seg_transform",
+                keys="pred", meta_keys=PostFix.meta("image"), output_dir=root_dir, output_postfix="seg_transform"
             ),
         ]
     )
     val_handlers = [
-        StatsHandler(output_transform=lambda x: None),
+        StatsHandler(iteration_log=False),
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
         SegmentationSaver(
             output_dir=root_dir,
             output_postfix="seg_handler",
-            batch_transform=from_engine("image_meta_dict"),
+            batch_transform=from_engine(PostFix.meta("image")),
             output_transform=from_engine("pred"),
         ),
     ]
@@ -297,7 +293,6 @@ class IntegrationWorkflows(DistTestCase):
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
         monai.config.print_config()
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     def tearDown(self):
         set_determinism(seed=None)
@@ -351,20 +346,15 @@ class IntegrationWorkflows(DistTestCase):
 
     def test_training(self):
         repeated = []
-        test_rounds = 3 if monai.utils.module.get_torch_version_tuple() >= (1, 6) else 2
+        test_rounds = 3
         for i in range(test_rounds):
             results = self.train_and_infer(idx=i)
             repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(
-        seconds=300,
-        skip_timing=not torch.cuda.is_available(),
-        daemon=False,
-    )
+    @TimedCall(seconds=300, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
-        if monai.utils.module.get_torch_version_tuple() >= (1, 6):
-            self.train_and_infer(idx=2)
+        self.train_and_infer(idx=2)
 
 
 if __name__ == "__main__":

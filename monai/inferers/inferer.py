@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,10 +16,10 @@ import torch
 import torch.nn as nn
 
 from monai.inferers.utils import sliding_window_inference
-from monai.utils import BlendMode, PytorchPadMode
+from monai.utils import BlendMode, PytorchPadMode, ensure_tuple
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
-__all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer"]
+__all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
 
 
 class Inferer(ABC):
@@ -30,7 +30,8 @@ class Inferer(ABC):
     Example code::
 
         device = torch.device("cuda:0")
-        data = ToTensor()(LoadImage()(filename=img_path)).to(device)
+        transform = Compose([ToTensor(), LoadImage(image_only=True)])
+        data = transform(img_path).to(device)
         model = UNet(...).to(device)
         inferer = SlidingWindowInferer(...)
 
@@ -42,13 +43,7 @@ class Inferer(ABC):
     """
 
     @abstractmethod
-    def __call__(
-        self,
-        inputs: torch.Tensor,
-        network: Callable[..., torch.Tensor],
-        *args: Any,
-        **kwargs: Any,
-    ):
+    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
         """
         Run inference on `inputs` with the `network` model.
 
@@ -75,13 +70,7 @@ class SimpleInferer(Inferer):
     def __init__(self) -> None:
         Inferer.__init__(self)
 
-    def __call__(
-        self,
-        inputs: torch.Tensor,
-        network: Callable[..., torch.Tensor],
-        *args: Any,
-        **kwargs: Any,
-    ):
+    def __call__(self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any):
         """Unified callable function API of Inferers.
 
         Args:
@@ -121,7 +110,7 @@ class SlidingWindowInferer(Inferer):
             spatial dimensions.
         padding_mode: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}
             Padding mode when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
-            See also: https://pytorch.org/docs/stable/nn.functional.html#pad
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         cval: fill value for 'constant' padding mode. Default: 0
         sw_device: device for the window data.
             By default the device (and accordingly the memory) of the `inputs` is used.
@@ -130,6 +119,7 @@ class SlidingWindowInferer(Inferer):
             By default the device (and accordingly the memory) of the `inputs` is used. If for example
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             `inputs` and `roi_size`. Output is on the `device`.
+        progress: whether to print a tqdm progress bar.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -148,6 +138,7 @@ class SlidingWindowInferer(Inferer):
         cval: float = 0.0,
         sw_device: Union[torch.device, str, None] = None,
         device: Union[torch.device, str, None] = None,
+        progress: bool = False,
     ) -> None:
         Inferer.__init__(self)
         self.roi_size = roi_size
@@ -159,13 +150,10 @@ class SlidingWindowInferer(Inferer):
         self.cval = cval
         self.sw_device = sw_device
         self.device = device
+        self.progress = progress
 
     def __call__(
-        self,
-        inputs: torch.Tensor,
-        network: Callable[..., torch.Tensor],
-        *args: Any,
-        **kwargs: Any,
+        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
     ) -> torch.Tensor:
         """
 
@@ -189,6 +177,7 @@ class SlidingWindowInferer(Inferer):
             self.cval,
             self.sw_device,
             self.device,
+            self.progress,
             *args,
             **kwargs,
         )
@@ -217,13 +206,7 @@ class SaliencyInferer(Inferer):
         self.args = args
         self.kwargs = kwargs
 
-    def __call__(  # type: ignore
-        self,
-        inputs: torch.Tensor,
-        network: nn.Module,
-        *args: Any,
-        **kwargs: Any,
-    ):
+    def __call__(self, inputs: torch.Tensor, network: nn.Module, *args: Any, **kwargs: Any):  # type: ignore
         """Unified callable function API of Inferers.
 
         Args:
@@ -243,3 +226,59 @@ class SaliencyInferer(Inferer):
             cam = GradCAMpp(network, self.target_layers, *self.args, **self.kwargs)
 
         return cam(inputs, self.class_idx, *args, **kwargs)
+
+
+class SliceInferer(SlidingWindowInferer):
+    """
+    SliceInferer extends SlidingWindowInferer to provide slice-by-slice (2D) inference
+    when provided a 3D volume.
+
+    Args:
+        spatial_dim: Spatial dimension over which the slice-by-slice inference runs on the 3D volume.
+            For example ``0`` could slide over axial slices. ``1`` over coronal slices and ``2`` over sagittal slices.
+        args: other optional args to be passed to the `__init__` of base class SlidingWindowInferer.
+        kwargs: other optional keyword args to be passed to `__init__` of base class SlidingWindowInferer.
+
+    Note:
+        ``roi_size`` in SliceInferer is expected to be a 2D tuple when a 3D volume is provided. This allows
+        sliding across slices along the 3D volume using a selected ``spatial_dim``.
+
+    """
+
+    def __init__(self, spatial_dim: int = 0, *args, **kwargs) -> None:
+        self.spatial_dim = spatial_dim
+        super().__init__(*args, **kwargs)
+
+    def __call__(
+        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
+    ) -> torch.Tensor:
+        """
+        Args:
+            inputs: 3D input for inference
+            network: 2D model to execute inference on slices in the 3D input
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+        """
+        if self.spatial_dim > 2:
+            raise ValueError("`spatial_dim` can only be `0, 1, 2` with `[H, W, D]` respectively.")
+
+        # Check if ``roi_size`` tuple is 2D and ``inputs`` tensor is 3D
+        self.roi_size = ensure_tuple(self.roi_size)
+        if len(self.roi_size) == 2 and len(inputs.shape[2:]) == 3:
+            self.roi_size = list(self.roi_size)
+            self.roi_size.insert(self.spatial_dim, 1)
+        else:
+            raise RuntimeError("Currently, only 2D `roi_size` with 3D `inputs` tensor is supported.")
+
+        return super().__call__(inputs=inputs, network=lambda x: self.network_wrapper(network, x, *args, **kwargs))
+
+    def network_wrapper(self, network: Callable[..., torch.Tensor], x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        """
+        Wrapper handles inference for 2D models over 3D volume inputs.
+        """
+        #  Pass 4D input [N, C, H, W]/[N, C, D, W]/[N, C, D, H] to the model as it is 2D.
+        x = x.squeeze(dim=self.spatial_dim + 2)
+        out = network(x, *args, **kwargs)
+        #  Unsqueeze the network output so it is [N, C, D, H, W] as expected by
+        # the default SlidingWindowInferer class
+        return out.unsqueeze(dim=self.spatial_dim + 2)

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,6 +22,8 @@ class TestRandStdShiftIntensity(NumpyImageTestCase2D):
     def test_value(self):
         for p in TEST_NDARRAYS:
             np.random.seed(0)
+            # simulate the randomize() of transform
+            np.random.random()
             factor = np.random.uniform(low=-1.0, high=1.0)
             offset = factor * np.std(self.imt)
             expected = p(self.imt + offset)

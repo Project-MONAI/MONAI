@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,7 +43,7 @@ class TestToPIL(unittest.TestCase):
     def test_value(self, test_data):
         result = ToPIL()(test_data)
         self.assertTrue(isinstance(result, PILImageImage))
-        assert_allclose(np.array(result), test_data)
+        assert_allclose(np.array(result), test_data, type_test=False)
 
 
 if __name__ == "__main__":

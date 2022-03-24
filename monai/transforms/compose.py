@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,7 +28,7 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import TraceKeys
 
 __all__ = ["Compose", "OneOf"]
 
@@ -100,6 +100,17 @@ class Compose(Randomizable, InvertibleTransform):
         Alternatively, one can create a class with a `__call__` function that
         calls your pre-processing functions taking into account that not all of
         them are called on the labels.
+
+    Args:
+        transforms: sequence of callables.
+        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
+            defaults to `True`.
+        unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
+            defaults to `False`.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other meta data, log the values directly. default to `False`.
+
     """
 
     def __init__(
@@ -107,12 +118,14 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Optional[Union[Sequence[Callable], Callable]] = None,
         map_items: bool = True,
         unpack_items: bool = False,
+        log_stats: bool = False,
     ) -> None:
         if transforms is None:
             transforms = []
         self.transforms = ensure_tuple(transforms)
         self.map_items = map_items
         self.unpack_items = unpack_items
+        self.log_stats = log_stats
         self.set_random_state(seed=get_seed())
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
@@ -157,7 +170,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
+            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
         return input_
 
     def inverse(self, data):
@@ -167,22 +180,27 @@ class Compose(Randomizable, InvertibleTransform):
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
-            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
+            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items, self.log_stats)
         return data
 
 
 class OneOf(Compose):
     """
-    ``OneOf`` provides the ability to radomly choose one transform out of a
-    list of callables with predfined probabilities for each.
+    ``OneOf`` provides the ability to randomly choose one transform out of a
+    list of callables with pre-defined probabilities for each.
 
     Args:
         transforms: sequence of callables.
         weights: probabilities corresponding to each callable in transforms.
             Probabilities are normalized to sum to one.
+        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
+            defaults to `True`.
+        unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
+            defaults to `False`.
+        log_stats: whether to log the detailed information of data and applied transform when error happened,
+            for NumPy array and PyTorch Tensor, log the data shape and value range,
+            for other meta data, log the values directly. default to `False`.
 
-    OneOf inherits from Compose and uses args map_items and unpack_items in
-    the same way.
     """
 
     def __init__(
@@ -191,8 +209,9 @@ class OneOf(Compose):
         weights: Optional[Union[Sequence[float], float]] = None,
         map_items: bool = True,
         unpack_items: bool = False,
+        log_stats: bool = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items)
+        super().__init__(transforms, map_items, unpack_items, log_stats)
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -204,14 +223,13 @@ class OneOf(Compose):
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
             return weights
-        else:
-            weights = np.array(weights)
-            if np.any(weights < 0):
-                raise AssertionError("Probabilities must be greater than or equal to zero.")
-            if np.all(weights == 0):
-                raise AssertionError("At least one probability must be greater than zero.")
-            weights = weights / weights.sum()
-            return list(weights)
+        weights = np.array(weights)
+        if np.any(weights < 0):
+            raise AssertionError("Probabilities must be greater than or equal to zero.")
+        if np.all(weights == 0):
+            raise AssertionError("At least one probability must be greater than zero.")
+        weights = weights / weights.sum()
+        return list(weights)
 
     def flatten(self):
         transforms = []
@@ -232,16 +250,15 @@ class OneOf(Compose):
     def __call__(self, data):
         if len(self.transforms) == 0:
             return data
-        else:
-            index = self.R.multinomial(1, self.weights).argmax()
-            _transform = self.transforms[index]
-            data = apply_transform(_transform, data, self.map_items, self.unpack_items)
-            # if the data is a mapping (dictionary), append the OneOf transform to the end
-            if isinstance(data, Mapping):
-                for key in data.keys():
-                    if key + InverseKeys.KEY_SUFFIX in data:
-                        self.push_transform(data, key, extra_info={"index": index})
-            return data
+        index = self.R.multinomial(1, self.weights).argmax()
+        _transform = self.transforms[index]
+        data = apply_transform(_transform, data, self.map_items, self.unpack_items, self.log_stats)
+        # if the data is a mapping (dictionary), append the OneOf transform to the end
+        if isinstance(data, Mapping):
+            for key in data.keys():
+                if self.trace_key(key) in data:
+                    self.push_transform(data, key, extra_info={"index": index})
+        return data
 
     def inverse(self, data):
         if len(self.transforms) == 0:
@@ -252,18 +269,15 @@ class OneOf(Compose):
         # loop until we get an index and then break (since they'll all be the same)
         index = None
         for key in data.keys():
-            if key + InverseKeys.KEY_SUFFIX in data:
+            if self.trace_key(key) in data:
                 # get the index of the applied OneOf transform
-                index = self.get_most_recent_transform(data, key)[InverseKeys.EXTRA_INFO]["index"]
+                index = self.get_most_recent_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
                 # and then remove the OneOf transform
                 self.pop_transform(data, key)
         if index is None:
-            raise RuntimeError("No invertible transforms have been applied")
+            # no invertible transforms have been applied
+            return data
 
-        # if applied transform is not InvertibleTransform, throw error
         _transform = self.transforms[index]
-        if not isinstance(_transform, InvertibleTransform):
-            raise RuntimeError(f"Applied OneOf transform is not invertible (applied index: {index}).")
-
         # apply the inverse
-        return _transform.inverse(data)
+        return _transform.inverse(data) if isinstance(_transform, InvertibleTransform) else data
