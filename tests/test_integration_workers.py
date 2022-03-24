@@ -19,9 +19,11 @@ from monai.utils import set_determinism
 from tests.utils import DistTestCase, SkipIfBeforePyTorchVersion, TimedCall, skip_if_no_cuda, skip_if_quick
 
 
-def run_loading_test(num_workers=50, device="cuda:0" if torch.cuda.is_available() else "cpu", pw=False):
+def run_loading_test(num_workers=50, device=None, pw=False):
     """multi workers stress tests"""
     set_determinism(seed=0)
+    if device is None:
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
     train_ds = list(range(10000))
     train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=num_workers, persistent_workers=pw)
     answer = []

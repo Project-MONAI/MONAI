@@ -49,9 +49,8 @@ class TestBundleRun(unittest.TestCase):
         config_file = os.path.join(self.data_dir, "tiny_config.json")
         with open(config_file, "w") as f:
             json.dump({"": {"_target_": "tests.test_integration_bundle_run._Runnable42", "val": 42}}, f)
-        cmd = [sys.executable, "-m", "monai.bundle", "run", "--config_file", config_file]
-        ret = subprocess.check_call(cmd)
-        self.assertEqual(ret, 0)
+        cmd = ["coverage", "run", "-m", "monai.bundle", "run", "--config_file", config_file]
+        subprocess.check_call(cmd)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, config_file, expected_shape):
@@ -90,19 +89,17 @@ class TestBundleRun(unittest.TestCase):
             override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
         # test with `monai.bundle` as CLI entry directly
         cmd = f"-m monai.bundle run evaluator --postprocessing#transforms#2#output_postfix seg {override}"
-        la = [f"{sys.executable}"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
+        la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()
         print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
-        ret = subprocess.check_call(la + ["--args_file", def_args_file], env=test_env)
-        self.assertEqual(ret, 0)
+        subprocess.check_call(la + ["--args_file", def_args_file], env=test_env)
         self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
         # here test the script with `google fire` tool as CLI
         cmd = "-m fire monai.bundle.scripts run --runner_id evaluator"
         cmd += f" --evaluator#amp False {override}"
-        la = [f"{sys.executable}"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
-        ret = subprocess.check_call(la, env=test_env)
-        self.assertEqual(ret, 0)
+        la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
+        subprocess.check_call(la, env=test_env)
         self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
 
 
