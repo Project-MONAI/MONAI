@@ -8,6 +8,8 @@ The main benefits are threefold:
 - it describes workflow at a relatively high level and allows for different low-level implementations.
 - learning paradigms at a higher level such as federated learning and AutoML can be decoupled from the component details.
 
+## A basic example
+
 Components as part of a workflow can be specified using `JSON` or `YAML` syntax, for example, a network architecture
 definition could be stored in a `demo_config.json` file with the following content:
 
@@ -27,7 +29,7 @@ The configuration parser can instantiate the component as a Python object:
 
 ```py
 >>> from monai.bundle import ConfigParser
->>> config = ConfigParser()
+>>> config = monai.bundle.ConfigParser()
 >>> config.read_config("demo_config.json")
 >>> net = config.get_parsed_content("demo_net", instantiate=True)
 BasicUNet features: (16, 16, 32, 32, 64, 64).
@@ -42,3 +44,70 @@ or additionally, tune the input parameters then instantiate the component:
 >>> net = config.get_parsed_content("demo_net", instantiate=True)
 BasicUNet features: (32, 32, 32, 64, 64, 64).
 ```
+
+## Syntax examples explained
+
+A few characters and keywords are interpreted beyond the plain texts, here are examples of the syntax:
+
+```json
+"@preprocessing#transforms#keys"
+```
+
+_Description:_ A reference to another configuration value defined at `preprocessing#transforms#keys`.
+where `#` indicates a sub-structure of this configuration file.
+
+```json
+"@preprocessing#1"
+```
+
+_Description:_ `1` is interpreted as an integer, which is used to index the `preprocessing` sub-structure.
+
+```json
+"$print(42)"
+```
+
+_Description:_ `$` is a special character to indicate evaluating `print(42)` at runtime.
+
+```json
+"$[i for i in @datalist]"
+```
+
+_Description:_ Create a list at runtime using the values in `datalist` as input.
+
+```json
+{
+  "demo_name":{
+    "_target_": "my.python.module.Class",
+    "args1": "string",
+    "args2": 42}
+}
+```
+
+_Description:_ This dictionary defines an object with a reference name `demo_name`, with an instantiable type
+specified at `_target_` and with input arguments `args1` and `args2`.
+This dictionary will be instantiated as a Pytorch object at runtime.
+`_target_` is a required key by monai bundle syntax for the Python object name.
+`args1` and `args2` should be compatible with the Python object to instantiate.
+
+```json
+"%demo_config.json#demo_net#in_channels"
+```
+
+_Description:_ A macro to replace the current value with the texts at `demo_net#in_channels` in the
+`demo_config.json` file.
+
+```json
+{
+  "component_name": {
+    "_target_": "my.module.Class",
+    "_requires_": "@cudnn_opt",
+    "_disabled_": "true"}
+}
+```
+
+_Description:_ `_requires_` and `_disabled_` are optional keys.
+`_requires_` specifies references (string starts with `@`) or
+Python expression that will be evaluated/instantiated before `_target_` object is instantiated.
+It is useful when the component doesn’t explicitly depends on the other ConfigItems via
+its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
+`_disabled_` specifies a flag to indicate whether to skip the instantiation.
