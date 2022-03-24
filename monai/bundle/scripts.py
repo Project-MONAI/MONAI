@@ -13,8 +13,8 @@ import ast
 import json
 import pprint
 import re
-from typing import Dict, Optional, Sequence, Tuple, Union
 from logging.config import fileConfig
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.cuda import is_available
@@ -172,7 +172,7 @@ def run(
         raise ValueError(f"`config_file` is required for 'monai.bundle run'.\n{run.__doc__}")
     _log_input_summary(tag="run", args=_args)
     config_file_, meta_file_, runner_id_, logging_file_ = _pop_args(
-      _args, "config_file", meta_file=None, runner_id="", logging_file=None
+        _args, "config_file", meta_file=None, runner_id="", logging_file=None
     )
     if logging_file_ is not None:
         fileConfig(logging_file_)
