@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,19 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pathlib import Path
 from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
 
-from monai.config import DtypeLike
+from monai.config import DtypeLike, PathLike
 from monai.data.nifti_writer import write_nifti
 from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
+from monai.utils import deprecated
 
 
+@deprecated(since="0.8", msg_suffix="use monai.transforms.SaveImage instead.")
 class NiftiSaver:
     """
     Save the data as NIfTI file, it can support single data content or a batch of data.
@@ -33,11 +34,14 @@ class NiftiSaver:
 
     Note: image should include channel dimension: [B],C,H,W,[D].
 
+    .. deprecated:: 0.8
+        Use :py:class:`monai.transforms.SaveImage` instead.
+
     """
 
     def __init__(
         self,
-        output_dir: Union[Path, str] = "./",
+        output_dir: PathLike = "./",
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
@@ -47,7 +51,7 @@ class NiftiSaver:
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
-        data_root_dir: str = "",
+        data_root_dir: PathLike = "",
         separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:
@@ -56,17 +60,18 @@ class NiftiSaver:
             output_dir: output image directory.
             output_postfix: a string appended to all output file names.
             output_ext: output file extension name.
-            resample: whether to resample before saving the data array.
+            resample: whether to convert the data array to it's original coordinate system
+                based on `original_affine` in the `meta_data`.
             mode: {``"bilinear"``, ``"nearest"``}
                 This option is used when ``resample = True``.
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 This option is used when ``resample = True``.
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data.
             output_dtype: data type for saving data. Defaults to ``np.float32``.
@@ -107,7 +112,7 @@ class NiftiSaver:
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
-        Save data into a Nifti file.
+        Save data into a NIfTI file.
         The meta_data could optionally have the following keys:
 
             - ``'filename_or_obj'`` -- for output file name creation, corresponding to filename or object.
@@ -116,7 +121,7 @@ class NiftiSaver:
             - ``'spatial_shape'`` -- for data output shape.
             - ``'patch_index'`` -- if the data is a patch of big image, append the patch index to filename.
 
-        When meta_data is specified, the saver will try to resample batch data from the space
+        When meta_data is specified and `resample=True`, the saver will try to resample batch data from the space
         defined by "affine" to the space defined by "original_affine".
 
         If meta_data is None, use the default index (starting from 0) as the filename.
@@ -131,7 +136,7 @@ class NiftiSaver:
         """
         filename = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
-        original_affine = meta_data.get("original_affine", None) if meta_data else None
+        original_affine = meta_data.get("original_affine", None) if meta_data and self.resample else None
         affine = meta_data.get("affine", None) if meta_data else None
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
         patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
@@ -151,7 +156,7 @@ class NiftiSaver:
         # change data shape to be (channel, h, w, d)
         while len(data.shape) < 4:
             data = np.expand_dims(data, -1)
-        # change data to "channel last" format and write to nifti format file
+        # change data to "channel last" format and write to NIfTI format file
         data = np.moveaxis(np.asarray(data), 0, -1)
 
         # if desired, remove trailing singleton dimensions
@@ -164,7 +169,7 @@ class NiftiSaver:
             file_name=path,
             affine=affine,
             target_affine=original_affine,
-            resample=self.resample,
+            resample=True,
             output_spatial_shape=spatial_shape,
             mode=self.mode,
             padding_mode=self.padding_mode,
@@ -178,7 +183,7 @@ class NiftiSaver:
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
-        Save a batch of data into Nifti format files.
+        Save a batch of data into NIfTI format files.
 
         Spatially it supports up to three dimensions, that is, H, HW, HWD for
         1D, 2D, 3D respectively (with resampling supports for 2D and 3D only).

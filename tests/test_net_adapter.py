@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,23 +19,11 @@ from monai.networks.nets import NetAdapter, resnet18
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-TEST_CASE_0 = [
-    {"num_classes": 1, "use_conv": True, "dim": 2},
-    (2, 3, 224, 224),
-    (2, 1, 8, 1),
-]
+TEST_CASE_0 = [{"num_classes": 1, "use_conv": True, "dim": 2}, (2, 3, 224, 224), (2, 1, 8, 1)]
 
-TEST_CASE_1 = [
-    {"num_classes": 1, "use_conv": True, "dim": 3, "pool": None},
-    (2, 3, 32, 32, 32),
-    (2, 1, 1, 1, 1),
-]
+TEST_CASE_1 = [{"num_classes": 1, "use_conv": True, "dim": 3, "pool": None}, (2, 3, 32, 32, 32), (2, 1, 1, 1, 1)]
 
-TEST_CASE_2 = [
-    {"num_classes": 5, "use_conv": True, "dim": 3, "pool": None},
-    (2, 3, 32, 32, 32),
-    (2, 5, 1, 1, 1),
-]
+TEST_CASE_2 = [{"num_classes": 5, "use_conv": True, "dim": 3, "pool": None}, (2, 3, 32, 32, 32), (2, 5, 1, 1, 1)]
 
 TEST_CASE_3 = [
     {"num_classes": 5, "use_conv": True, "pool": ("avg", {"kernel_size": 4, "stride": 1}), "dim": 3},
@@ -53,7 +41,9 @@ TEST_CASE_4 = [
 class TestNetAdapter(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, input_shape, expected_shape):
-        model = resnet18(spatial_dims=input_param["dim"])
+        spatial_dims = input_param["dim"]
+        stride = (1, 2, 2)[:spatial_dims]
+        model = resnet18(spatial_dims=spatial_dims, conv1_t_stride=stride)
         input_param["model"] = model
         net = NetAdapter(**input_param).to(device)
         with eval_mode(net):
