@@ -461,7 +461,7 @@ class Orientation(Transform):
         self,
         axcodes: Optional[str] = None,
         as_closest_canonical: bool = False,
-        labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
+        labels: Optional[Sequence[Tuple[str, str]]] = (("L", "R"), ("P", "A"), ("I", "S")),
         image_only: bool = False,
     ) -> None:
         """
