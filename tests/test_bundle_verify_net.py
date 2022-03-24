@@ -11,7 +11,6 @@
 
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 
@@ -35,14 +34,13 @@ class TestVerifyNetwork(unittest.TestCase):
             def_args_file = os.path.join(tempdir, "def_args.json")
             ConfigParser.export_config_file(config=def_args, filepath=def_args_file)
 
-            cmd = [sys.executable, "-m", "monai.bundle", "verify_net_in_out", "network_def", "--meta_file", meta_file]
-            cmd += ["--config_file", config_file, "-n", "2", "--any", "32", "--args_file", def_args_file]
+            cmd = ["coverage", "run", "-m", "monai.bundle", "verify_net_in_out", "network_def", "--meta_file"]
+            cmd += [meta_file, "--config_file", config_file, "-n", "2", "--any", "32", "--args_file", def_args_file]
             cmd += ["--_meta_#network_data_format#inputs#image#spatial_shape", "[32,'*','4**p*n']"]
 
             test_env = os.environ.copy()
             print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
-            ret = subprocess.check_call(cmd, env=test_env)
-            self.assertEqual(ret, 0)
+            subprocess.check_call(cmd, env=test_env)
 
 
 if __name__ == "__main__":

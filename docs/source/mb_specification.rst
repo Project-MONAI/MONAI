@@ -55,7 +55,7 @@ This file contains the metadata information relating to the model, including wha
 * **optional_packages_version**: dictionary relating optional package names to their versions, these packages are not needed but are recommended to be installed with this stated minimum version.
 * **task**: plain-language description of what the model is meant to do.
 * **description**: longer form plain-language description of what the model is, what it does, etc.
-* **authorship**: state author(s) of the model.
+* **authors**: state author(s) of the model.
 * **copyright**: state model copyright.
 * **network_data_format**: defines the format, shape, and meaning of inputs and outputs to the model, contains keys "inputs" and "outputs" relating named inputs/outputs to their format specifiers (defined below).
 
@@ -98,7 +98,7 @@ An example JSON metadata file:
       "optional_packages_version": {"nibabel": "3.2.1"},
       "task": "Decathlon spleen segmentation",
       "description": "A pre-trained model for volumetric (3D) segmentation of the spleen from CT image",
-      "authorship": "MONAI team",
+      "authors": "MONAI team",
       "copyright": "Copyright (c) MONAI Consortium",
       "data_source": "Task09_Spleen.tar from http://medicaldecathlon.com/",
       "data_type": "dicom",
