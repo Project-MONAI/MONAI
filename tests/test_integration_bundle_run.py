@@ -61,7 +61,8 @@ class TestBundleRun(unittest.TestCase):
         nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
 
         # generate default args in a JSON file
-        def_args = {"config_file": "will be replaced by `config_file` arg"}
+        logging_conf = os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf")
+        def_args = {"config_file": "will be replaced by `config_file` arg", "logging_file": logging_conf}
         def_args_file = os.path.join(tempdir, "def_args.json")
         ConfigParser.export_config_file(config=def_args, filepath=def_args_file)
 
