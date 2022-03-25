@@ -17,6 +17,7 @@ See Also:
 """
 
 import os
+from typing import Any, Dict, Tuple
 
 __all__ = ["MODEL_DESC", "RemoteMMARKeys"]
 
@@ -39,7 +40,7 @@ class RemoteMMARKeys:
     VERSION = "version"  # version of the MMAR
 
 
-MODEL_DESC = (
+MODEL_DESC: Tuple[Dict[Any, Any], ...] = (
     {
         RemoteMMARKeys.ID: "clara_pt_spleen_ct_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_spleen_ct_segmentation",
