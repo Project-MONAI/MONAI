@@ -215,4 +215,14 @@ MODEL_DESC: Tuple[Dict[Any, Any], ...] = (
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
         RemoteMMARKeys.VERSION: 4.1,
     },
+    {
+        RemoteMMARKeys.ID: "clara_pt_self_supervised_learning_segmentation",
+        RemoteMMARKeys.NAME: "clara_pt_self_supervised_learning_segmentation",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models_2gpu", "best_metric_model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 4.1,
+    },
 )
