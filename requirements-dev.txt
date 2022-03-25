@@ -15,7 +15,7 @@ flake8-bugbear
 flake8-comprehensions
 flake8-executable
 flake8-pyi
-pylint
+pylint!=2.13  # https://github.com/PyCQA/pylint/issues/5969
 mccabe
 pep8-naming
 pycodestyle

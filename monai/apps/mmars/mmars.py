@@ -243,7 +243,7 @@ def load_from_mmar(
 
     # 1. search `model_dict['train_config]` for model config spec.
     model_config = _get_val(dict(model_dict).get("train_conf", {}), key=model_key, default={})
-    if not model_config:
+    if not model_config or not isinstance(model_config, Mapping):
         # 2. search json CONFIG_FILE for model config spec.
         json_path = model_dir / item.get(Keys.CONFIG_FILE, os.path.join("config", "config_train.json"))
         with open(json_path) as f:
@@ -285,7 +285,7 @@ def load_from_mmar(
     else:
         model_inst = model_cls()
     if pretrained:
-        model_inst.load_state_dict(model_dict.get(model_key, model_dict))
+        model_inst.load_state_dict(model_dict.get(model_key, model_dict), strict=False)
     logger.info("\n---")
     doc_url = item.get(Keys.DOC) or _get_ngc_doc_url(item[Keys.NAME], model_prefix="nvidia:med:")
     logger.info(f"For more information, please visit {doc_url}\n")
