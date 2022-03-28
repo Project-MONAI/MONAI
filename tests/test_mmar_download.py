@@ -94,7 +94,7 @@ TEST_EXTRACT_CASES = [
             "item": "clara_pt_pathology_metastasis_detection",
             "map_location": "cuda" if torch.cuda.is_available() else "cpu",
         },
-        "TorchVisionFullyConvModel",
+        "TorchVisionFCModel",
         np.array(
             [
                 [-0.00693138, -0.00441378, -0.01057985, 0.05604396, 0.03526996, -0.00399302, -0.0267504],
