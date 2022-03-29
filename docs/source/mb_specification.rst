@@ -13,7 +13,7 @@ This specification defines the directory structure a bundle must have and the ne
 Directory Structure
 ===================
 
-A MONAI Bundle is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName" in this exmaple, and should contain the following structure:
+A MONAI Bundle is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName" in this example, and should contain the following structure:
 
 ::
 

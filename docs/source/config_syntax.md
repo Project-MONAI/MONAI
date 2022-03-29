@@ -12,10 +12,11 @@ Content:
 
 - [A basic example](#a-basic-example)
 - [Syntax examples explained](#syntax-examples-explained)
-  - `@` to interpolate with Python objects
-  - `$` to evaluate as Python expressions
-  - `_target_` to instantiate a Python object
-  - `%` to interpolate with plain texts
+  - [`@` to interpolate with Python objects](#-to-interpolate-with-python-objects)
+  - [`$` to evaluate as Python expressions](#-to-evaluate-as-python-expressions)
+  - [`%` to interpolate with plain texts](#-to-interpolate-with-plain-texts)
+  - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#instantiate-a-python-object)
+- [The command line interface](#the-command-line-interface)
 
 ## A basic example
 
@@ -106,7 +107,16 @@ _Description:_ `$` is a special character to indicate evaluating `print(42)` at 
 
 _Description:_ Create a list at runtime using the values in `datalist` as input.
 
-### `_target_` to instantiate a Python object
+### `%` to interpolate with plain texts
+
+```json
+"%demo_config.json#demo_net#in_channels"
+```
+
+_Description:_ A macro to replace the current value with the texts at `demo_net#in_channels` in the
+`demo_config.json` file.
+
+### instantiate a Python object
 
 ```json
 {
@@ -135,15 +145,26 @@ This dictionary will be instantiated as a Pytorch object at runtime.
 _Description:_ `_requires_` and `_disabled_` are optional keys.
 `_requires_` specifies references (string starts with `@`) or
 Python expression that will be evaluated/instantiated before `_target_` object is instantiated.
-It is useful when the component doesn’t explicitly depends on the other ConfigItems via
+It is useful when the component does not explicitly depend on the other ConfigItems via
 its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
 `_disabled_` specifies a flag to indicate whether to skip the instantiation.
 
-### `%` to interpolate with plain texts
+## The command line interface
 
-```json
-"%demo_config.json#demo_net#in_channels"
+In addition to the Pythonic APIs, a few command line interfaces are provided to interact with the bundle.
+The primary API is:
+```bash
+python -m monai.bundle COMMANDS
 ```
 
-_Description:_ A macro to replace the current value with the texts at `demo_net#in_channels` in the
-`demo_config.json` file.
+where `COMMANDS` is one of the following: `run`, `verify_metadata`, `ckpt_export`, ...
+(please see `python -m monai.bundle --help` for a list of available commands).
+
+To display a usage page for a command, for example `run`:
+```bash
+python -m monai.bundle run -- --help
+```
+
+The support is provided by [Python Fire](https://github.com/google/python-fire), please
+make sure the optional dependency is installed, for example, 
+using `pip install monai[fire]` or `pip install fire`.

@@ -207,7 +207,7 @@ def verify_metadata(
 ):
     """
     Verify the provided `metadata` file based on the predefined `schema`.
-    `metadata` content must contain the `schema` field for the URL of shcema file to download.
+    `metadata` content must contain the `schema` field for the URL of schema file to download.
     The schema standard follows: http://json-schema.org/.
 
     Args:
