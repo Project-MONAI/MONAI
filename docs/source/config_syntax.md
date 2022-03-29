@@ -166,5 +166,5 @@ python -m monai.bundle run -- --help
 ```
 
 The support is provided by [Python Fire](https://github.com/google/python-fire), please
-make sure the optional dependency is installed, for example, 
+make sure the optional dependency is installed, for example,
 using `pip install monai[fire]` or `pip install fire`.
