@@ -25,11 +25,28 @@ definition could be stored in a `demo_config.json` file with the following conte
 }
 ```
 
+or alternatively, in `YAML` format (`demo_config.yaml`):
+
+```yaml
+demo_net:
+  _target_: monai.networks.nets.BasicUNet
+  spatial_dims: 3
+  in_channels: 1
+  out_channels: 2
+  features:
+  - 16
+  - 16
+  - 32
+  - 32
+  - 64
+  - 64
+```
+
 The configuration parser can instantiate the component as a Python object:
 
 ```py
 >>> from monai.bundle import ConfigParser
->>> config = monai.bundle.ConfigParser()
+>>> config = ConfigParser()
 >>> config.read_config("demo_config.json")
 >>> net = config.get_parsed_content("demo_net", instantiate=True)
 BasicUNet features: (16, 16, 32, 32, 64, 64).
