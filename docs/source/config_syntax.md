@@ -8,6 +8,15 @@ The main benefits are threefold:
 - it describes workflow at a relatively high level and allows for different low-level implementations.
 - learning paradigms at a higher level such as federated learning and AutoML can be decoupled from the component details.
 
+Content:
+
+- [A basic example](#a-basic-example)
+- [Syntax examples explained](#syntax-examples-explained)
+  - `@` to interpolate with Python objects
+  - `$` to evaluate as Python expressions
+  - `_target_` to instantiate a Python object
+  - `%` to interpolate with plain texts
+
 ## A basic example
 
 Components as part of a workflow can be specified using `JSON` or `YAML` syntax, for example, a network architecture
@@ -62,9 +71,13 @@ or additionally, tune the input parameters then instantiate the component:
 BasicUNet features: (32, 32, 32, 64, 64, 64).
 ```
 
+For more details on the `ConfigParser` API, please see https://docs.monai.io/en/latest/bundle.html#config-parser.
+
 ## Syntax examples explained
 
 A few characters and keywords are interpreted beyond the plain texts, here are examples of the syntax:
+
+### `@` to interpolate with Python objects
 
 ```json
 "@preprocessing#transforms#keys"
@@ -79,6 +92,8 @@ where `#` indicates a sub-structure of this configuration file.
 
 _Description:_ `1` is interpreted as an integer, which is used to index the `preprocessing` sub-structure.
 
+### `$` to evaluate as Python expressions
+
 ```json
 "$print(42)"
 ```
@@ -90,6 +105,8 @@ _Description:_ `$` is a special character to indicate evaluating `print(42)` at 
 ```
 
 _Description:_ Create a list at runtime using the values in `datalist` as input.
+
+### `_target_` to instantiate a Python object
 
 ```json
 {
@@ -107,13 +124,6 @@ This dictionary will be instantiated as a Pytorch object at runtime.
 `args1` and `args2` should be compatible with the Python object to instantiate.
 
 ```json
-"%demo_config.json#demo_net#in_channels"
-```
-
-_Description:_ A macro to replace the current value with the texts at `demo_net#in_channels` in the
-`demo_config.json` file.
-
-```json
 {
   "component_name": {
     "_target_": "my.module.Class",
@@ -128,3 +138,12 @@ Python expression that will be evaluated/instantiated before `_target_` object i
 It is useful when the component doesn’t explicitly depends on the other ConfigItems via
 its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
 `_disabled_` specifies a flag to indicate whether to skip the instantiation.
+
+### `%` to interpolate with plain texts
+
+```json
+"%demo_config.json#demo_net#in_channels"
+```
+
+_Description:_ A macro to replace the current value with the texts at `demo_net#in_channels` in the
+`demo_config.json` file.
