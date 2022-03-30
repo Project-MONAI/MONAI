@@ -12,10 +12,10 @@ Content:
 
 - [A basic example](#a-basic-example)
 - [Syntax examples explained](#syntax-examples-explained)
-  - [`@` to interpolate with Python objects](#-to-interpolate-with-python-objects)
-  - [`$` to evaluate as Python expressions](#-to-evaluate-as-python-expressions)
-  - [`%` to interpolate with plain texts](#-to-interpolate-with-plain-texts)
-  - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#instantiate-a-python-object)
+  - [`@` to interpolate with Python objects](#1--to-interpolate-with-python-objects)
+  - [`$` to evaluate as Python expressions](#2--to-evaluate-as-python-expressions)
+  - [`%` to interpolate with plain texts](#3--to-interpolate-with-plain-texts)
+  - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#4-instantiate-a-python-object)
 - [The command line interface](#the-command-line-interface)
 
 ## A basic example
@@ -78,7 +78,7 @@ For more details on the `ConfigParser` API, please see https://docs.monai.io/en/
 
 A few characters and keywords are interpreted beyond the plain texts, here are examples of the syntax:
 
-### `@` to interpolate with Python objects
+### 1. `@` to interpolate with Python objects
 
 ```json
 "@preprocessing#transforms#keys"
@@ -93,7 +93,7 @@ where `#` indicates a sub-structure of this configuration file.
 
 _Description:_ `1` is interpreted as an integer, which is used to index the `preprocessing` sub-structure.
 
-### `$` to evaluate as Python expressions
+### 2. `$` to evaluate as Python expressions
 
 ```json
 "$print(42)"
@@ -107,7 +107,15 @@ _Description:_ `$` is a special character to indicate evaluating `print(42)` at 
 
 _Description:_ Create a list at runtime using the values in `datalist` as input.
 
-### `%` to interpolate with plain texts
+```json
+"$from torchvision.models import resnet18"
+```
+
+_Description:_ `$` followed by an import statement is handled slightly differently from the
+Python expressions. The imported module `resnet18` will be available as a global variable
+to the other configuration sections. This is to simplify the use of external modules in the configuration.
+
+### 3. `%` to interpolate with plain texts
 
 ```json
 "%demo_config.json#demo_net#in_channels"
@@ -116,7 +124,7 @@ _Description:_ Create a list at runtime using the values in `datalist` as input.
 _Description:_ A macro to replace the current value with the texts at `demo_net#in_channels` in the
 `demo_config.json` file.
 
-### instantiate a Python object
+### 4. instantiate a Python object
 
 ```json
 {
@@ -151,14 +159,14 @@ its arguments, but requires the dependencies to be instantiated/evaluated before
 
 ## The command line interface
 
-In addition to the Pythonic APIs, a few command line interfaces are provided to interact with the bundle.
-The primary API is:
+In addition to the Pythonic APIs, a few command line interfaces (CLI) are provided to interact with the bundle.
+The primary usage is:
 ```bash
 python -m monai.bundle COMMANDS
 ```
 
 where `COMMANDS` is one of the following: `run`, `verify_metadata`, `ckpt_export`, ...
-(please see `python -m monai.bundle --help` for a list of available commands).
+(please see `python -m monai.bundle --help` for a list of available options).
 
 To display a usage page for a command, for example `run`:
 ```bash
