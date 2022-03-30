@@ -44,13 +44,7 @@ demo_net:
   spatial_dims: 3
   in_channels: 1
   out_channels: 2
-  features:
-  - 16
-  - 16
-  - 32
-  - 32
-  - 64
-  - 64
+  features: [16, 16, 32, 32, 64, 64]
 ```
 
 The configuration parser can instantiate the component as a Python object:
@@ -123,7 +117,7 @@ to the other configuration sections. This is to simplify the use of external mod
 ```
 
 _Description:_ A macro to replace the current value with the texts at `demo_net#in_channels` in the
-`demo_config.json` file.
+`demo_config.json` file. The replacement is done before instantiating or evaluating the components.
 
 ### 4. instantiate a Python object
 
