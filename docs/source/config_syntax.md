@@ -17,6 +17,7 @@ Content:
   - [`%` to interpolate with plain texts](#3--to-interpolate-with-plain-texts)
   - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#4-instantiate-a-python-object)
 - [The command line interface](#the-command-line-interface)
+- [Recommendations](#recommendations)
 
 ## A basic example
 
@@ -176,3 +177,11 @@ python -m monai.bundle run -- --help
 The support is provided by [Python Fire](https://github.com/google/python-fire), please
 make sure the optional dependency is installed, for example,
 using `pip install monai[fire]` or `pip install fire`.
+
+## Recommendations
+- Both `YAML` and `JSON` are supported, but the advanced features of these formats are not supported.
+- Using meaningful names for the configuration elements can improve the readability.
+- While it is possible to build complex configurations with the bundle syntax, 
+  simple structures with sparse uses of expressions or references are preferred.
+- For `$import <module>` in the configuration, please make sure there are instructions for the users to install
+  the `<module>` if it is not a (optional) dependency of MONAI.
