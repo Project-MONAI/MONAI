@@ -172,7 +172,7 @@ python -m monai.bundle run -- --help
 The support is provided by [Python Fire](https://github.com/google/python-fire), please
 make sure the optional dependency is installed, for example,
 using `pip install monai[fire]` or `pip install fire`.
-Details on the CLI argument parsing is provided in the 
+Details on the CLI argument parsing is provided in the
 [Python Fire Guide](https://github.com/google/python-fire/blob/master/docs/guide.md#argument-parsing).
 
 ## Recommendations
