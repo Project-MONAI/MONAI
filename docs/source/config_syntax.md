@@ -14,7 +14,7 @@ Content:
 - [Syntax examples explained](#syntax-examples-explained)
   - [`@` to interpolate with Python objects](#1--to-interpolate-with-python-objects)
   - [`$` to evaluate as Python expressions](#2--to-evaluate-as-python-expressions)
-  - [`%` to textually replace configuration elements](#3-to-textually-replace-configuration-elements)
+  - [`%` to textually replace configuration elements](#3--to-textually-replace-configuration-elements)
   - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#4-instantiate-a-python-object)
 - [The command line interface](#the-command-line-interface)
 - [Recommendations](#recommendations)
@@ -172,6 +172,8 @@ python -m monai.bundle run -- --help
 The support is provided by [Python Fire](https://github.com/google/python-fire), please
 make sure the optional dependency is installed, for example,
 using `pip install monai[fire]` or `pip install fire`.
+Details on the CLI argument parsing is provided in the 
+[Python Fire Guide](https://github.com/google/python-fire/blob/master/docs/guide.md#argument-parsing).
 
 ## Recommendations
 - Both `YAML` and `JSON` are supported, but the advanced features of these formats are not supported.
