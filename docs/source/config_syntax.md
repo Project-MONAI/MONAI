@@ -176,7 +176,7 @@ using `pip install monai[fire]` or `pip install fire`.
 ## Recommendations
 - Both `YAML` and `JSON` are supported, but the advanced features of these formats are not supported.
 - Using meaningful names for the configuration elements can improve the readability.
-- While it is possible to build complex configurations with the bundle syntax, 
+- While it is possible to build complex configurations with the bundle syntax,
   simple structures with sparse uses of expressions or references are preferred.
 - For `$import <module>` in the configuration, please make sure there are instructions for the users to install
   the `<module>` if it is not a (optional) dependency of MONAI.
