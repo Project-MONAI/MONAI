@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -78,6 +78,11 @@ class TestDiceCELoss(unittest.TestCase):
     def test_ill_shape(self):
         loss = DiceCELoss()
         with self.assertRaisesRegex(ValueError, ""):
+            loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+
+    def test_ill_reduction(self):
+        with self.assertRaisesRegex(ValueError, ""):
+            loss = DiceCELoss(reduction="none")
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
     @SkipIfBeforePyTorchVersion((1, 7, 0))

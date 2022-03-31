@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -46,7 +46,9 @@ def compute_fp_tp_probs(
 
     """
     if not (probs.shape == y_coord.shape == x_coord.shape):
-        raise AssertionError("the shapes for coordinates and probabilities should be the same.")
+        raise ValueError(
+            f"the shapes between probs {probs.shape}, y_coord {y_coord.shape} and x_coord {x_coord.shape} should be the same."
+        )
 
     if isinstance(probs, torch.Tensor):
         probs = probs.detach().cpu().numpy()
@@ -96,7 +98,7 @@ def compute_froc_curve_data(
         num_images: the number of images under evaluation.
 
     """
-    if type(fp_probs) is not type(tp_probs):
+    if not isinstance(fp_probs, type(tp_probs)):
         raise AssertionError("fp and tp probs should have same type.")
     if isinstance(fp_probs, torch.Tensor):
         fp_probs = fp_probs.detach().cpu().numpy()
@@ -116,9 +118,7 @@ def compute_froc_curve_data(
 
 
 def compute_froc_score(
-    fps_per_image: np.ndarray,
-    total_sensitivity: np.ndarray,
-    eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
+    fps_per_image: np.ndarray, total_sensitivity: np.ndarray, eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8)
 ):
     """
     This function is modified from the official evaluation code of

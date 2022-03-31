@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,10 +21,7 @@ from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        },
+        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.307576,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
@@ -87,7 +84,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        [0.273476, 0.555539],
+        [[[0.273476]], [[0.555539]]],
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True, "smooth_nr": 1e-8, "smooth_dr": 1e-8},
@@ -99,10 +96,7 @@ TEST_CASES = [
     ],
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
-        },
+        {"input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.307576,
     ],
     [  # shape: (1, 2, 4), (1, 1, 4)
@@ -178,6 +172,26 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
         with self.assertWarns(Warning):
             loss = GeneralizedDiceLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
+
+    def test_differentiability(self):
+        prediction = torch.ones((1, 1, 1, 3))
+        target = torch.ones((1, 1, 1, 3))
+        prediction.requires_grad = True
+        target.requires_grad = True
+
+        generalized_dice_loss = GeneralizedDiceLoss()
+        loss = generalized_dice_loss(prediction, target)
+        self.assertNotEqual(loss.grad_fn, None)
+
+    def test_batch(self):
+        prediction = torch.zeros(2, 3, 3, 3)
+        target = torch.zeros(2, 3, 3, 3)
+        prediction.requires_grad = True
+        target.requires_grad = True
+
+        generalized_dice_loss = GeneralizedDiceLoss(batch=True)
+        loss = generalized_dice_loss(prediction, target)
+        self.assertNotEqual(loss.grad_fn, None)
 
     @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):

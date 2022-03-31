@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Union, cast
 
 import numpy as np
@@ -48,7 +49,7 @@ class ROCAUCMetric(CumulativeIterationMetric):
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         return y_pred, y
 
-    def aggregate(self):  # type: ignore
+    def aggregate(self):
         """
         As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
         of every iteration, then execute real computation and reduction on the accumulated data.
@@ -65,8 +66,14 @@ class ROCAUCMetric(CumulativeIterationMetric):
 def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
-    if not y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
-        raise AssertionError("y values must be 0 or 1, can not be all 0 or all 1.")
+    y_unique = y.unique()
+    if len(y_unique) == 1:
+        warnings.warn(f"y values can not be all {y_unique.item()}, skip AUC computation and return `Nan`.")
+        return float("nan")
+    if not y_unique.equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
+        warnings.warn(f"y values must be 0 or 1, but in {y_unique.tolist()}, skip AUC computation and return `Nan`.")
+        return float("nan")
+
     n = len(y)
     indices = y_pred.argsort()
     y = y[indices].cpu().numpy()
@@ -93,20 +100,18 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     return auc / (nneg * (n - nneg))
 
 
-def compute_roc_auc(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
-    average: Union[Average, str] = Average.MACRO,
-):
+def compute_roc_auc(y_pred: torch.Tensor, y: torch.Tensor, average: Union[Average, str] = Average.MACRO):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
 
     Args:
         y_pred: input data to compute, typical classification model output.
-            it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
-        y: ground truth to compute ROC AUC metric, the first dim is batch.
-            example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
+            the first dim must be batch, if multi-classes, it must be in One-Hot format.
+            for example: shape `[16]` or `[16, 1]` for a binary data, shape `[16, 2]` for 2 classes data.
+        y: ground truth to compute ROC AUC metric, the first dim must be batch.
+            if multi-classes, it must be in One-Hot format.
+            for example: shape `[16]` or `[16, 1]` for a binary data, shape `[16, 2]` for 2 classes data.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
             Defaults to ``"macro"``.
@@ -131,9 +136,11 @@ def compute_roc_auc(
     y_pred_ndim = y_pred.ndimension()
     y_ndim = y.ndimension()
     if y_pred_ndim not in (1, 2):
-        raise ValueError("Predictions should be of shape (batch_size, num_classes) or (batch_size, ).")
+        raise ValueError(
+            f"Predictions should be of shape (batch_size, num_classes) or (batch_size, ), got {y_pred.shape}."
+        )
     if y_ndim not in (1, 2):
-        raise ValueError("Targets should be of shape (batch_size, num_classes) or (batch_size, ).")
+        raise ValueError(f"Targets should be of shape (batch_size, num_classes) or (batch_size, ), got {y.shape}.")
     if y_pred_ndim == 2 and y_pred.shape[1] == 1:
         y_pred = y_pred.squeeze(dim=-1)
         y_pred_ndim = 1
@@ -144,7 +151,7 @@ def compute_roc_auc(
         return _calculate(y_pred, y)
 
     if y.shape != y_pred.shape:
-        raise AssertionError("data shapes of y_pred and y do not match.")
+        raise ValueError(f"data shapes of y_pred and y do not match, got {y_pred.shape} and {y.shape}.")
 
     average = look_up_option(average, Average)
     if average == Average.MICRO:

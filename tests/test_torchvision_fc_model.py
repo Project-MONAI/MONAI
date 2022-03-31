@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -115,17 +115,7 @@ TEST_CASE_PRETRAINED_5 = [
 
 
 class TestTorchVisionFCModel(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     @skipUnless(has_tv, "Requires TorchVision.")
     def test_without_pretrained(self, input_param, input_shape, expected_shape):
         net = TorchVisionFCModel(**input_param).to(device)

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,15 @@ import nibabel as nib
 import numpy as np
 
 from monai.data import ImageDataset
-from monai.transforms import Compose, EnsureChannelFirst, RandAdjustContrast, RandomizableTransform, Spacing
+from monai.transforms import (
+    Compose,
+    EnsureChannelFirst,
+    MapLabelValue,
+    RandAdjustContrast,
+    RandomizableTransform,
+    Spacing,
+)
+from monai.transforms.utility.array import ToNumpy
 
 FILENAMES = ["test1.nii.gz", "test2.nii", "test3.nii.gz"]
 
@@ -106,16 +114,6 @@ class TestImageDataset(unittest.TestCase):
             for d, ref in zip(dataset, ref_data):
                 np.testing.assert_allclose(d, ref + 1, atol=1e-3)
 
-            # set seg transform, but no seg_files
-            with self.assertRaises(RuntimeError):
-                dataset = ImageDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
-                _ = dataset[0]
-
-            # set seg transform, but no seg_files
-            with self.assertRaises(RuntimeError):
-                dataset = ImageDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
-                _ = dataset[0]
-
             # loading image/label, with meta
             dataset = ImageDataset(
                 full_names,
@@ -133,13 +131,27 @@ class TestImageDataset(unittest.TestCase):
 
             # loading image/label, with meta
             dataset = ImageDataset(
-                full_names, transform=lambda x: x + 1, seg_files=full_names, labels=[1, 2, 3], image_only=False
+                image_files=full_names,
+                seg_files=full_names,
+                labels=[1, 2, 3],
+                transform=lambda x: x + 1,
+                label_transform=Compose(
+                    [
+                        ToNumpy(),
+                        MapLabelValue(orig_labels=[1, 2, 3], target_labels=[30.0, 20.0, 10.0], dtype=np.float32),
+                    ]
+                ),
+                image_only=False,
             )
             for idx, (d_tuple, ref) in enumerate(zip(dataset, ref_data)):
                 img, seg, label, meta, seg_meta = d_tuple
                 np.testing.assert_allclose(img, ref + 1, atol=1e-3)
                 np.testing.assert_allclose(seg, ref, atol=1e-3)
-                np.testing.assert_allclose(idx + 1, label)
+                # test label_transform
+
+                np.testing.assert_allclose((3 - idx) * 10.0, label)
+                self.assertTrue(isinstance(label, np.ndarray))
+                self.assertEqual(label.dtype, np.float32)
                 np.testing.assert_allclose(meta["original_affine"], np.eye(4), atol=1e-3)
                 np.testing.assert_allclose(seg_meta["original_affine"], np.eye(4), atol=1e-3)
 
