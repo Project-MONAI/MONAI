@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +26,7 @@ TEST_CASE_2 = [
         "transform": Compose(
             [
                 CopyItemsd(keys="filename", times=1, names="filename_bak"),
-                AsDiscreted(keys="pred", threshold_values=True, to_onehot=True, num_classes=2),
+                AsDiscreted(keys="pred", threshold=0.5, to_onehot=2),
             ]
         ),
         "event": "iteration_completed",

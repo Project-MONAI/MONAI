@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,60 +21,48 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 out_channels_2d = 4
 out_channels_3d = 3
 model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=out_channels_2d).to(device)
+model_2d_2c = DenseNet121(spatial_dims=2, in_channels=2, out_channels=out_channels_2d).to(device)
 model_3d = DenseNet(
     spatial_dims=3, in_channels=1, out_channels=out_channels_3d, init_features=2, growth_rate=2, block_config=(6,)
 ).to(device)
 model_2d.eval()
+model_2d_2c.eval()
 model_3d.eval()
 
 # 2D w/ bounding box
 TEST_CASE_0 = [
-    {
-        "nn_module": model_2d,
-    },
-    {
-        "x": torch.rand(1, 1, 48, 64).to(device),
-        "b_box": [-1, -1, 2, 40, 1, 62],
-    },
+    {"nn_module": model_2d},
+    {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [-1, -1, 2, 40, 1, 62]},
     (1, 1, 39, 62, out_channels_2d),
     (1, 1, 39, 62),
 ]
 # 3D w/ bounding box and stride
 TEST_CASE_1 = [
     {"nn_module": model_3d, "n_batch": 10, "stride": (2, 1, 2), "mask_size": (16, 15, 14)},
-    {
-        "x": torch.rand(1, 1, 6, 6, 6).to(device),
-        "b_box": [-1, -1, 2, 3, -1, -1, -1, -1],
-    },
+    {"x": torch.rand(1, 1, 6, 6, 6).to(device), "b_box": [-1, -1, 2, 3, -1, -1, -1, -1]},
     (1, 1, 2, 6, 6, out_channels_3d),
     (1, 1, 2, 6, 6),
 ]
 
 TEST_CASE_FAIL_0 = [  # 2D should fail, since 3 stride values given
-    {
-        "nn_module": model_2d,
-        "n_batch": 10,
-        "stride": (2, 2, 2),
-    },
-    {
-        "x": torch.rand(1, 1, 48, 64).to(device),
-        "b_box": [-1, -1, 2, 3, -1, -1],
-    },
+    {"nn_module": model_2d, "n_batch": 10, "stride": (2, 2, 2)},
+    {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [-1, -1, 2, 3, -1, -1]},
 ]
 
 TEST_CASE_FAIL_1 = [  # 2D should fail, since stride is not a factor of image size
-    {
-        "nn_module": model_2d,
-        "stride": 3,
-    },
-    {
-        "x": torch.rand(1, 1, 48, 64).to(device),
-    },
+    {"nn_module": model_2d, "stride": 3},
+    {"x": torch.rand(1, 1, 48, 64).to(device)},
+]
+TEST_MULTI_CHANNEL = [
+    {"nn_module": model_2d_2c, "per_channel": False},
+    {"x": torch.rand(1, 2, 48, 64).to(device)},
+    (1, 1, 48, 64, out_channels_2d),
+    (1, 1, 48, 64),
 ]
 
 
 class TestComputeOcclusionSensitivity(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_MULTI_CHANNEL])
     def test_shape(self, init_data, call_data, map_expected_shape, most_prob_expected_shape):
         occ_sens = OcclusionSensitivity(**init_data)
         m, most_prob = occ_sens(**call_data)

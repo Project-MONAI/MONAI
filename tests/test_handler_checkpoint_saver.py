@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,9 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
-import sys
 import tempfile
 import unittest
 
@@ -112,16 +110,7 @@ TEST_CASE_8 = [False, None, True, "val_loss", 1, "model.pt", False, True, False,
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-            TEST_CASE_7,
-            TEST_CASE_8,
-        ]
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
     )
     def test_file(
         self,
@@ -140,7 +129,6 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         filenames,
         multi_devices=False,
     ):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         data = [0] * 8
 
         # set up engine
@@ -180,7 +168,6 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
                 self.assertTrue(os.path.exists(os.path.join(tempdir, filename)))
 
     def test_exception(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net = torch.nn.PReLU()
 
         # set up engine
@@ -199,7 +186,6 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(tempdir, "net_final_iteration=1.pt")))
 
     def test_load_state_dict(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net = torch.nn.PReLU()
 
         # set up engine
