@@ -146,7 +146,7 @@ class TestConfigParser(unittest.TestCase):
 
     def test_macro_replace(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            another_file = os.path.join(tempdir, "another.yaml")
+            another_file = os.path.join(tempdir, "another.json")
             ConfigParser.export_config_file(config={"E": 4}, filepath=another_file)
             # test relative id, recursive macro replacement, and macro in another file
             config = {"A": {"B": 1, "C": 2}, "D": [3, "%A#B", "%#1", f"%{another_file}#E"]}
