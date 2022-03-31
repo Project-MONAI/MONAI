@@ -19,6 +19,7 @@ from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropSa
 from monai.utils import optional_import
 from monai.visualize.utils import matshow3d
 from tests.utils import SkipIfNoModule
+from PIL import Image
 
 compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_images")
 pyplot, has_pyplot = optional_import("matplotlib", name="pyplot")
@@ -64,6 +65,10 @@ class TestMatshow3d(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_patch_test.png"
             fig.savefig(tempimg)
+            expected_img = np.asarray(Image.open(f"{testing_dir}/matshow3d_patch_test.png").convert("RGB"))
+            act_img = np.asarray(Image.open(f"{tempdir}/matshow3d_patch_test.png").convert("RGB"))
+            print(expected_img.shape, expected_shape.mean())
+            print(act_img.shape, act_img.mean())
             comp = compare_images(f"{testing_dir}/matshow3d_patch_test.png", tempimg, 5e-2, in_decorator=True)
             if comp:
                 print("not none comp: ", comp)  # matplotlib 3.2.2
