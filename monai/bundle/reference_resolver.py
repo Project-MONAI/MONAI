@@ -106,7 +106,7 @@ class ReferenceResolver:
             id: id name of ``ConfigItem`` to be resolved.
             waiting_list: set of ids pending to be resolved.
                 It's used to detect circular references such as:
-                `{"name": "A", "dep": "@B"}` and `{"name": "B", "dep": "@A"}`.
+                `{"A": {"dep": "@B"}, "B": {"dep": "@A"}}`.
              kwargs: keyword arguments to pass to ``_resolve_one_item()``.
                 Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
 
