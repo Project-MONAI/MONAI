@@ -259,6 +259,7 @@ class ConfigParser:
         `@##A` means `A` in the upper level. and replace the macro tokens with target content,
         The macro tokens start with "%", can be from another structured file, like:
         ``"%default_net"``, ``"%/data/config.json#net"``.
+        Note that the macro replacement doesn't support recursive macro tokens.
 
         Args:
             config: input config file to resolve.
@@ -277,7 +278,7 @@ class ConfigParser:
             if config.startswith(MACRO_KEY):
                 path, ids = ConfigParser.split_path_id(config[len(MACRO_KEY) :])
                 parser = ConfigParser(config=self.get() if not path else ConfigParser.load_config_file(path))
-                return self._do_resolve(config=deepcopy(parser[ids]))
+                return parser[ids]
         return config
 
     def resolve_macro_and_relative_ids(self):
