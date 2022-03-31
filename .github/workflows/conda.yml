@@ -1,11 +1,11 @@
 name: conda
 
 on:
+  schedule:
+    - cron: "0 3 * * *"  # at 03:00 UTC
   push:
     branches:
       - 4011-modify-compare-images
-  # schedule:
-  #   - cron: "0 3 * * *"  # at 03:00 UTC
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
