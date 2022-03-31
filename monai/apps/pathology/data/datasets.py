@@ -54,6 +54,7 @@ class PatchWSIDataset(Dataset):
         region_size: Union[int, Tuple[int, int]],
         grid_shape: Union[int, Tuple[int, int]],
         patch_size: Union[int, Tuple[int, int]],
+        level: int = 0,
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
     ):
@@ -65,7 +66,7 @@ class PatchWSIDataset(Dataset):
 
         self.image_path_list = list({x["image"] for x in self.data})
         self.image_reader_name = image_reader_name.lower()
-        self.image_reader = WSIReader(image_reader_name)
+        self.image_reader = WSIReader(backend=image_reader_name, level=level)
         self.wsi_object_dict = None
         if self.image_reader_name != "openslide":
             # OpenSlide causes memory issue if we prefetch image objects
