@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import tempfile
 import unittest
 from unittest import skipUnless
 
@@ -141,6 +143,22 @@ class TestConfigParser(unittest.TestCase):
                 self.assertEqual(item, 1)
             if isinstance(item, dict):
                 self.assertEqual(str(item), str({"key": 1, "value1": 2, "value2": 2, "value3": [3, 4, 4, 105]}))
+
+    def test_macro_replace(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            another_file = os.path.join(tempdir, "another.json")
+            ConfigParser.export_config_file(config={"E": 4}, filepath=another_file)
+            # test relative id, recursive macro replacement, and macro in another file
+            config = {"A": {"B": 1, "C": 2}, "D": [3, "%A#B", "%#1", f"%{another_file}#E"]}
+            parser = ConfigParser(config=config)
+            parser.resolve_macro_and_relative_ids()
+            self.assertEqual(str(parser.get()), str({"A": {"B": 1, "C": 2}, "D": [3, 1, 1, 4]}))
+
+    def test_circular_macro_replace(self):
+        config = {"A": "%B", "B": {"args": [1, 2, "%A"]}}
+        parser = ConfigParser(config=config)
+        with self.assertRaises(ValueError):
+            parser.resolve_macro_and_relative_ids()
 
 
 if __name__ == "__main__":

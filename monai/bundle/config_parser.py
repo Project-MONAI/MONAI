@@ -13,7 +13,7 @@ import json
 import re
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Set, Tuple, Union
 
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
@@ -253,7 +253,7 @@ class ConfigParser:
         content.update(self.load_config_files(f, **kwargs))
         self.set(config=content)
 
-    def _do_resolve(self, config: Any, id: str = ""):
+    def _do_resolve(self, config: Any, id: str = "", waiting_list: Optional[Set[str]] = None):
         """
         Recursively resolve `self.config` to replace the relative ids with absolute ids, for example,
         `@##A` means `A` in the upper level. and replace the macro tokens with target content,
@@ -266,18 +266,32 @@ class ConfigParser:
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
                 For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+            waiting_list: set of macro replacement ids pending to be resolved.
+                It's used to detect circular references such as:
+                `{"A": {"dep": "%B"}, "B": {"dep": "%A"}}`.
 
         """
+        if waiting_list is None:
+            waiting_list = set()
         if isinstance(config, (dict, list)):
             for k, v in enumerate(config) if isinstance(config, list) else config.items():
                 sub_id = f"{id}{ID_SEP_KEY}{k}" if id != "" else k
-                config[k] = self._do_resolve(v, sub_id)
+                config[k] = self._do_resolve(v, sub_id, waiting_list)
         if isinstance(config, str):
             config = self.resolve_relative_ids(id, config)
             if config.startswith(MACRO_KEY):
+                waiting_list.add(id)
                 path, ids = ConfigParser.split_path_id(config[len(MACRO_KEY) :])
-                parser = ConfigParser(config=self.get() if not path else ConfigParser.load_config_file(path))
-                return self._do_resolve(config=deepcopy(parser[ids]))
+                if not path:
+                    # if the target id is in the waiting list, that's circular references
+                    if ids in waiting_list:
+                        raise ValueError(f"detected circular references in macro replacement '{ids}' for id='{id}'.")
+                    parser = ConfigParser(config=self.get())
+                    config = self._do_resolve(deepcopy(parser[ids]), ids, waiting_list)
+                else:
+                    # don't support recursive macro replacement in another config file
+                    config = ConfigParser(config=ConfigParser.load_config_file(path))[ids]
+                waiting_list.discard(id)
         return config
 
     def resolve_macro_and_relative_ids(self):
