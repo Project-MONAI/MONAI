@@ -32,6 +32,7 @@ class PatchWSIDataset(Dataset):
         region_size: the size of regions to be extracted from the whole slide image.
         grid_shape: the grid shape on which the patches should be extracted.
         patch_size: the size of patches extracted from the region on the grid.
+        level: the level at which the patches to be extracted (default to 0).
         transform: transforms to be executed on input data.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
             Defaults to CuCIM.
