@@ -63,7 +63,7 @@ Tensor format specifiers are used to define input and output tensors and their m
 
 * **type**: what sort of data the tensor represents: "image" for any spatial regular data whether an actual image or just data with that sort of shape, "series" for (time-) sequences of values such as signals, "tuples" for a series of items defined by a known number of values such as N-sized points in ND space, "probabilities" for a set of probabilities such as classifier output, this useful for interpreting what the dimensions and shape of the data represent and allow users to guess how to plot the data
 * **format**: what format of information is stored, see below for list of known formats
-* **modality**: describes the modality, protocol type, sort of capturing technology, or other property of the data not described by either it's type or format, known modalities are "MR", "CT", "US", "EKG", but can include any custom types or protocol types (eg. "T1"), default value is "n/a" 
+* **modality**: describes the modality, protocol type, sort of capturing technology, or other property of the data not described by either it's type or format, known modalities are "MR", "CT", "US", "EKG", but can include any custom types or protocol types (eg. "T1"), default value is "n/a"
 * **num_channels**: number of channels the tensor has, assumed channel dimension first
 * **spatial_shape**: shape of the spatial dimensions of the form "[H]", "[H, W]", or "[H, W, D]", see below for possible values of H, W, and D
 * **dtype**: data type of tensor, eg. "float32", "int32"
