@@ -16,7 +16,6 @@ concurrency:
 
 jobs:
   cron-conda:
-    if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       fail-fast: false
       matrix:
