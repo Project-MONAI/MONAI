@@ -5,9 +5,6 @@ on:
     - cron: "0 3 * * *"  # at 03:00 UTC
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-  push:
-    branches:
-      - 4043-fix-windows-pil-issue
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -16,6 +13,7 @@ concurrency:
 
 jobs:
   cron-conda:
+    if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       fail-fast: false
       matrix:
