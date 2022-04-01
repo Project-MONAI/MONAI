@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,10 @@ import torch
 from parameterized import parameterized
 
 from monai.inferers import SlidingWindowInferer, sliding_window_inference
+from monai.utils import optional_import
 from tests.utils import skip_if_no_cuda
+
+_, has_tqdm = optional_import("tqdm")
 
 TEST_CASES = [
     [(2, 3, 16), (4,), 3, 0.25, "constant", torch.device("cpu:0")],  # 1D small roi
@@ -33,14 +36,7 @@ TEST_CASES = [
     [(1, 3, 16, 7), (80, 50), 7, 0.5, "gaussian", torch.device("cpu:0")],  # 2D large overlap, gaussian
     [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian", torch.device("cpu:0")],  # 3D small roi, gaussian
     [(3, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian", torch.device("cpu:0")],  # 3D small roi, gaussian
-    [
-        (1, 3, 16, 15, 7),
-        (4, 10, 7),
-        3,
-        0.25,
-        "gaussian",
-        torch.device("cuda:0"),
-    ],  # test inference on gpu if availabe
+    [(1, 3, 16, 15, 7), (4, 10, 7), 3, 0.25, "gaussian", torch.device("cuda:0")],  # test inference on gpu if availabe
     [(1, 3, 16, 15, 7), (4, 1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
     [(5, 3, 16, 15, 7), (4, 1, 7), 3, 0.25, "constant", torch.device("cpu:0")],  # 3D small roi
 ]
@@ -152,6 +148,7 @@ class TestSlidingWindowInference(unittest.TestCase):
             cval=-1,
             mode="gaussian",
             sigma_scale=1.0,
+            progress=has_tqdm,
         )
         expected = np.array(
             [
@@ -229,15 +226,16 @@ class TestSlidingWindowInference(unittest.TestCase):
             0.0,
             device,
             device,
+            has_tqdm,
             t1,
             test2=t2,
         )
         expected = np.ones((1, 1, 3, 3)) + 2.0
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
-        result = SlidingWindowInferer(roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1)(
-            inputs, compute, t1, test2=t2
-        )
+        result = SlidingWindowInferer(
+            roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1, progress=has_tqdm
+        )(inputs, compute, t1, test2=t2)
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
 

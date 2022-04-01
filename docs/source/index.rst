@@ -66,6 +66,11 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
 
   contrib
 
+.. toctree::
+  :maxdepth: 1
+  :caption: Specifications
+
+  bundle_intro
 
 Links
 -----

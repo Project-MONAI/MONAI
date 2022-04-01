@@ -2,6 +2,8 @@
 
 * **apps**: high level medical domain specific deep learning applications.
 
+* **bundle**: components to build the portable self-descriptive model bundle.
+
 * **config**: for system configuration and diagnostic output.
 
 * **csrc**: for C++/CUDA extensions.
