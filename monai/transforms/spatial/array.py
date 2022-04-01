@@ -461,7 +461,7 @@ class Orientation(Transform):
         self,
         axcodes: Optional[str] = None,
         as_closest_canonical: bool = False,
-        labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
+        labels: Optional[Sequence[Tuple[str, str]]] = (("L", "R"), ("P", "A"), ("I", "S")),
         image_only: bool = False,
     ) -> None:
         """
@@ -1281,7 +1281,7 @@ class RandZoom(RandomizableTransform):
             keep_size=self.keep_size,
             mode=look_up_option(mode or self.mode, InterpolateMode),
             padding_mode=padding_mode or self.padding_mode,
-            align_corners=align_corners or self.align_corners,
+            align_corners=self.align_corners if align_corners is None else align_corners,
             **self.kwargs,
         )(img)
 
@@ -1796,7 +1796,7 @@ class Affine(Transform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         """
-        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img.shape[1:])
         grid, affine = self.affine_grid(spatial_size=sp_size)
         ret = self.resampler(img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
@@ -1978,7 +1978,7 @@ class RandAffine(RandomizableTransform):
 
         # if not doing transform and spatial size doesn't change, nothing to do
         # except convert to float and device
-        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img.shape[1:])
         do_resampling = self._do_transform or (sp_size != ensure_tuple(img.shape[1:]))
         if not do_resampling:
             img, *_ = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)
@@ -2120,7 +2120,7 @@ class Rand2DElastic(RandomizableTransform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             randomize: whether to execute `randomize()` function first, default to True.
         """
-        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img.shape[1:])
         if randomize:
             self.randomize(spatial_size=sp_size)
 
@@ -2280,7 +2280,7 @@ class Rand3DElastic(RandomizableTransform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             randomize: whether to execute `randomize()` function first, default to True.
         """
-        sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img.shape[1:])
         if randomize:
             self.randomize(grid_size=sp_size)
 

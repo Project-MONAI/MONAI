@@ -592,7 +592,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         axcodes: Optional[str] = None,
         as_closest_canonical: bool = False,
-        labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
+        labels: Optional[Sequence[Tuple[str, str]]] = (("L", "R"), ("P", "A"), ("I", "S")),
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,

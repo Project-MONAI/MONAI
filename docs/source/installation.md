@@ -171,18 +171,18 @@ cd MONAI/
 pip install -e '.[all]'
 ```
 
-To install all optional dependencies for MONAI development with `pip`:
+To install all optional dependencies with `pip` based on MONAI development environment settings:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -r requirements-dev.txt
 ```
 
-To install all optional dependencies for MONAI development with `conda`:
+To install all optional dependencies with `conda` based on MONAI development environment settings:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-conda create -n <name> --python=<ver>  # eg 3.9
+conda create -n <name> python=<ver>  # eg 3.9
 conda env update -n <name> -f environment-dev.yml
 ```
 
@@ -190,9 +190,9 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 
 - The options are
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire]
+[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema]
 ```
 which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

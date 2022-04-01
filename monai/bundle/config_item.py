@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ast
 import inspect
 import os
 import sys
@@ -18,9 +19,9 @@ from importlib import import_module
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from monai.bundle.utils import EXPR_KEY
-from monai.utils import ensure_tuple, instantiate
+from monai.utils import ensure_tuple, first, instantiate, optional_import
 
-__all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent"]
+__all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent", "Instantiable"]
 
 
 class Instantiable(ABC):
@@ -164,16 +165,23 @@ class ConfigComponent(ConfigItem, Instantiable):
     Subclass of :py:class:`monai.bundle.ConfigItem`, this class uses a dictionary with string keys to
     represent a component of `class` or `function` and supports instantiation.
 
-    Currently, two special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
+    Currently, three special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
 
-        - class or function identifier of the python module, specified by one of the two keys.
-            - ``"_target_"``: indicates build-in python classes or functions such as "LoadImageDict",
-                or full module name, such as "monai.transforms.LoadImageDict".
-        - ``"_disabled_"``: a flag to indicate whether to skip the instantiation.
+        - class or function identifier of the python module, specified by ``"_target_"``,
+          indicating a build-in python class or function such as ``"LoadImageDict"``,
+          or a full module name, such as ``"monai.transforms.LoadImageDict"``.
+        - ``"_requires_"`` (optional): specifies reference IDs (string starts with ``"@"``) or ``ConfigExpression``
+          of the dependencies for this ``ConfigComponent`` object. These dependencies will be
+          evaluated/instantiated before this object is instantiated.  It is useful when the
+          component doesn't explicitly depend on the other `ConfigItems` via its arguments,
+          but requires the dependencies to be instantiated/evaluated beforehand.
+        - ``"_disabled_"`` (optional): a flag to indicate whether to skip the instantiation.
 
     Other fields in the config content are input arguments to the python module.
 
     .. code-block:: python
+
+        from monai.bundle import ComponentLocator, ConfigComponent
 
         locator = ComponentLocator(excludes=["modules_to_exclude"])
         config = {
@@ -195,7 +203,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    non_arg_keys = {"_target_", "_disabled_"}
+    non_arg_keys = {"_target_", "_disabled_", "_requires_"}
 
     def __init__(
         self,
@@ -279,7 +287,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 class ConfigExpression(ConfigItem):
     """
     Subclass of :py:class:`monai.bundle.ConfigItem`, the `ConfigItem` represents an executable expression
-    (execute based on ``eval()``).
+    (execute based on ``eval()``, or import the module to the `globals` if it's an import statement).
 
     See also:
 
@@ -294,7 +302,7 @@ class ConfigExpression(ConfigItem):
 
         config = "$monai.__version__"
         expression = ConfigExpression(config, id="test", globals={"monai": monai})
-        print(expression.execute())
+        print(expression.evaluate())
 
     Args:
         config: content of a config item.
@@ -308,7 +316,26 @@ class ConfigExpression(ConfigItem):
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)
-        self.globals = globals
+        self.globals = globals if globals is not None else {}
+
+    def _parse_import_string(self, import_string: str):
+        """parse single import statement such as "from monai.transforms import Resize"""
+        node = first(ast.iter_child_nodes(ast.parse(import_string)))
+        if not isinstance(node, (ast.Import, ast.ImportFrom)):
+            return None
+        if len(node.names) < 1:
+            return None
+        if len(node.names) > 1:
+            warnings.warn(f"ignoring multiple import alias '{import_string}'.")
+        name, asname = f"{node.names[0].name}", node.names[0].asname
+        asname = name if asname is None else f"{asname}"
+        if isinstance(node, ast.ImportFrom):
+            self.globals[asname], _ = optional_import(f"{node.module}", name=f"{name}")
+            return self.globals[asname]
+        if isinstance(node, ast.Import):
+            self.globals[asname], _ = optional_import(f"{name}")
+            return self.globals[asname]
+        return None
 
     def evaluate(self, locals: Optional[Dict] = None):
         """
@@ -322,6 +349,9 @@ class ConfigExpression(ConfigItem):
         value = self.get_config()
         if not ConfigExpression.is_expression(value):
             return None
+        optional_module = self._parse_import_string(value[len(self.prefix) :])
+        if optional_module is not None:
+            return optional_module
         if not self.run_eval:
             return f"{value[len(self.prefix) :]}"
         return eval(value[len(self.prefix) :], self.globals, locals)
@@ -337,3 +367,19 @@ class ConfigExpression(ConfigItem):
 
         """
         return isinstance(config, str) and config.startswith(cls.prefix)
+
+    @classmethod
+    def is_import_statement(cls, config: Union[Dict, List, str]) -> bool:
+        """
+        Check whether the config is an import statement (a special case of expression).
+
+        Args:
+            config: input config content to check.
+        """
+        if not cls.is_expression(config):
+            return False
+        if "import" not in config:
+            return False
+        return isinstance(
+            first(ast.iter_child_nodes(ast.parse(f"{config[len(cls.prefix) :]}"))), (ast.Import, ast.ImportFrom)
+        )

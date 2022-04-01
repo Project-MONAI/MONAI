@@ -27,6 +27,7 @@ import torch
 import monai.networks.nets as monai_nets
 from monai.apps.utils import download_and_extract, logger
 from monai.config.type_definitions import PathLike
+from monai.networks.utils import copy_model_state
 from monai.utils.module import optional_import
 
 from .model_desc import MODEL_DESC
@@ -243,7 +244,7 @@ def load_from_mmar(
 
     # 1. search `model_dict['train_config]` for model config spec.
     model_config = _get_val(dict(model_dict).get("train_conf", {}), key=model_key, default={})
-    if not model_config:
+    if not model_config or not isinstance(model_config, Mapping):
         # 2. search json CONFIG_FILE for model config spec.
         json_path = model_dir / item.get(Keys.CONFIG_FILE, os.path.join("config", "config_train.json"))
         with open(json_path) as f:
@@ -285,7 +286,9 @@ def load_from_mmar(
     else:
         model_inst = model_cls()
     if pretrained:
-        model_inst.load_state_dict(model_dict.get(model_key, model_dict))
+        _, changed, unchanged = copy_model_state(model_inst, model_dict.get(model_key, model_dict), inplace=True)
+        if not (changed and not unchanged):  # not all model_inst varaibles are changed
+            logger.warning(f"*** Loading model state -- unchanged: {len(unchanged)}, changed: {len(changed)}.")
     logger.info("\n---")
     doc_url = item.get(Keys.DOC) or _get_ngc_doc_url(item[Keys.NAME], model_prefix="nvidia:med:")
     logger.info(f"For more information, please visit {doc_url}\n")

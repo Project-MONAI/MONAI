@@ -11,7 +11,7 @@
 
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -121,7 +121,10 @@ def write_metrics_reports(
             with open(os.path.join(save_dir, f"{k}_raw.csv"), "w") as f:
                 f.write(f"filename{deli}{deli.join(class_labels)}\n")
                 for i, b in enumerate(v):
-                    f.write(f"{images[i] if images is not None else str(i)}{deli}{deli.join([str(c) for c in b])}\n")
+                    f.write(
+                        f"{images[i] if images is not None else str(i)}{deli}"
+                        f"{deli.join([f'{c:.4f}' if isinstance(c, (int, float)) else str(c) for c in b])}\n"
+                    )
 
             if summary_ops is not None:
                 supported_ops = OrderedDict(
@@ -194,3 +197,12 @@ def from_engine(keys: KeysCollection, first: bool = False):
             return tuple(ret) if len(ret) > 1 else ret[0]
 
     return _wrapper
+
+
+def ignore_data(x: Any):
+    """
+    Always return `None` for any input data.
+    A typical usage is to avoid logging the engine output of every iteration during evaluation.
+
+    """
+    return None
