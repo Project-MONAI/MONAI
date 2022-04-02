@@ -66,7 +66,7 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                 f_csv = csv.reader(f)
                 for i, row in enumerate(f_csv):
                     if i > 0:
-                        self.assertEqual(row, [f"filepath{i}\t{float(i)}\t{float(i + 1)}\t{i + 0.5}"])
+                        self.assertEqual(row, [f"filepath{i}\t{float(i):.4f}\t{float(i + 1):.4f}\t{i + 0.5:.4f}"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric3_summary.csv")))
             # check the metric_summary.csv and content
             with open(os.path.join(tempdir, "metric4_summary.csv")) as f:
