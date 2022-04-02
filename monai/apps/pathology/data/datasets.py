@@ -32,10 +32,10 @@ class PatchWSIDataset(Dataset):
         region_size: the size of regions to be extracted from the whole slide image.
         grid_shape: the grid shape on which the patches should be extracted.
         patch_size: the size of patches extracted from the region on the grid.
-        level: the level at which the patches to be extracted (default to 0).
         transform: transforms to be executed on input data.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
             Defaults to CuCIM.
+        kwargs: additional parameters for ``WSIReader``
 
     Note:
         The input data has the following form as an example:
@@ -132,6 +132,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        kwargs: additional parameters for ``WSIReader``
 
     """
 
@@ -187,7 +188,8 @@ class MaskedInferenceWSIDataset(Dataset):
         patch_size: the size of patches to be extracted from the whole slide image for inference.
         transform: transforms to be executed on extracted patches.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
-        Defaults to CuCIM.
+            Defaults to CuCIM.
+        kwargs: additional parameters for ``WSIReader``
 
     Note:
         The resulting output (probability maps) after performing inference using this dataset is
