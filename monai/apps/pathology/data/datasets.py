@@ -55,9 +55,9 @@ class PatchWSIDataset(Dataset):
         region_size: Union[int, Tuple[int, int]],
         grid_shape: Union[int, Tuple[int, int]],
         patch_size: Union[int, Tuple[int, int]],
-        level: int = 0,
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
+        **kwargs,
     ):
         super().__init__(data, transform)
 
@@ -67,7 +67,7 @@ class PatchWSIDataset(Dataset):
 
         self.image_path_list = list({x["image"] for x in self.data})
         self.image_reader_name = image_reader_name.lower()
-        self.image_reader = WSIReader(backend=image_reader_name, level=level)
+        self.image_reader = WSIReader(backend=image_reader_name, **kwargs)
         self.wsi_object_dict = None
         if self.image_reader_name != "openslide":
             # OpenSlide causes memory issue if we prefetch image objects
@@ -121,10 +121,10 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cache content
@@ -151,6 +151,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        **kwargs,
     ):
         patch_wsi_dataset = PatchWSIDataset(
             data=data,
@@ -158,6 +159,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             grid_shape=grid_shape,
             patch_size=patch_size,
             image_reader_name=image_reader_name,
+            **kwargs,
         )
         super().__init__(
             data=patch_wsi_dataset,  # type: ignore
@@ -198,6 +200,7 @@ class MaskedInferenceWSIDataset(Dataset):
         patch_size: Union[int, Tuple[int, int]],
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
+        **kwargs,
     ) -> None:
         super().__init__(data, transform)
 
@@ -205,7 +208,7 @@ class MaskedInferenceWSIDataset(Dataset):
 
         # set up whole slide image reader
         self.image_reader_name = image_reader_name.lower()
-        self.image_reader = WSIReader(image_reader_name)
+        self.image_reader = WSIReader(backend=image_reader_name, **kwargs)
 
         # process data and create a list of dictionaries containing all required data and metadata
         self.data = self._prepare_data(data)
