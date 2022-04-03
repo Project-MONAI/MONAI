@@ -16,7 +16,8 @@ from unittest import skipUnless
 
 from parameterized import parameterized
 
-from monai.bundle.config_parser import ConfigParser
+from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
+from monai.bundle.config_parser import ConfigParser, ReferenceResolver
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
@@ -59,6 +60,10 @@ class TestClass:
 
     def __call__(self, a, b):
         return self.compute(a, b)
+
+
+class TestConfigComponent(ConfigComponent):
+    pass
 
 
 TEST_CASE_2 = [
@@ -108,7 +113,7 @@ class TestConfigParser(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     @skipUnless(has_tv, "Requires torchvision >= 0.8.0.")
     def test_parse(self, config, expected_ids, output_types):
-        parser = ConfigParser(config=config, globals={"monai": "monai"})
+        parser = ConfigParser(config=config, globals={"monai": "monai"}, resolver=ReferenceResolver())
         # test lazy instantiation with original config content
         parser["transform"]["transforms"][0]["keys"] = "label1"
         self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label1")
@@ -124,7 +129,11 @@ class TestConfigParser(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_2])
     def test_function(self, config):
-        parser = ConfigParser(config=config, globals={"TestClass": TestClass})
+        parser = ConfigParser(
+            config=config,
+            globals={"TestClass": TestClass},
+            item_types=(TestConfigComponent, ConfigExpression, ConfigItem),
+        )
         for id in config:
             func = parser.get_parsed_content(id=id)
             self.assertTrue(id in parser.ref_resolver.resolved_content)
