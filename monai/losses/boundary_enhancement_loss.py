@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 class BoundaryLoss(nn.Module):
     def __init__(self, output_classes, device):
-        super(BoundaryLoss, self).__init__()
+        super().__init__()
 
         self.output_classes = output_classes
 
@@ -74,4 +74,3 @@ class BoundaryLoss(nn.Module):
 
         boundary_loss = boundary_loss.mean()
         return boundary_loss
-
