@@ -70,7 +70,7 @@ Metrics
     :members:
 
 `Surface dice`
---------------------------
+--------------
 .. autofunction:: compute_surface_dice
 
 .. autoclass:: SurfaceDiceMetric
