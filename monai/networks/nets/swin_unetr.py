@@ -21,7 +21,7 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 
 from monai.networks.blocks.dynunet_block import UnetOutBlock
-from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrPrUpBlock, UnetrUpBlock
+from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrUpBlock
 from monai.networks.layers import Conv
 from monai.utils import ensure_tuple_rep, optional_import
 
@@ -350,22 +350,22 @@ def window_partition(x, window_size):
         window_size: local window size.
     """
 
-    B, D, H, W, C = x.shape
+    b, d, h, w, c = x.shape
     x = x.view(
-        B,
-        D // window_size[0],
+        b,
+        d // window_size[0],
         window_size[0],
-        H // window_size[1],
+        h // window_size[1],
         window_size[1],
-        W // window_size[2],
+        w // window_size[2],
         window_size[2],
-        C,
+        c,
     )
-    windows = x.permute(0, 1, 3, 5, 2, 4, 6, 7).contiguous().view(-1, reduce(mul, window_size), C)
+    windows = x.permute(0, 1, 3, 5, 2, 4, 6, 7).contiguous().view(-1, reduce(mul, window_size), c)
     return windows
 
 
-def window_reverse(windows, window_size, B, D, H, W):
+def window_reverse(windows, window_size, b, d, h, w):
     """window reverse operation based on: "Liu et al.,
     Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
     <https://arxiv.org/abs/2103.14030>"
@@ -374,23 +374,23 @@ def window_reverse(windows, window_size, B, D, H, W):
      Args:
         windows: windows tensor.
         window_size: local window size.
-        B: batch size.
-        D: depth.
-        H: height.
-        W: width.
+        b: batch size.
+        d: depth.
+        h: height.
+        w: width.
     """
 
     x = windows.view(
-        B,
-        D // window_size[0],
-        H // window_size[1],
-        W // window_size[2],
+        b,
+        d // window_size[0],
+        h // window_size[1],
+        w // window_size[2],
         window_size[0],
         window_size[1],
         window_size[2],
         -1,
     )
-    x = x.permute(0, 1, 4, 2, 5, 3, 6, 7).contiguous().view(B, D, H, W, -1)
+    x = x.permute(0, 1, 4, 2, 5, 3, 6, 7).contiguous().view(b, d, h, w, -1)
     return x
 
 
@@ -481,26 +481,26 @@ class WindowAttention(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x, mask=None):
-        B_, N, C = x.shape
-        qkv = self.qkv(x).reshape(B_, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        b, n, c = x.shape
+        qkv = self.qkv(x).reshape(b, n, 3, self.num_heads, c // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)
         relative_position_bias = self.relative_position_bias_table[
-            self.relative_position_index[:N, :N].reshape(-1)
-        ].reshape(N, N, -1)
+            self.relative_position_index[:n, :n].reshape(-1)
+        ].reshape(n, n, -1)
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
         attn = attn + relative_position_bias.unsqueeze(0)
         if mask is not None:
-            nW = mask.shape[0]
-            attn = attn.view(B_ // nW, nW, self.num_heads, N, N) + mask.unsqueeze(1).unsqueeze(0)
-            attn = attn.view(-1, self.num_heads, N, N)
+            nw = mask.shape[0]
+            attn = attn.view(b // nw, nw, self.num_heads, n, n) + mask.unsqueeze(1).unsqueeze(0)
+            attn = attn.view(-1, self.num_heads, n, n)
             attn = self.softmax(attn)
         else:
             attn = self.softmax(attn)
 
         attn = self.attn_drop(attn)
-        x = (attn @ v).transpose(1, 2).reshape(B_, N, C)
+        x = (attn @ v).transpose(1, 2).reshape(b, n, c)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
@@ -571,15 +571,15 @@ class SwinTransformerBlock(nn.Module):
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
 
     def forward_part1(self, x, mask_matrix):
-        B, D, H, W, C = x.shape
-        window_size, shift_size = get_window_size((D, H, W), self.window_size, self.shift_size)
+        b, d, h, w, c = x.shape
+        window_size, shift_size = get_window_size((d, h, w), self.window_size, self.shift_size)
         x = self.norm1(x)
         pad_l = pad_t = pad_d0 = 0
-        pad_d1 = (window_size[0] - D % window_size[0]) % window_size[0]
-        pad_b = (window_size[1] - H % window_size[1]) % window_size[1]
-        pad_r = (window_size[2] - W % window_size[2]) % window_size[2]
+        pad_d1 = (window_size[0] - d % window_size[0]) % window_size[0]
+        pad_b = (window_size[1] - h % window_size[1]) % window_size[1]
+        pad_r = (window_size[2] - w % window_size[2]) % window_size[2]
         x = F.pad(x, (0, 0, pad_l, pad_r, pad_t, pad_b, pad_d0, pad_d1))
-        _, Dp, Hp, Wp, _ = x.shape
+        _, dp, hp, wp, _ = x.shape
 
         if any(i > 0 for i in shift_size):
             shifted_x = torch.roll(x, shifts=(-shift_size[0], -shift_size[1], -shift_size[2]), dims=(1, 2, 3))
@@ -589,14 +589,14 @@ class SwinTransformerBlock(nn.Module):
             attn_mask = None
         x_windows = window_partition(shifted_x, window_size)
         attn_windows = self.attn(x_windows, mask=attn_mask)
-        attn_windows = attn_windows.view(-1, *(window_size + (C,)))
-        shifted_x = window_reverse(attn_windows, window_size, B, Dp, Hp, Wp)
+        attn_windows = attn_windows.view(-1, *(window_size + (c,)))
+        shifted_x = window_reverse(attn_windows, window_size, b, dp, hp, wp)
         if any(i > 0 for i in shift_size):
             x = torch.roll(shifted_x, shifts=(shift_size[0], shift_size[1], shift_size[2]), dims=(1, 2, 3))
         else:
             x = shifted_x
         if pad_d1 > 0 or pad_r > 0 or pad_b > 0:
-            x = x[:, :D, :H, :W, :].contiguous()
+            x = x[:, :d, :h, :w, :].contiguous()
         return x
 
     def forward_part2(self, x):
@@ -671,10 +671,10 @@ class PatchMerging(nn.Module):
         self.norm = norm_layer(8 * dim)
 
     def forward(self, x):
-        B, D, H, W, C = x.shape
-        pad_input = (H % 2 == 1) or (W % 2 == 1) or (D % 2 == 1)
+        b, d, h, w, c = x.shape
+        pad_input = (h % 2 == 1) or (w % 2 == 1) or (d % 2 == 1)
         if pad_input:
-            x = F.pad(x, (0, 0, 0, D % 2, 0, W % 2, 0, H % 2))
+            x = F.pad(x, (0, 0, 0, d % 2, 0, w % 2, 0, h % 2))
 
         x0 = x[:, 0::2, 0::2, 0::2, :]
         x1 = x[:, 1::2, 0::2, 0::2, :]
@@ -690,7 +690,7 @@ class PatchMerging(nn.Module):
         return x
 
 
-def compute_mask(D, H, W, window_size, shift_size, device):
+def compute_mask(d, h, w, window_size, shift_size, device):
 
     """Computing region masks based on: "Liu et al.,
     Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
@@ -698,14 +698,15 @@ def compute_mask(D, H, W, window_size, shift_size, device):
     https://github.com/microsoft/Swin-Transformer
 
      Args:
-        D: depth value.
-        H: height value.
-        W: height value.
+        d: depth value.
+        h: height value.
+        w: height value.
         window_size: local window size.
+        shift_size: shift size.
         device: device.
     """
 
-    img_mask = torch.zeros((1, D, H, W, 1), device=device)
+    img_mask = torch.zeros((1, d, h, w, 1), device=device)
     cnt = 0
     for d in slice(-window_size[0]), slice(-window_size[0], -shift_size[0]), slice(-shift_size[0], None):
         for h in slice(-window_size[1]), slice(-window_size[1], -shift_size[1]), slice(-shift_size[1], None):
@@ -789,16 +790,16 @@ class BasicLayer(nn.Module):
             self.downsample = downsample(dim=dim, norm_layer=norm_layer)
 
     def forward(self, x):
-        B, C, D, H, W = x.shape
-        window_size, shift_size = get_window_size((D, H, W), self.window_size, self.shift_size)
+        b, c, d, h, w = x.shape
+        window_size, shift_size = get_window_size((d, h, w), self.window_size, self.shift_size)
         x = rearrange(x, "b c d h w -> b d h w c")
-        Dp = int(np.ceil(D / window_size[0])) * window_size[0]
-        Hp = int(np.ceil(H / window_size[1])) * window_size[1]
-        Wp = int(np.ceil(W / window_size[2])) * window_size[2]
-        attn_mask = compute_mask(Dp, Hp, Wp, window_size, shift_size, x.device)
+        dp = int(np.ceil(d / window_size[0])) * window_size[0]
+        hp = int(np.ceil(h / window_size[1])) * window_size[1]
+        wp = int(np.ceil(w / window_size[2])) * window_size[2]
+        attn_mask = compute_mask(dp, hp, wp, window_size, shift_size, x.device)
         for blk in self.blocks:
             x = blk(x, attn_mask)
-        x = x.view(B, D, H, W, -1)
+        x = x.view(b, d, h, w, -1)
         if self.downsample is not None:
             x = self.downsample(x)
         x = rearrange(x, "b d h w c -> b c d h w")
@@ -918,19 +919,19 @@ class PatchEmbed(nn.Module):
             self.norm = None
 
     def forward(self, x):
-        _, _, D, H, W = x.size()
-        if W % self.patch_size[2] != 0:
-            x = F.pad(x, (0, self.patch_size[2] - W % self.patch_size[2]))
-        if H % self.patch_size[1] != 0:
-            x = F.pad(x, (0, 0, 0, self.patch_size[1] - H % self.patch_size[1]))
-        if D % self.patch_size[0] != 0:
-            x = F.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - D % self.patch_size[0]))
+        _, _, d, h, w = x.size()
+        if w % self.patch_size[2] != 0:
+            x = F.pad(x, (0, self.patch_size[2] - w % self.patch_size[2]))
+        if h % self.patch_size[1] != 0:
+            x = F.pad(x, (0, 0, 0, self.patch_size[1] - h % self.patch_size[1]))
+        if d % self.patch_size[0] != 0:
+            x = F.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - d % self.patch_size[0]))
         x = self.proj(x)
         if self.norm is not None:
-            D, Wh, Ww = x.size(2), x.size(3), x.size(4)
+            d, wh, ww = x.size(2), x.size(3), x.size(4)
             x = x.flatten(2).transpose(1, 2)
             x = self.norm(x)
-            x = x.transpose(1, 2).view(-1, self.embed_dim, D, Wh, Ww)
+            x = x.transpose(1, 2).view(-1, self.embed_dim, d, wh, ww)
         return x
 
 
