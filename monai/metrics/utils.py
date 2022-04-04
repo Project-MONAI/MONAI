@@ -144,7 +144,7 @@ def get_mask_edges(
         seg_gt = seg_gt.detach().cpu().numpy()
 
     if seg_pred.shape != seg_gt.shape:
-        raise ValueError("seg_pred and seg_gt should have same shapes, got {seg_pred.shape} and {seg_gt.shape}.")
+        raise ValueError(f"seg_pred and seg_gt should have same shapes, got {seg_pred.shape} and {seg_gt.shape}.")
 
     # If not binary images, convert them
     if seg_pred.dtype != bool:

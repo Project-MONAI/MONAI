@@ -114,6 +114,8 @@ def skip_if_downloading_fails():
     except (ContentTooShortError, HTTPError, ConnectionError) as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
     except RuntimeError as rt_e:
+        if "unexpected EOF" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
         if "network issue" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         if "gdown dependency" in str(rt_e):  # no gdown installed
@@ -243,11 +245,20 @@ class SkipIfAtLeastPyTorchVersion:
         )(obj)
 
 
+def is_main_test_process():
+    ps = torch.multiprocessing.current_process()
+    if not ps or not hasattr(ps, "name"):
+        return False
+    return ps.name.startswith("Main")
+
+
 def has_cupy():
     """
     Returns True if the user has installed a version of cupy.
     """
     cp, has_cp = optional_import("cupy")
+    if not is_main_test_process():
+        return has_cp  # skip the check if we are running in subprocess
     if not has_cp:
         return False
     try:  # test cupy installation with a basic example
@@ -256,7 +267,10 @@ def has_cupy():
         kernel = cp.ElementwiseKernel(
             "float32 x, float32 y", "float32 z", """ if (x - 2 > y) { z = x * y; } else { z = x + y; } """, "my_kernel"
         )
-        return kernel(x, y)[0, 0] == 0
+        flag = kernel(x, y)[0, 0] == 0
+        del x, y, kernel
+        cp.get_default_memory_pool().free_all_blocks()
+        return flag
     except Exception:
         return False
 

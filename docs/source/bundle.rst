@@ -32,3 +32,10 @@ Model Bundle
 ---------------
 .. autoclass:: ConfigParser
     :members:
+
+`Scripts`
+---------
+.. autofunction:: ckpt_export
+.. autofunction:: run
+.. autofunction:: verify_metadata
+.. autofunction:: verify_net_in_out

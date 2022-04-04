@@ -50,7 +50,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
-            if 0 a single thread will be used. Default is 0.
+            If num_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is speficied, 1 will be used instead.
         progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cached content
@@ -82,7 +83,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         test_frac: float = 0.1,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: int = 0,
+        num_workers: Optional[int] = 1,
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
@@ -202,7 +203,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
-            if 0 a single thread will be used. Default is 0.
+            If num_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is speficied, 1 will be used instead.
         progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cached content
@@ -274,7 +276,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         val_frac: float = 0.2,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: int = 0,
+        num_workers: int = 1,
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,

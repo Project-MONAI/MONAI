@@ -90,7 +90,7 @@ class TestRandCuCIMDict(unittest.TestCase):
         ]
     )
     def test_tramsforms_numpy_single(self, params, input, expected):
-        input = {"image": input}
+        input = {"image": np.copy(input)}
         # apply_prob=1.0
         output = RandCuCIMd(keys="image", apply_prob=1.0, **params)(input)["image"]
         self.assertTrue(output.dtype == expected.dtype)
@@ -115,7 +115,7 @@ class TestRandCuCIMDict(unittest.TestCase):
         ]
     )
     def test_tramsforms_numpy_batch(self, params, input, expected):
-        input = {"image": input[cp.newaxis, ...]}
+        input = {"image": np.copy(input[cp.newaxis, ...])}
         expected = expected[cp.newaxis, ...]
         # apply_prob=1.0
         output = RandCuCIMd(keys="image", apply_prob=1.0, **params)(input)["image"]

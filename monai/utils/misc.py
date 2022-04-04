@@ -50,13 +50,15 @@ __all__ = [
     "is_module_ver_at_least",
     "has_option",
     "sample_slices",
+    "check_parent_dir",
     "save_obj",
 ]
 
 _seed = None
 _flag_deterministic = torch.backends.cudnn.deterministic
 _flag_cudnn_benchmark = torch.backends.cudnn.benchmark
-MAX_SEED = np.iinfo(np.uint32).max + 1  # 2**32, the actual seed should be in [0, MAX_SEED - 1] for uint32
+NP_MAX = np.iinfo(np.uint32).max
+MAX_SEED = NP_MAX + 1  # 2**32, the actual seed should be in [0, MAX_SEED - 1] for uint32
 
 
 def zip_with(op, *vals, mapfunc=map):
@@ -224,7 +226,7 @@ def get_seed() -> Optional[int]:
 
 
 def set_determinism(
-    seed: Optional[int] = np.iinfo(np.uint32).max,
+    seed: Optional[int] = NP_MAX,
     use_deterministic_algorithms: Optional[bool] = None,
     additional_settings: Optional[Union[Sequence[Callable[[int], Any]], Callable[[int], Any]]] = None,
 ) -> None:
@@ -249,7 +251,7 @@ def set_determinism(
     """
     if seed is None:
         # cast to 32 bit seed for CUDA
-        seed_ = torch.default_generator.seed() % (np.iinfo(np.int32).max + 1)
+        seed_ = torch.default_generator.seed() % MAX_SEED
         torch.manual_seed(seed_)
     else:
         seed = int(seed) % MAX_SEED
@@ -400,6 +402,25 @@ def sample_slices(data: NdarrayOrTensor, dim: int = 1, as_indices: bool = True, 
     return data[tuple(slices)]
 
 
+def check_parent_dir(path: PathLike, create_dir: bool = True):
+    """
+    Utility to check whether the parent directory of the `path` exists.
+
+    Args:
+        path: input path to check the parent directory.
+        create_dir: if True, when the parent directory doesn't exist, create the directory,
+            otherwise, raise exception.
+
+    """
+    path = Path(path)
+    path_dir = path.parent
+    if not path_dir.exists():
+        if create_dir:
+            path_dir.mkdir(parents=True)
+        else:
+            raise ValueError(f"the directory of specified path does not exist: `{path_dir}`.")
+
+
 def save_obj(
     obj, path: PathLike, create_dir: bool = True, atomic: bool = True, func: Optional[Callable] = None, **kwargs
 ):
@@ -421,12 +442,7 @@ def save_obj(
 
     """
     path = Path(path)
-    path_dir = path.parent
-    if not path_dir.exists():
-        if create_dir:
-            path_dir.mkdir(parents=True)
-        else:
-            raise ValueError(f"the directory of specified path is not existing: {path_dir}.")
+    check_parent_dir(path=path, create_dir=create_dir)
     if path.exists():
         # remove the existing file
         os.remove(path)

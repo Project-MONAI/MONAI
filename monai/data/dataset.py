@@ -672,7 +672,7 @@ class CacheDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: Optional[int] = None,
+        num_workers: Optional[int] = 1,
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
@@ -687,8 +687,9 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers: the number of worker processes to use.
+            num_workers: the number of worker threads to use.
                 If num_workers is None then the number returned by os.cpu_count() is used.
+                If a value less than 1 is speficied, 1 will be used instead.
             progress: whether to display a progress bar.
             copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
                 default to `True`. if the random transforms don't modify the cached content
@@ -862,8 +863,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is speficied, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is speficied, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
         shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
             it will not modify the original input data sequence in-place.
@@ -884,8 +887,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         replace_rate: float,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_init_workers: Optional[int] = None,
-        num_replace_workers: Optional[int] = None,
+        num_init_workers: Optional[int] = 1,
+        num_replace_workers: Optional[int] = 1,
         progress: bool = True,
         shuffle: bool = True,
         seed: int = 0,
