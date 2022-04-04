@@ -603,7 +603,7 @@ class SwinTransformerBlock(nn.Module):
         return self.drop_path(self.mlp(self.norm2(x)))
 
     def load_from(self, weights, n_block, layer):
-        ROOT = f"module.{layer}.0.blocks.{n_block}."
+        root = f"module.{layer}.0.blocks.{n_block}."
         block_names = [
             "norm1.weight",
             "norm1.bias",
@@ -621,20 +621,20 @@ class SwinTransformerBlock(nn.Module):
             "mlp.fc2.bias",
         ]
         with torch.no_grad():
-            self.norm1.weight.copy_(weights["state_dict"][ROOT + block_names[0]])
-            self.norm1.bias.copy_(weights["state_dict"][ROOT + block_names[1]])
-            self.attn.relative_position_bias_table.copy_(weights["state_dict"][ROOT + block_names[2]])
-            self.attn.relative_position_index.copy_(weights["state_dict"][ROOT + block_names[3]])
-            self.attn.qkv.weight.copy_(weights["state_dict"][ROOT + block_names[4]])
-            self.attn.qkv.bias.copy_(weights["state_dict"][ROOT + block_names[5]])
-            self.attn.proj.weight.copy_(weights["state_dict"][ROOT + block_names[6]])
-            self.attn.proj.bias.copy_(weights["state_dict"][ROOT + block_names[7]])
-            self.norm2.weight.copy_(weights["state_dict"][ROOT + block_names[8]])
-            self.norm2.bias.copy_(weights["state_dict"][ROOT + block_names[9]])
-            self.mlp.fc1.weight.copy_(weights["state_dict"][ROOT + block_names[10]])
-            self.mlp.fc1.bias.copy_(weights["state_dict"][ROOT + block_names[11]])
-            self.mlp.fc2.weight.copy_(weights["state_dict"][ROOT + block_names[12]])
-            self.mlp.fc2.bias.copy_(weights["state_dict"][ROOT + block_names[13]])
+            self.norm1.weight.copy_(weights["state_dict"][root + block_names[0]])
+            self.norm1.bias.copy_(weights["state_dict"][root + block_names[1]])
+            self.attn.relative_position_bias_table.copy_(weights["state_dict"][root + block_names[2]])
+            self.attn.relative_position_index.copy_(weights["state_dict"][root + block_names[3]])
+            self.attn.qkv.weight.copy_(weights["state_dict"][root + block_names[4]])
+            self.attn.qkv.bias.copy_(weights["state_dict"][root + block_names[5]])
+            self.attn.proj.weight.copy_(weights["state_dict"][root + block_names[6]])
+            self.attn.proj.bias.copy_(weights["state_dict"][root + block_names[7]])
+            self.norm2.weight.copy_(weights["state_dict"][root + block_names[8]])
+            self.norm2.bias.copy_(weights["state_dict"][root + block_names[9]])
+            self.mlp.fc1.weight.copy_(weights["state_dict"][root + block_names[10]])
+            self.mlp.fc1.bias.copy_(weights["state_dict"][root + block_names[11]])
+            self.mlp.fc2.weight.copy_(weights["state_dict"][root + block_names[12]])
+            self.mlp.fc2.bias.copy_(weights["state_dict"][root + block_names[13]])
 
     def forward(self, x, mask_matrix):
         shortcut = x
