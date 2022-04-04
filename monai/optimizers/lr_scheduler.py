@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,7 +33,7 @@ class _LRSchedulerMONAI(_LRScheduler):
         """
         self.end_lr = end_lr
         self.num_iter = num_iter
-        super(_LRSchedulerMONAI, self).__init__(optimizer, last_epoch)
+        super().__init__(optimizer, last_epoch)
 
 
 class LinearLR(_LRSchedulerMONAI):
@@ -77,7 +77,7 @@ class WarmupCosineSchedule(LambdaLR):
         self.warmup_steps = warmup_steps
         self.t_total = t_total
         self.cycles = cycles
-        super(WarmupCosineSchedule, self).__init__(optimizer, self.lr_lambda, last_epoch)
+        super().__init__(optimizer, self.lr_lambda, last_epoch)
 
     def lr_lambda(self, step):
         if step < self.warmup_steps:

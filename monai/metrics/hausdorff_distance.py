@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,9 +42,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
             Defaults to ``None``.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
-        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-            ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result. Defaults to ``"mean"``.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
             Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
 
@@ -85,7 +85,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         if not torch.all(y_pred.byte() == y_pred):
             warnings.warn("y_pred should be a binarized tensor.")
         if not torch.all(y.byte() == y):
-            raise ValueError("y should be a binarized tensor.")
+            warnings.warn("y should be a binarized tensor.")
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
@@ -99,7 +99,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             directed=self.directed,
         )
 
-    def aggregate(self):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
 
@@ -141,17 +141,14 @@ def compute_hausdorff_distance(
     """
 
     if not include_background:
-        y_pred, y = ignore_background(
-            y_pred=y_pred,
-            y=y,
-        )
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
     if isinstance(y, torch.Tensor):
         y = y.float()
     if isinstance(y_pred, torch.Tensor):
         y_pred = y_pred.float()
 
     if y.shape != y_pred.shape:
-        raise ValueError("y_pred and y should have same shapes.")
+        raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
     batch_size, n_class = y_pred.shape[:2]
     hd = np.empty((batch_size, n_class))
@@ -172,10 +169,7 @@ def compute_hausdorff_distance(
 
 
 def compute_percent_hausdorff_distance(
-    edges_pred: np.ndarray,
-    edges_gt: np.ndarray,
-    distance_metric: str = "euclidean",
-    percentile: Optional[float] = None,
+    edges_pred: np.ndarray, edges_gt: np.ndarray, distance_metric: str = "euclidean", percentile: Optional[float] = None
 ):
     """
     This function is used to compute the directed Hausdorff distance.

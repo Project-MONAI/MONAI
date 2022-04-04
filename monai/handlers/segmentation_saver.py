@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +26,7 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
-@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="Please consider using `SaveImage[d]` transform instead.")
+@deprecated(since="0.6.0", removed="0.9.0", msg_suffix="Please consider using `SaveImage[d]` transform instead.")
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
@@ -72,16 +72,16 @@ class SegmentationSaver:
 
                 - NIfTI files {``"bilinear"``, ``"nearest"``}
                     Interpolation mode to calculate output values.
-                    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 - PNG files {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                     The interpolation mode.
-                    See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+                    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
             padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
 
                 - NIfTI files {``"zeros"``, ``"border"``, ``"reflection"``}
                     Padding mode for outside grid values.
-                    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 - PNG files
                     This option is ignored.
 
@@ -113,9 +113,15 @@ class SegmentationSaver:
             batch_transform: a callable that is used to extract the `meta_data` dictionary of the input images
                 from `ignite.engine.state.batch`. the purpose is to extract necessary information from the meta data:
                 filename, affine, original_shape, etc.
+                `engine.state` and `batch_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             output_transform: a callable that is used to extract the model prediction data from
                 `ignite.engine.state.output`. the first dimension of its output will be treated as the batch dimension.
                 each item in the batch will be saved individually.
+                `engine.state` and `output_transform` inherit from the ignite concept:
+                https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:
+                https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """

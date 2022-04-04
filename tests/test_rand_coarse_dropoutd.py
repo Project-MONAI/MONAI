@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,14 +28,7 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {
-        "keys": "img",
-        "holes": 2,
-        "spatial_size": [2, 2, 2],
-        "fill_value": 5,
-        "max_spatial_size": [4, 4, 3],
-        "prob": 1.0,
-    },
+    {"keys": "img", "holes": 2, "spatial_size": [2, 2, 2], "fill_value": 5, "max_spatial_size": [4, 4, 3], "prob": 1.0},
     {"img": np.random.randint(0, 2, size=[3, 3, 3, 4])},
 ]
 

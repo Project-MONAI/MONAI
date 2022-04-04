@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import torch
 from torch.nn.functional import softmax
 
 from monai.networks.layers.filtering import PHLFilter
+from monai.networks.utils import meshgrid_ij
 
 __all__ = ["CRF"]
 
@@ -57,7 +58,7 @@ class CRF(torch.nn.Module):
             compatibility_matrix: a matrix describing class compatibility,
                 should be NxN where N is the number of classes.
         """
-        super(CRF, self).__init__()
+        super().__init__()
         self.iterations = iterations
         self.bilateral_weight = bilateral_weight
         self.gaussian_weight = gaussian_weight
@@ -114,6 +115,6 @@ class CRF(torch.nn.Module):
 # helper methods
 def _create_coordinate_tensor(tensor):
     axes = [torch.arange(tensor.size(i)) for i in range(2, tensor.dim())]
-    grids = torch.meshgrid(axes)
+    grids = meshgrid_ij(axes)
     coords = torch.stack(grids).to(device=tensor.device, dtype=tensor.dtype)
     return torch.stack(tensor.size(0) * [coords], dim=0)
