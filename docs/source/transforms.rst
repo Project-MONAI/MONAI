@@ -199,6 +199,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`PatchIter`
+"""""""""""
+.. autoclass:: PatchIter
+    :members:
+    :special-members: __call__
+
 Intensity
 ^^^^^^^^^
 

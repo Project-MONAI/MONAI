@@ -19,6 +19,7 @@ from .croppad.array import (
     CropForeground,
     DivisiblePad,
     Pad,
+    PatchIter,
     RandCropByLabelClasses,
     RandCropByPosNegLabel,
     RandScaleCrop,

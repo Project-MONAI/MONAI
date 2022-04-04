@@ -13,63 +13,10 @@ from typing import Callable, Dict, Iterable, Optional, Sequence, Union
 
 from monai.data.dataset import Dataset
 from monai.data.iterable_dataset import IterableDataset
-from monai.data.utils import iter_patch
-from monai.transforms import apply_transform
-from monai.utils import NumpyPadMode, deprecated_arg, ensure_tuple, look_up_option
+from monai.transforms import apply_transform, PatchIter
+from monai.utils import deprecated_arg
 
-__all__ = ["PatchDataset", "GridPatchDataset", "PatchIter"]
-
-
-class PatchIter:
-    """
-    A class to return a patch generator with predefined properties such as `patch_size`.
-    Typically used with :py:class:`monai.data.GridPatchDataset`.
-    """
-
-    def __init__(
-        self,
-        patch_size: Sequence[int],
-        start_pos: Sequence[int] = (),
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
-        **pad_opts: Dict,
-    ):
-        """
-
-        Args:
-            patch_size: size of patches to generate slices for, 0/None selects whole dimension
-            start_pos: starting position in the array, default is 0 for each dimension
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            pad_opts: padding options, see numpy.pad
-
-        Note:
-            The `patch_size` is the size of the
-            patch to sample from the input arrays. It is assumed the arrays first dimension is the channel dimension which
-            will be yielded in its entirety so this should not be specified in `patch_size`. For example, for an input 3D
-            array with 1 channel of size (1, 20, 20, 20) a regular grid sampling of eight patches (1, 10, 10, 10) would be
-            specified by a `patch_size` of (10, 10, 10).
-
-        """
-        self.patch_size = (None,) + tuple(patch_size)
-        self.start_pos = ensure_tuple(start_pos)
-        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
-        self.pad_opts = pad_opts
-
-    def __call__(self, array):
-        """
-        Args:
-            array: the image to generate patches from.
-        """
-        yield from iter_patch(
-            array,
-            patch_size=self.patch_size,  # expand to have the channel dim
-            start_pos=self.start_pos,
-            copy_back=False,
-            mode=self.mode,
-            **self.pad_opts,
-        )
+__all__ = ["PatchDataset", "GridPatchDataset"]
 
 
 class GridPatchDataset(IterableDataset):

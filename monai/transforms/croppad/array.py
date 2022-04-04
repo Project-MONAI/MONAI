@@ -23,7 +23,7 @@ from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.data.utils import get_random_patch, get_valid_patch_size, iter_patch
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
@@ -66,6 +66,7 @@ __all__ = [
     "RandCropByLabelClasses",
     "ResizeWithPadOrCrop",
     "BoundingRect",
+    "PatchIter",
 ]
 
 
@@ -1212,3 +1213,57 @@ class BoundingRect(Transform):
             bbox.append([i for k in zip(start_, end_) for i in k])
 
         return np.stack(bbox, axis=0)
+
+
+class PatchIter:
+    """
+    Return a patch generator with predefined properties such as `patch_size`.
+    Typically used with :py:class:`monai.data.GridPatchDataset`.
+
+    Note:
+        The `patch_size` is the size of the patch to sample from the input arrays.
+        It is assumed the arrays first dimension is the channel dimension which will be yielded in its entirety
+        so this should not be specified in `patch_size`. For example, for an input 3D array with 1 channel of size
+        (1, 20, 20, 20) a regular grid sampling of eight patches (1, 10, 10, 10) would be specified by
+        a `patch_size` of (10, 10, 10).
+
+    Args:
+        patch_size: size of patches to generate slices for, 0/None selects whole dimension
+        start_pos: starting position in the array, default is 0 for each dimension
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
+
+    """
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        patch_size: Sequence[int],
+        start_pos: Sequence[int] = (),
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+        **kwargs,
+    ):
+        self.patch_size = (None,) + tuple(patch_size)
+        self.start_pos = ensure_tuple(start_pos)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
+        self.kwargs = kwargs
+
+    def __call__(self, img: NdarrayOrTensor):
+        """
+        Args:
+            img: the image to generate patches from.
+
+        """
+        img_np, *_ = convert_data_type(img, np.ndarray)
+        yield from iter_patch(
+            img_np,
+            patch_size=self.patch_size,  # expand to have the channel dim
+            start_pos=self.start_pos,
+            copy_back=False,
+            mode=self.mode,
+            **self.kwargs,
+        )
