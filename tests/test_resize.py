@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@ import skimage.transform
 from parameterized import parameterized
 
 from monai.transforms import Resize
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 
@@ -45,16 +45,17 @@ class TestResize(NumpyImageTestCase2D):
             _order = 1
         if spatial_size == (32, -1):
             spatial_size = (32, 64)
-        expected = []
-        for channel in self.imt[0]:
-            expected.append(
-                skimage.transform.resize(
-                    channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=False
-                )
+        expected = [
+            skimage.transform.resize(
+                channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=False
             )
+            for channel in self.imt[0]
+        ]
+
         expected = np.stack(expected).astype(np.float32)
-        out = resize(self.imt[0])
-        np.testing.assert_allclose(out, expected, atol=0.9)
+        for p in TEST_NDARRAYS:
+            out = resize(p(self.imt[0]))
+            assert_allclose(out, expected, type_test=False, atol=0.9)
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_longest_shape(self, input_param, expected_shape):

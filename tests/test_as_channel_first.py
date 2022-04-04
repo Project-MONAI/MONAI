@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,7 +34,7 @@ class TestAsChannelFirst(unittest.TestCase):
         if isinstance(test_data, torch.Tensor):
             test_data = test_data.cpu().numpy()
         expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
-        assert_allclose(expected, result)
+        assert_allclose(result, expected, type_test=False)
 
 
 if __name__ == "__main__":

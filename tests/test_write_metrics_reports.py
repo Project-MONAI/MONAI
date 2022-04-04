@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@ import csv
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import torch
 
@@ -23,7 +24,7 @@ class TestWriteMetricsReports(unittest.TestCase):
     def test_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             write_metrics_reports(
-                save_dir=tempdir,
+                save_dir=Path(tempdir),
                 images=["filepath1", "filepath2"],
                 metrics={"metric1": 1, "metric2": 2},
                 metric_details={"metric3": torch.tensor([[1, 2], [2, 3]]), "metric4": torch.tensor([[5, 6], [7, 8]])},
@@ -44,7 +45,7 @@ class TestWriteMetricsReports(unittest.TestCase):
                 f_csv = csv.reader(f)
                 for i, row in enumerate(f_csv):
                     if i > 0:
-                        self.assertEqual(row, [f"filepath{i}\t{float(i)}\t{float(i + 1)}\t{i + 0.5}"])
+                        self.assertEqual(row, [f"filepath{i}\t{float(i):.4f}\t{float(i + 1):.4f}\t{i + 0.5:.4f}"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric3_summary.csv")))
             # check the metric_summary.csv and content
             with open(os.path.join(tempdir, "metric3_summary.csv")) as f:

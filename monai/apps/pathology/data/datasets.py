@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,6 +35,7 @@ class PatchWSIDataset(Dataset):
         transform: transforms to be executed on input data.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
             Defaults to CuCIM.
+        kwargs: additional parameters for ``WSIReader``
 
     Note:
         The input data has the following form as an example:
@@ -56,6 +57,7 @@ class PatchWSIDataset(Dataset):
         patch_size: Union[int, Tuple[int, int]],
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
+        **kwargs,
     ):
         super().__init__(data, transform)
 
@@ -64,8 +66,8 @@ class PatchWSIDataset(Dataset):
         self.patch_size = ensure_tuple_rep(patch_size, 2)
 
         self.image_path_list = list({x["image"] for x in self.data})
-        self.image_reader_name = image_reader_name
-        self.image_reader = WSIReader(image_reader_name)
+        self.image_reader_name = image_reader_name.lower()
+        self.image_reader = WSIReader(backend=image_reader_name, **kwargs)
         self.wsi_object_dict = None
         if self.image_reader_name != "openslide":
             # OpenSlide causes memory issue if we prefetch image objects
@@ -119,9 +121,18 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is specified, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cache content
+            or every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
+        kwargs: additional parameters for ``WSIReader``
 
     """
 
@@ -136,9 +147,12 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         replace_rate: float = 0.5,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_init_workers: Optional[int] = None,
-        num_replace_workers: Optional[int] = None,
+        num_init_workers: Optional[int] = 1,
+        num_replace_workers: Optional[int] = 1,
         progress: bool = True,
+        copy_cache: bool = True,
+        as_contiguous: bool = True,
+        **kwargs,
     ):
         patch_wsi_dataset = PatchWSIDataset(
             data=data,
@@ -146,6 +160,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             grid_shape=grid_shape,
             patch_size=patch_size,
             image_reader_name=image_reader_name,
+            **kwargs,
         )
         super().__init__(
             data=patch_wsi_dataset,  # type: ignore
@@ -157,6 +172,8 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             num_replace_workers=num_replace_workers,
             progress=progress,
             shuffle=False,
+            copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
         )
 
 
@@ -171,7 +188,8 @@ class MaskedInferenceWSIDataset(Dataset):
         patch_size: the size of patches to be extracted from the whole slide image for inference.
         transform: transforms to be executed on extracted patches.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
-        Defaults to CuCIM.
+            Defaults to CuCIM.
+        kwargs: additional parameters for ``WSIReader``
 
     Note:
         The resulting output (probability maps) after performing inference using this dataset is
@@ -184,14 +202,15 @@ class MaskedInferenceWSIDataset(Dataset):
         patch_size: Union[int, Tuple[int, int]],
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
+        **kwargs,
     ) -> None:
         super().__init__(data, transform)
 
         self.patch_size = ensure_tuple_rep(patch_size, 2)
 
         # set up whole slide image reader
-        self.image_reader_name = image_reader_name
-        self.image_reader = WSIReader(image_reader_name)
+        self.image_reader_name = image_reader_name.lower()
+        self.image_reader = WSIReader(backend=image_reader_name, **kwargs)
 
         # process data and create a list of dictionaries containing all required data and metadata
         self.data = self._prepare_data(data)
@@ -293,11 +312,7 @@ class MaskedInferenceWSIDataset(Dataset):
         location_on_image = sample["image_locations"][patch_num]
         location_on_mask = sample["mask_locations"][patch_num]
 
-        image, _ = self.image_reader.get_data(
-            img=sample["image"],
-            location=location_on_image,
-            size=self.patch_size,
-        )
+        image, _ = self.image_reader.get_data(img=sample["image"], location=location_on_image, size=self.patch_size)
         processed_sample = {"image": image, "name": sample["name"], "mask_location": location_on_mask}
         return processed_sample
 
