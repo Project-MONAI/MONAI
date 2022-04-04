@@ -41,8 +41,8 @@ class SwinUNETR(nn.Module):
         in_channels: int,
         out_channels: int,
         feature_size: int = 48,
-        depths: Tuple[int, int, int, int] = [2, 2, 2, 2],
-        num_heads: Tuple[int, int, int, int] = [3, 6, 12, 24],
+        depths: Sequence[int] = None,
+        num_heads: Sequence[int] = None,
         norm_name: Union[Tuple, str] = "instance",
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
@@ -85,6 +85,12 @@ class SwinUNETR(nn.Module):
         img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_size = ensure_tuple_rep(2, spatial_dims)
         window_size = ensure_tuple_rep(7, spatial_dims)
+        if depths is None:
+            depths = [2, 2, 2, 2]
+
+        if num_heads is None:
+            num_heads = [3, 6, 12, 24]
+
         for m, p in zip(img_size, patch_size):
             for i in range(5):
                 if m % np.power(p, i + 1) != 0:
@@ -308,7 +314,7 @@ class Mlp(nn.Module):
     def __init__(
         self,
         in_features: int,
-        hidden_features: type = None,
+        hidden_features: int,
         out_features: type = None,
         act_layer: type = nn.GELU,
         drop: float = 0.0,
@@ -432,8 +438,8 @@ class WindowAttention(nn.Module):
     def __init__(
         self,
         dim: int,
-        window_size: Tuple[int, int, int] = [7, 7, 7],
-        num_heads: Tuple[int, int, int, int] = [3, 6, 12, 24],
+        num_heads: int,
+        window_size: Sequence[int] = None,
         qkv_bias: bool = False,
         qk_scale: type = None,
         attn_drop: float = 0.0,
@@ -442,8 +448,8 @@ class WindowAttention(nn.Module):
         """
         Args:
             dim: number of feature channels.
-            window_size: local window size.
             num_heads: number of attention heads.
+            window_size: local window size.
             qkv_bias: add a learnable bias to query, key, value.
             qk_scale: override default qk scale of head_dim ** -0.5 if set.
             attn_drop: attention dropout rate.
@@ -517,9 +523,9 @@ class SwinTransformerBlock(nn.Module):
     def __init__(
         self,
         dim: int,
-        num_heads: Tuple[int, int, int, int] = [3, 6, 12, 24],
-        window_size: Tuple[int, int, int] = [7, 7, 7],
-        shift_size: Tuple[int, int, int] = [0, 0, 0],
+        num_heads: int,
+        window_size: Sequence[int] = None,
+        shift_size: Sequence[int] = None,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
         qk_scale: type = None,
@@ -731,15 +737,15 @@ class BasicLayer(nn.Module):
     def __init__(
         self,
         dim: int,
-        depth: Tuple[int, int, int, int] = [2, 2, 2, 2],
-        num_heads: Tuple[int, int, int, int] = [3, 6, 12, 24],
-        window_size: Tuple[int, int, int] = [7, 7, 7],
+        depth: int,
+        num_heads: int,
+        window_size: Sequence[int] = None,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = False,
         qk_scale: type = None,
         drop: float = 0.0,
         attn_drop: float = 0.0,
-        drop_path: float = 0.0,
+        drop_path: list = None,
         norm_layer: type = nn.LayerNorm,
         downsample: type = None,
         use_checkpoint: bool = False,
@@ -892,7 +898,7 @@ class PatchEmbed(nn.Module):
 
     def __init__(
         self,
-        patch_size: Tuple[int, int, int] = [2, 2, 2],
+        patch_size: Sequence[int],
         in_chans: int = 1,
         embed_dim: int = 96,
         norm_layer: type = None,
@@ -947,10 +953,10 @@ class SwinTransformer(nn.Module):
         self,
         in_chans: int = 1,
         embed_dim: int = 96,
-        window_size: Tuple[int, int, int] = [7, 7, 7],
-        patch_size: Tuple[int, int, int] = [2, 2, 2],
-        depths: Tuple[int, int, int, int] = [2, 2, 2, 2],
-        num_heads: Tuple[int, int, int, int] = [3, 6, 12, 24],
+        window_size: Sequence[int] = None,
+        patch_size: Sequence[int] = None,
+        depths: Sequence[int] = None,
+        num_heads: Sequence[int] = None,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
         qk_scale: type = None,
@@ -1006,6 +1012,7 @@ class SwinTransformer(nn.Module):
                 dim=int(embed_dim * 2**i_layer),
                 depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
+                window_size=self.window_size,
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,
                 qk_scale=qk_scale,
