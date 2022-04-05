@@ -1552,6 +1552,7 @@ class PatchIterd(MapTransform):
     """
 
     backend = PatchIter.backend
+    coords_key = "patch_coords"
 
     def __init__(
         self,
@@ -1573,6 +1574,8 @@ class PatchIterd(MapTransform):
             # fill in the extra keys with unmodified data
             for key in set(d.keys()).difference(set(self.keys)):
                 ret[key] = deepcopy(d[key])
+            # also store the coordinate in the dictionary
+            ret[self.coords_key] = coords
             yield ret, coords
 
 
