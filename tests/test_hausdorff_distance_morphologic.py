@@ -25,7 +25,7 @@ numbToLookFor= torch.ones(1)
 
 TEST_CASES = [
     [[a,b,1.0,numbToLookFor], 10]
-   
+
 ]
 class TestHausdorffDistanceMorphological(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
