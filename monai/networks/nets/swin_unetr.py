@@ -40,9 +40,9 @@ class SwinUNETR(nn.Module):
         img_size: Union[Sequence[int], int],
         in_channels: int,
         out_channels: int,
+        depths: Sequence[int] = (2, 2, 2, 2),
+        num_heads: Sequence[int] = (3, 6, 12, 24),
         feature_size: int = 48,
-        depths: Sequence[int] = None,
-        num_heads: Sequence[int] = None,
         norm_name: Union[Tuple, str] = "instance",
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
@@ -85,11 +85,6 @@ class SwinUNETR(nn.Module):
         img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_size = ensure_tuple_rep(2, spatial_dims)
         window_size = ensure_tuple_rep(7, spatial_dims)
-        if depths is None:
-            depths = [2, 2, 2, 2]
-
-        if num_heads is None:
-            num_heads = [3, 6, 12, 24]
 
         for m, p in zip(img_size, patch_size):
             for i in range(5):
@@ -117,7 +112,6 @@ class SwinUNETR(nn.Module):
             num_heads=num_heads,
             mlp_ratio=4.0,
             qkv_bias=True,
-            qk_scale=None,
             drop_rate=drop_rate,
             attn_drop_rate=attn_drop_rate,
             drop_path_rate=dropout_path_rate,
@@ -311,29 +305,20 @@ class Mlp(nn.Module):
     https://github.com/microsoft/Swin-Transformer
     """
 
-    def __init__(
-        self,
-        in_features: int,
-        hidden_features: int,
-        out_features: type = None,
-        act_layer: type = nn.GELU,
-        drop: float = 0.0,
-    ) -> None:
+    def __init__(self, in_features: int, hidden_features: int, act_layer: type = nn.GELU, drop: float = 0.0) -> None:
         super().__init__()
         """
         Args:
             in_features: number of input feature channels.
             hidden_features: number of hidden feature channels.
-            out_features: number of output feature channels.
             act_layer: activation layer.
             drop: dropout rate.
         """
 
-        out_features = out_features or in_features
         hidden_features = hidden_features or in_features
         self.fc1 = nn.Linear(in_features, hidden_features)
         self.act = act_layer()
-        self.fc2 = nn.Linear(hidden_features, out_features)
+        self.fc2 = nn.Linear(hidden_features, in_features)
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
@@ -439,9 +424,8 @@ class WindowAttention(nn.Module):
         self,
         dim: int,
         num_heads: int,
-        window_size: Sequence[int] = None,
+        window_size: Sequence[int],
         qkv_bias: bool = False,
-        qk_scale: type = None,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
     ) -> None:
@@ -451,7 +435,6 @@ class WindowAttention(nn.Module):
             num_heads: number of attention heads.
             window_size: local window size.
             qkv_bias: add a learnable bias to query, key, value.
-            qk_scale: override default qk scale of head_dim ** -0.5 if set.
             attn_drop: attention dropout rate.
             proj_drop: dropout rate of output.
         """
@@ -461,7 +444,7 @@ class WindowAttention(nn.Module):
         self.window_size = window_size
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = qk_scale or head_dim**-0.5
+        self.scale = head_dim**-0.5
         self.relative_position_bias_table = nn.Parameter(
             torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1) * (2 * window_size[2] - 1), num_heads)
         )
@@ -524,11 +507,10 @@ class SwinTransformerBlock(nn.Module):
         self,
         dim: int,
         num_heads: int,
-        window_size: Sequence[int] = None,
-        shift_size: Sequence[int] = None,
+        window_size: Sequence[int],
+        shift_size: Sequence[int],
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
-        qk_scale: type = None,
         drop: float = 0.0,
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
@@ -544,7 +526,6 @@ class SwinTransformerBlock(nn.Module):
             shift_size: window shift size.
             mlp_ratio: ratio of mlp hidden dim to embedding dim.
             qkv_bias: add a learnable bias to query, key, value.
-            qk_scale: override default qk scale of head_dim ** -0.5 if set.
             drop: dropout rate.
             attn_drop: attention dropout rate.
             drop_path: stochastic depth rate.
@@ -566,7 +547,6 @@ class SwinTransformerBlock(nn.Module):
             window_size=self.window_size,
             num_heads=num_heads,
             qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
             attn_drop=attn_drop,
             proj_drop=drop,
         )
@@ -739,15 +719,14 @@ class BasicLayer(nn.Module):
         dim: int,
         depth: int,
         num_heads: int,
-        window_size: Sequence[int] = None,
+        window_size: Sequence[int],
+        drop_path: list,
         mlp_ratio: float = 4.0,
         qkv_bias: bool = False,
-        qk_scale: type = None,
         drop: float = 0.0,
         attn_drop: float = 0.0,
-        drop_path: list = None,
-        norm_layer: type = nn.LayerNorm,
-        downsample: type = None,
+        norm_layer: isinstance = nn.LayerNorm,
+        downsample: isinstance = None,
         use_checkpoint: bool = False,
     ) -> None:
         """
@@ -756,12 +735,11 @@ class BasicLayer(nn.Module):
             depths: number of layers in each stage.
             num_heads: number of attention heads.
             window_size: local window size.
+            drop_path: stochastic depth rate.
             mlp_ratio: ratio of mlp hidden dim to embedding dim.
             qkv_bias: add a learnable bias to query, key, value.
-            qk_scale: override default qk scale of head_dim ** -0.5 if set.
             drop: dropout rate.
             attn_drop: attention dropout rate.
-            drop_path: stochastic depth rate.
             norm_layer: normalization layer.
             downsample: downsample layer at the end of the layer.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
@@ -781,7 +759,6 @@ class BasicLayer(nn.Module):
                     shift_size=(0, 0, 0) if (i % 2 == 0) else self.shift_size,
                     mlp_ratio=mlp_ratio,
                     qkv_bias=qkv_bias,
-                    qk_scale=qk_scale,
                     drop=drop,
                     attn_drop=attn_drop,
                     drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
@@ -951,19 +928,18 @@ class SwinTransformer(nn.Module):
 
     def __init__(
         self,
-        in_chans: int = 1,
-        embed_dim: int = 96,
-        window_size: Sequence[int] = None,
-        patch_size: Sequence[int] = None,
-        depths: Sequence[int] = None,
-        num_heads: Sequence[int] = None,
+        in_chans: int,
+        embed_dim: int,
+        window_size: Sequence[int],
+        patch_size: Sequence[int],
+        depths: Sequence[int],
+        num_heads: Sequence[int],
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
-        qk_scale: type = None,
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
-        norm_layer: type = nn.LayerNorm,
+        norm_layer: isinstance = nn.LayerNorm,
         patch_norm: bool = False,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
@@ -978,7 +954,6 @@ class SwinTransformer(nn.Module):
             num_heads: number of attention heads.
             mlp_ratio: ratio of mlp hidden dim to embedding dim.
             qkv_bias: add a learnable bias to query, key, value.
-            qk_scale: override default qk scale of head_dim ** -0.5 if set.
             drop_rate: dropout rate.
             attn_drop_rate: attention dropout rate.
             drop_path_rate: stochastic depth rate.
@@ -1013,12 +988,11 @@ class SwinTransformer(nn.Module):
                 depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
                 window_size=self.window_size,
+                drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,
-                qk_scale=qk_scale,
                 drop=drop_rate,
                 attn_drop=attn_drop_rate,
-                drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],
                 norm_layer=norm_layer,
                 downsample=PatchMerging,
                 use_checkpoint=use_checkpoint,
