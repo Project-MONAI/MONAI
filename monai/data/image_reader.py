@@ -848,7 +848,8 @@ class WSIReader(ImageReader):
         return patches, metadata
 
     def _get_max_level(self, img_obj):
-        """ Return the maximum number of levels in the whole slide image
+        """ 
+        Return the maximum number of levels in the whole slide image
         Args:
             img: the whole slide image object
 
