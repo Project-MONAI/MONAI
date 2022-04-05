@@ -1085,6 +1085,12 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`PatchIterd`
+""""""""""""
+.. autoclass:: PatchIterd
+    :members:
+    :special-members: __call__
+
 Intensity (Dict)
 ^^^^^^^^^^^^^^^^
 

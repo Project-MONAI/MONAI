@@ -14,8 +14,8 @@ import unittest
 
 import numpy as np
 
-from monai.data import DataLoader, GridPatchDataset, PatchIter
-from monai.transforms import RandShiftIntensity
+from monai.data import DataLoader, GridPatchDataset
+from monai.transforms import PatchIter, RandShiftIntensity
 from monai.utils import set_determinism
 
 
@@ -48,6 +48,35 @@ class TestGridPatchDataset(unittest.TestCase):
         self.assertEqual(sorted(output), sorted(expected))
 
     def test_loading_array(self):
+        set_determinism(seed=1234)
+        # test sequence input data with images
+        images = [np.arange(16, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
+        # image level
+        patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)
+        patch_iter = PatchIter(patch_size=(2, 2), start_pos=(0, 0))
+        ds = GridPatchDataset(data=images, patch_iter=patch_iter, transform=patch_intensity)
+        # use the grid patch dataset
+        for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=0):
+            np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
+        np.testing.assert_allclose(
+            item[0],
+            np.array([[[[1.4965, 2.4965], [5.4965, 6.4965]]], [[[11.3584, 12.3584], [15.3584, 16.3584]]]]),
+            rtol=1e-4,
+        )
+        np.testing.assert_allclose(item[1], np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
+        if sys.platform != "win32":
+            for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=2):
+                np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
+            np.testing.assert_allclose(
+                item[0],
+                np.array([[[[1.2548, 2.2548], [5.2548, 6.2548]]], [[[9.1106, 10.1106], [13.1106, 14.1106]]]]),
+                rtol=1e-3,
+            )
+            np.testing.assert_allclose(
+                item[1], np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5
+            )
+
+    def test_loading_dict(self):
         set_determinism(seed=1234)
         # test sequence input data with images
         images = [np.arange(16, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
