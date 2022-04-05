@@ -821,7 +821,9 @@ class WSIReader(ImageReader):
         # Verify inputs
         if level is None:
             level = self.level
-        self._check_level(img, level)
+        max_level = self._get_max_level(img)
+        if level > max_level:
+            raise ValueError(f"The maximum level of this image is {max_level} while level={level} is requested)!")
 
         # Extract a region or the entire image
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
@@ -845,7 +847,7 @@ class WSIReader(ImageReader):
 
         return patches, metadata
 
-    def _check_level(self, img, level):
+    def _get_max_level(self, img):
         level_count = 0
         if self.backend == "openslide":
             level_count = img.level_count
@@ -854,8 +856,7 @@ class WSIReader(ImageReader):
         elif self.backend == "tifffile":
             level_count = len(img.pages)
 
-        if level > level_count - 1:
-            raise ValueError(f"The maximum level of this image is {level_count - 1} while level={level} is requested)!")
+        return level_count - 1
 
     def _get_image_size(self, img, size, level, location):
         """
