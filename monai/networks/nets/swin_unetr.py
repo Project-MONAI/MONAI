@@ -976,7 +976,7 @@ class SwinTransformer(nn.Module):
             patch_size=self.patch_size,
             in_chans=in_chans,
             embed_dim=embed_dim,
-            norm_layer=norm_layer if self.patch_norm else None,
+            norm_layer=norm_layer if self.patch_norm else None,  # type: ignore
             spatial_dims=spatial_dims,
         )
         self.pos_drop = nn.Dropout(p=drop_rate)
