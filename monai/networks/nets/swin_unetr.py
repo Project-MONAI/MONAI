@@ -518,7 +518,7 @@ class SwinTransformerBlock(nn.Module):
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
         act_layer: Type[GELU] = nn.GELU,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
         use_checkpoint: bool = False,
     ) -> None:
         """
@@ -647,7 +647,7 @@ class PatchMerging(nn.Module):
     https://github.com/microsoft/Swin-Transformer
     """
 
-    def __init__(self, dim: int, norm_layer: Type[LayerNorm] = nn.LayerNorm) -> None:
+    def __init__(self, dim: int, norm_layer: Type[LayerNorm] = nn.LayerNorm) -> None:  # type: ignore
         """
         Args:
             dim: number of feature channels.
@@ -728,7 +728,7 @@ class BasicLayer(nn.Module):
         qkv_bias: bool = False,
         drop: float = 0.0,
         attn_drop: float = 0.0,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
         downsample: isinstance = None,  # type: ignore
         use_checkpoint: bool = False,
     ) -> None:
@@ -881,7 +881,7 @@ class PatchEmbed(nn.Module):
         patch_size: Sequence[int],
         in_chans: int = 1,
         embed_dim: int = 96,
-        norm_layer: type = None,
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
         spatial_dims: int = 3,
     ) -> None:
         """
@@ -942,7 +942,7 @@ class SwinTransformer(nn.Module):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
         patch_norm: bool = False,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
