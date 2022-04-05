@@ -10,19 +10,23 @@
 # limitations under the License.
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.swin_unetr import SwinUNETR
+from monai.utils import optional_import
+
+einops, has_einops = optional_import("einops")
 
 TEST_CASE_UNETR = []
 for attn_drop_rate in [0.4]:
     for in_channels in [1]:
-        for depth in [[2, 2, 4, 2]]:
+        for depth in [[2, 2, 4, 2], [1, 2, 1, 1]]:
             for out_channels in [2]:
-                for img_size in [96, 128]:
+                for img_size in [64]:
                     for feature_size in [48]:
                         for norm_name in ["instance"]:
                             test_case = [
@@ -43,6 +47,7 @@ for attn_drop_rate in [0.4]:
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_UNETR)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SwinUNETR(**input_param)
         with eval_mode(net):
