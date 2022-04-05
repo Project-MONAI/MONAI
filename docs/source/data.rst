@@ -112,6 +112,18 @@ Patch-based dataset
 .. autoclass:: PatchDataset
   :members:
 
+`PatchIter`
+"""""""""""
+.. autoclass:: PatchIter
+    :members:
+    :special-members: __call__
+
+`PatchIterd`
+""""""""""""
+.. autoclass:: PatchIterd
+    :members:
+    :special-members: __call__
+
 Image reader
 ------------
 

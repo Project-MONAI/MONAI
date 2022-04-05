@@ -33,7 +33,6 @@ from monai.transforms.croppad.array import (
     CenterSpatialCrop,
     CropForeground,
     DivisiblePad,
-    PatchIter,
     RandCropByLabelClasses,
     RandCropByPosNegLabel,
     ResizeWithPadOrCrop,
@@ -72,7 +71,6 @@ __all__ = [
     "ResizeWithPadOrCropd",
     "BoundingRectd",
     "RandCropByLabelClassesd",
-    "PatchIterd",
     "SpatialPadD",
     "SpatialPadDict",
     "BorderPadD",
@@ -103,8 +101,6 @@ __all__ = [
     "BoundingRectDict",
     "RandCropByLabelClassesD",
     "RandCropByLabelClassesDict",
-    "PatchIterD",
-    "PatchIterDict",
 ]
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
@@ -1529,56 +1525,6 @@ class BoundingRectd(MapTransform):
         return d
 
 
-class PatchIterd(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.PatchIter`.
-    Return a patch generator for dictionary data and the coordinate, Typically used
-    with :py:class:`monai.data.GridPatchDataset`.
-    Suppose all the expected fields specified by `keys` have same shape.
-
-    Args:
-        keys: keys of the corresponding items to be transformed.
-            See also: monai.transforms.MapTransform
-        patch_size: size of patches to generate slices for, 0/None selects whole dimension
-        start_pos: starting position in the array, default is 0 for each dimension
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-        allow_missing_keys: don't raise exception if key is missing.
-        kwargs: other arguments for the `np.pad` function.
-            note that `np.pad` treats channel dimension as the first dimension.
-
-    """
-
-    backend = PatchIter.backend
-    coords_key = "patch_coords"
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        patch_size: Sequence[int],
-        start_pos: Sequence[int] = (),
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
-        allow_missing_keys: bool = False,
-        **kwargs,
-    ):
-        super().__init__(keys, allow_missing_keys)
-        self.patch_iter = PatchIter(patch_size=patch_size, start_pos=start_pos, mode=mode, **kwargs)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]):
-        d = dict(data)
-        for t in zip(*[self.patch_iter(d[key]) for key in self.key_iterator(d)]):
-            coords = t[0][1]  # use the coordinate of the first item
-            ret = {k: v[0] for k, v in zip(self.key_iterator(d), t)}
-            # fill in the extra keys with unmodified data
-            for key in set(d.keys()).difference(set(self.keys)):
-                ret[key] = deepcopy(d[key])
-            # also store the coordinate in the dictionary
-            ret[self.coords_key] = coords
-            yield ret, coords
-
-
 SpatialPadD = SpatialPadDict = SpatialPadd
 BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd
@@ -1594,4 +1540,3 @@ RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
 RandCropByLabelClassesD = RandCropByLabelClassesDict = RandCropByLabelClassesd
 ResizeWithPadOrCropD = ResizeWithPadOrCropDict = ResizeWithPadOrCropd
 BoundingRectD = BoundingRectDict = BoundingRectd
-PatchIterD = PatchIterDict = PatchIterd

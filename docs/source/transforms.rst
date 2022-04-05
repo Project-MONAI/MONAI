@@ -199,12 +199,6 @@ Crop and Pad
     :members:
     :special-members: __call__
 
-`PatchIter`
-"""""""""""
-.. autoclass:: PatchIter
-    :members:
-    :special-members: __call__
-
 Intensity
 ^^^^^^^^^
 
@@ -1082,12 +1076,6 @@ Crop and Pad (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CenterScaleCropd.png
     :alt: example of CenterScaleCropd
 .. autoclass:: CenterScaleCropd
-    :members:
-    :special-members: __call__
-
-`PatchIterd`
-""""""""""""
-.. autoclass:: PatchIterd
     :members:
     :special-members: __call__
 

@@ -14,8 +14,8 @@ import unittest
 
 import numpy as np
 
-from monai.data import DataLoader, GridPatchDataset
-from monai.transforms import PatchIter, PatchIterd, RandShiftIntensity, RandShiftIntensityd
+from monai.data import DataLoader, GridPatchDataset, PatchIter, PatchIterd
+from monai.transforms import RandShiftIntensity, RandShiftIntensityd
 from monai.utils import set_determinism
 
 
