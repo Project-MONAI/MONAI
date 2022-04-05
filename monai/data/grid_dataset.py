@@ -56,6 +56,7 @@ class PatchIter:
             will be yielded in its entirety so this should not be specified in `patch_size`. For example, for an input 3D
             array with 1 channel of size (1, 20, 20, 20) a regular grid sampling of eight patches (1, 10, 10, 10) would be
             specified by a `patch_size` of (10, 10, 10).
+
         """
         self.patch_size = (None,) + tuple(patch_size)  # expand to have the channel dim
         self.start_pos = ensure_tuple(start_pos)
@@ -99,6 +100,8 @@ class PatchIterd:
     """
 
     coords_key = "patch_coords"
+    original_spatial_shape_key = "original_spatial_shape"
+    start_pos_key = "start_pos"
 
     def __init__(
         self,
@@ -113,14 +116,18 @@ class PatchIterd:
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]):
         d = dict(data)
+        original_spatial_shape = d[self.keys[0]].shape[1:]
+
         for patch in zip(*[self.patch_iter(d[key]) for key in self.keys]):
             coords = patch[0][1]  # use the coordinate of the first item
             ret = {k: v[0] for k, v in zip(self.keys, patch)}
             # fill in the extra keys with unmodified data
-            for key in set(d.keys()).difference(set(self.keys)):
-                ret[key] = deepcopy(d[key])
-            # also store the coordinate in the dictionary
+            for k in set(d.keys()).difference(set(self.keys)):
+                ret[k] = deepcopy(d[k])
+            # also store the `coordinate`, `spatial shape of original image`, `start position` in the dictionary
             ret[self.coords_key] = coords
+            ret[self.original_spatial_shape_key] = original_spatial_shape
+            ret[self.start_pos_key] = self.patch_iter.start_pos
             yield ret, coords
 
 
