@@ -24,7 +24,7 @@ einops, has_einops = optional_import("einops")
 TEST_CASE_UNETR = []
 for attn_drop_rate in [0.4]:
     for in_channels in [1]:
-        for depth in [[2, 2, 1, 1], [1, 2, 1, 1]]:
+        for depth in [[2, 1, 1, 1], [1, 2, 1, 1]]:
             for out_channels in [2]:
                 for img_size in [64]:
                     for feature_size in [12]:
