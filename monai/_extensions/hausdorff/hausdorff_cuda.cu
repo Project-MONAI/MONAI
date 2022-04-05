@@ -2500,26 +2500,11 @@ ForBoolKernelArgs<T> mainKernelsRun(ForFullBoolPrepArgs<T>& fFArgs, const int WI
 
 
 
-void lltm_cuda_forward(
-    torch::Tensor input,
-    torch::Tensor output, int xDim, int yDim, int zDim) {
-
-
-
-    //benchmarkOliviera(input, output, xDim, yDim, zDim);
-    benchmarkMitura(input, output, xDim, yDim, zDim);
-
-
-};
-
-
-
-
 
 template <typename T>
 int getHausdorffDistance_CUDA_Generic(at::Tensor goldStandard,
     at::Tensor algoOutput
-    , int WIDTH, int HEIGHT, int DEPTH, float robustnessPercent, bool resIterNeeded= false) {
+    , int WIDTH, int HEIGHT, int DEPTH, float robustnessPercent, bool resIterNeeded, at::Tensor numberToLookFor) {
     //TODO() use https ://pytorch.org/cppdocs/notes/tensor_cuda_stream.html
     cudaStream_t stream1;
     cudaStreamCreate(&stream1);
@@ -2531,7 +2516,7 @@ int getHausdorffDistance_CUDA_Generic(at::Tensor goldStandard,
 
     ForFullBoolPrepArgs<T> forFullBoolPrepArgs;
     forFullBoolPrepArgs.metaData = metaData;
-    forFullBoolPrepArgs.numberToLookFor = true;
+    forFullBoolPrepArgs.numberToLookFor = numberToLookFor.item<T>();
     forFullBoolPrepArgs.goldArr = goldStandard;
     forFullBoolPrepArgs.segmArr = algoOutput;
 
@@ -2557,11 +2542,10 @@ int getHausdorffDistance_CUDA_Generic(at::Tensor goldStandard,
 }
 
 
-
 template <typename T>
 at::Tensor getHausdorffDistance_CUDA_FullResList_local(at::Tensor goldStandard,
     at::Tensor algoOutput
-    , int WIDTH, int HEIGHT, int DEPTH, float robustnessPercent) {
+    , int WIDTH, int HEIGHT, int DEPTH, float robustnessPercent, at::Tensor numberToLookFor) {
     //TODO() use https ://pytorch.org/cppdocs/notes/tensor_cuda_stream.html
     cudaStream_t stream1;
     cudaStreamCreate(&stream1);
@@ -2573,7 +2557,7 @@ at::Tensor getHausdorffDistance_CUDA_FullResList_local(at::Tensor goldStandard,
 
     ForFullBoolPrepArgs<T> forFullBoolPrepArgs;
     forFullBoolPrepArgs.metaData = metaData;
-    forFullBoolPrepArgs.numberToLookFor = true;
+    forFullBoolPrepArgs.numberToLookFor = numberToLookFor.item<T>();
     forFullBoolPrepArgs.goldArr = goldStandard;
     forFullBoolPrepArgs.segmArr = algoOutput;
 
@@ -2595,32 +2579,30 @@ at::Tensor getHausdorffDistance_CUDA_FullResList_local(at::Tensor goldStandard,
 }
 
 
-
 int getHausdorffDistance_CUDA(at::Tensor goldStandard,
     at::Tensor algoOutput
     , const int WIDTH,const  int HEIGHT,const  int DEPTH
-    ,const float robustnessPercent) {
+    ,const float robustnessPercent, at::Tensor numberToLookFor) {
 
     int res = 0;
 
     AT_DISPATCH_ALL_TYPESWithBool(goldStandard.type(), "getHausdorffDistance_CUDA", ([&] {
-        res= getHausdorffDistance_CUDA_Generic<scalar_t>(goldStandard, algoOutput, WIDTH, HEIGHT, DEPTH, robustnessPercent);
+        res= getHausdorffDistance_CUDA_Generic<scalar_t>(goldStandard, algoOutput, WIDTH, HEIGHT, DEPTH, robustnessPercent,false, numberToLookFor);
 
         }));
     return res;
 }
 
 
-
 at::Tensor getHausdorffDistance_CUDA_FullResList(at::Tensor goldStandard,
     at::Tensor algoOutput
     , const int WIDTH, const  int HEIGHT, const  int DEPTH
-    , const float robustnessPercent) {
+    , const float robustnessPercent, at::Tensor numberToLookFor) {
 
     
     at::Tensor res;
-    AT_DISPATCH_ALL_TYPESWithBool(goldStandard.type(), "getHausdorffDistance_CUDA", ([&] {
-        res= getHausdorffDistance_CUDA_FullResList_local<scalar_t>(goldStandard, algoOutput, WIDTH, HEIGHT, DEPTH, robustnessPercent);
+    AT_DISPATCH_ALL_TYPESWithBool(goldStandard.type(), "getHausdorffDistance_CUDA_FullResList", ([&] {
+        res= getHausdorffDistance_CUDA_FullResList_local<scalar_t>(goldStandard, algoOutput, WIDTH, HEIGHT, DEPTH, robustnessPercent, numberToLookFor);
 
         }));
 

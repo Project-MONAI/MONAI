@@ -14,7 +14,7 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
-
+from monai._extensions.loader import load_module
 from .metric import CumulativeIterationMetric
 
 __all__ = ["MorphologicalHausdorffDistanceMetric", "compute_morphological_hausdorff_distance", "compute_morphological_percent_hausdorff_distance"]
@@ -53,29 +53,35 @@ Hovewer this implementation is also around 100 times faster than exact MONAI Hau
     ) -> None:
         super().__init__()
         self.percent = percent
+        self.compiled_extension = load_module(
+            "hausdorff_cpp"
+        )        
 
 
 def compute_hausdorff_distance(
+    self,
     y_pred:  torch.Tensor,
     y: torch.Tensor,
-    percent: float = 1.0):
+    numberToLookFor: torch.Tensor):
     """
     Compute the Hausdorff distance.
 
     Args:
-        y_pred: input data to compute, typical segmentation model output.
-            It must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
-            should be binarized.
-        y: ground truth to compute mean the distance. It must be one-hot format and first dim is batch.
-            The values should be binarized.
+        y_pred: input data to compute, It must be 3 dimensional  
+        y: ground truth to compute mean the distance. It must be 3 dimensional, Dimensionality needs to be identical as in y_pred
+
         percent: an optional float number between 0 and 1. If specified, the corresponding
             percent of the Hausdorff Distance rather than the maximum result will be achieved.
             Defaults to 1.0 .
+        numberToLookFor: 0 dimensional tensor marking what value are we intrested in the supplied y and y_pred, defined becouse  in case of multiorgan segmentations frequently we can have information about multiple organs in the same mask just marked by diffrent numbers      
+                            for example in case of boolean array we can suupply it like torch.ones(1, dtype =bool) 
+
     """
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
+    sizz = y.shape
 
-    return xxx
+    return self.compiled_extension.getHausdorffDistance(y_pred,y,sizz[0],sizz[1],sizz[2], self.percent,  numberToLookFor )
 
 
