@@ -853,8 +853,6 @@ class WSIReader(ImageReader):
         Args:
             img: the whole slide image object
 
-        Returns:
-            maximum number of existing levels in the whole slide image
         """
         if self.backend == "openslide":
             return img_obj.level_count - 1
