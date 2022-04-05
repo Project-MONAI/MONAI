@@ -32,7 +32,7 @@ from .decathlon_datalist import (
     load_decathlon_properties,
 )
 from .folder_layout import FolderLayout
-from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
+from .grid_dataset import GridPatchDataset, PatchDataset
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
 from .image_writer import (

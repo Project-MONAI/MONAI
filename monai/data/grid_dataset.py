@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Iterable, Optional, Sequence, Union
+from typing import Callable, Iterable, Optional, Sequence, Union
 
 from monai.data.dataset import Dataset
 from monai.data.iterable_dataset import IterableDataset
-from monai.transforms import apply_transform, PatchIter
+from monai.transforms import apply_transform
 from monai.utils import deprecated_arg
 
 __all__ = ["PatchDataset", "GridPatchDataset"]
@@ -21,15 +21,15 @@ __all__ = ["PatchDataset", "GridPatchDataset"]
 
 class GridPatchDataset(IterableDataset):
     """
-    Yields patches from images read from an image dataset.
-    Typically used with `PatchIter` so that the patches are chosen in a contiguous grid sampling scheme.
+    Yields patches from data read from an image dataset.
+    Typically used with `PatchIter` or `PatchIterd` so that the patches are chosen in a contiguous grid sampling scheme.
 
      .. code-block:: python
 
         import numpy as np
 
-        from monai.data import GridPatchDataset, DataLoader, PatchIter
-        from monai.transforms import RandShiftIntensity
+        from monai.data import GridPatchDataset, DataLoader
+        from monai.transforms import PatchIter, RandShiftIntensity
 
         # image-level dataset
         images = [np.arange(16, dtype=float).reshape(1, 4, 4),
@@ -56,7 +56,7 @@ class GridPatchDataset(IterableDataset):
         data: the data source to read image data from.
         patch_iter: converts an input image (item from dataset) into a iterable of image patches.
             `patch_iter(dataset[idx])` must yield a tuple: (patches, coordinates).
-            see also: :py:class:`monai.data.PatchIter`.
+            see also: :py:class:`monai.transforms.PatchIter` or :py:class:`monai.transforms.PatchIterd`.
         transform: a callable data transform operates on the patches.
         with_coordinates: whether to yield the coordinates of each patch, default to `True`.
 

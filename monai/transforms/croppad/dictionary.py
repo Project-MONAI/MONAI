@@ -52,14 +52,7 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
-from monai.utils import (
-    Method,
-    NumpyPadMode,
-    PytorchPadMode,
-    ensure_tuple,
-    ensure_tuple_rep,
-    fall_back_tuple,
-)
+from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import PostFix, TraceKeys
 
 __all__ = [
@@ -1539,6 +1532,9 @@ class BoundingRectd(MapTransform):
 class PatchIterd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.PatchIter`.
+    Return a patch generator for dictionary data and the coordinate, Typically used
+    with :py:class:`monai.data.GridPatchDataset`.
+    Suppose all the expected fields specified by `keys` have same shape.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -1569,11 +1565,10 @@ class PatchIterd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.patch_iter = PatchIter(patch_size=patch_size, start_pos=start_pos, mode=mode, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]):
         d = dict(data)
-        
-        for t in zip([self.patch_iter(d[key]) for key in self.key_iterator(d)]):
-            coords = t[0][1]
+        for t in zip(*[self.patch_iter(d[key]) for key in self.key_iterator(d)]):
+            coords = t[0][1]  # use the coordinate of the first item
             ret = {k: v[0] for k, v in zip(self.key_iterator(d), t)}
             # fill in the extra keys with unmodified data
             for key in set(d.keys()).difference(set(self.keys)):

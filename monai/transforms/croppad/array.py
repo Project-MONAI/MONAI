@@ -1238,6 +1238,7 @@ class PatchIter:
             note that `np.pad` treats channel dimension as the first dimension.
 
     """
+
     backend = [TransformBackends.NUMPY]
 
     def __init__(
@@ -1247,7 +1248,7 @@ class PatchIter:
         mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
         **kwargs,
     ):
-        self.patch_size = (None,) + tuple(patch_size)
+        self.patch_size = (None,) + tuple(patch_size)  # expand to have the channel dim
         self.start_pos = ensure_tuple(start_pos)
         self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.kwargs = kwargs
@@ -1261,7 +1262,7 @@ class PatchIter:
         img_np, *_ = convert_data_type(img, np.ndarray)
         yield from iter_patch(
             img_np,
-            patch_size=self.patch_size,  # expand to have the channel dim
+            patch_size=self.patch_size,  # type: ignore
             start_pos=self.start_pos,
             copy_back=False,
             mode=self.mode,
