@@ -12,13 +12,14 @@
 import math
 from functools import reduce
 from operator import mul
-from typing import Sequence, Tuple, Union
+from typing import Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
+from torch.nn import GELU, LayerNorm
 
 from monai.networks.blocks.dynunet_block import UnetOutBlock
 from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrUpBlock
@@ -305,7 +306,9 @@ class Mlp(nn.Module):
     https://github.com/microsoft/Swin-Transformer
     """
 
-    def __init__(self, in_features: int, hidden_features: int, act_layer: type = nn.GELU, drop: float = 0.0) -> None:
+    def __init__(
+        self, in_features: int, hidden_features: int, act_layer: Type[GELU] = nn.GELU, drop: float = 0.0
+    ) -> None:
         super().__init__()
         """
         Args:
@@ -514,8 +517,8 @@ class SwinTransformerBlock(nn.Module):
         drop: float = 0.0,
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
-        act_layer: type = nn.GELU,
-        norm_layer: type = nn.LayerNorm,
+        act_layer: Type[GELU] = nn.GELU,
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
         use_checkpoint: bool = False,
     ) -> None:
         """
@@ -644,7 +647,7 @@ class PatchMerging(nn.Module):
     https://github.com/microsoft/Swin-Transformer
     """
 
-    def __init__(self, dim: int, norm_layer: type = nn.LayerNorm) -> None:
+    def __init__(self, dim: int, norm_layer: Type[LayerNorm] = nn.LayerNorm) -> None:
         """
         Args:
             dim: number of feature channels.
@@ -725,8 +728,8 @@ class BasicLayer(nn.Module):
         qkv_bias: bool = False,
         drop: float = 0.0,
         attn_drop: float = 0.0,
-        norm_layer: isinstance = nn.LayerNorm,
-        downsample: isinstance = None,
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
+        downsample: isinstance = None,  # type: ignore
         use_checkpoint: bool = False,
     ) -> None:
         """
@@ -939,7 +942,7 @@ class SwinTransformer(nn.Module):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
-        norm_layer: isinstance = nn.LayerNorm,
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
         patch_norm: bool = False,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
