@@ -847,16 +847,23 @@ class WSIReader(ImageReader):
 
         return patches, metadata
 
-    def _get_max_level(self, img):
-        level_count = 0
-        if self.backend == "openslide":
-            level_count = img.level_count
-        elif self.backend == "cucim":
-            level_count = img.resolutions["level_count"]
-        elif self.backend == "tifffile":
-            level_count = len(img.pages)
+    def _get_max_level(self, img_obj):
+        """ Return the maximum number of levels in the whole slide image
+        Args:
+            img: the whole slide image object
 
-        return level_count - 1
+        Returns:
+            maximum number of existing levels in the whole slide image
+        """
+        max_level = -1
+        if self.backend == "openslide":
+            max_level = img_obj.level_count - 1
+        elif self.backend == "cucim":
+            max_level = img_obj.resolutions["level_count"] - 1
+        elif self.backend == "tifffile":
+            max_level = len(img_obj.pages) - 1
+
+        return max_level
 
     def _get_image_size(self, img, size, level, location):
         """
