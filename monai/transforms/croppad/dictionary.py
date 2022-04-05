@@ -1571,7 +1571,7 @@ class PatchIterd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        
+
         for t in zip([self.patch_iter(d[key]) for key in self.key_iterator(d)]):
             coords = t[0][1]
             ret = {k: v[0] for k, v in zip(self.key_iterator(d), t)}
