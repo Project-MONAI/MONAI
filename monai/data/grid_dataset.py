@@ -19,7 +19,7 @@ from monai.data.dataset import Dataset
 from monai.data.iterable_dataset import IterableDataset
 from monai.data.utils import iter_patch
 from monai.transforms import apply_transform
-from monai.utils import NumpyPadMode, deprecated_arg, ensure_tuple, look_up_option
+from monai.utils import NumpyPadMode, deprecated_arg, ensure_tuple, first, look_up_option
 
 __all__ = ["PatchDataset", "GridPatchDataset", "PatchIter", "PatchIterd"]
 
@@ -116,7 +116,7 @@ class PatchIterd:
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]):
         d = dict(data)
-        original_spatial_shape = d[self.keys[0]].shape[1:]
+        original_spatial_shape = d[first(self.keys)].shape[1:]
 
         for patch in zip(*[self.patch_iter(d[key]) for key in self.keys]):
             coords = patch[0][1]  # use the coordinate of the first item
