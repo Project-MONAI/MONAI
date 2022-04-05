@@ -715,5 +715,10 @@ if torch.cuda.is_available():
     TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
 
 
+TEST_DEVICES = [[torch.device("cpu")]]
+if torch.cuda.is_available():
+    TEST_DEVICES.append([torch.device("cuda")])
+
+
 if __name__ == "__main__":
     print(query_memory())
