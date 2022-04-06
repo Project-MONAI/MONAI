@@ -17,7 +17,7 @@ import torch
 from monai._extensions.loader import load_module
 from .metric import CumulativeIterationMetric
 
-__all__ = ["MorphologicalHausdorffDistanceMetric", "compute_morphological_hausdorff_distance", "compute_morphological_percent_hausdorff_distance"]
+__all__ = ["MorphologicalHausdorffDistanceMetric"]
 
 
 class MorphologicalHausdorffDistanceMetric(CumulativeIterationMetric):
@@ -58,7 +58,7 @@ Hovewer this implementation is also around 100 times faster than exact MONAI Hau
         )
 
 
-    def compute_hausdorff_distance(
+    def compute_morphological_hausdorff_distance(
         self,
         y_pred:  torch.Tensor,
         y: torch.Tensor,
