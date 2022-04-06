@@ -137,7 +137,7 @@ struct ForFullBoolPrepArgs {
     int Ny;
     int Nz;
 
-    TFF numberToLookFor;// what we will look for in arrays
+    TFF compare_values;// what we will look for in arrays
     //number and dimensionality of threads and blocks required to lounch bool kernel
     dim3 threads;
     int blocks;
@@ -178,7 +178,7 @@ struct ForBoolKernelArgs {
     // gold standard and segmentation output array
     torch::Tensor goldArr;
     torch::Tensor segmArr;
-    TFB numberToLookFor;
+    TFB compare_values;
     int Nx;
     int Ny;
     int Nz;
@@ -459,8 +459,8 @@ __global__ void getMinMaxes(ForBoolKernelArgs<TYO> fbArgs
                             //uint8_t& zLocRef = zLoc; uint8_t& yLocRef = yLoc; uint8_t& xLocRef = xLoc;
 
                             // setting bits
-                            bool goldBool = goldArr[x + y * fbArgs.Nx + z * fbArgs.Nx * fbArgs.Ny] == fbArgs.numberToLookFor;  // (getTensorRow<TYU>(tensorslice, fbArgs.goldArr, fbArgs.goldArr.Ny, y, z)[x] == fbArgs.numberToLookFor);
-                            bool segmBool = segmArr[x + y * fbArgs.Nx + z * fbArgs.Nx * fbArgs.Ny] == fbArgs.numberToLookFor;
+                            bool goldBool = goldArr[x + y * fbArgs.Nx + z * fbArgs.Nx * fbArgs.Ny] == fbArgs.compare_values;  // (getTensorRow<TYU>(tensorslice, fbArgs.goldArr, fbArgs.goldArr.Ny, y, z)[x] == fbArgs.compare_values);
+                            bool segmBool = segmArr[x + y * fbArgs.Nx + z * fbArgs.Nx * fbArgs.Ny] == fbArgs.compare_values;
                             if (goldBool || segmBool) {
                                 anyInGold[0] = true;
                             }
@@ -621,8 +621,8 @@ __global__ void boolPrepareKernel(ForBoolKernelArgs<TYO> fbArgs
                             //char* tensorslice;
 
                             //first array gold
-                            bool goldBool = goldArr[x + y * fbArgs.Nx + z * fbArgs.Nx * fbArgs.Ny] == fbArgs.numberToLookFor;
-                            bool segmBool = segmArr[x + y * fbArgs.Nx + z * fbArgs.Nx * fbArgs.Ny] == fbArgs.numberToLookFor;
+                            bool goldBool = goldArr[x + y * fbArgs.Nx + z * fbArgs.Nx * fbArgs.Ny] == fbArgs.compare_values;
+                            bool segmBool = segmArr[x + y * fbArgs.Nx + z * fbArgs.Nx * fbArgs.Ny] == fbArgs.compare_values;
                             //goldBool = true;
 
                             // setting bits
@@ -921,7 +921,7 @@ inline ForBoolKernelArgs<TCC> getArgsForKernel(ForFullBoolPrepArgs<TCC>& mainFun
     res.metaData = allocateMetaDataOnGPU(mainFunArgs.metaData, minMaxes);
     res.metaData.minMaxes = minMaxes;
     res.minMaxes = minMaxes;
-    res.numberToLookFor = mainFunArgs.numberToLookFor;
+    res.compare_values = mainFunArgs.compare_values;
     res.dbXLength = 32;
     res.dbYLength = warpsNumbForMainPass;
     res.dbZLength = 32;
@@ -2119,7 +2119,7 @@ ForBoolKernelArgs<T> executeHausdoff(ForFullBoolPrepArgs<T>& fFArgs, const int W
 template <typename T>
 int getHausdorffDistance_CUDA_Generic(at::Tensor goldStandard,
     at::Tensor algoOutput
-    , int WIDTH, int HEIGHT, int DEPTH, float robustnessPercent, bool resIterNeeded, at::Tensor numberToLookFor) {
+    , int WIDTH, int HEIGHT, int DEPTH, float robustnessPercent, bool resIterNeeded, at::Tensor compare_values) {
     //TODO() use https ://pytorch.org/cppdocs/notes/tensor_cuda_stream.html
     cudaStream_t stream1;
     cudaStreamCreate(&stream1);
@@ -2131,7 +2131,7 @@ int getHausdorffDistance_CUDA_Generic(at::Tensor goldStandard,
 
     ForFullBoolPrepArgs<T> forFullBoolPrepArgs;
     forFullBoolPrepArgs.metaData = metaData;
-    forFullBoolPrepArgs.numberToLookFor = numberToLookFor.item<T>();
+    forFullBoolPrepArgs.compare_values = compare_values.item<T>();
     forFullBoolPrepArgs.goldArr = goldStandard;
     forFullBoolPrepArgs.segmArr = algoOutput;
 
@@ -2160,7 +2160,7 @@ int getHausdorffDistance_CUDA_Generic(at::Tensor goldStandard,
 template <typename T>
 at::Tensor getHausdorffDistance_CUDA_FullResList_local(at::Tensor goldStandard,
     at::Tensor algoOutput
-    , int WIDTH, int HEIGHT, int DEPTH, float robustnessPercent, at::Tensor numberToLookFor) {
+    , int WIDTH, int HEIGHT, int DEPTH, float robustnessPercent, at::Tensor compare_values) {
     //TODO() use https ://pytorch.org/cppdocs/notes/tensor_cuda_stream.html
     cudaStream_t stream1;
     cudaStreamCreate(&stream1);
@@ -2172,7 +2172,7 @@ at::Tensor getHausdorffDistance_CUDA_FullResList_local(at::Tensor goldStandard,
 
     ForFullBoolPrepArgs<T> forFullBoolPrepArgs;
     forFullBoolPrepArgs.metaData = metaData;
-    forFullBoolPrepArgs.numberToLookFor = numberToLookFor.item<T>();
+    forFullBoolPrepArgs.compare_values = compare_values.item<T>();
     forFullBoolPrepArgs.goldArr = goldStandard;
     forFullBoolPrepArgs.segmArr = algoOutput;
 
@@ -2199,12 +2199,12 @@ Functions for pybind
 int getHausdorffDistance_CUDA(at::Tensor goldStandard,
     at::Tensor algoOutput
     , const int WIDTH, const  int HEIGHT, const  int DEPTH
-    , const float robustnessPercent, at::Tensor numberToLookFor) {
+    , const float robustnessPercent, at::Tensor compare_values) {
 
     int res = 0;
 
     AT_DISPATCH_ALL_TYPESWithBool(goldStandard.type(), "getHausdorffDistance_CUDA", ([&] {
-        res = getHausdorffDistance_CUDA_Generic<scalar_t>(goldStandard, algoOutput, WIDTH, HEIGHT, DEPTH, robustnessPercent, false, numberToLookFor);
+        res = getHausdorffDistance_CUDA_Generic<scalar_t>(goldStandard, algoOutput, WIDTH, HEIGHT, DEPTH, robustnessPercent, false, compare_values);
 
         }));
     return res;
@@ -2214,12 +2214,12 @@ int getHausdorffDistance_CUDA(at::Tensor goldStandard,
 at::Tensor getHausdorffDistance_CUDA_FullResList(at::Tensor goldStandard,
     at::Tensor algoOutput
     , const int WIDTH, const  int HEIGHT, const  int DEPTH
-    , const float robustnessPercent, at::Tensor numberToLookFor) {
+    , const float robustnessPercent, at::Tensor compare_values) {
 
 
     at::Tensor res;
     AT_DISPATCH_ALL_TYPESWithBool(goldStandard.type(), "getHausdorffDistance_CUDA_FullResList", ([&] {
-        res = getHausdorffDistance_CUDA_FullResList_local<scalar_t>(goldStandard, algoOutput, WIDTH, HEIGHT, DEPTH, robustnessPercent, numberToLookFor);
+        res = getHausdorffDistance_CUDA_FullResList_local<scalar_t>(goldStandard, algoOutput, WIDTH, HEIGHT, DEPTH, robustnessPercent, compare_values);
 
         }));
 
