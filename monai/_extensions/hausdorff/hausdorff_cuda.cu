@@ -2269,7 +2269,7 @@ public:
 #define CUDA_DEVICE_INDEX 0 //setting the index of your CUDA device
 
 #define IS_3D 1 //setting this to 0 would grant a very slightly improvement on the performance if working with images only
-#define CHEBYSHEV 0 //if not set to 1, then this algorithm would use an Euclidean-like metric, it is just an approximation. 
+#define CHEBYSHEV 0 //if not set to 1, then this algorithm would use an Euclidean-like metric, it is just an approximation.
 //It can be changed according to the structuring element
 #pragma once
 class HausdorffDistance {
