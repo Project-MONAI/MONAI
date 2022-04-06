@@ -13,9 +13,9 @@ from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_me
 from .cumulative_average import CumulativeAverage
 from .froc import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance, compute_percent_hausdorff_distance
-from .morphological_hausdorff_distance import MorphologicalHausdorffDistanceMetric
 from .meandice import DiceMetric, compute_meandice
 from .metric import Cumulative, CumulativeIterationMetric, IterationMetric, Metric
+from .morphological_hausdorff_distance import MorphologicalHausdorffDistanceMetric
 from .regression import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric
 from .rocauc import ROCAUCMetric, compute_roc_auc
 from .surface_distance import SurfaceDistanceMetric, compute_average_surface_distance

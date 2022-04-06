@@ -11,30 +11,28 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
-import numpy as np
 
 from monai.metrics import MorphologicalHausdorffDistanceMetric
 
-a = torch.zeros(20,20,20)
-b = torch.zeros(20,20,20)
-a[0,0,0]=1
-b[0,0,10]=1
-numbToLookFor= torch.ones(1)
+a = torch.zeros(20, 20, 20)
+b = torch.zeros(20, 20, 20)
+a[0, 0, 0] = 1
+b[0, 0, 10] = 1
+numbToLookFor = torch.ones(1)
 
-TEST_CASES = [
-    [[a,b,1.0,numbToLookFor], 10]
+TEST_CASES = [[[a, b, 1.0, numbToLookFor], 10]]
 
-]
+
 class TestHausdorffDistanceMorphological(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_data, expected_value):
         [y_pred, y, percentt, compare_values] = input_data
         hd_metric = MorphologicalHausdorffDistanceMetric(percent=percentt)
-        result= hd_metric.compute_hausdorff_distance(y_pred,y,compare_values )
+        result = hd_metric.compute_hausdorff_distance(y_pred, y, numberToLookFor)
         np.testing.assert_allclose(expected_value, result, rtol=1e-7)
-
 
 
 if __name__ == "__main__":
