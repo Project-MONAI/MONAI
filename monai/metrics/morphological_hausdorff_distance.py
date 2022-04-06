@@ -33,14 +33,14 @@ Hovewer this implementation is also around 100 times faster than exact MONAI Hau
 
         1)simple Hausdorff distance - it tell what is the distance between two most distant points one from y and other from y_pred
 
-    2)robust Hausdorff distance - modification of 1) where we stop analyzing points 
+    2)robust Hausdorff distance - modification of 1) where we stop analyzing points
     when we already analyzed given percent of total number of points - is less sensitive to outliers. It is also slightly faster
 
-    3)mean Hausdorff distance - can be understood as approximately 
+    3)mean Hausdorff distance - can be understood as approximately
     mean distance between pair of points where one point is from y and other from y_pred.
 
     4)additionally one can request as a result one dimensional tensor
-     that will contain data for each point what is HD value for it 
+     that will contain data for each point what is HD value for it
      (like we would do Hausdorff distance calculation only for this point and all points from other mask)
 
         Compute Hausdorff Distance between two tensors. In addition, specify the `percent` (for robust Hausdorff distance )
@@ -51,10 +51,10 @@ Hovewer this implementation is also around 100 times faster than exact MONAI Hau
                 percent of the Hausdorff Distance rather than the maximum result will be achieved.
                 Defaults to 1.0 .
 
-    1) Érick Oliveira Rodrigues,An efficient and locality-oriented Hausdorff distance algorithm: 
+    1) Érick Oliveira Rodrigues,An efficient and locality-oriented Hausdorff distance algorithm:
         Proposal and analysis of paradigms and implementations, Pattern Recognition,Volume 117,2021
-    2) Karimi, Davood & Salcudean, Septimiu. (2019). 
-    Reducing the Hausdorff Distance in Medical Image Segmentation With Convolutional Neural Networks. 
+    2) Karimi, Davood & Salcudean, Septimiu. (2019).
+    Reducing the Hausdorff Distance in Medical Image Segmentation With Convolutional Neural Networks.
     IEEE Transactions on Medical Imaging. PP. 1-1. 10.1109/TMI.2019.2930068.
 
     """
