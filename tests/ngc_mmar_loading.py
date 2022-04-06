@@ -28,6 +28,8 @@ class TestAllDownloadingMMAR(unittest.TestCase):
     def test_loading_mmar(self, item):
         if item["name"] == "clara_pt_fed_learning_brain_tumor_mri_segmentation":
             default_model_file = os.path.join("models", "server", "best_FL_global_model.pt")
+        elif item["name"] == "clara_pt_self_supervised_learning_segmentation":
+            default_model_file = os.path.join("models_2gpu", "best_metric_model.pt")
         else:
             default_model_file = None
         pretrained_model = load_from_mmar(

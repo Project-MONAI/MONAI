@@ -13,7 +13,7 @@ This specification defines the directory structure a bundle must have and the ne
 Directory Structure
 ===================
 
-A MONAI Bundle is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName" in this exmaple, and should contain the following structure:
+A MONAI Bundle is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName" in this example, and should contain the following structure:
 
 ::
 
@@ -55,14 +55,15 @@ This file contains the metadata information relating to the model, including wha
 * **optional_packages_version**: dictionary relating optional package names to their versions, these packages are not needed but are recommended to be installed with this stated minimum version.
 * **task**: plain-language description of what the model is meant to do.
 * **description**: longer form plain-language description of what the model is, what it does, etc.
-* **authorship**: state author(s) of the model.
+* **authors**: state author(s) of the model.
 * **copyright**: state model copyright.
 * **network_data_format**: defines the format, shape, and meaning of inputs and outputs to the model, contains keys "inputs" and "outputs" relating named inputs/outputs to their format specifiers (defined below).
 
 Tensor format specifiers are used to define input and output tensors and their meanings, and must be a dictionary containing at least these keys:
 
-* **type**: what sort of data the tensor represents: "image", "label", etc.
-* **format**: what format of information is stored: "magnitude", "hounsfield", "kspace", "segmentation", "multiclass", etc.
+* **type**: what sort of data the tensor represents: "image" for any spatial regular data whether an actual image or just data with that sort of shape, "series" for (time-) sequences of values such as signals, "tuples" for a series of items defined by a known number of values such as N-sized points in ND space, "probabilities" for a set of probabilities such as classifier output, this useful for interpreting what the dimensions and shape of the data represent and allow users to guess how to plot the data
+* **format**: what format of information is stored, see below for list of known formats
+* **modality**: describes the modality, protocol type, sort of capturing technology, or other property of the data not described by either it's type or format, known modalities are "MR", "CT", "US", "EKG", but can include any custom types or protocol types (eg. "T1"), default value is "n/a"
 * **num_channels**: number of channels the tensor has, assumed channel dimension first
 * **spatial_shape**: shape of the spatial dimensions of the form "[H]", "[H, W]", or "[H, W, D]", see below for possible values of H, W, and D
 * **dtype**: data type of tensor, eg. "float32", "int32"
@@ -77,6 +78,22 @@ Optional keys:
 * **data_source**: description of where training/validation can be sourced.
 * **data_type**: type of source data used for training/validation.
 * **references**: list of published referenced relating to the model.
+
+The format for tensors used as inputs and outputs can be used to specify semantic meaning of these values, and later is used by software handling bundles to determine how to process and interpret this data. There are various types of image data that MONAI is uses, and other data types such as point clouds, dictionary sequences, time signals, and others. The following list is provided as a set of supported definitions of what a tensor "format" is but is not exhaustive and users can provide their own which would be left up to the model users to interpret:
+
+* **magnitude**: ND field of continuous magnitude values with one or more channels, eg. MR T1 image having 1 channel or natural RGB image with 3 channels
+* **hounsfield**: ND field of semi-categorical values given in Hounsfield, eg. CT image
+* **kspace**: 2D/3D fourier transform image associated with MR imaging
+* **raw**: ND field of values considered unprocessed from an image acquisition device, eg. directly from a MR scanner without reconstruction or other processing
+* **labels**: ND categorical image with N one-hot channels for N-class segmentation/labels, the "channel_def" states in plain language what the interpretation of each channel is, for each pixel/voxel the predicted label is the index of the largest channel value
+* **classes**: ND categorical image with  N channels for N-class classes, the "channel_def" states in plain language what the interpretation of each channel is, this permits multi-class labeling as the channels need not be one-hot encoded
+* **segmentation**: ND categorical image with one channel assigning each pixel/voxel to a label described in "channel_def"
+* **points**: list of points/nodes/coordinates/vertices/vectors in ND space, so having a shape of [I, N] for I points with N dimensions
+* **normals**: list of vectors (possible of unit length) in ND space, so having a shape of [I, N] for I vectors with N dimensions
+* **indices**: list of indices into a vertices array and/or other array representing a set of shapes, so having a shape of [I, N] for I shapes defined by N values
+* **sequence**: time-related sequence of values having one or more channels, such as a signal or dictionary lookup sentence, so having a shape of [C, N] for C channels of data at N time points.
+* **latent**: ND tensor of data from the latent space from some layer of a network
+* **gradient**: ND tensor of gradients from some layer of a network
 
 Spatial shape definition can be complex for models accepting inputs of varying shapes, especially if there are specific conditions on what those shapes can be. Shapes are specified as lists of either positive integers for fixed sizes or strings containing expressions defining the condition a size depends on. This can be "*" to mean any size, or use an expression with Python mathematical operators and one character variables to represent dependence on an unknown quantity. For example, "2**n" represents a size which must be a power of 2, "2**n*m" must be a multiple of a power of 2. Variables are shared between dimension expressions, so a spatial shape of `["2**n", "2**n"]` states that the dimensions must be the same powers of 2 given by `n`.
 
@@ -98,7 +115,7 @@ An example JSON metadata file:
       "optional_packages_version": {"nibabel": "3.2.1"},
       "task": "Decathlon spleen segmentation",
       "description": "A pre-trained model for volumetric (3D) segmentation of the spleen from CT image",
-      "authorship": "MONAI team",
+      "authors": "MONAI team",
       "copyright": "Copyright (c) MONAI Consortium",
       "data_source": "Task09_Spleen.tar from http://medicaldecathlon.com/",
       "data_type": "dicom",
@@ -118,6 +135,7 @@ An example JSON metadata file:
               "image": {
                   "type": "image",
                   "format": "magnitude",
+                  "modality": "MR",
                   "num_channels": 1,
                   "spatial_shape": [160, 160, 160],
                   "dtype": "float32",
@@ -129,11 +147,11 @@ An example JSON metadata file:
           "outputs":{
               "pred": {
                   "type": "image",
-                  "format": "segmentation",
+                  "format": "labels",
                   "num_channels": 2,
                   "spatial_shape": [160, 160, 160],
                   "dtype": "float32",
-                  "value_range": [0, 1],
+                  "value_range": [],
                   "is_patch_data": false,
                   "channel_def": {0: "background", 1: "spleen"}
               }

@@ -211,12 +211,16 @@ class ConfigParser:
                 Use digits indexing from "0" for list or other strings for dict.
                 For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
-                Currently support ``reset`` (for parse), ``instantiate`` and ``eval_expr``. All defaulting to True.
+                Currently support ``lazy`` (whether to retain the current config cache, default to `False`),
+                ``instantiate`` (whether to instantiate the `ConfigComponent`, default to `True`) and
+                ``eval_expr`` (whether to evaluate the `ConfigExpression`, default to `True`).
 
         """
         if not self.ref_resolver.is_resolved():
             # not parsed the config source yet, parse it
-            self.parse(kwargs.get("reset", True))
+            self.parse(reset=True)
+        elif not kwargs.get("lazy", False):
+            self.parse(reset=not kwargs.get("lazy", False))
         return self.ref_resolver.get_resolved_content(id=id, **kwargs)
 
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
@@ -255,6 +259,7 @@ class ConfigParser:
         `@##A` means `A` in the upper level. and replace the macro tokens with target content,
         The macro tokens start with "%", can be from another structured file, like:
         ``"%default_net"``, ``"%/data/config.json#net"``.
+        Note that the macro replacement doesn't support recursive macro tokens.
 
         Args:
             config: input config file to resolve.
@@ -273,7 +278,7 @@ class ConfigParser:
             if config.startswith(MACRO_KEY):
                 path, ids = ConfigParser.split_path_id(config[len(MACRO_KEY) :])
                 parser = ConfigParser(config=self.get() if not path else ConfigParser.load_config_file(path))
-                return self._do_resolve(config=deepcopy(parser[ids]))
+                return parser[ids]
         return config
 
     def resolve_macro_and_relative_ids(self):

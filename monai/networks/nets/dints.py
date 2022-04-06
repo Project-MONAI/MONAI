@@ -817,8 +817,8 @@ class TopologySearch(TopologyConstruction):
             probs: path activation probabilities
         """
         if hasattr(self, "node2in"):
-            node2in = self.node2in
-            node2out = self.node2out
+            node2in = self.node2in  # pylint: disable=E0203
+            node2out = self.node2out  # pylint: disable=E0203
         else:
             # node activation index to feasible input child_idx
             node2in = [[] for _ in range(len(self.node_act_list))]

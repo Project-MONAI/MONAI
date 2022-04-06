@@ -107,15 +107,22 @@ Patch-based dataset
 .. autoclass:: GridPatchDataset
   :members:
 
-`PatchIter`
-~~~~~~~~~~~
-.. autoclass:: PatchIter
-  :members:
-
 `PatchDataset`
 ~~~~~~~~~~~~~~
 .. autoclass:: PatchDataset
   :members:
+
+`PatchIter`
+"""""""""""
+.. autoclass:: PatchIter
+    :members:
+    :special-members: __call__
+
+`PatchIterd`
+""""""""""""
+.. autoclass:: PatchIterd
+    :members:
+    :special-members: __call__
 
 Image reader
 ------------

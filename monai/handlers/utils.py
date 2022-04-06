@@ -121,7 +121,10 @@ def write_metrics_reports(
             with open(os.path.join(save_dir, f"{k}_raw.csv"), "w") as f:
                 f.write(f"filename{deli}{deli.join(class_labels)}\n")
                 for i, b in enumerate(v):
-                    f.write(f"{images[i] if images is not None else str(i)}{deli}{deli.join([str(c) for c in b])}\n")
+                    f.write(
+                        f"{images[i] if images is not None else str(i)}{deli}"
+                        f"{deli.join([f'{c:.4f}' if isinstance(c, (int, float)) else str(c) for c in b])}\n"
+                    )
 
             if summary_ops is not None:
                 supported_ops = OrderedDict(
