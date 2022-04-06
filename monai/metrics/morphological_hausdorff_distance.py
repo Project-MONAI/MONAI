@@ -58,28 +58,28 @@ Hovewer this implementation is also around 100 times faster than exact MONAI Hau
         )
 
 
-def compute_hausdorff_distance(
-    self,
-    y_pred:  torch.Tensor,
-    y: torch.Tensor,
-    numberToLookFor: torch.Tensor):
-    """
-    Compute the Hausdorff distance.
+    def compute_hausdorff_distance(
+        self,
+        y_pred:  torch.Tensor,
+        y: torch.Tensor,
+        numberToLookFor: torch.Tensor):
+        """
+        Compute the Hausdorff distance.
 
-    Args:
-        y_pred: input data to compute, It must be 3 dimensional
-        y: ground truth to compute mean the distance. It must be 3 dimensional, Dimensionality needs to be identical as in y_pred
+        Args:
+            y_pred: input data to compute, It must be 3 dimensional
+            y: ground truth to compute mean the distance. It must be 3 dimensional, Dimensionality needs to be identical as in y_pred
 
-        percent: an optional float number between 0 and 1. If specified, the corresponding
-            percent of the Hausdorff Distance rather than the maximum result will be achieved.
-            Defaults to 1.0 .
-        numberToLookFor: 0 dimensional tensor marking what value are we intrested in the supplied y and y_pred, defined becouse  in case of multiorgan segmentations frequently we can have information about multiple organs in the same mask just marked by diffrent numbers
-                            for example in case of boolean array we can suupply it like torch.ones(1, dtype =bool)
+            percent: an optional float number between 0 and 1. If specified, the corresponding
+                percent of the Hausdorff Distance rather than the maximum result will be achieved.
+                Defaults to 1.0 .
+            numberToLookFor: 0 dimensional tensor marking what value are we intrested in the supplied y and y_pred, defined becouse  in case of multiorgan segmentations frequently we can have information about multiple organs in the same mask just marked by diffrent numbers
+                                for example in case of boolean array we can suupply it like torch.ones(1, dtype =bool)
 
-    """
+        """
 
-    if y.shape != y_pred.shape:
-        raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
-    sizz = y.shape
+        if y.shape != y_pred.shape:
+            raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
+        sizz = y.shape
 
-    return self.compiled_extension.getHausdorffDistance(y_pred,y,sizz[0],sizz[1],sizz[2], self.percent,  numberToLookFor )
+        return self.compiled_extension.getHausdorffDistance(y_pred,y,sizz[0],sizz[1],sizz[2], self.percent,  numberToLookFor )
