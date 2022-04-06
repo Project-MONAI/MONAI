@@ -38,7 +38,7 @@ class TraceableTransform(Transform):
     `MONAI_TRACE_TRANSFORM` when initializing the class.
     """
 
-    tracing = False if os.environ.get("MONAI_TRACE_TRANSFORM", "1") == "0" else True
+    tracing = not os.environ.get("MONAI_TRACE_TRANSFORM", "1") == "0"
 
     def set_tracing(self, tracing: bool) -> None:
         """Set whether to trace transforms."""
