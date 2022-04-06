@@ -16,7 +16,7 @@ from unittest import skipUnless
 
 from parameterized import parameterized
 
-from monai.bundle.config_parser import ConfigParser
+from monai.bundle import ConfigParser, ReferenceResolver
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
@@ -86,6 +86,8 @@ TEST_CASE_3 = [
     }
 ]
 
+TEST_CASE_4 = [{"A": 1, "B": "@A", "C": "@D", "E": "$'test' + '@F'"}]
+
 
 class TestConfigParser(unittest.TestCase):
     def test_config_content(self):
@@ -153,6 +155,27 @@ class TestConfigParser(unittest.TestCase):
             parser = ConfigParser(config=config)
             parser.resolve_macro_and_relative_ids()
             self.assertEqual(str(parser.get()), str({"A": {"B": 1, "C": 2}, "D": [3, 1, 3, 4]}))
+
+    @parameterized.expand([TEST_CASE_4])
+    def test_allow_missing_reference(self, config):
+        default = ReferenceResolver.allow_missing_reference
+        ReferenceResolver.allow_missing_reference = True
+        parser = ConfigParser(config=config)
+
+        for id in config:
+            item = parser.get_parsed_content(id=id)
+            if id in ("A", "B"):
+                self.assertEqual(item, 1)
+            elif id == "C":
+                self.assertEqual(item, "@D")
+            elif id == "E":
+                self.assertEqual(item, "test@F")
+
+        # restore the default value
+        ReferenceResolver.allow_missing_reference = default
+        with self.assertRaises(ValueError):
+            parser.parse()
+            parser.get_parsed_content(id="E")
 
 
 if __name__ == "__main__":

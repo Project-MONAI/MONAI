@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import re
+import warnings
 from typing import Any, Dict, Optional, Sequence, Set
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
@@ -50,6 +52,8 @@ class ReferenceResolver:
     ref = ID_REF_KEY  # reference prefix
     # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
+    # if `allow_missing_reference` and can't find a reference ID, will just raise a warning and don't update the config
+    allow_missing_reference = False if os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") == "0" else True
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
@@ -140,7 +144,12 @@ class ReferenceResolver:
                 try:
                     look_up_option(d, self.items, print_all_options=False)
                 except ValueError as err:
-                    raise ValueError(f"the referring item `@{d}` is not defined in the config content.") from err
+                    msg = f"the referring item `@{d}` is not defined in the config content."
+                    if self.allow_missing_reference:
+                        warnings.warn(msg)
+                        continue
+                    else:
+                        raise ValueError(msg) from err
                 # recursively resolve the reference first
                 self._resolve_one_item(id=d, waiting_list=waiting_list, **kwargs)
                 waiting_list.discard(d)
@@ -210,7 +219,12 @@ class ReferenceResolver:
         for item in result:
             ref_id = item[len(cls.ref) :]  # remove the ref prefix "@"
             if ref_id not in refs:
-                raise KeyError(f"can not find expected ID '{ref_id}' in the references.")
+                msg = f"can not find expected ID '{ref_id}' in the references."
+                if cls.allow_missing_reference:
+                    warnings.warn(msg)
+                    continue
+                else:
+                    raise KeyError(msg)
             if value_is_expr:
                 # replace with local code, will be used in the `evaluate` logic with `locals={"refs": ...}`
                 value = value.replace(item, f"{cls._vars}['{ref_id}']")
