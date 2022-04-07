@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.transforms import LoadImaged
 from monai.transforms.utility.dictionary import SplitDimd
-from tests.utils import TEST_NDARRAYS, make_nifti_image, make_rand_affine
+from tests.utils import TEST_NDARRAYS, assert_allclose, make_nifti_image, make_rand_affine
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -36,7 +36,7 @@ class TestSplitDimd(unittest.TestCase):
         cls.data = LoadImaged("i")(data)
 
     @parameterized.expand(TESTS)
-    def test_correct_shape(self, keepdim, im_type, update_meta):
+    def test_correct(self, keepdim, im_type, update_meta):
         data = deepcopy(self.data)
         data["i"] = im_type(data["i"])
         arr = data["i"]
@@ -45,6 +45,19 @@ class TestSplitDimd(unittest.TestCase):
             self.assertIsInstance(out, dict)
             num_new_keys = 2 if update_meta else 1
             self.assertEqual(len(out.keys()), len(data.keys()) + num_new_keys * arr.shape[dim])
+            # if updating meta data, pick some random points and
+            # check same world coordinates between input and output
+            if update_meta:
+                for _ in range(10):
+                    idx = [np.random.choice(i) for i in arr.shape]
+                    split_im_idx = idx[dim]
+                    split_idx = deepcopy(idx)
+                    split_idx[dim] = 0
+                    # idx[1:] to remove channel and then add 1 for 4th element
+                    real_world = data["i_meta_dict"]["affine"] @ (idx[1:] + [1])
+                    real_world2 = out[f"i_{split_im_idx}_meta_dict"]["affine"] @ (split_idx[1:] + [1])
+                    assert_allclose(real_world, real_world2)
+
             out = out["i_0"]
             expected_ndim = arr.ndim if keepdim else arr.ndim - 1
             self.assertEqual(out.ndim, expected_ndim)
