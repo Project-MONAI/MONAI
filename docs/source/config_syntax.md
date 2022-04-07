@@ -183,5 +183,5 @@ Details on the CLI argument parsing is provided in the
   simple structures with sparse uses of expressions or references are preferred.
 - For `$import <module>` in the configuration, please make sure there are instructions for the users to install
   the `<module>` if it is not a (optional) dependency of MONAI.
-- As "#" and "$" can be syntax for some `shell` or `CLI` tools, may need to add escape character for them
+- As "#" and "$" can be syntax for `shell` or `CLI` tools, may need to add escape character or quotes for them
   in the command line, like: `"\$torch.device('cuda:1')"`, `"'train_part#trainer'"`.
