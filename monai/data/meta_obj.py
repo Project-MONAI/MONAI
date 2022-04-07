@@ -163,9 +163,7 @@ class MetaObj:
                 out.append(a)
         return out
 
-    def _copy_attr(
-        self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool
-    ) -> None:
+    def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
         """
         Copy an attribute from the first in a list of `MetaObj`. In the case of
         `torch.add(a, b)`, both `a` and `b` could be `MetaObj` or something else, so
