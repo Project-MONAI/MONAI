@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 
 import torch.nn as nn
 
@@ -30,13 +30,13 @@ class MLPBlock(nn.Module):
         hidden_size: int,
         mlp_dim: int,
         dropout_rate: float = 0.0,
-        act: Optional[Union[Tuple, str]] = "GELU",
+        act: Union[Tuple, str] = "GELU",
         dropout_mode="vit",
     ) -> None:
         """
         Args:
             hidden_size: dimension of hidden layer.
-            mlp_dim: dimension of feedforward layer.
+            mlp_dim: dimension of feedforward layer. If 0, `hidden_size` will be used.
             dropout_rate: faction of the input units to drop.
             act: activation type and arguments. Defaults to GELU.
             dropout_mode: dropout mode, can be "vit" or "swin".
@@ -47,7 +47,7 @@ class MLPBlock(nn.Module):
 
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
-
+        mlp_dim = mlp_dim or hidden_size
         self.linear1 = nn.Linear(hidden_size, mlp_dim)
         self.linear2 = nn.Linear(mlp_dim, hidden_size)
         self.fn = get_act_layer(act)
