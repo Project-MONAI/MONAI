@@ -65,6 +65,7 @@ class TestMetaTensor(unittest.TestCase):
         ids: bool = True,
         device: Optional[Union[str, torch.device]] = None,
         meta: bool = True,
+        **kwargs,
     ):
         if device is None:
             device = orig.device
@@ -74,7 +75,7 @@ class TestMetaTensor(unittest.TestCase):
         if shape:
             assert_allclose(torch.as_tensor(out.shape), torch.as_tensor(orig.shape))
         if vals:
-            assert_allclose(out, orig)
+            assert_allclose(out, orig, **kwargs)
         self.check_ids(out, orig, ids)
         self.assertTrue(str(device) in str(out.device))
 
@@ -211,7 +212,7 @@ class TestMetaTensor(unittest.TestCase):
         im_conv = conv(im)
         with torch.autocast(str(device)):
             im_conv2 = conv(im)
-        self.check(im_conv2, im_conv, ids=False)
+        self.check(im_conv2, im_conv, ids=False, rtol=1e-4, atol=1e-3)
 
     # TODO
     # collate

@@ -63,11 +63,12 @@ class MetaTensor(MetaObj, torch.Tensor):
         the default value. The same is true for `meta`."""
         self._set_initial_val("affine", affine, x, self.get_default_affine)
         self._set_initial_val("meta", meta, x, self.get_default_meta)
+        self.affine = self.affine.to(self.device)
 
     def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
         super()._copy_attr(attribute, input_objs, default_fn, deep_copy)
         val = getattr(self, attribute)
-        if isinstance(self, torch.Tensor) and isinstance(val, torch.Tensor):
+        if isinstance(val, torch.Tensor):
             setattr(self, attribute, val.to(self.device))
 
     @classmethod
