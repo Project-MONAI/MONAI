@@ -164,6 +164,7 @@ python -m monai.bundle COMMANDS
 where `COMMANDS` is one of the following: `run`, `verify_metadata`, `ckpt_export`, ...
 (please see `python -m monai.bundle --help` for a list of available options).
 
+The commands support many fexible use cases, like: override config at runtime, predefine CLI args in a file, etc.
 To display a usage page for a command, for example `run`:
 ```bash
 python -m monai.bundle run -- --help
@@ -182,3 +183,5 @@ Details on the CLI argument parsing is provided in the
   simple structures with sparse uses of expressions or references are preferred.
 - For `$import <module>` in the configuration, please make sure there are instructions for the users to install
   the `<module>` if it is not a (optional) dependency of MONAI.
+- As "#" and "$" can be syntax for some `shell` or `CLI` tools, may need to add escape character for them
+  in the command line, like: `"\$torch.device('cuda:1')"`, `"'train_part#trainer'"`.
