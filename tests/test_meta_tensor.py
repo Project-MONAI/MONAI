@@ -11,6 +11,7 @@
 
 import random
 import string
+import tempfile
 import unittest
 from copy import deepcopy
 from typing import Optional, Union
@@ -179,12 +180,38 @@ class TestMetaTensor(unittest.TestCase):
     def test_torchscript(self, device):
         shape = (1, 3, 10, 8)
         im, _ = self.get_im(shape, device=device)
-        im2 = im.clone()
         conv = torch.nn.Conv2d(im.shape[1], 5, 3, device=device)
+        im_conv = conv(im)
         traced_fn = torch.jit.trace(conv, im)
-        out = traced_fn(im2)
+        # try and use it
+        out = traced_fn(im)
         self.assertIsInstance(out, MetaTensor)
-        self.check(out, conv(im), ids=False)
+        self.check(out, im_conv, ids=False)
+        # save it, load it, use it
+        with tempfile.NamedTemporaryFile() as fname:
+            torch.jit.save(traced_fn, f=fname.name)
+            traced_fn2 = torch.jit.load(fname.name)
+            out2 = traced_fn2(im)
+            self.assertIsInstance(out2, MetaTensor)
+            self.check(out2, im_conv, ids=False)
+
+    def test_pickling(self):
+        m, _ = self.get_im()
+        with tempfile.NamedTemporaryFile() as fname:
+            torch.save(m, fname.name)
+            m2 = torch.load(fname.name)
+            self.check(m2, m, ids=False)
+
+    @skip_if_no_cuda
+    def test_amp(self):
+        shape = (1, 3, 10, 8)
+        device = "cuda"
+        im, _ = self.get_im(shape, device=device)
+        conv = torch.nn.Conv2d(im.shape[1], 5, 3, device=device)
+        im_conv = conv(im)
+        with torch.autocast(str(device)):
+            im_conv2 = conv(im)
+        self.check(im_conv2, im_conv, ids=False)
 
     # TODO
     # collate
@@ -192,7 +219,6 @@ class TestMetaTensor(unittest.TestCase):
     # dataset
     # dataloader
     # matplotlib
-    # pickling
 
 
 if __name__ == "__main__":
