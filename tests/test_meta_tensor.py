@@ -175,12 +175,22 @@ class TestMetaTensor(unittest.TestCase):
         set_track_transforms(True)
         self.assertEqual(get_track_transforms(), True)
 
+    @parameterized.expand(TEST_DEVICES)
+    def test_torchscript(self, device):
+        shape = (1, 3, 10, 8)
+        im, _ = self.get_im(shape, device=device)
+        im2 = im.clone()
+        conv = torch.nn.Conv2d(im.shape[1], 5, 3, device=device)
+        traced_fn = torch.jit.trace(conv, im)
+        out = traced_fn(im2)
+        self.assertIsInstance(out, MetaTensor)
+        self.check(out, conv(im), ids=False)
+
     # TODO
     # collate
     # decollate
     # dataset
     # dataloader
-    # torchscript
     # matplotlib
     # pickling
 
