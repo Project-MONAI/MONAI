@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import random
 import string
 import tempfile
@@ -189,18 +190,20 @@ class TestMetaTensor(unittest.TestCase):
         self.assertIsInstance(out, MetaTensor)
         self.check(out, im_conv, ids=False)
         # save it, load it, use it
-        with tempfile.NamedTemporaryFile() as fname:
-            torch.jit.save(traced_fn, f=fname.name)
-            traced_fn2 = torch.jit.load(fname.name)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            fname = os.path.join(tmp_dir, "im.pt")
+            torch.jit.save(traced_fn, f=fname)
+            traced_fn2 = torch.jit.load(fname)
             out2 = traced_fn2(im)
             self.assertIsInstance(out2, MetaTensor)
             self.check(out2, im_conv, ids=False)
 
     def test_pickling(self):
         m, _ = self.get_im()
-        with tempfile.NamedTemporaryFile() as fname:
-            torch.save(m, fname.name)
-            m2 = torch.load(fname.name)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            fname = os.path.join(tmp_dir, "im.pt")
+            torch.save(m, fname)
+            m2 = torch.load(fname)
             self.check(m2, m, ids=False)
 
     @skip_if_no_cuda
@@ -210,7 +213,7 @@ class TestMetaTensor(unittest.TestCase):
         im, _ = self.get_im(shape, device=device)
         conv = torch.nn.Conv2d(im.shape[1], 5, 3, device=device)
         im_conv = conv(im)
-        with torch.autocast(str(device)):
+        with torch.cuda.amp.autocast():
             im_conv2 = conv(im)
         self.check(im_conv2, im_conv, ids=False, rtol=1e-4, atol=1e-3)
 
