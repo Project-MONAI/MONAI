@@ -155,7 +155,8 @@ class TestMetaTensor(unittest.TestCase):
     @parameterized.expand(TEST_DEVICES)
     def test_conv(self, device):
         im, _ = self.get_im((1, 3, 10, 8, 12), device=device)
-        conv = torch.nn.Conv3d(im.shape[1], 5, 3, device=device)
+        conv = torch.nn.Conv3d(im.shape[1], 5, 3)
+        conv.to(device)
         out = conv(im)
         self.check(out, im, shape=False, vals=False, ids=False)
 
@@ -182,7 +183,8 @@ class TestMetaTensor(unittest.TestCase):
     def test_torchscript(self, device):
         shape = (1, 3, 10, 8)
         im, _ = self.get_im(shape, device=device)
-        conv = torch.nn.Conv2d(im.shape[1], 5, 3, device=device)
+        conv = torch.nn.Conv2d(im.shape[1], 5, 3)
+        conv.to(device)
         im_conv = conv(im)
         traced_fn = torch.jit.trace(conv, im)
         # try and use it
@@ -211,7 +213,8 @@ class TestMetaTensor(unittest.TestCase):
         shape = (1, 3, 10, 8)
         device = "cuda"
         im, _ = self.get_im(shape, device=device)
-        conv = torch.nn.Conv2d(im.shape[1], 5, 3, device=device)
+        conv = torch.nn.Conv2d(im.shape[1], 5, 3)
+        conv.to(device)
         im_conv = conv(im)
         with torch.cuda.amp.autocast():
             im_conv2 = conv(im)
