@@ -18,6 +18,7 @@ from typing import Optional, Union
 import torch
 from parameterized import parameterized
 
+from monai.data.meta_obj import get_track_meta, get_track_transforms, set_track_meta, set_track_transforms
 from monai.data.meta_tensor import MetaTensor
 from tests.utils import TEST_DEVICES, assert_allclose, skip_if_no_cuda
 
@@ -163,6 +164,16 @@ class TestMetaTensor(unittest.TestCase):
         self.assertIsInstance(stacked, MetaTensor)
         assert_allclose(stacked.affine, ims[0].affine)
         self.assertEqual(stacked.meta, ims[0].meta)
+
+    def test_get_set_meta_fns(self):
+        set_track_meta(False)
+        self.assertEqual(get_track_meta(), False)
+        set_track_meta(True)
+        self.assertEqual(get_track_meta(), True)
+        set_track_transforms(False)
+        self.assertEqual(get_track_transforms(), False)
+        set_track_transforms(True)
+        self.assertEqual(get_track_transforms(), True)
 
     # TODO
     # collate
