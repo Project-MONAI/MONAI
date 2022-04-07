@@ -55,10 +55,10 @@ class MetaTensor(MetaObj, torch.Tensor):
     """
 
     @staticmethod
-    def __new__(cls, x, affine: Optional[torch.Tensor] = None, meta: Optional[dict] = None, *args, **kwargs) -> MetaTensor:
+    def __new__(cls, x, affine: torch.Tensor | None = None, meta: dict | None = None, *args, **kwargs) -> MetaTensor:
         return torch.as_tensor(x, *args, **kwargs).as_subclass(cls)  # type: ignore
 
-    def __init__(self, x, affine: Optional[torch.Tensor] = None, meta: Optional[dict] = None) -> None:
+    def __init__(self, x, affine: torch.Tensor | None = None, meta: dict | None = None) -> None:
         """If `affine` is given, use it. Else, if `affine` exists in the input tensor, use it. Else, use
         the default value. The same is true for `meta`."""
         self._set_initial_val("affine", affine, x, self.get_default_affine)
