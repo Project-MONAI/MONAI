@@ -143,6 +143,7 @@ def run_testsuit():
         "test_smartcachedataset",
         "test_spacing",
         "test_spacingd",
+        "test_splitdimd",
         "test_surface_distance",
         "test_testtimeaugmentation",
         "test_torchvision",

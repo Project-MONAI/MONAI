@@ -286,7 +286,8 @@ class RemoveRepeatedChannel(Transform):
 class SplitDim(Transform):
     """
     Given an image of size X along a certain dimension, return a list of length X containing
-    images. Useful for converting 3D images into a stack of 2D images, for example.
+    images. Useful for converting 3D images into a stack of 2D images, splitting multichannel inputs into
+    single channels, for example.
 
     Note: `torch.split`/`np.split` is used, so the outputs are views of the input (shallow copy).
 
