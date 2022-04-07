@@ -164,7 +164,7 @@ class MetaObj:
         return out
 
     def _copy_attr(
-        self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deepcopy_required: bool
+        self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool
     ) -> None:
         """
         Copy an attribute from the first in a list of `MetaObj`. In the case of
@@ -180,7 +180,7 @@ class MetaObj:
                 that contains that particular attribute.
             default_fn: If none of `input_objs` have the attribute that we're
                 interested in, then use this default function (e.g., `lambda: {}`.)
-            deepcopy_required: Should the attribute be deep copied? See `_copy_meta`.
+            deep_copy: Should the attribute be deep copied? See `_copy_meta`.
 
         Returns:
             Returns `None`, but `self` should be updated to have the copied attribute.
@@ -188,7 +188,7 @@ class MetaObj:
         attributes = [getattr(i, attribute) for i in input_objs]
         if len(attributes) > 0:
             val = attributes[0]
-            if deepcopy_required:
+            if deep_copy:
                 val = deepcopy(val)
             setattr(self, attribute, val)
         else:
@@ -207,11 +207,11 @@ class MetaObj:
 
         """
         id_in = id(input_objs[0]) if len(input_objs) > 0 else None
-        deepcopy_required = id(self) != id_in
+        deep_copy = id(self) != id_in
         attributes = ("affine", "meta")
         default_fns: tuple[Callable, ...] = (self.get_default_affine, self.get_default_meta)
         for attribute, default_fn in zip(attributes, default_fns):
-            self._copy_attr(attribute, input_objs, default_fn, deepcopy_required)
+            self._copy_attr(attribute, input_objs, default_fn, deep_copy)
 
     def get_default_meta(self) -> dict:
         """Get the default meta.
