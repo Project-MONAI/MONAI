@@ -65,7 +65,8 @@ Hovewer this implementation is also around 100 times faster than exact MONAI Hau
         self.compiled_extension = load_module("hausdorff_cpp")
 
     def compute_morphological_hausdorff_distance(
-        self, y_pred: torch.Tensor, y: torch.Tensor, numberToLookFor: torch.Tensor
+        self, y_pred: torch.Tensor, y: torch.Tensor
+        ,compare_values: torch.Tensor, to_invert_dims=False
     ):
         """
         Compute the Hausdorff distance.
@@ -81,13 +82,17 @@ Hovewer this implementation is also around 100 times faster than exact MONAI Hau
              defined becouse  in case of multiorgan segmentations frequently we can have information
               about multiple organs in the same mask just marked by diffrent numbers
                                 for example in case of boolean array we can suupply it like torch.ones(1, dtype =bool)
-
+            to_invert_dims - inverts first with third dim - used fo testing only
         """
 
         if y.shape != y_pred.shape:
             raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
         sizz = y.shape
-
-        return self.compiled_extension.getHausdorffDistance(
-            y_pred, y, sizz[0], sizz[1], sizz[2], self.percent, numberToLookFor
-        )
+        if to_invert_dims:
+            return self.compiled_extension.getHausdorffDistance(
+                y_pred, y, sizz[2], sizz[1], sizz[0], self.percent, compare_values
+            )
+        else:
+            return self.compiled_extension.getHausdorffDistance(
+                y_pred, y, sizz[0], sizz[1], sizz[2], self.percent, compare_values
+            )   
