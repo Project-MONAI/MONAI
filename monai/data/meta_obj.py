@@ -22,17 +22,17 @@ __all__ = ["get_track_meta", "get_track_transforms", "set_track_meta", "set_trac
 
 def set_track_meta(val: bool) -> None:
     """
-    Boolean to set whether meta data is tracked. If `True`, meta data will be associated
+    Boolean to set whether metadata is tracked. If `True`, metadata will be associated
     its data by using subclasses of `MetaObj`. If `False`, then data will be returned
-    with empty meta data.
+    with empty metadata.
 
     If both `set_track_meta` and `set_track_transforms` are set to
     `False`, then standard data objects will be returned (e.g., `torch.Tensor` and
     `np.ndarray`) as opposed to our enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
-    if you are experiencing any problems regarding meta data, and aren't interested in
-    preserving meta data, then you can disable it.
+    if you are experiencing any problems regarding metadata, and aren't interested in
+    preserving metadata, then you can disable it.
     """
     global _TRACK_META
     _TRACK_META = val
@@ -58,17 +58,17 @@ def set_track_transforms(val: bool) -> None:
 
 def get_track_meta() -> bool:
     """
-    Return the boolean as to whether meta data is tracked. If `True`, meta data will be
+    Return the boolean as to whether metadata is tracked. If `True`, metadata will be
     associated its data by using subclasses of `MetaObj`. If `False`, then data will be
-    returned with empty meta data.
+    returned with empty metadata.
 
     If both `set_track_meta` and `set_track_transforms` are set to
     `False`, then standard data objects will be returned (e.g., `torch.Tensor` and
     `np.ndarray`) as opposed to our enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
-    if you are experiencing any problems regarding meta data, and aren't interested in
-    preserving meta data, then you can disable it.
+    if you are experiencing any problems regarding metadata, and aren't interested in
+    preserving metadata, then you can disable it.
     """
     return _TRACK_META
 
@@ -92,24 +92,24 @@ def get_track_transforms() -> bool:
 
 class MetaObj:
     """
-    Abstract base class that stores data as well as any extra meta data and an affine
+    Abstract base class that stores data as well as any extra metadata and an affine
     transformation matrix.
 
     This allows for subclassing `torch.Tensor` and `np.ndarray` through multiple
     inheritance.
 
-    Meta data is stored in the form of of a dictionary. Affine matrices are stored in
+    Metadata is stored in the form of a dictionary. Affine matrices are stored in
     the form of e.g., `torch.Tensor` or `np.ndarray`.
 
     We store the affine as its own element, so that this can be updated by
-    transforms. All other meta data that we don't plan on touching until we
+    transforms. All other metadata that we don't plan on touching until we
     need to save the image to file lives in `meta`.
 
     Behavior should be the same as extended class (e.g., `torch.Tensor` or `np.ndarray`)
     aside from the extended meta functionality.
 
     Copying of information:
-        * For `c = a + b`, then auxiliary data (e.g., meta data) will be copied from the
+        * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
         first instance of `MetaObj`.
     """
 
@@ -131,7 +131,7 @@ class MetaObj:
             input_obj: if `input_arg` is `None`, try to copy `attribute` from
                 `input_obj`, if it is present and not `None`.
             default_fn: function to be used if all previous arguments return `None`.
-                Default meta data might be empty dictionary so could be as simple as
+                Default metadata might be empty dictionary so could be as simple as
                 `lambda: {}`.
         Returns:
             Returns `None`, but `self` should have the updated `attribute`.
@@ -194,7 +194,7 @@ class MetaObj:
 
     def _copy_meta(self, input_objs: list[MetaObj]) -> None:
         """
-        Copy meta data from a list of `MetaObj`. For a given attribute, we copy the
+        Copy metadata from a list of `MetaObj`. For a given attribute, we copy the
         adjunct data from the first element in the list containing that attribute.
 
         If there has been a change in `id` (e.g., `a=b+c`), then deepcopy. Else (e.g.,
@@ -215,7 +215,7 @@ class MetaObj:
         """Get the default meta.
 
         Returns:
-            default meta data.
+            default metadata.
         """
         return {}
 

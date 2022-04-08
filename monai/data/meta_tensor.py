@@ -25,18 +25,18 @@ class MetaTensor(MetaObj, torch.Tensor):
     Class that inherits from both `torch.Tensor` and `MetaObj`, adding support for meta
     data.
 
-    Meta data is stored in the form of of a dictionary. Affine matrices are stored in
+    Metadata is stored in the form of a dictionary. Affine matrices are stored in
     the form of `torch.Tensor`.
 
     We store the affine as its own element, so that this can be updated by
-    transforms. All other meta data that we don't plan on touching until we
+    transforms. All other metadata that we don't plan on touching until we
     need to save the image to file lives in `meta`.
 
     Behavior should be the same as `torch.Tensor` aside from the extended
     meta functionality.
 
     Copying of information:
-        * For `c = a + b`, then auxiliary data (e.g., meta data) will be copied from the
+        * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
         first instance of `MetaTensor`.
 
     Example:
