@@ -102,7 +102,7 @@ TEST_CASES = [
     ,[[a6, b6, 1.0, compare_valuesB], 110]
     ,[[a7, b7, 1.0, compare_valuesB], 110]
     ,[[a8, b8, 1.0, compare_valuesB], 110]
-    
+
     #testing robust
     ,[[a6, b6, 0.9, compare_valuesB], 110]
     ,[[a7, b7, 0.85, compare_valuesB], 110]
