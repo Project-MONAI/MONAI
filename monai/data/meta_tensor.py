@@ -16,6 +16,7 @@ from typing import Callable
 import torch
 
 from monai.data.meta_obj import MetaObj, get_track_meta, get_track_transforms
+from monai.utils.enums import PostFix
 
 __all__ = ["MetaTensor"]
 
@@ -52,6 +53,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             m2 = m+m
             assert isinstance(m2, MetaTensor)
             assert m2.meta == meta
+
+    Notes:
+        - Depending on your version of pytorch, `torch.jit.trace(net, im)` may or may
+            not work if `im` is of type `MetaTensor`. This can be resolved with
+            `torch.jit.trace(net, im.as_tensor)`.
     """
 
     @staticmethod
@@ -95,3 +101,21 @@ class MetaTensor(MetaObj, torch.Tensor):
         It is OS dependent as to whether this will be a deep copy or not.
         """
         return self.as_subclass(torch.Tensor)  # type: ignore
+
+    def as_dict(self, key: str) -> dict:
+        """
+        Get the object as a dictionary for backwards compatibility.
+
+        Args:
+            key: Base key to store main data. The key for the metadata will be
+                determined using `PostFix.meta`.
+
+
+        Return:
+            A dictionary consisting of two keys, the main data (stored under `key`) and
+                the metadata. The affine will be stored with the metadata for backwards
+                compatibility.
+        """
+        meta = self.meta
+        meta["affine"] = self.affine
+        return {key: self.as_tensor(), PostFix.meta(key): self.meta}

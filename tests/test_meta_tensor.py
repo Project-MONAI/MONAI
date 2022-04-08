@@ -22,6 +22,7 @@ from parameterized import parameterized
 
 from monai.data.meta_obj import get_track_meta, get_track_transforms, set_track_meta, set_track_transforms
 from monai.data.meta_tensor import MetaTensor
+from monai.utils.enums import PostFix
 from tests.utils import TEST_DEVICES, assert_allclose, skip_if_no_cuda
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32]]
@@ -66,6 +67,7 @@ class TestMetaTensor(unittest.TestCase):
         ids: bool = True,
         device: Optional[Union[str, torch.device]] = None,
         meta: bool = True,
+        check_ids: bool = True,
         **kwargs,
     ):
         if device is None:
@@ -77,7 +79,8 @@ class TestMetaTensor(unittest.TestCase):
             assert_allclose(torch.as_tensor(out.shape), torch.as_tensor(orig.shape))
         if vals:
             assert_allclose(out, orig, **kwargs)
-        self.check_ids(out, orig, ids)
+        if check_ids:
+            self.check_ids(out, orig, ids)
         self.assertTrue(str(device) in str(out.device))
 
         # check meta and affine are equal and affine is on correct device
@@ -85,8 +88,9 @@ class TestMetaTensor(unittest.TestCase):
             self.assertEqual(out.meta, orig.meta)
             assert_allclose(out.affine, orig.affine)
             self.assertTrue(str(device) in str(out.affine.device))
-            self.check_ids(out.affine, orig.affine, ids)
-            self.check_ids(out.meta, orig.meta, ids)
+            if check_ids:
+                self.check_ids(out.affine, orig.affine, ids)
+                self.check_ids(out.meta, orig.meta, ids)
 
     @parameterized.expand(TESTS)
     def test_as_tensor(self, device, dtype):
@@ -96,6 +100,14 @@ class TestMetaTensor(unittest.TestCase):
         self.assertNotIsInstance(t2, MetaTensor)
         self.assertIsInstance(m, MetaTensor)
         self.check(t, t2, ids=False)
+
+    def test_as_dict(self):
+        m, _ = self.get_im()
+        m_dict = m.as_dict("im")
+        im, meta = m_dict["im"], m_dict[PostFix.meta("im")]
+        affine = meta.pop("affine")
+        m2 = MetaTensor(im, affine, meta)
+        self.check(m2, m, check_ids=False)
 
     @parameterized.expand(TESTS)
     def test_constructor(self, device, dtype):
@@ -186,7 +198,7 @@ class TestMetaTensor(unittest.TestCase):
         conv = torch.nn.Conv2d(im.shape[1], 5, 3)
         conv.to(device)
         im_conv = conv(im)
-        traced_fn = torch.jit.trace(conv, im)
+        traced_fn = torch.jit.trace(conv, im.as_tensor())
         # try and use it
         out = traced_fn(im)
         self.assertIsInstance(out, MetaTensor)
