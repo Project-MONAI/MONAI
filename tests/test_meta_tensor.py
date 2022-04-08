@@ -14,6 +14,7 @@ import random
 import string
 import tempfile
 import unittest
+import warnings
 from copy import deepcopy
 from typing import Optional, Union
 
@@ -201,7 +202,15 @@ class TestMetaTensor(unittest.TestCase):
         traced_fn = torch.jit.trace(conv, im.as_tensor())
         # try and use it
         out = traced_fn(im)
-        self.assertIsInstance(out, MetaTensor)
+        self.assertIsInstance(out, torch.Tensor)
+        if not isinstance(out, MetaTensor):
+            warnings.warn(
+                "When calling `nn.Module(MetaTensor) on a module traced with "
+                "`torch.jit.trace`, your version of pytorch returns a "
+                "`torch.Tensor` instead of a `MetaTensor`. Consider upgrading "
+                "your pytorch version if this is important to you."
+            )
+            im_conv = im.as_tensor()
         self.check(out, im_conv, ids=False)
         # save it, load it, use it
         with tempfile.TemporaryDirectory() as tmp_dir:
