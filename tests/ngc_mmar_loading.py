@@ -40,7 +40,7 @@ class TestAllDownloadingMMAR(unittest.TestCase):
             )
             pretrained_weights = {k.split(".", 1)[1]: v for k, v in pretrained_weights["state_dict"].items()}
             sys.path.append(os.path.join(f"{item['name']}", "custom"))  # custom model folder
-            from vit_network import ViTAutoEnc
+            from vit_network import ViTAutoEnc  # pylint: disable=E0401
 
             model = ViTAutoEnc(
                 in_channels=1,
