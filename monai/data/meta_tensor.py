@@ -135,7 +135,12 @@ class MetaTensor(MetaObj, torch.Tensor):
         """
         return {key: self.as_tensor(), PostFix.meta(key): self.meta}
 
-    @MetaObj.affine.setter  #  type: ignore
+    @property
+    def affine(self) -> torch.Tensor:
+        """Get the affine."""
+        return self.meta["affine"]
+
+    @affine.setter
     def affine(self, d: torch.Tensor) -> None:
         """Set the affine."""
-        self.meta["affine"] = d.to(self.device)
+        self.meta["affine"] = d

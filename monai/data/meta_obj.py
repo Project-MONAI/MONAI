@@ -97,9 +97,7 @@ class MetaObj:
     This allows for subclassing `torch.Tensor` and `np.ndarray` through multiple
     inheritance.
 
-    Metadata is stored in the form of a dictionary. Nested, an affine matrix will be
-    stored. This should be the same type as the original data (e.g., `torch.Tensor` or
-    `np.ndarray`).
+    Metadata is stored in the form of a dictionary.
 
     Behavior should be the same as extended class (e.g., `torch.Tensor` or `np.ndarray`)
     aside from the extended meta functionality.
@@ -141,8 +139,7 @@ class MetaObj:
         We also perform a deep copy of the data if desired.
 
         Args:
-            attribute: string corresponding to attribute to be copied (e.g., `meta` or
-                `affine`).
+            attribute: string corresponding to attribute to be copied (e.g., `meta`).
             input_objs: List of `MetaObj`. We'll copy the attribute from the first one
                 that contains that particular attribute.
             default_fn: If none of `input_objs` have the attribute that we're
@@ -185,14 +182,6 @@ class MetaObj:
         """
         return {}
 
-    def get_default_affine(self) -> Any:
-        """Get the default affine.
-
-        Returns:
-            default affine.
-        """
-        raise NotImplementedError()
-
     def __repr__(self) -> str:
         """String representation of class."""
         out: str = super().__repr__()
@@ -204,16 +193,6 @@ class MetaObj:
             out += "None"
 
         return out
-
-    @property
-    def affine(self) -> Any:
-        """Get the affine."""
-        return self.meta.get("affine", None)
-
-    @affine.setter
-    def affine(self, d: Any) -> None:
-        """Set the affine."""
-        self.meta["affine"] = d
 
     @property
     def meta(self) -> dict:
