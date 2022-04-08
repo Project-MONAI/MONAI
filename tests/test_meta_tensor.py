@@ -210,7 +210,7 @@ class TestMetaTensor(unittest.TestCase):
                 "`torch.Tensor` instead of a `MetaTensor`. Consider upgrading "
                 "your pytorch version if this is important to you."
             )
-            im_conv = im.as_tensor()
+            im_conv = im_conv.as_tensor()
         self.check(out, im_conv, ids=False)
         # save it, load it, use it
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -218,7 +218,7 @@ class TestMetaTensor(unittest.TestCase):
             torch.jit.save(traced_fn, f=fname)
             traced_fn2 = torch.jit.load(fname)
             out2 = traced_fn2(im)
-            self.assertIsInstance(out2, MetaTensor)
+            self.assertIsInstance(out2, type(out))
             self.check(out2, im_conv, ids=False)
 
     def test_pickling(self):
