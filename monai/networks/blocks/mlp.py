@@ -40,6 +40,11 @@ class MLPBlock(nn.Module):
             dropout_rate: faction of the input units to drop.
             act: activation type and arguments. Defaults to GELU.
             dropout_mode: dropout mode, can be "vit" or "swin".
+                "vit" mode uses two dropout instances as implemented in
+                https://github.com/google-research/vision_transformer/blob/main/vit_jax/models.py#L87
+                "swin" corresponds to one instance as implemented in
+                https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_mlp.py#L23
+
 
         """
 
