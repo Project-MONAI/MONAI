@@ -86,7 +86,11 @@ class TestMetaTensor(unittest.TestCase):
 
         # check meta and affine are equal and affine is on correct device
         if isinstance(orig, MetaTensor) and isinstance(out, MetaTensor) and meta:
-            self.assertEqual(out.meta, orig.meta)
+            orig_meta_no_affine = deepcopy(orig.meta)
+            del orig_meta_no_affine["affine"]
+            out_meta_no_affine = deepcopy(out.meta)
+            del out_meta_no_affine["affine"]
+            self.assertEqual(orig_meta_no_affine, out_meta_no_affine)
             assert_allclose(out.affine, orig.affine)
             self.assertTrue(str(device) in str(out.affine.device))
             if check_ids:
@@ -113,8 +117,16 @@ class TestMetaTensor(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_constructor(self, device, dtype):
         m, t = self.get_im(device=device, dtype=dtype)
-        m2 = MetaTensor(t.clone(), m.affine, m.meta)
+        # construct from pre-existing
+        m1 = MetaTensor(m.clone())
+        self.check(m, m1, ids=False, meta=False)
+        # meta already has affine
+        m2 = MetaTensor(t.clone(), meta=m.meta)
         self.check(m, m2, ids=False, meta=False)
+        # meta dosen't have affine
+        affine = m.meta.pop("affine")
+        m3 = MetaTensor(t.clone(), affine=affine, meta=m.meta)
+        self.check(m, m3, ids=False, meta=False)
 
     @parameterized.expand(TESTS)
     @skip_if_no_cuda
@@ -134,6 +146,12 @@ class TestMetaTensor(unittest.TestCase):
         self.check(m, orig, ids=False, device="cuda")
         m = m.to(device="cpu")
         self.check(m, orig, ids=False, device="cpu")
+
+    @skip_if_no_cuda
+    def test_affine_device(self):
+        m, _ = self.get_im()  # device="cuda")
+        m.affine = torch.eye(4)
+        self.assertEqual(m.device, m.affine.device)
 
     @parameterized.expand(TESTS)
     def test_copy(self, device, dtype):
@@ -157,7 +175,7 @@ class TestMetaTensor(unittest.TestCase):
         self.check(torch.add(input=m1, other=m2), t1 + t2, ids=False)
         self.check(torch.add(m1, other=m2), t1 + t2, ids=False)
         m3 = deepcopy(m2)
-        t3 = deepcopy(m2)
+        t3 = deepcopy(t2)
         m3 += 3
         t3 += 3
         self.check(m3, t3, ids=False)
@@ -179,7 +197,9 @@ class TestMetaTensor(unittest.TestCase):
         ims = [self.get_im(device=device, dtype=dtype)[0] for _ in range(numel)]
         stacked = torch.stack(ims)
         self.assertIsInstance(stacked, MetaTensor)
-        assert_allclose(stacked.affine, ims[0].affine)
+        orig_affine = ims[0].meta.pop("affine")
+        stacked_affine = stacked.meta.pop("affine")
+        assert_allclose(orig_affine, stacked_affine)
         self.assertEqual(stacked.meta, ims[0].meta)
 
     def test_get_set_meta_fns(self):

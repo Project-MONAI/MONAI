@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Callable
 
 import torch
@@ -26,12 +27,8 @@ class MetaTensor(MetaObj, torch.Tensor):
     Class that inherits from both `torch.Tensor` and `MetaObj`, adding support for meta
     data.
 
-    Metadata is stored in the form of a dictionary. Affine matrices are stored in
-    the form of `torch.Tensor`.
-
-    We store the affine as its own element, so that this can be updated by
-    transforms. All other metadata that we don't plan on touching until we
-    need to save the image to file lives in `meta`.
+    Metadata is stored in the form of a dictionary. Nested, an affine matrix will be
+    stored. This should be in the form of `torch.Tensor`.
 
     Behavior should be the same as `torch.Tensor` aside from the extended
     meta functionality.
@@ -47,9 +44,9 @@ class MetaTensor(MetaObj, torch.Tensor):
             from monai.data import MetaTensor
 
             t = torch.tensor([1,2,3])
-            meta = {"some": "info"}
             affine = torch.eye(4)
-            m = MetaTensor(t, meta=meta, affine=affine)
+            meta = {"some": "info"}
+            m = MetaTensor(t, affine=affine, meta=meta)
             m2 = m+m
             assert isinstance(m2, MetaTensor)
             assert m2.meta == meta
@@ -58,6 +55,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         - Depending on your version of pytorch, `torch.jit.trace(net, im)` may or may
             not work if `im` is of type `MetaTensor`. This can be resolved with
             `torch.jit.trace(net, im.as_tensor)`.
+        - A warning will be raised if in the constructor `affine` is not `None` and
+            `meta` already contains the key `affine`.
     """
 
     @staticmethod
@@ -65,10 +64,30 @@ class MetaTensor(MetaObj, torch.Tensor):
         return torch.as_tensor(x, *args, **kwargs).as_subclass(cls)  # type: ignore
 
     def __init__(self, x, affine: torch.Tensor | None = None, meta: dict | None = None) -> None:
-        """If `affine` is given, use it. Else, if `affine` exists in the input tensor, use it. Else, use
-        the default value. The same is true for `meta`."""
-        self._set_initial_val("affine", affine, x, self.get_default_affine)
-        self._set_initial_val("meta", meta, x, self.get_default_meta)
+        """
+        If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
+        Else, use the default value. Similar for the affin, except this could come from
+        four places.
+        Priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
+        """
+        # set meta
+        if meta is not None:
+            self.meta = meta
+        elif isinstance(x, MetaObj):
+            self.meta = x.meta
+        else:
+            self.meta = self.get_default_meta()
+        # set the affine
+        if affine is not None:
+            if "affine" in self.meta:
+                warnings.warn("Setting affine, but the applied meta contains an affine. " "This will be overwritten.")
+            self.affine = affine
+        elif "affine" in self.meta:
+            pass  # nothing to do
+        elif isinstance(x, MetaObj):
+            self.affine = x.affine
+        else:
+            self.affine = self.get_default_affine()
         self.affine = self.affine.to(self.device)
 
     def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
@@ -110,12 +129,13 @@ class MetaTensor(MetaObj, torch.Tensor):
             key: Base key to store main data. The key for the metadata will be
                 determined using `PostFix.meta`.
 
-
         Return:
             A dictionary consisting of two keys, the main data (stored under `key`) and
-                the metadata. The affine will be stored with the metadata for backwards
-                compatibility.
+                the metadata.
         """
-        meta = self.meta
-        meta["affine"] = self.affine
         return {key: self.as_tensor(), PostFix.meta(key): self.meta}
+
+    @MetaObj.affine.setter  #  type: ignore
+    def affine(self, d: torch.Tensor) -> None:
+        """Set the affine."""
+        self.meta["affine"] = d.to(self.device)

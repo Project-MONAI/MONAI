@@ -92,18 +92,14 @@ def get_track_transforms() -> bool:
 
 class MetaObj:
     """
-    Abstract base class that stores data as well as any extra metadata and an affine
-    transformation matrix.
+    Abstract base class that stores data as well as any extra metadata.
 
     This allows for subclassing `torch.Tensor` and `np.ndarray` through multiple
     inheritance.
 
-    Metadata is stored in the form of a dictionary. Affine matrices are stored in
-    the form of e.g., `torch.Tensor` or `np.ndarray`.
-
-    We store the affine as its own element, so that this can be updated by
-    transforms. All other metadata that we don't plan on touching until we
-    need to save the image to file lives in `meta`.
+    Metadata is stored in the form of a dictionary. Nested, an affine matrix will be
+    stored. This should be the same type as the original data (e.g., `torch.Tensor` or
+    `np.ndarray`).
 
     Behavior should be the same as extended class (e.g., `torch.Tensor` or `np.ndarray`)
     aside from the extended meta functionality.
@@ -114,33 +110,6 @@ class MetaObj:
     """
 
     _meta: dict
-    _affine: Any
-
-    def _set_initial_val(self, attribute: str, input_arg: Any, input_obj: Any, default_fn: Callable) -> None:
-        """
-        Set the initial value of an attribute (e.g., `meta` or `affine`).
-        First, try to set `attribute` using `input_arg`. But if `input_arg` is `None`,
-        then we try to copy the value from `input_obj`. But if value is also `None`,
-        then we finally fall back on using the `default_fn`.
-
-        Args:
-            attribute: string corresponding to attribute we want to set (e.g., `meta` or
-                `affine`).
-            input_arg: the value we would like `attribute` to take or `None` if not
-                given.
-            input_obj: if `input_arg` is `None`, try to copy `attribute` from
-                `input_obj`, if it is present and not `None`.
-            default_fn: function to be used if all previous arguments return `None`.
-                Default metadata might be empty dictionary so could be as simple as
-                `lambda: {}`.
-        Returns:
-            Returns `None`, but `self` should have the updated `attribute`.
-        """
-        if input_arg is None:
-            input_arg = getattr(input_obj, attribute, None)
-        if input_arg is None:
-            input_arg = default_fn(self)
-        setattr(self, attribute, input_arg)
 
     @staticmethod
     def flatten_meta_objs(args: Sequence[Any]) -> list[MetaObj]:
@@ -206,10 +175,7 @@ class MetaObj:
         """
         id_in = id(input_objs[0]) if len(input_objs) > 0 else None
         deep_copy = id(self) != id_in
-        attributes = ("affine", "meta")
-        default_fns: tuple[Callable, ...] = (self.get_default_affine, self.get_default_meta)
-        for attribute, default_fn in zip(attributes, default_fns):
-            self._copy_attr(attribute, input_objs, default_fn, deep_copy)
+        self._copy_attr("meta", input_objs, self.get_default_meta, deep_copy)
 
     def get_default_meta(self) -> dict:
         """Get the default meta.
@@ -231,8 +197,6 @@ class MetaObj:
         """String representation of class."""
         out: str = super().__repr__()
 
-        out += f"\nAffine\n{self.affine}"
-
         out += "\nMetaData\n"
         if self.meta is not None:
             out += "".join(f"\t{k}: {v}\n" for k, v in self.meta.items())
@@ -244,12 +208,12 @@ class MetaObj:
     @property
     def affine(self) -> Any:
         """Get the affine."""
-        return self._affine
+        return self.meta.get("affine", None)
 
     @affine.setter
     def affine(self, d: Any) -> None:
         """Set the affine."""
-        self._affine = d
+        self.meta["affine"] = d
 
     @property
     def meta(self) -> dict:
