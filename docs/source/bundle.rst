@@ -36,6 +36,7 @@ Model Bundle
 `Scripts`
 ---------
 .. autofunction:: ckpt_export
+.. autofunction:: download
 .. autofunction:: run
 .. autofunction:: verify_metadata
 .. autofunction:: verify_net_in_out

@@ -11,6 +11,7 @@
 
 import ast
 import json
+import os
 import pprint
 import re
 from logging.config import fileConfig
@@ -19,7 +20,7 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 import torch
 from torch.cuda import is_available
 
-from monai.apps.utils import download_url, get_logger
+from monai.apps.utils import download_url, extractall, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.config import IgniteInfo, PathLike
 from monai.data import save_net_with_metadata
@@ -29,6 +30,7 @@ from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, opt
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
+requests_get, has_requests = optional_import("requests", name="get")
 
 logger = get_logger(module_name=__name__)
 
@@ -114,6 +116,75 @@ def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int
         else:
             raise ValueError(f"spatial shape items must be int or string, but got: {type(i)} {i}.")
     return tuple(ret)
+
+
+def _get_git_release_url(
+    repo_owner: str,
+    repo_name: str,
+    tag_name: str,
+    filename: Optional[str] = None,
+):
+    if filename is not None:
+        return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
+    else:
+        raise NotImplementedError("download the whole package is not implemented so far.")
+
+
+def download(
+    repo: str,
+    package: str,
+    filename: Optional[str] = None,
+    source: str = "github",
+    download_path: str = "download",
+    hash_val: Optional[str] = None,
+    hash_type: str = "md5",
+    extract: bool = False,
+    has_base: bool = True,
+    version: int = 1,
+    # args_file
+):
+    """
+    download the bundle package or a file that belongs to the package from the specified source.
+    This function refers to:
+    https://pytorch.org/docs/stable/_modules/torch/hub.html
+
+    Args:
+        repo: the bundle package. The format depends on the source. If the source is `github`,
+            it should be in the form of `repo_owner/repo_name`. If the source is `ngc`, it should
+            be in the form of `org/team`.
+        package: the bundle package name. If the source is `github`, it should be the same as the
+            release tag.
+        filename: the filename of the bundle package that needs to be downloaded. It is an optional
+            argument and if not specified, the whole bundle package will be downloaded.
+        source: the place that saved the bundle package. So far, only `github` and `ngc` are supported.
+            For the `github` source, the bundle package should be within the releases.
+        download_path: target filepath to save the downloaded file (including the filename).
+            If undefined, `os.path.basename(url)` will be used.
+        hash_val: expected hash value to validate the downloaded file.
+            if None, skip hash validation.
+        hash_type: 'md5' or 'sha1'.
+        extract: whether to extract the downloaded file.
+        output_dir: target directory to save extracted files.
+        has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
+            folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
+            to folder structure `A/*.png`, this flag should be True; if B.zip is unzipped to `*.png`, this flag should
+            be False.
+        version: this argument only works on ngc souce, and it represents the version of the model.
+
+    """
+    if source == "github":
+        if len(repo.split("/")) != 2:
+            raise ValueError("if source is `github`, repo should be in the form of `repo_owner/repo_name`.")
+        repo_owner, repo_name = repo.split("/")
+        url = _get_git_release_url(repo_owner, repo_name, tag_name=package, filename=filename)
+        filepath = os.path.join(download_path, filename)
+    elif source == "ngc":
+        # to be modified
+        url = f"https://api.ngc.nvidia.com/v2/models/{repo}/{package}/versions/{version}/zip"
+        filepath = os.path.join(download_path, f"{package}.zip")
+    download_url(url=url, filepath=filepath, hash_val=hash_val, hash_type=hash_type)
+    if extract is True:
+        extractall(filepath=filepath, output_dir=download_path, has_base=has_base)
 
 
 def run(
