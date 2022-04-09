@@ -42,8 +42,8 @@ a2[0, 0, 10] = 1
 b2[0, 0, 150] = 1
 
 ### testing whole llines and compare_values set to 2
-compare_valuesB = torch.ones(1) 
-compare_valuesB[0]=2
+compare_values_b = torch.ones(1) 
+compare_values_b[0]=2
 a3 = torch.zeros(400, 200, 300) 
 b3 = torch.zeros(400, 200, 300) 
 a3[:, 0, 10] = 2
@@ -97,19 +97,19 @@ TEST_CASES = [
     [[a, b, 1.0, compare_values], 10]
     ,[[a1, b1, 1.0, compare_values], 15]
     ,[[a2, b2, 1.0, compare_values], 140]
-    ,[[a3, b3, 1.0, compare_valuesB], 140]
-    ,[[a4, b4, 1.0, compare_valuesB], 110]
-    ,[[a5, b5, 1.0, compare_valuesB], 110]
-    ,[[a6, b6, 1.0, compare_valuesB], 110]
-    ,[[a7, b7, 1.0, compare_valuesB], 110]
-    ,[[a8, b8, 1.0, compare_valuesB], 110]
+    ,[[a3, b3, 1.0, compare_values_b], 140]
+    ,[[a4, b4, 1.0, compare_values_b], 110]
+    ,[[a5, b5, 1.0, compare_values_b], 110]
+    ,[[a6, b6, 1.0, compare_values_b], 110]
+    ,[[a7, b7, 1.0, compare_values_b], 110]
+    ,[[a8, b8, 1.0, compare_values_b], 110]
 
     #testing robust
-    ,[[a6, b6, 0.9, compare_valuesB], 110]
-    ,[[a7, b7, 0.85, compare_valuesB], 110]
-    ,[[a8, b8, 0.8, compare_valuesB], 110]
+    ,[[a6, b6, 0.9, compare_values_b], 110]
+    ,[[a7, b7, 0.85, compare_values_b], 110]
+    ,[[a8, b8, 0.8, compare_values_b], 110]
     #multi points
-    ,[[a9, b9, 1.0, compare_valuesB], 40]
+    ,[[a9, b9, 1.0, compare_values_b], 40]
     ]
 
     
@@ -119,7 +119,8 @@ class TestHausdorffDistanceMorphological(unittest.TestCase):
     def test_value(self, input_data, expected_value):
         [y_pred, y, percentt, compare_values] = input_data
         hd_metric = MorphologicalHausdorffDistanceMetric(percentt)
-        result = hd_metric.compute_hausdorff_distance(y_pred.to(device), y.to(device), compare_values.to(device),True)
+        result = hd_metric.compute_hausdorff_distance(y_pred.to(device)
+        , y.to(device), compare_values.to(device),True)
         np.testing.assert_allclose(expected_value, result, rtol=1e-7)
 
 
