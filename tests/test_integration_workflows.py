@@ -147,7 +147,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         metric_cmp_fn=lambda cur, prev: cur >= prev,  # if greater or equal, treat as new best metric
         val_handlers=val_handlers,
-        amp=True if amp else False,
+        amp=bool(amp),
     )
 
     train_postprocessing = Compose(
@@ -200,7 +200,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         postprocessing=train_postprocessing,
         key_train_metric={"train_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         train_handlers=train_handlers,
-        amp=True if amp else False,
+        amp=bool(amp),
         optim_set_to_none=True,
     )
     trainer.run()
@@ -271,7 +271,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         },
         additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         val_handlers=val_handlers,
-        amp=True if amp else False,
+        amp=bool(amp),
     )
     evaluator.run()
 
