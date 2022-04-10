@@ -90,7 +90,7 @@ class MorphologicalHausdorffDistanceMetric(CumulativeIterationMetric):
         self.percent = percent
         self.to_invert_dims = to_invert_dims
         self.compare_values = compare_values
-        self.compiled_extension = load_module("hausdorff_cpp")
+        self.compiled_extension = load_module("hausdorff")
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         """
