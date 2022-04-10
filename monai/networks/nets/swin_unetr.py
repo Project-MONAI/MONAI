@@ -49,6 +49,7 @@ class SwinUNETR(nn.Module):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         dropout_path_rate: float = 0.0,
+        normalize: bool = False,
         use_checkpoint: bool = False,
     ) -> None:
         """
@@ -63,6 +64,7 @@ class SwinUNETR(nn.Module):
             drop_rate: dropout rate.
             attn_drop_rate: attention dropout rate.
             dropout_path_rate: drop path rate.
+            normalize: normalize output intermediate features in each stage.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
 
         Examples::
@@ -104,6 +106,8 @@ class SwinUNETR(nn.Module):
 
         if feature_size % 12 != 0:
             raise ValueError("feature_size should be divisible by 12.")
+
+        self.normalize = normalize
 
         self.swinViT = SwinTransformer(
             in_chans=in_channels,
@@ -284,7 +288,7 @@ class SwinUNETR(nn.Module):
             self.swinViT.norm.bias.copy_(weights["state_dict"]["module.norm.bias"])
 
     def forward(self, x_in):
-        hidden_states_out = self.swinViT(x_in)
+        hidden_states_out = self.swinViT(x_in, self.normalize)
         enc0 = self.encoder1(x_in)
         enc1 = self.encoder2(hidden_states_out[0])
         enc2 = self.encoder3(hidden_states_out[1])
@@ -977,23 +981,24 @@ class SwinTransformer(nn.Module):
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
         self.norm = norm_layer(self.num_features)
 
-    def proj_out(self, x):
-        n, ch, d, h, w = x.size()
-        x = rearrange(x, "n c d h w -> n d h w c")
-        x = F.layer_norm(x, [ch])
-        x = rearrange(x, "n d h w c -> n c d h w")
+    def proj_out(self, x, normalize=False):
+        if normalize:
+            n, ch, d, h, w = x.size()
+            x = rearrange(x, "n c d h w -> n d h w c")
+            x = F.layer_norm(x, [ch])
+            x = rearrange(x, "n d h w c -> n c d h w")
         return x
 
-    def forward(self, x):
+    def forward(self, x, normalize=False):
         x0 = self.patch_embed(x)
         x0 = self.pos_drop(x0)
-        x0_out = self.proj_out(x0)
+        x0_out = self.proj_out(x0, normalize)
         x1 = self.layers1[0](x0.contiguous())
-        x1_out = self.proj_out(x1)
+        x1_out = self.proj_out(x1, normalize)
         x2 = self.layers2[0](x1.contiguous())
-        x2_out = self.proj_out(x2)
+        x2_out = self.proj_out(x2, normalize)
         x3 = self.layers3[0](x2.contiguous())
-        x3_out = self.proj_out(x3)
+        x3_out = self.proj_out(x3, normalize)
         x4 = self.layers4[0](x3.contiguous())
-        x4_out = self.proj_out(x4)
+        x4_out = self.proj_out(x4, normalize)
         return [x0_out, x1_out, x2_out, x3_out, x4_out]
