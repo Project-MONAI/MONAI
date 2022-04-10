@@ -804,8 +804,8 @@ __global__ void firstMetaPrepareKernel(
   __shared__ unsigned int localWorkQueueCounter[1];
   // according to https://forums.developer.nvidia.com/t/find-the-limit-of-shared-memory-that-can-be-used-per-block/48556
   // it is good to keep shared memory below 16kb kilo bytes so it will give us 1600 length of shared memory so here we
-  // will store locally the calculated offsets and coordinates of meta data block of intrest marking also wheather we are
-  // talking about gold or segmentation pass (fp or fn )
+  // will store locally the calculated offsets and coordinates of meta data block of intrest marking also wheather we
+  // are talking about gold or segmentation pass (fp or fn )
   __shared__ uint32_t localWorkQueue[1600];
   __shared__ uint32_t localOffsetQueue[1600];
   if ((threadIdx.x == 0)) {
@@ -1618,7 +1618,7 @@ UINT32_MAX 0 : top 1 : bottom 2 : left 3 : right 4 : anterior 5 : posterior
                   // just re
                   mainShmem[begSecRegShmem + threadIdx.x + threadIdx.y * 32] = 0;
                   ////// IMPORTANT for some reason in order to make it work resultfnOffset and resultfnOffset swith
-                  ///places
+                  /// places
                   if (isGoldForLocQueue[i]) {
                     mainShmem[begSecRegShmem + threadIdx.x + threadIdx.y * 32] = uint32_t(
                         atomicAdd_block(&(localFpConter[0]), 1) + localBlockMetaData[(i & 1) * 20 + 6] +
