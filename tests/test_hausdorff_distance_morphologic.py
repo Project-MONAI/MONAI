@@ -116,8 +116,7 @@ class TestHausdorffDistanceMorphological(unittest.TestCase):
     def test_value(self, input_data, expected_value):
         [y_pred, y, percentt, compare_values] = input_data
         hd_metric = MorphologicalHausdorffDistanceMetric(percentt)
-        result = hd_metric.compute_hausdorff_distance(y_pred.to(device)
-        , y.to(device), compare_values.to(device), True)
+        result = hd_metric.compute_hausdorff_distance(y_pred.to(device), y.to(device), compare_values.to(device), True)
         np.testing.assert_allclose(expected_value, result, rtol=1e-7)
 
 
