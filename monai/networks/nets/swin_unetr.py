@@ -19,7 +19,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
-from torch.nn import GELU, LayerNorm
+from torch.nn import LayerNorm
 
 from monai.networks.blocks.dynunet_block import UnetOutBlock
 from monai.networks.blocks.mlp import MLPBlock as Mlp
