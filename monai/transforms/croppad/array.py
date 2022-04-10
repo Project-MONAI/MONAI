@@ -205,7 +205,7 @@ class SpatialPad(Transform):
             # all zeros, skip padding
             return img
 
-        padder = Pad(all_pad_width, mode or self.mode, **self.kwargs)
+        padder = Pad(to_pad=all_pad_width, mode=mode or self.mode, **self.kwargs)
         return padder(img)
 
 

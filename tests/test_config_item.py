@@ -91,6 +91,34 @@ class TestConfigItem(unittest.TestCase):
         self.assertTrue(isinstance(ret, DataLoader))
         self.assertEqual(ret.batch_size, 4)
 
+    @parameterized.expand([("$import json", "json"), ("$import json as j", "j")])
+    def test_import(self, stmt, mod_name):
+        test_globals = {}
+        ConfigExpression(id="", config=stmt, globals=test_globals).evaluate()
+        self.assertTrue(callable(test_globals[mod_name].dump))
+
+    @parameterized.expand(
+        [
+            ("$from json import dump", "dump"),
+            ("$from json import dump, dumps", "dump"),
+            ("$from json import dump as jd", "jd"),
+            ("$from json import dump as jd, dumps as ds", "jd"),
+        ]
+    )
+    def test_import_from(self, stmt, mod_name):
+        test_globals = {}
+        ConfigExpression(id="", config=stmt, globals=test_globals).evaluate()
+        self.assertTrue(callable(test_globals[mod_name]))
+        self.assertTrue(ConfigExpression.is_import_statement(ConfigExpression(id="", config=stmt).config))
+
+    @parameterized.expand(
+        [("$from json import dump", True), ("$print()", False), ("$import json", True), ("import json", False)]
+    )
+    def test_is_import_stmt(self, stmt, expected):
+        expr = ConfigExpression(id="", config=stmt)
+        flag = expr.is_import_statement(expr.config)
+        self.assertEqual(flag, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
