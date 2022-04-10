@@ -22,6 +22,7 @@ import torch.utils.checkpoint as checkpoint
 from torch.nn import GELU, LayerNorm
 
 from monai.networks.blocks.dynunet_block import UnetOutBlock
+from monai.networks.blocks.mlp import MLPBlock as Mlp
 from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrUpBlock
 from monai.networks.layers import Conv
 from monai.utils import ensure_tuple_rep, optional_import
@@ -298,41 +299,6 @@ class SwinUNETR(nn.Module):
         return logits
 
 
-class Mlp(nn.Module):
-    """
-    multi-layer perceptron based on: "Liu et al.,
-    Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
-    <https://arxiv.org/abs/2103.14030>"
-    https://github.com/microsoft/Swin-Transformer
-    """
-
-    def __init__(
-        self, in_features: int, hidden_features: int, act_layer: Type[GELU] = nn.GELU, drop: float = 0.0
-    ) -> None:
-        super().__init__()
-        """
-        Args:
-            in_features: number of input feature channels.
-            hidden_features: number of hidden feature channels.
-            act_layer: activation layer.
-            drop: dropout rate.
-        """
-
-        hidden_features = hidden_features or in_features
-        self.fc1 = nn.Linear(in_features, hidden_features)
-        self.act = act_layer()
-        self.fc2 = nn.Linear(hidden_features, in_features)
-        self.drop = nn.Dropout(drop)
-
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.act(x)
-        x = self.drop(x)
-        x = self.fc2(x)
-        x = self.drop(x)
-        return x
-
-
 def window_partition(x, window_size):
     """window partition operation based on: "Liu et al.,
     Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
@@ -517,7 +483,7 @@ class SwinTransformerBlock(nn.Module):
         drop: float = 0.0,
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
-        act_layer: Type[GELU] = nn.GELU,
+        act_layer: str = "GELU",
         norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
         use_checkpoint: bool = False,
     ) -> None:
@@ -557,7 +523,7 @@ class SwinTransformerBlock(nn.Module):
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
+        self.mlp = Mlp(hidden_size=dim, mlp_dim=mlp_hidden_dim, act=act_layer, dropout_rate=drop, dropout_mode="swin")
 
     def forward_part1(self, x, mask_matrix):
         b, d, h, w, c = x.shape
@@ -604,10 +570,10 @@ class SwinTransformerBlock(nn.Module):
             "attn.proj.bias",
             "norm2.weight",
             "norm2.bias",
-            "mlp.fc1.weight",
-            "mlp.fc1.bias",
-            "mlp.fc2.weight",
-            "mlp.fc2.bias",
+            "mlp.linear1.weight",
+            "mlp.linear1.bias",
+            "mlp.linear2.weight",
+            "mlp.linear2.bias",
         ]
         with torch.no_grad():
             self.norm1.weight.copy_(weights["state_dict"][root + block_names[0]])
@@ -620,10 +586,10 @@ class SwinTransformerBlock(nn.Module):
             self.attn.proj.bias.copy_(weights["state_dict"][root + block_names[7]])
             self.norm2.weight.copy_(weights["state_dict"][root + block_names[8]])
             self.norm2.bias.copy_(weights["state_dict"][root + block_names[9]])
-            self.mlp.fc1.weight.copy_(weights["state_dict"][root + block_names[10]])
-            self.mlp.fc1.bias.copy_(weights["state_dict"][root + block_names[11]])
-            self.mlp.fc2.weight.copy_(weights["state_dict"][root + block_names[12]])
-            self.mlp.fc2.bias.copy_(weights["state_dict"][root + block_names[13]])
+            self.mlp.linear1.weight.copy_(weights["state_dict"][root + block_names[10]])
+            self.mlp.linear1.bias.copy_(weights["state_dict"][root + block_names[11]])
+            self.mlp.linear2.weight.copy_(weights["state_dict"][root + block_names[12]])
+            self.mlp.linear2.bias.copy_(weights["state_dict"][root + block_names[13]])
 
     def forward(self, x, mask_matrix):
         shortcut = x
