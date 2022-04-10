@@ -96,7 +96,7 @@ class MorphologicalHausdorffDistanceMetric(CumulativeIterationMetric):
         """
         Compute the Hausdorff distance.
         Important!!
-        Size of y and y_pred 
+        Size of y and y_pred
 
         Args:
             y_pred: input data to compute, It must be 3 dimensional
