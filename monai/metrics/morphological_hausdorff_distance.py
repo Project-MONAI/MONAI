@@ -16,7 +16,7 @@ import numpy as np
 import torch
 
 from monai._extensions.loader import load_module
-from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
+from monai.metrics.utils import do_metric_reduction
 
 from .metric import CumulativeIterationMetric
 
