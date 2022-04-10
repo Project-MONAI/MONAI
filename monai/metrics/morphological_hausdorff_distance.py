@@ -10,12 +10,13 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import numpy as np
 import torch
 
 from monai._extensions.loader import load_module
+from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 
 from .metric import CumulativeIterationMetric
 
@@ -26,15 +27,18 @@ class MorphologicalHausdorffDistanceMetric(CumulativeIterationMetric):
     """
         Work is based onthe principle of application of  mathemathical morphology more precisely dilatation
         , more details is presented in works [1] and [2]. Calculated  is roughly related to the largest
-    thickness of the difference between the true and estimatedmasks, and constitutes Approximation of true Hausdorff distance.
+    thickness of the difference between the true and estimatedmasks, and constitutes Approximation
+    of true Hausdorff distance.
      The correlation between true and morphological Hausdorf distance is around 0.9, less for robust version .
     Hovewer this implementation is also around 100 times faster than exact MONAI Hausdorff distance calculation.
      One can measure 3 diffrent metrics based on Hausdorff ditance.
 
-            1)simple Hausdorff distance - it tell what is the distance between two most distant points one from y and other from y_pred
+            1)simple Hausdorff distance - it tell what is the distance between two most distant points one from
+            y and other from y_pred
 
         2)robust Hausdorff distance - modification of 1) where we stop analyzing points
-        when we already analyzed given percent of total number of points - is less sensitive to outliers. It is also slightly faster
+        when we already analyzed given percent of total number of points - is less sensitive to outliers.
+         It is also slightly faster
 
         3)mean Hausdorff distance - can be understood as approximately
         mean distance between pair of points where one point is from y and other from y_pred.
@@ -43,13 +47,19 @@ class MorphologicalHausdorffDistanceMetric(CumulativeIterationMetric):
          that will contain data for each point what is HD value for it
          (like we would do Hausdorff distance calculation only for this point and all points from other mask)
 
-            Compute Hausdorff Distance between two tensors. In addition, specify the `percent` (for robust Hausdorff distance )
+            Compute Hausdorff Distance between two tensors. In addition, specify the `percent`
+            (for robust Hausdorff distance )
             parameter can get the percentile of the distance. Input `y_pred` is compared with ground truth `y`.
 
             Args:
                 percent: an optional float number between 0 and 1. If specified, the corresponding
                     percent of the Hausdorff Distance rather than the maximum result will be achieved.
                     Defaults to 1.0 .
+                compare_values: 0 dimensional tensor marking what value are we intrested in the supplied y and y_pred,
+                    defined becouse  in case of multiorgan segmentations frequently we can have information
+                     about multiple organs in the same mask just marked by diffrent numbers
+                                for example in case of boolean array we can suupply it like torch.ones(1, dtype =bool)
+                to_invert_dims: inverts first with third dim - used fo testing only
 
         1) Érick Oliveira Rodrigues,An efficient and locality-oriented Hausdorff distance algorithm:
             Proposal and analysis of paradigms and implementations, Pattern Recognition,Volume 117,2021
@@ -59,39 +69,50 @@ class MorphologicalHausdorffDistanceMetric(CumulativeIterationMetric):
 
     """
 
-    def __init__(self, percent: float = 1.0) -> None:
+    def aggregate(self):
+        """
+        Execute reduction logic for the output of `compute_hausdorff_distance`.
+
+        """
+        data = self.get_buffer()
+        if not isinstance(data, torch.Tensor):
+            raise ValueError("the data to aggregate must be PyTorch Tensor.")
+
+        # do metric reduction
+        f, not_nans = do_metric_reduction(data, self.reduction)
+        return (f, not_nans) if self.get_not_nans else f
+
+    def __init__(self
+                ,compare_values: torch.Tensor
+                ,percent: float = 1.0
+                ,to_invert_dims=False) -> None:
         super().__init__()
         self.percent = percent
+        self.to_invert_dims = to_invert_dims
+        self.compare_values = compare_values
         self.compiled_extension = load_module("hausdorff_cpp")
 
-    def compute_morphological_hausdorff_distance(
-        self, y_pred: torch.Tensor, y: torch.Tensor, compare_values: torch.Tensor, to_invert_dims=False
-    ):
+    def _compute_tensor(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         """
         Compute the Hausdorff distance.
+        Important!!
+        Size of y and y_pred 
 
         Args:
             y_pred: input data to compute, It must be 3 dimensional
-            y: ground truth to compute mean the distance. It must be 3 dimensional, Dimensionality needs to be identical as in y_pred
+            y: ground truth to compute mean the distance. It must be 3 dimensional,
+            Dimensionality needs to be identical as in y_pred
 
-            percent: an optional float number between 0 and 1. If specified, the corresponding
-                percent of the Hausdorff Distance rather than the maximum result will be achieved.
-                Defaults to 1.0 .
-            compare_values: 0 dimensional tensor marking what value are we intrested in the supplied y and y_pred,
-             defined becouse  in case of multiorgan segmentations frequently we can have information
-              about multiple organs in the same mask just marked by diffrent numbers
-                                for example in case of boolean array we can suupply it like torch.ones(1, dtype =bool)
-            to_invert_dims - inverts first with third dim - used fo testing only
         """
 
         if y.shape != y_pred.shape:
             raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
         sizz = y.shape
-        if to_invert_dims:
+        if self.to_invert_dims:
             return self.compiled_extension.getHausdorffDistance(
-                y_pred, y, sizz[2], sizz[1], sizz[0], self.percent, compare_values
+                y_pred, y, sizz[2], sizz[1], sizz[0], self.percent, self.compare_values
             )
         else:
             return self.compiled_extension.getHausdorffDistance(
-                y_pred, y, sizz[0], sizz[1], sizz[2], self.percent, compare_values
+                y_pred, y, sizz[0], sizz[1], sizz[2], self.percent, self.compare_values
             )
