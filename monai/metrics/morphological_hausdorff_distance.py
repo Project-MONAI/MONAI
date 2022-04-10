@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Union, Any
+from typing import Any, Optional, Union
 
 import numpy as np
 import torch
@@ -82,10 +82,7 @@ class MorphologicalHausdorffDistanceMetric(CumulativeIterationMetric):
         f, not_nans = do_metric_reduction(data, self.reduction)
         return (f, not_nans) if self.get_not_nans else f
 
-    def __init__(self
-                ,compare_values: torch.Tensor
-                ,percent: float = 1.0
-                ,to_invert_dims=False) -> None:
+    def __init__(self, compare_values: torch.Tensor, percent: float = 1.0, to_invert_dims=False) -> None:
         super().__init__()
         self.percent = percent
         self.to_invert_dims = to_invert_dims
