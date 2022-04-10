@@ -141,8 +141,11 @@ def compute_surface_dice(
     will be returned for this class. In the case of a class being present in only one of predicted segmentation or
     reference segmentation, the class NSD will be 0.
 
-    This implementation supports 2D images. For 3D images, please refer to DeepMind's implementation
-    https://github.com/deepmind/surface-distance.
+    This implementation is based on https://arxiv.org/abs/2111.05408 and supports 2D images.
+    Be aware that the computation of boundaries is different from DeepMind's implementation
+    https://github.com/deepmind/surface-distance. In this implementation, the length of a segmentation boundary is
+    interpreted as the number of its edge pixels. In DeepMind's implementation, the length of a segmentation boundary
+    depends on the local neighborhood (cf. https://arxiv.org/abs/1809.04430).
 
     Args:
         y_pred: Predicted segmentation, typically segmentation model output.
