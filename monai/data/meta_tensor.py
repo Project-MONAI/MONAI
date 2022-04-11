@@ -109,6 +109,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             return ret.as_tensor()
         meta_args = MetaObj.flatten_meta_objs(list(args) + list(kwargs.values()))
         ret._copy_meta(meta_args)
+        ret.affine = ret.affine.to(ret.device)
         return ret
 
     def get_default_affine(self) -> torch.Tensor:
@@ -138,7 +139,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine."""
-        return self.meta["affine"]
+        return self.meta["affine"]  # type: ignore
 
     @affine.setter
     def affine(self, d: torch.Tensor) -> None:
