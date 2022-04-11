@@ -230,7 +230,7 @@ class TestMetaTensor(unittest.TestCase):
             traced_fn = torch.jit.load(fname)
             out = traced_fn(im)
             self.assertIsInstance(out, torch.Tensor)
-            if not isinstance(out, MetaTensor) and PT_VER_MAJ == 1 and PT_VER_MIN <= 8:
+            if not isinstance(out, MetaTensor) and PT_VER_MAJ == 1 and PT_VER_MIN <= 9:
                 warnings.warn(
                     "When calling `nn.Module(MetaTensor) on a module traced with "
                     "`torch.jit.trace`, your version of pytorch returns a "
