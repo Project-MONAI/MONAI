@@ -52,10 +52,10 @@ class MetaTensor(MetaObj, torch.Tensor):
             assert m2.meta == meta
 
     Notes:
-        - Depending on your version of pytorch, `torch.jit.trace(net, im)` may or may
+        - Older versions of pytorch (<=1.8), `torch.jit.trace(net, im)` may
             not work if `im` is of type `MetaTensor`. This can be resolved with
             `torch.jit.trace(net, im.as_tensor())`.
-        - Depending on your version of pytorch `torch.save(m, fname); m=torch.load(fname)`
+        - For older versions of pytorch (<=1.7), `torch.save(m, fname); m=torch.load(fname)`
             may return a `torch.Tensor` instead of MetaTensor`.
         - A warning will be raised if in the constructor `affine` is not `None` and
             `meta` already contains the key `affine`.
