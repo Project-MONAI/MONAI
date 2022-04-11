@@ -519,10 +519,7 @@ def convert_to_torchscript(
     with torch.no_grad():
         script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
-            if not pytorch_after(1, 7):
-                torch.jit.save(m=script_module, f=filename_or_obj)
-            else:
-                torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
+            torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
     if verify:
         if device is None:

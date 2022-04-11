@@ -22,7 +22,6 @@ from monai.networks.layers.convutils import gaussian_1d
 from monai.networks.layers.factories import Conv
 from monai.utils import (
     ChannelMatching,
-    InvalidPyTorchVersionError,
     SkipMode,
     look_up_option,
     optional_import,
@@ -31,8 +30,7 @@ from monai.utils import (
 from monai.utils.misc import issequenceiterable
 
 _C, _ = optional_import("monai._C")
-if pytorch_after(1, 7):
-    fft, _ = optional_import("torch.fft")
+fft, _ = optional_import("torch.fft")
 
 __all__ = [
     "ChannelPad",
@@ -386,8 +384,6 @@ class HilbertTransform(nn.Module):
 
     def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:
 
-        if not pytorch_after(1, 7):
-            raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         super().__init__()
         self.axis = axis
