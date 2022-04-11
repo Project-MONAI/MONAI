@@ -4,6 +4,9 @@ on:
   # schedule:
   #   - cron: "0 2 * * *"  # at 02:00 UTC
   # Allows you to run this workflow manually from the Actions tab
+  push:
+    branches:
+      - 4105-pt16
   workflow_dispatch:
 
 jobs:
