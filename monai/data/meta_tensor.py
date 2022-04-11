@@ -84,7 +84,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.affine = affine
         elif "affine" in self.meta:
             pass  # nothing to do
-        elif isinstance(x, MetaObj):
+        elif isinstance(x, MetaTensor):
             self.affine = x.affine
         else:
             self.affine = self.get_default_affine()
