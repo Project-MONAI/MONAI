@@ -12,6 +12,7 @@
 A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
+import math
 import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -597,6 +598,61 @@ class Flip(Transform):
         return torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
 
 
+class GaussianSmoothing(Transform):
+    """
+    Apply gaussian smoothing on a
+    1d, 2d or 3d tensor. Filtering is performed seperately for each channel
+    in the input using a depthwise convolution.
+    Arguments:
+        spatial_dims (int, optional): The number of dimensions of the data.
+        kernel_size (int, sequence): Size of the gaussian kernel.
+        sigma (float, sequence): Standard deviation of the gaussian kernel.
+    """
+
+    def __init__(self, spatial_dims: int, kernel_size: Union[Sequence[int], int], sigma: Union[Sequence[float], float]):
+
+        kernel_size = ensure_tuple_rep(kernel_size, spatial_dims)  # match the spatial image dim
+        sigma = ensure_tuple_rep(sigma, spatial_dims)  # match the spatial image dim
+
+        # The gaussian kernel is the product of the
+        # gaussian function of each dimension.
+        kernel = 1
+        meshgrids = torch.meshgrid([torch.arange(size, dtype=torch.float32) for size in kernel_size], indexing="ij")
+        for size, std, mgrid in zip(kernel_size, sigma, meshgrids):
+            if size == 1:
+                continue
+            mean = (size - 1) / 2
+            kernel *= 1 / (std * math.sqrt(2 * math.pi)) * torch.exp(-(((mgrid - mean) / (2 * std)) ** 2))
+
+        # Make sure sum of values in gaussian kernel equals 1.
+        kernel = kernel / torch.sum(kernel)
+
+        # Reshape to depthwise convolutional weight
+        self.kernel = kernel.view(1, 1, *kernel.size())
+
+        if spatial_dims == 1:
+            self.conv = torch.nn.functional.conv1d
+        elif spatial_dims == 2:
+            self.conv = torch.nn.functional.conv2d
+        elif spatial_dims == 3:
+            self.conv = torch.nn.functional.conv3d
+        else:
+            raise RuntimeError("Only 1, 2 and 3 dimensions are supported. Received {}.".format(spatial_dims))
+
+    def __call__(self, input):
+        """
+        Apply gaussian filter to input.
+        Arguments:
+            input (torch.Tensor): Input to apply gaussian filter on.
+        Returns:
+            filtered (torch.Tensor): Filtered output.
+        """
+        channels = input.shape[0]
+        kernel = self.kernel.clone().repeat(channels, *[1] * (self.kernel.dim() - 1)).to(input.dtype).to(input.device)
+
+        return self.conv(input.unsqueeze(0), weight=kernel, groups=channels).squeeze(0)
+
+
 class Resize(Transform):
     """
     Resize the input image to given spatial size (with scaling, not cropping/padding).
@@ -618,6 +674,8 @@ class Resize(Transform):
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        anti_aliasing: bool. Whether to apply a Gaussian filter to smooth the image prior to downsampling.
+            Only valid when downsamling. See also skimage.transform.resize
     """
 
     backend = [TransformBackends.TORCH]
@@ -628,11 +686,13 @@ class Resize(Transform):
         size_mode: str = "all",
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
+        anti_aliasing: Optional[bool] = True,
     ) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
+        self.anti_aliasing = anti_aliasing
 
     def __call__(
         self,
@@ -673,6 +733,19 @@ class Resize(Transform):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
+
+        if self.anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
+            factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
+            anti_aliasing_sigma = torch.maximum(torch.zeros(factors.shape), (factors - 1) / 2).tolist()
+            anti_aliasing_kernel_size = [
+                min(2 * int(sigma + 0.9) + 1, img_l) for sigma, img_l in zip(anti_aliasing_sigma, img_.shape[1:])
+            ]
+            anti_aliasing_filter = GaussianSmoothing(
+                spatial_dims=len(factors), kernel_size=anti_aliasing_kernel_size, sigma=anti_aliasing_sigma
+            )
+
+            img_ = anti_aliasing_filter(img_)
+
         resized = torch.nn.functional.interpolate(
             input=img_.unsqueeze(0),
             size=spatial_size_,
