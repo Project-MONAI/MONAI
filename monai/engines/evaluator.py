@@ -74,6 +74,10 @@ class Evaluator(Workflow):
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     """
 
@@ -95,6 +99,8 @@ class Evaluator(Workflow):
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
+        to_kwargs: Optional[Dict] = None,
+        amp_kwargs: Optional[Dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -113,6 +119,8 @@ class Evaluator(Workflow):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            to_kwargs=to_kwargs,
+            amp_kwargs=amp_kwargs,
         )
         mode = look_up_option(mode, ForwardMode)
         if mode == ForwardMode.EVAL:
@@ -181,6 +189,10 @@ class SupervisedEvaluator(Evaluator):
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     """
 
@@ -204,6 +216,8 @@ class SupervisedEvaluator(Evaluator):
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
+        to_kwargs: Optional[Dict] = None,
+        amp_kwargs: Optional[Dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -222,6 +236,8 @@ class SupervisedEvaluator(Evaluator):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            to_kwargs=to_kwargs,
+            amp_kwargs=amp_kwargs,
         )
 
         self.network = network
@@ -245,7 +261,9 @@ class SupervisedEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
+        batch = self.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        )
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -259,7 +277,7 @@ class SupervisedEvaluator(Evaluator):
         # execute forward computation
         with self.mode(self.network):
             if self.amp:
-                with torch.cuda.amp.autocast():
+                with torch.cuda.amp.autocast(**engine.amp_kwargs):  # type: ignore
                     engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)  # type: ignore
             else:
                 engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)  # type: ignore
@@ -314,6 +332,10 @@ class EnsembleEvaluator(Evaluator):
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     """
 
@@ -338,6 +360,8 @@ class EnsembleEvaluator(Evaluator):
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
+        to_kwargs: Optional[Dict] = None,
+        amp_kwargs: Optional[Dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -356,6 +380,8 @@ class EnsembleEvaluator(Evaluator):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            to_kwargs=to_kwargs,
+            amp_kwargs=amp_kwargs,
         )
 
         self.networks = ensure_tuple(networks)
@@ -387,7 +413,9 @@ class EnsembleEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
+        batch = self.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        )
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -401,7 +429,7 @@ class EnsembleEvaluator(Evaluator):
         for idx, network in enumerate(self.networks):
             with self.mode(network):
                 if self.amp:
-                    with torch.cuda.amp.autocast():
+                    with torch.cuda.amp.autocast(**engine.amp_kwargs):  # type: ignore
                         if isinstance(engine.state.output, dict):
                             engine.state.output.update(
                                 {self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)}

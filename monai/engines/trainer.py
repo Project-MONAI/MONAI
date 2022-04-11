@@ -26,7 +26,7 @@ from monai.engines.utils import (
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import min_version, optional_import, pytorch_after
+from monai.utils import min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
@@ -105,6 +105,10 @@ class SupervisedTrainer(Trainer):
             default to `True`.
         optim_set_to_none: when calling `optimizer.zero_grad()`, instead of setting to zero, set the grads to None.
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     """
 
@@ -131,6 +135,8 @@ class SupervisedTrainer(Trainer):
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
         optim_set_to_none: bool = False,
+        to_kwargs: Optional[Dict] = None,
+        amp_kwargs: Optional[Dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -149,6 +155,8 @@ class SupervisedTrainer(Trainer):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            to_kwargs=to_kwargs,
+            amp_kwargs=amp_kwargs,
         )
 
         self.network = network
@@ -176,7 +184,9 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
+        batch = self.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        )
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -193,14 +203,10 @@ class SupervisedTrainer(Trainer):
             engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
         self.network.train()
-        # `set_to_none` only work from PyTorch 1.7.0
-        if not pytorch_after(1, 7):
-            self.optimizer.zero_grad()
-        else:
-            self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
+        self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
 
         if self.amp and self.scaler is not None:
-            with torch.cuda.amp.autocast():
+            with torch.cuda.amp.autocast(**engine.amp_kwargs):  # type: ignore
                 _compute_pred_loss()
             self.scaler.scale(engine.state.output[Keys.LOSS]).backward()  # type: ignore
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
@@ -271,6 +277,10 @@ class GanTrainer(Trainer):
             default to `True`.
         optim_set_to_none: when calling `optimizer.zero_grad()`, instead of setting to zero, set the grads to None.
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     """
 
@@ -302,6 +312,8 @@ class GanTrainer(Trainer):
         train_handlers: Optional[Sequence] = None,
         decollate: bool = True,
         optim_set_to_none: bool = False,
+        to_kwargs: Optional[Dict] = None,
+        amp_kwargs: Optional[Dict] = None,
     ):
         if not isinstance(train_data_loader, DataLoader):
             raise ValueError("train_data_loader must be PyTorch DataLoader.")
@@ -321,6 +333,8 @@ class GanTrainer(Trainer):
             handlers=train_handlers,
             postprocessing=postprocessing,
             decollate=decollate,
+            to_kwargs=to_kwargs,
+            amp_kwargs=amp_kwargs,
         )
         self.g_network = g_network
         self.g_optimizer = g_optimizer
@@ -353,24 +367,23 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
+        d_input = self.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        )
         batch_size = self.data_loader.batch_size  # type: ignore
         g_input = self.g_prepare_batch(
             num_latents=batch_size,
             latent_size=self.latent_shape,
             device=engine.state.device,  # type: ignore
             non_blocking=engine.non_blocking,  # type: ignore
+            **engine.to_kwargs,  # type: ignore
         )
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
         d_total_loss = torch.zeros(1)
         for _ in range(self.d_train_steps):
-            # `set_to_none` only work from PyTorch 1.7.0
-            if not pytorch_after(1, 7):
-                self.d_optimizer.zero_grad()
-            else:
-                self.d_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
+            self.d_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
             dloss = self.d_loss_function(g_output, d_input)
             dloss.backward()
             self.d_optimizer.step()
@@ -383,12 +396,10 @@ class GanTrainer(Trainer):
                 latent_size=self.latent_shape,
                 device=engine.state.device,  # type: ignore
                 non_blocking=engine.non_blocking,  # type: ignore
+                **engine.to_kwargs,  # type: ignore
             )
         g_output = self.g_inferer(g_input, self.g_network)
-        if not pytorch_after(1, 7):
-            self.g_optimizer.zero_grad()
-        else:
-            self.g_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
+        self.g_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
         g_loss = self.g_loss_function(g_output)
         g_loss.backward()
         self.g_optimizer.step()

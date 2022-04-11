@@ -152,9 +152,22 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+Whole slide image reader
+------------------------
+
+BaseWSIReader
+~~~~~~~~~~~~~
+.. autoclass:: BaseWSIReader
+  :members:
+
 WSIReader
 ~~~~~~~~~
 .. autoclass:: WSIReader
+  :members:
+
+CuCIMWSIReader
+~~~~~~~~~~~~~~
+.. autoclass:: CuCIMWSIReader
   :members:
 
 Image writer
@@ -271,3 +284,14 @@ ThreadDataLoader
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
+
+
+Meta Object
+-----------
+.. automodule:: monai.data.meta_obj
+    :members:
+
+MetaTensor
+----------
+.. autoclass:: monai.data.MetaTensor
+   :members:

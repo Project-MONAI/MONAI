@@ -148,6 +148,8 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         metric_cmp_fn=lambda cur, prev: cur >= prev,  # if greater or equal, treat as new best metric
         val_handlers=val_handlers,
         amp=bool(amp),
+        to_kwargs={"memory_format": torch.preserve_format},
+        amp_kwargs={"dtype": torch.float16 if bool(amp) else torch.float32},
     )
 
     train_postprocessing = Compose(
@@ -202,6 +204,8 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         train_handlers=train_handlers,
         amp=bool(amp),
         optim_set_to_none=True,
+        to_kwargs={"memory_format": torch.preserve_format},
+        amp_kwargs={"dtype": torch.float16 if bool(amp) else torch.float32},
     )
     trainer.run()
 
