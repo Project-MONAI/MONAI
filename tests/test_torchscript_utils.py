@@ -18,7 +18,6 @@ import torch
 from monai.config import get_config_values
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.utils import JITMetadataKeys
-from monai.utils.module import pytorch_after
 
 
 class TestModule(torch.nn.Module):
