@@ -369,7 +369,6 @@ class SavitzkyGolayFilter(nn.Module):
 class HilbertTransform(nn.Module):
     """
     Determine the analytical signal of a Tensor along a particular axis.
-    Requires PyTorch 1.7.0+ and the PyTorch FFT module (which is not included in NVIDIA PyTorch Release 20.10).
 
     Args:
         axis: Axis along which to apply Hilbert transform. Default 2 (first spatial dimension).

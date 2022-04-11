@@ -1083,7 +1083,6 @@ class SavitzkyGolaySmooth(Transform):
 class DetectEnvelope(Transform):
     """
     Find the envelope of the input data along the requested axis using a Hilbert transform.
-    Requires PyTorch 1.7.0+ and the PyTorch FFT module (which is not included in NVIDIA PyTorch Release 20.10).
 
     Args:
         axis: Axis along which to detect the envelope. Default 1, i.e. the first spatial dimension.
