@@ -77,8 +77,7 @@ class DynUNet(nn.Module):
     by the product of all strides in the corresponding dimension. In addition, the minimal spatial size should have
     at least one dimension that has twice the size of the product of all strides.
     For example, if `strides=((1, 2, 4), 2, 2, 1)`, the spatial size should be divisible by `(4, 8, 16)`,
-    and the minimal spatial size is `(8, 8, 16)` (its corresponding output is `(8, 8, 8)`)
-    or `(4, 16, 16)` or `(4, 8, 32)`.
+    and the minimal spatial size is `(8, 8, 16)` or `(4, 16, 16)` or `(4, 8, 32)`.
 
     The output size for each spatial dimension equals to the input size of the corresponding dimension divided by the
     stride in strides[0].
