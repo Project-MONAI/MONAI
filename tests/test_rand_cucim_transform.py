@@ -91,6 +91,7 @@ class TestRandCuCIM(unittest.TestCase):
     )
     def test_tramsforms_numpy_single(self, params, input, expected):
         # apply_prob=1.0
+        input = np.copy(input)
         output = RandCuCIM(apply_prob=1.0, **params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
@@ -114,7 +115,7 @@ class TestRandCuCIM(unittest.TestCase):
         ]
     )
     def test_tramsforms_numpy_batch(self, params, input, expected):
-        input = input[cp.newaxis, ...]
+        input = np.copy(input[cp.newaxis, ...])
         expected = expected[cp.newaxis, ...]
         # apply_prob=1.0
         output = RandCuCIM(apply_prob=1.0, **params)(input)
