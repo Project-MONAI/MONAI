@@ -135,7 +135,7 @@ def download_mmar(
         if has_home:
             mmar_dir = Path(get_dir()) / "mmars"
         else:
-            raise ValueError("mmar_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.7+ ?")
+            raise ValueError("mmar_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
     mmar_dir = Path(mmar_dir)
     if api:
         model_dict = _get_all_ngc_models(item.get(Keys.NAME, f"{item}") if isinstance(item, Mapping) else f"{item}")

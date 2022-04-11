@@ -403,7 +403,7 @@ the postprocessing steps should be used before calling the metrics methods
 * Progress bar with tqdm
 
 ### Changed
-* Now fully compatible with PyTorch 1.7
+* Now fully compatible with PyTorch 1.6
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:20.08-py3` from `nvcr.io/nvidia/pytorch:20.03-py3`
 * Code contributions now require signing off on the [Developer Certificate of Origin (DCO)](https://developercertificate.org/)
 * Major work in type hinting finished

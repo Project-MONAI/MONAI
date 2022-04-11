@@ -80,7 +80,7 @@ def save_net_with_metadata(
 
     json_data = json.dumps(metadict)
 
-    # Pytorch>1.7 can use dictionaries directly, otherwise need to use special map object
+    # Pytorch>1.6 can use dictionaries directly, otherwise need to use special map object
     if pytorch_after(1, 7):
         extra_files = {METADATA_FILENAME: json_data.encode()}
 
@@ -123,7 +123,7 @@ def load_net_with_metadata(
     Returns:
         Triple containing loaded object, metadata dict, and extra files dict containing other file data if present
     """
-    # Pytorch>1.7 can use dictionaries directly, otherwise need to use special map object
+    # Pytorch>1.6 can use dictionaries directly, otherwise need to use special map object
     if pytorch_after(1, 7):
         extra_files = {f: "" for f in more_extra_files}
         extra_files[METADATA_FILENAME] = ""
