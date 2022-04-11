@@ -24,7 +24,10 @@ from parameterized import parameterized
 from monai.data.meta_obj import get_track_meta, get_track_transforms, set_track_meta, set_track_transforms
 from monai.data.meta_tensor import MetaTensor
 from monai.utils.enums import PostFix
+from monai.utils.module import get_torch_version_tuple
 from tests.utils import TEST_DEVICES, assert_allclose, skip_if_no_cuda
+
+PT_VER_MAJ, PT_VER_MIN = get_torch_version_tuple()
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32]]
 TESTS = []
@@ -227,7 +230,7 @@ class TestMetaTensor(unittest.TestCase):
             traced_fn = torch.jit.load(fname)
             out = traced_fn(im)
             self.assertIsInstance(out, torch.Tensor)
-            if not isinstance(out, MetaTensor):
+            if not isinstance(out, MetaTensor) and PT_VER_MAJ == 1 and PT_VER_MIN <= 7:
                 warnings.warn(
                     "When calling `nn.Module(MetaTensor) on a module traced with "
                     "`torch.jit.trace`, your version of pytorch returns a "
@@ -243,6 +246,9 @@ class TestMetaTensor(unittest.TestCase):
             fname = os.path.join(tmp_dir, "im.pt")
             torch.save(m, fname)
             m2 = torch.load(fname)
+            if not isinstance(m2, MetaTensor) and PT_VER_MAJ == 1 and PT_VER_MIN <= 7:
+                warnings.warn("Old version of pytorch. pickling converts `MetaTensor` to `torch.Tensor`.")
+                m = m.as_tensor()
             self.check(m2, m, ids=False)
 
     @skip_if_no_cuda
