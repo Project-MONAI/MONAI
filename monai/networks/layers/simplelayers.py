@@ -20,13 +20,7 @@ from torch.autograd import Function
 
 from monai.networks.layers.convutils import gaussian_1d
 from monai.networks.layers.factories import Conv
-from monai.utils import (
-    ChannelMatching,
-    SkipMode,
-    look_up_option,
-    optional_import,
-    pytorch_after,
-)
+from monai.utils import ChannelMatching, SkipMode, look_up_option, optional_import, pytorch_after
 from monai.utils.misc import issequenceiterable
 
 _C, _ = optional_import("monai._C")
@@ -383,7 +377,6 @@ class HilbertTransform(nn.Module):
     """
 
     def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:
-
 
         super().__init__()
         self.axis = axis
