@@ -105,6 +105,8 @@ class SupervisedTrainer(Trainer):
             default to `True`.
         optim_set_to_none: when calling `optimizer.zero_grad()`, instead of setting to zero, set the grads to None.
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
+        to_kwargs: other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
 
     """
 
@@ -131,6 +133,7 @@ class SupervisedTrainer(Trainer):
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
         optim_set_to_none: bool = False,
+        **to_kwargs,
     ) -> None:
         super().__init__(
             device=device,
@@ -149,6 +152,7 @@ class SupervisedTrainer(Trainer):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            **to_kwargs,
         )
 
         self.network = network
@@ -176,7 +180,7 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
+        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)  # type: ignore
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -271,6 +275,8 @@ class GanTrainer(Trainer):
             default to `True`.
         optim_set_to_none: when calling `optimizer.zero_grad()`, instead of setting to zero, set the grads to None.
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
+        to_kwargs: other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
 
     """
 
@@ -302,6 +308,7 @@ class GanTrainer(Trainer):
         train_handlers: Optional[Sequence] = None,
         decollate: bool = True,
         optim_set_to_none: bool = False,
+        **to_kwargs,
     ):
         if not isinstance(train_data_loader, DataLoader):
             raise ValueError("train_data_loader must be PyTorch DataLoader.")
@@ -321,6 +328,7 @@ class GanTrainer(Trainer):
             handlers=train_handlers,
             postprocessing=postprocessing,
             decollate=decollate,
+            **to_kwargs,
         )
         self.g_network = g_network
         self.g_optimizer = g_optimizer
@@ -353,13 +361,14 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
+        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)  # type: ignore
         batch_size = self.data_loader.batch_size  # type: ignore
         g_input = self.g_prepare_batch(
             num_latents=batch_size,
             latent_size=self.latent_shape,
             device=engine.state.device,  # type: ignore
             non_blocking=engine.non_blocking,  # type: ignore
+            **engine.to_kwargs,  # type: ignore
         )
         g_output = self.g_inferer(g_input, self.g_network)
 
@@ -383,6 +392,7 @@ class GanTrainer(Trainer):
                 latent_size=self.latent_shape,
                 device=engine.state.device,  # type: ignore
                 non_blocking=engine.non_blocking,  # type: ignore
+                **engine.to_kwargs,  # type: ignore
             )
         g_output = self.g_inferer(g_input, self.g_network)
         if not pytorch_after(1, 7):
