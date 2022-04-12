@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import warnings
+from copy import deepcopy
 from typing import Callable
 
 import torch
@@ -87,6 +88,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             out.affine = x.affine
         else:
             out.affine = out.get_default_affine()
+        out.affine = out.affine.to(out.device)
+
+        # if we are creating a new MetaTensor, then deep copy attributes
+        if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
+            out.meta = deepcopy(out.meta)
         out.affine = out.affine.to(out.device)
 
         return out
