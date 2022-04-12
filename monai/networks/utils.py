@@ -502,7 +502,6 @@ def convert_to_torchscript(
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush)
             or a string containing a file path name to save the TorchScript model.
         extra_files: map from filename to contents which will be stored as part of the save model file.
-            works for PyTorch 1.7 or later.
             for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
         verify: whether to verify the input and output of TorchScript model.
             if `filename_or_obj` is not None, load the saved TorchScript model and verify.
@@ -519,10 +518,7 @@ def convert_to_torchscript(
     with torch.no_grad():
         script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
-            if not pytorch_after(1, 7):
-                torch.jit.save(m=script_module, f=filename_or_obj)
-            else:
-                torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
+            torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
     if verify:
         if device is None:
