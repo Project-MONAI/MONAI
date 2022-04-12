@@ -11,10 +11,10 @@
 
 import ast
 import json
-import os
 import pprint
 import re
 from logging.config import fileConfig
+from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 import torch
@@ -122,26 +122,63 @@ def _get_git_release_url(
     repo_owner: str,
     repo_name: str,
     tag_name: str,
-    filename: Optional[str] = None,
+    filename: str,
 ):
-    if filename is not None:
-        return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
+    return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
+
+
+def _get_git_release_assets(
+    repo_owner: str,
+    repo_name: str,
+    tag_name: str,
+):
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/tags/{tag_name}"
+    resp = requests_get(url)
+    resp.raise_for_status()
+    assets_list = json.loads(resp.text)["assets"]
+    assets_info = {}
+    for asset in assets_list:
+        assets_info[asset["name"]] = asset["browser_download_url"]
+    return assets_info
+
+
+def _download_from_github(
+    repo: str,
+    tag_name: str,
+    bundle_dir: Path,
+    filename: Optional[str] = None,
+    progress: bool = True,
+    extract: bool = False,
+):
+    if len(repo.split("/")) != 2:
+        raise ValueError("if source is `github`, repo should be in the form of `repo_owner/repo_name`.")
+    repo_owner, repo_name = repo.split("/")
+    if filename is None:
+        # download the whole bundle package if filename is not provided
+        assets_info = _get_git_release_assets(repo_owner, repo_name, tag_name=tag_name)
+        for name, url in assets_info.items():
+            download_url(url=url, filepath=bundle_dir / f"{name}", hash_val=None, progress=progress)
+        if extract is True:
+            logger.info("When download a whole bundle package, extract is not supported, skip extracting.")
+        logger.info(f"All files within the bundle package {tag_name} are downloaded.")
     else:
-        raise NotImplementedError("download the whole package is not implemented so far.")
+        # download a single file
+        url = _get_git_release_url(repo_owner, repo_name, tag_name=tag_name, filename=filename)
+        filepath = bundle_dir / f"{filename}"
+        download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+        if extract is True:
+            extractall(filepath=filepath, output_dir=bundle_dir, has_base=False)
 
 
 def download(
-    repo: str,
-    package: str,
+    repo: Optional[str] = None,
+    package: Optional[str] = None,
+    bundle_dir: Optional[PathLike] = None,
     filename: Optional[str] = None,
     source: str = "github",
-    download_path: str = "download",
-    hash_val: Optional[str] = None,
-    hash_type: str = "md5",
+    progress: bool = True,
     extract: bool = False,
-    has_base: bool = True,
-    version: int = 1,
-    # args_file
+    args_file: Optional[str] = None,
 ):
     """
     download the bundle package or a file that belongs to the package from the specified source.
@@ -149,42 +186,62 @@ def download(
     https://pytorch.org/docs/stable/_modules/torch/hub.html
 
     Args:
-        repo: the bundle package. The format depends on the source. If the source is `github`,
-            it should be in the form of `repo_owner/repo_name`. If the source is `ngc`, it should
-            be in the form of `org/team`.
-        package: the bundle package name. If the source is `github`, it should be the same as the
-            release tag.
+        repo: the repo name. The format depends on the source. If `None`, must be provided in `args_file`.
+            If the source is `github`, it should be in the form of `repo_owner/repo_name`.
+            For example: `Project-MONAI/MONAI`.
+        package: the bundle package name. If `None`, must be provided in `args_file`.
+            If the source is `github`, it should be the same as the release tag.
+        bundle_dir: target directory to store the download data.
+            Default is `bundle` subfolder under `torch.hub get_dir()`.
+            If undefined, `os.path.basename(url)` will be used.
         filename: the filename of the bundle package that needs to be downloaded. It is an optional
             argument and if not specified, the whole bundle package will be downloaded.
         source: the place that saved the bundle package. So far, only `github` and `ngc` are supported.
             For the `github` source, the bundle package should be within the releases.
-        download_path: target filepath to save the downloaded file (including the filename).
-            If undefined, `os.path.basename(url)` will be used.
-        hash_val: expected hash value to validate the downloaded file.
-            if None, skip hash validation.
-        hash_type: 'md5' or 'sha1'.
-        extract: whether to extract the downloaded file.
-        output_dir: target directory to save extracted files.
-        has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
-            folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
-            to folder structure `A/*.png`, this flag should be True; if B.zip is unzipped to `*.png`, this flag should
-            be False.
-        version: this argument only works on ngc souce, and it represents the version of the model.
+        progress: whether to display a progress bar.
+        extract: whether to extract the downloaded file. This argument only works when download a single file.
+        args_file: a JSON or YAML file to provide default values for all the args in this function.
+            so that the command line inputs can be simplified.
 
     """
-    if source == "github":
-        if len(repo.split("/")) != 2:
-            raise ValueError("if source is `github`, repo should be in the form of `repo_owner/repo_name`.")
-        repo_owner, repo_name = repo.split("/")
-        url = _get_git_release_url(repo_owner, repo_name, tag_name=package, filename=filename)
-        filepath = os.path.join(download_path, filename)
-    elif source == "ngc":
-        # to be modified
-        url = f"https://api.ngc.nvidia.com/v2/models/{repo}/{package}/versions/{version}/zip"
-        filepath = os.path.join(download_path, f"{package}.zip")
-    download_url(url=url, filepath=filepath, hash_val=hash_val, hash_type=hash_type)
-    if extract is True:
-        extractall(filepath=filepath, output_dir=download_path, has_base=has_base)
+    _args = _update_args(
+        args=args_file,
+        repo=repo,
+        package=package,
+        bundle_dir=bundle_dir,
+        filename=filename,
+        source=source,
+        progress=progress,
+        extract=extract,
+    )
+    if "repo" not in _args:
+        raise ValueError(f"`repo` is required for 'monai.bundle download'.\n{download.__doc__}")
+    if "package" not in _args:
+        raise ValueError(f"`package` is required for 'monai.bundle download'.\n{download.__doc__}")
+    _log_input_summary(tag="download", args=_args)
+    repo_, package_, bundle_dir_, filename_, source_, progress_, extract_ = _pop_args(
+        _args, "repo", "package", bundle_dir=None, filename=None, source="github", progress=True, extract=False
+    )
+
+    if not bundle_dir_:
+        get_dir, has_home = optional_import("torch.hub", name="get_dir")
+        if has_home:
+            bundle_dir_ = Path(get_dir()) / "bundle"
+        else:
+            raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
+    bundle_dir_ = Path(bundle_dir_)
+
+    if source_ == "github":
+        _download_from_github(
+            repo=repo_,
+            tag_name=package_,
+            bundle_dir=bundle_dir_,
+            filename=filename_,
+            progress=progress_,
+            extract=extract_,
+        )
+    else:
+        raise NotImplementedError("So far, only `github` source is supported.")
 
 
 def run(
