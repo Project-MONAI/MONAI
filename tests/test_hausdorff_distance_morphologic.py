@@ -20,11 +20,11 @@ from tests.utils import skip_if_no_cuda
 
 device = torch.device("cuda")
 
-dimA=11
+dimA = 11
 
-dimAA=131
-dimBB=111
-dimCC=151
+dimAA = 131
+dimBB = 111
+dimCC = 151
 
 # testing single points diffrent dims
 # dim1
