@@ -116,6 +116,7 @@ class Evaluator(Workflow):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            **to_kwargs,
         )
         mode = look_up_option(mode, ForwardMode)
         if mode == ForwardMode.EVAL:
