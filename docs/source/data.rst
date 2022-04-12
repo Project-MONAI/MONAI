@@ -271,3 +271,14 @@ ThreadDataLoader
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
+
+
+Meta Object
+-----------
+.. automodule:: monai.data.meta_obj
+    :members:
+
+MetaTensor
+----------
+.. autoclass:: monai.data.MetaTensor
+   :members:
