@@ -180,7 +180,9 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)  # type: ignore
+        batch = self.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
+        )  # type: ignore
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -357,7 +359,9 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)  # type: ignore
+        d_input = self.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
+        )  # type: ignore
         batch_size = self.data_loader.batch_size  # type: ignore
         g_input = self.g_prepare_batch(
             num_latents=batch_size,
