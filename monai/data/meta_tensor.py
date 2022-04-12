@@ -24,8 +24,7 @@ __all__ = ["MetaTensor"]
 
 class MetaTensor(MetaObj, torch.Tensor):
     """
-    Class that inherits from both `torch.Tensor` and `MetaObj`, adding support for meta
-    data.
+    Class that inherits from both `torch.Tensor` and `MetaObj`, adding support for metadata.
 
     Metadata is stored in the form of a dictionary. Nested, an affine matrix will be
     stored. This should be in the form of `torch.Tensor`.
@@ -34,8 +33,9 @@ class MetaTensor(MetaObj, torch.Tensor):
     meta functionality.
 
     Copying of information:
+
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
-        first instance of `MetaTensor`.
+          first instance of `MetaTensor`.
 
     Example:
         .. code-block:: python
@@ -50,21 +50,21 @@ class MetaTensor(MetaObj, torch.Tensor):
             m2 = m+m
             assert isinstance(m2, MetaTensor)
             assert m2.meta["some"] == "info"
-            assert m2.affine = affine
+            assert m2.affine == affine
 
     Notes:
         - Older versions of pytorch (<=1.8), `torch.jit.trace(net, im)` may
-            not work if `im` is of type `MetaTensor`. This can be resolved with
-            `torch.jit.trace(net, im.as_tensor())`.
+          not work if `im` is of type `MetaTensor`. This can be resolved with
+          `torch.jit.trace(net, im.as_tensor())`.
         - A warning will be raised if in the constructor `affine` is not `None` and
-            `meta` already contains the key `affine`.
+          `meta` already contains the key `affine`.
     """
 
     @staticmethod
     def __new__(cls, x, affine: torch.Tensor | None = None, meta: dict | None = None, *args, **kwargs) -> MetaTensor:
         """
         If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
-        Else, use the default value. Similar for the affin, except this could come from
+        Else, use the default value. Similar for the affine, except this could come from
         four places.
         Priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
         """

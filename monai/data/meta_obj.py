@@ -103,8 +103,10 @@ class MetaObj:
     aside from the extended meta functionality.
 
     Copying of information:
+
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
-        first instance of `MetaObj`.
+          first instance of `MetaObj`.
+
     """
 
     _meta: dict
