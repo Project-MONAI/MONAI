@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - 4105-pt16
   pull_request:
 
 concurrency:
