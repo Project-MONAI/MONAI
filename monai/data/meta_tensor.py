@@ -44,53 +44,52 @@ class MetaTensor(MetaObj, torch.Tensor):
             from monai.data import MetaTensor
 
             t = torch.tensor([1,2,3])
-            affine = torch.eye(4)
+            affine = torch.eye(4) * 100
             meta = {"some": "info"}
             m = MetaTensor(t, affine=affine, meta=meta)
             m2 = m+m
             assert isinstance(m2, MetaTensor)
-            assert m2.meta == meta
+            assert m2.meta["some"] == "info"
+            assert m2.affine = affine
 
     Notes:
         - Older versions of pytorch (<=1.8), `torch.jit.trace(net, im)` may
             not work if `im` is of type `MetaTensor`. This can be resolved with
             `torch.jit.trace(net, im.as_tensor())`.
-        - For older versions of pytorch (<=1.7), `torch.save(m, fname); m=torch.load(fname)`
-            may return a `torch.Tensor` instead of MetaTensor`.
         - A warning will be raised if in the constructor `affine` is not `None` and
             `meta` already contains the key `affine`.
     """
 
     @staticmethod
     def __new__(cls, x, affine: torch.Tensor | None = None, meta: dict | None = None, *args, **kwargs) -> MetaTensor:
-        return torch.as_tensor(x, *args, **kwargs).as_subclass(cls)  # type: ignore
-
-    def __init__(self, x, affine: torch.Tensor | None = None, meta: dict | None = None) -> None:
         """
         If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
         Else, use the default value. Similar for the affin, except this could come from
         four places.
         Priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
         """
+        out: MetaTensor = torch.as_tensor(x, *args, **kwargs).as_subclass(cls)  # type: ignore
         # set meta
         if meta is not None:
-            self.meta = meta
+            out.meta = meta
         elif isinstance(x, MetaObj):
-            self.meta = x.meta
+            out.meta = x.meta
         else:
-            self.meta = self.get_default_meta()
+            out.meta = out.get_default_meta()
         # set the affine
         if affine is not None:
-            if "affine" in self.meta:
+            if "affine" in out.meta:
                 warnings.warn("Setting affine, but the applied meta contains an affine. " "This will be overwritten.")
-            self.affine = affine
-        elif "affine" in self.meta:
+            out.affine = affine
+        elif "affine" in out.meta:
             pass  # nothing to do
         elif isinstance(x, MetaTensor):
-            self.affine = x.affine
+            out.affine = x.affine
         else:
-            self.affine = self.get_default_affine()
-        self.affine = self.affine.to(self.device)
+            out.affine = out.get_default_affine()
+        out.affine = out.affine.to(out.device)
+
+        return out
 
     def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
         super()._copy_attr(attribute, input_objs, default_fn, deep_copy)
