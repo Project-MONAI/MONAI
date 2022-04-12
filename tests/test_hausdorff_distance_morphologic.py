@@ -20,61 +20,66 @@ from tests.utils import skip_if_no_cuda
 
 device = torch.device("cuda")
 
+dimA=11
+
+dimAA=131
+dimBB=111
+dimCC=151
 
 # testing single points diffrent dims
 # dim1
 compare_values = torch.ones(1)
-a = torch.zeros(100, 100, 100)
-b = torch.zeros(100, 100, 100)
+a = torch.zeros(dimA, dimA, dimA)
+b = torch.zeros(dimA, dimA, dimA)
 a[0, 0, 0] = 1
 b[10, 0, 0] = 1
 
 # dim2
-a1 = torch.zeros(200, 200, 200)
-b1 = torch.zeros(200, 200, 200)
+a1 = torch.zeros(dimAA, dimBB, dimCC)
+b1 = torch.zeros(dimAA, dimBB, dimCC)
 a1[0, 0, 0] = 1
 b1[0, 15, 0] = 1
 
 # dim3
-a2 = torch.zeros(400, 200, 300)
-b2 = torch.zeros(400, 200, 300)
+a2 = torch.zeros(dimAA, dimBB, dimCC)
+b2 = torch.zeros(dimAA, dimBB, dimCC)
 a2[0, 0, 10] = 1
 b2[0, 0, 150] = 1
 
 # testing whole llines and compare_values set to 2
 compare_values_b = torch.ones(1)
 compare_values_b[0] = 2
-a3 = torch.zeros(400, 200, 300)
-b3 = torch.zeros(400, 200, 300)
+a3 = torch.zeros(dimAA, dimBB, dimCC)
+b3 = torch.zeros(dimAA, dimBB, dimCC)
 a3[:, 0, 10] = 2
 b3[:, 0, 150] = 2
 
-a4 = torch.zeros(400, 200, 300)
-b4 = torch.zeros(400, 200, 300)
+a4 = torch.zeros(dimAA, dimBB, dimCC)
+b4 = torch.zeros(dimAA, dimBB, dimCC)
 a4[10, 0, :] = 2
 b4[120, 0, :] = 2
 
 
-a5 = torch.zeros(400, 200, 300)
-b5 = torch.zeros(400, 200, 300)
+a5 = torch.zeros(dimAA, dimBB, dimCC)
+b5 = torch.zeros(dimAA, dimBB, dimCC)
 a5[10, :, 0] = 2
 b5[120, :, 0] = 2
 
 
 # testing whole planes
-a6 = torch.zeros(400, 200, 300)
-b6 = torch.zeros(400, 200, 300)
+a6 = torch.zeros(dimAA, dimBB, dimCC)
+b6 = torch.zeros(dimAA, dimBB, dimCC)
 a6[10, :, :] = 2
 b6[120, :, :] = 2
 
 
-a7 = torch.zeros(400, 200, 300)
-b7 = torch.zeros(400, 200, 300)
+a7 = torch.zeros(dimAA, dimBB, dimCC)
+b7 = torch.zeros(dimAA, dimBB, dimCC)
 a7[:, 0, :] = 2
 b7[:, 110, :] = 2
 
-a8 = torch.zeros(400, 200, 300)
-b8 = torch.zeros(400, 200, 300)
+a8 = torch.zeros(dimAA, dimBB, dimCC)
+b8 = torch.zeros(dimAA, dimBB, dimCC)
 # a8[:, :, 20] = 2
 # b8[:,:, 130] = 2
 
@@ -85,8 +90,8 @@ a8[2, 2, 20] = 2
 b8[2, 2, 130] = 2
 
 # multi points
-a9 = torch.zeros(400, 200, 300)
-b9 = torch.zeros(400, 200, 300)
+a9 = torch.zeros(dimAA, dimBB, dimCC)
+b9 = torch.zeros(dimAA, dimBB, dimCC)
 
 a9[0, 20, 0] = 2
 a9[0, 0, 30] = 2

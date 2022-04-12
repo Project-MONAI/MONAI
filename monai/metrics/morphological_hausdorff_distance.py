@@ -9,10 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
-import numpy as np
 import torch
 
 from monai._extensions.loader import load_module
