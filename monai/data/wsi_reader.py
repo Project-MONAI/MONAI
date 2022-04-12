@@ -104,6 +104,7 @@ class BaseWSIReader(ImageReader):
         size: Optional[Tuple[int, int]] = None,
         level: Optional[int] = None,
         dtype: DtypeLike = np.uint8,
+        mode: str = "RGB",
     ):
         """
         Extract patchs as numpy array from WSI image and return them.
@@ -147,7 +148,7 @@ class BaseWSIReader(ImageReader):
         patch = self._get_patch(wsi, location=location, size=size, level=level, dtype=dtype)
 
         # Verify patch image
-        patch = self._verify_output(patch)
+        patch = self._verify_output(patch, mode)
 
         # Set patch-related metadata
         metadata = self._get_metadata(wsi=wsi, patch=patch, location=location, size=size, level=level)
@@ -164,7 +165,7 @@ class BaseWSIReader(ImageReader):
         """
         return is_supported_format(filename, self.supported_formats)
 
-    def _verify_output(self, patch: np.ndarray):
+    def _verify_output(self, patch: np.ndarray, mode: str):
         """
         Verify image output
         """
@@ -172,18 +173,20 @@ class BaseWSIReader(ImageReader):
         if patch.ndim != 3:
             raise ValueError(
                 f"The image dimension should be 3 but has {patch.ndim}. "
-                "`WSIReader` is designed to work only with 2D colored images."
+                "`WSIReader` is designed to work only with 2D images with color channel."
             )
 
         # check if the color channel is 3 (RGB) or 4 (RGBA)
-        if patch.shape[0] not in [3, 4]:
+        if mode == "RGBA" and patch.shape[0] != 4:
             raise ValueError(
-                f"The image should have three or four color channels but has {patch.shape[0]}. "
-                "`WSIReader` is designed to work only with 2D colored images."
+                f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
             )
 
-        # remove alpha channel if exist (RGBA)
-        if patch.shape[0] > 3:
+        if mode in "RGB":
+            if patch.shape[0] not in [3, 4]:
+                raise ValueError(
+                    f"The image is expected to have three or four color channels in '{mode}' mode but has {patch.shape[0]}. "
+                )
             patch = patch[:3]
 
         return patch
