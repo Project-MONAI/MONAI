@@ -162,7 +162,7 @@ BaseWSIReader
 
 WSIReader
 ~~~~~~~~~
-.. autoclass:: Reader
+.. autoclass:: WSIReader
   :members:
 
 CuCIMWSIReader
