@@ -77,8 +77,6 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.meta = meta
         elif isinstance(x, MetaObj):
             self.meta = x.meta
-        else:
-            self.meta = self.get_default_meta()
         # set the affine
         if affine is not None:
             if "affine" in self.meta:
@@ -141,8 +139,6 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine."""
-        if "affine" not in self.meta:
-            self.meta["affine"] = self.get_default_affine()
         return self.meta["affine"]  # type: ignore
 
     @affine.setter
