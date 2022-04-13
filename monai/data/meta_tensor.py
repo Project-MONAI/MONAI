@@ -62,34 +62,35 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     @staticmethod
     def __new__(cls, x, affine: torch.Tensor | None = None, meta: dict | None = None, *args, **kwargs) -> MetaTensor:
+        return torch.as_tensor(x, *args, **kwargs).as_subclass(cls)  # type: ignore
+
+    def __init__(self, x, affine: torch.Tensor | None = None, meta: dict | None = None) -> None:
         """
         If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
         Else, use the default value. Similar for the affine, except this could come from
         four places.
         Priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
         """
-        out: MetaTensor = torch.as_tensor(x, *args, **kwargs).as_subclass(cls)  # type: ignore
+        super().__init__()
         # set meta
         if meta is not None:
-            out.meta = meta
+            self.meta = meta
         elif isinstance(x, MetaObj):
-            out.meta = x.meta
+            self.meta = x.meta
         else:
-            out.meta = out.get_default_meta()
+            self.meta = self.get_default_meta()
         # set the affine
         if affine is not None:
-            if "affine" in out.meta:
-                warnings.warn("Setting affine, but the applied meta contains an affine. " "This will be overwritten.")
-            out.affine = affine
-        elif "affine" in out.meta:
+            if "affine" in self.meta:
+                warnings.warn("Setting affine, but the applied meta contains an affine. This will be overwritten.")
+            self.affine = affine
+        elif "affine" in self.meta:
             pass  # nothing to do
         elif isinstance(x, MetaTensor):
-            out.affine = x.affine
+            self.affine = x.affine
         else:
-            out.affine = out.get_default_affine()
-        out.affine = out.affine.to(out.device)
-
-        return out
+            self.affine = self.get_default_affine()
+        self.affine = self.affine.to(self.device)
 
     def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
         super()._copy_attr(attribute, input_objs, default_fn, deep_copy)
@@ -113,8 +114,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         ret.affine = ret.affine.to(ret.device)
         return ret
 
-    def get_default_affine(self) -> torch.Tensor:
-        return torch.eye(4, device=self.device)
+    def get_default_affine(self, dtype=torch.float64) -> torch.Tensor:
+        return torch.eye(4, device=self.device, dtype=dtype)
 
     def as_tensor(self) -> torch.Tensor:
         """
@@ -140,6 +141,8 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine."""
+        if "affine" not in self.meta:
+            self.meta["affine"] = self.get_default_affine()
         return self.meta["affine"]  # type: ignore
 
     @affine.setter
