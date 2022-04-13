@@ -27,9 +27,9 @@ __all__ = ["BaseWSIReader", "WSIReader", "CuCIMWSIReader"]
 
 class BaseWSIReader(ImageReader):
     """
-    An abstract class defines APIs to load whole slide image files.
+    An abstract class that defines APIs to load patches from whole slide image files.
 
-    Typical usage of an implementation of this class is:
+    Typical usage of a concrete implementation of this class is:
 
     .. code-block:: python
 
@@ -37,10 +37,20 @@ class BaseWSIReader(ImageReader):
         wsi = image_reader.read(path_to_image)
         img_data, meta_data = image_reader.get_data(wsi)
 
-    - The `read` call converts image filenames into image objects,
+    The following methods are already implemented deligate tasks to other abstract methods (see below):
+    - The `read` call converts image filenames into whole slide image (wsi) objects.
     - The `get_data` call fetches the image data, as well as meta data.
-    - A reader should implement `verify_suffix` with the logic of checking the input filename
-      by the filename extensions.
+    - `verify_suffix` verifies
+    - `_verify_output` verifies the extracted patch to be a two dimensional RGB/RGBA image
+
+    The following methods needs to be implemented for any concrete implementation of this class:
+    - `_reader` returns a whole slide image reader module that given filename and additional arguments,
+        returns image object.
+    - `_get_size` returns the size of the whole slide image of a given wsi object at a given level.
+    - `_get_level_count` returns the number of levels in the whole slide image
+    - `_get_patch` extracts and returns a patch image form the whole slide image
+    - `_get_metadata` extracts and returns metadata for a whole slide image and a specific patch.
+
 
     """
 
@@ -55,18 +65,24 @@ class BaseWSIReader(ImageReader):
     @property
     @abstractmethod
     def _reader(self):
+        """Returns a whole slide image reader module that given filename and additional arguments, returns image object."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
     def _get_size(self, wsi, level):
+        """Returns the size of the whole slide image of a given wsi object at a given level."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
     def _get_level_count(self, wsi):
+        """Returns the number of levels in the whole slide image."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def _get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike):
+    def _get_patch(
+        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+    ):
+        """Extracts and returns a patch image form the whole slide image."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
@@ -107,7 +123,7 @@ class BaseWSIReader(ImageReader):
         mode: str = "RGB",
     ):
         """
-        Extract patchs as numpy array from WSI image and return them.
+        Verifies inputs, extracts patchs from WSI image and generates metadata, and return them.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -117,6 +133,7 @@ class BaseWSIReader(ImageReader):
             This is the size of image at the given level (`level`)
             level: the level number, or list of level numbers (default=0)
             dtype: the data type of output image
+            mode: the output image mode 'RGB' or 'RGBA'
 
         Returns:
             a tuples, where the first element is an image [CxHxW], and second element is a dictionary of metadata
@@ -145,7 +162,7 @@ class BaseWSIReader(ImageReader):
                 raise ValueError(f"Patch size should be greater than zero, provided: patch size = {size}")
 
         # Extract a patch or the entire image
-        patch = self._get_patch(wsi, location=location, size=size, level=level, dtype=dtype)
+        patch = self._get_patch(wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
         # Verify patch image
         patch = self._verify_output(patch, mode)
@@ -193,9 +210,20 @@ class BaseWSIReader(ImageReader):
 
 
 class WSIReader(BaseWSIReader):
+    """
+    WSIReader that supports different implemented backends
+
+    The support for any backend can be achieved by
+    .. code-block:: python
+        if self.backend == "any_backend":
+            self.backend_lib = AnyBackendWSIReader(level=level, **kwargs)
+
+    """
+
     def __init__(self, backend="cucim", level: int = 0, **kwargs):
         super().__init__(level, **kwargs)
         self.backend = backend.lower()
+        # Any new backend can be added below
         if self.backend == "cucim":
             self.backend_lib = CuCIMWSIReader(level=level, **kwargs)
         else:
@@ -215,8 +243,10 @@ class WSIReader(BaseWSIReader):
     def _get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
         return self.backend_lib._get_metadata(wsi=wsi, patch=patch, size=size, location=location, level=level)
 
-    def _get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike):
-        return self.backend_lib._get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype)
+    def _get_patch(
+        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+    ):
+        return self.backend_lib._get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
 
 @require_pkg(pkg_name="cucim")
@@ -227,8 +257,8 @@ class CuCIMWSIReader(BaseWSIReader):
     Args:
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
-        kwargs: additional args for backend reading API in `read()`, more details in `cuCIM`:
-            https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
+        kwargs: additional args for `cucim.CuImage` module:
+            https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
 
     """
 
@@ -260,14 +290,9 @@ class CuCIMWSIReader(BaseWSIReader):
         }
         return metadata
 
-    def _get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike):
-        """
-        Extract a patch based on given output from the given whole slide image
-        Args:
-
-        Returns:
-            a numpy array with dimesion of [3xWxH]
-        """
+    def _get_patch(
+        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+    ):
         # extract a patch (or the entire image)
         # reverse the order of location and size to become WxH for cuCIM
         patch = wsi.read_region(location=location[::-1], size=size[::-1], level=level)
@@ -277,5 +302,18 @@ class CuCIMWSIReader(BaseWSIReader):
 
         # make it channel first
         patch = EnsureChannelFirst()(patch, {"original_channel_dim": -1})
+
+        # check if the color channel is 3 (RGB) or 4 (RGBA)
+        if mode == "RGBA" and patch.shape[0] != 4:
+            raise ValueError(
+                f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
+            )
+
+        if mode in "RGB":
+            if patch.shape[0] not in [3, 4]:
+                raise ValueError(
+                    f"The image is expected to have three or four color channels in '{mode}' mode but has {patch.shape[0]}. "
+                )
+            patch = patch[:3]
 
         return patch
