@@ -19,7 +19,7 @@ from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
-from monai.data.image_reader import WSIReader
+from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from monai.utils.enums import PostFix
@@ -54,29 +54,6 @@ TEST_CASE_2 = [
     FILE_PATH,
     {"location": (0, 0), "size": (2, 1), "level": 2},
     np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
-]
-
-TEST_CASE_3 = [
-    FILE_PATH,
-    {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 2},
-    np.array(
-        [
-            [[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[239, 239], [239, 239]]],
-            [[[242, 242], [242, 243]], [[242, 242], [242, 243]], [[242, 242], [242, 243]]],
-        ]
-    ),
-]
-
-TEST_CASE_4 = [
-    FILE_PATH,
-    {"location": (0, 0), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
-    np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
-]
-
-TEST_CASE_5 = [
-    FILE_PATH,
-    {"location": (HEIGHT - 2, WIDTH - 2), "level": 0, "grid_shape": (1, 1)},
-    np.array([[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[237, 237], [237, 237]]]),
 ]
 
 
@@ -138,7 +115,7 @@ class WSIReaderTests:
                 img = reader.get_data(img_obj)[0]
             self.assertTupleEqual(img.shape, expected_shape)
 
-        @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_5])
+        @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
         def test_read_region(self, file_path, patch_info, expected_img):
             kwargs = {"name": None, "offset": None} if self.backend == "tifffile" else {}
             reader = WSIReader(self.backend, **kwargs)
@@ -152,18 +129,6 @@ class WSIReaderTests:
                     img2 = reader.get_data(img_obj, **patch_info)[0]
                     self.assertTupleEqual(img.shape, img2.shape)
                     self.assertIsNone(assert_array_equal(img, img2))
-                    self.assertTupleEqual(img.shape, expected_img.shape)
-                    self.assertIsNone(assert_array_equal(img, expected_img))
-
-        @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
-        def test_read_patches(self, file_path, patch_info, expected_img):
-            reader = WSIReader(self.backend)
-            with reader.read(file_path) as img_obj:
-                if self.backend == "tifffile":
-                    with self.assertRaises(ValueError):
-                        reader.get_data(img_obj, **patch_info)[0]
-                else:
-                    img = reader.get_data(img_obj, **patch_info)[0]
                     self.assertTupleEqual(img.shape, expected_img.shape)
                     self.assertIsNone(assert_array_equal(img, expected_img))
 
@@ -219,20 +184,6 @@ class TestCuCIM(WSIReaderTests.Tests):
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
-
-
-@skipUnless(has_osl, "Requires OpenSlide")
-class TestOpenSlide(WSIReaderTests.Tests):
-    @classmethod
-    def setUpClass(cls):
-        cls.backend = "openslide"
-
-
-@skipUnless(has_tiff, "Requires TiffFile")
-class TestTiffFile(WSIReaderTests.Tests):
-    @classmethod
-    def setUpClass(cls):
-        cls.backend = "tifffile"
 
 
 if __name__ == "__main__":
