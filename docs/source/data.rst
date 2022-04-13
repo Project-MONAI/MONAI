@@ -152,9 +152,22 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+Whole slide image reader
+------------------------
+
+BaseWSIReader
+~~~~~~~~~~~
+.. autoclass:: BaseWSIReader
+  :members:
+
 WSIReader
-~~~~~~~~~
-.. autoclass:: WSIReader
+~~~~~~~~~~~
+.. autoclass:: Reader
+  :members:
+
+CuCIMWSIReader
+~~~~~~~~~~~
+.. autoclass:: CuCIMWSIReader
   :members:
 
 Image writer
