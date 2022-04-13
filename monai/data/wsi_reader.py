@@ -186,7 +186,7 @@ class BaseWSIReader(ImageReader):
 
     def _verify_output(self, patch: np.ndarray, mode: str):
         """
-        Verify image output
+        Verify output image patch
         """
         # check if the image has three dimensions (2D + color)
         if patch.ndim != 3:
@@ -194,19 +194,6 @@ class BaseWSIReader(ImageReader):
                 f"The image dimension should be 3 but has {patch.ndim}. "
                 "`WSIReader` is designed to work only with 2D images with color channel."
             )
-
-        # check if the color channel is 3 (RGB) or 4 (RGBA)
-        if mode == "RGBA" and patch.shape[0] != 4:
-            raise ValueError(
-                f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
-            )
-
-        if mode in "RGB":
-            if patch.shape[0] not in [3, 4]:
-                raise ValueError(
-                    f"The image is expected to have three or four color channels in '{mode}' mode but has {patch.shape[0]}. "
-                )
-            patch = patch[:3]
 
         return patch
 
