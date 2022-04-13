@@ -16,7 +16,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from monai.data import Dataset, SmartCacheDataset
-from monai.data.image_reader import WSIReader
+from monai.data.wsi_reader import WSIReader
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["PatchWSIDataset", "SmartCachePatchWSIDataset", "MaskedInferenceWSIDataset"]
