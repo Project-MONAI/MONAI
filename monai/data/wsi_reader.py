@@ -38,14 +38,14 @@ class BaseWSIReader(ImageReader):
         img_data, meta_data = image_reader.get_data(wsi)
 
     The following methods are already implemented deligate tasks to other abstract methods (see below):
-    
+
     - The `read` call converts image filenames into whole slide image (wsi) objects.
     - The `get_data` call fetches the image data, as well as meta data.
     - `verify_suffix` verifies
     - `_verify_output` verifies the extracted patch to be a two dimensional RGB/RGBA image
 
     The following methods needs to be implemented for any concrete implementation of this class:
-    
+
     - `_reader` returns a whole slide image reader module that given filename and additional arguments,
         returns image object.
     - `_get_size` returns the size of the whole slide image of a given wsi object at a given level.
@@ -216,7 +216,7 @@ class WSIReader(BaseWSIReader):
     WSIReader that supports different implemented backends
 
     The support for any backend can be achieved by
-    
+
     .. code-block:: python
 
         if self.backend == "any_backend":
