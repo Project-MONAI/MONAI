@@ -16,11 +16,12 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import inspect
 import logging
 import sys
+import tempfile
 import traceback
 import warnings
 from pathlib import Path
 from pydoc import locate
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Union, Callable
 
 import numpy as np
 import torch
@@ -99,6 +100,7 @@ class LoadImage(Transform):
         image_only: bool = False,
         dtype: DtypeLike = np.float32,
         ensure_channel_first: bool = False,
+        network_downloader: Optional[Callable[[str], bytes]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -115,6 +117,9 @@ class LoadImage(Transform):
             dtype: if not None convert the loaded image to this data type.
             ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
                 the image array shape to `channel first`. default to `False`.
+            network_downloader: if not None paths are treated as pointing to network sources instead
+                of local files, they are downloaded using this callable, saved into temporary files and finally
+                read using proper reader, as in case of regular local files
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -133,6 +138,7 @@ class LoadImage(Transform):
         self.image_only = image_only
         self.dtype = dtype
         self.ensure_channel_first = ensure_channel_first
+        self.network_downloader = network_downloader
 
         self.readers: List[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -201,6 +207,16 @@ class LoadImage(Transform):
 
         """
         filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects
+        if self.network_downloader is not None:
+            tmp_filename = []
+            for f in filename:
+                tmp = tempfile.NamedTemporaryFile(suffix="_" + Path(f).name)
+                tmp.write(self.network_downloader(f))
+                tmp.flush()
+                tmp_filename.append(tmp)
+            original_filename = filename
+            filename = tuple(tmp.name for tmp in tmp_filename)
+
         img, err = None, []
         if reader is not None:
             img = reader.read(filename)  # runtime specified reader
@@ -246,6 +262,9 @@ class LoadImage(Transform):
 
         if self.image_only:
             return img_array
+        if self.network_downloader is not None:
+            filename = original_filename
+
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
 
         return img_array, meta_data

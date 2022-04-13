@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 
 import numpy as np
 
@@ -74,6 +74,7 @@ class LoadImaged(MapTransform):
         overwriting: bool = False,
         image_only: bool = False,
         ensure_channel_first: bool = False,
+        network_downloader: Optional[Callable[[str], bytes]] = None,
         allow_missing_keys: bool = False,
         *args,
         **kwargs,
@@ -103,12 +104,15 @@ class LoadImaged(MapTransform):
                 dictionary containing image data array and header dict per input key.
             ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
                 the image array shape to `channel first`. default to `False`.
+            network_downloader: if not None paths are treated as pointing to network sources instead
+                of local files, they are downloaded using this callable, saved into temporary files and finally
+                read using proper reader, as in case of regular local files
             allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
         super().__init__(keys, allow_missing_keys)
-        self._loader = LoadImage(reader, image_only, dtype, ensure_channel_first, *args, **kwargs)
+        self._loader = LoadImage(reader, image_only, dtype, ensure_channel_first, network_downloader, *args, **kwargs)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
