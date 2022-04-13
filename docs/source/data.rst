@@ -156,17 +156,17 @@ Whole slide image reader
 ------------------------
 
 BaseWSIReader
-~~~~~~~~~~~
+~~~~~~~~~~~~~
 .. autoclass:: BaseWSIReader
   :members:
 
 WSIReader
-~~~~~~~~~~~
+~~~~~~~~~
 .. autoclass:: Reader
   :members:
 
 CuCIMWSIReader
-~~~~~~~~~~~
+~~~~~~~~~~~~~~
 .. autoclass:: CuCIMWSIReader
   :members:
 
