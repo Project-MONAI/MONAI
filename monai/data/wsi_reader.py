@@ -125,7 +125,7 @@ class BaseWSIReader(ImageReader):
         mode: str = "RGB",
     ):
         """
-        Verifies inputs, extracts patchs from WSI image and generates metadata, and return them.
+        Verifies inputs, extracts patches from WSI image and generates metadata, and return them.
 
         Args:
             wsi: a whole slide image object loaded from a file
