@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import MorphologicalHausdorffDistanceMetric
+from monai.utils.module import version_leq
 from tests.utils import skip_if_no_cuda
 
 device = torch.device("cuda")
@@ -119,12 +120,13 @@ TEST_CASES = [
 class TestHausdorffDistanceMorphological(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_data, expected_value):
-        [y_pred, y, percentt, compare_values] = input_data
-        hd_metric = MorphologicalHausdorffDistanceMetric(
-            compare_values.to(device), percentt, True
-        )  # True only for tests
-        result = hd_metric._compute_tensor(y_pred.to(device), y.to(device))
-        np.testing.assert_allclose(expected_value, result, rtol=1e-7)
+        if(not version_leq(f"{torch.version.cuda}", "10.100") and not version_leq(f"{torch.version.cuda}", "10.200")):
+            [y_pred, y, percentt, compare_values] = input_data
+            hd_metric = MorphologicalHausdorffDistanceMetric(
+                compare_values.to(device), percentt, True
+            )  # True only for tests
+            result = hd_metric._compute_tensor(y_pred.to(device), y.to(device))
+            np.testing.assert_allclose(expected_value, result, rtol=1e-7)
 
 
 if __name__ == "__main__":
