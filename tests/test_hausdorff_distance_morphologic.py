@@ -123,7 +123,7 @@ class TestHausdorffDistanceMorphological(unittest.TestCase):
         if(not version_leq(f"{torch.version.cuda}", "10.100") and not version_leq(f"{torch.version.cuda}", "10.200")):
             [y_pred, y, percentt, compare_values] = input_data
             hd_metric = MorphologicalHausdorffDistanceMetric(
-                compare_values.to(device), percentt, True
+                compare_values.to(device), percentt, False
             )  # True only for tests
             result = hd_metric._compute_tensor(y_pred.to(device), y.to(device))
             np.testing.assert_allclose(expected_value, result, rtol=1e-7)
