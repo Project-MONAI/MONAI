@@ -202,11 +202,5 @@ class TestHilbertTransformNoFFTMod(unittest.TestCase):
         self.assertRaises(OptionalImportError, HilbertTransform(), torch.randn(1, 1, 10))
 
 
-class TestHilbertTransformInvalidPyTorch(unittest.TestCase):
-    def test_invalid_pytorch_error(self):
-        with self.assertRaisesRegex(InvalidPyTorchVersionError, "version"):
-            HilbertTransform()
-
-
 if __name__ == "__main__":
     unittest.main()
