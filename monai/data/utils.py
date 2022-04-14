@@ -473,11 +473,11 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         if batch.ndim == 0:
             return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
-        # if of type MetaTensor, decollate the metadata and affines
+        # if of type MetaTensor, decollate the metadata
         if isinstance(batch, MetaTensor):
             metas = decollate_batch(batch.meta)
             for i in range(len(out_list)):
-                out_list[i].meta = metas[i]
+                out_list[i].meta = metas[i]  # type: ignore
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
