@@ -44,7 +44,7 @@ class TestMetaTensor(unittest.TestCase):
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:
-            shape = shape = (1, 10, 8)
+            shape = (1, 10, 8)
         affine = torch.randint(0, 10, (4, 4))
         meta = {"fname": rand_string()}
         t = torch.rand(shape)

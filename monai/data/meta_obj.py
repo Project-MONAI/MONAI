@@ -109,7 +109,8 @@ class MetaObj:
 
     """
 
-    _meta: dict
+    def __init__(self):
+        self._meta: dict = self.get_default_meta()
 
     @staticmethod
     def flatten_meta_objs(args: Sequence[Any]) -> list[MetaObj]:
