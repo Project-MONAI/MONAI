@@ -151,41 +151,34 @@ def _download_from_github(
     download_path: Path,
     filename: Optional[str] = None,
     progress: bool = True,
-    extract: bool = False,
 ):
     if len(repo.split("/")) != 2:
         raise ValueError("if source is `github`, repo should be in the form of `repo_owner/repo_name`.")
     repo_owner, repo_name = repo.split("/")
     if filename is None:
-        # download the whole bundle package if filename is not provided
+        # download the whole bundle if filename is not provided
         assets_info = _get_git_release_assets(repo_owner, repo_name, tag_name=tag_name)
         for name, url in assets_info.items():
             download_url(url=url, filepath=download_path / f"{name}", hash_val=None, progress=progress)
-        if extract is True:
-            logger.info("When download a whole bundle package, extract is not supported, skip extracting.")
-        logger.info(f"All files within the bundle package {tag_name} are downloaded.")
+        logger.info(f"All files within the bundle {tag_name} are downloaded.")
     else:
         # download a single file
         url = _get_git_release_url(repo_owner, repo_name, tag_name=tag_name, filename=filename)
-        filepath = download_path / f"{filename}"
-        download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
-        if extract is True:
-            extractall(filepath=filepath, output_dir=download_path, has_base=True)
+        download_url(url=url, filepath=download_path / f"{filename}", hash_val=None, progress=progress)
 
 
 def download(
-    package: Optional[str] = None,
+    name: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
     filename: Optional[str] = None,
     source: str = "github",
     repo: Optional[str] = None,
     url: Optional[str] = None,
     progress: bool = True,
-    extract: bool = False,
     args_file: Optional[str] = None,
 ):
     """
-    download the bundle package or a file that belongs to the package from the specified source or url.
+    download the bundle or a file that belongs to the bundle from the specified source or url.
     This function refers to:
     https://pytorch.org/docs/stable/_modules/torch/hub.html
 
@@ -193,81 +186,68 @@ def download(
 
     .. code-block:: bash
 
-        # Execute this module as a CLI entry, and download the whole bundle package:
-        python -m monai.bundle download --package <bundle package name> --source "github" --repo <repo name>
+        # Execute this module as a CLI entry, and download the whole bundle:
+        python -m monai.bundle download --name <bundle name> --source "github" --repo <repo name>
 
         # Execute this module as a CLI entry, and download a single file:
-        python -m monai.bundle download --package <bundle package name> --filename <file name> --repo <repo name> 
+        python -m monai.bundle download --name <bundle name> --filename <file name> --repo <repo name> 
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
         python -m monai.bundle download --args_file "/workspace/data/args.json" --filename <file name>
 
     Args:
-        package: the bundle package name. If `None` and `url` is `None`, it must be provided in `args_file`.
+        name: the bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
             If `source` is `github`, it should be the same as the release tag.
-        bundle_dir: target directory to store the download data. Default is `bundle` subfolder under`torch.hub get_dir()`.
+        bundle_dir: target directory to store the download data. If `None`, it must be provided in `args_file`.
         filename: the filename that needs to be downloaded.
-            If `source` is `github` and filename is `None`, the whole bundle package will be downloaded.
-        source: the place that saved the bundle package.
-            If `source` is `github`, the bundle package should be within the releases.
+            If `source` is `github` and filename is `None`, the whole bundle will be downloaded.
+        source: the place that saved the bundle.
+            If `source` is `github`, the bundle should be within the releases.
         repo: the repo name. If `None` and `url` is `None`, it must be provided in `args_file`.
             If `source` is `github`, it should be in the form of `repo_owner/repo_name`.
             For example: `Project-MONAI/MONAI`.
         url: the url to download the data. It is an optional argument and if not `None`,
             data will be downloaded directly and `source` will not be checked.
         progress: whether to display a progress bar.
-        extract: whether to extract the downloaded file. This argument only works when download a single file.
         args_file: a JSON or YAML file to provide default values for all the args in this function.
             so that the command line inputs can be simplified.
 
     """
     _args = _update_args(
         args=args_file,
-        package=package,
+        name=name,
         bundle_dir=bundle_dir,
         filename=filename,
         source=source,
         repo=repo,
         url=url,
         progress=progress,
-        extract=extract,
     )
-    if "package" not in _args and url is None:
-        raise ValueError(f"To download from source: {source}, `package` must be provided.")
+    if "name" not in _args and url is None:
+        raise ValueError(f"To download from source: {source}, `name` must be provided.")
+    if "bundle_dir" not in _args:
+        raise ValueError(f"`bundle_dir` is required for 'monai.bundle download'.\n{run.__doc__}.")
     if "repo" not in _args and url is None:
         raise ValueError(f"To download from source: {source}, `repo` must be provided.")
     _log_input_summary(tag="download", args=_args)
-    package_, bundle_dir_, filename_, source_, repo_, url_, progress_, extract_ = _pop_args(
-        _args, package=None, bundle_dir=None, filename=None, source="github", repo=None, url=None, progress=True, extract=False
+    bundle_dir_, name_, filename_, source_, repo_, url_, progress_ = _pop_args(
+        _args, "bundle_dir", name=None, filename=None, source="github", repo=None, url=None, progress=True
     )
 
-    if not bundle_dir_:
-        get_dir, has_home = optional_import("torch.hub", name="get_dir")
-        if has_home:
-            bundle_dir_ = Path(get_dir()) / "bundle"
-        else:
-            raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
     bundle_dir_ = Path(bundle_dir_)
 
     if url_ is not None:
         if filename_ is not None:
-            filepath = bundle_dir_ / f"{filename_}"
-            download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
-            if extract_ is True:
-                extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
-        else:
-            download_url(url=url_, filepath=bundle_dir_, hash_val=None, progress=progress_)
-            if extract_ is True:
-                logger.info("When download a whole bundle package, extract is not supported, skip extracting.")
+            bundle_dir_ = bundle_dir_ / f"{filename_}"
+        download_url(url=url_, filepath=bundle_dir_, hash_val=None, progress=progress_)
     elif source_ == "github":
         _download_from_github(
             repo=repo_,
-            tag_name=package_,
+            tag_name=name_,
             download_path=bundle_dir_,
             filename=filename_,
             progress=progress_,
-            extract=extract_,
         )
     else:
         raise NotImplementedError("So far, only support to download from url or `github` source.")
@@ -276,13 +256,12 @@ def download(
 def load(
     weights_name: str = "model.pt",
     is_ts_model: bool = False,
-    package: Optional[str] = None,
+    name: Optional[str] = None,
     bundle_dir: PathLike = ".",
     source: str = "github",
     repo: Optional[str] = None,
     url: Optional[str] = None,
     progress: bool = True,
-    extract: bool = False,
     map_location=None,
 ):
     """
@@ -291,33 +270,31 @@ def load(
     Args:
         weights_name: the name of the weights file that will be loaded.
         is_ts_model, a flag to specify if the weights file is a TorchScript module.
-        package: the bundle package name.
+        name: the bundle name.
             If the weights need to be downloaded first and `url` is `None`, it must be provided.
         bundle_dir: the directory the weights will be loaded from.
-        source: the place that saved the bundle package.
-            If `source` is `github`, the bundle package should be within the releases.
+        source: the place that saved the bundle.
+            If `source` is `github`, the bundle should be within the releases.
         repo: the repo name. If the weights need to be downloaded first and `url` is `None`, it must be provided.
         url: the url to download the data.
         progress: whether to display a progress bar when downloading.
-        extract: whether to extract the downloaded file.
         map_location: pytorch API parameter for `torch.load` or `torch.jit.load`.
 
     """
     model_file_path = os.path.join(bundle_dir, weights_name)
     if not os.path.exists(model_file_path):
-        if package is None and url is None:
-            raise ValueError(f"To download and load model from source: {source}, `package` must be provided.")
+        if name is None and url is None:
+            raise ValueError(f"To download and load model from source: {source}, `name` must be provided.")
         if repo is None and url is None:
             raise ValueError(f"To download and load model from source: {source}, `repo` must be provided.")
         download(
-            package=package,
+            name=name,
             bundle_dir=bundle_dir,
             filename=weights_name,
             source=source,
             repo=repo,
             url=url,
             progress=progress,
-            extract=extract,
         )
     # loading with `torch.jit.load`
     if is_ts_model is True:
