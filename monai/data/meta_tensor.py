@@ -94,6 +94,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
             self.meta = deepcopy(self.meta)
         self.affine = self.affine.to(self.device)
+
     def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
         super()._copy_attr(attribute, input_objs, default_fn, deep_copy)
         val = getattr(self, attribute)
