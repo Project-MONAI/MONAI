@@ -16,14 +16,8 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import HilbertTransform
-from monai.utils import InvalidPyTorchVersionError, OptionalImportError
-from tests.utils import (
-    SkipIfAtLeastPyTorchVersion,
-    SkipIfBeforePyTorchVersion,
-    SkipIfModule,
-    SkipIfNoModule,
-    skip_if_no_cuda,
-)
+from monai.utils import OptionalImportError
+from tests.utils import SkipIfModule, SkipIfNoModule, skip_if_no_cuda
 
 
 def create_expected_numpy_output(input_datum, **kwargs):
@@ -164,7 +158,6 @@ if torch.cuda.is_available():
 # TESTS CHECKING PADDING, AXIS SELECTION ETC ARE COVERED BY test_detect_envelope.py
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 @SkipIfNoModule("torch.fft")
 class TestHilbertTransformCPU(unittest.TestCase):
     @parameterized.expand(
@@ -183,7 +176,6 @@ class TestHilbertTransformCPU(unittest.TestCase):
 
 
 @skip_if_no_cuda
-@SkipIfBeforePyTorchVersion((1, 7))
 @SkipIfNoModule("torch.fft")
 class TestHilbertTransformGPU(unittest.TestCase):
     @parameterized.expand(
@@ -204,18 +196,10 @@ class TestHilbertTransformGPU(unittest.TestCase):
         np.testing.assert_allclose(result, expected_data.squeeze(), atol=atol)
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 @SkipIfModule("torch.fft")
 class TestHilbertTransformNoFFTMod(unittest.TestCase):
     def test_no_fft_module_error(self):
         self.assertRaises(OptionalImportError, HilbertTransform(), torch.randn(1, 1, 10))
-
-
-@SkipIfAtLeastPyTorchVersion((1, 7))
-class TestHilbertTransformInvalidPyTorch(unittest.TestCase):
-    def test_invalid_pytorch_error(self):
-        with self.assertRaisesRegex(InvalidPyTorchVersionError, "version"):
-            HilbertTransform()
 
 
 if __name__ == "__main__":
