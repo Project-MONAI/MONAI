@@ -21,8 +21,10 @@ from typing import Optional, Union
 import torch
 from parameterized import parameterized
 
+from monai.data import DataLoader, Dataset
 from monai.data.meta_obj import get_track_meta, get_track_transforms, set_track_meta, set_track_transforms
 from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import decollate_batch, list_data_collate
 from monai.utils.enums import PostFix
 from monai.utils.module import pytorch_after
 from tests.utils import TEST_DEVICES, assert_allclose, skip_if_no_cuda
@@ -261,12 +263,71 @@ class TestMetaTensor(unittest.TestCase):
             im_conv2 = conv(im)
         self.check(im_conv2, im_conv, ids=False, rtol=1e-4, atol=1e-3)
 
-    # TODO
-    # collate
-    # decollate
-    # dataset
-    # dataloader
-    # matplotlib
+    def test_out(self):
+        """Test when `out` is given as an argument."""
+        m1, _ = self.get_im()
+        m1_orig = deepcopy(m1)
+        m2, _ = self.get_im()
+        m3, _ = self.get_im()
+        torch.add(m2, m3, out=m1)
+        m1_add = m2 + m3
+
+        assert_allclose(m1, m1_add)
+        aff1, aff1_orig = m1.affine, m1_orig.affine
+        assert_allclose(aff1, aff1_orig)
+        meta1 = {k: v for k, v in m1.meta.items() if k != "affine"}
+        meta1_orig = {k: v for k, v in m1_orig.meta.items() if k != "affine"}
+        self.assertEqual(meta1, meta1_orig)
+
+    @parameterized.expand(TESTS)
+    def test_collate(self, device, dtype):
+        numel = 3
+        ims = [self.get_im(device=device, dtype=dtype)[0] for _ in range(numel)]
+        collated = list_data_collate(ims)
+        # tensor
+        self.assertIsInstance(collated, MetaTensor)
+        expected_shape = (numel,) + tuple(ims[0].shape)
+        self.assertTupleEqual(tuple(collated.shape), expected_shape)
+        for i, im in enumerate(ims):
+            self.check(im, ims[i], ids=True)
+        # affine
+        self.assertIsInstance(collated.affine, torch.Tensor)
+        expected_shape = (numel,) + tuple(ims[0].affine.shape)
+        self.assertTupleEqual(tuple(collated.affine.shape), expected_shape)
+
+    @parameterized.expand(TESTS)
+    def test_dataset(self, device, dtype):
+        ims = [self.get_im(device=device, dtype=dtype)[0] for _ in range(4)]
+        ds = Dataset(ims)
+        for i, im in enumerate(ds):
+            self.check(im, ims[i], ids=True)
+
+    @parameterized.expand(DTYPES)
+    def test_dataloader(self, dtype):
+        batch_size = 5
+        ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
+        ds = Dataset(ims)
+        expected_im_shape = (batch_size,) + tuple(ims[0].shape)
+        expected_affine_shape = (batch_size,) + tuple(ims[0].affine.shape)
+        dl = DataLoader(ds, num_workers=batch_size, batch_size=batch_size)
+        for batch in dl:
+            self.assertIsInstance(batch, MetaTensor)
+            self.assertTupleEqual(tuple(batch.shape), expected_im_shape)
+            self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
+
+    @parameterized.expand(DTYPES)
+    def test_decollate(self, dtype):
+        batch_size = 3
+        ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
+        ds = Dataset(ims)
+        dl = DataLoader(ds, num_workers=batch_size, batch_size=batch_size)
+        batch = next(iter(dl))
+        decollated = decollate_batch(batch)
+        self.assertIsInstance(decollated, list)
+        self.assertEqual(len(decollated), batch_size)
+        for elem, im in zip(decollated, ims):
+            self.assertIsInstance(elem, MetaTensor)
+            self.check(elem, im, ids=False)
 
 
 if __name__ == "__main__":

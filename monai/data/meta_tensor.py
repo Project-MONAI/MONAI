@@ -102,6 +102,9 @@ class MetaTensor(MetaObj, torch.Tensor):
         if kwargs is None:
             kwargs = {}
         ret: MetaTensor = super().__torch_function__(func, types, args, kwargs)
+        # if `out` has been used as argument, metadata is not copied, nothing to do.
+        if "out" in kwargs:
+            return ret
         # e.g., __repr__ returns a string
         if not isinstance(ret, torch.Tensor):
             return ret
