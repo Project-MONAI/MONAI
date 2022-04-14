@@ -50,7 +50,7 @@ jobs:
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:22.03-py3"
           - environment: PT110+CUDA102
-            pytorch: "torch==1.10.1 torchvision==0.11.2"
+            pytorch: "torch==1.10.2 torchvision==0.11.3"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT111+CUDA102
             pytorch: "torch==1.11.0 torchvision==0.12.0"
