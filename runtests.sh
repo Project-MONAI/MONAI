@@ -407,7 +407,7 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}isort --version
+    ${cmdPrefix}${PY_EXE} -m isort --version
 
     if [ $doIsortFix = true ]
     then
