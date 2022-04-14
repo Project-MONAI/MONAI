@@ -34,24 +34,19 @@ class BaseWSIReader(ImageReader):
     .. code-block:: python
 
         image_reader = MyWSIReader()
-        wsi = image_reader.read(path_to_image)
+        wsi = image_reader.read(, **kwargs)
         img_data, meta_data = image_reader.get_data(wsi)
 
-    The following methods are already implemented deligate tasks to other abstract methods (see below):
-
-    - The `read` call converts image filenames into whole slide image (wsi) objects.
+    - The `read` call converts an image filename into whole slide image object,
     - The `get_data` call fetches the image data, as well as meta data.
-    - `verify_suffix` verifies
-    - `_verify_output` verifies the extracted patch to be a two dimensional RGB/RGBA image
 
     The following methods needs to be implemented for any concrete implementation of this class:
 
-    - `_reader` returns a whole slide image reader module that given filename and additional arguments,
-        returns image object.
-    - `_get_size` returns the size of the whole slide image of a given wsi object at a given level.
-    - `_get_level_count` returns the number of levels in the whole slide image
-    - `_get_patch` extracts and returns a patch image form the whole slide image
-    - `_get_metadata` extracts and returns metadata for a whole slide image and a specific patch.
+    - `read` reads a whole slide image object from a given file
+    - `get_size` returns the size of the whole slide image of a given wsi object at a given level.
+    - `get_level_count` returns the number of levels in the whole slide image
+    - `get_patch` extracts and returns a patch image form the whole slide image
+    - `get_metadata` extracts and returns metadata for a whole slide image and a specific patch.
 
 
     """
@@ -64,56 +59,24 @@ class BaseWSIReader(ImageReader):
         self.kwargs = kwargs
         self.metadata: Dict[Any, Any] = {}
 
-    @property
     @abstractmethod
-    def _reader(self):
-        """Returns a whole slide image reader module that given filename and additional arguments, returns image object."""
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    @abstractmethod
-    def _get_size(self, wsi, level):
+    def get_size(self, wsi, level):
         """Returns the size of the whole slide image of a given wsi object at a given level."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def _get_level_count(self, wsi):
+    def get_level_count(self, wsi):
         """Returns the number of levels in the whole slide image."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def _get_patch(
-        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
-    ):
+    def get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str):
         """Extracts and returns a patch image form the whole slide image."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def _get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+    def get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
-        """
-        Read image data from given file or list of files.
-
-        Args:
-            data: file name or a list of file names to read.
-            kwargs: additional args for backend reading API in `read()`, will override `self.kwargs` for existing keys.
-                more details in `cuCIM`: https://github.com/rapidsai/cucim/blob/v21.12.00/cpp/include/cucim/cuimage.h#L100.
-
-        Returns:
-            image object or list of image objects
-
-        """
-        wsi_list: List = []
-
-        filenames: Sequence[PathLike] = ensure_tuple(data)
-        kwargs_ = self.kwargs.copy()
-        kwargs_.update(kwargs)
-        for filename in filenames:
-            wsi = self._reader(filename, **kwargs_)
-            wsi_list.append(wsi)
-
-        return wsi_list if len(filenames) > 1 else wsi_list[0]
 
     def get_data(
         self,
@@ -143,14 +106,14 @@ class BaseWSIReader(ImageReader):
         # Verify magnification level
         if level is None:
             level = self.level
-        max_level = self._get_level_count(wsi) - 1
+        max_level = self.get_level_count(wsi) - 1
         if level > max_level:
             raise ValueError(f"The maximum level of this image is {max_level} while level={level} is requested)!")
 
         # Verify location
         if location is None:
             location = (0, 0)
-        wsi_size = self._get_size(wsi, level)
+        wsi_size = self.get_size(wsi, level)
         if location[0] > wsi_size[0] or location[1] > wsi_size[1]:
             raise ValueError(f"Location is outside of the image: location={location}, image size={wsi_size}")
 
@@ -158,19 +121,19 @@ class BaseWSIReader(ImageReader):
         if size is None:
             if location != (0, 0):
                 raise ValueError("Patch size should be defined to exctract patches.")
-            size = self._get_size(wsi, level)
+            size = self.get_size(wsi, level)
         else:
             if size[0] <= 0 or size[1] <= 0:
                 raise ValueError(f"Patch size should be greater than zero, provided: patch size = {size}")
 
         # Extract a patch or the entire image
-        patch = self._get_patch(wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
+        patch = self.get_patch(wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
         # Verify patch image
-        patch = self._verify_output(patch, mode)
+        patch = self.verify_output(patch, mode)
 
         # Set patch-related metadata
-        metadata = self._get_metadata(wsi=wsi, patch=patch, location=location, size=size, level=level)
+        metadata = self.get_metadata(wsi=wsi, patch=patch, location=location, size=size, level=level)
 
         return patch, metadata
 
@@ -184,7 +147,7 @@ class BaseWSIReader(ImageReader):
         """
         return is_supported_format(filename, self.supported_formats)
 
-    def _verify_output(self, patch: np.ndarray, mode: str):
+    def verify_output(self, patch: np.ndarray, mode: str):
         """
         Verify output image patch
         """
@@ -221,23 +184,20 @@ class WSIReader(BaseWSIReader):
             raise ValueError("The supported backends are: cucim")
         self.supported_formats = self.backend_lib.supported_formats
 
-    @property
-    def _reader(self):
-        return self.backend_lib._reader
+    def get_level_count(self, wsi):
+        return self.backend_lib.get_level_count(wsi)
 
-    def _get_level_count(self, wsi):
-        return self.backend_lib._get_level_count(wsi)
+    def get_size(self, wsi, level):
+        return self.backend_lib.get_size(wsi, level)
 
-    def _get_size(self, wsi, level):
-        return self.backend_lib._get_size(wsi, level)
+    def get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+        return self.backend_lib.get_metadata(wsi=wsi, patch=patch, size=size, location=location, level=level)
 
-    def _get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
-        return self.backend_lib._get_metadata(wsi=wsi, patch=patch, size=size, location=location, level=level)
+    def get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str):
+        return self.backend_lib.get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
-    def _get_patch(
-        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
-    ):
-        return self.backend_lib._get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
+    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
+        return self.backend_lib.read(data=data, **kwargs)
 
 
 @require_pkg(pkg_name="cucim")
@@ -258,19 +218,15 @@ class CuCIMWSIReader(BaseWSIReader):
     def __init__(self, level: int = 0, **kwargs):
         super().__init__(level, **kwargs)
 
-    @property
-    def _reader(self):
-        return CuImage
-
     @staticmethod
-    def _get_level_count(wsi):
+    def get_level_count(wsi):
         return wsi.resolutions["level_count"]
 
     @staticmethod
-    def _get_size(wsi, level):
+    def get_size(wsi, level):
         return wsi.resolutions["level_dimensions"][level][::-1]
 
-    def _get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+    def get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
         metadata: Dict = {
             "backend": "cucim",
             "spatial_shape": np.asarray(patch.shape[1:]),
@@ -281,9 +237,31 @@ class CuCIMWSIReader(BaseWSIReader):
         }
         return metadata
 
-    def _get_patch(
-        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
-    ):
+    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
+        """
+        Read whole slide image objects from given file or list of files.
+
+        Args:
+            data: file name or a list of file names to read.
+            kwargs: additional args that overrides `self.kwargs` for existing keys.
+                For more details look at https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
+
+        Returns:
+            whole slide image object or list of such objects
+
+        """
+        wsi_list: List = []
+
+        filenames: Sequence[PathLike] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
+        for filename in filenames:
+            wsi = CuImage(filename, **kwargs_)
+            wsi_list.append(wsi)
+
+        return wsi_list if len(filenames) > 1 else wsi_list[0]
+
+    def get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str):
         # extract a patch (or the entire image)
         # reverse the order of location and size to become WxH for cuCIM
         patch = wsi.read_region(location=location[::-1], size=size[::-1], level=level)
