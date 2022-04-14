@@ -315,8 +315,8 @@ class TestMetaTensor(unittest.TestCase):
             self.assertTupleEqual(tuple(batch.shape), expected_im_shape)
             self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
 
-    @SkipIfBeforePyTorchVersion((1, 8))
     @parameterized.expand(DTYPES)
+    @SkipIfBeforePyTorchVersion((1, 8))
     def test_decollate(self, dtype):
         batch_size = 3
         ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
