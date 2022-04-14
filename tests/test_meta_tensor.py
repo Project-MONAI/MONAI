@@ -303,6 +303,7 @@ class TestMetaTensor(unittest.TestCase):
             self.check(im, ims[i], ids=True)
 
     @parameterized.expand(DTYPES)
+    @SkipIfBeforePyTorchVersion((1, 8))
     def test_dataloader(self, dtype):
         batch_size = 5
         ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
