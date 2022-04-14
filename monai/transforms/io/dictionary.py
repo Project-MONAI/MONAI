@@ -218,6 +218,8 @@ class SaveImaged(MapTransform):
             if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
             if it's a string, it's treated as a class name or dotted path;
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
+        network_uploader: if not None then images are saved (using writers) to temporary files and then
+            uploaded to some network storage using this function and generated output paths
 
     """
 
@@ -242,6 +244,7 @@ class SaveImaged(MapTransform):
         print_log: bool = True,
         output_format: str = "",
         writer: Union[image_writer.ImageWriter, str, None] = None,
+        network_uploader: Optional[Callable[[bytes, str], None]] = None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
@@ -262,6 +265,7 @@ class SaveImaged(MapTransform):
             print_log=print_log,
             output_format=output_format,
             writer=writer,
+            network_uploader=network_uploader
         )
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):

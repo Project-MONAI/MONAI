@@ -329,6 +329,8 @@ class SaveImage(Transform):
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
         channel_dim: the index of the channel dimension. Default to `0`.
             `None` to indicate no channel dimension.
+        network_uploader: if not None then images are saved (using writers) to temporary files and then
+            uploaded to some network storage using this function and generated output paths
     """
 
     def __init__(
@@ -349,13 +351,14 @@ class SaveImage(Transform):
         output_format: str = "",
         writer: Union[image_writer.ImageWriter, str, None] = None,
         channel_dim: Optional[int] = 0,
+        network_uploader: Optional[Callable[[bytes, str], None]] = None,
     ) -> None:
         self.folder_layout = FolderLayout(
             output_dir=output_dir,
             postfix=output_postfix,
             extension=output_ext,
             parent=separate_folder,
-            makedirs=True,
+            makedirs=True if network_uploader is None else False,
             data_root_dir=data_root_dir,
         )
 
@@ -380,6 +383,7 @@ class SaveImage(Transform):
         self.meta_kwargs = {"resample": resample, "mode": mode, "padding_mode": padding_mode, "dtype": dtype}
         self.write_kwargs = {"verbose": print_log}
         self._data_index = 0
+        self.network_uploader = network_uploader
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
         """
@@ -420,7 +424,13 @@ class SaveImage(Transform):
                 writer_obj = writer_cls(**self.init_kwargs)
                 writer_obj.set_data_array(data_array=img, **self.data_kwargs)
                 writer_obj.set_metadata(meta_dict=meta_data, **self.meta_kwargs)
-                writer_obj.write(filename, **self.write_kwargs)
+                if self.network_uploader is None:
+                    writer_obj.write(filename, **self.write_kwargs)
+                else:
+                    with tempfile.NamedTemporaryFile(suffix=self.output_ext) as tmp:
+                        writer_obj.write(tmp.name, **self.write_kwargs)
+                        tmp.flush()
+                        self.network_uploader(tmp.read(), filename)
                 self.writer_obj = writer_obj
             except Exception as e:
                 err.append(traceback.format_exc())
