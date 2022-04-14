@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import HilbertTransform
-from monai.utils import InvalidPyTorchVersionError, OptionalImportError
+from monai.utils import OptionalImportError
 from tests.utils import SkipIfModule, SkipIfNoModule, skip_if_no_cuda
 
 
