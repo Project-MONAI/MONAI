@@ -190,7 +190,7 @@ def download(
         python -m monai.bundle download --name <bundle name> --source "github" --repo <repo name>
 
         # Execute this module as a CLI entry, and download a single file:
-        python -m monai.bundle download --name <bundle name> --filename <file name> --repo <repo name> 
+        python -m monai.bundle download --name <bundle name> --filename <file name> --repo <repo name>
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
