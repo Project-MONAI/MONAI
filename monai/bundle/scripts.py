@@ -21,9 +21,7 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 import torch
 from torch.cuda import is_available
 
-import warnings
-
-from monai.apps.utils import download_url, extractall, get_logger
+from monai.apps.utils import download_url, get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.config import IgniteInfo, PathLike
 from monai.data import save_net_with_metadata
@@ -190,7 +188,7 @@ def download(
         python -m monai.bundle download --name <bundle name> --source "github" --repo <repo name>
 
         # Execute this module as a CLI entry, and download a single file:
-        python -m monai.bundle download --name <bundle name> --filename <file name> --repo <repo name> 
+        python -m monai.bundle download --name <bundle name> --filename <file name> --repo <repo name>
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
