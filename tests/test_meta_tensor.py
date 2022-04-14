@@ -27,7 +27,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import decollate_batch, list_data_collate
 from monai.utils.enums import PostFix
 from monai.utils.module import pytorch_after
-from tests.utils import TEST_DEVICES, assert_allclose, skip_if_no_cuda
+from tests.utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, skip_if_no_cuda
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32]]
 TESTS = []
@@ -315,6 +315,7 @@ class TestMetaTensor(unittest.TestCase):
             self.assertTupleEqual(tuple(batch.shape), expected_im_shape)
             self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
 
+    @SkipIfBeforePyTorchVersion((1, 8))
     @parameterized.expand(DTYPES)
     def test_decollate(self, dtype):
         batch_size = 3
