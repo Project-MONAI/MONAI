@@ -803,6 +803,12 @@ Utility
     :members:
     :special-members: __call__
 
+`SplitDim`
+""""""""""
+.. autoclass:: SplitDim
+    :members:
+    :special-members: __call__
+
 `SplitChannel`
 """"""""""""""
 .. autoclass:: SplitChannel
@@ -1635,6 +1641,12 @@ Utility (Dict)
 `RepeatChanneld`
 """"""""""""""""
 .. autoclass:: RepeatChanneld
+    :members:
+    :special-members: __call__
+
+`SplitDimd`
+"""""""""""
+.. autoclass:: SplitDimd
     :members:
     :special-members: __call__
 

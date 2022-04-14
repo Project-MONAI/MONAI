@@ -94,6 +94,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -121,6 +123,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
+        to_kwargs: Optional[Dict] = None,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -166,6 +169,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.prepare_batch = prepare_batch
         self.metric_cmp_fn = metric_cmp_fn
         self.amp = amp
+        self.to_kwargs = {} if to_kwargs is None else to_kwargs
         self.scaler: Optional[torch.cuda.amp.GradScaler] = None
 
         if event_names is None:
