@@ -1842,6 +1842,21 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+MetaTensor
+^^^^^^^^^^
+
+`ToMetaTensord`
+"""""""""""""""
+.. autoclass:: ToMetaTensord
+    :members:
+    :special-members: __call__
+
+`FromMetaTensord`
+"""""""""""""""""
+.. autoclass:: FromMetaTensord
+    :members:
+    :special-members: __call__
+
 Transform Adaptors
 ------------------
 .. automodule:: monai.transforms.adaptors
