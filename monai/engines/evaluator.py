@@ -120,7 +120,7 @@ class Evaluator(Workflow):
             event_to_attr=event_to_attr,
             decollate=decollate,
             to_kwargs=to_kwargs,
-            amp_kwargs=amp_kwargs
+            amp_kwargs=amp_kwargs,
         )
         mode = look_up_option(mode, ForwardMode)
         if mode == ForwardMode.EVAL:
@@ -237,7 +237,7 @@ class SupervisedEvaluator(Evaluator):
             event_to_attr=event_to_attr,
             decollate=decollate,
             to_kwargs=to_kwargs,
-            amp_kwargs=amp_kwargs
+            amp_kwargs=amp_kwargs,
         )
 
         self.network = network
@@ -381,7 +381,7 @@ class EnsembleEvaluator(Evaluator):
             event_to_attr=event_to_attr,
             decollate=decollate,
             to_kwargs=to_kwargs,
-            amp_kwargs=amp_kwargs
+            amp_kwargs=amp_kwargs,
         )
 
         self.networks = ensure_tuple(networks)

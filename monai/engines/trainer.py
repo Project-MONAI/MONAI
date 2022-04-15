@@ -156,7 +156,7 @@ class SupervisedTrainer(Trainer):
             event_to_attr=event_to_attr,
             decollate=decollate,
             to_kwargs=to_kwargs,
-            amp_kwargs=amp_kwargs
+            amp_kwargs=amp_kwargs,
         )
 
         self.network = network
@@ -334,7 +334,7 @@ class GanTrainer(Trainer):
             postprocessing=postprocessing,
             decollate=decollate,
             to_kwargs=to_kwargs,
-            amp_kwargs=amp_kwargs
+            amp_kwargs=amp_kwargs,
         )
         self.g_network = g_network
         self.g_optimizer = g_optimizer
