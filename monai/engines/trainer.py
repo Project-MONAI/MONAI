@@ -107,6 +107,8 @@ class SupervisedTrainer(Trainer):
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     """
 
@@ -134,6 +136,7 @@ class SupervisedTrainer(Trainer):
         decollate: bool = True,
         optim_set_to_none: bool = False,
         to_kwargs: Optional[Dict] = None,
+        amp_kwargs: Optional[Dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -153,6 +156,7 @@ class SupervisedTrainer(Trainer):
             event_to_attr=event_to_attr,
             decollate=decollate,
             to_kwargs=to_kwargs,
+            amp_kwargs=amp_kwargs
         )
 
         self.network = network
@@ -202,7 +206,7 @@ class SupervisedTrainer(Trainer):
         self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
 
         if self.amp and self.scaler is not None:
-            with torch.cuda.amp.autocast():
+            with torch.cuda.amp.autocast(**engine.amp_kwargs):
                 _compute_pred_loss()
             self.scaler.scale(engine.state.output[Keys.LOSS]).backward()  # type: ignore
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
@@ -275,6 +279,8 @@ class GanTrainer(Trainer):
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     """
 
@@ -307,6 +313,7 @@ class GanTrainer(Trainer):
         decollate: bool = True,
         optim_set_to_none: bool = False,
         to_kwargs: Optional[Dict] = None,
+        amp_kwargs: Optional[Dict] = None,
     ):
         if not isinstance(train_data_loader, DataLoader):
             raise ValueError("train_data_loader must be PyTorch DataLoader.")
@@ -327,6 +334,7 @@ class GanTrainer(Trainer):
             postprocessing=postprocessing,
             decollate=decollate,
             to_kwargs=to_kwargs,
+            amp_kwargs=amp_kwargs
         )
         self.g_network = g_network
         self.g_optimizer = g_optimizer
