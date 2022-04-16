@@ -206,7 +206,7 @@ class SupervisedTrainer(Trainer):
         self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
 
         if self.amp and self.scaler is not None:
-            with torch.cuda.amp.autocast(**engine.amp_kwargs):
+            with torch.cuda.amp.autocast(**engine.amp_kwargs):  # type: ignore
                 _compute_pred_loss()
             self.scaler.scale(engine.state.output[Keys.LOSS]).backward()  # type: ignore
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)

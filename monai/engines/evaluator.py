@@ -277,7 +277,7 @@ class SupervisedEvaluator(Evaluator):
         # execute forward computation
         with self.mode(self.network):
             if self.amp:
-                with torch.cuda.amp.autocast(**engine.amp_kwargs):
+                with torch.cuda.amp.autocast(**engine.amp_kwargs):  # type: ignore
                     engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)  # type: ignore
             else:
                 engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)  # type: ignore
@@ -429,7 +429,7 @@ class EnsembleEvaluator(Evaluator):
         for idx, network in enumerate(self.networks):
             with self.mode(network):
                 if self.amp:
-                    with torch.cuda.amp.autocast(**engine.amp_kwargs):
+                    with torch.cuda.amp.autocast(**engine.amp_kwargs):  # type: ignore
                         if isinstance(engine.state.output, dict):
                             engine.state.output.update(
                                 {self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)}
