@@ -141,6 +141,9 @@ class BaseWSIReader(ImageReader):
         """
         patch_list: List = []
         metadata = {}
+        # A temporary workaround for a CuImage object being iterable: https://github.com/rapidsai/cucim/issues/264
+        if not isinstance(wsi, List):
+            wsi = [wsi]
         for each_wsi in ensure_tuple(wsi):
             # Verify magnification level
             if level is None:
@@ -399,17 +402,17 @@ class CuCIMWSIReader(BaseWSIReader):
             mode: the output image mode, 'RGB' or 'RGBA'
 
         """
-        # extract a patch (or the entire image)
-        # reverse the order of location and size to become WxH for cuCIM
+        # Extract a patch or the entire image
+        # (reverse the order of location and size to become WxH for cuCIM)
         patch = wsi.read_region(location=location[::-1], size=size[::-1], level=level)
 
-        # convert to numpy
+        # Convert to numpy
         patch = np.asarray(patch, dtype=dtype)
 
-        # make it channel first
+        # Make it channel first
         patch = EnsureChannelFirst()(patch, {"original_channel_dim": -1})
 
-        # check if the color channel is 3 (RGB) or 4 (RGBA)
+        # Check if the color channel is 3 (RGB) or 4 (RGBA)
         if mode == "RGBA" and patch.shape[0] != 4:
             raise ValueError(
                 f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
