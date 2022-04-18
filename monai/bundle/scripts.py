@@ -22,6 +22,7 @@ import torch
 from torch.cuda import is_available
 
 from monai.apps.utils import _basename, download_url, extractall, get_logger
+from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
 from monai.config import IgniteInfo, PathLike
@@ -255,9 +256,12 @@ def load(
     url: Optional[str] = None,
     progress: bool = True,
     map_location=None,
+    net_name: Optional[str] = None,
+    **net_kwargs,
 ):
     """
-    Load model weights. If the weights file is not existing locally, it will be downloaded first.
+    Load model weights. If the weights file is not existing locally, it will be downloaded first. The function can
+    return the weights, or an instantiated network that loaded the weights.
 
     Args:
         name: Bundle and weights name. If `None`, `url` should be provided, or the weights file is existing locally and
@@ -274,6 +278,8 @@ def load(
         url: the url to download the data.
         progress: whether to display a progress bar when downloading.
         map_location: pytorch API parameter for `torch.load` or `torch.jit.load`.
+        net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
+        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
 
     """
     if bundle_dir is None:
@@ -303,7 +309,15 @@ def load(
         return torch.jit.load(model_file_path, map_location=map_location)
     # loading with `torch.load`
     model_dict = torch.load(model_file_path, map_location=map_location)
-    return model_dict
+
+    if net_name is not None:
+        net_config = {"_target_": net_name}
+        for k, v in net_kwargs.items():
+            net_config[k] = v
+        configer = ConfigComponent(config=net_config)
+        model = configer.instantiate()
+        model.load_state_dict(model_dict) # type: ignore
+    return model
 
 
 def run(
