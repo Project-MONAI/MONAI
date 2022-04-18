@@ -316,7 +316,7 @@ def load(
             net_config[k] = v
         configer = ConfigComponent(config=net_config)
         model = configer.instantiate()
-        model.load_state_dict(model_dict) # type: ignore
+        model.load_state_dict(model_dict)  # type: ignore
     return model
 
 
