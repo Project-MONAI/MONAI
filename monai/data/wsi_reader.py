@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from monai.config import DtypeLike, PathLike
-from monai.data.image_reader import ImageReader
+from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import ensure_tuple, optional_import, require_pkg
@@ -60,22 +60,58 @@ class BaseWSIReader(ImageReader):
         self.metadata: Dict[Any, Any] = {}
 
     @abstractmethod
-    def get_size(self, wsi, level):
-        """Returns the size of the whole slide image of a given wsi object at a given level."""
+    def get_size(self, wsi, level) -> Tuple[int, int]:
+        """
+        Returns the size of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the size is calculated
+
+        """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
     def get_level_count(self, wsi):
-        """Returns the number of levels in the whole slide image."""
+        """
+        Returns the number of levels in the whole slide image.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+
+        """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
     def get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str):
-        """Extracts and returns a patch image form the whole slide image."""
+        """
+        Extracts and returns a patch image form the whole slide image.
+
+        Args:
+            wsi: a whole slide image object loaded from a file or a lis of such objects
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            size: (height, width) tuple giving the patch size at the given level (`level`).
+                If None, it is set to the full image size at the given level.
+            level: the level number. Defaults to 0
+            dtype: the data type of output image
+            mode: the output image mode, 'RGB' or 'RGBA'
+
+        """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+        """
+        Extracts and returns metadata form the whole slide image.
+
+        Args:
+            patch: extracted patch from whole slide image
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            size: (height, width) tuple giving the patch size at the given level (`level`).
+                If None, it is set to the full image size at the given level.
+            level: the level number. Defaults to 0
+
+        """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def get_data(
@@ -91,65 +127,77 @@ class BaseWSIReader(ImageReader):
         Verifies inputs, extracts patches from WSI image and generates metadata, and return them.
 
         Args:
-            wsi: a whole slide image object loaded from a file
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame,
-            or list of tuples (default=(0, 0))
-            size: (height, width) tuple giving the patch size, or list of tuples (default to full image size)
-            This is the size of image at the given level (`level`)
-            level: the level number, or list of level numbers (default=0)
+            wsi: a whole slide image object loaded from a file or a lis of such objects
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            size: (height, width) tuple giving the patch size at the given level (`level`).
+                If None, it is set to the full image size at the given level.
+            level: the level number. Defaults to 0
             dtype: the data type of output image
-            mode: the output image mode 'RGB' or 'RGBA'
+            mode: the output image mode, 'RGB' or 'RGBA'
 
         Returns:
-            a tuples, where the first element is an image [CxHxW], and second element is a dictionary of metadata
+            a tuples, where the first element is an image patch [CxHxW] or stack of patches,
+                and second element is a dictionary of metadata
         """
-        # Verify magnification level
-        if level is None:
-            level = self.level
-        max_level = self.get_level_count(wsi) - 1
-        if level > max_level:
-            raise ValueError(f"The maximum level of this image is {max_level} while level={level} is requested)!")
+        patch_list: List = []
+        metadata = {}
+        for each_wsi in ensure_tuple(wsi):
+            # Verify magnification level
+            if level is None:
+                level = self.level
+            max_level = self.get_level_count(each_wsi) - 1
+            if level > max_level:
+                raise ValueError(f"The maximum level of this image is {max_level} while level={level} is requested)!")
 
-        # Verify location
-        if location is None:
-            location = (0, 0)
-        wsi_size = self.get_size(wsi, level)
-        if location[0] > wsi_size[0] or location[1] > wsi_size[1]:
-            raise ValueError(f"Location is outside of the image: location={location}, image size={wsi_size}")
+            # Verify location
+            if location is None:
+                location = (0, 0)
+            wsi_size = self.get_size(each_wsi, level)
+            if location[0] > wsi_size[0] or location[1] > wsi_size[1]:
+                raise ValueError(f"Location is outside of the image: location={location}, image size={wsi_size}")
 
-        # Verify size
-        if size is None:
-            if location != (0, 0):
-                raise ValueError("Patch size should be defined to exctract patches.")
-            size = self.get_size(wsi, level)
-        else:
-            if size[0] <= 0 or size[1] <= 0:
-                raise ValueError(f"Patch size should be greater than zero, provided: patch size = {size}")
+            # Verify size
+            if size is None:
+                if location != (0, 0):
+                    raise ValueError("Patch size should be defined to exctract patches.")
+                size = self.get_size(each_wsi, level)
+            else:
+                if size[0] <= 0 or size[1] <= 0:
+                    raise ValueError(f"Patch size should be greater than zero, provided: patch size = {size}")
 
-        # Extract a patch or the entire image
-        patch = self.get_patch(wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
+            # Extract a patch or the entire image
+            patch = self.get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
-        # Verify patch image
-        patch = self.verify_output(patch, mode)
+            # Verify patch image
+            patch = self.verify_output(patch, mode)
 
-        # Set patch-related metadata
-        metadata = self.get_metadata(wsi=wsi, patch=patch, location=location, size=size, level=level)
+            # Create a list of patches
+            patch_list.append(patch)
 
-        return patch, metadata
+            # Set patch-related metadata
+            each_meta = self.get_metadata(patch=patch, location=location, size=size, level=level)
+            metadata.update(each_meta)
+
+        return _stack_images(patch_list, metadata), metadata
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
         Verify whether the specified file or files format is supported by WSI reader.
 
+        The list of supported suffixes are read from `self.supported_formats`.
+
         Args:
-            filename: file name or a list of file names to read.
-                if a list of files, verify all the suffixes.
+            filename: filename or a list of filenames to read.
+
         """
         return is_supported_format(filename, self.supported_formats)
 
     def verify_output(self, patch: np.ndarray, mode: str):
         """
-        Verify output image patch
+        Verify output image patch to have consistent outputs
+
+        Args:
+            patch: extracted patch from the whole slide image
         """
         # check if the image has three dimensions (2D + color)
         if patch.ndim != 3:
@@ -170,7 +218,7 @@ class WSIReader(BaseWSIReader):
     .. code-block:: python
 
         if self.backend == "any_backend":
-            self.backend_lib = AnyBackendWSIReader(level=level, **kwargs)
+            self.reader = AnyBackendWSIReader(level=level, **kwargs)
 
     """
 
@@ -179,25 +227,75 @@ class WSIReader(BaseWSIReader):
         self.backend = backend.lower()
         # Any new backend can be added below
         if self.backend == "cucim":
-            self.backend_lib = CuCIMWSIReader(level=level, **kwargs)
+            self.reader = CuCIMWSIReader(level=level, **kwargs)
         else:
             raise ValueError("The supported backends are: cucim")
-        self.supported_formats = self.backend_lib.supported_formats
+        self.supported_formats = self.reader.supported_formats
 
     def get_level_count(self, wsi):
-        return self.backend_lib.get_level_count(wsi)
+        """
+        Returns the number of levels in the whole slide image.
 
-    def get_size(self, wsi, level):
-        return self.backend_lib.get_size(wsi, level)
+        Args:
+            wsi: a whole slide image object loaded from a file
 
-    def get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
-        return self.backend_lib.get_metadata(wsi=wsi, patch=patch, size=size, location=location, level=level)
+        """
+        return self.reader.get_level_count(wsi)
+
+    def get_size(self, wsi, level) -> Tuple[int, int]:
+        """
+        Returns the size of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the size is calculated
+
+        """
+        return self.reader.get_size(wsi, level)
+
+    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+        """
+        Extracts and returns metadata form the whole slide image.
+
+        Args:
+            patch: extracted patch from whole slide image
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            size: (height, width) tuple giving the patch size at the given level (`level`).
+                If None, it is set to the full image size at the given level.
+            level: the level number. Defaults to 0
+
+        """
+        return self.reader.get_metadata(patch=patch, size=size, location=location, level=level)
 
     def get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str):
-        return self.backend_lib.get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
+        """
+        Extracts and returns a patch image form the whole slide image.
+
+        Args:
+            wsi: a whole slide image object loaded from a file or a lis of such objects
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            size: (height, width) tuple giving the patch size at the given level (`level`).
+                If None, it is set to the full image size at the given level.
+            level: the level number. Defaults to 0
+            dtype: the data type of output image
+            mode: the output image mode, 'RGB' or 'RGBA'
+
+        """
+        return self.reader.get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
-        return self.backend_lib.read(data=data, **kwargs)
+        """
+        Read whole slide image objects from given file or list of files.
+
+        Args:
+            data: file name or a list of file names to read.
+            kwargs: additional args for the reader module (overrides `self.kwargs` for existing keys).
+
+        Returns:
+            whole slide image object or list of such objects
+
+        """
+        return self.reader.read(data=data, **kwargs)
 
 
 @require_pkg(pkg_name="cucim")
@@ -220,17 +318,43 @@ class CuCIMWSIReader(BaseWSIReader):
 
     @staticmethod
     def get_level_count(wsi):
+        """
+        Returns the number of levels in the whole slide image.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+
+        """
         return wsi.resolutions["level_count"]
 
     @staticmethod
-    def get_size(wsi, level):
-        return wsi.resolutions["level_dimensions"][level][::-1]
+    def get_size(wsi, level) -> Tuple[int, int]:
+        """
+        Returns the size of the whole slide image at a given level.
 
-    def get_metadata(self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the size is calculated
+
+        """
+        return (wsi.resolutions["level_dimensions"][level][1], wsi.resolutions["level_dimensions"][level][0])
+
+    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+        """
+        Extracts and returns metadata form the whole slide image.
+
+        Args:
+            patch: extracted patch from whole slide image
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            size: (height, width) tuple giving the patch size at the given level (`level`).
+                If None, it is set to the full image size at the given level.
+            level: the level number. Defaults to 0
+
+        """
         metadata: Dict = {
             "backend": "cucim",
             "spatial_shape": np.asarray(patch.shape[1:]),
-            "original_channel_dim": -1,
+            "original_channel_dim": 0,
             "location": location,
             "size": size,
             "level": level,
@@ -262,6 +386,19 @@ class CuCIMWSIReader(BaseWSIReader):
         return wsi_list if len(filenames) > 1 else wsi_list[0]
 
     def get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str):
+        """
+        Extracts and returns a patch image form the whole slide image.
+
+        Args:
+            wsi: a whole slide image object loaded from a file or a lis of such objects
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            size: (height, width) tuple giving the patch size at the given level (`level`).
+                If None, it is set to the full image size at the given level.
+            level: the level number. Defaults to 0
+            dtype: the data type of output image
+            mode: the output image mode, 'RGB' or 'RGBA'
+
+        """
         # extract a patch (or the entire image)
         # reverse the order of location and size to become WxH for cuCIM
         patch = wsi.read_region(location=location[::-1], size=size[::-1], level=level)
