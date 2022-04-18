@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.transforms.utils_pytorch_numpy_unification import mode, percentile
 from monai.utils import set_determinism
-from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_MODE = []
 for p in TEST_NDARRAYS:
@@ -45,7 +45,6 @@ class TestPytorchNumpyUnification(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     percentile(arr, q)
 
-    @SkipIfBeforePyTorchVersion((1, 7))
     def test_dim(self):
         q = np.random.randint(0, 100, size=50)
         results = []
