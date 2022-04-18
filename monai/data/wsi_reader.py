@@ -141,7 +141,7 @@ class BaseWSIReader(ImageReader):
         """
         patch_list: List = []
         metadata = {}
-        # A temporary workaround for a CuImage object being iterable: https://github.com/rapidsai/cucim/issues/264
+        # CuImage object is iterable, so ensure_tuple won't work on single object
         if not isinstance(wsi, List):
             wsi = [wsi]
         for each_wsi in ensure_tuple(wsi):
