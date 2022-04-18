@@ -21,8 +21,9 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 import torch
 from torch.cuda import is_available
 
-from monai.apps.utils import download_url, get_logger
+from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_parser import ConfigParser
+from monai.bundle.utils import ID_SEP_KEY
 from monai.config import IgniteInfo, PathLike
 from monai.data import save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state
@@ -119,20 +120,11 @@ def _get_fake_spatial_shape(shape: Sequence[Union[str, int]], p: int = 1, n: int
     return tuple(ret)
 
 
-def _get_git_release_url(
-    repo_owner: str,
-    repo_name: str,
-    tag_name: str,
-    filename: str,
-):
+def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filename: str):
     return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
 
 
-def _get_git_release_assets(
-    repo_owner: str,
-    repo_name: str,
-    tag_name: str,
-):
+def _get_git_release_assets(repo_owner: str, repo_name: str, tag_name: str):
     url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/tags/{tag_name}"
     resp = requests_get(url)
     resp.raise_for_status()
@@ -144,11 +136,7 @@ def _get_git_release_assets(
 
 
 def _download_from_github(
-    repo: str,
-    tag_name: str,
-    download_path: Path,
-    filename: Optional[str] = None,
-    progress: bool = True,
+    repo: str, tag_name: str, download_path: Path, filename: Optional[str] = None, progress: bool = True
 ):
     if len(repo.split("/")) != 2:
         raise ValueError("if source is `github`, repo should be in the form of `repo_owner/repo_name`.")
@@ -157,18 +145,23 @@ def _download_from_github(
         # download the whole bundle if filename is not provided
         assets_info = _get_git_release_assets(repo_owner, repo_name, tag_name=tag_name)
         for name, url in assets_info.items():
-            download_url(url=url, filepath=download_path / f"{name}", hash_val=None, progress=progress)
+            filepath = download_path / f"{name}"
+            download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+            if filepath.name.endswith(("zip", "tar", "tar.gz")):
+                extractall(filepath=filepath, output_dir=download_path, has_base=True)
         logger.info(f"All files within the bundle {tag_name} are downloaded.")
     else:
         # download a single file
         url = _get_git_release_url(repo_owner, repo_name, tag_name=tag_name, filename=filename)
-        download_url(url=url, filepath=download_path / f"{filename}", hash_val=None, progress=progress)
+        filepath = download_path / f"{filename}"
+        download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+        if filepath.name.endswith(("zip", "tar", "tar.gz")):
+            extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
 def download(
     name: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
-    filename: Optional[str] = None,
     source: str = "github",
     repo: Optional[str] = None,
     url: Optional[str] = None,
@@ -177,6 +170,7 @@ def download(
 ):
     """
     download the bundle or a file that belongs to the bundle from the specified source or url.
+    "zip", "tar" and "tar.gz" files, will be extracted after downloading.
     This function refers to:
     https://pytorch.org/docs/stable/_modules/torch/hub.html
 
@@ -185,77 +179,77 @@ def download(
     .. code-block:: bash
 
         # Execute this module as a CLI entry, and download the whole bundle:
-        python -m monai.bundle download --name <bundle name> --source "github" --repo <repo name>
+        python -m monai.bundle download --name <bundle> --source "github" --repo <repo>
 
         # Execute this module as a CLI entry, and download a single file:
-        python -m monai.bundle download --name <bundle name> --filename <file name> --repo <repo name>
+        python -m monai.bundle download --name <bundle#filename> --repo <repo>
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
-        python -m monai.bundle download --args_file "/workspace/data/args.json" --filename <file name>
+        python -m monai.bundle download --args_file "/workspace/data/args.json" --repo <repo>
 
     Args:
         name: the bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
             If `source` is `github`, it should be the same as the release tag.
+            If only a single file is expected to be downloaded, `name` should be a string that consisted with
+            the bundle name, a separator `#` and the weights name. For example: if the bundle name is "spleen" and
+            the weights name is "model.pt", then `name` is "spleen#model.pt".
         bundle_dir: target directory to store the download data. If `None`, it must be provided in `args_file`.
-        filename: the filename that needs to be downloaded.
-            If `source` is `github` and filename is `None`, the whole bundle will be downloaded.
         source: the place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
         repo: the repo name. If `None` and `url` is `None`, it must be provided in `args_file`.
             If `source` is `github`, it should be in the form of `repo_owner/repo_name`.
             For example: `Project-MONAI/MONAI`.
-        url: the url to download the data. It is an optional argument and if not `None`,
-            data will be downloaded directly and `source` will not be checked.
+        url: the url to download the data. If not `None`, data will be downloaded directly
+            and `source` will not be checked.
+            If `name` contains the filename, it will be used as the downloaded filename (without postfix).
+            Otherwise, the filename is determined by `monai.apps.utils._basename(url)`.
         progress: whether to display a progress bar.
         args_file: a JSON or YAML file to provide default values for all the args in this function.
             so that the command line inputs can be simplified.
 
     """
     _args = _update_args(
-        args=args_file,
-        name=name,
-        bundle_dir=bundle_dir,
-        filename=filename,
-        source=source,
-        repo=repo,
-        url=url,
-        progress=progress,
+        args=args_file, name=name, bundle_dir=bundle_dir, source=source, repo=repo, url=url, progress=progress
     )
-    if "name" not in _args and url is None:
-        raise ValueError(f"To download from source: {source}, `name` must be provided.")
     if "bundle_dir" not in _args:
         raise ValueError(f"`bundle_dir` is required for 'monai.bundle download'.\n{run.__doc__}.")
+    if "name" not in _args and url is None:
+        raise ValueError(f"To download from source: {source}, `name` must be provided.")
     if "repo" not in _args and url is None:
         raise ValueError(f"To download from source: {source}, `repo` must be provided.")
     _log_input_summary(tag="download", args=_args)
-    bundle_dir_, name_, filename_, source_, repo_, url_, progress_ = _pop_args(
-        _args, "bundle_dir", name=None, filename=None, source="github", repo=None, url=None, progress=True
+    bundle_dir_, name_, source_, repo_, url_, progress_ = _pop_args(
+        _args, "bundle_dir", name=None, source="github", repo=None, url=None, progress=True
     )
 
     bundle_dir_ = Path(bundle_dir_)
 
+    filename: Optional[str] = None
+    if name_ is not None and len(name_.split(ID_SEP_KEY)) == 2:
+        name_, filename = name_.split(ID_SEP_KEY)
+
     if url_ is not None:
-        if filename_ is not None:
-            bundle_dir_ = bundle_dir_ / f"{filename_}"
-        download_url(url=url_, filepath=bundle_dir_, hash_val=None, progress=progress_)
+        if filename is not None:
+            filepath = bundle_dir_ / f"{filename}"
+        else:
+            filepath = bundle_dir_ / f"{_basename(url_)}"
+        download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
+        filepath = Path(filepath)
+        if filepath.name.endswith(("zip", "tar", "tar.gz")):
+            extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
     elif source_ == "github":
         _download_from_github(
-            repo=repo_,
-            tag_name=name_,
-            download_path=bundle_dir_,
-            filename=filename_,
-            progress=progress_,
+            repo=repo_, tag_name=name_, download_path=bundle_dir_, filename=filename, progress=progress_
         )
     else:
         raise NotImplementedError("So far, only support to download from url or `github` source.")
 
 
 def load(
-    weights_name: str = "model.pt",
-    is_ts_model: bool = False,
     name: Optional[str] = None,
-    bundle_dir: PathLike = ".",
+    is_ts_model: bool = False,
+    bundle_dir: Optional[PathLike] = None,
     source: str = "github",
     repo: Optional[str] = None,
     url: Optional[str] = None,
@@ -263,14 +257,17 @@ def load(
     map_location=None,
 ):
     """
-    Download (if necessary) and load model weights.
+    Load model weights. If the weights file is not existing locally, it will be downloaded first.
 
     Args:
-        weights_name: the name of the weights file that will be loaded.
+        name: Bundle and weights name. If `None`, `url` should be provided, or the weights file is existing locally and
+            the default weights file should be named as "model.pt".
+            If not `None`, it should be a string that consisted with the bundle name, a separator `#`
+            and the weights name. For example: if the bundle name is "spleen" and the weights name is "model.pt", then
+            `name` is "spleen#model.pt".
         is_ts_model, a flag to specify if the weights file is a TorchScript module.
-        name: the bundle name.
-            If the weights need to be downloaded first and `url` is `None`, it must be provided.
         bundle_dir: the directory the weights will be loaded from.
+            Default is `bundle` subfolder under`torch.hub get_dir()`.
         source: the place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
         repo: the repo name. If the weights need to be downloaded first and `url` is `None`, it must be provided.
@@ -279,21 +276,28 @@ def load(
         map_location: pytorch API parameter for `torch.load` or `torch.jit.load`.
 
     """
+    if bundle_dir is None:
+        get_dir, has_home = optional_import("torch.hub", name="get_dir")
+        if has_home:
+            bundle_dir = Path(get_dir()) / "bundle"
+        else:
+            raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
+    bundle_dir = Path(bundle_dir)
+
+    weights_name: str = "model.pt"
+    if name is not None:
+        if len(name.split(ID_SEP_KEY)) == 2:
+            weights_name = name.split(ID_SEP_KEY)[1]
+        else:
+            raise ValueError(f"The format of `name` is wrong.\n{run.__doc__}")
     model_file_path = os.path.join(bundle_dir, weights_name)
+
     if not os.path.exists(model_file_path):
         if name is None and url is None:
             raise ValueError(f"To download and load model from source: {source}, `name` must be provided.")
         if repo is None and url is None:
             raise ValueError(f"To download and load model from source: {source}, `repo` must be provided.")
-        download(
-            name=name,
-            bundle_dir=bundle_dir,
-            filename=weights_name,
-            source=source,
-            repo=repo,
-            url=url,
-            progress=progress,
-        )
+        download(name=name, bundle_dir=bundle_dir, source=source, repo=repo, url=url, progress=progress)
     # loading with `torch.jit.load`
     if is_ts_model is True:
         return torch.jit.load(model_file_path, map_location=map_location)
