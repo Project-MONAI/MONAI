@@ -56,6 +56,17 @@ TEST_CASE_2 = [
     np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
 ]
 
+TEST_CASE_3 = [
+    [FILE_PATH, FILE_PATH],
+    {"location": (0, 0), "size": (2, 1), "level": 2},
+    np.concatenate(
+        [
+            np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+            np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+        ],
+        axis=0,
+    ),
+]
 
 TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
@@ -131,6 +142,23 @@ class WSIReaderTests:
                     self.assertIsNone(assert_array_equal(img, img2))
                     self.assertTupleEqual(img.shape, expected_img.shape)
                     self.assertIsNone(assert_array_equal(img, expected_img))
+
+        @parameterized.expand([TEST_CASE_3])
+        def test_read_region_multi_wsi(self, file_path, patch_info, expected_img):
+            kwargs = {"name": None, "offset": None} if self.backend == "tifffile" else {}
+            reader = WSIReader(self.backend, **kwargs)
+            img_obj = reader.read(file_path, **kwargs)
+            if self.backend == "tifffile":
+                with self.assertRaises(ValueError):
+                    reader.get_data(img_obj, **patch_info)[0]
+            else:
+                # Read twice to check multiple calls
+                img = reader.get_data(img_obj, **patch_info)[0]
+                img2 = reader.get_data(img_obj, **patch_info)[0]
+                self.assertTupleEqual(img.shape, img2.shape)
+                self.assertIsNone(assert_array_equal(img, img2))
+                self.assertTupleEqual(img.shape, expected_img.shape)
+                self.assertIsNone(assert_array_equal(img, expected_img))
 
         @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
         @skipUnless(has_tiff, "Requires tifffile.")
