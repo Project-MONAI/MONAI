@@ -51,7 +51,7 @@ class BaseWSIReader(ImageReader):
 
     """
 
-    supported_formats: List[str] = []
+    supported_suffixes: List[str] = []
 
     def __init__(self, level: int, **kwargs):
         super().__init__()
@@ -60,7 +60,7 @@ class BaseWSIReader(ImageReader):
         self.metadata: Dict[Any, Any] = {}
 
     @abstractmethod
-    def get_size(self, wsi, level) -> Tuple[int, int]:
+    def get_size(self, wsi, level: int) -> Tuple[int, int]:
         """
         Returns the size of the whole slide image at a given level.
 
@@ -72,7 +72,7 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_level_count(self, wsi):
+    def get_level_count(self, wsi) -> int:
         """
         Returns the number of levels in the whole slide image.
 
@@ -83,7 +83,9 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str):
+    def get_patch(
+        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+    ) -> np.ndarray:
         """
         Extracts and returns a patch image form the whole slide image.
 
@@ -100,7 +102,7 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
         """
         Extracts and returns metadata form the whole slide image.
 
@@ -122,12 +124,12 @@ class BaseWSIReader(ImageReader):
         level: Optional[int] = None,
         dtype: DtypeLike = np.uint8,
         mode: str = "RGB",
-    ):
+    ) -> Tuple[np.ndarray, Dict]:
         """
         Verifies inputs, extracts patches from WSI image and generates metadata, and return them.
 
         Args:
-            wsi: a whole slide image object loaded from a file or a lis of such objects
+            wsi: a whole slide image object loaded from a file or a list of such objects
             location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
@@ -171,8 +173,12 @@ class BaseWSIReader(ImageReader):
             # Extract a patch or the entire image
             patch = self.get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
-            # Verify patch image
-            patch = self.verify_output(patch, mode)
+            # check if the image has three dimensions (2D + color)
+            if patch.ndim != 3:
+                raise ValueError(
+                    f"The image dimension should be 3 but has {patch.ndim}. "
+                    "`WSIReader` is designed to work only with 2D images with color channel."
+                )
 
             # Create a list of patches
             patch_list.append(patch)
@@ -187,41 +193,23 @@ class BaseWSIReader(ImageReader):
         """
         Verify whether the specified file or files format is supported by WSI reader.
 
-        The list of supported suffixes are read from `self.supported_formats`.
+        The list of supported suffixes are read from `self.supported_suffixes`.
 
         Args:
             filename: filename or a list of filenames to read.
 
         """
-        return is_supported_format(filename, self.supported_formats)
-
-    def verify_output(self, patch: np.ndarray, mode: str):
-        """
-        Verify output image patch to have consistent outputs
-
-        Args:
-            patch: extracted patch from the whole slide image
-        """
-        # check if the image has three dimensions (2D + color)
-        if patch.ndim != 3:
-            raise ValueError(
-                f"The image dimension should be 3 but has {patch.ndim}. "
-                "`WSIReader` is designed to work only with 2D images with color channel."
-            )
-
-        return patch
+        return is_supported_format(filename, self.supported_suffixes)
 
 
 class WSIReader(BaseWSIReader):
     """
-    WSIReader that supports different implemented backends
+    Read whole slide images and extract patches using different backend libraries
 
-    The support for any backend can be achieved by
-
-    .. code-block:: python
-
-        if self.backend == "any_backend":
-            self.reader = AnyBackendWSIReader(level=level, **kwargs)
+    Args:
+        backend: the name of backend whole slide image reader library, the default is cuCIM.
+        level: the level at which patches are extracted.
+        kwargs: additional arguments to be passed to the backend library
 
     """
 
@@ -233,9 +221,9 @@ class WSIReader(BaseWSIReader):
             self.reader = CuCIMWSIReader(level=level, **kwargs)
         else:
             raise ValueError("The supported backends are: cucim")
-        self.supported_formats = self.reader.supported_formats
+        self.supported_suffixes = self.reader.supported_suffixes
 
-    def get_level_count(self, wsi):
+    def get_level_count(self, wsi) -> int:
         """
         Returns the number of levels in the whole slide image.
 
@@ -256,7 +244,7 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_size(wsi, level)
 
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
         """
         Extracts and returns metadata form the whole slide image.
 
@@ -270,7 +258,9 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_metadata(patch=patch, size=size, location=location, level=level)
 
-    def get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str):
+    def get_patch(
+        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+    ) -> np.ndarray:
         """
         Extracts and returns a patch image form the whole slide image.
 
@@ -314,13 +304,13 @@ class CuCIMWSIReader(BaseWSIReader):
 
     """
 
-    supported_formats = ["tif", "tiff", "svs"]
+    supported_suffixes = ["tif", "tiff", "svs"]
 
     def __init__(self, level: int = 0, **kwargs):
         super().__init__(level, **kwargs)
 
     @staticmethod
-    def get_level_count(wsi):
+    def get_level_count(wsi) -> int:
         """
         Returns the number of levels in the whole slide image.
 
@@ -328,7 +318,7 @@ class CuCIMWSIReader(BaseWSIReader):
             wsi: a whole slide image object loaded from a file
 
         """
-        return wsi.resolutions["level_count"]
+        return wsi.resolutions["level_count"]  # type: ignore
 
     @staticmethod
     def get_size(wsi, level) -> Tuple[int, int]:
@@ -342,7 +332,7 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         return (wsi.resolutions["level_dimensions"][level][1], wsi.resolutions["level_dimensions"][level][0])
 
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int):
+    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
         """
         Extracts and returns metadata form the whole slide image.
 
@@ -388,7 +378,9 @@ class CuCIMWSIReader(BaseWSIReader):
 
         return wsi_list if len(filenames) > 1 else wsi_list[0]
 
-    def get_patch(self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str):
+    def get_patch(
+        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+    ) -> np.ndarray:
         """
         Extracts and returns a patch image form the whole slide image.
 
@@ -404,13 +396,13 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         # Extract a patch or the entire image
         # (reverse the order of location and size to become WxH for cuCIM)
-        patch = wsi.read_region(location=location[::-1], size=size[::-1], level=level)
+        patch: np.ndarray = wsi.read_region(location=location[::-1], size=size[::-1], level=level)
 
         # Convert to numpy
         patch = np.asarray(patch, dtype=dtype)
 
         # Make it channel first
-        patch = EnsureChannelFirst()(patch, {"original_channel_dim": -1})
+        patch = EnsureChannelFirst()(patch, {"original_channel_dim": -1})  # type: ignore
 
         # Check if the color channel is 3 (RGB) or 4 (RGBA)
         if mode == "RGBA" and patch.shape[0] != 4:
