@@ -2150,7 +2150,6 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         return d
 
 
-
 class Splitd(MapTransform):
     """
     Split the image into patches based on the provided grid in 2D.
