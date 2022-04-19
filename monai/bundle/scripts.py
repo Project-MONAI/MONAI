@@ -180,14 +180,17 @@ def download(
     .. code-block:: bash
 
         # Execute this module as a CLI entry, and download the whole bundle:
-        python -m monai.bundle download --name <bundle> --source "github" --repo <repo>
+        python -m monai.bundle download --name "bundle_name" --source "github" --repo "repo_owner/repo_name"
 
         # Execute this module as a CLI entry, and download a single file:
-        python -m monai.bundle download --name <bundle#filename> --repo <repo>
+        python -m monai.bundle download --name "bundle_name#filename" --repo "repo_owner/repo_name"
+
+        # Execute this module as a CLI entry, and download a single file via URL:
+        python -m monai.bundle download --url <url>
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
-        python -m monai.bundle download --args_file "/workspace/data/args.json" --repo <repo>
+        python -m monai.bundle download --args_file "/workspace/data/args.json" --repo "repo_owner/repo_name"
 
     Args:
         name: the bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
@@ -195,7 +198,8 @@ def download(
             If only a single file is expected to be downloaded, `name` should be a string that consisted with
             the bundle name, a separator `#` and the weights name. For example: if the bundle name is "spleen" and
             the weights name is "model.pt", then `name` is "spleen#model.pt".
-        bundle_dir: target directory to store the download data. If `None`, it must be provided in `args_file`.
+        bundle_dir: target directory to store the download data.
+            Default is `bundle` subfolder under`torch.hub get_dir()`.
         source: the place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
         repo: the repo name. If `None` and `url` is `None`, it must be provided in `args_file`.
@@ -213,17 +217,22 @@ def download(
     _args = _update_args(
         args=args_file, name=name, bundle_dir=bundle_dir, source=source, repo=repo, url=url, progress=progress
     )
-    if "bundle_dir" not in _args:
-        raise ValueError(f"`bundle_dir` is required for 'monai.bundle download'.\n{run.__doc__}.")
+
     if "name" not in _args and url is None:
         raise ValueError(f"To download from source: {source}, `name` must be provided.")
     if "repo" not in _args and url is None:
         raise ValueError(f"To download from source: {source}, `repo` must be provided.")
     _log_input_summary(tag="download", args=_args)
-    bundle_dir_, name_, source_, repo_, url_, progress_ = _pop_args(
-        _args, "bundle_dir", name=None, source="github", repo=None, url=None, progress=True
+    name_, bundle_dir_, source_, repo_, url_, progress_ = _pop_args(
+        _args, name=None, bundle_dir=None, source="github", repo=None, url=None, progress=True
     )
 
+    if bundle_dir_ is None:
+        get_dir, has_home = optional_import("torch.hub", name="get_dir")
+        if has_home:
+            bundle_dir_ = Path(get_dir()) / "bundle"
+        else:
+            raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
     bundle_dir_ = Path(bundle_dir_)
 
     filename: Optional[str] = None
@@ -279,6 +288,7 @@ def load(
         progress: whether to display a progress bar when downloading.
         map_location: pytorch API parameter for `torch.load` or `torch.jit.load`.
         net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
+            This argument only works when loading weights.
         net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
 
     """
@@ -317,7 +327,8 @@ def load(
         configer = ConfigComponent(config=net_config)
         model = configer.instantiate()
         model.load_state_dict(model_dict)  # type: ignore
-    return model
+        return model
+    return model_dict
 
 
 def run(
