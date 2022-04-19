@@ -330,6 +330,7 @@ from .spatial.array import (
     Rotate90,
     Spacing,
     SpatialResample,
+    Split,
     Zoom,
 )
 from .spatial.dictionary import (

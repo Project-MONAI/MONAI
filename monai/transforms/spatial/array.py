@@ -18,6 +18,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
+from numpy.lib.stride_tricks import as_strided
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
@@ -2460,3 +2461,83 @@ class RandGridDistortion(RandomizableTransform):
         if not self._do_transform:
             return img
         return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)
+
+
+class Split(Transform):
+    """
+    Split the image into patches based on the provided grid in 2D.
+
+    Args:
+        grid: a tuple define the shape of the grid upon which the image is split. Defaults to (2, 2)
+        size: a tuple or an integer that defines the output patch sizes.
+            If it's an integer, the value will be repeated for each dimension.
+            The default is None, where the patch size will be inferred from the grid shape.
+
+    Note: This transform currently support only image with two spatial dimensions.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self, grid: Tuple[int, int] = (2, 2), size: Optional[Union[int, Tuple[int, int]]] = None
+    ):
+        # Grid size
+        self.grid = grid
+
+        # Patch size
+        if size is None:
+            self.size = None
+        else:
+            self.size = ensure_tuple_rep(size, len(self.grid))
+
+    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
+        if self.grid == (1, 1) and self.size is None:
+            if isinstance(image, torch.Tensor):
+                return torch.stack([image])
+            elif isinstance(image, np.ndarray):
+                return np.stack([image])  # type: ignore
+            else:
+                raise ValueError(f"Input type [{type(image)}] is not supported.")
+
+        size, steps = self.get_params(image.shape[1:])
+        patches: NdarrayOrTensor
+        if isinstance(image, torch.Tensor):
+            patches = (
+                image.unfold(1, size[0], steps[0])
+                .unfold(2, size[1], steps[1])
+                .flatten(1, 2)
+                .transpose(0, 1)
+                .contiguous()
+            )
+        elif isinstance(image, np.ndarray):
+            x_step, y_step = steps
+            c_stride, x_stride, y_stride = image.strides
+            n_channels = image.shape[0]
+            patches = as_strided(
+                image,
+                shape=(*self.grid, n_channels, size[0], size[1]),
+                strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
+                writeable=False,
+            )
+            # flatten the first two dimensions
+            patches = patches.reshape(np.prod(patches.shape[:2]), *patches.shape[2:])
+            # make it a contiguous array
+            patches = np.ascontiguousarray(patches)
+        else:
+            raise ValueError(f"Input type [{type(image)}] is not supported.")
+
+        return patches
+
+    def get_params(self, image_size):
+        if self.size is None:
+            size = tuple(image_size[i] // self.grid[i] for i in range(2))
+        else:
+            size = self.size
+
+        steps = tuple(
+            (image_size[i] - size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
+            for i in range(2)
+        )
+
+        return size, steps
+
