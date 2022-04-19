@@ -35,10 +35,13 @@ class PatchWSIDataset(Dataset):
 
     Note:
         The input data has the following form as an example:
-        `[
-            {"image": "path/to/image1.tiff", "location": [200, 500], "label": 0},
-            {"image": "path/to/image2.tiff", "location": [100, 700], "label": 1}
-        ]`.
+
+        .. code-block:: python
+
+            [
+                {"image": "path/to/image1.tiff", "location": [200, 500], "label": 0},
+                {"image": "path/to/image2.tiff", "location": [100, 700], "label": 1}
+            ]
 
     """
 

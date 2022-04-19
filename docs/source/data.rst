@@ -152,23 +152,6 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
-Whole slide image reader
-------------------------
-
-BaseWSIReader
-~~~~~~~~~~~~~
-.. autoclass:: BaseWSIReader
-  :members:
-
-WSIReader
-~~~~~~~~~
-.. autoclass:: WSIReader
-  :members:
-
-CuCIMWSIReader
-~~~~~~~~~~~~~~
-.. autoclass:: CuCIMWSIReader
-  :members:
 
 Image writer
 ------------
@@ -295,3 +278,32 @@ MetaTensor
 ----------
 .. autoclass:: monai.data.MetaTensor
    :members:
+
+
+
+Whole slide image reader
+------------------------
+
+BaseWSIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.BaseWSIReader
+  :members:
+
+WSIReader
+~~~~~~~~~
+.. autoclass:: monai.data.WSIReader
+  :members:
+
+CuCIMWSIReader
+~~~~~~~~~~~~~~
+.. autoclass:: monai.data.CuCIMWSIReader
+  :members:
+
+
+Whole slide image datasets
+--------------------------
+
+PatchWSIDataset
+~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.PatchWSIDataset
+  :members:
