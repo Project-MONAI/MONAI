@@ -2478,9 +2478,7 @@ class Split(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(
-        self, grid: Tuple[int, int] = (2, 2), size: Optional[Union[int, Tuple[int, int]]] = None
-    ):
+    def __init__(self, grid: Tuple[int, int] = (2, 2), size: Optional[Union[int, Tuple[int, int]]] = None):
         # Grid size
         self.grid = grid
 
@@ -2535,9 +2533,7 @@ class Split(Transform):
             size = self.size
 
         steps = tuple(
-            (image_size[i] - size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
-            for i in range(2)
+            (image_size[i] - size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i] for i in range(2)
         )
 
         return size, steps
-

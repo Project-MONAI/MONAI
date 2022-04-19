@@ -49,6 +49,7 @@ from monai.transforms.spatial.array import (
     Rotate90,
     Spacing,
     SpatialResample,
+    Split,
     Zoom,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
@@ -2149,6 +2150,39 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         return d
 
 
+
+class Splitd(MapTransform):
+    """
+    Split the image into patches based on the provided grid in 2D.
+
+    Args:
+        grid: a tuple define the shape of the grid upon which the image is split. Defaults to (2, 2)
+        size: a tuple or an integer that defines the output patch sizes.
+            If it's an integer, the value will be repeated for each dimension.
+            The default is None, where the patch size will be inferred from the grid shape.
+
+    Note: This transform currently support only image with two spatial dimensions.
+    """
+
+    backend = Split.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        grid: Tuple[int, int] = (2, 2),
+        size: Optional[Union[int, Tuple[int, int]]] = None,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(keys, allow_missing_keys)
+        self.splitter = Split(grid=grid, size=size)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.splitter(d[key])
+        return d
+
+
 SpatialResampleD = SpatialResampleDict = SpatialResampled
 ResampleToMatchD = ResampleToMatchDict = ResampleToMatchd
 SpacingD = SpacingDict = Spacingd
@@ -2169,3 +2203,4 @@ RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
+SplitD = SplitDict = Splitd
