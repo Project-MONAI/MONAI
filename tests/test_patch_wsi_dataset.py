@@ -63,6 +63,13 @@ TEST_CASE_0_L2 = [
 ]
 
 
+TEST_CASE_1 = [
+    {
+        "data": [{"image": FILE_PATH, "location": [0, 0], "size": 1, "label": [1]}],
+    },
+    {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
+]
+
 TEST_CASE_2 = [
     {
         "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
@@ -98,9 +105,7 @@ class PatchWSIDatasetTests:
                 TEST_CASE_0,
                 TEST_CASE_0_L1,
                 TEST_CASE_0_L2,
-                # TEST_CASE_1,
-                # TEST_CASE_1_L0,
-                # TEST_CASE_1_L1,
+                TEST_CASE_1,
                 TEST_CASE_2,
                 TEST_CASE_3,
             ]
