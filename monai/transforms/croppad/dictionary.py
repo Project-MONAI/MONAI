@@ -70,6 +70,7 @@ __all__ = [
     "RandCropByPosNegLabeld",
     "ResizeWithPadOrCropd",
     "BoundingRectd",
+    "RandCropByLabelClassesd",
     "SpatialPadD",
     "SpatialPadDict",
     "BorderPadD",
@@ -98,7 +99,6 @@ __all__ = [
     "ResizeWithPadOrCropDict",
     "BoundingRectD",
     "BoundingRectDict",
-    "RandCropByLabelClassesd",
     "RandCropByLabelClassesD",
     "RandCropByLabelClassesDict",
 ]

@@ -74,6 +74,8 @@ class Evaluator(Workflow):
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
 
     """
 
@@ -95,6 +97,7 @@ class Evaluator(Workflow):
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
+        to_kwargs: Optional[Dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -113,6 +116,7 @@ class Evaluator(Workflow):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            to_kwargs=to_kwargs,
         )
         mode = look_up_option(mode, ForwardMode)
         if mode == ForwardMode.EVAL:
@@ -181,6 +185,8 @@ class SupervisedEvaluator(Evaluator):
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
 
     """
 
@@ -204,6 +210,7 @@ class SupervisedEvaluator(Evaluator):
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
+        to_kwargs: Optional[Dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -222,6 +229,7 @@ class SupervisedEvaluator(Evaluator):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            to_kwargs=to_kwargs,
         )
 
         self.network = network
@@ -245,7 +253,9 @@ class SupervisedEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
+        batch = self.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        )
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -314,6 +324,8 @@ class EnsembleEvaluator(Evaluator):
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
 
     """
 
@@ -338,6 +350,7 @@ class EnsembleEvaluator(Evaluator):
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
+        to_kwargs: Optional[Dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -356,6 +369,7 @@ class EnsembleEvaluator(Evaluator):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            to_kwargs=to_kwargs,
         )
 
         self.networks = ensure_tuple(networks)
@@ -387,7 +401,9 @@ class EnsembleEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
+        batch = self.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        )
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
