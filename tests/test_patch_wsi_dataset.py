@@ -21,8 +21,12 @@ from monai.data import PatchWSIDataset
 from monai.utils import optional_import
 from tests.utils import download_url_or_skip_test, testing_data_config
 
-_cucim, has_cim = optional_import("cucim")
-has_cim = has_cim and hasattr(_cucim, "CuImage")
+cucim, has_cucim = optional_import("cucim")
+has_cucim = has_cucim and hasattr(cucim, "CuImage")
+openslide, has_osl = optional_import("openslide")
+imwrite, has_tiff = optional_import("tifffile", name="imwrite")
+_, has_codec = optional_import("imagecodecs")
+has_tiff = has_tiff and has_codec
 
 FILE_KEY = "wsi_img"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
@@ -59,7 +63,6 @@ TEST_CASE_0_L2 = [
 ]
 
 
-
 TEST_CASE_2 = [
     {
         "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
@@ -79,32 +82,43 @@ TEST_CASE_3 = [
 ]
 
 
-class TestPatchWSIDataset(unittest.TestCase):
-    def setUp(self):
-        hash_type = testing_data_config("images", FILE_KEY, "hash_type")
-        hash_val = testing_data_config("images", FILE_KEY, "hash_val")
-        download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
+@skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
+def setUpModule():  # noqa: N802
+    hash_type = testing_data_config("images", FILE_KEY, "hash_type")
+    hash_val = testing_data_config("images", FILE_KEY, "hash_val")
+    download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
 
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_0_L1,
-            TEST_CASE_0_L2,
-            # TEST_CASE_1,
-            # TEST_CASE_1_L0,
-            # TEST_CASE_1_L1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-        ]
-    )
-    @skipUnless(has_cim, "Requires CuCIM")
-    def test_read_patches_cucim(self, input_parameters, expected):
-        dataset = PatchWSIDataset(**input_parameters)
-        sample = dataset[0]
-        self.assertTupleEqual(sample["label"].shape, expected["label"].shape)
-        self.assertTupleEqual(sample["image"].shape, expected["image"].shape)
-        self.assertIsNone(assert_array_equal(sample["label"], expected["label"]))
-        self.assertIsNone(assert_array_equal(sample["image"], expected["image"]))
+
+class PatchWSIDatasetTests:
+    class Tests(unittest.TestCase):
+        backend = None
+
+        @parameterized.expand(
+            [
+                TEST_CASE_0,
+                TEST_CASE_0_L1,
+                TEST_CASE_0_L2,
+                # TEST_CASE_1,
+                # TEST_CASE_1_L0,
+                # TEST_CASE_1_L1,
+                TEST_CASE_2,
+                TEST_CASE_3,
+            ]
+        )
+        def test_read_patches_cucim(self, input_parameters, expected):
+            dataset = PatchWSIDataset(**input_parameters)
+            sample = dataset[0]
+            self.assertTupleEqual(sample["label"].shape, expected["label"].shape)
+            self.assertTupleEqual(sample["image"].shape, expected["image"].shape)
+            self.assertIsNone(assert_array_equal(sample["label"], expected["label"]))
+            self.assertIsNone(assert_array_equal(sample["image"], expected["image"]))
+
+
+@skipUnless(has_cucim, "Requires cucim")
+class TestCuCIM(PatchWSIDatasetTests.Tests):
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = "cucim"
 
 
 if __name__ == "__main__":
