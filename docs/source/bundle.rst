@@ -37,6 +37,7 @@ Model Bundle
 ---------
 .. autofunction:: ckpt_export
 .. autofunction:: download
+.. autofunction:: load
 .. autofunction:: run
 .. autofunction:: verify_metadata
 .. autofunction:: verify_net_in_out
