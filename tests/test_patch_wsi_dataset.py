@@ -17,13 +17,12 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
-from monai.apps.pathology.data import PatchWSIDataset
+from monai.data import PatchWSIDataset
 from monai.utils import optional_import
 from tests.utils import download_url_or_skip_test, testing_data_config
 
 _cucim, has_cim = optional_import("cucim")
 has_cim = has_cim and hasattr(_cucim, "CuImage")
-_, has_osl = optional_import("openslide")
 
 FILE_KEY = "wsi_img"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
@@ -33,174 +32,50 @@ FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + ba
 TEST_CASE_0 = [
     {
         "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "region_size": (1, 1),
-        "grid_shape": (1, 1),
-        "patch_size": 1,
-        "image_reader_name": "cuCIM",
+        "size": (1, 1),
+        "reader_name": "cuCIM",
     },
-    [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
+    {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_0_L1 = [
     {
         "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "region_size": (1, 1),
-        "grid_shape": (1, 1),
-        "patch_size": 1,
+        "size": (1, 1),
         "level": 1,
-        "image_reader_name": "cuCIM",
+        "reader_name": "cuCIM",
     },
-    [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
+    {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_0_L2 = [
     {
         "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "region_size": (1, 1),
-        "grid_shape": (1, 1),
-        "patch_size": 1,
+        "size": (1, 1),
         "level": 1,
-        "image_reader_name": "cuCIM",
+        "reader_name": "cuCIM",
     },
-    [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
+    {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 
-TEST_CASE_1 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 1]}],
-        "region_size": (8, 8),
-        "grid_shape": (2, 2),
-        "patch_size": 1,
-        "image_reader_name": "cuCIM",
-    },
-    [
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
-    ],
-]
 
-
-TEST_CASE_1_L0 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 1]}],
-        "region_size": (8, 8),
-        "grid_shape": (2, 2),
-        "patch_size": 1,
-        "level": 0,
-        "image_reader_name": "cuCIM",
-    },
-    [
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
-    ],
-]
-
-
-TEST_CASE_1_L1 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 1]}],
-        "region_size": (8, 8),
-        "grid_shape": (2, 2),
-        "patch_size": 1,
-        "level": 1,
-        "image_reader_name": "cuCIM",
-    },
-    [
-        {"image": np.array([[[248]], [[246]], [[249]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[196]], [[187]], [[192]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[245]], [[243]], [[244]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[242]], [[243]]], dtype=np.uint8), "label": np.array([[[1]]])},
-    ],
-]
 TEST_CASE_2 = [
     {
         "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "region_size": 1,
-        "grid_shape": 1,
-        "patch_size": 1,
-        "image_reader_name": "cuCIM",
+        "size": 1,
+        "reader_name": "cuCIM",
     },
-    [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
+    {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_3 = [
     {
         "data": [{"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]}],
-        "region_size": 1,
-        "grid_shape": 1,
-        "patch_size": 1,
-        "image_reader_name": "cuCIM",
+        "size": 1,
+        "reader_name": "cuCIM",
     },
-    [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])}],
-]
-
-TEST_CASE_OPENSLIDE_0 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "region_size": (1, 1),
-        "grid_shape": (1, 1),
-        "patch_size": 1,
-        "image_reader_name": "OpenSlide",
-    },
-    [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
-]
-
-TEST_CASE_OPENSLIDE_0_L0 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "region_size": (1, 1),
-        "grid_shape": (1, 1),
-        "patch_size": 1,
-        "level": 0,
-        "image_reader_name": "OpenSlide",
-    },
-    [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
-]
-
-TEST_CASE_OPENSLIDE_0_L1 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "region_size": (1, 1),
-        "grid_shape": (1, 1),
-        "patch_size": 1,
-        "level": 1,
-        "image_reader_name": "OpenSlide",
-    },
-    [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
-]
-
-
-TEST_CASE_OPENSLIDE_0_L2 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "region_size": (1, 1),
-        "grid_shape": (1, 1),
-        "patch_size": 1,
-        "level": 2,
-        "image_reader_name": "OpenSlide",
-    },
-    [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
-]
-
-TEST_CASE_OPENSLIDE_1 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 1]}],
-        "region_size": (8, 8),
-        "grid_shape": (2, 2),
-        "patch_size": 1,
-        "image_reader_name": "OpenSlide",
-    },
-    [
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[0]]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
-    ],
+    {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
 ]
 
 
@@ -215,9 +90,9 @@ class TestPatchWSIDataset(unittest.TestCase):
             TEST_CASE_0,
             TEST_CASE_0_L1,
             TEST_CASE_0_L2,
-            TEST_CASE_1,
-            TEST_CASE_1_L0,
-            TEST_CASE_1_L1,
+            # TEST_CASE_1,
+            # TEST_CASE_1_L0,
+            # TEST_CASE_1_L1,
             TEST_CASE_2,
             TEST_CASE_3,
         ]
@@ -225,31 +100,11 @@ class TestPatchWSIDataset(unittest.TestCase):
     @skipUnless(has_cim, "Requires CuCIM")
     def test_read_patches_cucim(self, input_parameters, expected):
         dataset = PatchWSIDataset(**input_parameters)
-        samples = dataset[0]
-        for i in range(len(samples)):
-            self.assertTupleEqual(samples[i]["label"].shape, expected[i]["label"].shape)
-            self.assertTupleEqual(samples[i]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(samples[i]["label"], expected[i]["label"]))
-            self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
-
-    @parameterized.expand(
-        [
-            TEST_CASE_OPENSLIDE_0,
-            TEST_CASE_OPENSLIDE_0_L0,
-            TEST_CASE_OPENSLIDE_0_L1,
-            TEST_CASE_OPENSLIDE_0_L2,
-            TEST_CASE_OPENSLIDE_1,
-        ]
-    )
-    @skipUnless(has_osl, "Requires OpenSlide")
-    def test_read_patches_openslide(self, input_parameters, expected):
-        dataset = PatchWSIDataset(**input_parameters)
-        samples = dataset[0]
-        for i in range(len(samples)):
-            self.assertTupleEqual(samples[i]["label"].shape, expected[i]["label"].shape)
-            self.assertTupleEqual(samples[i]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(samples[i]["label"], expected[i]["label"]))
-            self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
+        sample = dataset[0]
+        self.assertTupleEqual(sample["label"].shape, expected["label"].shape)
+        self.assertTupleEqual(sample["image"].shape, expected["image"].shape)
+        self.assertIsNone(assert_array_equal(sample["label"], expected["label"]))
+        self.assertIsNone(assert_array_equal(sample["image"], expected["image"]))
 
 
 if __name__ == "__main__":

@@ -101,7 +101,7 @@ class PatchWSIDataset(Dataset):
         location = self._get_location(sample)
         level = self._get_level(sample)
         size = self._get_size(sample)
-        return self.image_reader.get_data(img=wsi_obj, location=location, size=size, level=level)
+        return self.image_reader.get_data(wsi=wsi_obj, location=location, size=size, level=level)
 
     def __getitem__(self, index):
         sample = self.data[index]
