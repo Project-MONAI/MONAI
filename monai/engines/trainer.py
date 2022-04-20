@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 import torch
 from torch.optim.optimizer import Optimizer
