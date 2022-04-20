@@ -111,6 +111,7 @@ class MetaObj:
 
     def __init__(self):
         self._meta: dict = self.get_default_meta()
+        self._is_batch: bool = False
 
     @staticmethod
     def flatten_meta_objs(args: Sequence[Any]) -> list[MetaObj]:
@@ -176,6 +177,7 @@ class MetaObj:
         id_in = id(input_objs[0]) if len(input_objs) > 0 else None
         deep_copy = id(self) != id_in
         self._copy_attr("meta", input_objs, self.get_default_meta, deep_copy)
+        self.is_batch = input_objs[0].is_batch if len(input_objs) > 0 else False
 
     def get_default_meta(self) -> dict:
         """Get the default meta.
@@ -194,6 +196,7 @@ class MetaObj:
             out += "".join(f"\t{k}: {v}\n" for k, v in self.meta.items())
         else:
             out += "None"
+        out += f"\nIs batch?: {self.is_batch}"
 
         return out
 
@@ -206,3 +209,13 @@ class MetaObj:
     def meta(self, d: dict) -> None:
         """Set the meta."""
         self._meta = d
+
+    @property
+    def is_batch(self) -> bool:
+        """Return whether object is part of batch or not."""
+        return self._is_batch
+
+    @is_batch.setter
+    def is_batch(self, val: bool) -> None:
+        """Set whether object is part of batch or not."""
+        self._is_batch = val

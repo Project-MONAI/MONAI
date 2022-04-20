@@ -21,11 +21,13 @@ from typing import Optional, Union
 import torch
 from parameterized import parameterized
 
+from monai.data import DataLoader, Dataset
 from monai.data.meta_obj import get_track_meta, get_track_transforms, set_track_meta, set_track_transforms
 from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import decollate_batch, list_data_collate
 from monai.utils.enums import PostFix
 from monai.utils.module import pytorch_after
-from tests.utils import TEST_DEVICES, assert_allclose, skip_if_no_cuda
+from tests.utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, skip_if_no_cuda
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32]]
 TESTS = []
@@ -59,6 +61,17 @@ class TestMetaTensor(unittest.TestCase):
         comp = self.assertEqual if should_match else self.assertNotEqual
         comp(id(a), id(b))
 
+    def check_meta(self, a: MetaTensor, b: MetaTensor) -> None:
+        self.assertEqual(a.is_batch, b.is_batch)
+        meta_a, meta_b = a.meta, b.meta
+        # need to split affine from rest of metadata
+        aff_a = meta_a.get("affine", None)
+        aff_b = meta_b.get("affine", None)
+        assert_allclose(aff_a, aff_b)
+        meta_a = {k: v for k, v in meta_a.items() if k != "affine"}
+        meta_b = {k: v for k, v in meta_b.items() if k != "affine"}
+        self.assertEqual(meta_a, meta_b)
+
     def check(
         self,
         out: torch.Tensor,
@@ -87,12 +100,7 @@ class TestMetaTensor(unittest.TestCase):
 
         # check meta and affine are equal and affine is on correct device
         if isinstance(orig, MetaTensor) and isinstance(out, MetaTensor) and meta:
-            orig_meta_no_affine = deepcopy(orig.meta)
-            del orig_meta_no_affine["affine"]
-            out_meta_no_affine = deepcopy(out.meta)
-            del out_meta_no_affine["affine"]
-            self.assertEqual(orig_meta_no_affine, out_meta_no_affine)
-            assert_allclose(out.affine, orig.affine)
+            self.check_meta(orig, out)
             self.assertTrue(str(device) in str(out.affine.device))
             if check_ids:
                 self.check_ids(out.affine, orig.affine, ids)
@@ -261,12 +269,146 @@ class TestMetaTensor(unittest.TestCase):
             im_conv2 = conv(im)
         self.check(im_conv2, im_conv, ids=False, rtol=1e-4, atol=1e-3)
 
-    # TODO
-    # collate
-    # decollate
-    # dataset
-    # dataloader
-    # matplotlib
+    def test_out(self):
+        """Test when `out` is given as an argument."""
+        m1, _ = self.get_im()
+        m1_orig = deepcopy(m1)
+        m2, _ = self.get_im()
+        m3, _ = self.get_im()
+        torch.add(m2, m3, out=m1)
+        m1_add = m2 + m3
+
+        assert_allclose(m1, m1_add)
+        self.check_meta(m1, m1_orig)
+
+    @parameterized.expand(TESTS)
+    def test_collate(self, device, dtype):
+        numel = 3
+        ims = [self.get_im(device=device, dtype=dtype)[0] for _ in range(numel)]
+        collated = list_data_collate(ims)
+        # tensor
+        self.assertIsInstance(collated, MetaTensor)
+        expected_shape = (numel,) + tuple(ims[0].shape)
+        self.assertTupleEqual(tuple(collated.shape), expected_shape)
+        for i, im in enumerate(ims):
+            self.check(im, ims[i], ids=True)
+        # affine
+        self.assertIsInstance(collated.affine, torch.Tensor)
+        expected_shape = (numel,) + tuple(ims[0].affine.shape)
+        self.assertTupleEqual(tuple(collated.affine.shape), expected_shape)
+
+    @parameterized.expand(TESTS)
+    def test_dataset(self, device, dtype):
+        ims = [self.get_im(device=device, dtype=dtype)[0] for _ in range(4)]
+        ds = Dataset(ims)
+        for i, im in enumerate(ds):
+            self.check(im, ims[i], ids=True)
+
+    @parameterized.expand(DTYPES)
+    @SkipIfBeforePyTorchVersion((1, 8))
+    def test_dataloader(self, dtype):
+        batch_size = 5
+        ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
+        ds = Dataset(ims)
+        im_shape = tuple(ims[0].shape)
+        affine_shape = tuple(ims[0].affine.shape)
+        expected_im_shape = (batch_size,) + im_shape
+        expected_affine_shape = (batch_size,) + affine_shape
+        dl = DataLoader(ds, num_workers=batch_size, batch_size=batch_size)
+        for batch in dl:
+            self.assertIsInstance(batch, MetaTensor)
+            self.assertTupleEqual(tuple(batch.shape), expected_im_shape)
+            self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
+
+    @SkipIfBeforePyTorchVersion((1, 9))
+    def test_indexing(self):
+        """
+        Check the metadata is returned in the expected format depending on whether
+        the input `MetaTensor` is a batch of data or not.
+        """
+        ims = [self.get_im()[0] for _ in range(5)]
+        data = list_data_collate(ims)
+
+        # check that when using non-batch data, metadata is copied wholly when indexing
+        # or iterating across data.
+        im = ims[0]
+        self.check_meta(im[0], im)
+        self.check_meta(next(iter(im)), im)
+
+        # index
+        d = data[0]
+        self.check(d, ims[0], ids=False)
+
+        # iter
+        d = next(iter(data))
+        self.check(d, ims[0], ids=False)
+
+        # complex indexing
+
+        # `is_batch==True`, should have subset of image and metadata.
+        d = data[1:3]
+        self.check(d, list_data_collate(ims[1:3]), ids=False)
+
+        # is_batch==True, should have subset of image and same metadata as `[1:3]`.
+        d = data[1:3, 0]
+        self.check(d, list_data_collate([i[0] for i in ims[1:3]]), ids=False)
+
+        # `is_batch==False`, should have first metadata and subset of first image.
+        d = data[0, 0]
+        self.check(d, ims[0][0], ids=False)
+
+        # `is_batch==True`, should have all metadata and subset of all images.
+        d = data[:, 0]
+        self.check(d, list_data_collate([i[0] for i in ims]), ids=False)
+
+        # `is_batch==True`, should have all metadata and subset of all images.
+        d = data[..., -1]
+        self.check(d, list_data_collate([i[..., -1] for i in ims]), ids=False)
+
+        # `is_batch==False`, tuple split along batch dim. Should have individual
+        # metadata.
+        d = data.unbind(0)
+        self.assertIsInstance(d, tuple)
+        self.assertEqual(len(d), len(ims))
+        for _d, _im in zip(d, ims):
+            self.check(_d, _im, ids=False)
+
+        # `is_batch==False`, tuple split along batch dim. Should have individual
+        # metadata.
+        d = data.unbind(dim=0)
+        self.assertIsInstance(d, tuple)
+        self.assertEqual(len(d), len(ims))
+        for _d, _im in zip(d, ims):
+            self.check(_d, _im, ids=False)
+
+        # `is_batch==True`, tuple split along non-batch dim. Should have all metadata.
+        d = data.unbind(-1)
+        self.assertIsInstance(d, tuple)
+        self.assertEqual(len(d), ims[0].shape[-1])
+        for _d in d:
+            self.check_meta(_d, data)
+
+        # `is_batch==True`, tuple split along non-batch dim. Should have all metadata.
+        d = data.unbind(dim=-1)
+        self.assertIsInstance(d, tuple)
+        self.assertEqual(len(d), ims[0].shape[-1])
+        for _d in d:
+            self.check_meta(_d, data)
+
+    @parameterized.expand(DTYPES)
+    @SkipIfBeforePyTorchVersion((1, 8))
+    def test_decollate(self, dtype):
+        batch_size = 3
+        ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
+        ds = Dataset(ims)
+        dl = DataLoader(ds, num_workers=batch_size, batch_size=batch_size)
+        batch = next(iter(dl))
+        decollated = decollate_batch(batch)
+        self.assertIsInstance(decollated, list)
+        self.assertEqual(len(decollated), batch_size)
+        for elem, im in zip(decollated, ims):
+            self.assertIsInstance(elem, MetaTensor)
+            self.check(elem, im, ids=False)
 
 
 if __name__ == "__main__":
