@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -243,7 +244,7 @@ class SupervisedEvaluator(Evaluator):
         self.network = network
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedEvaluator, batchdata: Dict[str, torch.Tensor]):
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -252,7 +253,7 @@ class SupervisedEvaluator(Evaluator):
             - PRED: prediction result of model.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: `SupervisedEvaluator` to execute operation for an iteration.
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
@@ -261,8 +262,8 @@ class SupervisedEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(
-            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        batch = engine.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
         )
         if len(batch) == 2:
             inputs, targets = batch
@@ -272,15 +273,16 @@ class SupervisedEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}  # type: ignore
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
         # execute forward computation
-        with self.mode(self.network):
-            if self.amp:
-                with torch.cuda.amp.autocast(**engine.amp_kwargs):  # type: ignore
-                    engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)  # type: ignore
+        with engine.mode(engine.network):
+            
+            if engine.amp:
+                with torch.cuda.amp.autocast(**engine.amp_kwargs):
+                    engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
             else:
-                engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)  # type: ignore
+                engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
         engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
@@ -392,7 +394,7 @@ class EnsembleEvaluator(Evaluator):
             raise ValueError("length of `pred_keys` must be same as the length of `networks`.")
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine: EnsembleEvaluator, batchdata: Dict[str, torch.Tensor]):
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -404,7 +406,7 @@ class EnsembleEvaluator(Evaluator):
             - pred_keys[N]: prediction result of network N.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: `EnsembleEvaluator` to execute operation for an iteration.
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
@@ -413,8 +415,8 @@ class EnsembleEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(
-            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        batch = engine.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
         )
         if len(batch) == 2:
             inputs, targets = batch
@@ -424,20 +426,20 @@ class EnsembleEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}  # type: ignore
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
-        for idx, network in enumerate(self.networks):
-            with self.mode(network):
-                if self.amp:
-                    with torch.cuda.amp.autocast(**engine.amp_kwargs):  # type: ignore
+        for idx, network in enumerate(engine.networks):
+            with engine.mode(network):
+                if engine.amp:
+                    with torch.cuda.amp.autocast(**engine.amp_kwargs):
                         if isinstance(engine.state.output, dict):
                             engine.state.output.update(
-                                {self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)}
+                                {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}
                             )
                 else:
                     if isinstance(engine.state.output, dict):
                         engine.state.output.update(
-                            {self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)}
+                            {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}
                         )
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
         engine.fire_event(IterationEvents.MODEL_COMPLETED)

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -165,7 +166,7 @@ class SupervisedTrainer(Trainer):
         self.inferer = SimpleInferer() if inferer is None else inferer
         self.optim_set_to_none = optim_set_to_none
 
-    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedTrainer, batchdata: Dict[str, torch.Tensor]):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -175,7 +176,7 @@ class SupervisedTrainer(Trainer):
             - LOSS: loss value computed by loss function.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: `SupervisedTrainer` to execute operation for an iteration.
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
@@ -184,8 +185,8 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(
-            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        batch = engine.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
         )
         if len(batch) == 2:
             inputs, targets = batch
@@ -194,29 +195,29 @@ class SupervisedTrainer(Trainer):
         else:
             inputs, targets, args, kwargs = batch
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}  # type: ignore
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
         def _compute_pred_loss():
-            engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+            engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
             engine.fire_event(IterationEvents.FORWARD_COMPLETED)
-            engine.state.output[Keys.LOSS] = self.loss_function(engine.state.output[Keys.PRED], targets).mean()
+            engine.state.output[Keys.LOSS] = engine.loss_function(engine.state.output[Keys.PRED], targets).mean()
             engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
-        self.network.train()
-        self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
+        engine.network.train()
+        engine.optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
 
-        if self.amp and self.scaler is not None:
-            with torch.cuda.amp.autocast(**engine.amp_kwargs):  # type: ignore
+        if engine.amp and engine.scaler is not None:
+            with torch.cuda.amp.autocast(**engine.amp_kwargs):
                 _compute_pred_loss()
-            self.scaler.scale(engine.state.output[Keys.LOSS]).backward()  # type: ignore
+            engine.scaler.scale(engine.state.output[Keys.LOSS]).backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+            engine.scaler.step(engine.optimizer)
+            engine.scaler.update()
         else:
             _compute_pred_loss()
-            engine.state.output[Keys.LOSS].backward()  # type: ignore
+            engine.state.output[Keys.LOSS].backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
-            self.optimizer.step()
+            engine.optimizer.step()
         engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
         return engine.state.output
@@ -351,13 +352,13 @@ class GanTrainer(Trainer):
         self.optim_set_to_none = optim_set_to_none
 
     def _iteration(
-        self, engine: Engine, batchdata: Union[Dict, Sequence]
+        self, engine: GanTrainer, batchdata: Union[Dict, Sequence]
     ) -> Dict[str, Union[torch.Tensor, int, float, bool]]:
         """
         Callback function for Adversarial Training processing logic of 1 iteration in Ignite Engine.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: `GanTrainer` to execute operation for an iteration.
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
@@ -367,42 +368,42 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(
-            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs  # type: ignore
+        d_input = engine.prepare_batch(
+            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
         )
-        batch_size = self.data_loader.batch_size  # type: ignore
-        g_input = self.g_prepare_batch(
+        batch_size = engine.data_loader.batch_size  # type: ignore
+        g_input = engine.g_prepare_batch(
             num_latents=batch_size,
-            latent_size=self.latent_shape,
-            device=engine.state.device,  # type: ignore
-            non_blocking=engine.non_blocking,  # type: ignore
-            **engine.to_kwargs,  # type: ignore
+            latent_size=engine.latent_shape,
+            device=engine.state.device,
+            non_blocking=engine.non_blocking,
+            **engine.to_kwargs,
         )
-        g_output = self.g_inferer(g_input, self.g_network)
+        g_output = engine.g_inferer(g_input, engine.g_network)
 
         # Train Discriminator
         d_total_loss = torch.zeros(1)
-        for _ in range(self.d_train_steps):
-            self.d_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
-            dloss = self.d_loss_function(g_output, d_input)
+        for _ in range(engine.d_train_steps):
+            engine.d_optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
+            dloss = engine.d_loss_function(g_output, d_input)
             dloss.backward()
-            self.d_optimizer.step()
+            engine.d_optimizer.step()
             d_total_loss += dloss.item()
 
         # Train Generator
-        if self.g_update_latents:
-            g_input = self.g_prepare_batch(
+        if engine.g_update_latents:
+            g_input = engine.g_prepare_batch(
                 num_latents=batch_size,
-                latent_size=self.latent_shape,
-                device=engine.state.device,  # type: ignore
-                non_blocking=engine.non_blocking,  # type: ignore
-                **engine.to_kwargs,  # type: ignore
+                latent_size=engine.latent_shape,
+                device=engine.state.device,
+                non_blocking=engine.non_blocking,
+                **engine.to_kwargs,
             )
-        g_output = self.g_inferer(g_input, self.g_network)
-        self.g_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
-        g_loss = self.g_loss_function(g_output)
+        g_output = engine.g_inferer(g_input, engine.g_network)
+        engine.g_optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
+        g_loss = engine.g_loss_function(g_output)
         g_loss.backward()
-        self.g_optimizer.step()
+        engine.g_optimizer.step()
 
         return {
             GanKeys.REALS: d_input,

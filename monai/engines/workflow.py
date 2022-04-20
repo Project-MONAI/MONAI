@@ -289,7 +289,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             return
         super().run(data=self.data_loader, max_epochs=self.state.max_epochs)
 
-    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine, batchdata: Dict[str, torch.Tensor]):
         """
         Abstract callback function for the processing logic of 1 iteration in Ignite Engine.
         Need subclass to implement different logics, like SupervisedTrainer/Evaluator, GANTrainer, etc.
