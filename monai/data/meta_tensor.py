@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from copy import deepcopy
-from typing import Callable, Sequence
+from typing import Any, Callable, Sequence
 
 import torch
 
@@ -179,7 +179,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         return tuple(out) if isinstance(rets, tuple) else out
 
     @classmethod
-    def __torch_function__(cls, func, types, args=(), kwargs=None) -> torch.Tensor:
+    def __torch_function__(cls, func, types, args=(), kwargs=None) -> Any:
         """Wraps all torch functions."""
         if kwargs is None:
             kwargs = {}
