@@ -13,9 +13,10 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
-from monai.transforms import LoadImaged
+from monai.transforms import Compose, FromMetaTensord, LoadImaged
 from monai.transforms.utility.dictionary import SplitDimd
 from tests.utils import TEST_NDARRAYS, assert_allclose, make_nifti_image, make_rand_affine
 
@@ -33,7 +34,8 @@ class TestSplitDimd(unittest.TestCase):
         affine = make_rand_affine()
         data = {"i": make_nifti_image(arr, affine)}
 
-        cls.data = LoadImaged("i")(data)
+        loader = Compose([LoadImaged("i"), FromMetaTensord("i")])
+        cls.data = loader(data)
 
     @parameterized.expand(TESTS)
     def test_correct(self, keepdim, im_type, update_meta):
@@ -54,8 +56,10 @@ class TestSplitDimd(unittest.TestCase):
                     split_idx = deepcopy(idx)
                     split_idx[dim] = 0
                     # idx[1:] to remove channel and then add 1 for 4th element
-                    real_world = data["i_meta_dict"]["affine"] @ (idx[1:] + [1])
-                    real_world2 = out[f"i_{split_im_idx}_meta_dict"]["affine"] @ (split_idx[1:] + [1])
+                    real_world = data["i_meta_dict"]["affine"] @ torch.tensor(idx[1:] + [1]).double()
+                    real_world2 = (
+                        out[f"i_{split_im_idx}_meta_dict"]["affine"] @ torch.tensor(split_idx[1:] + [1]).double()
+                    )
                     assert_allclose(real_world, real_world2)
 
             out = out["i_0"]
