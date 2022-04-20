@@ -320,6 +320,7 @@ class TestMetaTensor(unittest.TestCase):
             self.assertTupleEqual(tuple(batch.shape), expected_im_shape)
             self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
 
+    @SkipIfBeforePyTorchVersion((1, 9))
     def test_indexing(self):
         """
         Check the metadata is returned in the expected format depending on whether
