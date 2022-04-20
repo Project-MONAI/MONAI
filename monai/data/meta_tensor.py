@@ -55,6 +55,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             assert m2.affine == affine
 
     Notes:
+        - Requires pytorch 1.9 or newer for full compatibility.
         - Older versions of pytorch (<=1.8), `torch.jit.trace(net, im)` may
           not work if `im` is of type `MetaTensor`. This can be resolved with
           `torch.jit.trace(net, im.as_tensor())`.
