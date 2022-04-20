@@ -86,23 +86,23 @@ class Evaluator(Workflow):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader: Union[Iterable, DataLoader],
-        epoch_length: Optional[int] = None,
+        val_data_loader: Iterable | DataLoader,
+        epoch_length: int | None = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
-        postprocessing: Optional[Transform] = None,
-        key_val_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
+        iteration_update: Callable[[Engine, Any], Any] | None = None,
+        postprocessing: Transform | None = None,
+        key_val_metric: dict[str, Metric] | None = None,
+        additional_metrics: dict[str, Metric] | None = None,
         metric_cmp_fn: Callable = default_metric_cmp_fn,
-        val_handlers: Optional[Sequence] = None,
+        val_handlers: Sequence | None = None,
         amp: bool = False,
-        mode: Union[ForwardMode, str] = ForwardMode.EVAL,
-        event_names: Optional[List[Union[str, EventEnum]]] = None,
-        event_to_attr: Optional[dict] = None,
+        mode: ForwardMode | str = ForwardMode.EVAL,
+        event_names: list[str | EventEnum] | None = None,
+        event_to_attr: dict | None = None,
         decollate: bool = True,
-        to_kwargs: Optional[Dict] = None,
-        amp_kwargs: Optional[Dict] = None,
+        to_kwargs: dict | None = None,
+        amp_kwargs: dict | None = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -146,7 +146,7 @@ class Evaluator(Workflow):
         self.state.iteration = 0
         super().run()
 
-    def get_validation_stats(self) -> Dict[str, float]:
+    def get_validation_stats(self) -> dict[str, float]:
         return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
 
@@ -201,25 +201,25 @@ class SupervisedEvaluator(Evaluator):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader: Union[Iterable, DataLoader],
+        val_data_loader: Iterable | DataLoader,
         network: torch.nn.Module,
-        epoch_length: Optional[int] = None,
+        epoch_length: int | None = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
-        inferer: Optional[Inferer] = None,
-        postprocessing: Optional[Transform] = None,
-        key_val_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
+        iteration_update: Callable[[Engine, Any], Any] | None = None,
+        inferer: Inferer | None = None,
+        postprocessing: Transform | None = None,
+        key_val_metric: dict[str, Metric] | None = None,
+        additional_metrics: dict[str, Metric] | None = None,
         metric_cmp_fn: Callable = default_metric_cmp_fn,
-        val_handlers: Optional[Sequence] = None,
+        val_handlers: Sequence | None = None,
         amp: bool = False,
-        mode: Union[ForwardMode, str] = ForwardMode.EVAL,
-        event_names: Optional[List[Union[str, EventEnum]]] = None,
-        event_to_attr: Optional[dict] = None,
+        mode: ForwardMode | str = ForwardMode.EVAL,
+        event_names: list[str | EventEnum] | None = None,
+        event_to_attr: dict | None = None,
         decollate: bool = True,
-        to_kwargs: Optional[Dict] = None,
-        amp_kwargs: Optional[Dict] = None,
+        to_kwargs: dict | None = None,
+        amp_kwargs: dict | None = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -245,7 +245,7 @@ class SupervisedEvaluator(Evaluator):
         self.network = network
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: SupervisedEvaluator, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedEvaluator, batchdata: dict[str, torch.Tensor]):
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -266,8 +266,8 @@ class SupervisedEvaluator(Evaluator):
         batch = engine.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = ()
-            kwargs: Dict = {}
+            args: tuple = ()
+            kwargs: dict = {}
         else:
             inputs, targets, args, kwargs = batch
 
@@ -343,26 +343,26 @@ class EnsembleEvaluator(Evaluator):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader: Union[Iterable, DataLoader],
+        val_data_loader: Iterable | DataLoader,
         networks: Sequence[torch.nn.Module],
-        pred_keys: Optional[KeysCollection] = None,
-        epoch_length: Optional[int] = None,
+        pred_keys: KeysCollection | None = None,
+        epoch_length: int | None = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
-        inferer: Optional[Inferer] = None,
-        postprocessing: Optional[Transform] = None,
-        key_val_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
+        iteration_update: Callable[[Engine, Any], Any] | None = None,
+        inferer: Inferer | None = None,
+        postprocessing: Transform | None = None,
+        key_val_metric: dict[str, Metric] | None = None,
+        additional_metrics: dict[str, Metric] | None = None,
         metric_cmp_fn: Callable = default_metric_cmp_fn,
-        val_handlers: Optional[Sequence] = None,
+        val_handlers: Sequence | None = None,
         amp: bool = False,
-        mode: Union[ForwardMode, str] = ForwardMode.EVAL,
-        event_names: Optional[List[Union[str, EventEnum]]] = None,
-        event_to_attr: Optional[dict] = None,
+        mode: ForwardMode | str = ForwardMode.EVAL,
+        event_names: list[str | EventEnum] | None = None,
+        event_to_attr: dict | None = None,
         decollate: bool = True,
-        to_kwargs: Optional[Dict] = None,
-        amp_kwargs: Optional[Dict] = None,
+        to_kwargs: dict | None = None,
+        amp_kwargs: dict | None = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -393,7 +393,7 @@ class EnsembleEvaluator(Evaluator):
             raise ValueError("length of `pred_keys` must be same as the length of `networks`.")
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: EnsembleEvaluator, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]):
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -417,8 +417,8 @@ class EnsembleEvaluator(Evaluator):
         batch = engine.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = ()
-            kwargs: Dict = {}
+            args: tuple = ()
+            kwargs: dict = {}
         else:
             inputs, targets, args, kwargs = batch
 
