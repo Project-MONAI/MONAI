@@ -737,6 +737,15 @@ Spatial
     :members:
     :special-members: __call__
 
+`Split`
+""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Zoom.png
+    :alt: example of Split
+.. autoclass:: Split
+    :members:
+    :special-members: __call__
+
+
 Smooth Field
 ^^^^^^^^^^^^
 
@@ -1505,6 +1514,15 @@ Spatial (Dict)
 .. autoclass:: RandZoomd
     :members:
     :special-members: __call__
+
+`Splitd`
+"""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Zoomd.png
+    :alt: example of Splitd
+.. autoclass:: Splitd
+    :members:
+    :special-members: __call__
+
 
 `RandRotate90d`
 """""""""""""""
