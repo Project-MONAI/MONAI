@@ -571,7 +571,7 @@ def ckpt_export(
 
     .. code-block:: bash
 
-        python -m monai.bundle export network --filepath <export path> --ckpt_file <checkpoint path> ...
+        python -m monai.bundle ckpt_export network --filepath <export path> --ckpt_file <checkpoint path> ...
 
     Args:
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
@@ -598,7 +598,7 @@ def ckpt_export(
         key_in_ckpt=key_in_ckpt,
         **override,
     )
-    _log_input_summary(tag="export", args=_args)
+    _log_input_summary(tag="ckpt_export", args=_args)
     filepath_, ckpt_file_, config_file_, net_id_, meta_file_, key_in_ckpt_ = _pop_args(
         _args, "filepath", "ckpt_file", "config_file", net_id="", meta_file=None, key_in_ckpt=""
     )
