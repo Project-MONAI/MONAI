@@ -217,11 +217,10 @@ class WSIReader(BaseWSIReader):
     def __init__(self, backend="cucim", level: int = 0, **kwargs):
         super().__init__(level, **kwargs)
         self.backend = backend.lower()
-        # Any new backend can be added below
         if self.backend == "cucim":
             self.reader = CuCIMWSIReader(level=level, **kwargs)
         elif self.backend == "openslide":
-            self.reader = OpenSlideWSIReader(level=level, **kwargs)
+            self.reader = OpenSlideWSIReader(level=level, **kwargs)  # type: ignore
         else:
             raise ValueError("The supported backends are: cucim")
         self.supported_suffixes = self.reader.supported_suffixes
