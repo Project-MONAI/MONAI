@@ -96,6 +96,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             default to `True`.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -124,6 +126,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
         to_kwargs: Optional[Dict] = None,
+        amp_kwargs: Optional[Dict] = None,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -170,6 +173,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.metric_cmp_fn = metric_cmp_fn
         self.amp = amp
         self.to_kwargs = {} if to_kwargs is None else to_kwargs
+        self.amp_kwargs = {} if amp_kwargs is None else amp_kwargs
         self.scaler: Optional[torch.cuda.amp.GradScaler] = None
 
         if event_names is None:
