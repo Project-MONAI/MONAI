@@ -148,16 +148,12 @@ def _download_from_github(
         for name, url in assets_info.items():
             filepath = download_path / f"{name}"
             download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
-            if filepath.name.endswith(("zip", "tar", "tar.gz")):
-                extractall(filepath=filepath, output_dir=download_path, has_base=True)
         logger.info(f"All files within the bundle {tag_name} are downloaded.")
     else:
         # download a single file
         url = _get_git_release_url(repo_owner, repo_name, tag_name=tag_name, filename=filename)
         filepath = download_path / f"{filename}"
         download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
-        if filepath.name.endswith(("zip", "tar", "tar.gz")):
-            extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
 def download(
@@ -196,9 +192,9 @@ def download(
         name: the bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
             If `source` is `github`, it should be the same as the release tag.
             If only a single file is expected to be downloaded, `name` should be a string that consisted with
-            the bundle name, a separator `#` and the weights name. For example: if the bundle name is "spleen" and
-            the weights name is "model.pt", then `name` is "spleen#model.pt".
-        bundle_dir: target directory to store the download data.
+            the bundle name, a separator `#` and the filename. For example: if the bundle name is "spleen" and
+            the filename is "model.pt", then `name` is "spleen#model.pt".
+        bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
         source: the place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
@@ -218,10 +214,8 @@ def download(
         args=args_file, name=name, bundle_dir=bundle_dir, source=source, repo=repo, url=url, progress=progress
     )
 
-    if "name" not in _args and url is None:
-        raise ValueError(f"To download from source: {source}, `name` must be provided.")
-    if "repo" not in _args and url is None:
-        raise ValueError(f"To download from source: {source}, `repo` must be provided.")
+    if ("name" not in _args or "repo" not in _args) and url is None:
+        raise ValueError(f"To download from source: {source}, `name`and `repo`must be provided, got {name} and {repo}.")
     _log_input_summary(tag="download", args=_args)
     name_, bundle_dir_, source_, repo_, url_, progress_ = _pop_args(
         _args, name=None, bundle_dir=None, source="github", repo=None, url=None, progress=True
@@ -253,40 +247,40 @@ def download(
             repo=repo_, tag_name=name_, download_path=bundle_dir_, filename=filename, progress=progress_
         )
     else:
-        raise NotImplementedError("So far, only support to download from url or `github` source.")
+        raise NotImplementedError(
+            f"Currently only download from provided URL in `url` or Github is implemented, got source: {source}."
+        )
 
 
 def load(
-    name: Optional[str] = None,
+    name: str,
     is_ts_model: bool = False,
     bundle_dir: Optional[PathLike] = None,
     source: str = "github",
     repo: Optional[str] = None,
-    url: Optional[str] = None,
     progress: bool = True,
-    map_location=None,
+    device: str = "cpu",
     net_name: Optional[str] = None,
     **net_kwargs,
 ):
     """
-    Load model weights. If the weights file is not existing locally, it will be downloaded first. The function can
-    return the weights, or an instantiated network that loaded the weights.
+    Load model weights or TorchScript module. If the weights file does not exist locally, it will be downloaded first.
+    The function can return weights, an instantiated network that loaded the weights, or a TorchScript module.
 
     Args:
-        name: Bundle and weights name. If `None`, `url` should be provided, or the weights file is existing locally and
-            the default weights file should be named as "model.pt".
-            If not `None`, it should be a string that consisted with the bundle name, a separator `#`
-            and the weights name. For example: if the bundle name is "spleen" and the weights name is "model.pt", then
-            `name` is "spleen#model.pt".
-        is_ts_model, a flag to specify if the weights file is a TorchScript module.
+        name: can be a string that contains only the bundle name, or a string that consists with the
+            bundle name, a separator `#` and the weights name.
+            For example, `name="spleen#model.pt"` means the bundle name is `spleen` and the weights name is `model.pt`.
+            If the weights name is not contained, `model.pt` or `model.ts` (according to the argument `is_ts_model`)
+            will be used as the default weights name.
+        is_ts_model: a flag to specify if the weights file is a TorchScript module.
         bundle_dir: the directory the weights will be loaded from.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
         source: the place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
         repo: the repo name. If the weights need to be downloaded first and `url` is `None`, it must be provided.
-        url: the url to download the data.
         progress: whether to display a progress bar when downloading.
-        map_location: pytorch API parameter for `torch.load` or `torch.jit.load`.
+        device: target device of returned weights or module.
         net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
             This argument only works when loading weights.
         net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
@@ -300,35 +294,31 @@ def load(
             raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
     bundle_dir = Path(bundle_dir)
 
-    weights_name: str = "model.pt"
-    if name is not None:
-        if len(name.split(ID_SEP_KEY)) == 2:
-            weights_name = name.split(ID_SEP_KEY)[1]
-        else:
-            raise ValueError(f"The format of `name` is wrong.\n{run.__doc__}")
+    weights_name: str = "model.ts" if is_ts_model is True else "model.pt"
+    if len(name.split(ID_SEP_KEY)) == 2:
+        weights_name = name.split(ID_SEP_KEY)[1]
+    elif len(name.split(ID_SEP_KEY)) == 1:
+        name = name + "#" + weights_name
+    else:
+        raise ValueError(f"The format of `name` is wrong.\n{run.__doc__}")
     model_file_path = os.path.join(bundle_dir, weights_name)
-
     if not os.path.exists(model_file_path):
-        if name is None and url is None:
-            raise ValueError(f"To download and load model from source: {source}, `name` must be provided.")
-        if repo is None and url is None:
-            raise ValueError(f"To download and load model from source: {source}, `repo` must be provided.")
-        download(name=name, bundle_dir=bundle_dir, source=source, repo=repo, url=url, progress=progress)
+        download(name=name, bundle_dir=bundle_dir, source=source, repo=repo, progress=progress)
+
     # loading with `torch.jit.load`
     if is_ts_model is True:
-        return torch.jit.load(model_file_path, map_location=map_location)
+        return torch.jit.load(model_file_path, map_location=device)
     # loading with `torch.load`
-    model_dict = torch.load(model_file_path, map_location=map_location)
+    model_dict = torch.load(model_file_path, map_location=device)
 
-    if net_name is not None:
-        net_config = {"_target_": net_name}
-        for k, v in net_kwargs.items():
-            net_config[k] = v
-        configer = ConfigComponent(config=net_config)
-        model = configer.instantiate()
-        model.load_state_dict(model_dict)  # type: ignore
-        return model
-    return model_dict
+    if net_name is None:
+        return model_dict
+    net_kwargs["_target_"] = net_name
+    configer = ConfigComponent(config=net_kwargs)
+    model = configer.instantiate()
+    model.to(device)  # type: ignore
+    model.load_state_dict(model_dict)  # type: ignore
+    return model
 
 
 def run(

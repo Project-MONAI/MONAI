@@ -40,14 +40,14 @@ TEST_CASE_3 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
     "test_bundle",
     "Project-MONAI/MONAI-extra-test-data",
+    "cuda" if torch.cuda.is_available() else "cpu",
 ]
 
 TEST_CASE_4 = [
-    "test_bundle#model.ts",
-    "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/test_bundle/model.ts",
     ["test_output.pt", "test_input.pt"],
     "test_bundle",
     "Project-MONAI/MONAI-extra-test-data",
+    "cuda" if torch.cuda.is_available() else "cpu",
 ]
 
 
@@ -91,7 +91,7 @@ class TestDownload(unittest.TestCase):
 class TestLoad(unittest.TestCase):
     @parameterized.expand([TEST_CASE_3])
     @skip_if_quick
-    def test_load_weights(self, bundle_files, bundle_name, repo):
+    def test_load_weights(self, bundle_files, bundle_name, repo, device):
         with skip_if_downloading_fails():
             # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
@@ -100,7 +100,7 @@ class TestLoad(unittest.TestCase):
 
                 # load weights only
                 weights_name = bundle_name + "#" + bundle_files[0]
-                weights = load(name=weights_name, bundle_dir=tempdir, progress=False)
+                weights = load(name=weights_name, bundle_dir=tempdir, progress=False, device=device)
 
                 # prepare network
                 with open(os.path.join(tempdir, bundle_files[2])) as f:
@@ -108,39 +108,48 @@ class TestLoad(unittest.TestCase):
                 model_name = net_args["_target_"]
                 del net_args["_target_"]
                 model = nets.__dict__[model_name](**net_args)
+                model.to(device)
                 model.load_state_dict(weights)
                 model.eval()
 
                 # prepare data and test
-                input_tensor = torch.load(os.path.join(tempdir, bundle_files[4]))
+                input_tensor = torch.load(os.path.join(tempdir, bundle_files[4]), map_location=device)
                 output = model.forward(input_tensor)
-                expected_output = torch.load(os.path.join(tempdir, bundle_files[3]))
+                expected_output = torch.load(os.path.join(tempdir, bundle_files[3]), map_location=device)
                 torch.testing.assert_allclose(output, expected_output)
 
                 # load instantiated model directly and test
-                model_2 = load(name=weights_name, bundle_dir=tempdir, progress=False, net_name=model_name, **net_args)
+                model_2 = load(
+                    name=weights_name,
+                    bundle_dir=tempdir,
+                    progress=False,
+                    device=device,
+                    net_name=model_name,
+                    **net_args,
+                )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
                 torch.testing.assert_allclose(output_2, expected_output)
 
     @parameterized.expand([TEST_CASE_4])
     @skip_if_quick
-    def test_load_ts_module(self, ts_name, url, bundle_files, bundle_name, repo):
+    def test_load_ts_module(self, bundle_files, bundle_name, repo, device):
         with skip_if_downloading_fails():
-            # load ts module from url, and download input and output tensors for testing
+            # load ts module, the module name is not included
             with tempfile.TemporaryDirectory() as tempdir:
                 # load ts module
-                model_ts = load(name=ts_name, is_ts_model=True, bundle_dir=tempdir, url=url, progress=False)
-
+                model_ts = load(
+                    name=bundle_name, is_ts_model=True, bundle_dir=tempdir, repo=repo, progress=False, device=device
+                )
                 # download input and output tensors
                 for file in bundle_files:
                     download_name = bundle_name + "#" + file
                     download(name=download_name, repo=repo, bundle_dir=tempdir, progress=False)
 
                 # prepare and test
-                input_tensor = torch.load(os.path.join(tempdir, bundle_files[1]))
+                input_tensor = torch.load(os.path.join(tempdir, bundle_files[1]), map_location=device)
                 output = model_ts.forward(input_tensor)
-                expected_output = torch.load(os.path.join(tempdir, bundle_files[0]))
+                expected_output = torch.load(os.path.join(tempdir, bundle_files[0]), map_location=device)
                 torch.testing.assert_allclose(output, expected_output)
 
 
