@@ -250,8 +250,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             metric.attach(self, name)
 
         @self.on(Events.EPOCH_COMPLETED)
-        def _compare_metrics(engine: Engine) -> None:
-            key_metric_name = engine.state.key_metric_name  # type: ignore
+        def _compare_metrics(engine: Workflow) -> None:
+            key_metric_name = engine.state.key_metric_name
             if key_metric_name is not None:
                 current_val_metric = engine.state.metrics[key_metric_name]
                 if not is_scalar(current_val_metric):
@@ -261,10 +261,10 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                     )
                     return
 
-                if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):  # type: ignore
+                if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):
                     self.logger.info(f"Got new best metric of {key_metric_name}: {current_val_metric}")
-                    engine.state.best_metric = current_val_metric  # type: ignore
-                    engine.state.best_metric_epoch = engine.state.epoch  # type: ignore
+                    engine.state.best_metric = current_val_metric
+                    engine.state.best_metric_epoch = engine.state.epoch
 
     def _register_handlers(self, handlers: Sequence):
         """
