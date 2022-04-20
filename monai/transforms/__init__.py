@@ -206,6 +206,14 @@ from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
+from .meta_utility.dictionary import (
+    FromMetaTensord,
+    FromMetaTensorD,
+    FromMetaTensorDict,
+    ToMetaTensord,
+    ToMetaTensorD,
+    ToMetaTensorDict,
+)
 from .nvtx import (
     Mark,
     Markd,
@@ -412,6 +420,7 @@ from .utility.array import (
     RepeatChannel,
     SimulateDelay,
     SplitChannel,
+    SplitDim,
     SqueezeDim,
     ToCupy,
     ToDevice,
@@ -509,6 +518,9 @@ from .utility.dictionary import (
     SplitChanneld,
     SplitChannelD,
     SplitChannelDict,
+    SplitDimd,
+    SplitDimD,
+    SplitDimDict,
     SqueezeDimd,
     SqueezeDimD,
     SqueezeDimDict,

@@ -32,7 +32,7 @@ from .decathlon_datalist import (
     load_decathlon_properties,
 )
 from .folder_layout import FolderLayout
-from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
+from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter, PatchIterd
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
 from .image_writer import (
@@ -46,6 +46,8 @@ from .image_writer import (
     resolve_writer,
 )
 from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
+from .meta_obj import MetaObj, get_track_meta, get_track_transforms, set_track_meta, set_track_transforms
+from .meta_tensor import MetaTensor
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
 from .png_saver import PNGSaver
