@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -262,9 +263,7 @@ class SupervisedEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = engine.prepare_batch(
-            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
-        )
+        batch = engine.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -277,7 +276,7 @@ class SupervisedEvaluator(Evaluator):
 
         # execute forward computation
         with engine.mode(engine.network):
-            
+
             if engine.amp:
                 with torch.cuda.amp.autocast(**engine.amp_kwargs):
                     engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
@@ -415,9 +414,7 @@ class EnsembleEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = engine.prepare_batch(
-            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
-        )
+        batch = engine.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()

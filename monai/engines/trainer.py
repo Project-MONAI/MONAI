@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -185,9 +186,7 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = engine.prepare_batch(
-            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
-        )
+        batch = engine.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)
         if len(batch) == 2:
             inputs, targets = batch
             args: Tuple = ()
@@ -368,9 +367,7 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = engine.prepare_batch(
-            batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs
-        )
+        d_input = engine.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)
         batch_size = engine.data_loader.batch_size  # type: ignore
         g_input = engine.g_prepare_batch(
             num_latents=batch_size,
