@@ -56,7 +56,7 @@ class Trainer(Workflow):
         self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
         super().run()
 
-    def get_train_stats(self) -> Dict[str, float]:
+    def get_train_stats(self) -> dict[str, float]:
         return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
 
 
@@ -117,27 +117,27 @@ class SupervisedTrainer(Trainer):
         self,
         device: torch.device,
         max_epochs: int,
-        train_data_loader: Union[Iterable, DataLoader],
+        train_data_loader: Iterable | DataLoader,
         network: torch.nn.Module,
         optimizer: Optimizer,
         loss_function: Callable,
-        epoch_length: Optional[int] = None,
+        epoch_length: int | None = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
-        inferer: Optional[Inferer] = None,
-        postprocessing: Optional[Transform] = None,
-        key_train_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
+        iteration_update: Callable[[Engine, Any], Any] | None = None,
+        inferer: Inferer | None = None,
+        postprocessing: Transform | None = None,
+        key_train_metric: dict[str, Metric] | None = None,
+        additional_metrics: dict[str, Metric] | None = None,
         metric_cmp_fn: Callable = default_metric_cmp_fn,
-        train_handlers: Optional[Sequence] = None,
+        train_handlers: Sequence | None = None,
         amp: bool = False,
-        event_names: Optional[List[Union[str, EventEnum]]] = None,
-        event_to_attr: Optional[dict] = None,
+        event_names: list[str | EventEnum] | None = None,
+        event_to_attr: dict | None = None,
         decollate: bool = True,
         optim_set_to_none: bool = False,
-        to_kwargs: Optional[Dict] = None,
-        amp_kwargs: Optional[Dict] = None,
+        to_kwargs: dict | None = None,
+        amp_kwargs: dict | None = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -166,7 +166,7 @@ class SupervisedTrainer(Trainer):
         self.inferer = SimpleInferer() if inferer is None else inferer
         self.optim_set_to_none = optim_set_to_none
 
-    def _iteration(self, engine: SupervisedTrainer, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedTrainer, batchdata: dict[str, torch.Tensor]):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -190,8 +190,8 @@ class SupervisedTrainer(Trainer):
         )
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = ()
-            kwargs: Dict = {}
+            args: tuple = ()
+            kwargs: dict = {}
         else:
             inputs, targets, args, kwargs = batch
         # put iteration outputs into engine.state
@@ -296,25 +296,25 @@ class GanTrainer(Trainer):
         d_network: torch.nn.Module,
         d_optimizer: Optimizer,
         d_loss_function: Callable,
-        epoch_length: Optional[int] = None,
-        g_inferer: Optional[Inferer] = None,
-        d_inferer: Optional[Inferer] = None,
+        epoch_length: int | None = None,
+        g_inferer: Inferer | None = None,
+        d_inferer: Inferer | None = None,
         d_train_steps: int = 1,
         latent_shape: int = 64,
         non_blocking: bool = False,
         d_prepare_batch: Callable = default_prepare_batch,
         g_prepare_batch: Callable = default_make_latent,
         g_update_latents: bool = True,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
-        postprocessing: Optional[Transform] = None,
-        key_train_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
+        iteration_update: Callable[[Engine, Any], Any] | None = None,
+        postprocessing: Transform | None = None,
+        key_train_metric: dict[str, Metric] | None = None,
+        additional_metrics: dict[str, Metric] | None = None,
         metric_cmp_fn: Callable = default_metric_cmp_fn,
-        train_handlers: Optional[Sequence] = None,
+        train_handlers: Sequence | None = None,
         decollate: bool = True,
         optim_set_to_none: bool = False,
-        to_kwargs: Optional[Dict] = None,
-        amp_kwargs: Optional[Dict] = None,
+        to_kwargs: dict | None = None,
+        amp_kwargs: dict | None = None,
     ):
         if not isinstance(train_data_loader, DataLoader):
             raise ValueError("train_data_loader must be PyTorch DataLoader.")
@@ -352,8 +352,8 @@ class GanTrainer(Trainer):
         self.optim_set_to_none = optim_set_to_none
 
     def _iteration(
-        self, engine: GanTrainer, batchdata: Union[Dict, Sequence]
-    ) -> Dict[str, Union[torch.Tensor, int, float, bool]]:
+        self, engine: GanTrainer, batchdata: dict | Sequence
+    ) -> dict[str, torch.Tensor | int | float | bool]:
         """
         Callback function for Adversarial Training processing logic of 1 iteration in Ignite Engine.
 
