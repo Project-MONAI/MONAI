@@ -213,11 +213,13 @@ class TestCuCIM(WSIReaderTests.Tests):
     def setUpClass(cls):
         cls.backend = "cucim"
 
+
 @skipUnless(has_osl, "Requires openslide")
 class TestOpenSlide(WSIReaderTests.Tests):
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"
+
 
 if __name__ == "__main__":
     unittest.main()
