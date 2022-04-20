@@ -34,11 +34,7 @@ base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 TEST_CASE_0 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "size": (1, 1),
-        "reader_name": "cuCIM",
-    },
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": (1, 1), "reader_name": "cuCIM"},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
@@ -64,18 +60,12 @@ TEST_CASE_0_L2 = [
 
 
 TEST_CASE_1 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "size": 1, "label": [1]}],
-    },
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "size": 1, "label": [1]}]},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_2 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "size": 1,
-        "reader_name": "cuCIM",
-    },
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": 1, "reader_name": "cuCIM"},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
@@ -100,16 +90,7 @@ class PatchWSIDatasetTests:
     class Tests(unittest.TestCase):
         backend = None
 
-        @parameterized.expand(
-            [
-                TEST_CASE_0,
-                TEST_CASE_0_L1,
-                TEST_CASE_0_L2,
-                TEST_CASE_1,
-                TEST_CASE_2,
-                TEST_CASE_3,
-            ]
-        )
+        @parameterized.expand([TEST_CASE_0, TEST_CASE_0_L1, TEST_CASE_0_L2, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
         def test_read_patches_cucim(self, input_parameters, expected):
             dataset = PatchWSIDataset(**input_parameters)
             sample = dataset[0]
