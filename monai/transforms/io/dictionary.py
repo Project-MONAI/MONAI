@@ -25,7 +25,7 @@ from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple, ensure_tuple_rep
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, deprecated_arg, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
 __all__ = ["LoadImaged", "LoadImageD", "LoadImageDict", "SaveImaged", "SaveImageD", "SaveImageDict"]
@@ -64,6 +64,10 @@ class LoadImaged(MapTransform):
 
     """
 
+    @deprecated_arg(name="image_only", since="0.8")
+    @deprecated_arg(name="meta_keys", since="0.8")
+    @deprecated_arg(name="meta_key_postfix", since="0.8")
+    @deprecated_arg(name="overwriting", since="0.8")
     def __init__(
         self,
         keys: KeysCollection,
@@ -90,17 +94,6 @@ class LoadImaged(MapTransform):
                 a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
             dtype: if not None, convert the loaded image data to this data type.
-            meta_keys: explicitly indicate the key to store the corresponding meta data dictionary.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
-                it can be a sequence of string, map to the `keys`.
-                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to store the metadata of the nifti image,
-                default is `meta_dict`. The meta data is a dictionary object.
-                For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
-            overwriting: whether allow overwriting existing meta data of same key.
-                default is False, which will raise exception if encountering existing key.
-            image_only: if True return dictionary containing just only the image volumes, otherwise return
-                dictionary containing image data array and header dict per input key.
             ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
                 the image array shape to `channel first`. default to `False`.
             allow_missing_keys: don't raise exception if key is missing.
@@ -108,14 +101,7 @@ class LoadImaged(MapTransform):
             kwargs: additional parameters for reader if providing a reader name.
         """
         super().__init__(keys, allow_missing_keys)
-        self._loader = LoadImage(reader, image_only, dtype, ensure_channel_first, *args, **kwargs)
-        if not isinstance(meta_key_postfix, str):
-            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
-        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
-        if len(self.keys) != len(self.meta_keys):
-            raise ValueError("meta_keys should have the same length as keys.")
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.overwriting = overwriting
+        self._loader = LoadImage(reader, dtype, ensure_channel_first, *args, **kwargs)
 
     def register(self, reader: ImageReader):
         self._loader.register(reader)
@@ -127,22 +113,8 @@ class LoadImaged(MapTransform):
 
         """
         d = dict(data)
-        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            data = self._loader(d[key], reader)
-            if self._loader.image_only:
-                if not isinstance(data, np.ndarray):
-                    raise ValueError("loader must return a numpy array (because image_only=True was used).")
-                d[key] = data
-            else:
-                if not isinstance(data, (tuple, list)):
-                    raise ValueError("loader must return a tuple or list (because image_only=False was used).")
-                d[key] = data[0]
-                if not isinstance(data[1], dict):
-                    raise ValueError("metadata must be a dict.")
-                meta_key = meta_key or f"{key}_{meta_key_postfix}"
-                if meta_key in d and not self.overwriting:
-                    raise KeyError(f"Meta data with key {meta_key} already exists and overwriting=False.")
-                d[meta_key] = data[1]
+        for key in self.key_iterator(d):
+            d[key] = self._loader(d[key], reader)
         return d
 
 

@@ -24,6 +24,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     extreme_points_to_image,
@@ -210,6 +211,8 @@ class EnsureChannelFirst(Transform):
         """
         Apply the transform to `img`.
         """
+        if isinstance(img, MetaTensor):
+            meta_dict = img.meta
         if not isinstance(meta_dict, Mapping):
             msg = "meta_dict not available, EnsureChannelFirst is not in use."
             if self.strict_check:
