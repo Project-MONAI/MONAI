@@ -136,7 +136,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                 # If we have a batch of data, then we need to be careful if a slice of
                 # the data is returned. Depending on how the data are indexed, we return
                 # some or all of the metadata, and the return object may or may not be a
-                # batch of data (e.g., `batch[:,-1]` versus `batch[0]`.)
+                # batch of data (e.g., `batch[:,-1]` versus `batch[0]`).
                 if ret.is_batch:
                     # only decollate metadata once
                     if metas is None:
