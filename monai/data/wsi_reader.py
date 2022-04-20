@@ -21,8 +21,9 @@ from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import ensure_tuple, optional_import, require_pkg
 
 CuImage, _ = optional_import("cucim", name="CuImage")
+OpenSlide, _ = optional_import("openslide", name="OpenSlide")
 
-__all__ = ["BaseWSIReader", "WSIReader", "CuCIMWSIReader"]
+__all__ = ["BaseWSIReader", "WSIReader", "CuCIMWSIReader", "OpenSlideWSIReader"]
 
 
 class BaseWSIReader(ImageReader):
@@ -219,6 +220,8 @@ class WSIReader(BaseWSIReader):
         # Any new backend can be added below
         if self.backend == "cucim":
             self.reader = CuCIMWSIReader(level=level, **kwargs)
+        elif self.backend == "openslide":
+            self.reader = OpenSlideWSIReader(level=level, **kwargs)
         else:
             raise ValueError("The supported backends are: cucim")
         self.supported_suffixes = self.reader.supported_suffixes
@@ -294,7 +297,7 @@ class WSIReader(BaseWSIReader):
 @require_pkg(pkg_name="cucim")
 class CuCIMWSIReader(BaseWSIReader):
     """
-    Read whole slide images and extract patches without loading the whole slide image into the memory.
+    Read whole slide images and extract patches using cuCIM library.
 
     Args:
         level: the whole slide image level at which the image is extracted. (default=0)
@@ -416,5 +419,133 @@ class CuCIMWSIReader(BaseWSIReader):
                     f"The image is expected to have three or four color channels in '{mode}' mode but has {patch.shape[0]}. "
                 )
             patch = patch[:3]
+
+        return patch
+
+
+@require_pkg(pkg_name="openslide")
+class OpenSlideWSIReader(BaseWSIReader):
+    """
+    Read whole slide images and extract patches using OpenSlide library.
+
+    Args:
+        level: the whole slide image level at which the image is extracted. (default=0)
+            This is overridden if the level argument is provided in `get_data`.
+        kwargs: additional args for `openslide.OpenSlide` module.
+
+    """
+
+    supported_suffixes = ["tif", "tiff", "svs"]
+
+    def __init__(self, level: int = 0, **kwargs):
+        super().__init__(level, **kwargs)
+
+    @staticmethod
+    def get_level_count(wsi) -> int:
+        """
+        Returns the number of levels in the whole slide image.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+
+        """
+        return wsi.level_count  # type: ignore
+
+    @staticmethod
+    def get_size(wsi, level) -> Tuple[int, int]:
+        """
+        Returns the size of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the size is calculated
+
+        """
+        return (wsi.level_dimensions[level][1], wsi.level_dimensions[level][0])
+
+    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
+        """
+        Extracts and returns metadata form the whole slide image.
+
+        Args:
+            patch: extracted patch from whole slide image
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            size: (height, width) tuple giving the patch size at the given level (`level`).
+                If None, it is set to the full image size at the given level.
+            level: the level number. Defaults to 0
+
+        """
+        metadata: Dict = {
+            "backend": "openslide",
+            "spatial_shape": np.asarray(patch.shape[1:]),
+            "original_channel_dim": 0,
+            "location": location,
+            "size": size,
+            "level": level,
+        }
+        return metadata
+
+    def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
+        """
+        Read whole slide image objects from given file or list of files.
+
+        Args:
+            data: file name or a list of file names to read.
+            kwargs: additional args that overrides `self.kwargs` for existing keys.
+
+        Returns:
+            whole slide image object or list of such objects
+
+        """
+        wsi_list: List = []
+
+        filenames: Sequence[PathLike] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
+        for filename in filenames:
+            wsi = OpenSlide(filename, **kwargs_)
+            wsi_list.append(wsi)
+
+        return wsi_list if len(filenames) > 1 else wsi_list[0]
+
+    def get_patch(
+        self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
+    ) -> np.ndarray:
+        """
+        Extracts and returns a patch image form the whole slide image.
+
+        Args:
+            wsi: a whole slide image object loaded from a file or a lis of such objects
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            size: (height, width) tuple giving the patch size at the given level (`level`).
+                If None, it is set to the full image size at the given level.
+            level: the level number. Defaults to 0
+            dtype: the data type of output image
+            mode: the output image mode, 'RGB' or 'RGBA'
+
+        """
+        # Extract a patch or the entire image
+        # (reverse the order of location and size to become WxH for OpenSlide)
+        pil_patch = wsi.read_region(location=location[::-1], size=size[::-1], level=level)
+
+        # convert to RGB/RGBA
+        pil_patch = pil_patch.convert(mode)
+
+        # Convert to numpy
+        patch = np.asarray(pil_patch, dtype=dtype)
+
+        # Make it channel first
+        patch = EnsureChannelFirst()(patch, {"original_channel_dim": -1})  # type: ignore
+
+        # Check if the color channel is 3 (RGB) or 4 (RGBA)
+        if mode == "RGBA" and patch.shape[0] != 4:
+            raise ValueError(
+                f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
+            )
+
+        elif mode in "RGB" and patch.shape[0] != 3:
+            raise ValueError(
+                f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[0]}. "
+            )
 
         return patch
