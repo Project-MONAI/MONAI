@@ -17,7 +17,12 @@ import torch
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
-__all__ = ["FactorizedIncreaseBlock", "FactorizedReduceBlock", "P3DActiConvNormBlock", "ActiConvNormBlock"]
+__all__ = [
+    "FactorizedIncreaseBlock",
+    "FactorizedReduceBlock",
+    "P3DActiConvNormBlock",
+    "ActiConvNormBlock",
+]
 
 
 class FactorizedIncreaseBlock(torch.nn.Sequential):
@@ -31,7 +36,7 @@ class FactorizedIncreaseBlock(torch.nn.Sequential):
         out_channel: int,
         spatial_dims: int = 3,
         act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = "INSTANCE",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         """
         Args:
@@ -50,7 +55,9 @@ class FactorizedIncreaseBlock(torch.nn.Sequential):
 
         conv_type = Conv[Conv.CONV, self._spatial_dims]
         mode = "trilinear" if self._spatial_dims == 3 else "bilinear"
-        self.add_module("up", torch.nn.Upsample(scale_factor=2, mode=mode, align_corners=True))
+        self.add_module(
+            "up", torch.nn.Upsample(scale_factor=2, mode=mode, align_corners=True)
+        )
         self.add_module("acti", get_act_layer(name=act_name))
         self.add_module(
             "conv",
@@ -66,7 +73,12 @@ class FactorizedIncreaseBlock(torch.nn.Sequential):
             ),
         )
         self.add_module(
-            "norm", get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel)
+            "norm",
+            get_norm_layer(
+                name=norm_name,
+                spatial_dims=self._spatial_dims,
+                channels=self._out_channel,
+            ),
         )
 
 
@@ -82,7 +94,7 @@ class FactorizedReduceBlock(torch.nn.Module):
         out_channel: int,
         spatial_dims: int = 3,
         act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = "INSTANCE",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         """
         Args:
@@ -122,7 +134,9 @@ class FactorizedReduceBlock(torch.nn.Module):
             bias=False,
             dilation=1,
         )
-        self.norm = get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel)
+        self.norm = get_norm_layer(
+            name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -150,7 +164,7 @@ class P3DActiConvNormBlock(torch.nn.Sequential):
         padding: int,
         mode: int = 0,
         act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = "INSTANCE",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         """
         Args:
@@ -219,7 +233,10 @@ class P3DActiConvNormBlock(torch.nn.Sequential):
                 dilation=1,
             ),
         )
-        self.add_module("norm", get_norm_layer(name=norm_name, spatial_dims=3, channels=self._out_channel))
+        self.add_module(
+            "norm",
+            get_norm_layer(name=norm_name, spatial_dims=3, channels=self._out_channel),
+        )
 
 
 class ActiConvNormBlock(torch.nn.Sequential):
@@ -235,7 +252,7 @@ class ActiConvNormBlock(torch.nn.Sequential):
         padding: int = 1,
         spatial_dims: int = 3,
         act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = "INSTANCE",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         """
         Args:
@@ -268,5 +285,10 @@ class ActiConvNormBlock(torch.nn.Sequential):
             ),
         )
         self.add_module(
-            "norm", get_norm_layer(name=norm_name, spatial_dims=self._spatial_dims, channels=self._out_channel)
+            "norm",
+            get_norm_layer(
+                name=norm_name,
+                spatial_dims=self._spatial_dims,
+                channels=self._out_channel,
+            ),
         )
