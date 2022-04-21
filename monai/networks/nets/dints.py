@@ -107,15 +107,7 @@ class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
         act_name: Union[Tuple, str] = "RELU",
         norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
-        super().__init__(
-            in_channel,
-            out_channel,
-            kernel_size,
-            padding,
-            spatial_dims,
-            act_name,
-            norm_name,
-        )
+        super().__init__(in_channel, out_channel, kernel_size, padding, spatial_dims, act_name, norm_name)
         self.ram_cost = 1 + in_channel / out_channel * 2
 
 
@@ -130,9 +122,7 @@ class _P3DActiConvNormBlockWithRAMCost(P3DActiConvNormBlock):
         act_name: Union[Tuple, str] = "RELU",
         norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
-        super().__init__(
-            in_channel, out_channel, kernel_size, padding, p3dmode, act_name, norm_name
-        )
+        super().__init__(in_channel, out_channel, kernel_size, padding, p3dmode, act_name, norm_name)
         # 1 in_channel (activation) + 1 in_channel (convolution) +
         # 1 out_channel (convolution) + 1 out_channel (normalization)
         self.ram_cost = 2 + 2 * in_channel / out_channel
@@ -167,7 +157,7 @@ class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
         # s0 is upsampled 2x from s1, representing feature sizes at two resolutions.
         # in_channel * s0 (activation) + 3 * out_channel * s1 (convolution, concatenation, normalization)
         # s0 = s1 * 2^(spatial_dims) = output_size / out_channel * 2^(spatial_dims)
-        self.ram_cost = in_channel / out_channel * 2 ** self._spatial_dims + 3
+        self.ram_cost = in_channel / out_channel * 2**self._spatial_dims + 3
 
 
 class MixedOp(nn.Module):
@@ -225,6 +215,21 @@ class Cell(CellInterface):
     #      \
     #       - Downsample
 
+    # Define 2D operation set, parameterized by the number of channels
+    OPS2D = {
+        "skip_connect": lambda _c: _IdentityWithRAMCost(),
+        "conv_3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1, spatial_dims=2),
+    }
+
+    # Define 3D operation set, parameterized by the number of channels
+    OPS3D = {
+        "skip_connect": lambda _c: _IdentityWithRAMCost(),
+        "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(c, c, 3, padding=1, spatial_dims=3),
+        "conv_3x3x1": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=0),
+        "conv_3x1x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=1),
+        "conv_1x3x3": lambda c: _P3DActiConvNormBlockWithRAMCost(c, c, 3, padding=1, p3dmode=2),
+    }
+
     # Define connection operation set, parameterized by the number of channels
     ConnOPS = {
         "up": _FactorizedIncreaseBlockWithRAMCost,
@@ -250,45 +255,25 @@ class Cell(CellInterface):
 
         if rate == -1:  # downsample
             self.preprocess = self.ConnOPS["down"](
-                c_prev,
-                c,
-                spatial_dims=self._spatial_dims,
-                act_name=self._act_name,
-                norm_name=self._norm_name,
+                c_prev, c, spatial_dims=self._spatial_dims, act_name=self._act_name, norm_name=self._norm_name
             )
         elif rate == 1:  # upsample
             self.preprocess = self.ConnOPS["up"](
-                c_prev,
-                c,
-                spatial_dims=self._spatial_dims,
-                act_name=self._act_name,
-                norm_name=self._norm_name,
+                c_prev, c, spatial_dims=self._spatial_dims, act_name=self._act_name, norm_name=self._norm_name
             )
         else:
             if c_prev == c:
                 self.preprocess = self.ConnOPS["identity"]()
             else:
                 self.preprocess = self.ConnOPS["align_channels"](
-                    c_prev,
-                    c,
-                    1,
-                    0,
-                    spatial_dims=self._spatial_dims,
-                    act_name=self._act_name,
-                    norm_name=self._norm_name,
+                    c_prev, c, 1, 0, spatial_dims=self._spatial_dims, act_name=self._act_name, norm_name=self._norm_name
                 )
 
         # Define 2D operation set, parameterized by the number of channels
         self.OPS2D = {
             "skip_connect": lambda _c: _IdentityWithRAMCost(),
             "conv_3x3": lambda c: _ActiConvNormBlockWithRAMCost(
-                c,
-                c,
-                3,
-                padding=1,
-                spatial_dims=2,
-                act_name=self._act_name,
-                norm_name=self._norm_name,
+                c, c, 3, padding=1, spatial_dims=2, act_name=self._act_name, norm_name=self._norm_name
             ),
         }
 
@@ -296,40 +281,16 @@ class Cell(CellInterface):
         self.OPS3D = {
             "skip_connect": lambda _c: _IdentityWithRAMCost(),
             "conv_3x3x3": lambda c: _ActiConvNormBlockWithRAMCost(
-                c,
-                c,
-                3,
-                padding=1,
-                spatial_dims=3,
-                act_name=self._act_name,
-                norm_name=self._norm_name,
+                c, c, 3, padding=1, spatial_dims=3, act_name=self._act_name, norm_name=self._norm_name
             ),
             "conv_3x3x1": lambda c: _P3DActiConvNormBlockWithRAMCost(
-                c,
-                c,
-                3,
-                padding=1,
-                p3dmode=0,
-                act_name=self._act_name,
-                norm_name=self._norm_name,
+                c, c, 3, padding=1, p3dmode=0, act_name=self._act_name, norm_name=self._norm_name
             ),
             "conv_3x1x3": lambda c: _P3DActiConvNormBlockWithRAMCost(
-                c,
-                c,
-                3,
-                padding=1,
-                p3dmode=1,
-                act_name=self._act_name,
-                norm_name=self._norm_name,
+                c, c, 3, padding=1, p3dmode=1, act_name=self._act_name, norm_name=self._norm_name
             ),
             "conv_1x3x3": lambda c: _P3DActiConvNormBlockWithRAMCost(
-                c,
-                c,
-                3,
-                padding=1,
-                p3dmode=2,
-                act_name=self._act_name,
-                norm_name=self._norm_name,
+                c, c, 3, padding=1, p3dmode=2, act_name=self._act_name, norm_name=self._norm_name
             ),
         }
 
@@ -339,9 +300,7 @@ class Cell(CellInterface):
         elif self._spatial_dims == 3:
             self.OPS = self.OPS3D
         else:
-            raise NotImplementedError(
-                f"Spatial dimensions {self._spatial_dims} is not supported."
-            )
+            raise NotImplementedError(f"Spatial dimensions {self._spatial_dims} is not supported.")
 
         self.op = MixedOp(c, self.OPS, arch_code_c)
 
@@ -412,9 +371,7 @@ class DiNTS(nn.Module):
         self.num_blocks = dints_space.num_blocks
         self.num_depths = dints_space.num_depths
         if spatial_dims not in (2, 3):
-            raise NotImplementedError(
-                f"Spatial dimensions {spatial_dims} is not supported."
-            )
+            raise NotImplementedError(f"Spatial dimensions {spatial_dims} is not supported.")
         self._spatial_dims = spatial_dims
         if node_a is None:
             self.node_a = torch.ones((self.num_blocks + 1, self.num_depths))
@@ -449,9 +406,7 @@ class DiNTS(nn.Module):
             # define downsample stems before DiNTS search
             if use_downsample:
                 self.stem_down[str(res_idx)] = StemTS(
-                    nn.Upsample(
-                        scale_factor=1 / (2 ** res_idx), mode=mode, align_corners=True
-                    ),
+                    nn.Upsample(scale_factor=1 / (2**res_idx), mode=mode, align_corners=True),
                     conv_type(
                         in_channels=in_channels,
                         out_channels=self.filter_nums[res_idx],
@@ -462,11 +417,7 @@ class DiNTS(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(
-                        name=norm_name,
-                        spatial_dims=spatial_dims,
-                        channels=self.filter_nums[res_idx],
-                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx]),
                     get_act_layer(name=act_name),
                     conv_type(
                         in_channels=self.filter_nums[res_idx],
@@ -478,11 +429,7 @@ class DiNTS(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(
-                        name=norm_name,
-                        spatial_dims=spatial_dims,
-                        channels=self.filter_nums[res_idx + 1],
-                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx + 1]),
                 )
                 self.stem_up[str(res_idx)] = StemTS(
                     get_act_layer(name=act_name),
@@ -496,19 +443,13 @@ class DiNTS(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(
-                        name=norm_name,
-                        spatial_dims=spatial_dims,
-                        channels=self.filter_nums[res_idx],
-                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx]),
                     nn.Upsample(scale_factor=2, mode=mode, align_corners=True),
                 )
 
             else:
                 self.stem_down[str(res_idx)] = StemTS(
-                    nn.Upsample(
-                        scale_factor=1 / (2 ** res_idx), mode=mode, align_corners=True
-                    ),
+                    nn.Upsample(scale_factor=1 / (2**res_idx), mode=mode, align_corners=True),
                     conv_type(
                         in_channels=in_channels,
                         out_channels=self.filter_nums[res_idx],
@@ -519,11 +460,7 @@ class DiNTS(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(
-                        name=norm_name,
-                        spatial_dims=spatial_dims,
-                        channels=self.filter_nums[res_idx],
-                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx]),
                 )
                 self.stem_up[str(res_idx)] = StemTS(
                     get_act_layer(name=act_name),
@@ -537,14 +474,8 @@ class DiNTS(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(
-                        name=norm_name,
-                        spatial_dims=spatial_dims,
-                        channels=self.filter_nums[res_idx - 1],
-                    ),
-                    nn.Upsample(
-                        scale_factor=2 ** (res_idx != 0), mode=mode, align_corners=True
-                    ),
+                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx - 1]),
+                    nn.Upsample(scale_factor=2 ** (res_idx != 0), mode=mode, align_corners=True),
                 )
 
     def weight_parameters(self):
@@ -637,9 +568,7 @@ class TopologyConstruction(nn.Module):
 
         super().__init__()
 
-        self.filter_nums = [
-            int(n_feat * channel_mul) for n_feat in (32, 64, 128, 256, 512)
-        ]
+        self.filter_nums = [int(n_feat * channel_mul) for n_feat in (32, 64, 128, 256, 512)]
         self.num_blocks = num_blocks
         self.num_depths = num_depths
         self._spatial_dims = spatial_dims
@@ -656,9 +585,7 @@ class TopologyConstruction(nn.Module):
         # Calculate predefined parameters for topology search and decoding
         arch_code2in, arch_code2out = [], []
         for i in range(Cell.DIRECTIONS * self.num_depths - 2):
-            arch_code2in.append(
-                (i + 1) // Cell.DIRECTIONS - 1 + (i + 1) % Cell.DIRECTIONS
-            )
+            arch_code2in.append((i + 1) // Cell.DIRECTIONS - 1 + (i + 1) % Cell.DIRECTIONS)
         arch_code2ops = ([-1, 0, 1] * self.num_depths)[1:-1]
         for m in range(self.num_depths):
             arch_code2out.extend([m, m, m])
@@ -669,17 +596,11 @@ class TopologyConstruction(nn.Module):
 
         # define NAS search space
         if arch_code is None:
-            arch_code_a = torch.ones((self.num_blocks, len(self.arch_code2out))).to(
-                self.device
-            )
-            arch_code_c = torch.ones(
-                (self.num_blocks, len(self.arch_code2out), self.num_cell_ops)
-            ).to(self.device)
+            arch_code_a = torch.ones((self.num_blocks, len(self.arch_code2out))).to(self.device)
+            arch_code_c = torch.ones((self.num_blocks, len(self.arch_code2out), self.num_cell_ops)).to(self.device)
         else:
             arch_code_a = torch.from_numpy(arch_code[0]).to(self.device)
-            arch_code_c = F.one_hot(
-                torch.from_numpy(arch_code[1]).to(torch.int64), self.num_cell_ops
-            ).to(self.device)
+            arch_code_c = F.one_hot(torch.from_numpy(arch_code[1]).to(torch.int64), self.num_cell_ops).to(self.device)
 
         self.arch_code_a = arch_code_a
         self.arch_code_c = arch_code_c
@@ -689,12 +610,8 @@ class TopologyConstruction(nn.Module):
             for res_idx in range(len(self.arch_code2out)):
                 if self.arch_code_a[blk_idx, res_idx] == 1:
                     self.cell_tree[str((blk_idx, res_idx))] = cell(
-                        self.filter_nums[
-                            self.arch_code2in[res_idx] + int(use_downsample)
-                        ],
-                        self.filter_nums[
-                            self.arch_code2out[res_idx] + int(use_downsample)
-                        ],
+                        self.filter_nums[self.arch_code2in[res_idx] + int(use_downsample)],
+                        self.filter_nums[self.arch_code2out[res_idx] + int(use_downsample)],
                         self.arch_code2ops[res_idx],
                         self.arch_code_c[blk_idx, res_idx],
                         self._spatial_dims,
@@ -757,12 +674,9 @@ class TopologyInstance(TopologyConstruction):
                 if activation:
                     mod: CellInterface = self.cell_tree[str((blk_idx, res_idx))]
                     _out = mod.forward(
-                        x=inputs[self.arch_code2in[res_idx]],
-                        weight=torch.ones_like(self.arch_code_c[blk_idx, res_idx]),
+                        x=inputs[self.arch_code2in[res_idx]], weight=torch.ones_like(self.arch_code_c[blk_idx, res_idx])
                     )
-                    outputs[self.arch_code2out[res_idx]] = (
-                        outputs[self.arch_code2out[res_idx]] + _out
-                    )
+                    outputs[self.arch_code2out[res_idx]] = outputs[self.arch_code2out[res_idx]] + _out
             inputs = outputs
 
         return inputs
@@ -846,34 +760,23 @@ class TopologySearch(TopologyConstruction):
         tidx = []
         _d = Cell.DIRECTIONS
         for i in range(_d * self.num_depths - 2):
-            tidx.append(
-                (i + 1) // _d * self.num_depths + (i + 1) // _d - 1 + (i + 1) % _d
-            )
+            tidx.append((i + 1) // _d * self.num_depths + (i + 1) // _d - 1 + (i + 1) % _d)
         self.tidx = tidx
         transfer_mtx, node_act_list, child_list = self.gen_mtx(num_depths)
 
         self.node_act_list = np.asarray(node_act_list)
-        self.node_act_dict = {
-            str(self.node_act_list[i]): i for i in range(len(self.node_act_list))
-        }
+        self.node_act_dict = {str(self.node_act_list[i]): i for i in range(len(self.node_act_list))}
         self.transfer_mtx = transfer_mtx
         self.child_list = np.asarray(child_list)
 
-        self.ram_cost = np.zeros(
-            (self.num_blocks, len(self.arch_code2out), self.num_cell_ops)
-        )
+        self.ram_cost = np.zeros((self.num_blocks, len(self.arch_code2out), self.num_cell_ops))
         for blk_idx in range(self.num_blocks):
             for res_idx in range(len(self.arch_code2out)):
                 if self.arch_code_a[blk_idx, res_idx] == 1:
                     self.ram_cost[blk_idx, res_idx] = np.array(
                         [
-                            op.ram_cost
-                            + self.cell_tree[
-                                str((blk_idx, res_idx))
-                            ].preprocess.ram_cost
-                            for op in self.cell_tree[str((blk_idx, res_idx))].op.ops[
-                                : self.num_cell_ops
-                            ]
+                            op.ram_cost + self.cell_tree[str((blk_idx, res_idx))].preprocess.ram_cost
+                            for op in self.cell_tree[str((blk_idx, res_idx))].op.ops[: self.num_cell_ops]
                         ]
                     )
 
@@ -885,10 +788,7 @@ class TopologySearch(TopologyConstruction):
             .requires_grad_()
         )
         self.log_alpha_a = nn.Parameter(
-            torch.zeros(self.num_blocks, len(self.arch_code2out))
-            .normal_(0, 0.01)
-            .to(self.device)
-            .requires_grad_()
+            torch.zeros(self.num_blocks, len(self.arch_code2out)).normal_(0, 0.01).to(self.device).requires_grad_()
         )
         self._arch_param_names = ["log_alpha_a", "log_alpha_c"]
 
@@ -918,10 +818,7 @@ class TopologySearch(TopologyConstruction):
             # convert path activation [1,paths] to path activation matrix [depth, depth]
             ma = np.zeros((depth, depth))
             for i in range(paths):
-                ma[
-                    (i + 1) // Cell.DIRECTIONS,
-                    (i + 1) // Cell.DIRECTIONS - 1 + (i + 1) % Cell.DIRECTIONS,
-                ] = m[i]
+                ma[(i + 1) // Cell.DIRECTIONS, (i + 1) // Cell.DIRECTIONS - 1 + (i + 1) % Cell.DIRECTIONS] = m[i]
             mtx.append(ma)
 
         # define all possible node activation
@@ -929,21 +826,13 @@ class TopologySearch(TopologyConstruction):
         transfer_mtx = {}
         for arch_code in node_act_list:
             # make sure each activated node has an active connection, inactivated node has no connection
-            arch_code_mtx = [
-                _
-                for _ in mtx
-                if ((np.sum(_, 0) > 0).astype(int) == np.array(arch_code)).all()
-            ]
+            arch_code_mtx = [_ for _ in mtx if ((np.sum(_, 0) > 0).astype(int) == np.array(arch_code)).all()]
             transfer_mtx[str(np.array(arch_code))] = arch_code_mtx
 
         return transfer_mtx, node_act_list, all_connect[1:]
 
     def weight_parameters(self):
-        return [
-            param
-            for name, param in self.named_parameters()
-            if name not in self._arch_param_names
-        ]
+        return [param for name, param in self.named_parameters() if name not in self._arch_param_names]
 
     def get_prob_a(self, child: bool = False):
         """
@@ -990,14 +879,8 @@ class TopologySearch(TopologyConstruction):
         image_size = np.array(in_size[-self._spatial_dims :])
         sizes = []
         for res_idx in range(self.num_depths):
-            sizes.append(
-                batch_size
-                * self.filter_nums[res_idx]
-                * (image_size // (2 ** res_idx)).prod()
-            )
-        sizes = torch.tensor(sizes).to(torch.float32).to(self.device) / (
-            2 ** (int(self.use_downsample))
-        )
+            sizes.append(batch_size * self.filter_nums[res_idx] * (image_size // (2**res_idx)).prod())
+        sizes = torch.tensor(sizes).to(torch.float32).to(self.device) / (2 ** (int(self.use_downsample)))
         probs_a, arch_code_prob_a = self.get_prob_a(child=False)
         cell_prob = F.softmax(self.log_alpha_c, dim=-1)
         if full:
@@ -1011,15 +894,10 @@ class TopologySearch(TopologyConstruction):
             for path_idx in range(len(self.arch_code2out)):
                 usage += (
                     arch_code_prob_a[blk_idx, path_idx]
-                    * (
-                        1
-                        + (
-                            ram_cost[blk_idx, path_idx] * cell_prob[blk_idx, path_idx]
-                        ).sum()
-                    )
+                    * (1 + (ram_cost[blk_idx, path_idx] * cell_prob[blk_idx, path_idx]).sum())
                     * sizes[self.arch_code2out[path_idx]]
                 )
-        return usage * 32 / 8 / 1024 ** 2
+        return usage * 32 / 8 / 1024**2
 
     def get_topology_entropy(self, probs):
         """
@@ -1037,16 +915,10 @@ class TopologySearch(TopologyConstruction):
             # node activation index to feasible output child_idx
             node2out = [[] for _ in range(len(self.node_act_list))]
             for child_idx in range(len(self.child_list)):
-                _node_in, _node_out = np.zeros(self.num_depths), np.zeros(
-                    self.num_depths
-                )
+                _node_in, _node_out = np.zeros(self.num_depths), np.zeros(self.num_depths)
                 for res_idx in range(len(self.arch_code2out)):
-                    _node_out[self.arch_code2out[res_idx]] += self.child_list[
-                        child_idx
-                    ][res_idx]
-                    _node_in[self.arch_code2in[res_idx]] += self.child_list[child_idx][
-                        res_idx
-                    ]
+                    _node_out[self.arch_code2out[res_idx]] += self.child_list[child_idx][res_idx]
+                    _node_in[self.arch_code2in[res_idx]] += self.child_list[child_idx][res_idx]
                 _node_in = (_node_in >= 1).astype(int)
                 _node_out = (_node_out >= 1).astype(int)
                 node2in[self.node_act_dict[str(_node_out)]].append(child_idx)
@@ -1061,10 +933,7 @@ class TopologySearch(TopologyConstruction):
             for node_idx in range(len(self.node_act_list)):
                 _node_p = probs[blk_idx, node2in[node_idx]].sum()
                 _out_probs = probs[blk_idx + 1, node2out[node_idx]].sum()
-                blk_ent += -(
-                    _node_p * torch.log(_out_probs + 1e-5)
-                    + (1 - _node_p) * torch.log(1 - _out_probs + 1e-5)
-                )
+                blk_ent += -(_node_p * torch.log(_out_probs + 1e-5) + (1 - _node_p) * torch.log(1 - _out_probs + 1e-5))
             ent += blk_ent
         return ent
 
@@ -1086,17 +955,12 @@ class TopologySearch(TopologyConstruction):
         """
         probs, arch_code_prob_a = self.get_prob_a(child=True)
         arch_code_a_max = self.child_list[torch.argmax(probs, -1).data.cpu().numpy()]
-        arch_code_c = (
-            torch.argmax(F.softmax(self.log_alpha_c, -1), -1).data.cpu().numpy()
-        )
+        arch_code_c = torch.argmax(F.softmax(self.log_alpha_c, -1), -1).data.cpu().numpy()
         probs = probs.data.cpu().numpy()
 
         # define adjacency matrix
         amtx = np.zeros(
-            (
-                1 + len(self.child_list) * self.num_blocks + 1,
-                1 + len(self.child_list) * self.num_blocks + 1,
-            )
+            (1 + len(self.child_list) * self.num_blocks + 1, 1 + len(self.child_list) * self.num_blocks + 1)
         )
 
         # build a path activation to child index searching dictionary
@@ -1107,14 +971,10 @@ class TopologySearch(TopologyConstruction):
         for child_idx in range(len(self.child_list)):
             _node_act = np.zeros(self.num_depths).astype(int)
             for path_idx in range(len(self.child_list[child_idx])):
-                _node_act[self.arch_code2out[path_idx]] += self.child_list[child_idx][
-                    path_idx
-                ]
+                _node_act[self.arch_code2out[path_idx]] += self.child_list[child_idx][path_idx]
             _node_act = (_node_act >= 1).astype(int)
             for mtx in self.transfer_mtx[str(_node_act)]:
-                connect_child_idx = path2child[
-                    str(mtx.flatten()[self.tidx].astype(int))
-                ]
+                connect_child_idx = path2child[str(mtx.flatten()[self.tidx].astype(int))]
                 sub_amtx[child_idx, connect_child_idx] = 1
 
         # fill in source to first block, add 1e-5/1e-3 to avoid log0 and negative edge weights
@@ -1123,31 +983,16 @@ class TopologySearch(TopologyConstruction):
         # fill in the rest blocks
         for blk_idx in range(1, self.num_blocks):
             amtx[
-                1
-                + (blk_idx - 1) * len(self.child_list) : 1
-                + blk_idx * len(self.child_list),
-                1
-                + blk_idx * len(self.child_list) : 1
-                + (blk_idx + 1) * len(self.child_list),
-            ] = sub_amtx * np.tile(
-                -np.log(probs[blk_idx] + 1e-5) + 0.001, (len(self.child_list), 1)
-            )
+                1 + (blk_idx - 1) * len(self.child_list) : 1 + blk_idx * len(self.child_list),
+                1 + blk_idx * len(self.child_list) : 1 + (blk_idx + 1) * len(self.child_list),
+            ] = sub_amtx * np.tile(-np.log(probs[blk_idx] + 1e-5) + 0.001, (len(self.child_list), 1))
 
         # fill in the last to the sink
-        amtx[
-            1
-            + (self.num_blocks - 1) * len(self.child_list) : 1
-            + self.num_blocks * len(self.child_list),
-            -1,
-        ] = 0.001
+        amtx[1 + (self.num_blocks - 1) * len(self.child_list) : 1 + self.num_blocks * len(self.child_list), -1] = 0.001
 
         graph = csr_matrix(amtx)
         dist_matrix, predecessors, sources = dijkstra(
-            csgraph=graph,
-            directed=True,
-            indices=0,
-            min_only=True,
-            return_predecessors=True,
+            csgraph=graph, directed=True, indices=0, min_only=True, return_predecessors=True
         )
         index, a_idx = -1, -1
         arch_code_a = np.zeros((self.num_blocks, len(self.arch_code2out)))
@@ -1161,9 +1006,7 @@ class TopologySearch(TopologyConstruction):
             child_idx = (index - 1) % len(self.child_list)
             arch_code_a[a_idx, :] = self.child_list[child_idx]
             for res_idx in range(len(self.arch_code2out)):
-                node_a[a_idx, self.arch_code2out[res_idx]] += arch_code_a[
-                    a_idx, res_idx
-                ]
+                node_a[a_idx, self.arch_code2out[res_idx]] += arch_code_a[a_idx, res_idx]
             a_idx -= 1
         for res_idx in range(len(self.arch_code2out)):
             node_a[a_idx, self.arch_code2in[res_idx]] += arch_code_a[0, res_idx]
@@ -1183,15 +1026,11 @@ class TopologySearch(TopologyConstruction):
         inputs = x
         for blk_idx in range(self.num_blocks):
             outputs = [0.0] * self.num_depths
-            for res_idx, activation in enumerate(
-                self.arch_code_a[blk_idx].data.cpu().numpy()
-            ):
+            for res_idx, activation in enumerate(self.arch_code_a[blk_idx].data.cpu().numpy()):
                 if activation:
                     _w = F.softmax(self.log_alpha_c[blk_idx, res_idx], dim=-1)
                     outputs[self.arch_code2out[res_idx]] += (
-                        self.cell_tree[str((blk_idx, res_idx))](
-                            inputs[self.arch_code2in[res_idx]], weight=_w
-                        )
+                        self.cell_tree[str((blk_idx, res_idx))](inputs[self.arch_code2in[res_idx]], weight=_w)
                         * arch_code_prob_a[blk_idx, res_idx]
                     )
             inputs = outputs
