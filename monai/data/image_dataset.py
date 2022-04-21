@@ -102,11 +102,11 @@ class ImageDataset(Dataset, Randomizable):
 
         # load data and optionally meta
         img = self.loader(self.image_files[index])
-        if self.seg_files is not None:
-            seg = self.loader(self.seg_files[index])
         if not self.image_only:
             meta_data = img.meta
-            if self.seg_files is not None:
+        if self.seg_files is not None:
+            seg = self.loader(self.seg_files[index])
+            if not self.image_only:
                 seg_meta_data = seg.meta
 
         # apply the transforms
