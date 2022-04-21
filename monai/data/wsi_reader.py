@@ -92,7 +92,7 @@ class BaseWSIReader(ImageReader):
 
         Args:
             wsi: a whole slide image object loaded from a file or a lis of such objects
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            location: (y_top, x_left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
@@ -109,7 +109,7 @@ class BaseWSIReader(ImageReader):
 
         Args:
             patch: extracted patch from whole slide image
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            location: (y_top, x_left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
@@ -131,7 +131,7 @@ class BaseWSIReader(ImageReader):
 
         Args:
             wsi: a whole slide image object loaded from a file or a list of such objects
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            location: (y_top, x_left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
@@ -252,7 +252,7 @@ class WSIReader(BaseWSIReader):
 
         Args:
             patch: extracted patch from whole slide image
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            location: (y_top, x_left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
@@ -268,7 +268,7 @@ class WSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file or a lis of such objects
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            location: (y_top, x_left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
@@ -340,7 +340,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
         Args:
             patch: extracted patch from whole slide image
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            location: (y_top, x_left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
@@ -388,7 +388,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file or a lis of such objects
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            location: (y_top, x_left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
@@ -468,7 +468,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         Args:
             patch: extracted patch from whole slide image
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            location: (y_top, x_left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
@@ -515,7 +515,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         Args:
             wsi: a whole slide image object loaded from a file or a lis of such objects
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
+            location: (y_top, x_left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
             level: the level number. Defaults to 0
