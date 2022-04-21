@@ -263,15 +263,15 @@ class LoadImage(Transform):
         if "affine" in meta:
             meta["affine"] = torch.as_tensor(meta["affine"])
 
-        # delete extra metadata
+        # TODO: delete extra metadata
         for i in range(8):
             for k in ("dim", "pixdim"):
                 if f"{k}[{i}]" in meta:
                     del meta[f"{k}[{i}]"]
         for k in (
-            "original_affine",
-            "spatial_shape",
-            "spacing",
+            #     "original_affine",
+            #     "spatial_shape",
+            #     "spacing",
             "srow_x",
             "srow_y",
             "srow_z",

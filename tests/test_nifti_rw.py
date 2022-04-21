@@ -85,11 +85,12 @@ class TestNiftiLoadRead(unittest.TestCase):
         # read test cases
         loader = LoadImage(**reader_param)
         load_result = loader(test_image)
-        if isinstance(load_result, tuple):
-            data_array, header = load_result
-        else:
-            data_array = load_result
+        data_array = load_result.numpy()
+        if reader_param.get("image_only", False):
             header = None
+        else:
+            header = load_result.meta
+            header["affine"] = header["affine"].numpy()
         if os.path.exists(test_image):
             os.remove(test_image)
 
@@ -114,7 +115,8 @@ class TestNiftiLoadRead(unittest.TestCase):
     def test_consistency(self):
         np.set_printoptions(suppress=True, precision=3)
         test_image = make_nifti_image(np.arange(64).reshape(1, 8, 8), np.diag([1.5, 1.5, 1.5, 1]))
-        data, header = LoadImage(reader="NibabelReader", as_closest_canonical=False)(test_image)
+        data = LoadImage(reader="NibabelReader", as_closest_canonical=False)(test_image)
+        header = data.meta
         data, original_affine, new_affine = Spacing([0.8, 0.8, 0.8])(data[None], header["affine"], mode="nearest")
         data, _, new_affine = Orientation("ILP")(data, new_affine)
         if os.path.exists(test_image):
