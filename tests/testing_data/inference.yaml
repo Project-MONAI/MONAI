@@ -27,6 +27,10 @@ preprocessing:
   transforms:
   - _target_: LoadImaged
     keys: image
+  - _target_: FromMetaTensord
+    keys: image
+  - _target_: ToNumpyd
+    keys: image
   - _target_: EnsureChannelFirstd
     keys: image
   - _target_: ScaleIntensityd
