@@ -24,7 +24,6 @@ from torch.cuda import is_available
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import ID_SEP_KEY
 from monai.config import IgniteInfo, PathLike
 from monai.data import save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state
@@ -125,35 +124,16 @@ def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filenam
     return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
 
 
-def _get_git_release_assets(repo_owner: str, repo_name: str, tag_name: str):
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/tags/{tag_name}"
-    resp = requests_get(url)
-    resp.raise_for_status()
-    assets_list = json.loads(resp.text)["assets"]
-    assets_info = {}
-    for asset in assets_list:
-        assets_info[asset["name"]] = asset["browser_download_url"]
-    return assets_info
-
-
-def _download_from_github(
-    repo: str, tag_name: str, download_path: Path, filename: Optional[str] = None, progress: bool = True
-):
-    if len(repo.split("/")) != 2:
-        raise ValueError("if source is `github`, repo should be in the form of `repo_owner/repo_name`.")
-    repo_owner, repo_name = repo.split("/")
-    if filename is None:
-        # download the whole bundle if filename is not provided
-        assets_info = _get_git_release_assets(repo_owner, repo_name, tag_name=tag_name)
-        for name, url in assets_info.items():
-            filepath = download_path / f"{name}"
-            download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
-        logger.info(f"All files within the bundle {tag_name} are downloaded.")
-    else:
-        # download a single file
-        url = _get_git_release_url(repo_owner, repo_name, tag_name=tag_name, filename=filename)
-        filepath = download_path / f"{filename}"
-        download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True):
+    if len(repo.split("/")) != 3:
+        raise ValueError("if source is `github`, repo should be in the form of `repo_owner/repo_name/release_tag`.")
+    repo_owner, repo_name, tag_name = repo.split("/")
+    if ".zip" not in filename:
+        filename += ".zip"
+    url = _get_git_release_url(repo_owner, repo_name, tag_name=tag_name, filename=filename)
+    filepath = download_path / f"{filename}"
+    download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+    extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
 def download(
@@ -166,8 +146,8 @@ def download(
     args_file: Optional[str] = None,
 ):
     """
-    download the bundle or a file that belongs to the bundle from the specified source or url.
-    "zip", "tar" and "tar.gz" files, will be extracted after downloading.
+    download bundle from the specified source or url. The bundle should be a zip file and it
+    will be extracted after downloading.
     This function refers to:
     https://pytorch.org/docs/stable/_modules/torch/hub.html
 
@@ -175,36 +155,28 @@ def download(
 
     .. code-block:: bash
 
-        # Execute this module as a CLI entry, and download the whole bundle:
-        python -m monai.bundle download --name "bundle_name" --source "github" --repo "repo_owner/repo_name"
+        # Execute this module as a CLI entry, and download bundle:
+        python -m monai.bundle download --name "bundle_name" --source "github" --repo "repo_owner/repo_name/release_tag"
 
-        # Execute this module as a CLI entry, and download a single file:
-        python -m monai.bundle download --name "bundle_name#filename" --repo "repo_owner/repo_name"
-
-        # Execute this module as a CLI entry, and download a single file via URL:
-        python -m monai.bundle download --url <url>
+        # Execute this module as a CLI entry, and download bundle via URL:
+        python -m monai.bundle download --name "bundle_name" --url <url>
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
-        python -m monai.bundle download --args_file "/workspace/data/args.json" --repo "repo_owner/repo_name"
+        python -m monai.bundle download --args_file "/workspace/data/args.json" --source "github"
 
     Args:
-        name: the bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
-            If `source` is `github`, it should be the same as the release tag.
-            If only a single file is expected to be downloaded, `name` should be a string that consisted with
-            the bundle name, a separator `#` and the filename. For example: if the bundle name is "spleen" and
-            the filename is "model.pt", then `name` is "spleen#model.pt".
+        name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
-        source: the place that saved the bundle.
+        source: place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
-        repo: the repo name. If `None` and `url` is `None`, it must be provided in `args_file`.
-            If `source` is `github`, it should be in the form of `repo_owner/repo_name`.
-            For example: `Project-MONAI/MONAI`.
-        url: the url to download the data. If not `None`, data will be downloaded directly
+        repo: repo name. If `None` and `url` is `None`, it must be provided in `args_file`.
+            If `source` is `github`, it should be in the form of `repo_owner/repo_name/release_tag`.
+            For example: `Project-MONAI/MONAI-extra-test-data/0.8.1`.
+        url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
-            If `name` contains the filename, it will be used as the downloaded filename (without postfix).
-            Otherwise, the filename is determined by `monai.apps.utils._basename(url)`.
+            If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
         progress: whether to display a progress bar.
         args_file: a JSON or YAML file to provide default values for all the args in this function.
             so that the command line inputs can be simplified.
@@ -214,8 +186,6 @@ def download(
         args=args_file, name=name, bundle_dir=bundle_dir, source=source, repo=repo, url=url, progress=progress
     )
 
-    if ("name" not in _args or "repo" not in _args) and url is None:
-        raise ValueError(f"To download from source: {source}, `name`and `repo`must be provided, got {name} and {repo}.")
     _log_input_summary(tag="download", args=_args)
     name_, bundle_dir_, source_, repo_, url_, progress_ = _pop_args(
         _args, name=None, bundle_dir=None, source="github", repo=None, url=None, progress=True
@@ -229,32 +199,28 @@ def download(
             raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
     bundle_dir_ = Path(bundle_dir_)
 
-    filename: Optional[str] = None
-    if name_ is not None and len(name_.split(ID_SEP_KEY)) == 2:
-        name_, filename = name_.split(ID_SEP_KEY)
-
     if url_ is not None:
-        if filename is not None:
-            filepath = bundle_dir_ / f"{filename}"
+        if name is not None:
+            filepath = bundle_dir_ / f"{name}.zip"
         else:
             filepath = bundle_dir_ / f"{_basename(url_)}"
         download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
-        filepath = Path(filepath)
-        if filepath.name.endswith(("zip", "tar", "tar.gz")):
-            extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
+        extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
     elif source_ == "github":
-        _download_from_github(
-            repo=repo_, tag_name=name_, download_path=bundle_dir_, filename=filename, progress=progress_
-        )
+        if name_ is None or repo_ is None:
+            raise ValueError(
+                f"To download from source: Github, `name` and `repo` must be provided, got {name_} and {repo_}."
+            )
+        _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
     else:
         raise NotImplementedError(
-            f"Currently only download from provided URL in `url` or Github is implemented, got source: {source}."
+            f"Currently only download from provided URL in `url` or Github is implemented, got source: {source_}."
         )
 
 
 def load(
     name: str,
-    is_ts_model: bool = False,
+    load_ts_module: bool = False,
     bundle_dir: Optional[PathLike] = None,
     source: str = "github",
     repo: Optional[str] = None,
@@ -264,21 +230,20 @@ def load(
     **net_kwargs,
 ):
     """
-    Load model weights or TorchScript module. If the weights file does not exist locally, it will be downloaded first.
+    Load model weights or TorchScript module of a bundle.
+    If the weights file does not exist locally, it will be downloaded first.
     The function can return weights, an instantiated network that loaded the weights, or a TorchScript module.
 
     Args:
-        name: can be a string that contains only the bundle name, or a string that consists with the
-            bundle name, a separator `#` and the weights name.
-            For example, `name="spleen#model.pt"` means the bundle name is `spleen` and the weights name is `model.pt`.
-            If the weights name is not contained, `model.pt` or `model.ts` (according to the argument `is_ts_model`)
-            will be used as the default weights name.
-        is_ts_model: a flag to specify if the weights file is a TorchScript module.
-        bundle_dir: the directory the weights will be loaded from.
+        name: bundle name.
+        load_ts_module: a flag to specify if loading the TorchScript module.
+        bundle_dir: the directory the weights/TorchScript module will be loaded from.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
         source: the place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
-        repo: the repo name. If the weights need to be downloaded first and `url` is `None`, it must be provided.
+        repo: the repo name. If the weights file does not exist locally and `url` is `None`, it must be provided.
+            If `source` is `github`, it should be in the form of `repo_owner/repo_name/release_tag`.
+            For example: `Project-MONAI/MONAI-extra-test-data/0.8.1`.
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module.
         net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
@@ -294,19 +259,13 @@ def load(
             raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
     bundle_dir = Path(bundle_dir)
 
-    weights_name: str = "model.ts" if is_ts_model is True else "model.pt"
-    if len(name.split(ID_SEP_KEY)) == 2:
-        weights_name = name.split(ID_SEP_KEY)[1]
-    elif len(name.split(ID_SEP_KEY)) == 1:
-        name = name + "#" + weights_name
-    else:
-        raise ValueError(f"The format of `name` is wrong.\n{run.__doc__}")
-    model_file_path = os.path.join(bundle_dir, weights_name)
+    weights_name: str = "model.ts" if load_ts_module is True else "model.pt"
+    model_file_path = os.path.join(bundle_dir, name, weights_name)
     if not os.path.exists(model_file_path):
         download(name=name, bundle_dir=bundle_dir, source=source, repo=repo, progress=progress)
 
     # loading with `torch.jit.load`
-    if is_ts_model is True:
+    if load_ts_module is True:
         return torch.jit.load(model_file_path, map_location=device)
     # loading with `torch.load`
     model_dict = torch.load(model_file_path, map_location=device)
