@@ -23,15 +23,15 @@ from monai.data import ArrayDataset
 from monai.transforms import AddChannel, Compose, LoadImage, RandAdjustContrast, RandGaussianNoise, Spacing
 
 TEST_CASE_1 = [
-    Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
-    Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
+    Compose([LoadImage(), AddChannel(), RandGaussianNoise(prob=1.0)]),
+    Compose([LoadImage(), AddChannel(), RandGaussianNoise(prob=1.0)]),
     (0, 1),
     (1, 128, 128, 128),
 ]
 
 TEST_CASE_2 = [
-    Compose([LoadImage(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
-    Compose([LoadImage(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
+    Compose([LoadImage(), AddChannel(), RandAdjustContrast(prob=1.0)]),
+    Compose([LoadImage(), AddChannel(), RandAdjustContrast(prob=1.0)]),
     (0, 1),
     (1, 128, 128, 128),
 ]
@@ -39,20 +39,21 @@ TEST_CASE_2 = [
 
 class TestCompose(Compose):
     def __call__(self, input_):
-        img, metadata = self.transforms[0](input_)
+        img = self.transforms[0](input_)
+        metadata = img.meta
         img = self.transforms[1](img)
         img, _, _ = self.transforms[2](img, metadata["affine"])
         return self.transforms[3](img), metadata
 
 
 TEST_CASE_3 = [
-    TestCompose([LoadImage(image_only=False), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
-    TestCompose([LoadImage(image_only=False), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
+    TestCompose([LoadImage(), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
+    TestCompose([LoadImage(), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
     (0, 2),
     (1, 64, 64, 33),
 ]
 
-TEST_CASE_4 = [Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]), (1, 128, 128, 128)]
+TEST_CASE_4 = [Compose([LoadImage(), AddChannel(), RandGaussianNoise(prob=1.0)]), (1, 128, 128, 128)]
 
 
 class TestArrayDataset(unittest.TestCase):

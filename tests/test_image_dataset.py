@@ -15,6 +15,7 @@ import unittest
 
 import nibabel as nib
 import numpy as np
+import torch
 
 from monai.data import ImageDataset
 from monai.transforms import (
@@ -93,7 +94,7 @@ class TestImageDataset(unittest.TestCase):
             # loading no meta, int
             dataset = ImageDataset(full_names, dtype=np.float16)
             for d, _ in zip(dataset, ref_data):
-                self.assertEqual(d.dtype, np.float16)
+                self.assertEqual(d.dtype, torch.float16)
 
             # loading with meta, no transform
             dataset = ImageDataset(full_names, image_only=False)

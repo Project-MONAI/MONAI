@@ -18,7 +18,7 @@ import numpy as np
 from parameterized import parameterized
 from PIL import Image
 
-from monai.transforms import EnsureChannelFirstd, LoadImaged
+from monai.transforms import EnsureChannelFirstd, FromMetaTensord, LoadImaged
 from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS
 
@@ -43,6 +43,7 @@ class TestEnsureChannelFirstd(unittest.TestCase):
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
             for p in TEST_NDARRAYS:
                 result = LoadImaged(**input_param)({"img": filenames})
+                result = FromMetaTensord("img")(result)
                 result["img"] = p(result["img"])
                 result = EnsureChannelFirstd(**input_param)(result)
                 self.assertEqual(result["img"].shape[0], len(filenames))
@@ -54,6 +55,7 @@ class TestEnsureChannelFirstd(unittest.TestCase):
             filename = os.path.join(tempdir, "test_image.png")
             Image.fromarray(test_image.astype("uint8")).save(filename)
             result = LoadImaged(keys="img")({"img": filename})
+            result = FromMetaTensord(keys="img")(result)
             result = EnsureChannelFirstd(keys="img")(result)
             self.assertEqual(result["img"].shape[0], 3)
 
