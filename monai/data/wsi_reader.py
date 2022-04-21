@@ -17,7 +17,7 @@ import numpy as np
 from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.transforms.utility.array import EnsureChannelFirst
+from monai.transforms.utility.array import AsChannelFirst
 from monai.utils import ensure_tuple, optional_import, require_pkg
 
 CuImage, _ = optional_import("cucim", name="CuImage")
@@ -105,7 +105,7 @@ class BaseWSIReader(ImageReader):
     @abstractmethod
     def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
         """
-        Extracts and returns metadata form the whole slide image.
+        Returns metadata of the extracted patch from the whole slide image.
 
         Args:
             patch: extracted patch from whole slide image
@@ -217,10 +217,11 @@ class WSIReader(BaseWSIReader):
     def __init__(self, backend="cucim", level: int = 0, **kwargs):
         super().__init__(level, **kwargs)
         self.backend = backend.lower()
+        self.reader: Union[CuCIMWSIReader, OpenSlideWSIReader]
         if self.backend == "cucim":
             self.reader = CuCIMWSIReader(level=level, **kwargs)
         elif self.backend == "openslide":
-            self.reader = OpenSlideWSIReader(level=level, **kwargs)  # type: ignore
+            self.reader = OpenSlideWSIReader(level=level, **kwargs)
         else:
             raise ValueError("The supported backends are: cucim")
         self.supported_suffixes = self.reader.supported_suffixes
@@ -235,7 +236,7 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_level_count(wsi)
 
-    def get_size(self, wsi, level) -> Tuple[int, int]:
+    def get_size(self, wsi, level: int) -> Tuple[int, int]:
         """
         Returns the size of the whole slide image at a given level.
 
@@ -248,7 +249,7 @@ class WSIReader(BaseWSIReader):
 
     def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
         """
-        Extracts and returns metadata form the whole slide image.
+        Returns metadata of the extracted patch from the whole slide image.
 
         Args:
             patch: extracted patch from whole slide image
@@ -323,7 +324,7 @@ class CuCIMWSIReader(BaseWSIReader):
         return wsi.resolutions["level_count"]  # type: ignore
 
     @staticmethod
-    def get_size(wsi, level) -> Tuple[int, int]:
+    def get_size(wsi, level: int) -> Tuple[int, int]:
         """
         Returns the size of the whole slide image at a given level.
 
@@ -336,7 +337,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
     def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
         """
-        Extracts and returns metadata form the whole slide image.
+        Returns metadata of the extracted patch from the whole slide image.
 
         Args:
             patch: extracted patch from whole slide image
@@ -404,7 +405,7 @@ class CuCIMWSIReader(BaseWSIReader):
         patch = np.asarray(patch, dtype=dtype)
 
         # Make it channel first
-        patch = EnsureChannelFirst()(patch, {"original_channel_dim": -1})  # type: ignore
+        patch = AsChannelFirst()(patch)  # type: ignore
 
         # Check if the color channel is 3 (RGB) or 4 (RGBA)
         if mode == "RGBA" and patch.shape[0] != 4:
@@ -451,7 +452,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         return wsi.level_count  # type: ignore
 
     @staticmethod
-    def get_size(wsi, level) -> Tuple[int, int]:
+    def get_size(wsi, level: int) -> Tuple[int, int]:
         """
         Returns the size of the whole slide image at a given level.
 
@@ -464,7 +465,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
     def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
         """
-        Extracts and returns metadata form the whole slide image.
+        Returns metadata of the extracted patch from the whole slide image.
 
         Args:
             patch: extracted patch from whole slide image
@@ -534,7 +535,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         patch = np.asarray(pil_patch, dtype=dtype)
 
         # Make it channel first
-        patch = EnsureChannelFirst()(patch, {"original_channel_dim": -1})  # type: ignore
+        patch = AsChannelFirst()(patch)  # type: ignore
 
         # Check if the color channel is 3 (RGB) or 4 (RGBA)
         if mode == "RGBA" and patch.shape[0] != 4:
