@@ -71,43 +71,40 @@ class PatchWSIDataset(Dataset):
         # Initialized an empty whole slide image object dict
         self.wsi_object_dict: Dict = {}
 
-    def _get_wsi_object(self, sample):
+    def _get_wsi_object(self, sample: Dict):
         image_path = sample["image"]
         if image_path not in self.wsi_object_dict:
             self.wsi_object_dict[image_path] = self.image_reader.read(image_path)
         return self.wsi_object_dict[image_path]
 
-    def _empty_wsi_object_dict(self):
-        self.wsi_object_dict = {}
-
-    def _get_label(self, sample):
+    def _get_label(self, sample: Dict):
         return np.array(sample["label"], dtype=np.float32)
 
-    def _get_location(self, sample):
+    def _get_location(self, sample: Dict):
         size = self._get_size(sample)
         return [sample["location"][i] - size[i] // 2 for i in range(len(size))]
 
-    def _get_level(self, sample):
+    def _get_level(self, sample: Dict):
         if self.level is None:
             return sample.get("level")
         return self.level
 
-    def _get_size(self, sample):
+    def _get_size(self, sample: Dict):
         if self.size is None:
             return ensure_tuple_rep(sample.get("size"), 2)
         return self.size
 
-    def _get_data(self, sample):
+    def _get_data(self, sample: Dict):
         if self.reader_name == "openslide":
-            self._empty_wsi_object_dict()
+            self.wsi_object_dict = {}
         wsi_obj = self._get_wsi_object(sample)
         location = self._get_location(sample)
         level = self._get_level(sample)
         size = self._get_size(sample)
         return self.image_reader.get_data(wsi=wsi_obj, location=location, size=size, level=level)
 
-    def __getitem__(self, index):
-        sample = self.data[index]
+    def __getitem__(self, index: int):
+        sample: Dict = self.data[index]
         image, metadata = self._get_data(sample)
         label = self._get_label(sample)
         patch = {"image": image, "label": label, "metadata": metadata}
