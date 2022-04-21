@@ -153,6 +153,7 @@ FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + "m
 def load_img_and_sample_ddf():
     # load image
     img = LoadImaged(keys="img")({"img": FILE_PATH})["img"]
+    img = img.detach().numpy()
     # W, H, D -> D, H, W
     img = img.transpose((2, 1, 0))
 

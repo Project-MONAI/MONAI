@@ -123,7 +123,7 @@ TEST_CASE_18 = [
 
 
 TESTS_META = []
-for track_meta in (True, False):
+for track_meta in (False, True):
     TESTS_META.append([{}, (128, 128, 128), track_meta])
     TESTS_META.append([{"reader": "ITKReader", "fallback_only": False}, (128, 128, 128), track_meta])
 
