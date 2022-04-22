@@ -422,11 +422,11 @@ def ckpt_export(
     extra_files: Dict = {}
     for i in ensure_tuple(config_file_):
         # split the filename and directory
-        _, filename = os.path.split(i)
+        filename = os.path.basename(i)
         # remove extension
         filename, _ = os.path.splitext(filename)
         if filename in extra_files:
-            raise ValueError(f"already have config in the extra files with same file name: {filename}.")
+            raise ValueError(f"filename '{filename}' is given multiple times in config file list.")
         extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
 
     save_net_with_metadata(
