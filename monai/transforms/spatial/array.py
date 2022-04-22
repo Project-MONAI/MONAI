@@ -2476,9 +2476,9 @@ class GridSplit(Transform):
             The default is None, where the patch size will be inferred from the grid shape.
 
     Example:
-        Given a image (torch.Tensor or numpy.ndarray) with size of (3, 10, 10) and a grid of (2, 2),
-            it will return a Tensor or array with the side of (4, 3, 5, 5)
-        Here, if the size is provided, the returned shape will be (4, 3, size, size)
+        Given an image (torch.Tensor or numpy.ndarray) with size of (3, 10, 10) and a grid of (2, 2),
+        it will return a Tensor or array with the size of (4, 3, 5, 5).
+        Here, if the `size` is provided, the returned shape will be (4, 3, size, size)
 
     Note: This transform currently support only image with two spatial dimensions.
     """
