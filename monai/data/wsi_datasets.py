@@ -15,6 +15,7 @@ import numpy as np
 
 from monai.data import Dataset
 from monai.data.wsi_reader import WSIReader
+from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["PatchWSIDataset"]
@@ -103,11 +104,14 @@ class PatchWSIDataset(Dataset):
         size = self._get_size(sample)
         return self.image_reader.get_data(wsi=wsi_obj, location=location, size=size, level=level)
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
+        # Get a single entry of data
         sample: Dict = self.data[index]
+        # Extract patch image and associated metadata
         image, metadata = self._get_data(sample)
+        # Get the label
         label = self._get_label(sample)
+
+        # Create put all patch information together and apply transforms
         patch = {"image": image, "label": label, "metadata": metadata}
-        if self.transform:
-            patch = self.transform(patch)
-        return patch
+        return apply_transform(self.transform, patch) if self.transform else patch
