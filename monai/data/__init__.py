@@ -87,4 +87,4 @@ from .utils import (
     worker_init_fn,
     zoom_affine,
 )
-from .wsi_reader import BaseWSIReader, CuCIMWSIReader, WSIReader
+from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, WSIReader
