@@ -74,15 +74,16 @@ class PatchWSIDataset(Dataset):
 
         # Setup the WSI reader
         self.wsi_reader: Union[WSIReader, BaseWSIReader]
+        self.backend = ""
         if isinstance(reader, str):
-            self.reader_name = reader.lower()
-            self.wsi_reader = WSIReader(backend=self.reader_name, level=level, **kwargs)
+            self.backend = reader.lower()
+            self.wsi_reader = WSIReader(backend=self.backend, level=level, **kwargs)
         elif inspect.isclass(reader) and issubclass(reader, BaseWSIReader):
             self.wsi_reader = reader(level=level, **kwargs)
         elif isinstance(reader, BaseWSIReader):
             self.wsi_reader = reader
         else:
-            raise ValueError(f"unsupported reader type: {reader}.")
+            raise ValueError(f"Unsupported reader type: {reader}.")
 
         # Initialized an empty whole slide image object dict
         self.wsi_object_dict: Dict = {}
@@ -112,7 +113,7 @@ class PatchWSIDataset(Dataset):
 
     def _get_data(self, sample: Dict):
         # Don't store OpenSlide objects to avoid issues with OpenSlide internal cache
-        if self.reader_name == "openslide":
+        if self.backend == "openslide":
             self.wsi_object_dict = {}
         wsi_obj = self._get_wsi_object(sample)
         location = self._get_location(sample)
