@@ -16,9 +16,11 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import inspect
 import logging
 import sys
+import os
 import tempfile
 import traceback
 import warnings
+from glob import glob
 from pathlib import Path
 from pydoc import locate
 from typing import Dict, List, Optional, Sequence, Union, Callable
@@ -39,7 +41,7 @@ from monai.utils import InterpolateMode, OptionalImportError, ensure_tuple, look
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
 
-__all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
+__all__ = ["LoadImage", "SaveImage", "DownloadImage", "UploadImage", "SUPPORTED_READERS"]
 
 SUPPORTED_READERS = {
     "itkreader": ITKReader,
@@ -100,7 +102,6 @@ class LoadImage(Transform):
         image_only: bool = False,
         dtype: DtypeLike = np.float32,
         ensure_channel_first: bool = False,
-        network_downloader: Optional[Callable[[str], bytes]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -117,9 +118,6 @@ class LoadImage(Transform):
             dtype: if not None convert the loaded image to this data type.
             ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
                 the image array shape to `channel first`. default to `False`.
-            network_downloader: if not None paths are treated as pointing to network sources instead
-                of local files, they are downloaded using this callable, saved into temporary files and finally
-                read using proper reader, as in case of regular local files
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -138,7 +136,6 @@ class LoadImage(Transform):
         self.image_only = image_only
         self.dtype = dtype
         self.ensure_channel_first = ensure_channel_first
-        self.network_downloader = network_downloader
 
         self.readers: List[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -207,16 +204,6 @@ class LoadImage(Transform):
 
         """
         filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects
-        if self.network_downloader is not None:
-            tmp_filename = []
-            for f in filename:
-                tmp = tempfile.NamedTemporaryFile(suffix="_" + Path(f).name)
-                tmp.write(self.network_downloader(f))
-                tmp.flush()
-                tmp_filename.append(tmp)
-            original_filename = filename
-            filename = tuple(tmp.name for tmp in tmp_filename)
-
         img, err = None, []
         if reader is not None:
             img = reader.read(filename)  # runtime specified reader
@@ -262,11 +249,93 @@ class LoadImage(Transform):
 
         if self.image_only:
             return img_array
-        if self.network_downloader is not None:
-            filename = original_filename
-
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
 
+        return img_array, meta_data
+
+
+class DownloadImage(LoadImage):
+    """
+    Download image file or files from provided network storage path to local
+    temporary file(s) using `network_downloader` and load it to memory using
+    reader.  If reader is not specified, this class automatically chooses
+    readers based on the supported suffixes and in the following order:
+
+        - User-specified reader at runtime when calling this loader.
+        - User-specified reader in the constructor of `LoadImage`.
+        - Readers from the last to the first in the registered list.
+        - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
+          (npz, npy -> NumpyReader), (DICOM file -> ITKReader).
+    """
+
+    def __init__(
+        self,
+        network_downloader: Callable[[str], bytes],
+        reader=None,
+        image_only: bool = False,
+        dtype: DtypeLike = np.float32,
+        ensure_channel_first: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        """
+        Args:
+            network_downloader: callable, which downloads data from some
+                network storage for given path and returns raw bytes, which are
+                then saved into temporary file and loaded into memory using reader
+            reader: reader to load image file and meta data
+                - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
+                - if `reader` is a string, it's treated as a class name or dotted path
+                (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
+                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
+                a reader instance will be constructed with the `*args` and `**kwargs` parameters.
+                - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
+            image_only: if True return only the image volume, otherwise return image data array and header dict.
+            dtype: if not None convert the loaded image to this data type.
+            ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
+                the image array shape to `channel first`. default to `False`.
+            args: additional parameters for reader if providing a reader name.
+            kwargs: additional parameters for reader if providing a reader name.
+
+        Note:
+
+            - The transform returns an image data array if `image_only` is True,
+              or a tuple of two elements containing the data array, and the meta data in a dictionary format otherwise.
+            - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
+              readers. This might introduce overheads when handling the exceptions of trying the incompatible loaders.
+              In this case, it is therefore recommended setting the most appropriate reader as
+              the last item of the `reader` parameter.
+
+        """
+        super().__init__(reader, image_only, dtype, ensure_channel_first, *args, **kwargs)
+        self.network_downloader = network_downloader
+
+    # todo
+    def __call__(self, filename: Union[Sequence[PathLike], PathLike], reader: Optional[ImageReader] = None):
+        """
+        Load image file and meta data from the given filename(s).
+        If `reader` is not specified, this class automatically chooses readers based on the
+        reversed order of registered readers `self.readers`.
+
+        Args:
+            filename: path file or file-like object or a list of files.
+                will save the filename to meta_data with key `filename_or_obj`.
+                if provided a list of files, use the filename of first file to save,
+                and will stack them together as multi-channels data.
+                if provided directory path instead of file path, will treat it as
+                DICOM images series and read.
+            reader: runtime reader to load image file and meta data.
+
+        """
+        str_filename = tuple(f"{Path(s)}" for s in ensure_tuple(filename))
+        tmp_filename = []
+        for f in str_filename:
+            tmp = tempfile.NamedTemporaryFile(suffix="_" + Path(f).name)
+            tmp.write(self.network_downloader(f))
+            tmp.flush()
+            tmp_filename.append(tmp)
+        img_array, meta_data = super().__call__(tuple(tmp.name for tmp in tmp_filename), reader)
+        meta_data[Key.FILENAME_OR_OBJ] = str_filename[0]
         return img_array, meta_data
 
 
@@ -329,8 +398,6 @@ class SaveImage(Transform):
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
         channel_dim: the index of the channel dimension. Default to `0`.
             `None` to indicate no channel dimension.
-        network_uploader: if not None then images are saved (using writers) to temporary files and then
-            uploaded to some network storage using this function and generated output paths
     """
 
     def __init__(
@@ -351,14 +418,13 @@ class SaveImage(Transform):
         output_format: str = "",
         writer: Union[image_writer.ImageWriter, str, None] = None,
         channel_dim: Optional[int] = 0,
-        network_uploader: Optional[Callable[[bytes, str], None]] = None,
     ) -> None:
         self.folder_layout = FolderLayout(
             output_dir=output_dir,
             postfix=output_postfix,
             extension=output_ext,
             parent=separate_folder,
-            makedirs=True if network_uploader is None else False,
+            makedirs=True,
             data_root_dir=data_root_dir,
         )
 
@@ -383,7 +449,6 @@ class SaveImage(Transform):
         self.meta_kwargs = {"resample": resample, "mode": mode, "padding_mode": padding_mode, "dtype": dtype}
         self.write_kwargs = {"verbose": print_log}
         self._data_index = 0
-        self.network_uploader = network_uploader
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
         """
@@ -424,13 +489,7 @@ class SaveImage(Transform):
                 writer_obj = writer_cls(**self.init_kwargs)
                 writer_obj.set_data_array(data_array=img, **self.data_kwargs)
                 writer_obj.set_metadata(meta_dict=meta_data, **self.meta_kwargs)
-                if self.network_uploader is None:
-                    writer_obj.write(filename, **self.write_kwargs)
-                else:
-                    with tempfile.NamedTemporaryFile(suffix=self.output_ext) as tmp:
-                        writer_obj.write(tmp.name, **self.write_kwargs)
-                        tmp.flush()
-                        self.network_uploader(tmp.read(), filename)
+                writer_obj.write(filename, **self.write_kwargs)
                 self.writer_obj = writer_obj
             except Exception as e:
                 err.append(traceback.format_exc())
@@ -448,3 +507,120 @@ class SaveImage(Transform):
             "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
             f"   The current registered writers for {self.output_ext}: {self.writers}.\n{msg}"
         )
+
+
+class UploadImage(SaveImage):
+    """
+    Save the image (in the form of torch tensor or numpy ndarray) and metadata dictionary into local
+    temporary file and then upload it into network storage using `network_uploader`.
+
+    The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
+    where the `input_image_name` is extracted from the provided metadata dictionary.
+    If no metadata provided, a running index starting from 0 will be used as the filename prefix.
+
+    Args:
+        network_uploader: callable, which uploads raw bytes read from local temporary file
+            (containing saved image and metadata) into some network storage
+        output_dir: output image directory.
+        output_postfix: a string appended to all output file names, default to `trans`.
+        output_ext: output file extension name.
+        output_dtype: data type for saving data. Defaults to ``np.float32``.
+        resample: whether to resample image (if needed) before saving the data array,
+            based on the `spatial_shape` (and `original_affine`) from metadata.
+        mode: This option is used when ``resample=True``. Defaults to ``"nearest"``.
+            Depending on the writers, the possible options are
+
+            - {``"bilinear"``, ``"nearest"``, ``"bicubic"``}.
+              See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            - {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}.
+              See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+
+        padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
+            Possible options are {``"zeros"``, ``"border"``, ``"reflection"``}
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+        scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
+            [0, 255] (uint8) or [0, 65535] (uint16). Default is `None` (no scaling).
+        dtype: data type during resampling computation. Defaults to ``np.float64`` for best precision.
+            if None, use the data type of input data. To be compatible with other modules,
+        squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+            has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+            then if C==1, it will be saved as (H,W,D). If D is also 1, it will be saved as (H,W). If `false`,
+            image will always be saved as (H,W,D,C).
+        data_root_dir: if not empty, it specifies the beginning parts of the input file's
+            absolute path. It's used to compute `input_file_rel_path`, the relative path to the file from
+            `data_root_dir` to preserve folder structure when saving in case there are files in different
+            folders with the same file names. For example, with the following inputs:
+
+            - input_file_name: `/foo/bar/test1/image.nii`
+            - output_postfix: `seg`
+            - output_ext: `.nii.gz`
+            - output_dir: `/output`
+            - data_root_dir: `/foo/bar`
+
+            The output will be: /output/test1/image/image_seg.nii.gz
+
+        separate_folder: whether to save every file in a separate folder. For example: for the input filename
+            `image.nii`, postfix `seg` and folder_path `output`, if `separate_folder=True`, it will be saved as:
+            `output/image/image_seg.nii`, if `False`, saving as `output/image_seg.nii`. Default to `True`.
+        print_log: whether to print logs when saving. Default to `True`.
+        output_format: an optional string of filename extension to specify the output image writer.
+            see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
+        writer: a customised `monai.data.ImageWriter` subclass to save data arrays.
+            if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
+            if it's a string, it's treated as a class name or dotted path (such as ``"monai.data.ITKWriter"``);
+            the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
+        channel_dim: the index of the channel dimension. Default to `0`.
+            `None` to indicate no channel dimension.
+    """
+
+    def __init__(
+        self,
+        network_uploader: Callable[[bytes, str], None],
+        output_dir: PathLike = "./",
+        output_postfix: str = "trans",
+        output_ext: str = ".nii.gz",
+        output_dtype: DtypeLike = np.float32,
+        resample: bool = True,
+        mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        scale: Optional[int] = None,
+        dtype: DtypeLike = np.float64,
+        squeeze_end_dims: bool = True,
+        data_root_dir: PathLike = "",
+        separate_folder: bool = True,
+        print_log: bool = True,
+        output_format: str = "",
+        writer: Union[image_writer.ImageWriter, str, None] = None,
+        channel_dim: Optional[int] = 0,
+    ) -> None:
+        self.network_uploader = network_uploader
+        self.network_storage_output_dir = output_dir
+        super().__init__(
+            output_postfix=output_postfix,
+            output_ext=output_ext,
+            output_dtype=output_dtype,
+            resample=resample,
+            mode=mode,
+            padding_mode=padding_mode,
+            scale=scale,
+            dtype=dtype,
+            squeeze_end_dims=squeeze_end_dims,
+            data_root_dir=data_root_dir,
+            separate_folder=False,
+            print_log=print_log,
+            output_format=output_format,
+            writer=writer,
+            channel_dim=channel_dim
+        )
+
+    def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
+        """
+        Args:
+            img: target data content that save into file. The image should be channel-first, shape: `[C,H,W,[D]]`.
+            meta_data: key-value pairs of metadata corresponding to the data.
+        """
+        tmp_dir = tempfile.TemporaryDirectory()
+        self.folder_layout.output_dir = tmp_dir.name
+        super().__call__(img, meta_data)
+        with open(glob(f"{tmp_dir.name}/**/*{self.output_ext}", recursive=True)[0], "rb") as f:
+            self.network_uploader(f.read(), os.path.join(self.network_storage_output_dir, os.path.relpath(f.name, tmp_dir.name)))
