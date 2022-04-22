@@ -737,11 +737,9 @@ Spatial
     :members:
     :special-members: __call__
 
-`Split`
+`GridSplit`
 """"""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Zoom.png
-    :alt: example of Split
-.. autoclass:: Split
+.. autoclass:: GridSplit
     :members:
     :special-members: __call__
 
@@ -1515,11 +1513,9 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
-`Splitd`
+`GridSplitd`
 """""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Zoomd.png
-    :alt: example of Splitd
-.. autoclass:: Splitd
+.. autoclass:: GridSplitd
     :members:
     :special-members: __call__
 
