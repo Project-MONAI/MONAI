@@ -2539,7 +2539,7 @@ class GridSplit(Transform):
         """
         if self.size is not None:
             # Set the split size to the given default size
-            if self.size > image_size:
+            if any(self.size[i] > image_size[i] for i in range(len(self.grid))):
                 raise ValueError("The image size ({image_size})is smaller than the requested split size ({self.size})")
             split_size = self.size
         else:
