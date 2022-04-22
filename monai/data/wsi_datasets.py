@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
 from monai.data import Dataset
-from monai.data.wsi_reader import WSIReader
+from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
 
@@ -31,8 +32,10 @@ class PatchWSIDataset(Dataset):
         size: the size of patch to be extracted from the whole slide image.
         level: the level at which the patches to be extracted (default to 0).
         transform: transforms to be executed on input data.
-        reader_name: the name of library to be used for loading whole slide imaging, as the backend of `monai.data.WSIReader`
-            Defaults to CuCIM.
+        reader: the module to be used for loading whole slide imaging,
+            - if `reader` is a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
+            - if `reader` is a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
+            - if `reader` is an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
     Note:
         The input data has the following form as an example:
@@ -52,7 +55,8 @@ class PatchWSIDataset(Dataset):
         size: Optional[Union[int, Tuple[int, int]]] = None,
         level: Optional[int] = None,
         transform: Optional[Callable] = None,
-        reader_name: str = "cuCIM",
+        reader="cuCIM",
+        **kwargs,
     ):
         super().__init__(data, transform)
 
@@ -62,12 +66,23 @@ class PatchWSIDataset(Dataset):
         else:
             self.size = ensure_tuple_rep(size, 2)
 
-        # Create a default level
+        # Create a default level that override all levels if it is not None
         self.level = level
+        # Set the default WSIReader's level to 0 if level is not provided
+        if level is None:
+            level = 0
 
-        # Setup the WSI reader backend
-        self.reader_name = reader_name.lower()
-        self.image_reader = WSIReader(backend=self.reader_name)
+        # Setup the WSI reader
+        self.wsi_reader: Union[WSIReader, BaseWSIReader]
+        if isinstance(reader, str):
+            self.reader_name = reader.lower()
+            self.wsi_reader = WSIReader(backend=self.reader_name, level=level, **kwargs)
+        elif inspect.isclass(reader) and issubclass(reader, BaseWSIReader):
+            self.wsi_reader = reader(level=level, **kwargs)
+        elif isinstance(reader, BaseWSIReader):
+            self.wsi_reader = reader
+        else:
+            raise ValueError(f"unsupported reader type: {reader}.")
 
         # Initialized an empty whole slide image object dict
         self.wsi_object_dict: Dict = {}
@@ -75,7 +90,7 @@ class PatchWSIDataset(Dataset):
     def _get_wsi_object(self, sample: Dict):
         image_path = sample["image"]
         if image_path not in self.wsi_object_dict:
-            self.wsi_object_dict[image_path] = self.image_reader.read(image_path)
+            self.wsi_object_dict[image_path] = self.wsi_reader.read(image_path)
         return self.wsi_object_dict[image_path]
 
     def _get_label(self, sample: Dict):
@@ -87,7 +102,7 @@ class PatchWSIDataset(Dataset):
 
     def _get_level(self, sample: Dict):
         if self.level is None:
-            return sample.get("level")
+            return sample.get("level", 0)
         return self.level
 
     def _get_size(self, sample: Dict):
@@ -97,12 +112,13 @@ class PatchWSIDataset(Dataset):
 
     def _get_data(self, sample: Dict):
         if self.reader_name == "openslide":
+            # to avoid OpenSlide internal cache
             self.wsi_object_dict = {}
         wsi_obj = self._get_wsi_object(sample)
         location = self._get_location(sample)
         level = self._get_level(sample)
         size = self._get_size(sample)
-        return self.image_reader.get_data(wsi=wsi_obj, location=location, size=size, level=level)
+        return self.wsi_reader.get_data(wsi=wsi_obj, location=location, size=size, level=level)
 
     def _transform(self, index: int):
         # Get a single entry of data
