@@ -101,11 +101,11 @@ class TestLoad(unittest.TestCase):
                 # load weights
                 weights = load(
                     name=bundle_name,
+                    model_file=model_file,
                     bundle_dir=tempdir,
                     repo=repo,
                     progress=False,
                     device=device,
-                    model_file=model_file,
                 )
 
                 # prepare network
@@ -128,10 +128,10 @@ class TestLoad(unittest.TestCase):
                 # there is no need to input `repo`
                 model_2 = load(
                     name=bundle_name,
+                    model_file=model_file,
                     bundle_dir=tempdir,
                     progress=False,
                     device=device,
-                    model_file=model_file,
                     net_name=model_name,
                     **net_args,
                 )
@@ -146,21 +146,27 @@ class TestLoad(unittest.TestCase):
             # load ts module
             with tempfile.TemporaryDirectory() as tempdir:
                 # load ts module
-                model_ts = load(
+                model_ts, metadata, extra_file_dict = load(
                     name=bundle_name,
+                    model_file=model_file,
                     load_ts_module=True,
                     bundle_dir=tempdir,
                     repo=repo,
-                    model_file=model_file,
                     progress=False,
                     device=device,
-                )[0]
+                    config_files=("test_config.txt",),
+                )
 
-                # prepare and test
+                # prepare and test ts
                 input_tensor = torch.load(os.path.join(tempdir, bundle_name, bundle_files[1]), map_location=device)
                 output = model_ts.forward(input_tensor)
                 expected_output = torch.load(os.path.join(tempdir, bundle_name, bundle_files[0]), map_location=device)
                 torch.testing.assert_allclose(output, expected_output)
+                # test metadata
+                self.assertTrue(metadata["foo"] == [1, 2])
+                self.assertTrue(metadata["bar"] == "string")
+                # test extra_file_dict
+                self.assertTrue("test_config.txt" in extra_file_dict.keys())
 
 
 if __name__ == "__main__":

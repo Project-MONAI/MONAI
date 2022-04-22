@@ -224,26 +224,24 @@ def download(
 
 def load(
     name: str,
+    model_file: Optional[str] = None,
     load_ts_module: bool = False,
     bundle_dir: Optional[PathLike] = None,
     source: str = "github",
     repo: Optional[str] = None,
     progress: bool = True,
     device: Optional[str] = None,
-    model_file=None,
     config_files: Sequence[str] = (),
     net_name: Optional[str] = None,
     **net_kwargs,
 ):
     """
     Load model weights or TorchScript module of a bundle.
-    If loading a TorchScript module, the corresponding metadata dict, and extra files dict will be returned (please
-    check `monai.data.load_net_with_metadata` for more details).
-    If the weights file does not exist locally, it will be downloaded first.
-    The function can return weights, an instantiated network that loaded the weights, or a TorchScript module.
 
     Args:
         name: bundle name.
+        model_file: the relative path of the model weights or TorchScript module within bundle.
+            If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
         bundle_dir: the directory the weights/TorchScript module will be loaded from.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
@@ -254,13 +252,19 @@ def load(
             For example: `Project-MONAI/MONAI-extra-test-data/0.8.1`.
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
-        model_file: the relative path of the model weights or TorchScript module within bundle.
-            If `None`, "models/model.pt" or "models/model.ts" will be used.
         config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
             see `_extra_files` in `torch.jit.load` for more details.
         net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
             This argument only works when loading weights.
         net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
+
+    Returns:
+        1. If `load_ts_module` is `False` and `net_name` is `None`, return model weights.
+        2. If `load_ts_module` is `False` and `net_name` is not `None`,
+            return an instantiated network that loaded the weights.
+        3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
+            the corresponding metadata dict, and extra files dict.
+            please check `monai.data.load_net_with_metadata` for more details.
 
     """
     bundle_dir_ = _process_bundle_dir(bundle_dir)
