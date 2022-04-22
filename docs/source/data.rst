@@ -299,6 +299,10 @@ CuCIMWSIReader
 .. autoclass:: monai.data.CuCIMWSIReader
   :members:
 
+OpenSlideWSIReader
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.OpenSlideWSIReader
+  :members:
 
 Whole slide image datasets
 --------------------------
@@ -306,4 +310,4 @@ Whole slide image datasets
 PatchWSIDataset
 ~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.PatchWSIDataset
-  :members:
+    :members:

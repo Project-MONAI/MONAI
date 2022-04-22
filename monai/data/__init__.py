@@ -88,4 +88,4 @@ from .utils import (
     zoom_affine,
 )
 from .wsi_datasets import PatchWSIDataset
-from .wsi_reader import BaseWSIReader, CuCIMWSIReader, WSIReader
+from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, WSIReader
