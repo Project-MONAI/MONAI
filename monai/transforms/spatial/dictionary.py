@@ -34,6 +34,7 @@ from monai.transforms.spatial.array import (
     AffineGrid,
     Flip,
     GridDistortion,
+    GridSplit,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
@@ -49,7 +50,6 @@ from monai.transforms.spatial.array import (
     Rotate90,
     Spacing,
     SpatialResample,
-    Split,
     Zoom,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
@@ -130,6 +130,9 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
+    "GridSplitd",
+    "GridSplitD",
+    "GridSplitDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
@@ -2150,20 +2153,22 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         return d
 
 
-class Splitd(MapTransform):
+class GridSplitd(MapTransform):
     """
     Split the image into patches based on the provided grid in 2D.
 
     Args:
+        keys: keys of the corresponding items to be transformed.
         grid: a tuple define the shape of the grid upon which the image is split. Defaults to (2, 2)
         size: a tuple or an integer that defines the output patch sizes.
             If it's an integer, the value will be repeated for each dimension.
             The default is None, where the patch size will be inferred from the grid shape.
+        allow_missing_keys: don't raise exception if key is missing.
 
     Note: This transform currently support only image with two spatial dimensions.
     """
 
-    backend = Split.backend
+    backend = GridSplit.backend
 
     def __init__(
         self,
@@ -2173,7 +2178,7 @@ class Splitd(MapTransform):
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
-        self.splitter = Split(grid=grid, size=size)
+        self.splitter = GridSplit(grid=grid, size=size)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -2202,4 +2207,4 @@ RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
-SplitD = SplitDict = Splitd
+GridSplitD = GridSplitDict = GridSplitd

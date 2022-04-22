@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.transforms import SplitDict
+from monai.transforms import GridSplitd
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 A11 = torch.randn(3, 2, 2)
@@ -75,19 +75,19 @@ for p in TEST_NDARRAYS:
     TEST_MULTIPLE.append([p, *TEST_CASE_MC_2])
 
 
-class TestSplitDict(unittest.TestCase):
+class TestGridSplitd(unittest.TestCase):
     @parameterized.expand(TEST_SINGLE)
     def test_split_patch_single_call(self, in_type, input_parameters, img_dict, expected):
         input_dict = {}
         for k, v in img_dict.items():
             input_dict[k] = in_type(v)
-        splitter = SplitDict(**input_parameters)
+        splitter = GridSplitd(**input_parameters)
         output = splitter(input_dict)[input_parameters["keys"]]
         assert_allclose(output, expected, type_test=False)
 
     @parameterized.expand(TEST_MULTIPLE)
     def test_split_patch_multiple_call(self, in_type, input_parameters, img_list, expected_list):
-        splitter = SplitDict(**input_parameters)
+        splitter = GridSplitd(**input_parameters)
         for img_dict, expected in zip(img_list, expected_list):
             input_dict = {}
             for k, v in img_dict.items():

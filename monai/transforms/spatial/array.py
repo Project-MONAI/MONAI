@@ -66,7 +66,7 @@ __all__ = [
     "Orientation",
     "Flip",
     "GridDistortion",
-    "Resize",
+    "GridSplit" "Resize",
     "Rotate",
     "Zoom",
     "Rotate90",
@@ -2465,7 +2465,7 @@ class RandGridDistortion(RandomizableTransform):
         return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)
 
 
-class Split(Transform):
+class GridSplit(Transform):
     """
     Split the image into patches based on the provided grid in 2D.
 
@@ -2485,10 +2485,7 @@ class Split(Transform):
         self.grid = grid
 
         # Patch size
-        if size is None:
-            self.size = None
-        else:
-            self.size = ensure_tuple_rep(size, len(self.grid))
+        self.size = None if size is None else ensure_tuple_rep(size, len(self.grid))
 
     def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
         if self.grid == (1, 1) and self.size is None:
@@ -2499,7 +2496,7 @@ class Split(Transform):
             else:
                 raise ValueError(f"Input type [{type(image)}] is not supported.")
 
-        size, steps = self.get_params(image.shape[1:])
+        size, steps = self._get_params(image.shape[1:])
         patches: NdarrayOrTensor
         if isinstance(image, torch.Tensor):
             patches = (
@@ -2528,14 +2525,22 @@ class Split(Transform):
 
         return patches
 
-    def get_params(self, image_size):
-        if self.size is None:
-            size = tuple(image_size[i] // self.grid[i] for i in range(2))
+    def _get_params(self, image_size: Union[Sequence[int], np.ndarray]):
+        """
+        Calculate the size and step required for splitting the image
+        Args:
+            The size of the input image
+        """
+        if self.size is not None:
+            # Set the requested size
+            split_size = self.size
         else:
-            size = self.size
+            # infer each sub-image size from the image size and the grid
+            split_size = tuple(image_size[i] // self.grid[i] for i in range(len(self.grid)))
 
         steps = tuple(
-            (image_size[i] - size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i] for i in range(2)
+            (image_size[i] - split_size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
+            for i in range(len(self.grid))
         )
 
-        return size, steps
+        return split_size, steps

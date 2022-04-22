@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.transforms import Split
+from monai.transforms import GridSplit
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 A11 = torch.randn(3, 2, 2)
@@ -63,17 +63,17 @@ for p in TEST_NDARRAYS:
     TEST_MULTIPLE.append([p, *TEST_CASE_MC_2])
 
 
-class TestSplit(unittest.TestCase):
+class TestGridSplit(unittest.TestCase):
     @parameterized.expand(TEST_SINGLE)
     def test_split_patch_single_call(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
-        splitter = Split(**input_parameters)
+        splitter = GridSplit(**input_parameters)
         output = splitter(input_image)
         assert_allclose(output, expected, type_test=False)
 
     @parameterized.expand(TEST_MULTIPLE)
     def test_split_patch_multiple_call(self, in_type, input_parameters, img_list, expected_list):
-        splitter = Split(**input_parameters)
+        splitter = GridSplit(**input_parameters)
         for image, expected in zip(img_list, expected_list):
             input_image = in_type(image)
             output = splitter(input_image)
