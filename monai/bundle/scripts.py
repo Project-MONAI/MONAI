@@ -172,8 +172,11 @@ def download(
         python -m monai.bundle download --name "bundle_name" --url <url>
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
-        # Other args still can override the default args at runtime:
-        python -m monai.bundle download --args_file "/workspace/data/args.json" --source "github"
+        # Other args still can override the default args at runtime.
+        # The content of the JSON / YAML file is a dictionary. For example:
+        # {"name": "spleen", "bundle_dir": "download", "source": ""}
+        # then do the following command for downloading:
+        python -m monai.bundle download --args_file "args.json" --source "github"
 
     Args:
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
