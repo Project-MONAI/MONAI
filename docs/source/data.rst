@@ -303,3 +303,11 @@ OpenSlideWSIReader
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.OpenSlideWSIReader
   :members:
+
+Whole slide image datasets
+--------------------------
+
+PatchWSIDataset
+~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.PatchWSIDataset
+    :members:
