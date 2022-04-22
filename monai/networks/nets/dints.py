@@ -474,7 +474,9 @@ class DiNTS(nn.Module):
                         bias=False,
                         dilation=1,
                     ),
-                    get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[res_idx - 1]),
+                    get_norm_layer(
+                        name=norm_name, spatial_dims=spatial_dims, channels=self.filter_nums[max(res_idx - 1, 0)]
+                    ),
                     nn.Upsample(scale_factor=2 ** (res_idx != 0), mode=mode, align_corners=True),
                 )
 
