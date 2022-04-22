@@ -36,6 +36,7 @@ class PatchWSIDataset(Dataset):
             - if `reader` is a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
             - if `reader` is a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
             - if `reader` is an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+        kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
     Note:
         The input data has the following form as an example:
