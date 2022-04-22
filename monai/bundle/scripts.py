@@ -30,7 +30,7 @@ from monai.networks import convert_to_torchscript, copy_model_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
 
 validate, _ = optional_import("jsonschema", name="validate")
-exceptions, _ = optional_import("jsonschema", name="exceptions")
+ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests_get, has_requests = optional_import("requests", name="get")
 
@@ -413,12 +413,9 @@ def verify_metadata(
     try:
         # the rest key-values in the _args are for `validate` API
         validate(instance=metadata, schema=schema, **_args)
-    except exceptions.ValidationError as e:
+    except ValidationError as e:
         # as the error message is very long, only extract the key information
         logger.info(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
-        return
-    except exceptions.SchemaError as e:
-        logger.info(str(e))
         return
     logger.info("metadata is verified with no error.")
 
