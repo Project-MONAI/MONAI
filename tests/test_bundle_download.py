@@ -42,6 +42,7 @@ TEST_CASE_3 = [
     "test_bundle",
     "Project-MONAI/MONAI-extra-test-data/0.8.1",
     "cuda" if torch.cuda.is_available() else "cpu",
+    "model.pt",
 ]
 
 TEST_CASE_4 = [
@@ -49,6 +50,7 @@ TEST_CASE_4 = [
     "test_bundle",
     "Project-MONAI/MONAI-extra-test-data/0.8.1",
     "cuda" if torch.cuda.is_available() else "cpu",
+    "model.ts",
 ]
 
 
@@ -92,12 +94,19 @@ class TestDownload(unittest.TestCase):
 class TestLoad(unittest.TestCase):
     @parameterized.expand([TEST_CASE_3])
     @skip_if_quick
-    def test_load_weights(self, bundle_files, bundle_name, repo, device):
+    def test_load_weights(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
             # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
                 # load weights
-                weights = load(name=bundle_name, bundle_dir=tempdir, repo=repo, progress=False, device=device)
+                weights = load(
+                    name=bundle_name,
+                    bundle_dir=tempdir,
+                    repo=repo,
+                    progress=False,
+                    device=device,
+                    model_file=model_file,
+                )
 
                 # prepare network
                 with open(os.path.join(tempdir, bundle_name, bundle_files[2])) as f:
@@ -118,7 +127,13 @@ class TestLoad(unittest.TestCase):
                 # load instantiated model directly and test, since the bundle has been downloaded,
                 # there is no need to input `repo`
                 model_2 = load(
-                    name=bundle_name, bundle_dir=tempdir, progress=False, device=device, net_name=model_name, **net_args
+                    name=bundle_name,
+                    bundle_dir=tempdir,
+                    progress=False,
+                    device=device,
+                    model_file=model_file,
+                    net_name=model_name,
+                    **net_args,
                 )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
@@ -126,14 +141,20 @@ class TestLoad(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_4])
     @skip_if_quick
-    def test_load_ts_module(self, bundle_files, bundle_name, repo, device):
+    def test_load_ts_module(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
             # load ts module
             with tempfile.TemporaryDirectory() as tempdir:
                 # load ts module
                 model_ts = load(
-                    name=bundle_name, load_ts_module=True, bundle_dir=tempdir, repo=repo, progress=False, device=device
-                )
+                    name=bundle_name,
+                    load_ts_module=True,
+                    bundle_dir=tempdir,
+                    repo=repo,
+                    model_file=model_file,
+                    progress=False,
+                    device=device,
+                )[0]
 
                 # prepare and test
                 input_tensor = torch.load(os.path.join(tempdir, bundle_name, bundle_files[1]), map_location=device)

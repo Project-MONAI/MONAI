@@ -25,12 +25,12 @@ from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.config import IgniteInfo, PathLike
-from monai.data import save_net_with_metadata
+from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
 
 validate, _ = optional_import("jsonschema", name="validate")
-exceptions, _ = optional_import("jsonschema", name="exceptions")
+ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests_get, has_requests = optional_import("requests", name="get")
 
@@ -136,6 +136,16 @@ def _download_from_github(repo: str, download_path: Path, filename: str, progres
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
+def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
+    if bundle_dir is None:
+        get_dir, has_home = optional_import("torch.hub", name="get_dir")
+        if has_home:
+            bundle_dir = Path(get_dir()) / "bundle"
+        else:
+            raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
+    return Path(bundle_dir)
+
+
 def download(
     name: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
@@ -191,13 +201,7 @@ def download(
         _args, name=None, bundle_dir=None, source="github", repo=None, url=None, progress=True
     )
 
-    if bundle_dir_ is None:
-        get_dir, has_home = optional_import("torch.hub", name="get_dir")
-        if has_home:
-            bundle_dir_ = Path(get_dir()) / "bundle"
-        else:
-            raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
-    bundle_dir_ = Path(bundle_dir_)
+    bundle_dir_ = _process_bundle_dir(bundle_dir_)
 
     if url_ is not None:
         if name is not None:
@@ -225,12 +229,16 @@ def load(
     source: str = "github",
     repo: Optional[str] = None,
     progress: bool = True,
-    device: str = "cpu",
+    device: Optional[str] = None,
+    model_file=None,
+    config_files: Sequence[str] = (),
     net_name: Optional[str] = None,
     **net_kwargs,
 ):
     """
     Load model weights or TorchScript module of a bundle.
+    If loading a TorchScript module, the corresponding metadata dict, and extra files dict will be returned (please
+    check `monai.data.load_net_with_metadata` for more details).
     If the weights file does not exist locally, it will be downloaded first.
     The function can return weights, an instantiated network that loaded the weights, or a TorchScript module.
 
@@ -245,30 +253,31 @@ def load(
             If `source` is `github`, it should be in the form of `repo_owner/repo_name/release_tag`.
             For example: `Project-MONAI/MONAI-extra-test-data/0.8.1`.
         progress: whether to display a progress bar when downloading.
-        device: target device of returned weights or module.
+        device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
+        model_file: the relative path of the model weights or TorchScript module within bundle.
+            If `None`, "models/model.pt" or "models/model.ts" will be used.
+        config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
+            see `_extra_files` in `torch.jit.load` for more details.
         net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
             This argument only works when loading weights.
         net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
 
     """
-    if bundle_dir is None:
-        get_dir, has_home = optional_import("torch.hub", name="get_dir")
-        if has_home:
-            bundle_dir = Path(get_dir()) / "bundle"
-        else:
-            raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
-    bundle_dir = Path(bundle_dir)
+    bundle_dir_ = _process_bundle_dir(bundle_dir)
 
-    weights_name: str = "model.ts" if load_ts_module is True else "model.pt"
-    model_file_path = os.path.join(bundle_dir, name, weights_name)
-    if not os.path.exists(model_file_path):
-        download(name=name, bundle_dir=bundle_dir, source=source, repo=repo, progress=progress)
+    if model_file is None:
+        model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
+    full_path = os.path.join(bundle_dir_, name, model_file)
+    if not os.path.exists(full_path):
+        download(name=name, bundle_dir=bundle_dir_, source=source, repo=repo, progress=progress)
 
+    if device is None:
+        device = "cuda:0" if is_available() else "cpu"
     # loading with `torch.jit.load`
     if load_ts_module is True:
-        return torch.jit.load(model_file_path, map_location=device)
+        return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
     # loading with `torch.load`
-    model_dict = torch.load(model_file_path, map_location=device)
+    model_dict = torch.load(full_path, map_location=torch.device(device))
 
     if net_name is None:
         return model_dict
@@ -413,12 +422,9 @@ def verify_metadata(
     try:
         # the rest key-values in the _args are for `validate` API
         validate(instance=metadata, schema=schema, **_args)
-    except exceptions.ValidationError as e:
+    except ValidationError as e:
         # as the error message is very long, only extract the key information
         logger.info(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
-        return
-    except exceptions.SchemaError as e:
-        logger.info(str(e))
         return
     logger.info("metadata is verified with no error.")
 
