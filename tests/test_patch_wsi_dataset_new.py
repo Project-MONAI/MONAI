@@ -18,6 +18,7 @@ from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.data import PatchWSIDataset
+from monai.data.wsi_reader import CuCIMWSIReader
 from monai.utils import optional_import
 from tests.utils import download_url_or_skip_test, testing_data_config
 
@@ -34,27 +35,17 @@ base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 TEST_CASE_0 = [
-    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": (1, 1), "reader_name": "cuCIM"},
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1], "level": 0}], "size": (1, 1), "reader": "cuCIM"},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_0_L1 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "size": (1, 1),
-        "level": 1,
-        "reader_name": "cuCIM",
-    },
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": (1, 1), "level": 1, "reader": "cuCIM"},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_0_L2 = [
-    {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
-        "size": (1, 1),
-        "level": 1,
-        "reader_name": "cuCIM",
-    },
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": (1, 1), "level": 1, "reader": "cuCIM"},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
@@ -65,15 +56,29 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": 1, "reader_name": "cuCIM"},
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": 1, "level": 0, "reader": "cuCIM"},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_3 = [
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]}], "size": 1, "reader": "cuCIM"},
+    {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
+]
+
+TEST_CASE_4 = [
     {
         "data": [{"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]}],
         "size": 1,
-        "reader_name": "cuCIM",
+        "reader": CuCIMWSIReader,
+    },
+    {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
+]
+
+TEST_CASE_5 = [
+    {
+        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]}],
+        "size": 1,
+        "reader": CuCIMWSIReader(level=0),
     },
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
 ]
@@ -90,7 +95,18 @@ class PatchWSIDatasetTests:
     class Tests(unittest.TestCase):
         backend = None
 
-        @parameterized.expand([TEST_CASE_0, TEST_CASE_0_L1, TEST_CASE_0_L2, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+        @parameterized.expand(
+            [
+                TEST_CASE_0,
+                TEST_CASE_0_L1,
+                TEST_CASE_0_L2,
+                TEST_CASE_1,
+                TEST_CASE_2,
+                TEST_CASE_3,
+                TEST_CASE_4,
+                TEST_CASE_5,
+            ]
+        )
         def test_read_patches_cucim(self, input_parameters, expected):
             dataset = PatchWSIDataset(**input_parameters)
             sample = dataset[0]
