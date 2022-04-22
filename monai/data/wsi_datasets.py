@@ -111,8 +111,8 @@ class PatchWSIDataset(Dataset):
         return self.size
 
     def _get_data(self, sample: Dict):
+        # Don't store OpenSlide objects to avoid issues with OpenSlide internal cache
         if self.reader_name == "openslide":
-            # to avoid OpenSlide internal cache
             self.wsi_object_dict = {}
         wsi_obj = self._get_wsi_object(sample)
         location = self._get_location(sample)
