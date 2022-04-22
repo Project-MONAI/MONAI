@@ -59,8 +59,38 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [
-    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]}], "size": 1},
+    {
+        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]}],
+        "size": 1,
+    },
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
+]
+
+TEST_CASE_4 = [
+    {
+        "data": [
+            {"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [[[1, 0], [0, 0]]]},
+        ],
+        "size": 1,
+    },
+    [
+        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
+        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1, 0], [0, 0]]])},
+    ],
+]
+
+TEST_CASE_5 = [
+    {
+        "data": [
+            {"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]], "size": 1, "level": 1},
+            {"image": FILE_PATH, "location": [100, 100], "label": [[[1, 0], [0, 0]]], "size": 1, "level": 1},
+        ],
+    },
+    [
+        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
+        {"image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8), "label": np.array([[[1, 0], [0, 0]]])},
+    ],
 ]
 
 
@@ -75,16 +105,7 @@ class PatchWSIDatasetTests:
     class Tests(unittest.TestCase):
         backend = None
 
-        @parameterized.expand(
-            [
-                TEST_CASE_0,
-                TEST_CASE_0_L1,
-                TEST_CASE_0_L2,
-                TEST_CASE_1,
-                TEST_CASE_2,
-                TEST_CASE_3,
-            ]
-        )
+        @parameterized.expand([TEST_CASE_0, TEST_CASE_0_L1, TEST_CASE_0_L2, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
         def test_read_patches_str(self, input_parameters, expected):
             dataset = PatchWSIDataset(reader=self.backend, **input_parameters)
             sample = dataset[0]
@@ -93,16 +114,7 @@ class PatchWSIDatasetTests:
             self.assertIsNone(assert_array_equal(sample["label"], expected["label"]))
             self.assertIsNone(assert_array_equal(sample["image"], expected["image"]))
 
-        @parameterized.expand(
-            [
-                TEST_CASE_0,
-                TEST_CASE_0_L1,
-                TEST_CASE_0_L2,
-                TEST_CASE_1,
-                TEST_CASE_2,
-                TEST_CASE_3,
-            ]
-        )
+        @parameterized.expand([TEST_CASE_0, TEST_CASE_0_L1, TEST_CASE_0_L2, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
         def test_read_patches_class(self, input_parameters, expected):
             if self.backend == "openslide":
                 reader = OpenSlideWSIReader
@@ -117,16 +129,7 @@ class PatchWSIDatasetTests:
             self.assertIsNone(assert_array_equal(sample["label"], expected["label"]))
             self.assertIsNone(assert_array_equal(sample["image"], expected["image"]))
 
-        @parameterized.expand(
-            [
-                TEST_CASE_0,
-                TEST_CASE_0_L1,
-                TEST_CASE_0_L2,
-                TEST_CASE_1,
-                TEST_CASE_2,
-                TEST_CASE_3,
-            ]
-        )
+        @parameterized.expand([TEST_CASE_0, TEST_CASE_0_L1, TEST_CASE_0_L2, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
         def test_read_patches_object(self, input_parameters, expected):
             if self.backend == "openslide":
                 reader = OpenSlideWSIReader(level=input_parameters.get("level", 0))
@@ -140,6 +143,15 @@ class PatchWSIDatasetTests:
             self.assertTupleEqual(sample["image"].shape, expected["image"].shape)
             self.assertIsNone(assert_array_equal(sample["label"], expected["label"]))
             self.assertIsNone(assert_array_equal(sample["image"], expected["image"]))
+
+        @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
+        def test_read_patches_str_multi(self, input_parameters, expected):
+            dataset = PatchWSIDataset(reader=self.backend, **input_parameters)
+            for i in range(len(dataset)):
+                self.assertTupleEqual(dataset[i]["label"].shape, expected[i]["label"].shape)
+                self.assertTupleEqual(dataset[i]["image"].shape, expected[i]["image"].shape)
+                self.assertIsNone(assert_array_equal(dataset[i]["label"], expected[i]["label"]))
+                self.assertIsNone(assert_array_equal(dataset[i]["image"], expected[i]["image"]))
 
 
 @skipUnless(has_cucim, "Requires cucim")
