@@ -28,6 +28,7 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
+from monai.data.meta_obj import MetaObj
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
@@ -346,9 +347,17 @@ def list_data_collate(batch: Sequence):
             ret = {}
             for k in elem:
                 key = k
-                ret[key] = default_collate([d[key] for d in data])
-            return ret
-        return default_collate(data)
+                data_for_batch = [d[key] for d in data]
+                ret[key] = default_collate(data_for_batch)
+                if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
+                    ret[key].meta = list_data_collate([i.meta for i in data_for_batch])
+                    ret[key].is_batch = True
+        else:
+            ret = default_collate(data)
+            if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
+                ret.meta = list_data_collate([i.meta for i in data])
+                ret.is_batch = True
+        return ret
     except RuntimeError as re:
         re_str = str(re)
         if "equal size" in re_str:
@@ -466,6 +475,12 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         if batch.ndim == 0:
             return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
+        # if of type MetaObj, decollate the metadata
+        if isinstance(batch, MetaObj) and all(isinstance(i, MetaObj) for i in out_list):
+            metas = decollate_batch(batch.meta)
+            for i in range(len(out_list)):
+                out_list[i].meta = metas[i]  # type: ignore
+                out_list[i].is_batch = False  # type: ignore
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)

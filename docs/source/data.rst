@@ -107,15 +107,22 @@ Patch-based dataset
 .. autoclass:: GridPatchDataset
   :members:
 
-`PatchIter`
-~~~~~~~~~~~
-.. autoclass:: PatchIter
-  :members:
-
 `PatchDataset`
 ~~~~~~~~~~~~~~
 .. autoclass:: PatchDataset
   :members:
+
+`PatchIter`
+"""""""""""
+.. autoclass:: PatchIter
+    :members:
+    :special-members: __call__
+
+`PatchIterd`
+""""""""""""
+.. autoclass:: PatchIterd
+    :members:
+    :special-members: __call__
 
 Image reader
 ------------
@@ -145,9 +152,22 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+Whole slide image reader
+------------------------
+
+BaseWSIReader
+~~~~~~~~~~~~~
+.. autoclass:: BaseWSIReader
+  :members:
+
 WSIReader
 ~~~~~~~~~
 .. autoclass:: WSIReader
+  :members:
+
+CuCIMWSIReader
+~~~~~~~~~~~~~~
+.. autoclass:: CuCIMWSIReader
   :members:
 
 Image writer
@@ -264,3 +284,14 @@ ThreadDataLoader
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
+
+
+Meta Object
+-----------
+.. automodule:: monai.data.meta_obj
+    :members:
+
+MetaTensor
+----------
+.. autoclass:: monai.data.MetaTensor
+   :members:

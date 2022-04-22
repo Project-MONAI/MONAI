@@ -15,7 +15,7 @@ import numpy as np
 import torch
 
 from monai.losses import DiceFocalLoss, DiceLoss, FocalLoss
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import test_script_save
 
 
 class TestDiceFocalLoss(unittest.TestCase):
@@ -61,7 +61,6 @@ class TestDiceFocalLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             DiceFocalLoss(lambda_dice=-1.0)
 
-    @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):
         loss = DiceFocalLoss()
         test_input = torch.ones(2, 1, 8, 8)
