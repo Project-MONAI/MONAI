@@ -52,6 +52,7 @@ from monai.utils import (
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
+from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
@@ -305,6 +306,7 @@ class ResampleToMatch(SpatialResample):
         )
         dst_meta = deepcopy(dst_meta)
         dst_meta["affine"] = updated_affine
+        dst_meta[Key.FILENAME_OR_OBJ] = src_meta.get(Key.FILENAME_OR_OBJ)
         return img, dst_meta
 
 

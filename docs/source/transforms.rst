@@ -803,6 +803,12 @@ Utility
     :members:
     :special-members: __call__
 
+`SplitDim`
+""""""""""
+.. autoclass:: SplitDim
+    :members:
+    :special-members: __call__
+
 `SplitChannel`
 """"""""""""""
 .. autoclass:: SplitChannel
@@ -1638,6 +1644,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`SplitDimd`
+"""""""""""
+.. autoclass:: SplitDimd
+    :members:
+    :special-members: __call__
+
 `SplitChanneld`
 """""""""""""""
 .. autoclass:: SplitChanneld
@@ -1827,6 +1839,21 @@ Utility (Dict)
 `AddCoordinateChannelsd`
 """"""""""""""""""""""""
 .. autoclass:: AddCoordinateChannelsd
+    :members:
+    :special-members: __call__
+
+MetaTensor
+^^^^^^^^^^
+
+`ToMetaTensord`
+"""""""""""""""
+.. autoclass:: ToMetaTensord
+    :members:
+    :special-members: __call__
+
+`FromMetaTensord`
+"""""""""""""""""
+.. autoclass:: FromMetaTensord
     :members:
     :special-members: __call__
 

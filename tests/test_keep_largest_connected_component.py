@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.transforms import KeepLargestConnectedComponent
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils.type_conversion import convert_to_dst_type
-from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
 def to_onehot(x):
@@ -353,7 +353,6 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
         assert_allclose(result, expected, type_test=False)
 
     @parameterized.expand(TESTS)
-    @SkipIfBeforePyTorchVersion((1, 7))
     def test_correct_results_before_after_onehot(self, _, args, input_image, expected):
         """
         From torch==1.7, torch.argmax changes its mechanism that if there are multiple maximal values then the
