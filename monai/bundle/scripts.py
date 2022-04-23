@@ -429,7 +429,7 @@ def verify_metadata(
     try:
         # the rest key-values in the _args are for `validate` API
         validate(instance=metadata, schema=schema, **_args)
-    except ValidationError as e:
+    except ValidationError as e:  # pylint: disable=E0712
         # as the error message is very long, only extract the key information
         logger.info(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
         return
