@@ -84,7 +84,7 @@ TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
 TEST_CASE_RGB_1 = [np.ones((3, 100, 100), dtype=np.uint8)]  # CHW
 
-TEST_CASE_ERROR_GRAY = [np.ones((16, 16), dtype=np.uint8)]  # no color channel
+TEST_CASE_ERROR_GRAY = [np.ones((16, 16, 2), dtype=np.uint8)]  # wrong color channel
 TEST_CASE_ERROR_3D = [np.ones((16, 16, 16, 3), dtype=np.uint8)]  # 3D + color
 
 
@@ -115,7 +115,7 @@ def save_gray_tiff(array: np.ndarray, filename: str):
         filename: the filename to be used for the tiff file.
     """
     img_gray = array
-    imwrite(filename, img_gray, shape=img_gray.shape, photometric="rgb")
+    imwrite(filename, img_gray, shape=img_gray.shape, photometric="minisblack")
 
     return filename
 
