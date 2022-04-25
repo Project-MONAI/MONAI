@@ -21,7 +21,7 @@ class BoundaryEnhancementLoss(nn.Module):
         self,
         output_classes,
         device,
-        num_dims = 3,
+        num_dims=3,
     ):
         super(BoundaryEnhancementLoss, self).__init__()
 
@@ -128,11 +128,15 @@ class BoundaryEnhancementLoss(nn.Module):
         if to_onehot:
             if self.num_dims == 2:
                 target = torch.permute(target, (1, 2, 3, 0))
-                target = monai.transforms.AsDiscrete(to_onehot=self.output_classes)(target)
+                target = monai.transforms.AsDiscrete(to_onehot=self.output_classes)(
+                    target
+                )
                 target = torch.permute(target, (3, 0, 1, 2))
             elif self.num_dims == 3:
                 target = torch.permute(target, (1, 2, 3, 4, 0))
-                target = monai.transforms.AsDiscrete(to_onehot=self.output_classes)(target)
+                target = monai.transforms.AsDiscrete(to_onehot=self.output_classes)(
+                    target
+                )
                 target = torch.permute(target, (4, 0, 1, 2, 3))
 
         if include_background:
