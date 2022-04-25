@@ -99,7 +99,6 @@
     "evaluator": {
         "_target_": "SupervisedEvaluator",
         "_requires_": [
-            "@set_seed",
             "@print_test_name",
             "@print_glob_file",
             "$print('test_in_line_json')"
@@ -110,5 +109,6 @@
         "inferer": "@inferer",
         "postprocessing": "@postprocessing",
         "amp": false
-    }
+    },
+    "evaluating": "$@evaluator.run()"
 }

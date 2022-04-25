@@ -71,7 +71,6 @@ evaluator:
   _target_: SupervisedEvaluator
   _requires_:
     - "$print('test_in_line_yaml')"
-    - "@set_seed"
     - "@print_test_name"
   device: "@device"
   val_data_loader: "@dataloader"
@@ -79,3 +78,4 @@ evaluator:
   inferer: "@inferer"
   postprocessing: "@postprocessing"
   amp: false
+evaluating: "$@evaluator.run()"

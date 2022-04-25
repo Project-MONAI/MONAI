@@ -28,6 +28,7 @@ from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
+from monai.utils.misc import ensure_tuple
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
@@ -297,7 +298,7 @@ def load(
 
 
 def run(
-    runner_id: Optional[str] = None,
+    runner_id: Optional[Union[str, Sequence[str]]] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
     logging_file: Optional[str] = None,
@@ -328,7 +329,7 @@ def run(
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
-        runner_id: ID name of the runner component or workflow, it must have a `run` method. Defaults to ``""``.
+        runner_id: ID name of the expected config expression to run, can also be a list of IDs in order to run.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
@@ -368,12 +369,8 @@ def run(
     for k, v in _args.items():
         parser[k] = v
 
-    workflow = parser.get_parsed_content(id=runner_id_)
-    if not hasattr(workflow, "run"):
-        raise ValueError(
-            f"The parsed workflow {type(workflow)} (id={runner_id_}) does not have a `run` method.\n{run.__doc__}"
-        )
-    return workflow.run()
+    for i in ensure_tuple(runner_id_):
+        parser.get_parsed_content(id=i)
 
 
 def verify_metadata(
