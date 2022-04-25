@@ -206,6 +206,14 @@ from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage, DownloadImage, UploadImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict, DownloadImaged, DownloadImageD, DownloadImageDict, UploadImaged, UploadImageD, UploadImageDict
+from .meta_utility.dictionary import (
+    FromMetaTensord,
+    FromMetaTensorD,
+    FromMetaTensorDict,
+    ToMetaTensord,
+    ToMetaTensorD,
+    ToMetaTensorDict,
+)
 from .nvtx import (
     Mark,
     Markd,
@@ -303,6 +311,7 @@ from .spatial.array import (
     AffineGrid,
     Flip,
     GridDistortion,
+    GridSplit,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
@@ -334,6 +343,9 @@ from .spatial.dictionary import (
     GridDistortiond,
     GridDistortionD,
     GridDistortionDict,
+    GridSplitd,
+    GridSplitD,
+    GridSplitDict,
     Orientationd,
     OrientationD,
     OrientationDict,

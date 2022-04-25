@@ -8,12 +8,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-from monai.bundle.scripts import ckpt_export, download, run, verify_metadata, verify_net_in_out
-
-if __name__ == "__main__":
-    from monai.utils import optional_import
-
-    fire, _ = optional_import("fire")
-    fire.Fire()

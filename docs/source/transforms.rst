@@ -737,6 +737,13 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridSplit`
+"""""""""""
+.. autoclass:: GridSplit
+    :members:
+    :special-members: __call__
+
+
 Smooth Field
 ^^^^^^^^^^^^
 
@@ -1506,6 +1513,13 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`GridSplitd`
+""""""""""""
+.. autoclass:: GridSplitd
+    :members:
+    :special-members: __call__
+
+
 `RandRotate90d`
 """""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRotate90d.png
@@ -1839,6 +1853,21 @@ Utility (Dict)
 `AddCoordinateChannelsd`
 """"""""""""""""""""""""
 .. autoclass:: AddCoordinateChannelsd
+    :members:
+    :special-members: __call__
+
+MetaTensor
+^^^^^^^^^^
+
+`ToMetaTensord`
+"""""""""""""""
+.. autoclass:: ToMetaTensord
+    :members:
+    :special-members: __call__
+
+`FromMetaTensord`
+"""""""""""""""""
+.. autoclass:: FromMetaTensord
     :members:
     :special-members: __call__
 
