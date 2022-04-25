@@ -23,7 +23,7 @@ class BoundaryEnhancementLoss(nn.Module):
         device,
         num_dims=3,
     ):
-        super(BoundaryEnhancementLoss, self).__init__()
+        super().__init__()
 
         self.num_dims = num_dims
         self.output_classes = output_classes
