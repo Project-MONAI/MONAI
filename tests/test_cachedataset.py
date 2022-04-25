@@ -80,7 +80,7 @@ class TestCacheDataset(unittest.TestCase):
             cache_rate=1.0,
             num_workers=4,
             progress=True,
-            copy_cache=False if sys.platform == "linux" else True,
+            copy_cache=not sys.platform == "linux",
         )
 
         num_workers = 2 if sys.platform == "linux" else 0

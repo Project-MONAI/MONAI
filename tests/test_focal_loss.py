@@ -17,7 +17,7 @@ import torch.nn.functional as F
 
 from monai.losses import FocalLoss
 from monai.networks import one_hot
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import test_script_save
 
 
 class TestFocalLoss(unittest.TestCase):
@@ -261,7 +261,6 @@ class TestFocalLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             FocalLoss(include_background=False, weight=(1.0, 1.0, -1.0))(chn_input, chn_target)
 
-    @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):
         loss = FocalLoss()
         test_input = torch.ones(2, 2, 8, 8)

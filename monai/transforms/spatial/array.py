@@ -18,6 +18,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
+from numpy.lib.stride_tricks import as_strided
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
@@ -52,6 +53,7 @@ from monai.utils import (
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
+from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
@@ -64,6 +66,7 @@ __all__ = [
     "Orientation",
     "Flip",
     "GridDistortion",
+    "GridSplit",
     "Resize",
     "Rotate",
     "Zoom",
@@ -305,6 +308,7 @@ class ResampleToMatch(SpatialResample):
         )
         dst_meta = deepcopy(dst_meta)
         dst_meta["affine"] = updated_affine
+        dst_meta[Key.FILENAME_OR_OBJ] = src_meta.get(Key.FILENAME_OR_OBJ)
         return img, dst_meta
 
 
@@ -2460,3 +2464,91 @@ class RandGridDistortion(RandomizableTransform):
         if not self._do_transform:
             return img
         return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)
+
+
+class GridSplit(Transform):
+    """
+    Split the image into patches based on the provided grid in 2D.
+
+    Args:
+        grid: a tuple define the shape of the grid upon which the image is split. Defaults to (2, 2)
+        size: a tuple or an integer that defines the output patch sizes.
+            If it's an integer, the value will be repeated for each dimension.
+            The default is None, where the patch size will be inferred from the grid shape.
+
+    Example:
+        Given an image (torch.Tensor or numpy.ndarray) with size of (3, 10, 10) and a grid of (2, 2),
+        it will return a Tensor or array with the size of (4, 3, 5, 5).
+        Here, if the `size` is provided, the returned shape will be (4, 3, size, size)
+
+    Note: This transform currently support only image with two spatial dimensions.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, grid: Tuple[int, int] = (2, 2), size: Optional[Union[int, Tuple[int, int]]] = None):
+        # Grid size
+        self.grid = grid
+
+        # Patch size
+        self.size = None if size is None else ensure_tuple_rep(size, len(self.grid))
+
+    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
+        if self.grid == (1, 1) and self.size is None:
+            if isinstance(image, torch.Tensor):
+                return torch.stack([image])
+            elif isinstance(image, np.ndarray):
+                return np.stack([image])  # type: ignore
+            else:
+                raise ValueError(f"Input type [{type(image)}] is not supported.")
+
+        size, steps = self._get_params(image.shape[1:])
+        patches: NdarrayOrTensor
+        if isinstance(image, torch.Tensor):
+            patches = (
+                image.unfold(1, size[0], steps[0])
+                .unfold(2, size[1], steps[1])
+                .flatten(1, 2)
+                .transpose(0, 1)
+                .contiguous()
+            )
+        elif isinstance(image, np.ndarray):
+            x_step, y_step = steps
+            c_stride, x_stride, y_stride = image.strides
+            n_channels = image.shape[0]
+            patches = as_strided(
+                image,
+                shape=(*self.grid, n_channels, size[0], size[1]),
+                strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
+                writeable=False,
+            )
+            # flatten the first two dimensions
+            patches = patches.reshape(np.prod(patches.shape[:2]), *patches.shape[2:])
+            # make it a contiguous array
+            patches = np.ascontiguousarray(patches)
+        else:
+            raise ValueError(f"Input type [{type(image)}] is not supported.")
+
+        return patches
+
+    def _get_params(self, image_size: Union[Sequence[int], np.ndarray]):
+        """
+        Calculate the size and step required for splitting the image
+        Args:
+            The size of the input image
+        """
+        if self.size is not None:
+            # Set the split size to the given default size
+            if any(self.size[i] > image_size[i] for i in range(len(self.grid))):
+                raise ValueError("The image size ({image_size})is smaller than the requested split size ({self.size})")
+            split_size = self.size
+        else:
+            # infer each sub-image size from the image size and the grid
+            split_size = tuple(image_size[i] // self.grid[i] for i in range(len(self.grid)))
+
+        steps = tuple(
+            (image_size[i] - split_size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
+            for i in range(len(self.grid))
+        )
+
+        return split_size, steps
