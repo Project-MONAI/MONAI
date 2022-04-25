@@ -313,23 +313,23 @@ def run(
     .. code-block:: bash
 
         # Execute this module as a CLI entry:
-        python -m monai.bundle run trainer --meta_file <meta path> --config_file <config path>
+        python -m monai.bundle run training --meta_file <meta path> --config_file <config path>
 
         # Override config values at runtime by specifying the component id and its new value:
-        python -m monai.bundle run trainer --net#input_chns 1 ...
+        python -m monai.bundle run training --net#input_chns 1 ...
 
         # Override config values with another config file `/path/to/another.json`:
-        python -m monai.bundle run evaluator --net %/path/to/another.json ...
+        python -m monai.bundle run evaluating --net %/path/to/another.json ...
 
         # Override config values with part content of another config file:
-        python -m monai.bundle run trainer --net %/data/other.json#net_arg ...
+        python -m monai.bundle run training --net %/data/other.json#net_arg ...
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
-        runner_id: ID name of the expected config expression to run, can also be a list of IDs in order to run.
+        runner_id: ID name of the expected config expression to run, can also be a list of IDs to run in order.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.

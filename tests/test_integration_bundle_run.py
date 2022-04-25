@@ -102,12 +102,11 @@ class TestBundleRun(unittest.TestCase):
         self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
         # here test the script with `google fire` tool as CLI
-        cmd = "-m fire monai.bundle.scripts run --runner_id ['set_seed','evaluating']"
+        cmd = "-m fire monai.bundle.scripts run --runner_id evaluating"
         cmd += f" --evaluator#amp False {override}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         subprocess.check_call(la, env=test_env)
         self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
-
 
 
 if __name__ == "__main__":

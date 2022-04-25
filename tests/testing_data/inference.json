@@ -2,7 +2,6 @@
     "dataset_dir": "/workspace/data/Task09_Spleen",
     "import_glob": "$import glob",
     "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
-    "set_seed": "$monai.utils.set_determinism(0)",
     "print_test_name": "$print('json_test')",
     "print_glob_file": "$print(glob.__file__)",
     "network_def": {
@@ -110,5 +109,8 @@
         "postprocessing": "@postprocessing",
         "amp": false
     },
-    "evaluating": "$@evaluator.run()"
+    "evaluating": [
+        "$monai.utils.set_determinism(0)",
+        "$@evaluator.run()"
+    ]
 }
