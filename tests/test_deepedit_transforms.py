@@ -28,7 +28,10 @@ from monai.apps.deepedit.transforms import (
     SplitPredsLabeld,
     ToCheckTransformd,
 )
+from monai.utils import min_version, optional_import
 from monai.utils.enums import PostFix
+
+measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
 np.random.seed(0)
 IMAGE = np.random.randint(0, 256, size=(1, 10, 10, 10))
@@ -125,10 +128,7 @@ DATA_9 = {
     "label": LABEL,
     PostFix.meta("image"): {"dim": IMAGE.shape, "spatial_shape": IMAGE[0, ...].shape},
     "label_names": LABEL_NAMES,
-    "guidance": {
-        "spleen": np.array([0, 2, 2]),
-        "background": np.array([-1, -1, -1]),
-    },
+    "guidance": {"spleen": np.array([0, 2, 2]), "background": np.array([-1, -1, -1])},
 }
 
 DATA_10 = {
@@ -138,18 +138,9 @@ DATA_10 = {
     "current_label": "spleen",
 }
 
-DATA_11 = {
-    "image": IMAGE,
-    "label": LABEL,
-    "label_names": LABEL_NAMES,
-    "pred": PRED,
-}
+DATA_11 = {"image": IMAGE, "label": LABEL, "label_names": LABEL_NAMES, "pred": PRED}
 
-DATA_12 = {
-    "image": IMAGE,
-    "label": LABEL,
-    "label_names": LABEL_NAMES,
-}
+DATA_12 = {"image": IMAGE, "label": LABEL, "label_names": LABEL_NAMES}
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE = [
     {"ref_image": "image", "guidance": "guidance", "label_names": LABEL_NAMES},  # arguments
@@ -214,11 +205,7 @@ SingleLabelSelectiond_TEST_CASE = [
     "spleen",  # expected_result
 ]
 
-SplitPredsLabeld_TEST_CASE = [
-    {"keys": "pred"},  # arguments
-    DATA_11,  # input_data
-    (1, 10, 10),  # expected_result
-]
+SplitPredsLabeld_TEST_CASE = [{"keys": "pred"}, DATA_11, (1, 10, 10)]  # arguments  # input_data  # expected_result
 
 ToCheckTransformd_TEST_CASE = [
     {"keys": "image"},  # arguments
@@ -323,6 +310,7 @@ class TestToCheckTransformd(unittest.TestCase):
         add_fn = ToCheckTransformd(**arguments)
         result = add_fn(input_data)
         self.assertEqual(result["image"].shape, expected_result)
+
 
 if __name__ == "__main__":
     unittest.main()
