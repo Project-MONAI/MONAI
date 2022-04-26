@@ -20,7 +20,7 @@ import torch
 from monai.config import KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
-from monai.utils import optional_import, min_version
+from monai.utils import min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
