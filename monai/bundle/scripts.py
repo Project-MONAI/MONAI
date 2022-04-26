@@ -547,8 +547,10 @@ def ckpt_export(
         filepath: filepath to export, if filename has no extension it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
-        config_file: filepath of the config file, if `None`, must be provided in `args_file`.
-            if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file to save in TorchScript model and extract network information,
+            the saved key in the TorchScript model is the config filename without extension, and the saved config
+            value is always serialized in JSON format no matter the original file format is JSON or YAML.
+            it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
@@ -592,12 +594,22 @@ def ckpt_export(
     # convert to TorchScript model and save with meta data, config content
     net = convert_to_torchscript(model=net)
 
+    extra_files: Dict = {}
+    for i in ensure_tuple(config_file_):
+        # split the filename and directory
+        filename = os.path.basename(i)
+        # remove extension
+        filename, _ = os.path.splitext(filename)
+        if filename in extra_files:
+            raise ValueError(f"filename '{filename}' is given multiple times in config file list.")
+        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
+
     save_net_with_metadata(
         jit_obj=net,
         filename_prefix_or_stream=filepath_,
         include_config_vals=False,
         append_timestamp=False,
         meta_values=parser.get().pop("_meta_", None),
-        more_extra_files={"config": json.dumps(parser.get()).encode()},
+        more_extra_files=extra_files,
     )
     logger.info(f"exported to TorchScript file: {filepath_}.")
