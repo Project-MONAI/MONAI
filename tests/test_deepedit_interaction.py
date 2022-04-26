@@ -20,7 +20,7 @@ from monai.apps.deepedit.transforms import (
     AddInitialSeedPointMissingLabelsd,
     AddRandomGuidanceCustomd,
     FindAllValidSlicesMissingLabelsd,
-    FindDiscrepancyRegionsCustomd,
+    FindDiscrepancyRegionsCustomd, SplitPredsLabeld,
 )
 from monai.data import Dataset
 from monai.engines import SupervisedTrainer
@@ -37,22 +37,22 @@ def add_one(engine):
 
 
 class TestInteractions(unittest.TestCase):
-    def run_interaction(self, train, compose):
+    def run_interaction(self, train):
         label_names = {"spleen": 1, "background": 0}
         np.random.seed(0)
         data = [
             {
-                "image": np.random.randint(0, 256, size=(1, 10, 10, 10)).astype(np.float32),
-                "label": np.random.randint(0, 2, size=(1, 10, 10, 10)),
+                "image": np.random.randint(0, 256, size=(1, 15, 15, 15)).astype(np.float32),
+                "label": np.random.randint(0, 2, size=(1, 15, 15, 15)),
                 "label_names": label_names,
             }
             for _ in range(5)
         ]
-        network = torch.nn.Conv3d(3, 2, 1)
+        network = torch.nn.Conv3d(3, len(label_names), 1)
         lr = 1e-3
-        opt = torch.optim.SGD(network.parameters(), lr)
+        opt = torch.optim.Adam(network.parameters(), lr)
         loss = DiceCELoss(to_onehot_y=True, softmax=True)
-        train_transforms = Compose(
+        pre_transforms = Compose(
             [
                 FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
                 AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
@@ -60,14 +60,10 @@ class TestInteractions(unittest.TestCase):
                 ToTensord(keys=("image", "label")),
             ]
         )
-        dataset = Dataset(data, transform=train_transforms)
-        data_loader = torch.utils.data.DataLoader(dataset, batch_size=1)
+        dataset = Dataset(data, transform=pre_transforms)
+        data_loader = torch.utils.data.DataLoader(dataset, batch_size=5)
 
         iteration_transforms = [
-            Activationsd(keys="pred", softmax=True),
-            AsDiscreted(
-                keys=("pred", "label"), argmax=(True, False), to_onehot=(True, True), n_classes=len(label_names)
-            ),
             FindDiscrepancyRegionsCustomd(keys="label", pred="pred", discrepancy="discrepancy"),
             AddRandomGuidanceCustomd(
                 keys="NA", guidance="guidance", discrepancy="discrepancy", probability="probability"
@@ -75,17 +71,25 @@ class TestInteractions(unittest.TestCase):
             AddGuidanceSignalCustomd(keys="image", guidance="guidance", number_intensity_ch=1),
             ToTensord(keys=("image", "label")),
         ]
-        iteration_transforms = Compose(iteration_transforms) if compose else iteration_transforms
+        post_transforms = [
+            Activationsd(keys="pred", softmax=True),
+            AsDiscreted(
+                keys=("pred", "label"), argmax=(True, False), to_onehot=len(label_names)
+            ),
+            SplitPredsLabeld(keys="pred"),
+            ToTensord(keys=("image", "label")),
+        ]
+        iteration_transforms = Compose(iteration_transforms)
+        post_transforms = Compose(post_transforms)
 
-        # i = Interaction(transforms=iteration_transforms, train=train, max_interactions=5)
         i = Interaction(
             deepgrow_probability=1.0,
             transforms=iteration_transforms,
             click_probability_key="probability",
-            train=False,
+            train=train,
             label_names=label_names,
         )
-        self.assertEqual(len(i.transforms.transforms), 6, "Mismatch in expected transforms")
+        self.assertEqual(len(i.transforms.transforms), 4, "Mismatch in expected transforms")
 
         # set up engine
         engine = SupervisedTrainer(
@@ -95,6 +99,7 @@ class TestInteractions(unittest.TestCase):
             network=network,
             optimizer=opt,
             loss_function=loss,
+            postprocessing=post_transforms,
             iteration_update=i,
         )
         engine.add_event_handler(IterationEvents.INNER_ITERATION_STARTED, add_one)
@@ -102,13 +107,13 @@ class TestInteractions(unittest.TestCase):
 
         engine.run()
         self.assertIsNotNone(engine.state.batch[0].get("guidance"), "guidance is missing")
-        self.assertEqual(engine.state.best_metric, 9)
+        self.assertEqual(engine.state.best_metric, 1)
 
     def test_train_interaction(self):
-        self.run_interaction(train=True, compose=True)
+        self.run_interaction(train=True)
 
     def test_val_interaction(self):
-        self.run_interaction(train=False, compose=False)
+        self.run_interaction(train=False)
 
 
 if __name__ == "__main__":
