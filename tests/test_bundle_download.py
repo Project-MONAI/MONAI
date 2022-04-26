@@ -21,7 +21,7 @@ from parameterized import parameterized
 import monai.networks.nets as nets
 from monai.apps import check_hash
 from monai.bundle import ConfigParser, load
-from tests.utils import skip_if_downloading_fails, skip_if_quick, skip_if_windows
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_quick, skip_if_windows
 
 TEST_CASE_1 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
@@ -141,6 +141,7 @@ class TestLoad(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_4])
     @skip_if_quick
+    @SkipIfBeforePyTorchVersion((1, 7, 1))
     def test_load_ts_module(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
             # load ts module
@@ -154,7 +155,7 @@ class TestLoad(unittest.TestCase):
                     repo=repo,
                     progress=False,
                     device=device,
-                    config_files=("test_config.txt",),
+                    config_files=("network.json",),
                 )
 
                 # prepare and test ts
@@ -163,10 +164,9 @@ class TestLoad(unittest.TestCase):
                 expected_output = torch.load(os.path.join(tempdir, bundle_name, bundle_files[0]), map_location=device)
                 torch.testing.assert_allclose(output, expected_output)
                 # test metadata
-                self.assertTrue(metadata["foo"] == [1, 2])
-                self.assertTrue(metadata["bar"] == "string")
+                self.assertTrue(metadata["pytorch_version"] == "1.7.1")
                 # test extra_file_dict
-                self.assertTrue("test_config.txt" in extra_file_dict.keys())
+                self.assertTrue("network.json" in extra_file_dict.keys())
 
 
 if __name__ == "__main__":
