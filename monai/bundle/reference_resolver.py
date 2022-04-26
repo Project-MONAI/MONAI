@@ -12,7 +12,7 @@
 import os
 import re
 import warnings
-from typing import Any, Dict, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY
@@ -182,7 +182,7 @@ class ReferenceResolver:
         return self._resolve_one_item(id=id, **kwargs)
 
     @classmethod
-    def match_refs_pattern(cls, value: str) -> Set[str]:
+    def match_refs_pattern(cls, value: str) -> List[str]:
         """
         Match regular expression for the input string to find the references.
         The reference string starts with ``"@"``, like: ``"@XXX#YYY#ZZZ"``.
@@ -191,14 +191,14 @@ class ReferenceResolver:
             value: input value to match regular expression.
 
         """
-        refs: Set[str] = set()
+        refs: List[str] = []
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
         result = cls.id_matcher.findall(value)
         value_is_expr = ConfigExpression.is_expression(value)
         for item in result:
             if value_is_expr or value == item:
                 # only check when string starts with "$" or the whole content is "@XXX"
-                refs.add(item[len(cls.ref) :])
+                refs.append(item[len(cls.ref) :])
         return refs
 
     @classmethod
@@ -234,7 +234,7 @@ class ReferenceResolver:
         return value
 
     @classmethod
-    def find_refs_in_config(cls, config, id: str, refs: Optional[Set[str]] = None) -> Set[str]:
+    def find_refs_in_config(cls, config, id: str, refs: Optional[List[str]] = None) -> List[str]:
         """
         Recursively search all the content of input config item to get the ids of references.
         References mean: the IDs of other config items (``"@XXX"`` in this config item), or the
@@ -247,15 +247,17 @@ class ReferenceResolver:
             refs: list of the ID name of found references, default to `None`.
 
         """
-        refs_: Set[str] = refs or set()
+        refs_: List[str] = refs or []
         if isinstance(config, str):
-            return refs_.union(cls.match_refs_pattern(value=config))
+            for i in cls.match_refs_pattern(value=config):
+                if i not in refs_:
+                    refs_.append(i)
         if not isinstance(config, (list, dict)):
             return refs_
         for k, v in config.items() if isinstance(config, dict) else enumerate(config):
             sub_id = f"{id}{cls.sep}{k}" if id != "" else f"{k}"
-            if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
-                refs_.add(sub_id)
+            if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v) and sub_id not in refs_:
+                refs_.append(sub_id)
             refs_ = cls.find_refs_in_config(v, sub_id, refs_)
         return refs_
 
