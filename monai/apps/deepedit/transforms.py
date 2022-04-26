@@ -16,12 +16,13 @@ from typing import Dict, Hashable, Mapping, Optional
 
 import numpy as np
 import torch
-from skimage import measure
 
 from monai.config import KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
-from monai.utils import optional_import
+from monai.utils import optional_import, min_version
+
+measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
 logger = logging.getLogger(__name__)
 
