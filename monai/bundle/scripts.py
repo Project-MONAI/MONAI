@@ -369,8 +369,8 @@ def run(
     for k, v in _args.items():
         parser[k] = v
 
-    for i in ensure_tuple(runner_id_):
-        parser.get_parsed_content(id=i)
+    # resolve and execute the specified runner expressions in the config, return the results
+    return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
 
 
 def verify_metadata(
