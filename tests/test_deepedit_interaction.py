@@ -13,7 +13,6 @@ import unittest
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from monai.apps.deepedit.interaction import Interaction
 from monai.apps.deepedit.transforms import (
@@ -22,7 +21,6 @@ from monai.apps.deepedit.transforms import (
     AddRandomGuidanceCustomd,
     FindAllValidSlicesMissingLabelsd,
     FindDiscrepancyRegionsCustomd,
-    SplitPredsLabeld,
 )
 from monai.data import Dataset
 from monai.engines import SupervisedTrainer
