@@ -26,7 +26,7 @@ from monai.data import Dataset
 from monai.engines import SupervisedTrainer
 from monai.engines.utils import IterationEvents
 from monai.losses import DiceCELoss
-from monai.transforms import Activationsd, AsDiscreted, Compose, ToNumpyd, ToTensord
+from monai.transforms import Activationsd, AsDiscreted, Compose, ToTensord
 
 
 def add_one(engine):
