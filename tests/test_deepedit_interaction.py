@@ -20,7 +20,8 @@ from monai.apps.deepedit.transforms import (
     AddInitialSeedPointMissingLabelsd,
     AddRandomGuidanceCustomd,
     FindAllValidSlicesMissingLabelsd,
-    FindDiscrepancyRegionsCustomd, SplitPredsLabeld,
+    FindDiscrepancyRegionsCustomd,
+    SplitPredsLabeld,
 )
 from monai.data import Dataset
 from monai.engines import SupervisedTrainer
@@ -73,9 +74,7 @@ class TestInteractions(unittest.TestCase):
         ]
         post_transforms = [
             Activationsd(keys="pred", softmax=True),
-            AsDiscreted(
-                keys=("pred", "label"), argmax=(True, False), to_onehot=len(label_names)
-            ),
+            AsDiscreted(keys=("pred", "label"), argmax=(True, False), to_onehot=len(label_names)),
             SplitPredsLabeld(keys="pred"),
             ToTensord(keys=("image", "label")),
         ]
