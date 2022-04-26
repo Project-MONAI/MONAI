@@ -84,7 +84,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
         r"""
         Aggregates the output of `_compute_tensor`.
 

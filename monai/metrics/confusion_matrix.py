@@ -102,7 +102,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
 
         return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self, compute_sample: bool = False, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, compute_sample: bool = False, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
         """
         Execute reduction for the confusion matrix values.
 

@@ -45,7 +45,7 @@ class RegressionMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
         """
         Args:
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
