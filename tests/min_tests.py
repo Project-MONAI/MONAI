@@ -41,6 +41,7 @@ def run_testsuit():
         "test_dataset",
         "test_dataset_summary",
         "test_deepedit_transforms",
+        "test_deepedit_interaction",
         "test_deepgrow_dataset",
         "test_deepgrow_interaction",
         "test_deepgrow_transforms",
