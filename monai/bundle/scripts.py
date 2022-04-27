@@ -298,7 +298,7 @@ def load(
 
 
 def run(
-    runner_id: Optional[str] = None,
+    runner_id: Optional[Union[str, Sequence[str]]] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
     logging_file: Optional[str] = None,
@@ -313,23 +313,23 @@ def run(
     .. code-block:: bash
 
         # Execute this module as a CLI entry:
-        python -m monai.bundle run trainer --meta_file <meta path> --config_file <config path>
+        python -m monai.bundle run training --meta_file <meta path> --config_file <config path>
 
         # Override config values at runtime by specifying the component id and its new value:
-        python -m monai.bundle run trainer --net#input_chns 1 ...
+        python -m monai.bundle run training --net#input_chns 1 ...
 
         # Override config values with another config file `/path/to/another.json`:
-        python -m monai.bundle run evaluator --net %/path/to/another.json ...
+        python -m monai.bundle run evaluating --net %/path/to/another.json ...
 
         # Override config values with part content of another config file:
-        python -m monai.bundle run trainer --net %/data/other.json#net_arg ...
+        python -m monai.bundle run training --net %/data/other.json#net_arg ...
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
-        runner_id: ID name of the runner component or workflow, it must have a `run` method. Defaults to ``""``.
+        runner_id: ID name of the expected config expression to run, can also be a list of IDs to run in order.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
@@ -369,12 +369,8 @@ def run(
     for k, v in _args.items():
         parser[k] = v
 
-    workflow = parser.get_parsed_content(id=runner_id_)
-    if not hasattr(workflow, "run"):
-        raise ValueError(
-            f"The parsed workflow {type(workflow)} (id={runner_id_}) does not have a `run` method.\n{run.__doc__}"
-        )
-    return workflow.run()
+    # resolve and execute the specified runner expressions in the config, return the results
+    return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
 
 
 def verify_metadata(
