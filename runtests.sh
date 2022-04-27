@@ -146,6 +146,8 @@ function clang_format {
         exit 1
     fi
     find monai/csrc -type f | while read i; do $clang_format_tool -style=file -i $i; done
+    find monai/_extensions -type f -name "*.cpp" -o -name "*.h" -o -name "*.cuh" -o -name "*.cu" |\
+        while read i; do $clang_format_tool -style=file -i $i; done
 }
 
 function clean_py {
@@ -405,7 +407,7 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}isort --version
+    ${cmdPrefix}${PY_EXE} -m isort --version
 
     if [ $doIsortFix = true ]
     then

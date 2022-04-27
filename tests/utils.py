@@ -102,8 +102,8 @@ def assert_allclose(
     if isinstance(desired, torch.Tensor) or isinstance(actual, torch.Tensor):
         if device_test:
             np.testing.assert_equal(str(actual.device), str(desired.device), "torch device check")  # type: ignore
-        actual = actual.cpu().numpy() if isinstance(actual, torch.Tensor) else actual
-        desired = desired.cpu().numpy() if isinstance(desired, torch.Tensor) else desired
+        actual = actual.detach().cpu().numpy() if isinstance(actual, torch.Tensor) else actual
+        desired = desired.detach().cpu().numpy() if isinstance(desired, torch.Tensor) else desired
     np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
@@ -713,6 +713,11 @@ TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
     TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
+
+
+TEST_DEVICES = [[torch.device("cpu")]]
+if torch.cuda.is_available():
+    TEST_DEVICES.append([torch.device("cuda")])
 
 
 if __name__ == "__main__":

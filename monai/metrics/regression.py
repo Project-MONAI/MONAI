@@ -30,7 +30,7 @@ class RegressionMetric(CumulativeIterationMetric):
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
     Args:
-        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+        reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
@@ -45,12 +45,18 @@ class RegressionMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self):
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
+        """
+        Args:
+            reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
+        """
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
-        f, not_nans = do_metric_reduction(data, self.reduction)
+        f, not_nans = do_metric_reduction(data, reduction or self.reduction)
         return (f, not_nans) if self.get_not_nans else f
 
     def _check_shape(self, y_pred: torch.Tensor, y: torch.Tensor) -> None:

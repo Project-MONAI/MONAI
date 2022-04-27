@@ -809,7 +809,7 @@ class WSIReader(ImageReader):
 
         Args:
             img: a WSIReader image object loaded from a file, or list of CuImage objects
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame,
+            location: (top, left) tuple giving the top left pixel in the level 0 reference frame,
             or list of tuples (default=(0, 0))
             size: (height, width) tuple giving the region size, or list of tuples (default to full image size)
             This is the size of image at the given level (`level`)
@@ -820,7 +820,10 @@ class WSIReader(ImageReader):
         """
         # Verify inputs
         if level is None:
-            level = self._check_level(img, level)
+            level = self.level
+        max_level = self._get_max_level(img)
+        if level > max_level:
+            raise ValueError(f"The maximum level of this image is {max_level} while level={level} is requested)!")
 
         # Extract a region or the entire image
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
@@ -844,21 +847,19 @@ class WSIReader(ImageReader):
 
         return patches, metadata
 
-    def _check_level(self, img, level):
-        level = self.level
+    def _get_max_level(self, img_obj):
+        """
+        Return the maximum number of levels in the whole slide image
+        Args:
+            img: the whole slide image object
 
-        level_count = 0
+        """
         if self.backend == "openslide":
-            level_count = img.level_count
-        elif self.backend == "cucim":
-            level_count = img.resolutions["level_count"]
-        elif self.backend == "tifffile":
-            level_count = len(img.pages)
-
-        if level > level_count - 1:
-            raise ValueError(f"The maximum level of this image is {level_count - 1} while level={level} is requested)!")
-
-        return level
+            return img_obj.level_count - 1
+        if self.backend == "cucim":
+            return img_obj.resolutions["level_count"] - 1
+        if self.backend == "tifffile":
+            return len(img_obj.pages) - 1
 
     def _get_image_size(self, img, size, level, location):
         """
