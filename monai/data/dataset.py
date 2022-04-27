@@ -200,8 +200,8 @@ class PersistentDataset(Dataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]],
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
@@ -374,9 +374,9 @@ class CacheNTransDataset(PersistentDataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
         cache_n_trans: int,
         cache_dir: Optional[Union[Path, str]],
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
@@ -476,7 +476,7 @@ class LMDBDataset(PersistentDataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
         cache_dir: Union[Path, str] = "cache",
         hash_func: Callable[..., bytes] = pickle_hashing,
         db_name: str = "monai_cache",
@@ -669,7 +669,7 @@ class CacheDataset(Dataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: Optional[int] = 1,
@@ -883,8 +883,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
         replace_rate: float,
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_init_workers: Optional[int] = 1,
