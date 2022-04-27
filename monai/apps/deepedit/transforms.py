@@ -42,9 +42,10 @@ class DiscardAddGuidanced(MapTransform):
         """
         Discard positive and negative points according to discard probability
 
-        :param keys: The ``keys`` parameter will be used to get and set the actual data item to transform
-        :param number_intensity_ch: number of intensity channels
-        :param probability: probability of discarding clicks
+        Args:
+            keys: The ``keys`` parameter will be used to get and set the actual data item to transform
+            number_intensity_ch: number of intensity channels
+            probability: probability of discarding clicks
         """
         super().__init__(keys, allow_missing_keys)
 
@@ -80,8 +81,9 @@ class NormalizeLabelsInDatasetd(MapTransform):
         """
         Normalize label values according to label names dictionary
 
-        :param keys: The ``keys`` parameter will be used to get and set the actual data item to transform
-        :param label_names: all label names
+        Args:
+            keys: The ``keys`` parameter will be used to get and set the actual data item to transform
+            label_names: all label names
         """
         super().__init__(keys, allow_missing_keys)
 
@@ -92,7 +94,7 @@ class NormalizeLabelsInDatasetd(MapTransform):
         for key in self.key_iterator(d):
             if key == "label":
                 # Dictionary containing new label numbers
-                new_label_names = dict()
+                new_label_names = {}
                 label = np.zeros(d[key].shape)
                 # Making sure the range values and number of labels are the same
                 for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
@@ -115,8 +117,9 @@ class SingleLabelSelectiond(MapTransform):
         """
         Selects one label at a time to train the DeepEdit
 
-        :param keys: The ``keys`` parameter will be used to get and set the actual data item to transform
-        :param label_names: all label names
+        Args:
+            keys: The ``keys`` parameter will be used to get and set the actual data item to transform
+            label_names: all label names
         """
         super().__init__(keys, allow_missing_keys)
 
@@ -383,8 +386,8 @@ class AddInitialSeedPointCustomd(Randomizable, MapTransform):
         return np.asarray([pos_guidance])
 
     def _randomize(self, d, key_label):
-        sids = d.get(self.sids_key, None).get(key_label, None) if d.get(self.sids_key, None) is not None else None
-        sid = d.get(self.sid_key, None).get(key_label, None) if d.get(self.sid_key, None) is not None else None
+        sids = d.get(self.sids_key).get(key_label) if d.get(self.sids_key) is not None else None
+        sid = d.get(self.sid_key).get(key_label) if d.get(self.sid_key) is not None else None
         if sids is not None and sids:
             if sid is None or sid not in sids:
                 sid = self.R.choice(sids, replace=False)
@@ -410,7 +413,7 @@ class AddInitialSeedPointCustomd(Randomizable, MapTransform):
                         tmp_label[tmp_label != float(d["label_names"][key_label])] = 1
                         tmp_label = 1 - tmp_label
                     label_guidances[key_label] = json.dumps(
-                        self._apply(tmp_label, self.sid.get(key_label, None), key_label).astype(int).tolist()
+                        self._apply(tmp_label, self.sid.get(key_label), key_label).astype(int).tolist()
                     )
                 d[self.guidance] = label_guidances
                 return d
@@ -512,6 +515,9 @@ class AddRandomGuidanceCustomd(Randomizable, MapTransform):
         self.discrepancy = discrepancy
         self.probability = probability
         self._will_interact = None
+        self.is_pos = None
+        self.is_other = None
+        self.default_guidance = None
 
     def randomize(self, data=None):
         probability = data[self.probability]
@@ -537,7 +543,7 @@ class AddRandomGuidanceCustomd(Randomizable, MapTransform):
         pos_discr = discrepancy[0]  # idx 0 is positive discrepancy and idx 1 is negative discrepancy
 
         # Check the areas that belong to other segments
-        other_discrepancy_areas = dict()
+        other_discrepancy_areas = {}
         for _, (key_label, val_label) in enumerate(label_names.items()):
             if key_label != "background":
                 tmp_label = np.copy(labels)
@@ -578,7 +584,7 @@ class AddRandomGuidanceCustomd(Randomizable, MapTransform):
         self.randomize(data)
         if self._will_interact:
             # Convert all guidance to lists so new guidance can be easily appended
-            self.tmp_guidance = dict()
+            self.tmp_guidance = {}
             for key_label in d["label_names"].keys():
                 tmp_gui = guidance[key_label]
                 tmp_gui = tmp_gui.tolist() if isinstance(tmp_gui, np.ndarray) else tmp_gui
@@ -652,7 +658,8 @@ class AddGuidanceFromPointsCustomd(Transform):
         self.meta_keys = meta_keys
         self.meta_key_postfix = meta_key_postfix
 
-    def _apply(self, clicks, factor):
+    @staticmethod
+    def _apply(clicks, factor):
         if len(clicks):
             guidance = np.multiply(clicks, factor).astype(int).tolist()
             return guidance
@@ -675,7 +682,7 @@ class AddGuidanceFromPointsCustomd(Transform):
         factor = np.array(current_shape) / original_shape
 
         # Creating guidance for all clicks
-        all_guidances = dict()
+        all_guidances = {}
         for key_label in self.label_names.keys():
             clicks = d.get(key_label, [])
             clicks = list(np.array(clicks).astype(int))
@@ -702,7 +709,7 @@ class ResizeGuidanceMultipleLabelCustomd(Transform):
         # original_shape = np.roll(original_shape, 1)
 
         factor = np.divide(current_shape, original_shape)
-        all_guidances = dict()
+        all_guidances = {}
         for key_label in d[self.guidance].keys():
             guidance = (
                 np.multiply(d[self.guidance][key_label], factor).astype(int).tolist()
@@ -720,9 +727,6 @@ class SplitPredsLabeld(MapTransform):
     Split preds and labels for individual evaluation
 
     """
-
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
-        super().__init__(keys, allow_missing_keys)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d: Dict = dict(data)
@@ -743,9 +747,6 @@ class ToCheckTransformd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
-        super().__init__(keys, allow_missing_keys)
-
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d: Dict = dict(data)
         for key in self.key_iterator(d):
@@ -753,7 +754,6 @@ class ToCheckTransformd(MapTransform):
         return d
 
 
-# For missing labels in multilabel task
 class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
     """
     Add random guidance as initial seed point for a given label.
@@ -783,7 +783,7 @@ class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
         self.guidance = guidance
         self.connected_regions = connected_regions
 
-    def _apply(self, label, sid, key_label):
+    def _apply(self, label, sid):
         dimensions = 3 if len(label.shape) > 3 else 2
         self.default_guidance = [-1] * (dimensions + 1)
 
@@ -791,12 +791,6 @@ class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
         if sid is not None and dimensions == 3:
             dims = 2
             label = label[0][..., sid][np.newaxis]  # Assume channel is first and depth is last CHWD
-
-        # import matplotlib.pyplot as plt
-        # plt.imshow(label[0])
-        # plt.title(f'label as is {key_label}')
-        # plt.show()
-        # plt.close()
 
         # THERE MAY BE MULTIPLE BLOBS FOR SINGLE LABEL IN THE SELECTED SLICE
         label = (label > 0.5).astype(np.float32)
@@ -809,24 +803,12 @@ class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
         if np.max(blobs_labels) <= 0:
             label_guidance.append(self.default_guidance)
         else:
-            # plt.imshow(blobs_labels[0])
-            # plt.title(f'Blobs {key_label}')
-            # plt.show()
-            # plt.close()
             for ridx in range(1, 2 if dims == 3 else self.connected_regions + 1):
                 if dims == 2:
                     label = (blobs_labels == ridx).astype(np.float32)
                     if np.sum(label) == 0:
                         label_guidance.append(self.default_guidance)
                         continue
-
-                # plt.imshow(label[0])
-                # plt.title(f'Label postprocessed with blob number {key_label}')
-                # plt.show()
-
-                # plt.imshow(distance_transform_cdt(label)[0])
-                # plt.title(f'Transform CDT {key_label}')
-                # plt.show()
 
                 # The distance transform provides a metric or measure of the separation of points in the image.
                 # This function calculates the distance between each pixel that is set to off (0) and
@@ -850,8 +832,8 @@ class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
         return np.asarray(label_guidance)
 
     def _randomize(self, d, key_label):
-        sids = d.get(self.sids_key, None).get(key_label, None) if d.get(self.sids_key, None) is not None else None
-        sid = d.get(self.sid_key, None).get(key_label, None) if d.get(self.sid_key, None) is not None else None
+        sids = d.get(self.sids_key).get(key_label) if d.get(self.sids_key) is not None else None
+        sid = d.get(self.sid_key).get(key_label) if d.get(self.sid_key) is not None else None
         if sids is not None and sids:
             if sid is None or sid not in sids:
                 sid = self.R.choice(sids, replace=False)
@@ -877,7 +859,7 @@ class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
                         tmp_label[tmp_label != float(d["label_names"][key_label])] = 1
                         tmp_label = 1 - tmp_label
                     label_guidances[key_label] = json.dumps(
-                        self._apply(tmp_label, self.sid.get(key_label, None), key_label).astype(int).tolist()
+                        self._apply(tmp_label, self.sid.get(key_label)).astype(int).tolist()
                     )
                 d[self.guidance] = label_guidances
                 return d

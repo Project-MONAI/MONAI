@@ -25,6 +25,11 @@ class Interaction:
     """
     Ignite process_function used to introduce interactions (simulation of clicks) for DeepEdit Training/Evaluation.
 
+    More details about this can be found at:
+
+        Diaz-Pinto et al., MONAI Label: A framework for AI-assisted Interactive
+        Labeling of 3D Medical Images. (2022) https://arxiv.org/abs/2203.12362
+
     Args:
         deepgrow_probability: probability of simulating clicks in an iteration
         transforms: execute additional transformation during every iteration (before train).
@@ -42,9 +47,6 @@ class Interaction:
         label_names: Dict[str, int],
         click_probability_key: str = "probability",
     ) -> None:
-
-        if not isinstance(transforms, Compose):
-            transforms = Compose(transforms)
 
         self.deepgrow_probability = deepgrow_probability
         self.transforms = Compose(transforms) if not isinstance(transforms, Compose) else transforms
@@ -84,7 +86,6 @@ class Interaction:
             batchdata = list_data_collate(batchdata_list)
 
             engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
-            #
 
         else:
             # zero out input guidance channels
