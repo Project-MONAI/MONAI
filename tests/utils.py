@@ -586,13 +586,11 @@ _original_funcs = {}
 
 def _cache_original_func(obj) -> None:
     """cache the original function by name, so that the decorator doesn't shadow it."""
-    global _original_funcs
     _original_funcs[obj.__name__] = obj
 
 
 def _del_original_func(obj):
     """pop the original function from cache."""
-    global _original_funcs
     _original_funcs.pop(obj.__name__, None)
     if torch.cuda.is_available():  # clean up the cached function
         torch.cuda.synchronize()
