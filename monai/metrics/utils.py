@@ -50,11 +50,10 @@ def do_metric_reduction(f: torch.Tensor, reduction: Union[MetricReduction, str] 
     Args:
         f: a tensor that contains the calculated metric scores per batch and
             per class. The first two dims should be batch and class.
-        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+        reduction: define the mode to reduce metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``.
             if "none", return the input f tensor and not_nans.
-        Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
     Raises:
         ValueError: When ``reduction`` is not one of
