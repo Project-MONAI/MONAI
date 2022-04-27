@@ -16,11 +16,11 @@ import torch
 
 from monai.apps.deepedit.interaction import Interaction
 from monai.apps.deepedit.transforms import (
-    AddGuidanceSignalCustomd,
+    AddGuidanceSignalDeepEditd,
     AddInitialSeedPointMissingLabelsd,
-    AddRandomGuidanceCustomd,
+    AddRandomGuidanceDeepEditd,
     FindAllValidSlicesMissingLabelsd,
-    FindDiscrepancyRegionsCustomd,
+    FindDiscrepancyRegionsDeepEditd,
     SplitPredsLabeld,
 )
 from monai.data import Dataset
@@ -57,7 +57,7 @@ class TestInteractions(unittest.TestCase):
             [
                 FindAllValidSlicesMissingLabelsd(keys="label", sids="sids"),
                 AddInitialSeedPointMissingLabelsd(keys="label", guidance="guidance", sids="sids"),
-                AddGuidanceSignalCustomd(keys="image", guidance="guidance", number_intensity_ch=1),
+                AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=1),
                 ToTensord(keys=("image", "label")),
             ]
         )
@@ -65,11 +65,11 @@ class TestInteractions(unittest.TestCase):
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=5)
 
         iteration_transforms = [
-            FindDiscrepancyRegionsCustomd(keys="label", pred="pred", discrepancy="discrepancy"),
-            AddRandomGuidanceCustomd(
+            FindDiscrepancyRegionsDeepEditd(keys="label", pred="pred", discrepancy="discrepancy"),
+            AddRandomGuidanceDeepEditd(
                 keys="NA", guidance="guidance", discrepancy="discrepancy", probability="probability"
             ),
-            AddGuidanceSignalCustomd(keys="image", guidance="guidance", number_intensity_ch=1),
+            AddGuidanceSignalDeepEditd(keys="image", guidance="guidance", number_intensity_ch=1),
             ToTensord(keys=("image", "label")),
         ]
         post_transforms = [

@@ -15,18 +15,17 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.deepedit.transforms import (
-    AddGuidanceFromPointsCustomd,
-    AddGuidanceSignalCustomd,
+    AddGuidanceFromPointsDeepEditd,
+    AddGuidanceSignalDeepEditd,
     AddInitialSeedPointMissingLabelsd,
-    AddRandomGuidanceCustomd,
+    AddRandomGuidanceDeepEditd,
     DiscardAddGuidanced,
     FindAllValidSlicesMissingLabelsd,
-    FindDiscrepancyRegionsCustomd,
+    FindDiscrepancyRegionsDeepEditd,
     NormalizeLabelsInDatasetd,
-    ResizeGuidanceMultipleLabelCustomd,
+    ResizeGuidanceMultipleLabelDeepEditd,
     SingleLabelSelectiond,
     SplitPredsLabeld,
-    ToCheckTransformd,
 )
 from monai.utils import min_version, optional_import
 from monai.utils.enums import PostFix
@@ -140,7 +139,6 @@ DATA_10 = {
 
 DATA_11 = {"image": IMAGE, "label": LABEL, "label_names": LABEL_NAMES, "pred": PRED}
 
-DATA_12 = {"image": IMAGE, "label": LABEL, "label_names": LABEL_NAMES}
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE = [
     {"ref_image": "image", "guidance": "guidance", "label_names": LABEL_NAMES},  # arguments
@@ -207,17 +205,11 @@ SingleLabelSelectiond_TEST_CASE = [
 
 SplitPredsLabeld_TEST_CASE = [{"keys": "pred"}, DATA_11, (1, 10, 10)]  # arguments  # input_data  # expected_result
 
-ToCheckTransformd_TEST_CASE = [
-    {"keys": "image"},  # arguments
-    DATA_12,  # input_data
-    (1, 10, 10, 10),  # expected_result
-]
-
 
 class TestAddGuidanceFromPointsCustomd(unittest.TestCase):
     @parameterized.expand([ADD_GUIDANCE_FROM_POINTS_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
-        add_fn = AddGuidanceFromPointsCustomd(**arguments)
+        add_fn = AddGuidanceFromPointsDeepEditd(**arguments)
         result = add_fn(input_data)
         self.assertEqual(result[arguments["guidance"]]["spleen"][0], expected_result)
 
@@ -225,7 +217,7 @@ class TestAddGuidanceFromPointsCustomd(unittest.TestCase):
 class TestAddGuidanceSignalCustomd(unittest.TestCase):
     @parameterized.expand([ADD_GUIDANCE_CUSTOM_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
-        add_fn = AddGuidanceSignalCustomd(**arguments)
+        add_fn = AddGuidanceSignalDeepEditd(**arguments)
         result = add_fn(input_data)
         self.assertEqual(result["image"].shape[0], expected_result)
 
@@ -243,7 +235,7 @@ class TestAddInitialSeedPointMissingLabelsd(unittest.TestCase):
 class TestAddRandomGuidanceCustomd(unittest.TestCase):
     @parameterized.expand([ADD_RANDOM_GUIDANCE_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
-        add_fn = AddRandomGuidanceCustomd(**arguments)
+        add_fn = AddRandomGuidanceDeepEditd(**arguments)
         result = add_fn(input_data)
         self.assertEqual(result[arguments["guidance"]], expected_result)
 
@@ -267,7 +259,7 @@ class TestFindAllValidSlicesMissingLabelsd(unittest.TestCase):
 class TestFindDiscrepancyRegionsCustomd(unittest.TestCase):
     @parameterized.expand([FIND_DISCREPANCY_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
-        add_fn = FindDiscrepancyRegionsCustomd(**arguments)
+        add_fn = FindDiscrepancyRegionsDeepEditd(**arguments)
         result = add_fn(input_data)
         self.assertEqual(np.sum(result[arguments["discrepancy"]]["spleen"][0]), expected_result)
 
@@ -283,7 +275,7 @@ class TestNormalizeLabelsDatasetd(unittest.TestCase):
 class TestResizeGuidanceMultipleLabelCustomd(unittest.TestCase):
     @parameterized.expand([RESIZE_GUIDANCE_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
-        add_fn = ResizeGuidanceMultipleLabelCustomd(**arguments)
+        add_fn = ResizeGuidanceMultipleLabelDeepEditd(**arguments)
         result = add_fn(input_data)
         self.assertEqual(result[arguments["guidance"]], expected_result)
 
@@ -302,14 +294,6 @@ class TestSplitPredsLabeld(unittest.TestCase):
         add_fn = SplitPredsLabeld(**arguments)
         result = add_fn(input_data)
         self.assertEqual(result["pred_spleen"].shape, expected_result)
-
-
-class TestToCheckTransformd(unittest.TestCase):
-    @parameterized.expand([ToCheckTransformd_TEST_CASE])
-    def test_correct_results(self, arguments, input_data, expected_result):
-        add_fn = ToCheckTransformd(**arguments)
-        result = add_fn(input_data)
-        self.assertEqual(result["image"].shape, expected_result)
 
 
 if __name__ == "__main__":

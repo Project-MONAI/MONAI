@@ -12,6 +12,7 @@
 import json
 import logging
 import random
+import warnings
 from typing import Dict, Hashable, Mapping, Optional
 
 import numpy as np
@@ -107,11 +108,10 @@ class NormalizeLabelsInDatasetd(MapTransform):
                 d["label_names"] = new_label_names
                 d[key] = label
             else:
-                print("This transform only applies to the label")
+                warnings.warn("This transform only applies to the label")
         return d
 
 
-# One label at a time transform for BTCV Dataset - DeepEdit
 class SingleLabelSelectiond(MapTransform):
     def __init__(self, keys: KeysCollection, label_names=None, allow_missing_keys: bool = False):
         """
@@ -154,15 +154,15 @@ class SingleLabelSelectiond(MapTransform):
                 d[key][d[key] > 0] = max_label_val
                 print(f"Using label {t_label} with number: {d[key].max()}")
             else:
-                print("This transform only applies to the label")
+                warnings.warn("This transform only applies to the label")
         return d
 
 
-class AddGuidanceSignalCustomd(MapTransform):
+class AddGuidanceSignalDeepEditd(MapTransform):
     """
     Add Guidance signal for input image. Multilabel DeepEdit
 
-    Based on the "guidance" points, apply gaussian to them and add them as new channel for input image.
+    Based on the "guidance" points, apply Gaussian to them and add them as new channel for input image.
 
     Args:
         guidance: key to store guidance.
@@ -246,7 +246,7 @@ class AddGuidanceSignalCustomd(MapTransform):
         return d
 
 
-class FindAllValidSlicesCustomd(MapTransform):
+class FindAllValidSlicesDeepEditd(MapTransform):
     """
     Find/List all valid slices in the labels.
     Label is assumed to be a 4D Volume with shape CHWD, where C=1.
@@ -289,7 +289,7 @@ class FindAllValidSlicesCustomd(MapTransform):
         return d
 
 
-class AddInitialSeedPointCustomd(Randomizable, MapTransform):
+class AddInitialSeedPointDeepEditd(Randomizable, MapTransform):
     """
     Add random guidance as initial seed point for a given label.
 
@@ -330,12 +330,6 @@ class AddInitialSeedPointCustomd(Randomizable, MapTransform):
             dims = 2
             label = label[0][..., sid][np.newaxis]  # Assume channel is first and depth is last CHWD
 
-        # import matplotlib.pyplot as plt
-        # plt.imshow(label[0])
-        # plt.title(f'label as is {key_label}')
-        # plt.show()
-        # plt.close()
-
         # THERE MAY BE MULTIPLE BLOBS FOR SINGLE LABEL IN THE SELECTED SLICE
         label = (label > 0.5).astype(np.float32)
         # measure.label: Label connected regions of an integer array - Two pixels are connected
@@ -344,11 +338,6 @@ class AddInitialSeedPointCustomd(Randomizable, MapTransform):
         if np.max(blobs_labels) <= 0:
             raise AssertionError(f"SLICES NOT FOUND FOR LABEL: {key_label}")
 
-        # plt.imshow(blobs_labels[0])
-        # plt.title(f'Blobs {key_label}')
-        # plt.show()
-        # plt.close()
-
         pos_guidance = []
         for ridx in range(1, 2 if dims == 3 else self.connected_regions + 1):
             if dims == 2:
@@ -356,14 +345,6 @@ class AddInitialSeedPointCustomd(Randomizable, MapTransform):
                 if np.sum(label) == 0:
                     pos_guidance.append(self.default_guidance)
                     continue
-
-            # plt.imshow(label[0])
-            # plt.title(f'Label postprocessed with blob number {key_label}')
-            # plt.show()
-
-            # plt.imshow(distance_transform_cdt(label)[0])
-            # plt.title(f'Transform CDT {key_label}')
-            # plt.show()
 
             # The distance transform provides a metric or measure of the separation of points in the image.
             # This function calculates the distance between each pixel that is set to off (0) and
@@ -422,7 +403,7 @@ class AddInitialSeedPointCustomd(Randomizable, MapTransform):
         return d
 
 
-class FindDiscrepancyRegionsCustomd(MapTransform):
+class FindDiscrepancyRegionsDeepEditd(MapTransform):
     """
     Find discrepancy between prediction and actual during click interactions during training.
 
@@ -492,7 +473,7 @@ class FindDiscrepancyRegionsCustomd(MapTransform):
         return d
 
 
-class AddRandomGuidanceCustomd(Randomizable, MapTransform):
+class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
     """
     Add random guidance based on discrepancies that were found between label and prediction.
 
@@ -623,7 +604,7 @@ class AddRandomGuidanceCustomd(Randomizable, MapTransform):
         return d
 
 
-class AddGuidanceFromPointsCustomd(Transform):
+class AddGuidanceFromPointsDeepEditd(Transform):
     """
     Add guidance based on user clicks. ONLY WORKS FOR 3D
 
@@ -691,9 +672,10 @@ class AddGuidanceFromPointsCustomd(Transform):
         return d
 
 
-class ResizeGuidanceMultipleLabelCustomd(Transform):
+class ResizeGuidanceMultipleLabelDeepEditd(Transform):
     """
     Resize the guidance based on cropped vs resized image.
+
     """
 
     def __init__(self, guidance: str, ref_image: str) -> None:
@@ -738,19 +720,6 @@ class SplitPredsLabeld(MapTransform):
                         d[f"label_{key_label}"] = d["label"][idx + 1, ...][None]
             elif key != "pred":
                 logger.info("This is only for pred key")
-        return d
-
-
-class ToCheckTransformd(MapTransform):
-    """
-    Transform to debug dictionary used in transforms - Useful in MONAI Label debugging workflow
-
-    """
-
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
-        for key in self.key_iterator(d):
-            logger.info(f"Printing key shape in ToCheckTransformd: {d[key].shape}")
         return d
 
 
