@@ -27,12 +27,12 @@ from monai.apps.deepedit.transforms import (
     SingleLabelSelectiond,
     SplitPredsLabeld,
 )
-from monai.utils import min_version, optional_import
+from monai.utils import min_version, optional_import, set_determinism
 from monai.utils.enums import PostFix
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
-np.random.seed(0)
+set_determinism(seed=0)
 IMAGE = np.random.randint(0, 256, size=(1, 10, 10, 10))
 THREE_CHAN_IMAGE = np.random.randint(0, 255, size=(3, 10, 10, 10))
 LABEL = np.random.randint(0, 2, size=(10, 10, 10))
@@ -42,6 +42,7 @@ DISCREPANCY = {
     "spleen": np.random.randint(0, 2, size=(10, 10, 10)),
     "background": np.random.randint(0, 2, size=(10, 10, 10)),
 }
+set_determinism(None)
 
 DATA_1 = {
     "image": IMAGE,
