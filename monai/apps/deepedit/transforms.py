@@ -688,7 +688,6 @@ class ResizeGuidanceMultipleLabelDeepEditd(Transform):
         current_shape = d[self.ref_image].shape[1:]
         original_shape = d["image_meta_dict"]["spatial_shape"]
 
-        # original_shape = np.roll(original_shape, 1)
 
         factor = np.divide(current_shape, original_shape)
         all_guidances = {}
