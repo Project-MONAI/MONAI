@@ -67,9 +67,7 @@ import torch.nn as nn
 
 from monai.utils import look_up_option, optional_import
 
-instance_norm_nvfuser_cuda, has_nvfuser = optional_import("instance_norm_nvfuser_cuda")
-if has_nvfuser:
-    from monai.networks.layers.nvfuser import InstanceNorm3dNVFuser
+InstanceNorm3dNVFuser, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
@@ -248,14 +246,21 @@ def sync_batch_factory(_dim) -> Type[nn.SyncBatchNorm]:
 
 
 @Norm.factory_function("instance_nvfuser")
-def instance_nvfuser_factory(_dim):
+def instance_nvfuser_factory(dim):
+    """
+    `InstanceNorm3dNVFuser` is a faster verison of InstanceNorm layer and implemented in `apex`.
+    It only supports 3d tensors as the input. It also requires to use with CUDA and non-Windows OS.
+    In this function, if the required library `apex.normalization.InstanceNorm3dNVFuser` does not exist,
+    `nn.InstanceNorm3d` will be returned instead.
+
+    """
     types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
-    if _dim != 3:
-        warnings.warn("Only 3d instance norm nvfuser has been implemented, use common instance norm instead.")
+    if dim != 3:
+        warnings.warn(f"`InstanceNorm3dNVFuser` only supports 3d cases, use {types[dim - 1]} instead.")
         return types[dim - 1]
     if not has_nvfuser:
-        warnings.warn("`instance_norm_nvfuser_cuda` is not installed, use common instance norm instead.")
-        return types[dim - 1]
+        warnings.warn("`apex.normalization.InstanceNorm3dNVFuser` is not found, use nn.InstanceNorm3d instead.")
+        return nn.InstanceNorm3d
     return InstanceNorm3dNVFuser
 
 

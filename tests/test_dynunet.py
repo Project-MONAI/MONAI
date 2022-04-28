@@ -17,7 +17,10 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
-from tests.utils import test_script_save
+from monai.utils import optional_import
+from tests.utils import skip_if_no_cuda, skip_if_windows, test_script_save
+
+_, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -103,28 +106,54 @@ for spatial_dims in [2, 3]:
                 TEST_CASE_DEEP_SUPERVISION.append(test_case)
 
 
-class TestDynUNet(unittest.TestCase):
-    @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
-    def test_shape(self, input_param, input_shape, expected_shape):
-        net = DynUNet(**input_param).to(device)
-        with eval_mode(net):
-            result = net(torch.randn(input_shape).to(device))
-            self.assertEqual(result.shape, expected_shape)
+# class TestDynUNet(unittest.TestCase):
+#     @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
+#     def test_shape(self, input_param, input_shape, expected_shape):
+#         net = DynUNet(**input_param).to(device)
+#         with eval_mode(net):
+#             result = net(torch.randn(input_shape).to(device))
+#             self.assertEqual(result.shape, expected_shape)
 
-    def test_script(self):
-        input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
-        net = DynUNet(**input_param)
-        test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+#     def test_script(self):
+#         input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
+#         net = DynUNet(**input_param)
+#         test_data = torch.randn(input_shape)
+#         test_script_save(net, test_data)
 
 
-class TestDynUNetDeepSupervision(unittest.TestCase):
-    @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
-    def test_shape(self, input_param, input_shape, expected_shape):
-        net = DynUNet(**input_param).to(device)
-        with torch.no_grad():
-            results = net(torch.randn(input_shape).to(device))
-            self.assertEqual(results.shape, expected_shape)
+@skip_if_no_cuda
+@skip_if_windows
+@unittest.skipUnless(has_nvfuser, "To use `instance_nvfuser`, `apex.normalization.InstanceNorm3dNVFuser` is needed.")
+class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_DYNUNET_3D[0]])
+    def test_consistency(self, input_param, input_shape, _):
+        for eps in [1e-4, 1e-5]:
+            for momentum in [0.1, 0.01]:
+                for affine in [True, False]:
+                    norm_param = {"eps": eps, "momentum": momentum, "affine": affine}
+                    input_param["norm_name"] = ("instance", norm_param)
+                    input_param_fuser = input_param.copy()
+                    input_param_fuser["norm_name"] = ("instance_nvfuser", norm_param)
+                    net = DynUNet(**input_param).to("cuda")
+                    net_fuser = DynUNet(**input_param_fuser).to("cuda")
+                    net_fuser.load_state_dict(net.state_dict())
+
+                    input_tensor = torch.randn(input_shape).to("cuda")
+                    with eval_mode(net):
+                        result = net(input_tensor)
+                    with eval_mode(net_fuser):
+                        result_fuser = net_fuser(input_tensor)
+
+                    torch.testing.assert_close(result, result_fuser)
+
+
+# class TestDynUNetDeepSupervision(unittest.TestCase):
+#     @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
+#     def test_shape(self, input_param, input_shape, expected_shape):
+#         net = DynUNet(**input_param).to(device)
+#         with torch.no_grad():
+#             results = net(torch.randn(input_shape).to(device))
+#             self.assertEqual(results.shape, expected_shape)
 
 
 if __name__ == "__main__":
