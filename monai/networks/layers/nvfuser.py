@@ -121,7 +121,7 @@ class _InstanceNormNVFuser(_NormBase):
         dtype=None,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
-        super(_InstanceNormNVFuser, self).__init__(
+        super().__init__(
             num_features, eps, momentum, affine, track_running_stats, **factory_kwargs
         )
         self.dummy = torch.empty([], device="cuda")
@@ -158,13 +158,13 @@ class _InstanceNormNVFuser(_NormBase):
                     "the running stats are actually needed, instead set "
                     "track_running_stats=True in {klass} to enable them. See "
                     "the documentation of {klass} for details.".format(
-                        names=" and ".join("{}".format(k) for k in running_stats_keys), klass=self.__class__.__name__
+                        names=" and ".join(f"{k}" for k in running_stats_keys), klass=self.__class__.__name__
                     )
                 )
                 for key in running_stats_keys:
                     state_dict.pop(key)
 
-        super(_InstanceNormNVFuser, self)._load_from_state_dict(
+        super()._load_from_state_dict(
             state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
         )
 
@@ -196,4 +196,4 @@ class InstanceNorm3dNVFuser(_InstanceNormNVFuser):
 
     def _check_input_dim(self, input: torch.Tensor):
         if input.dim() != 5:
-            raise ValueError("expected 5D input (got {}D input)".format(input.dim()))
+            raise ValueError(f"expected 5D input (got {input.dim()}D input)")
