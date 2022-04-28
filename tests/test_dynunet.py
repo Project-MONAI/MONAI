@@ -106,19 +106,19 @@ for spatial_dims in [2, 3]:
                 TEST_CASE_DEEP_SUPERVISION.append(test_case)
 
 
-# class TestDynUNet(unittest.TestCase):
-#     @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
-#     def test_shape(self, input_param, input_shape, expected_shape):
-#         net = DynUNet(**input_param).to(device)
-#         with eval_mode(net):
-#             result = net(torch.randn(input_shape).to(device))
-#             self.assertEqual(result.shape, expected_shape)
+class TestDynUNet(unittest.TestCase):
+    @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        net = DynUNet(**input_param).to(device)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape).to(device))
+            self.assertEqual(result.shape, expected_shape)
 
-#     def test_script(self):
-#         input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
-#         net = DynUNet(**input_param)
-#         test_data = torch.randn(input_shape)
-#         test_script_save(net, test_data)
+    def test_script(self):
+        input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
+        net = DynUNet(**input_param)
+        test_data = torch.randn(input_shape)
+        test_script_save(net, test_data)
 
 
 @skip_if_no_cuda
@@ -147,13 +147,13 @@ class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
                     torch.testing.assert_close(result, result_fuser)
 
 
-# class TestDynUNetDeepSupervision(unittest.TestCase):
-#     @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
-#     def test_shape(self, input_param, input_shape, expected_shape):
-#         net = DynUNet(**input_param).to(device)
-#         with torch.no_grad():
-#             results = net(torch.randn(input_shape).to(device))
-#             self.assertEqual(results.shape, expected_shape)
+class TestDynUNetDeepSupervision(unittest.TestCase):
+    @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        net = DynUNet(**input_param).to(device)
+        with torch.no_grad():
+            results = net(torch.randn(input_shape).to(device))
+            self.assertEqual(results.shape, expected_shape)
 
 
 if __name__ == "__main__":
