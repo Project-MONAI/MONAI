@@ -669,7 +669,7 @@ class CacheDataset(Dataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Optional[Union[Sequence[Callable], Callable]] = None,
+        transform: Optional[Union[Sequence[Callable], Callable]],
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: Optional[int] = 1,
@@ -883,8 +883,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     def __init__(
         self,
         data: Sequence,
-        replace_rate: float,
         transform: Optional[Union[Sequence[Callable], Callable]] = None,
+        replace_rate: float = 0.5,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_init_workers: Optional[int] = 1,
