@@ -122,7 +122,8 @@ def load_decathlon_datalist(
     if data_list_key not in json_data:
         raise ValueError(f'Data list {data_list_key} not specified in "{data_list_file_path}".')
     expected_data = json_data[data_list_key]
-    if data_list_key == "test":
+    if data_list_key == "test" and not isinstance(expected_data[0], dict):
+        # decathlon datalist may save the test images in a list directly instead of dict
         expected_data = [{"image": i} for i in expected_data]
 
     if base_dir is None:

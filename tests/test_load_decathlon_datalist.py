@@ -29,7 +29,7 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
                     {"image": "spleen_19.nii.gz", "label": "spleen_19.nii.gz"},
                     {"image": "spleen_31.nii.gz", "label": "spleen_31.nii.gz"},
                 ],
-                "test": ["spleen_15.nii.gz", "spleen_23.nii.gz"],
+                "test": [{"image": "spleen_15.nii.gz"}, {"image": "spleen_23.nii.gz"}],
             }
             json_str = json.dumps(test_data)
             file_path = os.path.join(tempdir, "test_data.json")
@@ -38,6 +38,8 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
             result = load_decathlon_datalist(file_path, True, "training", tempdir)
             self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
             self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
+            result = load_decathlon_datalist(file_path, True, "test", None)
+            self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_15.nii.gz"))
 
     def test_cls_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -81,6 +83,8 @@ class TestLoadDecathlonDatalist(unittest.TestCase):
             result = load_decathlon_datalist(file_path, True, "training", None)
             self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_19.nii.gz"))
             self.assertEqual(result[0]["label"], os.path.join(tempdir, "spleen_19.nii.gz"))
+            result = load_decathlon_datalist(file_path, True, "test", None)
+            self.assertEqual(result[0]["image"], os.path.join(tempdir, "spleen_15.nii.gz"))
 
     def test_seg_no_labels(self):
         with tempfile.TemporaryDirectory() as tempdir:
