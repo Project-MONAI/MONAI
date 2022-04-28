@@ -121,23 +121,14 @@ class _InstanceNormNVFuser(_NormBase):
         dtype=None,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
-        super().__init__(
-            num_features, eps, momentum, affine, track_running_stats, **factory_kwargs
-        )
+        super().__init__(num_features, eps, momentum, affine, track_running_stats, **factory_kwargs)
         self.dummy = torch.empty([], device="cuda")
 
     def _check_input_dim(self, input: torch.Tensor):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def _load_from_state_dict(
-        self,
-        state_dict,
-        prefix,
-        local_metadata,
-        strict,
-        missing_keys,
-        unexpected_keys,
-        error_msgs,
+        self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
     ):
         version = local_metadata.get("version", None)
         # at version 1: removed running_mean and running_var when

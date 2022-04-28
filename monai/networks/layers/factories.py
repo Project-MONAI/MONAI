@@ -60,11 +60,10 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
+import warnings
 from typing import Any, Callable, Dict, Tuple, Type, Union
 
 import torch.nn as nn
-
-import warnings
 
 from monai.utils import look_up_option, optional_import
 
@@ -247,15 +246,16 @@ def local_response_factory(_dim) -> Type[nn.LocalResponseNorm]:
 def sync_batch_factory(_dim) -> Type[nn.SyncBatchNorm]:
     return nn.SyncBatchNorm
 
+
 @Norm.factory_function("instance_nvfuser")
 def instance_nvfuser_factory(_dim):
     types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
     if _dim != 3:
         warnings.warn("Only 3d instance norm nvfuser has been implemented, use common instance norm instead.")
-        return types[dim-1]
+        return types[dim - 1]
     if not has_nvfuser:
         warnings.warn("`instance_norm_nvfuser_cuda` is not installed, use common instance norm instead.")
-        return types[dim-1]
+        return types[dim - 1]
     return InstanceNorm3dNVFuser
 
 

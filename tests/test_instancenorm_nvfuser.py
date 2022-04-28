@@ -27,13 +27,7 @@ for eps in [1e-4, 1e-5]:
     for momentum in [0.1, 0.01]:
         for affine in [True, False]:
             test_case = [
-                {
-                    "num_features": input_shape[1],
-                    "eps": eps,
-                    "momentum": momentum,
-                    "affine": affine,
-                    "device": "cuda",
-                },
+                {"num_features": input_shape[1], "eps": eps, "momentum": momentum, "affine": affine, "device": "cuda"},
                 input_shape,
             ]
             TEST_CASES.append(test_case)
