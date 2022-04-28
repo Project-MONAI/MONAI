@@ -338,9 +338,12 @@ class ConfigParser:
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")
 
     @classmethod
-    def load_config_files(cls, files: Union[PathLike, Sequence[PathLike], dict], **kwargs) -> dict:
+    def load_config_files(cls, files: Union[PathLike, Sequence[PathLike], dict], **kwargs) -> Dict:
         """
         Load config files into a single config dict.
+        The latter config file in the list will override or add the former config file.
+        ``"#"`` in the config keys are interpreted as special characters to go one level
+        further into the nested structures.
 
         Args:
             files: path of target files to load, supported postfixes: `.json`, `.yml`, `.yaml`.
@@ -348,10 +351,11 @@ class ConfigParser:
         """
         if isinstance(files, dict):  # already a config dict
             return files
-        content = {}
+        parser = ConfigParser(config={})
         for i in ensure_tuple(files):
-            content.update(cls.load_config_file(i, **kwargs))
-        return content
+            for k, v in (cls.load_config_file(i, **kwargs)).items():
+                parser[k] = v
+        return parser.get()  # type: ignore
 
     @classmethod
     def export_config_file(cls, config: Dict, filepath: PathLike, fmt="json", **kwargs):
