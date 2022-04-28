@@ -161,7 +161,6 @@ class TestDataStatsd(unittest.TestCase):
     def test_value(self, input_param, input_data, expected_print):
         transform = DataStatsd(**input_param)
         _ = transform(input_data)
-        # self.assertEqual(transform.printer.output, expected_print)
 
     @parameterized.expand([TEST_CASE_9])
     def test_file(self, input_data, expected_print):
