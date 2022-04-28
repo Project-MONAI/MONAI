@@ -669,7 +669,7 @@ class CacheDataset(Dataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Optional[Union[Sequence[Callable], Callable]],
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: Optional[int] = 1,
