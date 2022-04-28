@@ -15,7 +15,9 @@ from torch.nn.modules.batchnorm import _NormBase
 
 from monai.utils import optional_import
 
-instance_norm_nvfuser_cuda, has_nvfuser = optional_import("instance_norm_nvfuser_cuda")
+instance_norm_nvfuser_cuda, _ = optional_import("instance_norm_nvfuser_cuda")
+
+__all__ = ["InstanceNorm3dNVFuser"]
 
 
 class InstanceNormNVFuserFunction(torch.autograd.Function):
@@ -104,7 +106,7 @@ class InstanceNormNVFuserFunction(torch.autograd.Function):
 
 class _InstanceNormNVFuser(_NormBase):
     """
-    Base of InstanceNorm3dNVFuser. This class only works on non-Windows OS and tensors in GPU mode.
+    Base of InstanceNorm3dNVFuser. This class only works on non-Windows OS and input tensors should be in GPU mode.
     This class refers to `APEX`.
     """
 
@@ -172,20 +174,26 @@ class _InstanceNormNVFuser(_NormBase):
         self._check_input_dim(input)
 
         out = InstanceNormNVFuserFunction.apply(
-            input=input,
-            weight=self.weight if self.weight is not None else self.dummy,
-            bias=self.bias if self.bias is not None else self.dummy,
-            running_mean=self.running_mean if self.running_mean is not None else self.dummy,
-            running_var=self.running_var if self.running_mean is not None else self.dummy,
-            use_input_stats=self.training or not self.track_running_stats,
-            momentum=self.momentum,
-            eps=self.eps,
+            input,
+            self.weight if self.weight is not None else self.dummy,
+            self.bias if self.bias is not None else self.dummy,
+            self.running_mean if self.running_mean is not None else self.dummy,
+            self.running_var if self.running_mean is not None else self.dummy,
+            self.training or not self.track_running_stats,
+            self.momentum,
+            self.eps,
         )
 
         return out
 
 
 class InstanceNorm3dNVFuser(_InstanceNormNVFuser):
+    """
+    A faster version of 3d instance norm layer.
+    This class only works on non-Windows OS and input tensors should be in GPU mode.
+    This class refers to `APEX`.
+    """
+
     def _check_input_dim(self, input: torch.Tensor):
         if input.dim() != 5:
             raise ValueError("expected 5D input (got {}D input)".format(input.dim()))

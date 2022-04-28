@@ -64,7 +64,13 @@ from typing import Any, Callable, Dict, Tuple, Type, Union
 
 import torch.nn as nn
 
-from monai.utils import look_up_option
+import warnings
+
+from monai.utils import look_up_option, optional_import
+
+instance_norm_nvfuser_cuda, has_nvfuser = optional_import("instance_norm_nvfuser_cuda")
+if has_nvfuser:
+    from monai.networks.layers.nvfuser import InstanceNorm3dNVFuser
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
@@ -240,6 +246,17 @@ def local_response_factory(_dim) -> Type[nn.LocalResponseNorm]:
 @Norm.factory_function("syncbatch")
 def sync_batch_factory(_dim) -> Type[nn.SyncBatchNorm]:
     return nn.SyncBatchNorm
+
+@Norm.factory_function("instance_nvfuser")
+def instance_nvfuser_factory(_dim):
+    types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
+    if _dim != 3:
+        warnings.warn("Only 3d instance norm nvfuser has been implemented, use common instance norm instead.")
+        return types[dim-1]
+    if not has_nvfuser:
+        warnings.warn("`instance_norm_nvfuser_cuda` is not installed, use common instance norm instead.")
+        return types[dim-1]
+    return InstanceNorm3dNVFuser
 
 
 Act.add_factory_callable("elu", lambda: nn.modules.ELU)
