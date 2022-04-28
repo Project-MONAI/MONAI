@@ -180,7 +180,16 @@ class BaseWSIReader(ImageReader):
                     f"The image dimension should be 3 but has {patch.ndim}. "
                     "`WSIReader` is designed to work only with 2D images with color channel."
                 )
-
+            # Check if there are four color channels for RGBA
+            if mode == "RGBA" and patch.shape[0] != 4:
+                raise ValueError(
+                    f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
+                )
+            # Check if there are three color channels for RGB
+            elif mode in "RGB" and patch.shape[0] != 3:
+                raise ValueError(
+                    f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[0]}. "
+                )
             # Create a list of patches
             patch_list.append(patch)
 
@@ -408,11 +417,6 @@ class CuCIMWSIReader(BaseWSIReader):
         patch = AsChannelFirst()(patch)  # type: ignore
 
         # Check if the color channel is 3 (RGB) or 4 (RGBA)
-        if mode == "RGBA" and patch.shape[0] != 4:
-            raise ValueError(
-                f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
-            )
-
         if mode in "RGB":
             if patch.shape[0] not in [3, 4]:
                 raise ValueError(
@@ -536,16 +540,5 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         # Make it channel first
         patch = AsChannelFirst()(patch)  # type: ignore
-
-        # Check if the color channel is 3 (RGB) or 4 (RGBA)
-        if mode == "RGBA" and patch.shape[0] != 4:
-            raise ValueError(
-                f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
-            )
-
-        elif mode in "RGB" and patch.shape[0] != 3:
-            raise ValueError(
-                f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[0]}. "
-            )
 
         return patch
