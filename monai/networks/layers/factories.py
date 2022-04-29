@@ -263,7 +263,7 @@ def instance_nvfuser_factory(dim):
         return types[dim - 1]
     if not has_nvfuser:
         warnings.warn("`apex.normalization.InstanceNorm3dNVFuser` is not found, use nn.InstanceNorm3d instead.")
-        return nn.InstanceNorm3d
+        return types[dim - 1]
     return InstanceNorm3dNVFuser
 
 
