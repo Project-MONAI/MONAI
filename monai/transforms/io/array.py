@@ -29,7 +29,6 @@ from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
 from monai.data.folder_layout import FolderLayout
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
-from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
@@ -247,44 +246,10 @@ class LoadImage(Transform):
         meta_data = switch_endianness(meta_data, "<")
 
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
-        img = self.join_im_and_meta(img_array, meta_data)
+        img = MetaTensor.ensure_torch_and_prune_meta(img_array, meta_data)
         if self.ensure_channel_first:
             img = EnsureChannelFirst()(img)
         return img
-
-    @staticmethod
-    def join_im_and_meta(im, meta: dict):
-        img = torch.as_tensor(im)
-
-        # if not tracking metadata, return torch.Tensor
-        if not get_track_meta() or meta is None:
-            return img
-
-        if "affine" in meta:
-            meta["affine"] = torch.as_tensor(meta["affine"])
-
-        # TODO: delete extra metadata
-        for i in range(8):
-            for k in ("dim", "pixdim"):
-                if f"{k}[{i}]" in meta:
-                    del meta[f"{k}[{i}]"]
-        for k in (
-            #     "original_affine",
-            #     "spatial_shape",
-            #     "spacing",
-            "srow_x",
-            "srow_y",
-            "srow_z",
-            "quatern_b",
-            "quatern_c",
-            "quatern_d",
-            "qoffset_x",
-            "qoffset_y",
-            "qoffset_z",
-        ):
-            if k in meta:
-                del meta[k]
-        return MetaTensor(img, meta=meta)
 
 
 class SaveImage(Transform):

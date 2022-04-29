@@ -427,11 +427,11 @@ class SplitDimd(MapTransform):
                         if dim > 0:  # don't update affine if channel dim
                             affine = d[split_meta_key]["affine"]  # type: ignore
                             ndim = len(affine)
-                            shift = (
-                                torch.eye(ndim, device=affine.device, dtype=affine.dtype)
-                                if isinstance(affine, torch.Tensor)
-                                else np.eye(ndim)
-                            )
+                            shift: NdarrayOrTensor
+                            if isinstance(affine, torch.Tensor):
+                                shift = torch.eye(ndim, device=affine.device, dtype=affine.dtype)
+                            else:
+                                shift = np.eye(ndim)
                             shift[dim - 1, -1] = i  # type: ignore
                             d[split_meta_key]["affine"] = d[split_meta_key]["affine"] @ shift  # type: ignore
 

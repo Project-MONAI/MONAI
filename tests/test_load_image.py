@@ -242,7 +242,7 @@ class TestLoadImage(unittest.TestCase):
             reader = ITKReader()
             img = reader.read(filename, fallback_only=False)
             result_raw = reader.get_data(img)
-            result_raw = LoadImage.join_im_and_meta(*result_raw)
+            result_raw = MetaTensor.ensure_torch_and_prune_meta(*result_raw)
             self.assertTupleEqual(result.shape, result_raw.shape)
 
     def test_my_reader(self):
