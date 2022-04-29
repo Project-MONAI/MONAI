@@ -134,17 +134,18 @@ class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
                     input_param["norm_name"] = ("instance", norm_param)
                     input_param_fuser = input_param.copy()
                     input_param_fuser["norm_name"] = ("instance_nvfuser", norm_param)
-                    net = DynUNet(**input_param).to("cuda")
-                    net_fuser = DynUNet(**input_param_fuser).to("cuda")
-                    net_fuser.load_state_dict(net.state_dict())
+                    for memory_format in [torch.contiguous_format, torch.channels_last_3d]:
+                        net = DynUNet(**input_param).to("cuda:0", memory_format=memory_format)
+                        net_fuser = DynUNet(**input_param_fuser).to("cuda:0", memory_format=memory_format)
+                        net_fuser.load_state_dict(net.state_dict())
 
-                    input_tensor = torch.randn(input_shape).to("cuda")
-                    with eval_mode(net):
-                        result = net(input_tensor)
-                    with eval_mode(net_fuser):
-                        result_fuser = net_fuser(input_tensor)
+                        input_tensor = torch.randn(input_shape).to("cuda:0", memory_format=memory_format)
+                        with eval_mode(net):
+                            result = net(input_tensor)
+                        with eval_mode(net_fuser):
+                            result_fuser = net_fuser(input_tensor)
 
-                    torch.testing.assert_close(result, result_fuser)
+                        torch.testing.assert_close(result, result_fuser)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):
