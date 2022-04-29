@@ -54,6 +54,7 @@ def run_testsuit():
         "test_fill_holes",
         "test_fill_holesd",
         "test_global_mutual_information_loss",
+        "test_gmm",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
