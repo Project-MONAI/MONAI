@@ -856,7 +856,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     Args:
         data: input data to load and transform to generate dataset for model.
         transform: transforms to execute operations on input data.
-        replace_rate: percentage of the cached items to be replaced in every epoch.
+        replace_rate: percentage of the cached items to be replaced in every epoch (default to 0.1).
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
@@ -884,7 +884,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self,
         data: Sequence,
         transform: Optional[Union[Sequence[Callable], Callable]] = None,
-        replace_rate: float = 0.5,
+        replace_rate: float = 0.1,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_init_workers: Optional[int] = 1,
