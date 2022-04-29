@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - releasing/*
+      - temp-tests
   pull_request:
 
 concurrency:
@@ -63,6 +64,10 @@ jobs:
     - uses: actions/checkout@v2
     - name: apt install
       run: |
+        sudo apt-key del 7fa2af80
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb
+        sudo dpkg -i cuda-keyring_1.0-1_all.deb
+
         if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT110+CUDA102" ] || \
