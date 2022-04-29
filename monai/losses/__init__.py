@@ -27,5 +27,6 @@ from .dice import (
 from .focal_loss import FocalLoss
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from .multi_scale import MultiScaleLoss
+from .shape import ShapeLoss
 from .spatial_mask import MaskedLoss
 from .tversky import TverskyLoss
