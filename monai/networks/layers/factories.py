@@ -257,13 +257,13 @@ def instance_nvfuser_factory(dim):
     https://github.com/NVIDIA/apex#installation
 
     """
-    types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
+    types = (nn.InstanceNorm1d, nn.InstanceNorm2d)
     if dim != 3:
         warnings.warn(f"`InstanceNorm3dNVFuser` only supports 3d cases, use {types[dim - 1]} instead.")
         return types[dim - 1]
     if not has_nvfuser:
         warnings.warn("`apex.normalization.InstanceNorm3dNVFuser` is not found, use nn.InstanceNorm3d instead.")
-        return types[dim - 1]
+        return nn.InstanceNorm3d
     return InstanceNorm3dNVFuser
 
 
