@@ -18,6 +18,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai._extensions import load_module
 from monai.networks.layers import GaussianMixtureModel
 from tests.utils import skip_if_no_cuda
 
@@ -256,7 +257,6 @@ TEST_CASES = [
 ]
 
 
-@skip_if_no_cuda
 class GMMTestCase(unittest.TestCase):
     def setUp(self):
         self._var = os.environ.get("TORCH_EXTENSIONS_DIR", None)
@@ -271,6 +271,7 @@ class GMMTestCase(unittest.TestCase):
         shutil.rmtree(self.tempdir)
 
     @parameterized.expand(TEST_CASES)
+    @skip_if_no_cuda
     def test_cuda(self, test_case_description, mixture_count, class_count, features, labels, expected):
 
         # Device to run on
@@ -296,6 +297,9 @@ class GMMTestCase(unittest.TestCase):
 
         # Ensure result are as expected
         np.testing.assert_allclose(results, expected, atol=1e-3)
+
+    def test_load(self):
+        load_module("gmm", {"CHANNEL_COUNT": 2, "MIXTURE_COUNT": 2, "MIXTURE_SIZE": 3}, verbose_build=True)
 
 
 if __name__ == "__main__":
