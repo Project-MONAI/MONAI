@@ -91,12 +91,10 @@ class TestRandCuCIMDict(unittest.TestCase):
     )
     def test_tramsforms_numpy_single(self, params, input, expected):
         input = {"image": np.copy(input)}
-        # apply_prob=1.0
         output = RandCuCIMd(keys="image", apply_prob=1.0, **params)(input)["image"]
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIMd(keys="image", apply_prob=0.0, **params)(input)["image"]
         self.assertTrue(output.dtype == input["image"].dtype)
         self.assertTrue(isinstance(output, np.ndarray))
@@ -117,12 +115,10 @@ class TestRandCuCIMDict(unittest.TestCase):
     def test_tramsforms_numpy_batch(self, params, input, expected):
         input = {"image": np.copy(input[cp.newaxis, ...])}
         expected = expected[cp.newaxis, ...]
-        # apply_prob=1.0
         output = RandCuCIMd(keys="image", apply_prob=1.0, **params)(input)["image"]
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIMd(keys="image", apply_prob=0.0, **params)(input)["image"]
         self.assertTrue(output.dtype == input["image"].dtype)
         self.assertTrue(isinstance(output, np.ndarray))
@@ -143,12 +139,10 @@ class TestRandCuCIMDict(unittest.TestCase):
     def test_tramsforms_cupy_single(self, params, input, expected):
         input = {"image": cp.asarray(input)}
         expected = cp.asarray(expected)
-        # apply_prob=1.0
         output = RandCuCIMd(keys="image", apply_prob=1.0, **params)(input)["image"]
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIMd(keys="image", apply_prob=0.0, **params)(input)["image"]
         self.assertTrue(output.dtype == input["image"].dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
@@ -169,12 +163,10 @@ class TestRandCuCIMDict(unittest.TestCase):
     def test_tramsforms_cupy_batch(self, params, input, expected):
         input = {"image": cp.asarray(input)[cp.newaxis, ...]}
         expected = cp.asarray(expected)[cp.newaxis, ...]
-        # apply_prob=1.0
         output = RandCuCIMd(keys="image", **params)(input)["image"]
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIMd(keys="image", apply_prob=0.0, **params)(input)["image"]
         self.assertTrue(output.dtype == input["image"].dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
