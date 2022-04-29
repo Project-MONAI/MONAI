@@ -809,7 +809,7 @@ class WSIReader(ImageReader):
 
         Args:
             img: a WSIReader image object loaded from a file, or list of CuImage objects
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame,
+            location: (top, left) tuple giving the top left pixel in the level 0 reference frame,
             or list of tuples (default=(0, 0))
             size: (height, width) tuple giving the region size, or list of tuples (default to full image size)
             This is the size of image at the given level (`level`)

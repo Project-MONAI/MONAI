@@ -737,6 +737,13 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridSplit`
+"""""""""""
+.. autoclass:: GridSplit
+    :members:
+    :special-members: __call__
+
+
 Smooth Field
 ^^^^^^^^^^^^
 
@@ -1505,6 +1512,13 @@ Spatial (Dict)
 .. autoclass:: RandZoomd
     :members:
     :special-members: __call__
+
+`GridSplitd`
+""""""""""""
+.. autoclass:: GridSplitd
+    :members:
+    :special-members: __call__
+
 
 `RandRotate90d`
 """""""""""""""

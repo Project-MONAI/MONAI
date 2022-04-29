@@ -34,7 +34,7 @@ from .decathlon_datalist import (
 from .folder_layout import FolderLayout
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter, PatchIterd
 from .image_dataset import ImageDataset
-from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
+from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from .image_writer import (
     SUPPORTED_WRITERS,
     ImageWriter,
@@ -87,3 +87,5 @@ from .utils import (
     worker_init_fn,
     zoom_affine,
 )
+from .wsi_datasets import PatchWSIDataset
+from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, WSIReader
