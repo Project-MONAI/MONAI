@@ -253,6 +253,9 @@ def instance_nvfuser_factory(dim):
     In this function, if the required library `apex.normalization.InstanceNorm3dNVFuser` does not exist,
     `nn.InstanceNorm3d` will be returned instead.
 
+    Please check the following link for more details about how to install `apex`:
+    https://github.com/NVIDIA/apex#installation
+
     """
     types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
     if dim != 3:
