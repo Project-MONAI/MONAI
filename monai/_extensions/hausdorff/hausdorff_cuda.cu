@@ -2022,14 +2022,11 @@ int getHausdorffDistance_CUDA_Generic(
     float robustnessPercent,
     bool resIterNeeded,
     at::Tensor compare_values) {
-  // TODO() use https ://pytorch.org/cppdocs/notes/tensor_cuda_stream.html
   cudaStream_t stream1;
   cudaStreamCreate(&stream1);
 
   MetaDataCPU metaData;
-  // size_t size = sizeof(unsigned int) * 20;
-  // unsigned int* minMaxesCPU = (unsigned int*)malloc(size);
-  // metaData.minMaxes = minMaxesCPU;
+
 
   ForFullBoolPrepArgs<T> forFullBoolPrepArgs;
   forFullBoolPrepArgs.metaData = metaData;
@@ -2140,8 +2137,6 @@ at::Tensor getHausdorffDistance_CUDA_FullResList(
 
 
 
-<<<<<<< HEAD
-=======
 
 /*************************************************************
  *Oliviera Algorithm
@@ -2429,9 +2424,6 @@ int HausdorffDistance::computeDistance(Volume* img1, Volume* img2, bool* d_img1,
   cudaFree(d_img2Read);
 
   // resetting device
-  // cudaDeviceReset();
-
-  // print(cudaGetLastError(), "processing CUDA. Something may be wrong with your CUDA device.");
 
   return distance;
 }
@@ -2464,10 +2456,7 @@ std::tuple<int, double> benchmarkOlivieraCUDA(
   cudaMemcpy(goldStandard, goldStandardA.data_ptr(), sizee, cudaMemcpyDeviceToHost);
   cudaMemcpy(algoOutput, algoOutputA.data_ptr(), sizee, cudaMemcpyDeviceToHost);
 
-  // auto goldStandardA.data_ptr()
 
-  // bool* goldStandard = (bool*)goldStandardA.to(torch::kCPU).data_ptr();
-  // bool* algoOutput = (bool*)algoOutputA.to(torch::kCPU).data_ptr();
 
   Volume img1 = Volume(WIDTH, HEIGHT, DEPTH), img2 = Volume(WIDTH, HEIGHT, DEPTH);
 
@@ -2500,22 +2489,14 @@ std::tuple<int, double> benchmarkOlivieraCUDA(
 
   auto end = std::chrono::high_resolution_clock::now();
 
-  // std::cout << "Total elapsed time: ";
   double time =
       (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count() / (double)1000000000);
-  // std::cout << time << "s" << std::endl;
-
-  // printf("HD: %d \n", dist);
 
   // freeing memory
   img1.dispose();
   img2.dispose();
   free(goldStandard);
   free(algoOutput);
-  // Datasize: 216530944
-  // Datasize : 216530944
-  // Total elapsed time : 2.62191s
-  // HD : 234
+
   return {dist, time};
 }
->>>>>>> 7fb1821c8c2aa82d8aaa21bfbd1a69237b0ea960
