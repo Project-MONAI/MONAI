@@ -114,7 +114,12 @@ class TestConfigParser(unittest.TestCase):
         parser = ConfigParser(config=config, globals={"monai": "monai"})
         # test lazy instantiation with original config content
         parser["transform"]["transforms"][0]["keys"] = "label1"
-        self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label1")
+        trans = parser.get_parsed_content(id="transform#transforms#0")
+        self.assertEqual(trans.keys[0], "label1")
+        # test re-use the parsed content or not with the `lazy` option
+        self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0"))
+        self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=True))
+        self.assertNotEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=False))
         # test nested id
         parser["transform#transforms#0#keys"] = "label2"
         self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label2")
