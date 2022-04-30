@@ -2027,7 +2027,6 @@ int getHausdorffDistance_CUDA_Generic(
 
   MetaDataCPU metaData;
 
-
   ForFullBoolPrepArgs<T> forFullBoolPrepArgs;
   forFullBoolPrepArgs.metaData = metaData;
   forFullBoolPrepArgs.compare_values = compare_values.item<T>();
@@ -2130,13 +2129,6 @@ at::Tensor getHausdorffDistance_CUDA_FullResList(
 
   return res;
 }
-
-
-
-
-
-
-
 
 /*************************************************************
  *Oliviera Algorithm
@@ -2455,8 +2447,6 @@ std::tuple<int, double> benchmarkOlivieraCUDA(
 
   cudaMemcpy(goldStandard, goldStandardA.data_ptr(), sizee, cudaMemcpyDeviceToHost);
   cudaMemcpy(algoOutput, algoOutputA.data_ptr(), sizee, cudaMemcpyDeviceToHost);
-
-
 
   Volume img1 = Volume(WIDTH, HEIGHT, DEPTH), img2 = Volume(WIDTH, HEIGHT, DEPTH);
 
