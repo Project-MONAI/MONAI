@@ -112,7 +112,7 @@ TEST_CASES = [
     [[a6, b6, 0.9, compare_values_b], 110],
     [[a7, b7, 0.85, compare_values_b], 110],
     [[a8, b8, 0.8, compare_values_b], 110],  # multi points
-    [[a9, b9, 1.0, compare_values_b], 40]
+    [[a9, b9, 1.0, compare_values_b], 40],
 ]
 
 
@@ -120,7 +120,7 @@ TEST_CASES = [
 class TestHausdorffDistanceMorphological(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_data, expected_value):
-        if(not version_leq(f"{torch.version.cuda}", "10.100") and not version_leq(f"{torch.version.cuda}", "10.200")):
+        if not version_leq(f"{torch.version.cuda}", "10.100") and not version_leq(f"{torch.version.cuda}", "10.200"):
             [y_pred, y, percentt, compare_values] = input_data
             hd_metric = MorphologicalHausdorffDistanceMetric(
                 compare_values.to(device), percentt, True

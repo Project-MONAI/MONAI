@@ -18,7 +18,7 @@ from parameterized import parameterized
 from monai.transforms import RandAffineGrid
 from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
 
-_rtol = 1e-1 if is_tf32_env else 1e-4
+_rtol = 1e-1 if is_tf32_env() else 1e-4
 
 TESTS = []
 for p in TEST_NDARRAYS:

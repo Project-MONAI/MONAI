@@ -2027,7 +2027,6 @@ int getHausdorffDistance_CUDA_Generic(
 
   MetaDataCPU metaData;
 
-
   ForFullBoolPrepArgs<T> forFullBoolPrepArgs;
   forFullBoolPrepArgs.metaData = metaData;
   forFullBoolPrepArgs.compare_values = compare_values.item<T>();
@@ -2131,16 +2130,9 @@ int getHausdorffDistance_CUDA(
 //   return res;
 // }
 
-
-
-
-
-
-
-
-// /*************************************************************
-//  *Oliviera Algorithm
-//  *************************************************************************************/
+/*************************************************************
+ *Oliviera Algorithm
+ *************************************************************************************/
 
 // typedef unsigned char uchar;
 // typedef unsigned int uint;
@@ -2456,9 +2448,13 @@ int getHausdorffDistance_CUDA(
 //   cudaMemcpy(goldStandard, goldStandardA.data_ptr(), sizee, cudaMemcpyDeviceToHost);
 //   cudaMemcpy(algoOutput, algoOutputA.data_ptr(), sizee, cudaMemcpyDeviceToHost);
 
+<<<<<<< HEAD
 
 
 //   Volume img1 = Volume(WIDTH, HEIGHT, DEPTH), img2 = Volume(WIDTH, HEIGHT, DEPTH);
+=======
+  Volume img1 = Volume(WIDTH, HEIGHT, DEPTH), img2 = Volume(WIDTH, HEIGHT, DEPTH);
+>>>>>>> f1eba75311d628ec98c786ebfd5e3c8635818ab2
 
 //   for (int x = 0; x < WIDTH; x++) {
 //     for (int y = 0; y < HEIGHT; y++) {
