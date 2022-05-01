@@ -23,20 +23,6 @@ int getHausdorffDistance_CUDA(
     const int zDim,
     const float robustnessPercent);
 
-// at::Tensor getHausdorffDistance_CUDA_FullResList(
-//     at::Tensor goldStandard,
-//     at::Tensor algoOutput,
-//     int WIDTH,
-//     int HEIGHT,
-//     int DEPTH,
-//     float robustnessPercent);
-
-// std::tuple<int, double> benchmarkOlivieraCUDA(
-//     torch::Tensor goldStandard,
-//     torch::Tensor algoOutput,
-//     const int xDim,
-//     const int yDim,
-//     const int zDim);
 
 // C++ interface
 
@@ -84,12 +70,5 @@ int getHausdorffDistance(
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("getHausdorffDistance", &getHausdorffDistance, "Basic version of Hausdorff distance");
-  // m.def(
-  //     "benchmarkOlivieraCUDA",
-  //     &benchmarkOlivieraCUDA,
-  //     "Algorithm by Oliviera - just for comparison sake - accept only boolean arrays  ");
-  // m.def(
-  //     "getHausdorffDistance_FullResList",
-  //     &getHausdorffDistance_FullResList,
-  //     " return additionally full result list indicating in which dilatation iterations results were recorded ");
 }
+

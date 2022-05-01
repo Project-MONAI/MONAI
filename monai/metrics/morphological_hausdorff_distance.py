@@ -101,7 +101,7 @@ class MorphologicalHausdorffDistanceMetric(CumulativeIterationMetric):
         """
 
         if y.shape != y_pred.shape:
-            raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
+            raise ValueError(f"y_pred and y should have same shapes")
         sizz = y.shape
         if self.to_invert_dims:
             return self.compiled_extension.getHausdorffDistance(
