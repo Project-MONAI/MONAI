@@ -2448,13 +2448,10 @@ int getHausdorffDistance_CUDA(
 //   cudaMemcpy(goldStandard, goldStandardA.data_ptr(), sizee, cudaMemcpyDeviceToHost);
 //   cudaMemcpy(algoOutput, algoOutputA.data_ptr(), sizee, cudaMemcpyDeviceToHost);
 
-<<<<<<< HEAD
 
 
 //   Volume img1 = Volume(WIDTH, HEIGHT, DEPTH), img2 = Volume(WIDTH, HEIGHT, DEPTH);
-=======
-  Volume img1 = Volume(WIDTH, HEIGHT, DEPTH), img2 = Volume(WIDTH, HEIGHT, DEPTH);
->>>>>>> f1eba75311d628ec98c786ebfd5e3c8635818ab2
+  //Volume img1 = Volume(WIDTH, HEIGHT, DEPTH), img2 = Volume(WIDTH, HEIGHT, DEPTH);
 
 //   for (int x = 0; x < WIDTH; x++) {
 //     for (int y = 0; y < HEIGHT; y++) {
