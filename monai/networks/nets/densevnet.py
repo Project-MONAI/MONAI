@@ -28,7 +28,7 @@ def expand_spatial_params(input_param, spatial_rank, param_type=int):
         return (input_param,) * spatial_rank
     except (ValueError, TypeError):
         pass
-    
+
     try:
         if param_type == int:
             input_param = \
