@@ -10,7 +10,8 @@
 # limitations under the License.
 
 import inspect
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from itertools import product
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -19,7 +20,7 @@ from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
 
-__all__ = ["PatchWSIDataset"]
+__all__ = ["PatchWSIDataset", "SlidingPatchWSIDataset"]
 
 
 class PatchWSIDataset(Dataset):
@@ -32,10 +33,12 @@ class PatchWSIDataset(Dataset):
         size: the size of patch to be extracted from the whole slide image.
         level: the level at which the patches to be extracted (default to 0).
         transform: transforms to be executed on input data.
-        reader: the module to be used for loading whole slide imaging,
-            - if `reader` is a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
-            - if `reader` is a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
-            - if `reader` is an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+        reader: the module to be used for loading whole slide imaging. If `reader` is
+
+            - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
+            - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
+            - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
     Note:
@@ -45,14 +48,14 @@ class PatchWSIDataset(Dataset):
 
             [
                 {"image": "path/to/image1.tiff", "location": [200, 500], "label": 0},
-                {"image": "path/to/image2.tiff", "location": [100, 700], "label": 1}
+                {"image": "path/to/image2.tiff", "location": [100, 700], "size": [20, 20], "level": 2, "label": 1}
             ]
 
     """
 
     def __init__(
         self,
-        data: List,
+        data: Sequence,
         size: Optional[Union[int, Tuple[int, int]]] = None,
         level: Optional[int] = None,
         transform: Optional[Callable] = None,
@@ -132,4 +135,84 @@ class PatchWSIDataset(Dataset):
 
         # Create put all patch information together and apply transforms
         patch = {"image": image, "label": label, "metadata": metadata}
+        return apply_transform(self.transform, patch) if self.transform else patch
+
+
+class SlidingPatchWSIDataset(PatchWSIDataset):
+    """
+    This dataset extracts patches from whole slide images (without loading the whole image)
+    It also reads labels for each patch and provides each patch with its associated class labels.
+
+    Args:
+        data: the list of input samples including image, location, and label (see the note below for more details).
+        size: the size of patch to be extracted from the whole slide image.
+        level: the level at which the patches to be extracted (default to 0).
+        transform: transforms to be executed on input data.
+        reader: the module to be used for loading whole slide imaging. Defaults to cuCIM. If `reader` is
+
+            - a string, it defines the backend of `monai.data.WSIReader`.
+            - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader,
+            - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+
+        kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
+
+    Note:
+        The input data has the following form as an example:
+
+        .. code-block:: python
+
+            [
+                {"image": "path/to/image1.tiff"},
+                {"image": "path/to/image2.tiff", "size": [20, 20], "level": 2}
+            ]
+
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        size: Optional[Union[int, Tuple[int, int]]] = None,
+        level: Optional[int] = None,
+        overlap: float = 0,
+        transform: Optional[Callable] = None,
+        reader="cuCIM",
+        **kwargs,
+    ):
+        super().__init__(data=data, size=size, level=level, transform=transform, reader=reader, **kwargs)
+        self.overlap = overlap
+
+        # Create single sample for each patch (in a sliding window manner)
+        self.data = []
+        for sample in data:
+            prepared_sample = self._make_patches(sample)
+            self.data.extend(prepared_sample)
+
+    def _make_patches(self, sample):
+        """Define the location for each patch based on sliding-window approach"""
+        wsi_obj = self._get_wsi_object(sample)
+        wsi_size = wsi_obj.get_size(0)
+
+        patch_size = self._get_size(sample)
+        level = self._get_level(sample)
+        ratio = 1.0
+        if level > 0:
+            wsi_size_at_level = wsi_obj.get_size(level)
+            ratio = [wsi_size[i] / wsi_size_at_level[i] for i in range(len(self.size))]
+
+        steps = (int(patch_size[i] * ratio[i] * self.overlap) for i in range(len(self.size)))
+        locations = product(range(0, wsi_size[i], steps[i]) for i in range(len(self.size)))
+
+        sample["size"] = patch_size
+        sample["level"] = level
+        n_patches = len(locations)
+        return [{**sample, "location": locations[i], "patch_num": i, "n_patches": n_patches} for i in range(n_patches)]
+
+    def _transform(self, index: int):
+        # Get a single entry of data
+        sample: Dict = self.data[index]
+        # Extract patch image and associated metadata
+        image, metadata = self._get_data(sample)
+
+        # Create put all patch information together and apply transforms
+        patch = {"image": image, "metadata": metadata}
         return apply_transform(self.transform, patch) if self.transform else patch
