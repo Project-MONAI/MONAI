@@ -10,13 +10,11 @@
 # limitations under the License.
 
 import inspect
-import sys
-from itertools import product
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from monai.data import Dataset, SmartCacheDataset
+from monai.data import Dataset
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
