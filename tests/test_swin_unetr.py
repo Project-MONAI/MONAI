@@ -21,7 +21,7 @@ from monai.utils import optional_import
 
 einops, has_einops = optional_import("einops")
 
-TEST_CASE_UNETR = []
+TEST_CASE_SWIN_UNETR = []
 for attn_drop_rate in [0.4]:
     for in_channels in [1]:
         for depth in [[2, 1, 1, 1], [1, 2, 1, 1]]:
@@ -29,24 +29,27 @@ for attn_drop_rate in [0.4]:
                 for img_size in [64]:
                     for feature_size in [12]:
                         for norm_name in ["instance"]:
-                            test_case = [
-                                {
-                                    "in_channels": in_channels,
-                                    "out_channels": out_channels,
-                                    "img_size": (img_size,) * 3,
-                                    "feature_size": feature_size,
-                                    "depths": depth,
-                                    "norm_name": norm_name,
-                                    "attn_drop_rate": attn_drop_rate,
-                                },
-                                (2, in_channels, *([img_size] * 3)),
-                                (2, out_channels, *([img_size] * 3)),
-                            ]
-                            TEST_CASE_UNETR.append(test_case)
+                            for nd in (2, 3):
+                                test_case = [
+                                    {
+                                        "in_channels": in_channels,
+                                        "out_channels": out_channels,
+                                        "img_size": (img_size,) * nd,
+                                        "feature_size": feature_size,
+                                        "depths": depth,
+                                        "norm_name": norm_name,
+                                        "attn_drop_rate": attn_drop_rate,
+                                    },
+                                    (2, in_channels, *([img_size] * nd)),
+                                    (2, out_channels, *([img_size] * nd)),
+                                ]
+                                if nd == 2:
+                                    test_case[0]["spatial_dims"] = 2  # type: ignore
+                                TEST_CASE_SWIN_UNETR.append(test_case)
 
 
-class TestPatchEmbeddingBlock(unittest.TestCase):
-    @parameterized.expand(TEST_CASE_UNETR)
+class TestSWINUNETR(unittest.TestCase):
+    @parameterized.expand(TEST_CASE_SWIN_UNETR)
     @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SwinUNETR(**input_param)
