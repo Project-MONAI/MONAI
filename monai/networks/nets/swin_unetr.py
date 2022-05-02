@@ -430,7 +430,7 @@ class WindowAttention(nn.Module):
             coords_d = torch.arange(self.window_size[0])
             coords_h = torch.arange(self.window_size[1])
             coords_w = torch.arange(self.window_size[2])
-            if "indexing" in torch.meshgrid.__kwdefaults__:
+            if torch.meshgrid.__kwdefaults__.__contains__("indexing"):
                 coords = torch.stack(torch.meshgrid(coords_d, coords_h, coords_w, indexing="ij"))
             else:
                 coords = torch.stack(torch.meshgrid(coords_d, coords_h, coords_w))
@@ -448,7 +448,7 @@ class WindowAttention(nn.Module):
             )
             coords_h = torch.arange(self.window_size[0])
             coords_w = torch.arange(self.window_size[1])
-            if "indexing" in torch.meshgrid.__kwdefaults__:
+            if torch.meshgrid.__kwdefaults__.__contains__("indexing"):
                 coords = torch.stack(torch.meshgrid(coords_h, coords_w, indexing="ij"))
             else:
                 coords = torch.stack(torch.meshgrid(coords_h, coords_w))
