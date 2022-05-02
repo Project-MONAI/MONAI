@@ -188,8 +188,9 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         seed: int = 0,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        **kwargs,
     ):
-        patch_wsi_dataset = PatchWSIDataset(data=data, size=size, level=level, reader=reader)
+        patch_wsi_dataset = PatchWSIDataset(data=data, size=size, level=level, reader=reader, **kwargs)
         super().__init__(
             data=patch_wsi_dataset,  # type: ignore
             transform=transform,

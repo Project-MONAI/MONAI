@@ -197,7 +197,7 @@ class BaseWSIReader(ImageReader):
             patch_list.append(patch)
 
             # Set patch-related metadata
-            each_meta = self.get_metadata(wsi=wsi, patch=patch, location=location, size=size, level=level)
+            each_meta = self.get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
             metadata.update(each_meta)
 
         return _stack_images(patch_list, metadata), metadata
