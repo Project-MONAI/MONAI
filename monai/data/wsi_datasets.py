@@ -10,16 +10,18 @@
 # limitations under the License.
 
 import inspect
-from typing import Callable, Dict, List, Optional, Tuple, Union
+import sys
+from itertools import product
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from monai.data import Dataset
+from monai.data import Dataset, SmartCacheDataset
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
 
-__all__ = ["PatchWSIDataset"]
+__all__ = ["PatchWSIDataset", "SmartCachePatchWSIDataset"]
 
 
 class PatchWSIDataset(Dataset):
@@ -32,10 +34,12 @@ class PatchWSIDataset(Dataset):
         size: the size of patch to be extracted from the whole slide image.
         level: the level at which the patches to be extracted (default to 0).
         transform: transforms to be executed on input data.
-        reader: the module to be used for loading whole slide imaging,
-            - if `reader` is a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
-            - if `reader` is a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
-            - if `reader` is an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+        reader: the module to be used for loading whole slide imaging. If `reader` is
+
+            - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
+            - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
+            - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
     Note:
@@ -45,14 +49,14 @@ class PatchWSIDataset(Dataset):
 
             [
                 {"image": "path/to/image1.tiff", "location": [200, 500], "label": 0},
-                {"image": "path/to/image2.tiff", "location": [100, 700], "label": 1}
+                {"image": "path/to/image2.tiff", "location": [100, 700], "size": [20, 20], "level": 2, "label": 1}
             ]
 
     """
 
     def __init__(
         self,
-        data: List,
+        data: Sequence,
         size: Optional[Union[int, Tuple[int, int]]] = None,
         level: Optional[int] = None,
         transform: Optional[Callable] = None,
@@ -133,3 +137,70 @@ class PatchWSIDataset(Dataset):
         # Create put all patch information together and apply transforms
         patch = {"image": image, "label": label, "metadata": metadata}
         return apply_transform(self.transform, patch) if self.transform else patch
+
+
+class SmartCachePatchWSIDataset(SmartCacheDataset):
+    """Add SmartCache functionality to `PatchWSIDataset`.
+
+    Args:
+        data: the list of input samples including image, location, and label (see the note below for more details).
+        size: the size of patch to be extracted from the whole slide image.
+        level: the level at which the patches to be extracted (default to 0).
+        transform: transforms to be executed on input data.
+        reader_name: the name of library to be used for loading whole slide imaging, as the backend of `monai.data.WSIReader`
+            Defaults to CuCIM.
+        replace_rate: percentage of the cached items to be replaced in every epoch.
+        cache_num: number of items to be cached. Default is `sys.maxsize`.
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        num_init_workers: the number of worker threads to initialize the cache for first epoch.
+            If num_init_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is specified, 1 will be used instead.
+        num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
+            If num_replace_workers is None then the number returned by os.cpu_count() is used.
+            If a value less than 1 is specified, 1 will be used instead.
+        progress: whether to display a progress bar when caching for the first epoch.
+        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+            default to `True`. if the random transforms don't modify the cache content
+            or every cache item is only used once in a `multi-processing` environment,
+            may set `copy=False` for better performance.
+        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+            it may help improve the performance of following logic.
+        kwargs: additional parameters for ``WSIReader``
+
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        size: Optional[Union[int, Tuple[int, int]]] = None,
+        level: Optional[int] = None,
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
+        reader="cuCIM",
+        replace_rate: float = 0.1,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_init_workers: Optional[int] = 1,
+        num_replace_workers: Optional[int] = 1,
+        progress: bool = True,
+        shuffle: bool = False,
+        seed: int = 0,
+        copy_cache: bool = True,
+        as_contiguous: bool = True,
+    ):
+        patch_wsi_dataset = PatchWSIDataset(data=data, size=size, level=level, reader=reader)
+        super().__init__(
+            data=patch_wsi_dataset,  # type: ignore
+            transform=transform,
+            replace_rate=replace_rate,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_init_workers=num_init_workers,
+            num_replace_workers=num_replace_workers,
+            progress=progress,
+            shuffle=shuffle,
+            seed=seed,
+            copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
+        )
