@@ -63,7 +63,7 @@ class BaseWSIReader(ImageReader):
     @abstractmethod
     def get_size(self, wsi, level: int) -> Tuple[int, int]:
         """
-        Returns the size of the whole slide image at a given level.
+        Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -103,11 +103,14 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
+    def get_metadata(
+        self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
+    ) -> Dict:
         """
         Returns metadata of the extracted patch from the whole slide image.
 
         Args:
+            wsi: the whole slide image object, from which the patch is loaded
             patch: extracted patch from whole slide image
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
@@ -194,7 +197,7 @@ class BaseWSIReader(ImageReader):
             patch_list.append(patch)
 
             # Set patch-related metadata
-            each_meta = self.get_metadata(patch=patch, location=location, size=size, level=level)
+            each_meta = self.get_metadata(wsi=wsi, patch=patch, location=location, size=size, level=level)
             metadata.update(each_meta)
 
         return _stack_images(patch_list, metadata), metadata
@@ -247,7 +250,7 @@ class WSIReader(BaseWSIReader):
 
     def get_size(self, wsi, level: int) -> Tuple[int, int]:
         """
-        Returns the size of the whole slide image at a given level.
+        Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -256,11 +259,14 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_size(wsi, level)
 
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
+    def get_metadata(
+        self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
+    ) -> Dict:
         """
         Returns metadata of the extracted patch from the whole slide image.
 
         Args:
+            wsi: the whole slide image object, from which the patch is loaded
             patch: extracted patch from whole slide image
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
@@ -268,7 +274,7 @@ class WSIReader(BaseWSIReader):
             level: the level number. Defaults to 0
 
         """
-        return self.reader.get_metadata(patch=patch, size=size, location=location, level=level)
+        return self.reader.get_metadata(wsi=wsi, patch=patch, size=size, location=location, level=level)
 
     def get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
@@ -335,7 +341,7 @@ class CuCIMWSIReader(BaseWSIReader):
     @staticmethod
     def get_size(wsi, level: int) -> Tuple[int, int]:
         """
-        Returns the size of the whole slide image at a given level.
+        Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -344,11 +350,14 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         return (wsi.resolutions["level_dimensions"][level][1], wsi.resolutions["level_dimensions"][level][0])
 
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
+    def get_metadata(
+        self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
+    ) -> Dict:
         """
         Returns metadata of the extracted patch from the whole slide image.
 
         Args:
+            wsi: the whole slide image object, from which the patch is loaded
             patch: extracted patch from whole slide image
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
@@ -358,6 +367,7 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         metadata: Dict = {
             "backend": "cucim",
+            "wsi_path": wsi.path,
             "spatial_shape": np.asarray(patch.shape[1:]),
             "original_channel_dim": 0,
             "location": location,
@@ -458,7 +468,7 @@ class OpenSlideWSIReader(BaseWSIReader):
     @staticmethod
     def get_size(wsi, level: int) -> Tuple[int, int]:
         """
-        Returns the size of the whole slide image at a given level.
+        Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -467,11 +477,14 @@ class OpenSlideWSIReader(BaseWSIReader):
         """
         return (wsi.level_dimensions[level][1], wsi.level_dimensions[level][0])
 
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
+    def get_metadata(
+        self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
+    ) -> Dict:
         """
         Returns metadata of the extracted patch from the whole slide image.
 
         Args:
+            wsi: the whole slide image object, from which the patch is loaded
             patch: extracted patch from whole slide image
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
