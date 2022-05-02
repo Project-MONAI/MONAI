@@ -311,3 +311,8 @@ PatchWSIDataset
 ~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.PatchWSIDataset
     :members:
+
+SmartCachePatchWSIDataset
+~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.SmartCachePatchWSIDataset
+    :members:
