@@ -21,7 +21,7 @@ from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
 
-__all__ = ["PatchWSIDataset", "SmartCachePatchWSIDataset"]
+__all__ = ["PatchWSIDataset"]
 
 
 class PatchWSIDataset(Dataset):
@@ -137,71 +137,3 @@ class PatchWSIDataset(Dataset):
         # Create put all patch information together and apply transforms
         patch = {"image": image, "label": label, "metadata": metadata}
         return apply_transform(self.transform, patch) if self.transform else patch
-
-
-class SmartCachePatchWSIDataset(SmartCacheDataset):
-    """Add SmartCache functionality to `PatchWSIDataset`.
-
-    Args:
-        data: the list of input samples including image, location, and label (see the note below for more details).
-        size: the size of patch to be extracted from the whole slide image.
-        level: the level at which the patches to be extracted (default to 0).
-        transform: transforms to be executed on input data.
-        reader_name: the name of library to be used for loading whole slide imaging, as the backend of `monai.data.WSIReader`
-            Defaults to CuCIM.
-        replace_rate: percentage of the cached items to be replaced in every epoch.
-        cache_num: number of items to be cached. Default is `sys.maxsize`.
-            will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
-            will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        num_init_workers: the number of worker threads to initialize the cache for first epoch.
-            If num_init_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is specified, 1 will be used instead.
-        num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
-            If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is specified, 1 will be used instead.
-        progress: whether to display a progress bar when caching for the first epoch.
-        copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
-            default to `True`. if the random transforms don't modify the cache content
-            or every cache item is only used once in a `multi-processing` environment,
-            may set `copy=False` for better performance.
-        as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
-            it may help improve the performance of following logic.
-        kwargs: additional parameters for ``WSIReader``
-
-    """
-
-    def __init__(
-        self,
-        data: Sequence,
-        size: Optional[Union[int, Tuple[int, int]]] = None,
-        level: Optional[int] = None,
-        transform: Optional[Union[Sequence[Callable], Callable]] = None,
-        reader="cuCIM",
-        replace_rate: float = 0.1,
-        cache_num: int = sys.maxsize,
-        cache_rate: float = 1.0,
-        num_init_workers: Optional[int] = 1,
-        num_replace_workers: Optional[int] = 1,
-        progress: bool = True,
-        shuffle: bool = False,
-        seed: int = 0,
-        copy_cache: bool = True,
-        as_contiguous: bool = True,
-        **kwargs,
-    ):
-        patch_wsi_dataset = PatchWSIDataset(data=data, size=size, level=level, reader=reader, **kwargs)
-        super().__init__(
-            data=patch_wsi_dataset,  # type: ignore
-            transform=transform,
-            replace_rate=replace_rate,
-            cache_num=cache_num,
-            cache_rate=cache_rate,
-            num_init_workers=num_init_workers,
-            num_replace_workers=num_replace_workers,
-            progress=progress,
-            shuffle=shuffle,
-            seed=seed,
-            copy_cache=copy_cache,
-            as_contiguous=as_contiguous,
-        )
