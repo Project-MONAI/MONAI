@@ -103,9 +103,7 @@ class TestNiftiSaver(unittest.TestCase):
                 saver.save(torch.randint(0, 255, (1, 2, 2)), meta_data)
 
                 im = LoadImage()(os.path.join(tempdir, fname, fname + ".nii.gz"))
-                meta = im.meta
                 self.assertTrue(im.ndim == 2 if squeeze_end_dims else 4)
-                self.assertTrue(meta["dim"][0] == im.ndim)
 
 
 if __name__ == "__main__":
