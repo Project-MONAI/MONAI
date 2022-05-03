@@ -47,4 +47,3 @@ int getHausdorffDistance(
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("getHausdorffDistance", &getHausdorffDistance, "Basic version of Hausdorff distance");
 }
-
