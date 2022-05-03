@@ -153,7 +153,7 @@ class MetaObj:
         Returns:
             Returns `None`, but `self` should be updated to have the copied attribute.
         """
-        attributes = [getattr(i, attribute) for i in input_objs]
+        attributes = [getattr(i, attribute) for i in input_objs if hasattr(i, attribute)]
         if len(attributes) > 0:
             val = attributes[0]
             if deep_copy:
@@ -189,9 +189,7 @@ class MetaObj:
 
     def __repr__(self) -> str:
         """String representation of class."""
-        out: str = super().__repr__()
-
-        out += "\nMetaData\n"
+        out: str = "\nMetaData\n"
         if self.meta is not None:
             out += "".join(f"\t{k}: {v}\n" for k, v in self.meta.items())
         else:

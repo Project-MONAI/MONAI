@@ -581,6 +581,8 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
     Returns:
         an `r` dimensional vector of spacing.
     """
+    if len(affine.shape) != 2 or affine.shape[0] != affine.shape[1]:
+        raise ValueError(f"affine must be a square matrix, got {affine.shape}.")
     _affine, *_ = convert_to_dst_type(affine[:r, :r], dst=affine, dtype=dtype)
     if isinstance(_affine, torch.Tensor):
         spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))

@@ -17,8 +17,10 @@ from typing import Any, Callable, Sequence
 
 import torch
 
+from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta, get_track_transforms
 from monai.data.utils import decollate_batch, list_data_collate
+from monai.transforms.utils import remove_extra_metadata
 from monai.utils.enums import PostFix
 
 __all__ = ["MetaTensor"]
@@ -186,8 +188,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             kwargs = {}
         ret = super().__torch_function__(func, types, args, kwargs)
         # if `out` has been used as argument, metadata is not copied, nothing to do.
-        if "out" in kwargs:
-            return ret
+        # if "out" in kwargs:
+        #     return ret
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
@@ -232,3 +234,33 @@ class MetaTensor(MetaObj, torch.Tensor):
     def affine(self, d: torch.Tensor) -> None:
         """Set the affine."""
         self.meta["affine"] = d
+
+    @staticmethod
+    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict):
+        """
+        Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
+        convert that to `torch.Tensor`, too. Remove any superfluous metadata.
+
+        Args:
+            im: Input image (`np.ndarray` or `torch.Tensor`)
+            meta: Metadata dictionary.
+
+        Returns:
+            By default, a `MetaTensor` is returned.
+            However, if `get_track_meta()` is `False`, a `torch.Tensor` is returned.
+        """
+        img = torch.as_tensor(im)
+
+        # if not tracking metadata, return `torch.Tensor`
+        if not get_track_meta() or meta is None:
+            return img
+
+        # ensure affine is of type `torch.Tensor`
+        if "affine" in meta:
+            meta["affine"] = torch.as_tensor(meta["affine"])
+
+        # remove any superfluous metadata.
+        remove_extra_metadata(meta)
+
+        # return the `MetaTensor`
+        return MetaTensor(img, meta=meta)
