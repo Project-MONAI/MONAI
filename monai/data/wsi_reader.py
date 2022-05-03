@@ -494,6 +494,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         """
         metadata: Dict = {
             "backend": "openslide",
+            "wsi_path": wsi._filename,
             "spatial_shape": np.asarray(patch.shape[1:]),
             "original_channel_dim": 0,
             "location": location,
