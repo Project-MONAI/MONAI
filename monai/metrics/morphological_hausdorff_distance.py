@@ -99,10 +99,11 @@ class MorphologicalHausdorffDistanceMetric(CumulativeIterationMetric):
             Dimensionality needs to be identical as in y_pred
 
         """
-
+        sizz=0
         if y.shape != y_pred.shape:
             raise ValueError("y_pred and y should have same shapes")
-        sizz = y.shape
+        else:
+            sizz = y.shape
         if self.to_invert_dims:
             return self.compiled_extension.getHausdorffDistance(
                 y_pred, y, sizz[2], sizz[1], sizz[0], self.percent, self.compare_values
