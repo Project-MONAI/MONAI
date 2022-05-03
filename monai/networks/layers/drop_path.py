@@ -24,7 +24,7 @@ class DropPath(nn.Module):
             drop_prob: drop path probability.
             scale_by_keep: scaling by non-dropped probability.
         """
-        super(DropPath, self).__init__()
+        super().__init__()
         self.drop_prob = drop_prob
         self.scale_by_keep = scale_by_keep
 
