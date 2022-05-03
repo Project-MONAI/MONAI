@@ -623,12 +623,10 @@ class Resize(Transform):
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
-        anti_aliasing: bool, optional
+        anti_aliasing: bool
             Whether to apply a Gaussian filter to smooth the image prior
             to downsampling. It is crucial to filter when downsampling
-            the image to avoid aliasing artifacts. If not specified, it is set to
-            True when downsampling an image whose data type is not bool.
-            See also skimage.transform.resize
+            the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
         anti_aliasing_sigma: {float, tuple of floats}, optional
             Standard deviation for Gaussian filtering used when anti-aliasing.
             By default, this value is chosen as (s - 1) / 2 where s is the
@@ -644,8 +642,8 @@ class Resize(Transform):
         size_mode: str = "all",
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
-        anti_aliasing: Optional[bool] = True,
-        anti_aliasing_sigma: Union[Sequence[float], float] = None,
+        anti_aliasing: bool = False,
+        anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
     ) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
@@ -660,7 +658,7 @@ class Resize(Transform):
         mode: Optional[Union[InterpolateMode, str]] = None,
         align_corners: Optional[bool] = None,
         anti_aliasing: Optional[bool] = None,
-        anti_aliasing_sigma: Union[Sequence[float], float] = None,
+        anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -674,9 +672,7 @@ class Resize(Transform):
             anti_aliasing: bool, optional
                 Whether to apply a Gaussian filter to smooth the image prior
                 to downsampling. It is crucial to filter when downsampling
-                the image to avoid aliasing artifacts. If not specified, it is set to
-                True when downsampling an image whose data type is not bool.
-                See also skimage.transform.resize
+                the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
             anti_aliasing_sigma: {float, tuple of floats}, optional
                 Standard deviation for Gaussian filtering used when anti-aliasing.
                 By default, this value is chosen as (s - 1) / 2 where s is the
