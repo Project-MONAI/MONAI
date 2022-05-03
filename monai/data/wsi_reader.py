@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from os.path import abspath
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -53,6 +54,7 @@ class BaseWSIReader(ImageReader):
     """
 
     supported_suffixes: List[str] = []
+    backend = ""
 
     def __init__(self, level: int, **kwargs):
         super().__init__()
@@ -84,6 +86,11 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
+    def get_file_path(self, wsi) -> str:
+        """Return the file path for the WSI object"""
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    @abstractmethod
     def get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
@@ -102,7 +109,6 @@ class BaseWSIReader(ImageReader):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
     def get_metadata(
         self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
     ) -> Dict:
@@ -118,7 +124,14 @@ class BaseWSIReader(ImageReader):
             level: the level number. Defaults to 0
 
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+        metadata: Dict = {
+            "backend": self.backend,
+            "original_channel_dim": 0,
+            "spatial_shape": np.asarray(patch.shape[1:]),
+            "wsi": {"path": self.get_file_path(wsi)},
+            "patch": {"location": location, "size": size, "level": level},
+        }
+        return metadata
 
     def get_data(
         self,
@@ -259,22 +272,9 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_size(wsi, level)
 
-    def get_metadata(
-        self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
-    ) -> Dict:
-        """
-        Returns metadata of the extracted patch from the whole slide image.
-
-        Args:
-            wsi: the whole slide image object, from which the patch is loaded
-            patch: extracted patch from whole slide image
-            location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
-            size: (height, width) tuple giving the patch size at the given level (`level`).
-                If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
-
-        """
-        return self.reader.get_metadata(wsi=wsi, patch=patch, size=size, location=location, level=level)
+    def get_file_path(self, wsi) -> str:
+        """Return the file path for the WSI object"""
+        return self.reader.get_file_path(wsi)
 
     def get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
@@ -323,6 +323,7 @@ class CuCIMWSIReader(BaseWSIReader):
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
+    backend = "cucim"
 
     def __init__(self, level: int = 0, **kwargs):
         super().__init__(level, **kwargs)
@@ -350,31 +351,9 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         return (wsi.resolutions["level_dimensions"][level][1], wsi.resolutions["level_dimensions"][level][0])
 
-    def get_metadata(
-        self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
-    ) -> Dict:
-        """
-        Returns metadata of the extracted patch from the whole slide image.
-
-        Args:
-            wsi: the whole slide image object, from which the patch is loaded
-            patch: extracted patch from whole slide image
-            location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
-            size: (height, width) tuple giving the patch size at the given level (`level`).
-                If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
-
-        """
-        metadata: Dict = {
-            "backend": "cucim",
-            "wsi_path": wsi.path,
-            "spatial_shape": np.asarray(patch.shape[1:]),
-            "original_channel_dim": 0,
-            "location": location,
-            "size": size,
-            "level": level,
-        }
-        return metadata
+    def get_file_path(self, wsi) -> str:
+        """Return the file path for the WSI object"""
+        return str(abspath(wsi.path))
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
@@ -450,6 +429,7 @@ class OpenSlideWSIReader(BaseWSIReader):
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
+    backend = "openslide"
 
     def __init__(self, level: int = 0, **kwargs):
         super().__init__(level, **kwargs)
@@ -477,31 +457,9 @@ class OpenSlideWSIReader(BaseWSIReader):
         """
         return (wsi.level_dimensions[level][1], wsi.level_dimensions[level][0])
 
-    def get_metadata(
-        self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
-    ) -> Dict:
-        """
-        Returns metadata of the extracted patch from the whole slide image.
-
-        Args:
-            wsi: the whole slide image object, from which the patch is loaded
-            patch: extracted patch from whole slide image
-            location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
-            size: (height, width) tuple giving the patch size at the given level (`level`).
-                If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
-
-        """
-        metadata: Dict = {
-            "backend": "openslide",
-            "wsi_path": wsi._filename,
-            "spatial_shape": np.asarray(patch.shape[1:]),
-            "original_channel_dim": 0,
-            "location": location,
-            "size": size,
-            "level": level,
-        }
-        return metadata
+    def get_file_path(self, wsi) -> str:
+        """Return the file path for the WSI object"""
+        return str(abspath(wsi._filename))
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
