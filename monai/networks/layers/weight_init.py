@@ -61,6 +61,6 @@ def trunc_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
         raise ValueError("the standard deviation should be greater than zero.")
 
     if a >= b:
-        raise ValueError("minimum cutoff value (a) should be greater than maximum cutoff value (b).")
+        raise ValueError("minimum cutoff value (a) should be smaller than maximum cutoff value (b).")
 
     return _no_grad_trunc_normal_(tensor, mean, std, a, b)
