@@ -24,6 +24,10 @@ TEST_CASE_1 = [{"spatial_size": 15, "mode": "area"}, (6, 10, 15)]
 
 TEST_CASE_2 = [{"spatial_size": 6, "mode": "trilinear", "align_corners": True}, (2, 4, 6)]
 
+TEST_CASE_3 = [{"spatial_size": 15, "anti_aliasing": False}, (6, 10, 15)]
+
+TEST_CASE_4 = [{"spatial_size": 6, "anti_aliasing_sigma": 2.0}, (2, 4, 6)]
+
 
 class TestResize(NumpyImageTestCase2D):
     def test_invalid_inputs(self):
@@ -36,10 +40,15 @@ class TestResize(NumpyImageTestCase2D):
             resize(self.imt[0])
 
     @parameterized.expand(
-        [((32, -1), "area"), ((32, 32), "area"), ((32, 32, 32), "trilinear"), ((256, 256), "bilinear")]
+        [
+            ((32, -1), "area", True),
+            ((32, 32), "area", False),
+            ((32, 32, 32), "trilinear", True),
+            ((256, 256), "bilinear", False),
+        ]
     )
-    def test_correct_results(self, spatial_size, mode):
-        resize = Resize(spatial_size, mode=mode)
+    def test_correct_results(self, spatial_size, mode, anti_aliasing):
+        resize = Resize(spatial_size, mode=mode, anti_aliasing=anti_aliasing)
         _order = 0
         if mode.endswith("linear"):
             _order = 1
@@ -47,7 +56,7 @@ class TestResize(NumpyImageTestCase2D):
             spatial_size = (32, 64)
         expected = [
             skimage.transform.resize(
-                channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=False
+                channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=anti_aliasing
             )
             for channel in self.imt[0]
         ]
@@ -57,7 +66,7 @@ class TestResize(NumpyImageTestCase2D):
             out = resize(p(self.imt[0]))
             assert_allclose(out, expected, type_test=False, atol=0.9)
 
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_longest_shape(self, input_param, expected_shape):
         input_data = np.random.randint(0, 2, size=[3, 4, 7, 10])
         input_param["size_mode"] = "longest"
