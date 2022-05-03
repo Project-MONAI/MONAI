@@ -127,22 +127,44 @@ class LoadImaged(MapTransform):
 
         """
         d = dict(data)
+        image_shapes = []
+        # From python 3.6 and up, dictionaries are ordered, so we can assume that the dict orders we get
+        # are all in the same order, unless the user goes out of their way to shuffle them.
+        first_path = list(d.values())[0]
+
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            data = self._loader(d[key], reader)
+            image_data = self._loader(d[key], reader)
+            # _loader returns a tuple of (ndarray, dict), we want the ndarray.shape
+            image_shapes.append(image_data[0].shape)
+
             if self._loader.image_only:
-                if not isinstance(data, np.ndarray):
+                if not isinstance(image_data, np.ndarray):
                     raise ValueError("loader must return a numpy array (because image_only=True was used).")
-                d[key] = data
+                d[key] = image_data
             else:
-                if not isinstance(data, (tuple, list)):
+                if not isinstance(image_data, (tuple, list)):
                     raise ValueError("loader must return a tuple or list (because image_only=False was used).")
-                d[key] = data[0]
-                if not isinstance(data[1], dict):
+                d[key] = image_data[0]
+                if not isinstance(image_data[1], dict):
                     raise ValueError("metadata must be a dict.")
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key in d and not self.overwriting:
                     raise KeyError(f"Meta data with key {meta_key} already exists and overwriting=False.")
-                d[meta_key] = data[1]
+                d[meta_key] = image_data[1]
+
+        # Only warn the first time per sample to prevent spamming the logs
+        if self.log_warning and (first_path not in self.has_warned_about):
+            # all() is a lazy function, i.e. it will stop at the first instance of shapes mismatching
+            if not all(x == image_shapes[0] for x in image_shapes):
+                print("WARNING: Loaded image shapes do not match for input dictionary:")
+                print(dict(data))
+                print("\nResulting in image shapes:")
+                [print(f"\t{x}: {y.shape}") for x, y in zip(d.keys(), d.values())]
+                print("\nIf you do not wish to see this warning, pass `log_warning = False` to `LoadImaged()`")
+
+                # We save the path of the first key for later comparisons.
+                self.has_warned_about.append(first_path)
+
         return d
 
 
