@@ -90,12 +90,11 @@ class TestRandCuCIM(unittest.TestCase):
         ]
     )
     def test_tramsforms_numpy_single(self, params, input, expected):
-        # apply_prob=1.0
+        input = np.copy(input)
         output = RandCuCIM(apply_prob=1.0, **params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIM(apply_prob=0.0, **params)(input)
         self.assertTrue(output.dtype == input.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
@@ -114,14 +113,12 @@ class TestRandCuCIM(unittest.TestCase):
         ]
     )
     def test_tramsforms_numpy_batch(self, params, input, expected):
-        input = input[cp.newaxis, ...]
+        input = np.copy(input[cp.newaxis, ...])
         expected = expected[cp.newaxis, ...]
-        # apply_prob=1.0
         output = RandCuCIM(apply_prob=1.0, **params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIM(apply_prob=0.0, **params)(input)
         self.assertTrue(output.dtype == input.dtype)
         self.assertTrue(isinstance(output, np.ndarray))
@@ -142,12 +139,10 @@ class TestRandCuCIM(unittest.TestCase):
     def test_tramsforms_cupy_single(self, params, input, expected):
         input = cp.asarray(input)
         expected = cp.asarray(expected)
-        # apply_prob=1.0
         output = RandCuCIM(apply_prob=1.0, **params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIM(apply_prob=0.0, **params)(input)
         self.assertTrue(output.dtype == input.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
@@ -168,12 +163,10 @@ class TestRandCuCIM(unittest.TestCase):
     def test_tramsforms_cupy_batch(self, params, input, expected):
         input = cp.asarray(input)[cp.newaxis, ...]
         expected = cp.asarray(expected)[cp.newaxis, ...]
-        # apply_prob=1.0
         output = RandCuCIM(**params)(input)
         self.assertTrue(output.dtype == expected.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))
         cp.testing.assert_allclose(output, expected)
-        # apply_prob=0.0
         output = RandCuCIM(apply_prob=0.0, **params)(input)
         self.assertTrue(output.dtype == input.dtype)
         self.assertTrue(isinstance(output, cp.ndarray))

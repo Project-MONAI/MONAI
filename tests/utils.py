@@ -102,8 +102,8 @@ def assert_allclose(
     if isinstance(desired, torch.Tensor) or isinstance(actual, torch.Tensor):
         if device_test:
             np.testing.assert_equal(str(actual.device), str(desired.device), "torch device check")  # type: ignore
-        actual = actual.cpu().numpy() if isinstance(actual, torch.Tensor) else actual
-        desired = desired.cpu().numpy() if isinstance(desired, torch.Tensor) else desired
+        actual = actual.detach().cpu().numpy() if isinstance(actual, torch.Tensor) else actual
+        desired = desired.detach().cpu().numpy() if isinstance(desired, torch.Tensor) else desired
     np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
@@ -114,6 +114,8 @@ def skip_if_downloading_fails():
     except (ContentTooShortError, HTTPError, ConnectionError) as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
     except RuntimeError as rt_e:
+        if "unexpected EOF" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
         if "network issue" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         if "gdown dependency" in str(rt_e):  # no gdown installed
@@ -243,11 +245,20 @@ class SkipIfAtLeastPyTorchVersion:
         )(obj)
 
 
+def is_main_test_process():
+    ps = torch.multiprocessing.current_process()
+    if not ps or not hasattr(ps, "name"):
+        return False
+    return ps.name.startswith("Main")
+
+
 def has_cupy():
     """
     Returns True if the user has installed a version of cupy.
     """
     cp, has_cp = optional_import("cupy")
+    if not is_main_test_process():
+        return has_cp  # skip the check if we are running in subprocess
     if not has_cp:
         return False
     try:  # test cupy installation with a basic example
@@ -256,7 +267,10 @@ def has_cupy():
         kernel = cp.ElementwiseKernel(
             "float32 x, float32 y", "float32 z", """ if (x - 2 > y) { z = x * y; } else { z = x + y; } """, "my_kernel"
         )
-        return kernel(x, y)[0, 0] == 0
+        flag = kernel(x, y)[0, 0] == 0
+        del x, y, kernel
+        cp.get_default_memory_pool().free_all_blocks()
+        return flag
     except Exception:
         return False
 
@@ -572,13 +586,11 @@ _original_funcs = {}
 
 def _cache_original_func(obj) -> None:
     """cache the original function by name, so that the decorator doesn't shadow it."""
-    global _original_funcs
     _original_funcs[obj.__name__] = obj
 
 
 def _del_original_func(obj):
     """pop the original function from cache."""
-    global _original_funcs
     _original_funcs.pop(obj.__name__, None)
     if torch.cuda.is_available():  # clean up the cached function
         torch.cuda.synchronize()
@@ -699,6 +711,11 @@ TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
     TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
+
+
+TEST_DEVICES = [[torch.device("cpu")]]
+if torch.cuda.is_available():
+    TEST_DEVICES.append([torch.device("cuda")])
 
 
 if __name__ == "__main__":

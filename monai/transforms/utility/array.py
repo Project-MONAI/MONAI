@@ -37,6 +37,7 @@ from monai.utils import (
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
+    deprecated,
     deprecated_arg,
     ensure_tuple,
     look_up_option,
@@ -62,6 +63,7 @@ __all__ = [
     "EnsureType",
     "RepeatChannel",
     "RemoveRepeatedChannel",
+    "SplitDim",
     "SplitChannel",
     "CastToType",
     "ToTensor",
@@ -281,33 +283,57 @@ class RemoveRepeatedChannel(Transform):
         return img[:: self.repeats, :]
 
 
-class SplitChannel(Transform):
+class SplitDim(Transform):
+    """
+    Given an image of size X along a certain dimension, return a list of length X containing
+    images. Useful for converting 3D images into a stack of 2D images, splitting multichannel inputs into
+    single channels, for example.
+
+    Note: `torch.split`/`np.split` is used, so the outputs are views of the input (shallow copy).
+
+    Args:
+        dim: dimension on which to split
+        keepdim: if `True`, output will have singleton in the split dimension. If `False`, this
+            dimension will be squeezed.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, dim: int = -1, keepdim: bool = True) -> None:
+        self.dim = dim
+        self.keepdim = keepdim
+
+    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
+        """
+        Apply the transform to `img`.
+        """
+        n_out = img.shape[self.dim]
+        if n_out <= 1:
+            raise RuntimeError("Input image is singleton along dimension to be split.")
+        if isinstance(img, torch.Tensor):
+            outputs = list(torch.split(img, 1, self.dim))
+        else:
+            outputs = np.split(img, n_out, self.dim)
+        if not self.keepdim:
+            outputs = [o.squeeze(self.dim) for o in outputs]
+        return outputs
+
+
+@deprecated(since="0.8", msg_suffix="please use `SplitDim` instead.")
+class SplitChannel(SplitDim):
     """
     Split Numpy array or PyTorch Tensor data according to the channel dim.
     It can help applying different following transforms to different channels.
+
+    Note: `torch.split`/`np.split` is used, so the outputs are views of the input (shallow copy).
 
     Args:
         channel_dim: which dimension of input image is the channel, default to 0.
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
     def __init__(self, channel_dim: int = 0) -> None:
-        self.channel_dim = channel_dim
-
-    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
-        num_classes = img.shape[self.channel_dim]
-        if num_classes <= 1:
-            raise RuntimeError("input image does not contain multiple channels.")
-
-        outputs = []
-        slices = [slice(None)] * len(img.shape)
-        for i in range(num_classes):
-            slices[self.channel_dim] = slice(i, i + 1)
-            outputs.append(img[tuple(slices)])
-
-        return outputs
+        super().__init__(channel_dim)
 
 
 class CastToType(Transform):
@@ -1122,9 +1148,9 @@ class IntensityStats(Transform):
 
         if mask is not None:
             if mask.shape != img_np.shape:
-                raise ValueError("mask must have the same shape as input `img`, got {mask.shape} and {img_np.shape}.")
+                raise ValueError(f"mask must have the same shape as input `img`, got {mask.shape} and {img_np.shape}.")
             if mask.dtype != bool:
-                raise TypeError("mask must be bool array, got type {mask.dtype}.")
+                raise TypeError(f"mask must be bool array, got type {mask.dtype}.")
             img_np = img_np[mask]
 
         supported_ops = {

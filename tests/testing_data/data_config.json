@@ -67,5 +67,12 @@
             "hash_type": "sha256",
             "hash_val": "a260b3a40f82dfe37c58d26a612bcf7bef0d27c6fed096226b0e4e9fb364168e"
         }
+    },
+    "configs": {
+        "test_meta_file": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/meta_schema_20220324.json",
+            "hash_type": "md5",
+            "hash_val": "662135097106b71067cd1fc657f8720f"
+        }
     }
 }

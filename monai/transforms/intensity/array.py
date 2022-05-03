@@ -30,14 +30,12 @@ from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
 from monai.utils import (
-    InvalidPyTorchVersionError,
     convert_data_type,
     convert_to_dst_type,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
-    pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
@@ -1085,7 +1083,6 @@ class SavitzkyGolaySmooth(Transform):
 class DetectEnvelope(Transform):
     """
     Find the envelope of the input data along the requested axis using a Hilbert transform.
-    Requires PyTorch 1.7.0+ and the PyTorch FFT module (which is not included in NVIDIA PyTorch Release 20.10).
 
     Args:
         axis: Axis along which to detect the envelope. Default 1, i.e. the first spatial dimension.
@@ -1097,9 +1094,6 @@ class DetectEnvelope(Transform):
     backend = [TransformBackends.TORCH]
 
     def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
-
-        if not pytorch_after(1, 7):
-            raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         if axis < 0:
             raise ValueError("axis must be zero or positive.")
@@ -1405,7 +1399,7 @@ class RandHistogramShift(RandomizableTransform):
         img_min, img_max = img_np.min(), img_np.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-        img_np = np.asarray(
+        img_np = np.asarray(  # type: ignore
             np.interp(img_np, reference_control_points_scaled, floating_control_points_scaled), dtype=img_np.dtype
         )
         img, *_ = convert_to_dst_type(img_np, dst=img)

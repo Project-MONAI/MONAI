@@ -354,10 +354,13 @@ class ITKWriter(ImageWriter):
 
     """
 
-    def __init__(self, output_dtype: DtypeLike = np.float32, **kwargs):
+    def __init__(self, output_dtype: DtypeLike = np.float32, affine_lps_to_ras: bool = True, **kwargs):
         """
         Args:
             output_dtype: output data type.
+            affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+                Set to ``True`` to be consistent with ``NibabelWriter``,
+                otherwise the affine matrix is assumed already in the ITK convention.
             kwargs: keyword arguments passed to ``ImageWriter``.
 
         The constructor will create ``self.output_dtype`` internally.
@@ -366,7 +369,9 @@ class ITKWriter(ImageWriter):
             - user-specified ``affine`` should be set in ``set_metadata``,
             - user-specified ``channel_dim`` should be set in ``set_data_array``.
         """
-        super().__init__(output_dtype=output_dtype, affine=None, channel_dim=0, **kwargs)
+        super().__init__(
+            output_dtype=output_dtype, affine_lps_to_ras=affine_lps_to_ras, affine=None, channel_dim=0, **kwargs
+        )
 
     def set_data_array(
         self, data_array: NdarrayOrTensor, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs
@@ -432,7 +437,12 @@ class ITKWriter(ImageWriter):
         """
         super().write(filename, verbose=verbose)
         self.data_obj = self.create_backend_obj(
-            self.data_obj, channel_dim=self.channel_dim, affine=self.affine, dtype=self.output_dtype, **kwargs  # type: ignore
+            self.data_obj,
+            channel_dim=self.channel_dim,
+            affine=self.affine,
+            dtype=self.output_dtype,  # type: ignore
+            affine_lps_to_ras=self.affine_lps_to_ras,  # type: ignore
+            **kwargs,
         )
         itk.imwrite(
             self.data_obj, filename, compression=kwargs.pop("compression", False), imageio=kwargs.pop("imageio", None)
@@ -445,6 +455,7 @@ class ITKWriter(ImageWriter):
         channel_dim: Optional[int] = 0,
         affine: Optional[NdarrayOrTensor] = None,
         dtype: DtypeLike = np.float32,
+        affine_lps_to_ras: bool = True,
         **kwargs,
     ):
         """
@@ -455,6 +466,9 @@ class ITKWriter(ImageWriter):
             channel_dim: channel dimension of the data array. This is used to create a Vector Image if it is not ``None``.
             affine: affine matrix of the data array. This is used to compute `spacing`, `direction` and `origin`.
             dtype: output data type.
+            affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
+                Set to ``True`` to be consistent with ``NibabelWriter``,
+                otherwise the affine matrix is assumed already in the ITK convention.
             kwargs: keyword arguments. Current `itk.GetImageFromArray` will read ``ttype`` from this dictionary.
 
         see also:
@@ -472,7 +486,8 @@ class ITKWriter(ImageWriter):
         if affine is None:
             affine = np.eye(d + 1, dtype=np.float64)
         _affine = convert_data_type(affine, np.ndarray)[0]
-        _affine = orientation_ras_lps(to_affine_nd(d, _affine))
+        if affine_lps_to_ras:
+            _affine = orientation_ras_lps(to_affine_nd(d, _affine))
         spacing = affine_to_spacing(_affine, r=d)
         _direction: np.ndarray = np.diag(1 / spacing)
         _direction = _affine[:d, :d] @ _direction

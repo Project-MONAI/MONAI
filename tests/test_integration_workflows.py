@@ -54,7 +54,7 @@ from monai.transforms import (
 from monai.utils import set_determinism
 from monai.utils.enums import PostFix
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, pytorch_after, skip_if_quick
 
 TASK = "integration_workflows"
 
@@ -126,8 +126,8 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             pass
 
     val_handlers = [
-        StatsHandler(output_transform=lambda x: None),
-        TensorBoardStatsHandler(summary_writer=summary_writer, output_transform=lambda x: None),
+        StatsHandler(iteration_log=False),
+        TensorBoardStatsHandler(summary_writer=summary_writer, iteration_log=False),
         TensorBoardImageHandler(
             log_dir=root_dir, batch_transform=from_engine(["image", "label"]), output_transform=from_engine("pred")
         ),
@@ -147,7 +147,9 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         metric_cmp_fn=lambda cur, prev: cur >= prev,  # if greater or equal, treat as new best metric
         val_handlers=val_handlers,
-        amp=True if amp else False,
+        amp=bool(amp),
+        to_kwargs={"memory_format": torch.preserve_format},
+        amp_kwargs={"dtype": torch.float16 if bool(amp) else torch.float32} if pytorch_after(1, 10, 0) else {},
     )
 
     train_postprocessing = Compose(
@@ -200,8 +202,10 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         postprocessing=train_postprocessing,
         key_train_metric={"train_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         train_handlers=train_handlers,
-        amp=True if amp else False,
+        amp=bool(amp),
         optim_set_to_none=True,
+        to_kwargs={"memory_format": torch.preserve_format},
+        amp_kwargs={"dtype": torch.float16 if bool(amp) else torch.float32} if pytorch_after(1, 10, 0) else {},
     )
     trainer.run()
 
@@ -250,7 +254,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         ]
     )
     val_handlers = [
-        StatsHandler(output_transform=lambda x: None),
+        StatsHandler(iteration_log=False),
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
         SegmentationSaver(
             output_dir=root_dir,
@@ -271,7 +275,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         },
         additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         val_handlers=val_handlers,
-        amp=True if amp else False,
+        amp=bool(amp),
     )
     evaluator.run()
 

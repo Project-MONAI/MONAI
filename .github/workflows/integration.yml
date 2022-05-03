@@ -3,15 +3,12 @@ name: integration
 on:
   repository_dispatch:
     type: [integration-test-command]
-  push:
-    branches:
-      - add-spatial-resample
 
 jobs:
   integration-py3:
     container:
-      image: nvcr.io/nvidia/pytorch:20.12-py3  # CUDA 11.1
-      options: --gpus all
+      image: nvcr.io/nvidia/pytorch:21.12-py3  # CUDA 11.5
+      options: --gpus all  # shm-size 4g works fine
     runs-on: [self-hosted, linux, x64, common]
     steps:
     # checkout the pull request branch
@@ -37,8 +34,9 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.10.1+cu111 torchvision==0.11.2+cu111 -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.11.0+cu115 torchvision==0.12.0+cu115 -f https://download.pytorch.org/whl/torch_stable.html
         python -m pip install -r requirements-dev.txt
+        rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Run integration tests
       run: |
         python -m pip list
