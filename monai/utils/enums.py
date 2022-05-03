@@ -141,7 +141,7 @@ class Average(Enum):
 
 class MetricReduction(Enum):
     """
-    See also: :py:class:`monai.metrics.meandice.DiceMetric`
+    See also: :py:func:`monai.metrics.utils.do_metric_reduction`
     """
 
     NONE = "none"

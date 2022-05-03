@@ -54,7 +54,7 @@ from monai.transforms import (
 from monai.utils import set_determinism
 from monai.utils.enums import PostFix
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, pytorch_after, skip_if_quick
 
 TASK = "integration_workflows"
 
@@ -149,6 +149,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         val_handlers=val_handlers,
         amp=bool(amp),
         to_kwargs={"memory_format": torch.preserve_format},
+        amp_kwargs={"dtype": torch.float16 if bool(amp) else torch.float32} if pytorch_after(1, 10, 0) else {},
     )
 
     train_postprocessing = Compose(
@@ -204,6 +205,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         amp=bool(amp),
         optim_set_to_none=True,
         to_kwargs={"memory_format": torch.preserve_format},
+        amp_kwargs={"dtype": torch.float16 if bool(amp) else torch.float32} if pytorch_after(1, 10, 0) else {},
     )
     trainer.run()
 

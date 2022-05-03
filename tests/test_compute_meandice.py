@@ -192,9 +192,9 @@ class TestComputeMeanDice(unittest.TestCase):
         vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")
-        dice_metric = DiceMetric(**input_data, reduction="none")
+        dice_metric = DiceMetric(**input_data)
         dice_metric(**vals)
-        result = dice_metric.aggregate()
+        result = dice_metric.aggregate(reduction="none")
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
