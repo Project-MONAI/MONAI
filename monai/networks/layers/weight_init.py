@@ -15,7 +15,6 @@ import torch
 
 
 def _no_grad_trunc_normal_(tensor, mean, std, a, b):
-
     """Tensor initialization with truncated normal distribution.
     Based on:
     https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf
@@ -44,7 +43,6 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
 
 
 def trunc_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
-
     """Tensor initialization with truncated normal distribution.
     Based on:
     https://github.com/rwightman/pytorch-image-models

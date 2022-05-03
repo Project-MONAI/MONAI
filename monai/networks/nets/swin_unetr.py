@@ -723,7 +723,6 @@ class PatchMerging(nn.Module):
 
 
 def compute_mask(dims, window_size, shift_size, device):
-
     """Computing region masks based on: "Liu et al.,
     Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
     <https://arxiv.org/abs/2103.14030>"
