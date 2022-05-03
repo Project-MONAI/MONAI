@@ -31,7 +31,7 @@ def save_as_tif(filename, array):
     if not filename.endswith(".tif"):
         filename += ".tif"
     file_path = os.path.join("tests", "testing_data", filename)
-    imwrite(file_path, array, compress="jpeg", tile=(16, 16))
+    imwrite(file_path, array, compression="jpeg", tile=(16, 16))
 
 
 def around(val, interval=3):

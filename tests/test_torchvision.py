@@ -15,7 +15,7 @@ from parameterized import parameterized
 
 from monai.transforms import TorchVision
 from monai.utils import set_determinism
-from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -52,7 +52,6 @@ for p in TEST_NDARRAYS:
     )
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 class TestTorchVision(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, input_param, input_data, expected_value):
