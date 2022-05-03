@@ -58,8 +58,8 @@ torch::Tensor apply(torch::Tensor gmm_tensor, torch::Tensor input_tensor) {
   unsigned int batch_count = input_tensor.size(0);
   unsigned int element_count = input_tensor.stride(1);
 
-  long int* output_size = new long int[dim];
-  memcpy(output_size, input_tensor.sizes().data(), dim * sizeof(long int));
+  long long int* output_size = new long long int[dim];
+  memcpy(output_size, input_tensor.sizes().data(), dim * sizeof(long long int));
   output_size[1] = MIXTURE_COUNT;
   torch::Tensor output_tensor =
       torch::empty(c10::IntArrayRef(output_size, dim), torch::dtype(torch::kFloat32).device(device_type));

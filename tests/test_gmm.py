@@ -299,7 +299,11 @@ class GMMTestCase(unittest.TestCase):
         np.testing.assert_allclose(results, expected, atol=1e-3)
 
     def test_load(self):
-        load_module("gmm", {"CHANNEL_COUNT": 2, "MIXTURE_COUNT": 2, "MIXTURE_SIZE": 3}, verbose_build=True)
+        if not torch.cuda.is_available():
+            with self.assertRaisesRegex(ImportError, ".*symbol.*"):  # expecting import error if no cuda
+                load_module("gmm", {"CHANNEL_COUNT": 2, "MIXTURE_COUNT": 2, "MIXTURE_SIZE": 3}, verbose_build=True)
+        else:
+            load_module("gmm", {"CHANNEL_COUNT": 2, "MIXTURE_COUNT": 2, "MIXTURE_SIZE": 3}, verbose_build=True)
 
 
 if __name__ == "__main__":
