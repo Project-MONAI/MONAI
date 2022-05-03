@@ -627,7 +627,8 @@ class Resize(Transform):
             Whether to apply a Gaussian filter to smooth the image prior
             to downsampling. It is crucial to filter when downsampling
             the image to avoid aliasing artifacts. If not specified, it is set to
-            True when downsampling an image whose data type is not bool. See also skimage.transform.resize
+            True when downsampling an image whose data type is not bool. 
+            See also skimage.transform.resize
         anti_aliasing_sigma: {float, tuple of floats}, optional
             Standard deviation for Gaussian filtering used when anti-aliasing.
             By default, this value is chosen as (s - 1) / 2 where s is the
@@ -674,7 +675,8 @@ class Resize(Transform):
                 Whether to apply a Gaussian filter to smooth the image prior
                 to downsampling. It is crucial to filter when downsampling
                 the image to avoid aliasing artifacts. If not specified, it is set to
-                True when downsampling an image whose data type is not bool. See also skimage.transform.resize
+                True when downsampling an image whose data type is not bool. 
+                See also skimage.transform.resize
             anti_aliasing_sigma: {float, tuple of floats}, optional
                 Standard deviation for Gaussian filtering used when anti-aliasing.
                 By default, this value is chosen as (s - 1) / 2 where s is the
