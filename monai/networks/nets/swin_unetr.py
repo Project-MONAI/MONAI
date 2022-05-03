@@ -419,6 +419,7 @@ class WindowAttention(nn.Module):
         self.num_heads = num_heads
         head_dim = dim // num_heads
         self.scale = head_dim**-0.5
+        mesh_args = torch.meshgrid.__kwdefaults__
 
         if len(self.window_size) == 3:
             self.relative_position_bias_table = nn.Parameter(
@@ -430,7 +431,7 @@ class WindowAttention(nn.Module):
             coords_d = torch.arange(self.window_size[0])
             coords_h = torch.arange(self.window_size[1])
             coords_w = torch.arange(self.window_size[2])
-            if torch.meshgrid.__kwdefaults__.__contains__("indexing"):
+            if mesh_args is not None:
                 coords = torch.stack(torch.meshgrid(coords_d, coords_h, coords_w, indexing="ij"))
             else:
                 coords = torch.stack(torch.meshgrid(coords_d, coords_h, coords_w))
@@ -448,7 +449,7 @@ class WindowAttention(nn.Module):
             )
             coords_h = torch.arange(self.window_size[0])
             coords_w = torch.arange(self.window_size[1])
-            if torch.meshgrid.__kwdefaults__.__contains__("indexing"):
+            if mesh_args is not None:
                 coords = torch.stack(torch.meshgrid(coords_h, coords_w, indexing="ij"))
             else:
                 coords = torch.stack(torch.meshgrid(coords_h, coords_w))
