@@ -186,8 +186,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             kwargs = {}
         ret = super().__torch_function__(func, types, args, kwargs)
         # if `out` has been used as argument, metadata is not copied, nothing to do.
-        if "out" in kwargs:
-            return ret
+        # if "out" in kwargs:
+        #     return ret
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
