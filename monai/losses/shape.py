@@ -15,14 +15,15 @@ from typing import Callable, Optional, Union
 
 import numpy as np
 import torch
-from scipy import ndimage
 from torch.nn.modules.loss import _Loss
 
 from monai.networks import one_hot
-from monai.utils import LossReduction
+from monai.utils import LossReduction, convert_data_type, optional_import
+
+distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
 
 
-class ShapeLoss(_Loss):
+class ShapeDistLoss(_Loss):
     def __init__(
         self,
         include_background: bool = True,
@@ -84,10 +85,10 @@ class ShapeLoss(_Loss):
             torch.Tensor: Boundary distance map of shape [WD]
         """
         # Convert to NumPy to use with SciPy
-        roi: np.ndarray = mask.numpy()
+        roi: np.ndarray = convert_data_type(mask, np.ndarray)
 
         # Compute normalized distance transform
-        dt: np.ndarray = ndimage.distance_transform_edt(roi)
+        dt: np.ndarray = distance_transform_edt(roi)
         dt /= dt.max() + self.smooth_nr
 
         # apply Heaviside function to softly normalize into [0, 1]
