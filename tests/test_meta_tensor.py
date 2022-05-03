@@ -198,6 +198,7 @@ class TestMetaTensor(unittest.TestCase):
         conv = torch.nn.Conv3d(im.shape[1], 5, 3)
         conv.to(device)
         out = conv(im)
+        self.assertTrue(str(out).startswith("\nMetaData"))
         self.check(out, im, shape=False, vals=False, ids=False)
 
     @parameterized.expand(TESTS)
