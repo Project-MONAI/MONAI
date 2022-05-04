@@ -32,7 +32,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
+from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, unravel_indices
 from monai.utils import (
     convert_data_type,
     convert_to_cupy,
@@ -134,7 +134,7 @@ class AsChannelFirst(Transform):
         """
         Apply the transform to `img`.
         """
-        return moveaxis(img, self.channel_dim, 0)
+        return torch.movedim(img, self.channel_dim, 0)
 
 
 class AsChannelLast(Transform):
@@ -163,7 +163,7 @@ class AsChannelLast(Transform):
         """
         Apply the transform to `img`.
         """
-        return moveaxis(img, self.channel_dim, -1)
+        return torch.movedim(img, self.channel_dim, -1)
 
 
 class AddChannel(Transform):

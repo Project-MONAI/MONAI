@@ -15,9 +15,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import torch
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import DtypeLike, KeysCollection, PathLike
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import correct_nifti_header_if_necessary, is_supported_format, orientation_ras_lps
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
@@ -830,11 +832,15 @@ class WSIReader(ImageReader):
 
         # Add necessary metadata
         metadata: Dict = {}
-        metadata["spatial_shape"] = np.asarray(region.shape[:-1])
+        metadata["spatial_shape"] = torch.tensor(region.shape[:-1])
         metadata["original_channel_dim"] = -1
 
+        # combine image and metadata
+        if not isinstance(region, MetaTensor):
+            region = MetaTensor(region, meta=metadata)
+
         # Make it channel first
-        region = EnsureChannelFirst()(region, metadata)
+        region = EnsureChannelFirst()(region)
 
         # Split into patches
         if patch_size is None:
