@@ -33,9 +33,11 @@ def bench(t1, t2):
                 torch.add(t1, t2)
         bench_times.append(pc.total_time)
 
-    bench_time = float(torch.min(torch.Tensor(bench_times))) / NUM_REPEATS
+    bench_time_min = float(torch.min(torch.Tensor(bench_times))) / NUM_REPEATS
+    bench_time_avg = float(torch.sum(torch.Tensor(bench_times))) / (NUM_REPEATS * NUM_REPEAT_OF_REPEATS)
+    bench_time_med = float(torch.median(torch.Tensor(bench_times))) / NUM_REPEATS
     bench_std = float(torch.std(torch.Tensor(bench_times))) / NUM_REPEATS
-    return bench_time, bench_std
+    return bench_time_min, bench_time_avg, bench_time_med, bench_std
 
 
 def main():
@@ -58,10 +60,11 @@ def main():
         tensor_1 = t(1)
         tensor_2 = t(2)
 
-        bench_min, bench_std = bench(tensor_1, tensor_2)
+        b_min, b_avg, b_med, b_std = bench(tensor_1, tensor_2)
         print(
-            "Type {} had a minimum time of {} us"
-            " and a standard deviation of {} us.".format(t.__name__, (10**6 * bench_min), (10**6) * bench_std)
+            "Type {} time (microseconds):  min: {}, avg: {}, median: {}, and std {}.".format(
+                t.__name__, (10**6 * b_min), (10**6) * b_avg, (10**6) * b_med, (10**6) * b_std
+            )
         )
 
 
