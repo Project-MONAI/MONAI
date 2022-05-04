@@ -15,6 +15,7 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+import warnings
 from pathlib import Path
 from typing import Optional, Union
 
@@ -75,7 +76,7 @@ class LoadImaged(MapTransform):
         image_only: bool = False,
         ensure_channel_first: bool = False,
         allow_missing_keys: bool = False,
-        log_warning: bool = True,
+        warn_on_shape_mismatch: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -105,7 +106,7 @@ class LoadImaged(MapTransform):
             ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
                 the image array shape to `channel first`. default to `False`.
             allow_missing_keys: don't raise exception if key is missing.
-            log_warning: logs a warning to the console when image shapes of the provided paths do not match.
+            warn_on_shape_mismatch: logs a warning to the console when image shapes of the provided paths do not match.
                 This will only log once per sample that has a mismatch. default to `True`.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
@@ -119,7 +120,7 @@ class LoadImaged(MapTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.overwriting = overwriting
-        self.log_warning = log_warning
+        self.warn_on_shape_mismatch = warn_on_shape_mismatch
         self.has_warned_about = []
 
     def register(self, reader: ImageReader):
@@ -158,14 +159,18 @@ class LoadImaged(MapTransform):
                 d[meta_key] = image_data[1]
 
         # Only warn the first time per sample to prevent spamming the logs
-        if self.log_warning and (first_path not in self.has_warned_about):
+        if self.warn_on_shape_mismatch and (first_path not in self.has_warned_about):
             # all() is a lazy function, i.e. it will stop at the first instance of shapes mismatching
             if not all(x == image_shapes[0] for x in image_shapes):
-                print("WARNING: Loaded image shapes do not match for input dictionary:")
-                print(dict(data))
-                print("\nResulting in image shapes:")
-                [print(f"\t{x}: {y.shape}") for x, y in zip(d.keys(), d.values())]
-                print("\nIf you do not wish to see this warning, pass `log_warning = False` to `LoadImaged()`")
+                warnings.warn(
+                    message="Loaded image shapes do not match for input dictionary:" +
+                            f"\n{dict(data)}" +
+                            "\nResulting in image shapes:" +
+                            '\n'.join(f"\t{key}: {value.shape}" for key, value in d.items()) +
+                            "If you do not wish to see this warning, pass `warn_on_shape_mismatch = False` to " +
+                            "LoadImaged()",
+                    category=UserWarning
+                )
 
                 # We save the path of the first key for later comparisons.
                 self.has_warned_about.append(first_path)
