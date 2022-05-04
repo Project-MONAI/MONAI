@@ -143,7 +143,7 @@ class LoadImaged(MapTransform):
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             data = self._loader(d[key], reader)
             # _loader returns a tuple of (ndarray, dict), we want the ndarray.shape
-            image_shapes.append(data[0].shape)
+            image_shapes.append(data[0].shape if isinstance(data, tuple) else data.shape)
 
             if self._loader.image_only:
                 if not isinstance(data, np.ndarray):
