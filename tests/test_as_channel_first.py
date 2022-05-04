@@ -31,7 +31,7 @@ class TestAsChannelFirst(unittest.TestCase):
         test_data = in_type(np.random.randint(0, 2, size=[1, 2, 3, 4]))
         result = AsChannelFirst(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
-        expected = torch.moveaxis(test_data, input_param["channel_dim"], 0)
+        expected = torch.movedim(test_data, input_param["channel_dim"], 0)
         assert_allclose(result, expected)
 
 
