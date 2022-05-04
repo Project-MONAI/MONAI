@@ -167,7 +167,7 @@ class LoadImaged(MapTransform):
                             f"\n{dict(data)}" +
                             "\nResulting in image shapes:" +
                             '\n'.join(f"\t{key}: {value.shape}" for key, value in d.items()) +
-                            "If you do not wish to see this warning, pass `warn_on_shape_mismatch = False` to " +
+                            "\nIf you do not wish to see this warning, pass `warn_on_shape_mismatch = False` to " +
                             "LoadImaged()",
                     category=UserWarning
                 )
