@@ -137,26 +137,28 @@ class LoadImaged(MapTransform):
         # From python 3.6 and up, dictionaries are ordered, so we can assume that the dict orders we get
         # are all in the same order, unless the user goes out of their way to shuffle them.
         first_path = list(d.values())[0]
+        # Keep a copy of the original input dict around in case we need to log it
+        input_dict = dict(data)
 
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            image_data = self._loader(d[key], reader)
+            data = self._loader(d[key], reader)
             # _loader returns a tuple of (ndarray, dict), we want the ndarray.shape
-            image_shapes.append(image_data[0].shape)
+            image_shapes.append(data[0].shape)
 
             if self._loader.image_only:
-                if not isinstance(image_data, np.ndarray):
+                if not isinstance(data, np.ndarray):
                     raise ValueError("loader must return a numpy array (because image_only=True was used).")
-                d[key] = image_data
+                d[key] = data
             else:
-                if not isinstance(image_data, (tuple, list)):
+                if not isinstance(data, (tuple, list)):
                     raise ValueError("loader must return a tuple or list (because image_only=False was used).")
-                d[key] = image_data[0]
-                if not isinstance(image_data[1], dict):
+                d[key] = data[0]
+                if not isinstance(data[1], dict):
                     raise ValueError("metadata must be a dict.")
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key in d and not self.overwriting:
                     raise KeyError(f"Meta data with key {meta_key} already exists and overwriting=False.")
-                d[meta_key] = image_data[1]
+                d[meta_key] = data[1]
 
         # Only warn the first time per sample to prevent spamming the logs
         if self.warn_on_shape_mismatch and (first_path not in self.has_warned_about):
@@ -164,7 +166,7 @@ class LoadImaged(MapTransform):
             if not all(x == image_shapes[0] for x in image_shapes):
                 warnings.warn(
                     message="Loaded image shapes do not match for input dictionary:" +
-                            f"\n{dict(data)}" +
+                            f"\n{input_dict}" +
                             "\nResulting in image shapes:" +
                             '\n'.join(f"\t{key}: {value.shape}" for key, value in d.items()) +
                             "\nIf you do not wish to see this warning, pass `warn_on_shape_mismatch = False` to " +
