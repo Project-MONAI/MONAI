@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from copy import deepcopy
 import warnings
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -832,15 +833,15 @@ class WSIReader(ImageReader):
 
         # Add necessary metadata
         metadata: Dict = {}
-        metadata["spatial_shape"] = torch.tensor(region.shape[:-1])
+        metadata["spatial_shape"] = np.asarray(region.shape[:-1])
         metadata["original_channel_dim"] = -1
 
         # combine image and metadata
         if not isinstance(region, MetaTensor):
-            region = MetaTensor(region, meta=metadata)
+            region = MetaTensor(region, meta=deepcopy(metadata))
 
         # Make it channel first
-        region = EnsureChannelFirst()(region)
+        region = EnsureChannelFirst()(region).numpy()
 
         # Split into patches
         if patch_size is None:
