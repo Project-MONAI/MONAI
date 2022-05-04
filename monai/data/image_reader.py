@@ -838,10 +838,11 @@ class WSIReader(ImageReader):
 
         # combine image and metadata
         if not isinstance(region, MetaTensor):
-            region = MetaTensor(region, meta=deepcopy(metadata))
+            region = MetaTensor(region, meta=metadata)
 
         # Make it channel first
         region = EnsureChannelFirst()(region).numpy()
+        del metadata["affine"]  # automatically created but not needed
 
         # Split into patches
         if patch_size is None:
