@@ -232,3 +232,14 @@ class MetaTensor(MetaObj, torch.Tensor):
     def affine(self, d: torch.Tensor) -> None:
         """Set the affine."""
         self.meta["affine"] = d
+
+    def new_empty(self, size, dtype=None, device=None, requires_grad=False):
+        """
+        must be defined for deepcopy to work
+
+        See:
+            - https://pytorch.org/docs/stable/generated/torch.Tensor.new_empty.html#torch-tensor-new-empty
+        """
+        return type(self)(
+            self.as_tensor().new_empty(size=size, dtype=dtype, device=device, requires_grad=requires_grad)
+        )
