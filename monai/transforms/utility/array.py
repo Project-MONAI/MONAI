@@ -17,7 +17,7 @@ import logging
 import sys
 import time
 import warnings
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -130,7 +130,7 @@ class AsChannelFirst(Transform):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
@@ -159,7 +159,7 @@ class AsChannelLast(Transform):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
@@ -182,7 +182,7 @@ class AddChannel(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
@@ -207,20 +207,18 @@ class EnsureChannelFirst(Transform):
         self.strict_check = strict_check
         self.add_channel = AddChannel()
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
-        if isinstance(img, MetaTensor):
-            meta_dict = img.meta
-        if not isinstance(meta_dict, Mapping):
+        if not isinstance(img, MetaTensor):
             msg = "meta_dict not available, EnsureChannelFirst is not in use."
             if self.strict_check:
                 raise ValueError(msg)
             warnings.warn(msg)
             return img
 
-        channel_dim = meta_dict.get("original_channel_dim")
+        channel_dim = img.meta.get("original_channel_dim")
 
         if channel_dim is None:
             msg = "Unknown original_channel_dim in the meta_dict, EnsureChannelFirst is not in use."
@@ -250,12 +248,11 @@ class RepeatChannel(Transform):
             raise AssertionError("repeats count must be greater than 0.")
         self.repeats = repeats
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        repeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
-        return repeat_fn(img, self.repeats, 0)  # type: ignore
+        return torch.repeat_interleave(img, self.repeats, 0)
 
 
 class RemoveRepeatedChannel(Transform):
@@ -276,7 +273,7 @@ class RemoveRepeatedChannel(Transform):
 
         self.repeats = repeats
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
@@ -306,17 +303,14 @@ class SplitDim(Transform):
         self.dim = dim
         self.keepdim = keepdim
 
-    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
+    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
         """
         Apply the transform to `img`.
         """
         n_out = img.shape[self.dim]
         if n_out <= 1:
             raise RuntimeError("Input image is singleton along dimension to be split.")
-        if isinstance(img, torch.Tensor):
-            outputs = list(torch.split(img, 1, self.dim))
-        else:
-            outputs = np.split(img, n_out, self.dim)
+        outputs = list(torch.split(img, 1, self.dim))
         if not self.keepdim:
             outputs = [o.squeeze(self.dim) for o in outputs]
         return outputs
@@ -557,7 +551,7 @@ class SqueezeDim(Transform):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
             img: numpy arrays with required dimension `dim` removed

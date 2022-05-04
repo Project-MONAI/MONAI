@@ -16,10 +16,10 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import AsChannelFirst
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_TORCH_AND_META_TENSORS, assert_allclose
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_TORCH_AND_META_TENSORS:
     TESTS.append([p, {"channel_dim": -1}, (4, 1, 2, 3)])
     TESTS.append([p, {"channel_dim": 3}, (4, 1, 2, 3)])
     TESTS.append([p, {"channel_dim": 2}, (3, 1, 2, 4)])
@@ -31,10 +31,8 @@ class TestAsChannelFirst(unittest.TestCase):
         test_data = in_type(np.random.randint(0, 2, size=[1, 2, 3, 4]))
         result = AsChannelFirst(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
-        if isinstance(test_data, torch.Tensor):
-            test_data = test_data.cpu().numpy()
-        expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
-        assert_allclose(result, expected, type_test=False)
+        expected = torch.moveaxis(test_data, input_param["channel_dim"], 0)
+        assert_allclose(result, expected)
 
 
 if __name__ == "__main__":

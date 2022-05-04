@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import SplitChannel
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_TORCH_AND_META_TENSORS
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_TORCH_AND_META_TENSORS:
     TESTS.append([{"channel_dim": 1}, p(np.random.randint(2, size=(4, 3, 3, 4))), (4, 1, 3, 4)])
     TESTS.append([{"channel_dim": 0}, p(np.random.randint(2, size=(3, 3, 4))), (1, 3, 4)])
     TESTS.append([{"channel_dim": 2}, p(np.random.randint(2, size=(3, 2, 4))), (3, 2, 1)])

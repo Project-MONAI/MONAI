@@ -16,12 +16,13 @@ import unittest
 import itk
 import nibabel as nib
 import numpy as np
+import torch
 from parameterized import parameterized
 from PIL import Image
 
 from monai.data import ITKReader
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import EnsureChannelFirst, LoadImage
-from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_1 = [{}, ["test_image.nii.gz"], None]
 
@@ -50,14 +51,13 @@ class TestEnsureChannelFirst(unittest.TestCase):
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
-            for p in TEST_NDARRAYS:
-                result = LoadImage(**input_param)(filenames)
-                header = result.meta
-                result = EnsureChannelFirst()(p(result), header)
-                self.assertEqual(result.shape[0], len(filenames))
+
+            result = LoadImage(**input_param)(filenames)
+            result = EnsureChannelFirst()(result)
+            self.assertEqual(result.shape[0], len(filenames))
 
     @parameterized.expand([TEST_CASE_7])
-    def test_itk_dicom_series_reader(self, input_param, filenames, original_channel_dim):
+    def test_itk_dicom_series_reader(self, input_param, filenames, _):
         result = LoadImage(**input_param)(filenames)
         result = EnsureChannelFirst()(result)
         self.assertEqual(result.shape[0], 1)
@@ -73,12 +73,15 @@ class TestEnsureChannelFirst(unittest.TestCase):
             self.assertEqual(result.shape[0], 3)
 
     def test_check(self):
+        im = torch.zeros(1, 2, 3)
+        with self.assertRaises(ValueError):  # not MetaTensor
+            EnsureChannelFirst()(im)
         with self.assertRaises(ValueError):  # no meta
-            EnsureChannelFirst()(np.zeros((1, 2, 3)), None)
+            EnsureChannelFirst()(MetaTensor(im))
         with self.assertRaises(ValueError):  # no meta channel
-            EnsureChannelFirst()(np.zeros((1, 2, 3)), {"original_channel_dim": None})
-        EnsureChannelFirst(strict_check=False)(np.zeros((1, 2, 3)), None)
-        EnsureChannelFirst(strict_check=False)(np.zeros((1, 2, 3)), {"original_channel_dim": None})
+            EnsureChannelFirst()(MetaTensor(im, meta={"original_channel_dim": None}))
+        EnsureChannelFirst(strict_check=False)(im)
+        EnsureChannelFirst(strict_check=False)(MetaTensor(im, meta={"original_channel_dim": None}))
 
 
 if __name__ == "__main__":

@@ -38,6 +38,7 @@ from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
+from monai.data.meta_tensor import MetaTensor
 from monai.networks import convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.module import pytorch_after, version_leq
@@ -707,10 +708,14 @@ def query_memory(n=2):
     return ",".join(f"{int(x)}" for x in ids)
 
 
-TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
+TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)  # type: ignore
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
+    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)  # type: ignore
+
+TEST_NDARRAYS: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+_metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": torch.eye(4) * 2})
+TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
 
 
 TEST_DEVICES = [[torch.device("cpu")]]
