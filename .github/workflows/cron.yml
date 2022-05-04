@@ -5,6 +5,9 @@ on:
   #   - cron: "0 2 * * *"  # at 02:00 UTC
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+  push:
+    branches:
+      - feature/MetaTensor
 
 jobs:
   cron-gpu:
@@ -223,7 +226,7 @@ jobs:
     - name: Checkout tutorials and install their requirements
       run: |
         cd /opt
-        git clone --depth 1 --branch master --single-branch https://github.com/Project-MONAI/tutorials.git  # latest commit of master branch
+        git clone --depth 1 --branch MetaTensor --single-branch https://github.com/Project-MONAI/tutorials.git  # latest commit of master branch
         cd tutorials
         python -m pip install -r requirements.txt
     - name: Run tutorial notebooks
