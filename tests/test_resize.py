@@ -24,9 +24,9 @@ TEST_CASE_1 = [{"spatial_size": 15, "mode": "area"}, (6, 10, 15)]
 
 TEST_CASE_2 = [{"spatial_size": 6, "mode": "trilinear", "align_corners": True}, (2, 4, 6)]
 
-TEST_CASE_3 = [{"spatial_size": 15, "anti_aliasing": False}, (6, 10, 15)]
+TEST_CASE_3 = [{"spatial_size": 15, "anti_aliasing": True}, (6, 10, 15)]
 
-TEST_CASE_4 = [{"spatial_size": 6, "anti_aliasing_sigma": 2.0}, (2, 4, 6)]
+TEST_CASE_4 = [{"spatial_size": 6, "anti_aliasing": True, "anti_aliasing_sigma": 2.0}, (2, 4, 6)]
 
 
 class TestResize(NumpyImageTestCase2D):
