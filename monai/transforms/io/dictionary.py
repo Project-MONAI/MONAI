@@ -75,6 +75,7 @@ class LoadImaged(MapTransform):
         image_only: bool = False,
         ensure_channel_first: bool = False,
         allow_missing_keys: bool = False,
+        log_warning: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -104,6 +105,8 @@ class LoadImaged(MapTransform):
             ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
                 the image array shape to `channel first`. default to `False`.
             allow_missing_keys: don't raise exception if key is missing.
+            log_warning: logs a warning to the console when image shapes of the provided paths do not match.
+                This will only log once per sample that has a mismatch. default to `True`.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
@@ -116,6 +119,8 @@ class LoadImaged(MapTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.overwriting = overwriting
+        self.log_warning = log_warning
+        self.has_warned_about = []
 
     def register(self, reader: ImageReader):
         self._loader.register(reader)
