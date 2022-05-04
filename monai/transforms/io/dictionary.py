@@ -138,7 +138,7 @@ class LoadImaged(MapTransform):
         first_path = list(d.values())[0]
 
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            image_data = self._loader(d[key], reader)
+            image_data, _ = self._loader(d[key], reader)
             # _loader returns a tuple of (ndarray, dict), we want the ndarray.shape
             image_shapes.append(image_data[0].shape)
 
