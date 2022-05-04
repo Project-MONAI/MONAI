@@ -12,16 +12,9 @@
 #include <torch/extension.h>
 
 #include <vector>
+#include "hausdorff.h"
 
-// CUDA  declarations
 
-int getHausdorffDistance_CUDA(
-    torch::Tensor goldStandard,
-    torch::Tensor algoOutput,
-    const int xDim,
-    const int yDim,
-    const int zDim,
-    const float robustnessPercent);
 
 
 #define CHECK_CUDA(x) AT_ASSERTM(x.type().is_cuda(), #x " must be a CUDA tensor")
