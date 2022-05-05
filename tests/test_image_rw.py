@@ -16,6 +16,7 @@ import tempfile
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.data.image_reader import ITKReader, NibabelReader, PILReader
@@ -52,14 +53,15 @@ class TestLoadSaveNifti(unittest.TestCase):
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             self.assertTrue(os.path.exists(saved_path))
             loader = LoadImage(reader=reader, squeeze_non_spatial_dims=True)
-            data, meta = loader(saved_path)
+            data = loader(saved_path)
+            meta = data.meta
             if meta["original_channel_dim"] == -1:
                 _test_data = moveaxis(test_data, 0, -1)
             else:
                 _test_data = test_data[0]
             if resample:
                 _test_data = moveaxis(_test_data, 0, 1)
-            assert_allclose(data, _test_data)
+            assert_allclose(data, torch.as_tensor(_test_data))
 
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, "ITKWriter"]))
     def test_2d(self, reader, writer):
@@ -99,12 +101,13 @@ class TestLoadSavePNG(unittest.TestCase):
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             self.assertTrue(os.path.exists(saved_path))
             loader = LoadImage(reader=reader)
-            data, meta = loader(saved_path)
+            data = loader(saved_path)
+            meta = data.meta
             if meta["original_channel_dim"] == -1:
                 _test_data = moveaxis(test_data, 0, -1)
             else:
                 _test_data = test_data[0]
-            assert_allclose(data, _test_data)
+            assert_allclose(data, torch.as_tensor(_test_data))
 
     @parameterized.expand(itertools.product([PILReader, ITKReader], [PILWriter, ITKWriter]))
     def test_2d(self, reader, writer):

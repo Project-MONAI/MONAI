@@ -17,8 +17,10 @@ from typing import Any, Callable, Sequence
 
 import torch
 
+from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta, get_track_transforms
 from monai.data.utils import decollate_batch, list_data_collate
+from monai.transforms.utils import remove_extra_metadata
 from monai.utils.enums import PostFix
 
 __all__ = ["MetaTensor"]
@@ -243,3 +245,33 @@ class MetaTensor(MetaObj, torch.Tensor):
         return type(self)(
             self.as_tensor().new_empty(size=size, dtype=dtype, device=device, requires_grad=requires_grad)
         )
+
+    @staticmethod
+    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict):
+        """
+        Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
+        convert that to `torch.Tensor`, too. Remove any superfluous metadata.
+
+        Args:
+            im: Input image (`np.ndarray` or `torch.Tensor`)
+            meta: Metadata dictionary.
+
+        Returns:
+            By default, a `MetaTensor` is returned.
+            However, if `get_track_meta()` is `False`, a `torch.Tensor` is returned.
+        """
+        img = torch.as_tensor(im)
+
+        # if not tracking metadata, return `torch.Tensor`
+        if not get_track_meta() or meta is None:
+            return img
+
+        # ensure affine is of type `torch.Tensor`
+        if "affine" in meta:
+            meta["affine"] = torch.as_tensor(meta["affine"])
+
+        # remove any superfluous metadata.
+        remove_extra_metadata(meta)
+
+        # return the `MetaTensor`
+        return MetaTensor(img, meta=meta)

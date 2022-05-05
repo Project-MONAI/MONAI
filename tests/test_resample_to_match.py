@@ -21,7 +21,7 @@ from parameterized import parameterized
 
 from monai.data.image_reader import ITKReader, NibabelReader
 from monai.data.image_writer import ITKWriter
-from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ResampleToMatch, SaveImaged
+from monai.transforms import Compose, EnsureChannelFirstd, FromMetaTensord, LoadImaged, ResampleToMatch, SaveImaged
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 TEST_CASES = ["itkreader", "nibabelreader"]
@@ -41,7 +41,13 @@ class TestResampleToMatch(unittest.TestCase):
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], ["monai.data.NibabelWriter", ITKWriter]))
     def test_correct(self, reader, writer):
         with tempfile.TemporaryDirectory() as temp_dir:
-            loader = Compose([LoadImaged(("im1", "im2"), reader=reader), EnsureChannelFirstd(("im1", "im2"))])
+            loader = Compose(
+                [
+                    LoadImaged(("im1", "im2"), reader=reader),
+                    FromMetaTensord(("im1", "im2")),
+                    EnsureChannelFirstd(("im1", "im2")),
+                ]
+            )
             data = loader({"im1": self.fnames[0], "im2": self.fnames[1]})
 
             im_mod, meta = ResampleToMatch()(data["im2"], data["im2_meta_dict"], data["im1_meta_dict"])

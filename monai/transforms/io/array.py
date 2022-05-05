@@ -29,11 +29,19 @@ from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
 from monai.data.folder_layout import FolderLayout
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, OptionalImportError, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    InterpolateMode,
+    OptionalImportError,
+    deprecated_arg,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -93,14 +101,11 @@ class LoadImage(Transform):
 
     """
 
+    @deprecated_arg(
+        name="image_only", since="0.8", msg_suffix="If necessary, please extract meta data with `MetaTensor.meta`"
+    )
     def __init__(
-        self,
-        reader=None,
-        image_only: bool = False,
-        dtype: DtypeLike = np.float32,
-        ensure_channel_first: bool = False,
-        *args,
-        **kwargs,
+        self, reader=None, dtype: DtypeLike = np.float32, ensure_channel_first: bool = False, *args, **kwargs
     ) -> None:
         """
         Args:
@@ -111,7 +116,6 @@ class LoadImage(Transform):
                 ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
                 a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
-            image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
             ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
                 the image array shape to `channel first`. default to `False`.
@@ -120,8 +124,8 @@ class LoadImage(Transform):
 
         Note:
 
-            - The transform returns an image data array if `image_only` is True,
-              or a tuple of two elements containing the data array, and the meta data in a dictionary format otherwise.
+            - The transform returns a MetaTensor, unless `set_track_meta(False)` has been used, in which case, a
+              `torch.Tensor` will be returned.
             - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
               readers. This might introduce overheads when handling the exceptions of trying the incompatible loaders.
               In this case, it is therefore recommended setting the most appropriate reader as
@@ -130,7 +134,6 @@ class LoadImage(Transform):
         """
 
         self.auto_select = reader is None
-        self.image_only = image_only
         self.dtype = dtype
         self.ensure_channel_first = ensure_channel_first
 
@@ -241,14 +244,12 @@ class LoadImage(Transform):
             raise ValueError("`meta_data` must be a dict.")
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
-        if self.ensure_channel_first:
-            img_array = EnsureChannelFirst()(img_array, meta_data)
 
-        if self.image_only:
-            return img_array
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
-
-        return img_array, meta_data
+        img = MetaTensor.ensure_torch_and_prune_meta(img_array, meta_data)
+        if self.ensure_channel_first:
+            img = EnsureChannelFirst()(img)
+        return img
 
 
 class SaveImage(Transform):
