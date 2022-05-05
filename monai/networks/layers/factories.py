@@ -252,6 +252,8 @@ def instance_nvfuser_factory(dim):
     It only supports 3d tensors as the input. It also requires to use with CUDA and non-Windows OS.
     In this function, if the required library `apex.normalization.InstanceNorm3dNVFuser` does not exist,
     `nn.InstanceNorm3d` will be returned instead.
+    This layer is based on a customized autograd function, which is not supported in TorchScript currently.
+    Please switch to use `nn.InstanceNorm3d` if TorchScript is necessary.
 
     Please check the following link for more details about how to install `apex`:
     https://github.com/NVIDIA/apex#installation
