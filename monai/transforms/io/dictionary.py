@@ -26,6 +26,7 @@ from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
+from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
@@ -142,8 +143,18 @@ class LoadImaged(MapTransform):
 
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             data = self._loader(d[key], reader)
-            # _loader returns a tuple of (ndarray, dict), we want the ndarray.shape
-            image_shapes.append(data[0].shape if isinstance(data, tuple) else data.shape)
+
+            # Prevent unnessecary collecting when we don't need to
+            if self.warn_on_shape_mismatch and (first_path not in self.has_warned_about):
+                # _loader returns a tuple of (ndarray, dict), we want the ndarray.shape
+                # We should also make sure we don't include the channel dim in our comparisons
+                # So we ensure that we only collect it after passing it to an EnsureChannelFirst, and only taking
+                # the non-channel dims
+                image_shapes.append(
+                    EnsureChannelFirst()(data[0], data[1])[0].shape[1:]
+                    if isinstance(data, tuple)
+                    else EnsureChannelFirst()(data).shape[1:]
+                )
 
             if self._loader.image_only:
                 if not isinstance(data, np.ndarray):
@@ -168,7 +179,10 @@ class LoadImaged(MapTransform):
                     message="Loaded image shapes do not match for input dictionary:"
                     + f"\n{input_dict}"
                     + "\nResulting in image shapes:"
-                    + "\n".join(f"\t{key}: {value.shape}" for key, value in d.items())
+                    + "\n".join(
+                        f"\t{key}: {value.shape if hasattr(value, 'shape') else 'Not an Image'}"
+                        for key, value in d.items()
+                    )
                     + "\nIf you do not wish to see this warning, pass `warn_on_shape_mismatch = False` to "
                     + "LoadImaged()",
                     category=UserWarning,
