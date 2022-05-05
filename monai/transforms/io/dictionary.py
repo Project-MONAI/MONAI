@@ -121,7 +121,7 @@ class LoadImaged(MapTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.overwriting = overwriting
         self.warn_on_shape_mismatch = warn_on_shape_mismatch
-        self.has_warned_about = []
+        self.has_warned_about: list = []
 
     def register(self, reader: ImageReader):
         self._loader.register(reader)
