@@ -153,7 +153,7 @@ class MetaObj:
         Returns:
             Returns `None`, but `self` should be updated to have the copied attribute.
         """
-        attributes = [getattr(i, attribute) for i in input_objs]
+        attributes = [getattr(i, attribute) for i in input_objs if hasattr(i, attribute)]
         if len(attributes) > 0:
             val = attributes[0]
             if deep_copy:
