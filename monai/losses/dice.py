@@ -834,15 +834,15 @@ class DiceFocalLoss(_Loss):
         """
         if len(input.shape) != len(target.shape):
             raise ValueError("the number of dimensions for input and target should be the same.")
-           
+
         n_pred_ch = input.shape[1]
-        
+
         if self.to_onehot_y:
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
                 target = one_hot(target, num_classes=n_pred_ch)
-        
+
         if not self.include_background:
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `include_background=False` ignored.")
