@@ -165,13 +165,13 @@ class LoadImaged(MapTransform):
             # all() is a lazy function, i.e. it will stop at the first instance of shapes mismatching
             if not all(x == image_shapes[0] for x in image_shapes):
                 warnings.warn(
-                    message="Loaded image shapes do not match for input dictionary:" +
-                            f"\n{input_dict}" +
-                            "\nResulting in image shapes:" +
-                            '\n'.join(f"\t{key}: {value.shape}" for key, value in d.items()) +
-                            "\nIf you do not wish to see this warning, pass `warn_on_shape_mismatch = False` to " +
-                            "LoadImaged()",
-                    category=UserWarning
+                    message="Loaded image shapes do not match for input dictionary:"
+                    + f"\n{input_dict}"
+                    + "\nResulting in image shapes:"
+                    + "\n".join(f"\t{key}: {value.shape}" for key, value in d.items())
+                    + "\nIf you do not wish to see this warning, pass `warn_on_shape_mismatch = False` to "
+                    + "LoadImaged()",
+                    category=UserWarning,
                 )
 
                 # We save the path of the first key for later comparisons.
