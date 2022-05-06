@@ -186,8 +186,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             kwargs = {}
         ret = super().__torch_function__(func, types, args, kwargs)
         # if `out` has been used as argument, metadata is not copied, nothing to do.
-        if "out" in kwargs:
-            return ret
+        # if "out" in kwargs:
+        #     return ret
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
@@ -232,3 +232,14 @@ class MetaTensor(MetaObj, torch.Tensor):
     def affine(self, d: torch.Tensor) -> None:
         """Set the affine."""
         self.meta["affine"] = d
+
+    def new_empty(self, size, dtype=None, device=None, requires_grad=False):
+        """
+        must be defined for deepcopy to work
+
+        See:
+            - https://pytorch.org/docs/stable/generated/torch.Tensor.new_empty.html#torch-tensor-new-empty
+        """
+        return type(self)(
+            self.as_tensor().new_empty(size=size, dtype=dtype, device=device, requires_grad=requires_grad)
+        )
