@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from functools import partial
-from typing import Callable, Type
+from typing import Callable
 
 import torch
 
