@@ -125,13 +125,15 @@ class SmoothGrad(VanillaGrad):
 
         # average
         if self.magnitude:
-            total_gradients = total_gradients ** 0.5
+            total_gradients = total_gradients**0.5
 
         return total_gradients / self.n_samples
 
 
 @contextmanager
-def replace_modules(model: torch.nn.Module, name_to_replace: str = "relu", replace_with: type[torch.nn.Module] = _GradReLU):
+def replace_modules(
+    model: torch.nn.Module, name_to_replace: str = "relu", replace_with: type[torch.nn.Module] = _GradReLU
+):
     # replace
     to_replace = []
     try:
