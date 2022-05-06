@@ -14,7 +14,6 @@ import unittest
 from unittest import skipUnless
 
 import numpy as np
-from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.data import SlidingPatchWSIDataset
