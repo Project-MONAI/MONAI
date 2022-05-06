@@ -11,12 +11,10 @@
 
 import warnings
 from abc import ABC, abstractmethod
-from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
-import torch
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import DtypeLike, KeysCollection, PathLike

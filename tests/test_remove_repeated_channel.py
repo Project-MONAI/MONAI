@@ -14,10 +14,10 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import RemoveRepeatedChannel
-from tests.utils import TEST_TORCH_AND_META_TENSORS
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASES = []
-for q in TEST_TORCH_AND_META_TENSORS:
+for q in TEST_NDARRAYS:
     TEST_CASES.append([{"repeats": 2}, q([[1, 2], [1, 2], [3, 4], [3, 4]]), (2, 2)])  # type: ignore
 
 

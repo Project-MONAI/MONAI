@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import SqueezeDim
-from tests.utils import TEST_TORCH_AND_META_TENSORS
+from tests.utils import TEST_NDARRAYS
 
 TESTS, TESTS_FAIL = [], []
-for p in TEST_TORCH_AND_META_TENSORS:
+for p in TEST_NDARRAYS:
     TESTS.append([{"dim": None}, p(np.random.rand(1, 2, 1, 3)), (2, 3)])
     TESTS.append([{"dim": 2}, p(np.random.rand(1, 2, 1, 8, 16)), (1, 2, 8, 16)])
     TESTS.append([{"dim": -1}, p(np.random.rand(1, 1, 16, 8, 1)), (1, 1, 16, 8)])

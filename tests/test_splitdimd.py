@@ -19,10 +19,10 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImaged
 from monai.transforms.utility.dictionary import SplitDimd
-from tests.utils import TEST_TORCH_AND_META_TENSORS, assert_allclose, make_nifti_image, make_rand_affine
+from tests.utils import TEST_NDARRAYS, assert_allclose, make_nifti_image, make_rand_affine
 
 TESTS = []
-for p in TEST_TORCH_AND_META_TENSORS:
+for p in TEST_NDARRAYS:
     for keepdim in (True, False):
         for update_meta in (True, False):
             TESTS.append((keepdim, p, update_meta))
@@ -72,7 +72,7 @@ class TestSplitDimd(unittest.TestCase):
     def test_error(self):
         """Should fail because splitting along singleton dimension"""
         shape = (2, 1, 8, 7)
-        for p in TEST_TORCH_AND_META_TENSORS:
+        for p in TEST_NDARRAYS:
             arr = p(np.random.rand(*shape))
             with self.assertRaises(RuntimeError):
                 _ = SplitDimd("i", dim=1)({"i": arr})

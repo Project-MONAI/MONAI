@@ -12,14 +12,14 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import AsChannelFirst
-from tests.utils import TEST_TORCH_AND_META_TENSORS, assert_allclose
+from monai.transforms.utils_pytorch_numpy_unification import moveaxis
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
-for p in TEST_TORCH_AND_META_TENSORS:
+for p in TEST_NDARRAYS:
     TESTS.append([p, {"channel_dim": -1}, (4, 1, 2, 3)])
     TESTS.append([p, {"channel_dim": 3}, (4, 1, 2, 3)])
     TESTS.append([p, {"channel_dim": 2}, (3, 1, 2, 4)])
@@ -31,7 +31,7 @@ class TestAsChannelFirst(unittest.TestCase):
         test_data = in_type(np.random.randint(0, 2, size=[1, 2, 3, 4]))
         result = AsChannelFirst(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
-        expected = torch.movedim(test_data, input_param["channel_dim"], 0)
+        expected = moveaxis(test_data, input_param["channel_dim"], 0)
         assert_allclose(result, expected)
 
 

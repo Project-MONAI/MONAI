@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import AsChannelFirstd
-from tests.utils import TEST_TORCH_AND_META_TENSORS
+from tests.utils import TEST_NDARRAYS
 
 TESTS = []
-for p in TEST_TORCH_AND_META_TENSORS:
+for p in TEST_NDARRAYS:
     TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": -1}, (4, 1, 2, 3)])
     TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": 3}, (4, 1, 2, 3)])
     TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": 2}, (3, 1, 2, 4)])

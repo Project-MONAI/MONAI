@@ -14,10 +14,10 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import RepeatChannel
-from tests.utils import TEST_TORCH_AND_META_TENSORS
+from tests.utils import TEST_NDARRAYS
 
 TESTS = []
-for p in TEST_TORCH_AND_META_TENSORS:
+for p in TEST_NDARRAYS:
     TESTS.append([{"repeats": 3}, p([[[0, 1], [1, 2]]]), (3, 2, 2)])
 
 

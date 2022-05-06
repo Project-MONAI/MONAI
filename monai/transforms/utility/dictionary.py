@@ -229,7 +229,7 @@ class AsChannelFirstd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = AsChannelFirst(channel_dim=channel_dim)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -254,7 +254,7 @@ class AsChannelLastd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = AsChannelLast(channel_dim=channel_dim)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -278,7 +278,7 @@ class AddChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.adder = AddChannel()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.adder(d[key])
@@ -311,7 +311,7 @@ class EnsureChannelFirstd(MapTransform):
         super().__init__(keys)
         self.adjuster = EnsureChannelFirst(strict_check=strict_check)
 
-    def __call__(self, data) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.adjuster(d[key])
@@ -336,7 +336,7 @@ class RepeatChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.repeater = RepeatChannel(repeats)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.repeater(d[key])
@@ -361,7 +361,7 @@ class RemoveRepeatedChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.repeater = RemoveRepeatedChannel(repeats)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.repeater(d[key])
@@ -398,7 +398,7 @@ class SplitDimd(MapTransform):
         self.splitter = SplitDim(dim, keepdim)
         self.update_meta = update_meta
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             rets = self.splitter(d[key])
@@ -781,7 +781,7 @@ class SqueezeDimd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = SqueezeDim(dim=dim)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])

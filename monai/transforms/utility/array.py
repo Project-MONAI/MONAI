@@ -32,7 +32,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, unravel_indices
+from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
 from monai.utils import (
     convert_data_type,
     convert_to_cupy,
@@ -130,11 +130,11 @@ class AsChannelFirst(Transform):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return torch.movedim(img, self.channel_dim, 0)
+        return moveaxis(img, self.channel_dim, 0)
 
 
 class AsChannelLast(Transform):
@@ -159,11 +159,11 @@ class AsChannelLast(Transform):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        return torch.movedim(img, self.channel_dim, -1)
+        return moveaxis(img, self.channel_dim, -1)
 
 
 class AddChannel(Transform):
@@ -182,7 +182,7 @@ class AddChannel(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -227,8 +227,8 @@ class EnsureChannelFirst(Transform):
             warnings.warn(msg)
             return img
         if channel_dim == "no_channel":
-            return self.add_channel(img)
-        return AsChannelFirst(channel_dim=channel_dim)(img)
+            return self.add_channel(img)  # type: ignore
+        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
 
 
 class RepeatChannel(Transform):
@@ -248,11 +248,12 @@ class RepeatChannel(Transform):
             raise AssertionError("repeats count must be greater than 0.")
         self.repeats = repeats
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        return torch.repeat_interleave(img, self.repeats, 0)
+        repeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
+        return repeat_fn(img, self.repeats, 0)  # type: ignore
 
 
 class RemoveRepeatedChannel(Transform):
@@ -273,7 +274,7 @@ class RemoveRepeatedChannel(Transform):
 
         self.repeats = repeats
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
@@ -303,14 +304,17 @@ class SplitDim(Transform):
         self.dim = dim
         self.keepdim = keepdim
 
-    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
+    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
         """
         Apply the transform to `img`.
         """
         n_out = img.shape[self.dim]
         if n_out <= 1:
             raise RuntimeError("Input image is singleton along dimension to be split.")
-        outputs = list(torch.split(img, 1, self.dim))
+        if isinstance(img, torch.Tensor):
+            outputs = list(torch.split(img, 1, self.dim))
+        else:
+            outputs = np.split(img, n_out, self.dim)
         if not self.keepdim:
             outputs = [o.squeeze(self.dim) for o in outputs]
         return outputs
@@ -551,7 +555,7 @@ class SqueezeDim(Transform):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: numpy arrays with required dimension `dim` removed

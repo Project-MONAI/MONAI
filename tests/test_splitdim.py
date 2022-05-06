@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms.utility.array import SplitDim
-from tests.utils import TEST_TORCH_AND_META_TENSORS
+from tests.utils import TEST_NDARRAYS
 
 TESTS = []
-for p in TEST_TORCH_AND_META_TENSORS:
+for p in TEST_NDARRAYS:
     for keepdim in (True, False):
         TESTS.append(((2, 10, 8, 7), keepdim, p))
 
@@ -40,7 +40,7 @@ class TestSplitDim(unittest.TestCase):
     def test_error(self):
         """Should fail because splitting along singleton dimension"""
         shape = (2, 1, 8, 7)
-        for p in TEST_TORCH_AND_META_TENSORS:
+        for p in TEST_NDARRAYS:
             arr = p(np.random.rand(*shape))
             with self.assertRaises(RuntimeError):
                 _ = SplitDim(dim=1)(arr)

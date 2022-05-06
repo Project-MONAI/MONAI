@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RepeatChanneld
-from tests.utils import TEST_TORCH_AND_META_TENSORS
+from tests.utils import TEST_NDARRAYS
 
 TESTS = []
-for p in TEST_TORCH_AND_META_TENSORS:
+for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {"keys": ["img"], "repeats": 3},
