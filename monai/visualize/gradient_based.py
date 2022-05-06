@@ -131,7 +131,7 @@ class SmoothGrad(VanillaGrad):
 
 
 @contextmanager
-def replace_modules(model: torch.nn.Module, name_to_replace: str = "relu", replace_with: Type[torch.nn.Module] = _GradReLU):
+def replace_modules(model: torch.nn.Module, name_to_replace: str = "relu", replace_with: type[torch.nn.Module] = _GradReLU):
     # replace
     to_replace = []
     try:
