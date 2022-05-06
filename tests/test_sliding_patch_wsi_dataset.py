@@ -204,13 +204,13 @@ class SlidingPatchWSIDatasetTests:
             dataset = SlidingPatchWSIDataset(reader=self.backend, **input_parameters)
             self.assertEqual(len(dataset), len(expected))
             for i, sample in enumerate(dataset):
-                self.assertEqual(sample["metadata"]["level"], expected[i]["level"])
-                self.assertTupleEqual(sample["metadata"]["size"], expected[i]["size"])
+                self.assertEqual(sample["metadata"]["patch"]["level"], expected[i]["level"])
+                self.assertTupleEqual(sample["metadata"]["patch"]["size"], expected[i]["size"])
                 expected_locations = tuple(
                     int(expected[i]["location"][j] * expected[i]["ratios"][j])
                     for j in range(len(expected[i]["location"]))
                 )
-                self.assertTupleEqual(sample["metadata"]["location"], expected_locations)
+                self.assertTupleEqual(sample["metadata"]["patch"]["location"], expected_locations)
 
 
 @skipUnless(has_cucim, "Requires cucim")
