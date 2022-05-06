@@ -74,7 +74,7 @@ def get_equivalent_dtype(dtype, data_type):
     """
     if dtype is None:
         return None
-    if data_type is torch.Tensor:
+    if data_type is torch.Tensor or data_type.__name__ == "MetaTensor":
         if isinstance(dtype, torch.dtype):
             # already a torch dtype and target `data_type` is torch.Tensor
             return dtype
