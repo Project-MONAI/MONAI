@@ -184,8 +184,8 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
         for sample in data:
-            prepared_sample = self._make_patches(sample)
-            self.data.extend(prepared_sample)
+            sliding_samples = self._make_patches(sample)
+            self.data.extend(sliding_samples)
 
     def _make_patches(self, sample):
         """Define the location for each patch based on sliding-window approach"""
