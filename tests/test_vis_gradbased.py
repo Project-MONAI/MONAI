@@ -45,9 +45,6 @@ class TestGradientClassActivationMap(unittest.TestCase):
         x = torch.rand(shape, device=device)
         result = vis(x)
         self.assertTupleEqual(result.shape, x.shape)
-        # check result is same whether class_idx=None is used or not
-        result2 = vis(x, index=model(x).argmax(1))
-        torch.testing.assert_allclose(result, result2)
 
 
 if __name__ == "__main__":
