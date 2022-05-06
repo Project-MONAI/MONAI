@@ -228,7 +228,7 @@ class EnsureChannelFirst(Transform):
             return img
         if channel_dim == "no_channel":
             return self.add_channel(img)  # type: ignore
-        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
+        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
 
 
 class RepeatChannel(Transform):
