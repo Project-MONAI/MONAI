@@ -211,7 +211,25 @@ class BaseWSIReader(ImageReader):
 
             # Set patch-related metadata
             each_meta = self.get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
-            metadata.update(each_meta)
+
+            if len(wsi) == 1:
+                metadata = each_meta
+            else:
+                if not metadata:
+                    metadata = {
+                        "backend": each_meta["backend"],
+                        "original_channel_dim": each_meta["original_channel_dim"],
+                        "spatial_shape": each_meta["spatial_shape"],
+                        "wsi": [each_meta["wsi"]],
+                        "patch": [each_meta["patch"]],
+                    }
+                else:
+                    if metadata["original_channel_dim"] != each_meta["original_channel_dim"]:
+                        raise ValueError("original_channel_dim is not consistent across wsi objects.")
+                    if any(metadata["spatial_shape"] != each_meta["spatial_shape"]):
+                        raise ValueError("spatial_shape is not consistent across wsi objects.")
+                    metadata["wsi"].append(each_meta["wsi"])
+                    metadata["patch"].append(each_meta["patch"])
 
         return _stack_images(patch_list, metadata), metadata
 
