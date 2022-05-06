@@ -190,29 +190,33 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
     def _make_patches(self, sample):
         """Define the location for each patch based on sliding-window approach"""
         wsi_obj = self._get_wsi_object(sample)
-        wsi_size = wsi_obj.get_size(0)
+        wsi_size = self.wsi_reader.get_size(wsi_obj, 0)
 
-        patch_size = self._get_size(sample)
+        patch_size_level = self._get_size(sample)
         level = self._get_level(sample)
-        ratio = 1.0
+        ratio = [1.0] * len(patch_size_level)
         if level > 0:
-            wsi_size_at_level = wsi_obj.get_size(level)
-            ratio = [wsi_size[i] / wsi_size_at_level[i] for i in range(len(self.size))]
+            wsi_size_at_level = self.wsi_reader.get_size(wsi_obj, level)
+            ratio = [wsi_size[i] / wsi_size_at_level[i] for i in range(len(patch_size_level))]
 
-        steps = (int(patch_size[i] * ratio[i] * self.overlap) for i in range(len(self.size)))
-        locations = product(range(0, wsi_size[i], steps[i]) for i in range(len(self.size)))
-
-        sample["size"] = patch_size
+        patch_size = [int(patch_size_level[i] * ratio[i]) for i in range(len(patch_size_level))]
+        steps = [int(patch_size[i] * (1.0 - self.overlap)) for i in range(len(patch_size_level))]
+        locations = list(
+            product(*[list(range(0, wsi_size[i] - patch_size[i] + 1, steps[i])) for i in range(len(patch_size_level))])
+        )
+        sample["size"] = patch_size_level
         sample["level"] = level
         n_patches = len(locations)
         return [{**sample, "location": locations[i], "patch_num": i, "n_patches": n_patches} for i in range(n_patches)]
+
+    def _get_location(self, sample: Dict):
+        return sample["location"]
 
     def _transform(self, index: int):
         # Get a single entry of data
         sample: Dict = self.data[index]
         # Extract patch image and associated metadata
         image, metadata = self._get_data(sample)
-
         # Create put all patch information together and apply transforms
         patch = {"image": image, "metadata": metadata}
         return apply_transform(self.transform, patch) if self.transform else patch
