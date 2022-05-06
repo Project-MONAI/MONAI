@@ -806,11 +806,7 @@ class DiceFocalLoss(_Loss):
             smooth_dr=smooth_dr,
             batch=batch,
         )
-        self.focal = FocalLoss(
-            gamma=gamma,
-            weight=focal_weight,
-            reduction=reduction,
-        )
+        self.focal = FocalLoss(gamma=gamma, weight=focal_weight, reduction=reduction)
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
         if lambda_focal < 0.0:
