@@ -5,6 +5,9 @@ on:
   #   - cron: "0 2 * * *"  # at 02:00 UTC
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+  push:
+    branches:
+      - 4234-fix-2204-nvfuser-issue
 
 jobs:
   cron-gpu:
@@ -103,7 +106,6 @@ jobs:
 
   cron-pip:
     # pip install monai[all] and use it to run unit tests
-    if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
         container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.04"]  # 21.02, 21.10 for backward comp.
@@ -167,7 +169,7 @@ jobs:
           python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
 
           python -m pip install -r requirements-dev.txt
-          PYTHONPATH="$tmp_dir":$PYTHONPATH BUILD_MONAI=1 python ./tests/runner.py -p 'test_((?!integration).)'  # unit tests
+          PYTHONPATH="$tmp_dir":$PYTHONPATH BUILD_MONAI=1 python ./tests/test_dynunet.py  # unit tests
           if pgrep python; then pkill python; fi
 
   cron-docker:
