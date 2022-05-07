@@ -108,7 +108,7 @@ jobs:
     # pip install monai[all] and use it to run unit tests
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.04"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:22.04"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
