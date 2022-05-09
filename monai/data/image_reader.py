@@ -678,7 +678,7 @@ class PILReader(ImageReader):
         It computes `spatial_shape` and stores it in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the meta data of the first image is used to represent the output meta data.
-        Note that it will switch axis 0 and 1 after loading the array because the `HW` definition in PIL
+        Note that it will swap axis 0 and 1 after loading the array because the `HW` definition in PIL
         is different from other common medical packages.
 
         Args:
@@ -809,7 +809,7 @@ class WSIReader(ImageReader):
 
         Args:
             img: a WSIReader image object loaded from a file, or list of CuImage objects
-            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame,
+            location: (top, left) tuple giving the top left pixel in the level 0 reference frame,
             or list of tuples (default=(0, 0))
             size: (height, width) tuple giving the region size, or list of tuples (default to full image size)
             This is the size of image at the given level (`level`)
@@ -820,7 +820,10 @@ class WSIReader(ImageReader):
         """
         # Verify inputs
         if level is None:
-            level = self._check_level(img, level)
+            level = self.level
+        max_level = self._get_max_level(img)
+        if level > max_level:
+            raise ValueError(f"The maximum level of this image is {max_level} while level={level} is requested)!")
 
         # Extract a region or the entire image
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
@@ -844,21 +847,19 @@ class WSIReader(ImageReader):
 
         return patches, metadata
 
-    def _check_level(self, img, level):
-        level = self.level
+    def _get_max_level(self, img_obj):
+        """
+        Return the maximum number of levels in the whole slide image
+        Args:
+            img: the whole slide image object
 
-        level_count = 0
+        """
         if self.backend == "openslide":
-            level_count = img.level_count
-        elif self.backend == "cucim":
-            level_count = img.resolutions["level_count"]
-        elif self.backend == "tifffile":
-            level_count = len(img.pages)
-
-        if level > level_count - 1:
-            raise ValueError(f"The maximum level of this image is {level_count - 1} while level={level} is requested)!")
-
-        return level
+            return img_obj.level_count - 1
+        if self.backend == "cucim":
+            return img_obj.resolutions["level_count"] - 1
+        if self.backend == "tifffile":
+            return len(img_obj.pages) - 1
 
     def _get_image_size(self, img, size, level, location):
         """
@@ -923,6 +924,20 @@ class WSIReader(ImageReader):
 
         # convert to numpy (if not already in numpy)
         raw_region = np.asarray(raw_region, dtype=dtype)
+
+        # check if the image has three dimensions (2D + color)
+        if raw_region.ndim != 3:
+            raise ValueError(
+                f"The input image dimension should be 3 but {raw_region.ndim} is given. "
+                "`WSIReader` is designed to work only with 2D colored images."
+            )
+
+        # check if the color channel is 3 (RGB) or 4 (RGBA)
+        if raw_region.shape[-1] not in [3, 4]:
+            raise ValueError(
+                f"There should be three or four color channels but {raw_region.shape[-1]} is given. "
+                "`WSIReader` is designed to work only with 2D colored images."
+            )
 
         # remove alpha channel if exist (RGBA)
         if raw_region.shape[-1] > 3:

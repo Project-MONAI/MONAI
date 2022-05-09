@@ -25,6 +25,7 @@ __all__ = [
     "Average",
     "MetricReduction",
     "LossReduction",
+    "DiceCEReduction",
     "Weight",
     "ChannelMatching",
     "SkipMode",
@@ -140,7 +141,7 @@ class Average(Enum):
 
 class MetricReduction(Enum):
     """
-    See also: :py:class:`monai.metrics.meandice.DiceMetric`
+    See also: :py:func:`monai.metrics.utils.do_metric_reduction`
     """
 
     NONE = "none"
@@ -162,6 +163,16 @@ class LossReduction(Enum):
     """
 
     NONE = "none"
+    MEAN = "mean"
+    SUM = "sum"
+
+
+class DiceCEReduction(Enum):
+    """
+    See also:
+        - :py:class:`monai.losses.dice.DiceCELoss`
+    """
+
     MEAN = "mean"
     SUM = "sum"
 
@@ -216,13 +227,13 @@ class ForwardMode(Enum):
 class TraceKeys:
     """Extra meta data keys used for traceable transforms."""
 
-    CLASS_NAME = "class"
-    ID = "id"
-    ORIG_SIZE = "orig_size"
-    EXTRA_INFO = "extra_info"
-    DO_TRANSFORM = "do_transforms"
-    KEY_SUFFIX = "_transforms"
-    NONE = "none"
+    CLASS_NAME: str = "class"
+    ID: str = "id"
+    ORIG_SIZE: str = "orig_size"
+    EXTRA_INFO: str = "extra_info"
+    DO_TRANSFORM: str = "do_transforms"
+    KEY_SUFFIX: str = "_transforms"
+    NONE: str = "none"
 
 
 @deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
@@ -275,6 +286,10 @@ class PostFix:
     @staticmethod
     def orig_meta(key: Optional[str] = None):
         return PostFix._get_str(key, "orig_meta_dict")
+
+    @staticmethod
+    def transforms(key: Optional[str] = None):
+        return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 
 class TransformBackends(Enum):

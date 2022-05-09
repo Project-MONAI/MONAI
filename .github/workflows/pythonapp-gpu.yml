@@ -23,7 +23,7 @@ jobs:
           - "PT17+CUDA102"
           - "PT18+CUDA102"
           - "PT18+CUDA112"
-          - "PT110+CUDA116"
+          - "PT111+CUDA116"
           - "PT110+CUDA102"
           - "PT111+CUDA102"
         include:
@@ -44,13 +44,13 @@ jobs:
             # 21.10: 1.10.0a0+0aef44c
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
-          - environment: PT110+CUDA116
+          - environment: PT111+CUDA116
             # we explicitly set pytorch to -h to avoid pip install error
-            # 22.02: 1.11.0a0+17540c5
+            # 22.04: 1.12.0a0+bd13bc6
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:22.02-py3"
+            base: "nvcr.io/nvidia/pytorch:22.04-py3"
           - environment: PT110+CUDA102
-            pytorch: "torch==1.10.1 torchvision==0.11.2"
+            pytorch: "torch==1.10.2 torchvision==0.11.3"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT111+CUDA102
             pytorch: "torch==1.11.0 torchvision==0.12.0"
@@ -63,6 +63,13 @@ jobs:
     - uses: actions/checkout@v2
     - name: apt install
       run: |
+        # workaround for https://github.com/Project-MONAI/MONAI/issues/4200
+        apt-key del 7fa2af80 && rm -rf /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
+        apt-get update
+        apt-get install -y wget
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb
+        dpkg -i cuda-keyring_1.0-1_all.deb
+
         if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT110+CUDA102" ] || \

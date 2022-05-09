@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
 import json
 import re
 from copy import deepcopy
@@ -18,13 +17,15 @@ from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
-from monai.bundle.utils import ID_SEP_KEY, MACRO_KEY
+from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY, MACRO_KEY
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, optional_import
 
 yaml, _ = optional_import("yaml")
 
 __all__ = ["ConfigParser"]
+
+_default_globals = {"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}
 
 
 class ConfigParser:
@@ -74,7 +75,7 @@ class ConfigParser:
             so that expressions, for example, ``"$monai.data.list_data_collate"`` can use ``monai`` modules.
             The current supported globals and alias names are
             ``{"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}``.
-            These are MONAI's minimal dependencies.
+            These are MONAI's minimal dependencies. Additional packages could be included with `globals={"itk": "itk"}`.
 
     See also:
 
@@ -86,6 +87,8 @@ class ConfigParser:
     suffixes = ("json", "yaml", "yml")
     suffix_match = rf".*\.({'|'.join(suffixes)})"
     path_match = rf"({suffix_match}$)"
+    # match relative id names, e.g. "@#data", "@##transform#1"
+    relative_id_prefix = re.compile(rf"(?:{ID_REF_KEY}|{MACRO_KEY}){ID_SEP_KEY}+")
     meta_key = "_meta_"  # field key to save metadata
 
     def __init__(
@@ -96,10 +99,12 @@ class ConfigParser:
     ):
         self.config = None
         self.globals: Dict[str, Any] = {}
-        globals = {"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"} if globals is None else globals
-        if globals is not None:
-            for k, v in globals.items():
-                self.globals[k] = importlib.import_module(v) if isinstance(v, str) else v
+        _globals = _default_globals.copy()
+        if isinstance(_globals, dict) and globals is not None:
+            _globals.update(globals)
+        if _globals is not None:
+            for k, v in _globals.items():
+                self.globals[k] = optional_import(v)[0] if isinstance(v, str) else v
 
         self.locator = ComponentLocator(excludes=excludes)
         self.ref_resolver = ReferenceResolver()
@@ -124,7 +129,7 @@ class ConfigParser:
         if id == "":
             return self.config
         config = self.config
-        for k in str(id).split(self.ref_resolver.sep):
+        for k in str(id).split(ID_SEP_KEY):
             if not isinstance(config, (dict, list)):
                 raise ValueError(f"config must be dict or list for key `{k}`, but got {type(config)}: {config}.")
             indexing = k if isinstance(config, dict) else int(k)
@@ -148,9 +153,9 @@ class ConfigParser:
             self.config = config
             self.ref_resolver.reset()
             return
-        keys = str(id).split(self.ref_resolver.sep)
+        keys = str(id).split(ID_SEP_KEY)
         # get the last parent level config item and replace it
-        last_id = self.ref_resolver.sep.join(keys[:-1])
+        last_id = ID_SEP_KEY.join(keys[:-1])
         conf_ = self[last_id]
         indexing = keys[-1] if isinstance(conf_, dict) else int(keys[-1])
         conf_[indexing] = config
@@ -189,7 +194,7 @@ class ConfigParser:
         """
         if reset:
             self.ref_resolver.reset()
-        self.resolve_macro()
+        self.resolve_macro_and_relative_ids()
         self._do_parse(config=self.get())
 
     def get_parsed_content(self, id: str = "", **kwargs):
@@ -206,12 +211,16 @@ class ConfigParser:
                 Use digits indexing from "0" for list or other strings for dict.
                 For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
-                Currently support ``reset`` (for parse), ``instantiate`` and ``eval_expr``. All defaulting to True.
+                Currently support ``lazy`` (whether to retain the current config cache, default to `True`),
+                ``instantiate`` (whether to instantiate the `ConfigComponent`, default to `True`) and
+                ``eval_expr`` (whether to evaluate the `ConfigExpression`, default to `True`).
 
         """
         if not self.ref_resolver.is_resolved():
             # not parsed the config source yet, parse it
-            self.parse(kwargs.get("reset", True))
+            self.parse(reset=True)
+        elif not kwargs.get("lazy", True):
+            self.parse(reset=not kwargs.get("lazy", True))
         return self.ref_resolver.get_resolved_content(id=id, **kwargs)
 
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
@@ -244,28 +253,38 @@ class ConfigParser:
         content.update(self.load_config_files(f, **kwargs))
         self.set(config=content)
 
-    def _do_resolve(self, config: Any):
+    def _do_resolve(self, config: Any, id: str = ""):
         """
-        Recursively resolve the config content to replace the macro tokens with target content.
+        Recursively resolve `self.config` to replace the relative ids with absolute ids, for example,
+        `@##A` means `A` in the upper level. and replace the macro tokens with target content,
         The macro tokens start with "%", can be from another structured file, like:
-        ``{"net": "%default_net"}``, ``{"net": "%/data/config.json#net"}``.
+        ``"%default_net"``, ``"%/data/config.json#net"``.
+        Note that the macro replacement doesn't support recursive macro tokens.
 
         Args:
             config: input config file to resolve.
+            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+                go one level further into the nested structures.
+                Use digits indexing from "0" for list or other strings for dict.
+                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if isinstance(config, (dict, list)):
             for k, v in enumerate(config) if isinstance(config, list) else config.items():
-                config[k] = self._do_resolve(v)
-        if isinstance(config, str) and config.startswith(MACRO_KEY):
-            path, ids = ConfigParser.split_path_id(config[len(MACRO_KEY) :])
-            parser = ConfigParser(config=self.get() if not path else ConfigParser.load_config_file(path))
-            return self._do_resolve(config=deepcopy(parser[ids]))
+                sub_id = f"{id}{ID_SEP_KEY}{k}" if id != "" else k
+                config[k] = self._do_resolve(v, sub_id)
+        if isinstance(config, str):
+            config = self.resolve_relative_ids(id, config)
+            if config.startswith(MACRO_KEY):
+                path, ids = ConfigParser.split_path_id(config[len(MACRO_KEY) :])
+                parser = ConfigParser(config=self.get() if not path else ConfigParser.load_config_file(path))
+                return parser[ids]
         return config
 
-    def resolve_macro(self):
+    def resolve_macro_and_relative_ids(self):
         """
-        Recursively resolve `self.config` to replace the macro tokens with target content.
+        Recursively resolve `self.config` to replace the relative ids with absolute ids, for example,
+        `@##A` means `A` in the upper level. and replace the macro tokens with target content,
         The macro tokens are marked as starting with "%", can be from another structured file, like:
         ``"%default_net"``, ``"%/data/config.json#net"``.
 
@@ -285,9 +304,8 @@ class ConfigParser:
 
         """
         if isinstance(config, (dict, list)):
-            subs = enumerate(config) if isinstance(config, list) else config.items()
-            for k, v in subs:
-                sub_id = f"{id}{self.ref_resolver.sep}{k}" if id != "" else k
+            for k, v in enumerate(config) if isinstance(config, list) else config.items():
+                sub_id = f"{id}{ID_SEP_KEY}{k}" if id != "" else k
                 self._do_parse(config=v, id=sub_id)
 
         # copy every config item to make them independent and add them to the resolver
@@ -320,9 +338,12 @@ class ConfigParser:
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")
 
     @classmethod
-    def load_config_files(cls, files: Union[PathLike, Sequence[PathLike], dict], **kwargs) -> dict:
+    def load_config_files(cls, files: Union[PathLike, Sequence[PathLike], dict], **kwargs) -> Dict:
         """
         Load config files into a single config dict.
+        The latter config file in the list will override or add the former config file.
+        ``"#"`` in the config keys are interpreted as special characters to go one level
+        further into the nested structures.
 
         Args:
             files: path of target files to load, supported postfixes: `.json`, `.yml`, `.yaml`.
@@ -330,10 +351,11 @@ class ConfigParser:
         """
         if isinstance(files, dict):  # already a config dict
             return files
-        content = {}
+        parser = ConfigParser(config={})
         for i in ensure_tuple(files):
-            content.update(cls.load_config_file(i, **kwargs))
-        return content
+            for k, v in (cls.load_config_file(i, **kwargs)).items():
+                parser[k] = v
+        return parser.get()  # type: ignore
 
     @classmethod
     def export_config_file(cls, config: Dict, filepath: PathLike, fmt="json", **kwargs):
@@ -373,3 +395,41 @@ class ConfigParser:
         path_name = result[0][0]  # at most one path_name
         _, ids = src.rsplit(path_name, 1)
         return path_name, ids[len(ID_SEP_KEY) :] if ids.startswith(ID_SEP_KEY) else ""
+
+    @classmethod
+    def resolve_relative_ids(cls, id: str, value: str) -> str:
+        """
+        To simplify the reference or macro tokens ID in the nested config content, it's available to use
+        relative ID name which starts with the `ID_SEP_KEY`, for example, "@#A" means `A` in the same level,
+        `@##A` means `A` in the upper level.
+        It resolves the relative ids to absolute ids. For example, if the input data is:
+
+        .. code-block:: python
+
+            {
+                "A": 1,
+                "B": {"key": "@##A", "value1": 2, "value2": "%#value1", "value3": [3, 4, "@#1"]},
+            }
+
+        It will resolve `B` to `{"key": "@A", "value1": 2, "value2": "%B#value1", "value3": [3, 4, "@B#value3#1"]}`.
+
+        Args:
+            id: id name for current config item to compute relative id.
+            value: input value to resolve relative ids.
+
+        """
+        # get the prefixes like: "@####", "%###", "@#"
+        prefixes = sorted(set().union(cls.relative_id_prefix.findall(value)), reverse=True)
+        current_id = id.split(ID_SEP_KEY)
+
+        for p in prefixes:
+            sym = ID_REF_KEY if ID_REF_KEY in p else MACRO_KEY
+            length = p[len(sym) :].count(ID_SEP_KEY)
+            if length > len(current_id):
+                raise ValueError(f"the relative id in `{value}` is out of the range of config content.")
+            if length == len(current_id):
+                new = ""  # root id is `""`
+            else:
+                new = ID_SEP_KEY.join(current_id[:-length]) + ID_SEP_KEY
+            value = value.replace(p, sym + new)
+        return value

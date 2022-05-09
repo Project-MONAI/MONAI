@@ -1,5 +1,5 @@
 {
-    "schema": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/meta_schema_202203130950.json",
+    "schema": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/meta_schema_20220324.json",
     "version": "0.1.0",
     "changelog": {
         "0.1.0": "complete the model package",
@@ -13,11 +13,10 @@
     },
     "task": "Decathlon spleen segmentation",
     "description": "A pre-trained model for volumetric (3D) segmentation of the spleen from CT image",
-    "authorship": "MONAI team",
+    "authors": "MONAI team",
     "copyright": "Copyright (c) MONAI Consortium",
     "data_source": "Task09_Spleen.tar from http://medicaldecathlon.com/",
     "data_type": "dicom",
-    "dataset_dir": "/workspace/data/Task09_Spleen",
     "image_classes": "single channel data, intensity scaled to [0, 1]",
     "label_classes": "single channel data, 1 is spleen, 0 is everything else",
     "pred_classes": "2 channels OneHot data, channel 1 is spleen, channel 0 is background",

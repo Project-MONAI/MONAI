@@ -543,8 +543,8 @@ Post-processing
     :members:
     :special-members: __call__
 
-`Prob NMS`
-""""""""""
+`ProbNMS`
+"""""""""
 .. autoclass:: ProbNMS
   :members:
 
@@ -560,6 +560,12 @@ Spatial
 `SpatialResample`
 """""""""""""""""
 .. autoclass:: SpatialResample
+    :members:
+    :special-members: __call__
+
+`ResampleToMatch`
+"""""""""""""""""
+.. autoclass:: ResampleToMatch
     :members:
     :special-members: __call__
 
@@ -731,6 +737,13 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridSplit`
+"""""""""""
+.. autoclass:: GridSplit
+    :members:
+    :special-members: __call__
+
+
 Smooth Field
 ^^^^^^^^^^^^
 
@@ -797,6 +810,12 @@ Utility
     :members:
     :special-members: __call__
 
+`SplitDim`
+""""""""""
+.. autoclass:: SplitDim
+    :members:
+    :special-members: __call__
+
 `SplitChannel`
 """"""""""""""
 .. autoclass:: SplitChannel
@@ -827,7 +846,6 @@ Utility
     :members:
     :special-members: __call__
 
-
 `Transpose`
 """""""""""
 .. autoclass:: Transpose
@@ -851,6 +869,7 @@ Utility
 .. autoclass:: SimulateDelay
     :members:
     :special-members: __call__
+
 
 `Lambda`
 """"""""
@@ -1401,12 +1420,24 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`ProbNMSd`
+""""""""""
+.. autoclass:: ProbNMSd
+  :members:
+  :special-members: __call__
+
 Spatial (Dict)
 ^^^^^^^^^^^^^^
 
 `SpatialResampled`
 """"""""""""""""""
 .. autoclass:: SpatialResampled
+    :members:
+    :special-members: __call__
+
+`ResampleToMatchd`
+""""""""""""""""""
+.. autoclass:: ResampleToMatchd
     :members:
     :special-members: __call__
 
@@ -1481,6 +1512,13 @@ Spatial (Dict)
 .. autoclass:: RandZoomd
     :members:
     :special-members: __call__
+
+`GridSplitd`
+""""""""""""
+.. autoclass:: GridSplitd
+    :members:
+    :special-members: __call__
+
 
 `RandRotate90d`
 """""""""""""""
@@ -1620,6 +1658,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`SplitDimd`
+"""""""""""
+.. autoclass:: SplitDimd
+    :members:
+    :special-members: __call__
+
 `SplitChanneld`
 """""""""""""""
 .. autoclass:: SplitChanneld
@@ -1656,6 +1700,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`ToPILd`
+""""""""
+.. autoclass:: ToPILd
+    :members:
+    :special-members: __call__
+
 `DeleteItemsd`
 """"""""""""""
 .. autoclass:: DeleteItemsd
@@ -1665,6 +1715,12 @@ Utility (Dict)
 `SelectItemsd`
 """"""""""""""
 .. autoclass:: SelectItemsd
+    :members:
+    :special-members: __call__
+
+`Transposed`
+""""""""""""
+.. autoclass:: Transposed
     :members:
     :special-members: __call__
 
@@ -1707,6 +1763,12 @@ Utility (Dict)
 `RandLambdad`
 """""""""""""
 .. autoclass:: RandLambdad
+    :members:
+    :special-members: __call__
+
+`RemoveRepeatedChanneld`
+""""""""""""""""""""""""
+.. autoclass:: RemoveRepeatedChanneld
     :members:
     :special-members: __call__
 
@@ -1791,6 +1853,21 @@ Utility (Dict)
 `AddCoordinateChannelsd`
 """"""""""""""""""""""""
 .. autoclass:: AddCoordinateChannelsd
+    :members:
+    :special-members: __call__
+
+MetaTensor
+^^^^^^^^^^
+
+`ToMetaTensord`
+"""""""""""""""
+.. autoclass:: ToMetaTensord
+    :members:
+    :special-members: __call__
+
+`FromMetaTensord`
+"""""""""""""""""
+.. autoclass:: FromMetaTensord
     :members:
     :special-members: __call__
 

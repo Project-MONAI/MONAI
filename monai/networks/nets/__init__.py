@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from .ahnet import AHnet, Ahnet, AHNet
+from .attentionunet import AttentionUnet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .classifier import Classifier, Critic, Discriminator
@@ -79,6 +80,7 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
+from .swin_unetr import SwinUNETR
 from .torchvision_fc import TorchVisionFCModel, TorchVisionFullyConvModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
 from .unet import UNet, Unet
