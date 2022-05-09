@@ -560,7 +560,7 @@ def _replace_modules(
     parent: torch.nn.Module,
     name: str,
     new_module: torch.nn.Module,
-    out: list,
+    out: List[Tuple[str, torch.nn.Module]],
     strict_match: bool = True,
     match_device: bool = True,
 ) -> None:
@@ -578,7 +578,7 @@ def _replace_modules(
         parent_name = name[:idx]
         parent = getattr(parent, parent_name)
         name = name[idx + 1 :]
-        _out = []
+        _out: List[Tuple[str, torch.nn.Module]] = []
         _replace_modules(parent, name, new_module, _out)
         # prepend the parent name
         out += [(f"{parent_name}.{r[0]}", r[1]) for r in _out]
@@ -626,7 +626,7 @@ def replace_modules(
     Raises:
         AttributeError: if `strict_match` is `True` and `name` is not a named module in `parent`.
     """
-    out = []
+    out: List[Tuple[str, torch.nn.Module]] = []
     _replace_modules(parent, name, new_module, out, strict_match, match_device)
     return out
 
@@ -638,13 +638,13 @@ def replace_modules_temp(
     new_module: torch.nn.Module,
     strict_match: bool = True,
     match_device: bool = True,
-) -> None:
+):
     """
     Temporarily replace sub-module(s) in a parent module (context manager).
 
     See :py:class:`monai.networks.utils.replace_modules`.
     """
-    replaced = []
+    replaced: List[Tuple[str, torch.nn.Module]] = []
     try:
         # replace
         _replace_modules(parent, name, new_module, replaced, strict_match, match_device)
