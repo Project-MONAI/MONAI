@@ -11,28 +11,18 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 from functools import partial
 from typing import Callable
 
 import torch
 
+from monai.networks.utils import replace_module_temp
 from monai.utils.module import optional_import
 
 trange, has_trange = optional_import("tqdm", name="trange")
 
 
 __all__ = ["VanillaGrad", "SmoothGrad", "GuidedBackpropGrad", "GuidedBackpropSmoothGrad"]
-
-
-def replace_module(parent: torch.nn.Module, name: str, new_module: torch.nn.Module) -> None:
-    idx = name.find(".")
-    if idx == -1:
-        setattr(parent, name, new_module)
-    else:
-        parent = getattr(parent, name[:idx])
-        name = name[idx + 1 :]
-        replace_module(parent, name, new_module)
 
 
 class _AutoGradReLU(torch.autograd.Function):
@@ -130,34 +120,13 @@ class SmoothGrad(VanillaGrad):
         return total_gradients / self.n_samples
 
 
-@contextmanager
-def replace_modules(
-    model: torch.nn.Module, name_to_replace: str = "relu", replace_with: type[torch.nn.Module] = _GradReLU
-):
-    # replace
-    to_replace = []
-    try:
-        for name, module in model.named_modules():
-            if name_to_replace in name:
-                to_replace.append((name, module))
-
-        for name, _ in to_replace:
-            replace_module(model, name, replace_with())
-
-        yield
-    finally:
-        # regardless of success or not, revert model
-        for name, module in to_replace:
-            replace_module(model, name, module)
-
-
 class GuidedBackpropGrad(VanillaGrad):
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
-        with replace_modules(self.model):
+        with replace_module_temp(self.model, "relu", _GradReLU(), strict_match=False):
             return super().__call__(x, index)
 
 
 class GuidedBackpropSmoothGrad(SmoothGrad):
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
-        with replace_modules(self.model):
+        with replace_module_temp(self.model, "relu", _GradReLU(), strict_match=False):
             return super().__call__(x, index)

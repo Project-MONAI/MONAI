@@ -37,7 +37,6 @@ for type in (VanillaGrad, SmoothGrad, GuidedBackpropGrad, GuidedBackpropSmoothGr
 class TestGradientClassActivationMap(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_shape(self, vis_type, model, shape, expected_shape):
-        print(shape)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
