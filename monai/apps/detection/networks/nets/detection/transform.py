@@ -125,7 +125,7 @@ class GeneralizedRCNNTransform(nn.Module):
             if targets is not None and target_index is not None:
                 targets[i] = target_index
 
-        image_sizes = [img.shape[-spatial_dims:] for img in images] 
+        image_sizes = [img.shape[-spatial_dims:] for img in images]
         images = self.batch_images(images, size_divisible=self.size_divisible)
         image_sizes_list = []
         for image_size in image_sizes:

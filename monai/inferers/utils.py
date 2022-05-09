@@ -256,12 +256,12 @@ def sliding_window_inference_multioutput(
     num_win = len(slices)  # number of windows per image
     total_slices = num_win * batch_size  # total number of windows
 
-    # Create window-level importance map    
+    # Create window-level importance map
     valid_patch_size = get_valid_patch_size(image_size, roi_size)
-    if valid_patch_size ==  roi_size and default_importance_map != None:   
+    if valid_patch_size ==  roi_size and default_importance_map != None:
         importance_map = default_importance_map.to(compute_dtype)
     else:
-        try: 
+        try:
             importance_map = compute_importance_map(
                 valid_patch_size, mode=mode, sigma_scale=sigma_scale, device=device
             ).to(compute_dtype)
@@ -270,7 +270,7 @@ def sliding_window_inference_multioutput(
         # importance_map cannot be 0, otherwise we may end up with nans!
     min_non_zero = importance_map[importance_map != 0].min().item()
     importance_map[importance_map < min_non_zero] = min_non_zero # to prevent NaN
-        
+
 
     # Perform predictions
     dict_key = None
@@ -291,7 +291,7 @@ def sliding_window_inference_multioutput(
             seg_prob_list = [seg_prob_list[k] for k in dict_key]
 
         # for each output in multi-output list
-        for ss in range(len(seg_prob_list)): 
+        for ss in range(len(seg_prob_list)):
             seg_prob = seg_prob_list[ss].to(device) # BxCxMxNxP or BxCxMxN
             zoom_scale = [
                 seg_prob_map_shape_d / roi_size_d
@@ -317,7 +317,7 @@ def sliding_window_inference_multioutput(
                         int(round(original_idx[axis].start * zoom_scale[axis - 2])),
                         int(round(original_idx[axis].stop * zoom_scale[axis - 2])),
                         None,
-                    ) 
+                    )
                 importance_map_step = F.interpolate(importance_map.unsqueeze(0).unsqueeze(0).to(torch.float32), scale_factor=zoom_scale).to(compute_dtype)
                 importance_map_step = importance_map_step.expand(seg_prob.shape[0:2]+importance_map_step.shape[2:])
                 output_image_list[ss][original_idx_step] += importance_map_step * seg_prob[idx - slice_g]
@@ -327,8 +327,8 @@ def sliding_window_inference_multioutput(
     for ss in range(len(output_image_list)):
         output_image_list[ss] = ( output_image_list[ss] / count_map_list[ss] ).to(compute_dtype)
     del count_map_list
-    
-    for ss in range(len(output_image_list)):        
+
+    for ss in range(len(output_image_list)):
         if torch.isnan(output_image_list[ss]).any() or torch.isinf(output_image_list[ss]).any():
             raise ValueError("Sliding window inference results contain NaN or Inf.")
         zoom_scale = [

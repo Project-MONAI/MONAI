@@ -200,8 +200,8 @@ class BoxToImageCoordinated(MapTransform, InvertibleTransform):
             to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
-        affine_lps_to_ras: default False. if 1) the image is read by ITKReader, 
-            2) the ITKReader has affine_lps_to_ras=True, and 3) the box is in world coordinate, 
+        affine_lps_to_ras: default False. if 1) the image is read by ITKReader,
+            2) the ITKReader has affine_lps_to_ras=True, and 3) the box is in world coordinate,
             then set affine_lps_to_ras=True
     """
 
@@ -229,11 +229,11 @@ class BoxToImageCoordinated(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         meta_key = self.image_meta_key
-        for key in self.key_iterator(d): 
+        for key in self.key_iterator(d):
             # create metadata if necessary
             if meta_key not in d:
                 d[meta_key] = {"affine": None}
-            meta_data = d[meta_key]       
+            meta_data = d[meta_key]
             affine = meta_data["affine"] # RAS affine
             if self.affine_lps_to_ras:
                 affine = orientation_ras_lps(affine)
@@ -244,7 +244,7 @@ class BoxToImageCoordinated(MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         meta_key = self.image_meta_key
-        for key in self.key_iterator(d): 
+        for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             affine = transform['extra_info']['affine']
             d[key] = self.converter_to_physical_coordinate(d[key], affine=affine)
@@ -341,9 +341,9 @@ class BoxFlipd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             d[key] = self.flipper(d[key])
             self.push_transform(d, key)
-                
-        for box_key,ref_image_key in zip(self.box_keys,self.ref_image_keys): 
-            image_size = d[ref_image_key].shape[1:]            
+
+        for box_key,ref_image_key in zip(self.box_keys,self.ref_image_keys):
+            image_size = d[ref_image_key].shape[1:]
             d[box_key] = self.box_flipper(d[box_key], image_size)
             self.push_transform(d, box_key, extra_info={"image_size": image_size})
         return d
@@ -399,7 +399,7 @@ class BoxRandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         if ref_image_keys==None:
             ref_image_keys = image_keys
         self.ref_image_keys = ensure_tuple_rep(ref_image_keys, len(self.box_keys))
-        
+
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -416,10 +416,10 @@ class BoxRandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
             if self._do_transform:
                 d[key] = self.flipper(d[key], randomize=False)
             self.push_transform(d, key)
-                
-        for box_key,ref_image_key in zip(self.box_keys,self.ref_image_keys): 
-            image_size = d[ref_image_key].shape[1:]            
-            if self._do_transform:                               
+
+        for box_key,ref_image_key in zip(self.box_keys,self.ref_image_keys):
+            image_size = d[ref_image_key].shape[1:]
+            if self._do_transform:
                 d[box_key] = self.box_flipper(d[box_key], image_size)
             self.push_transform(d, box_key, extra_info={"image_size": image_size})
         return d
@@ -480,22 +480,22 @@ class BoxRandSwapAxesd(RandomizableTransform, MapTransform, InvertibleTransform)
             raise ValueError("spatial_axis_0 and spatial_axis_1 should be different.")
         self.spatial_axis_0 = spatial_axis_0
         self.spatial_axis_1 = spatial_axis_1
-        
+
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize(None)
         first_key: Union[Hashable, List] = self.first_key(d)
         spatial_dims = len(d[first_key].shape)-1
-        
+
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = d[key].swapaxes(self.spatial_axis_0+1,self.spatial_axis_1+1)
             self.push_transform(d, key, extra_info={"swapaxes": [self.spatial_axis_0,self.spatial_axis_1]})
-                
-        for box_key in self.box_keys:            
-            if self._do_transform:   
-                if d[box_key].shape[0]>0:                          
+
+        for box_key in self.box_keys:
+            if self._do_transform:
+                if d[box_key].shape[0]>0:
                     d[box_key][:,[self.spatial_axis_0,self.spatial_axis_1]] = d[box_key][:,[self.spatial_axis_1,self.spatial_axis_0]]
                     d[box_key][:,[self.spatial_axis_0+spatial_dims,self.spatial_axis_1+spatial_dims]] = d[box_key][:,[self.spatial_axis_1+spatial_dims,self.spatial_axis_0+spatial_dims]]
             self.push_transform(d, box_key, extra_info={"swapaxes0": [self.spatial_axis_0,self.spatial_axis_1], "swapaxes1": [self.spatial_axis_0+spatial_dims,self.spatial_axis_1+spatial_dims]})
@@ -738,7 +738,7 @@ class BoxRandCropForegroundd(Randomizable, MapTransform, InvertibleTransform):
     If a dimension of the expected spatial size is bigger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected size,
     and the cropped results of several images may not have exactly the same shape.
-    This function is not recommanded when the foreground objects are tiny, 
+    This function is not recommanded when the foreground objects are tiny,
     as this function can not provide enough randomness in this case.
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -750,7 +750,7 @@ class BoxRandCropForegroundd(Randomizable, MapTransform, InvertibleTransform):
             for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
         num_samples: number of samples (crop regions) to take in each list.
-        fg_ratio: default 1. It will (crop fg_ratio*num_samples) patches with boxes in them for sure, 
+        fg_ratio: default 1. It will (crop fg_ratio*num_samples) patches with boxes in them for sure,
             then crop (num_samples-fg_ratio*num_samples) patches randomly
         meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
             used to add `patch_index` to the meta dict.
@@ -764,7 +764,7 @@ class BoxRandCropForegroundd(Randomizable, MapTransform, InvertibleTransform):
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
-        whole_box: Bool, default True, whether we prefer to contain the whole box in the cropped patch. 
+        whole_box: Bool, default True, whether we prefer to contain the whole box in the cropped patch.
             Even if True, it is still possible to get partial box if there are multiple boxes in the image
         mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
@@ -816,11 +816,11 @@ class BoxRandCropForegroundd(Randomizable, MapTransform, InvertibleTransform):
         bbox: NdarrayOrTensor,
         image_size: NdarrayOrTensor,
     ) -> None:
-        
+
         if self.fg_num_samples<=0:
             self.fg_centers = []
             return
-            
+
         spatial_dims = len(image_size)
         if isinstance(bbox, torch.Tensor):
             bbox = bbox.cpu().detach().numpy()
@@ -833,8 +833,8 @@ class BoxRandCropForegroundd(Randomizable, MapTransform, InvertibleTransform):
             sampled_box = np.random.permutation(bbox.shape[0])[:self.fg_num_samples]
         for bb in sampled_box:
             box = bbox[bb,:]
-            fg_range_list = []                
-            for axis in range(spatial_dims):                
+            fg_range_list = []
+            for axis in range(spatial_dims):
                 fg_range_min_axis = int(np.ceil(box[axis])) # box_start
                 fg_range_max_axis = int(np.floor(box[axis+spatial_dims])) # box_stop
                 if self.whole_box:
@@ -852,7 +852,7 @@ class BoxRandCropForegroundd(Randomizable, MapTransform, InvertibleTransform):
                 fg_unravel_index = np.meshgrid(fg_range_list[0], fg_range_list[1], fg_range_list[2], indexing='ij')
             fg_unravel_index = [np.ravel(i) for i in fg_unravel_index]
             fg_indices_.append( np.ravel_multi_index(fg_unravel_index,image_size) )
-            
+
         if len(fg_indices_)>0:
             fg_indices_ = np.concatenate(fg_indices_,axis=0)
             bg_indices_ = np.ones(1)*(-1)
@@ -868,26 +868,26 @@ class BoxRandCropForegroundd(Randomizable, MapTransform, InvertibleTransform):
             )
         else:
             self.fg_centers = []
-        
+
 
     def randomize(
         self,
         image_size: NdarrayOrTensor,
         num_rand_sample: int
     ) -> None:
-        
+
         if num_rand_sample<=0:
             self.rand_centers = []
             return
 
         spatial_dims = len(image_size)
 
-        fg_range_list = []               
-        for axis in range(spatial_dims):                
+        fg_range_list = []
+        for axis in range(spatial_dims):
             fg_range_min_axis = self.spatial_size[axis]//2
             fg_range_max_axis = max(self.spatial_size[axis]//2, image_size[axis]-self.spatial_size[axis]//2)
             fg_range_list.append( [fg_range_min_axis, fg_range_max_axis] )
-        
+
         self.rand_centers = []
         for i in range(num_rand_sample):
             center = []
@@ -1044,7 +1044,7 @@ class BoxCropForegroundd(MapTransform, InvertibleTransform):
         d = dict(data)
         image_size = d[self.keys[0]].shape[1:]
         # allows ROI bigger than image, i.e., box_start might be negative
-        box_start, box_end = self.cropper.compute_bounding_box(bbox=d[self.box_key],image_size=image_size) 
+        box_start, box_end = self.cropper.compute_bounding_box(bbox=d[self.box_key],image_size=image_size)
         box_slices = [slice(int(s), int(e)) for s,e in zip(box_start, box_end)]
         d[self.start_coord_key] = box_start
         d[self.end_coord_key] = box_end
@@ -1128,7 +1128,7 @@ class BoxRandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
     def __init__(
         self,
         box_keys: KeysCollection,
-        image_keys: KeysCollection, 
+        image_keys: KeysCollection,
         prob: float = 0.1,
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
@@ -1168,13 +1168,13 @@ class BoxRandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         spatial_dims = len(d[first_key].shape)-1
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
-        ):            
+        ):
             if self._do_transform:
                 orig_image_size = d[key].shape[1:]
                 d[key] = self.rand_zoom(
                     d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
                 )
-                
+
             self.push_transform(
                 d,
                 key,
@@ -1184,7 +1184,7 @@ class BoxRandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
                 },
             )
-                    
+
         for box_key in self.box_keys:
             if self._do_transform:
                 d[box_key] = BoxZoom(zoom=self.rand_zoom._zoom,keep_size=self.keep_size)(d[box_key],orig_image_size=orig_image_size)
@@ -1195,7 +1195,7 @@ class BoxRandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                         "zoom": self.rand_zoom._zoom,
                     },
                 )
-        
+
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -1236,7 +1236,7 @@ class BoxRandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             # Remove the applied transform
             self.pop_transform(d, box_key)
 
-        return 
+        return
 
 BoxConvertToStandardD = BoxConvertToStandardDict = BoxConvertToStandardd
 BoxConvertModeD = BoxConvertModeDict = BoxConvertModed

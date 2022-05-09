@@ -165,7 +165,7 @@ class RetinaNetClassificationHead(nn.Module):
         total_cls_logits = torch.stack(total_cls_logits,dim=0)
         total_gt_classes_target = torch.stack(total_gt_classes_target,dim=0)
         # print(total_cls_logits[:5],total_gt_classes_target[:5])
-        
+
         losses = self.cls_loss(
                     total_cls_logits,
                     total_gt_classes_target,
@@ -211,7 +211,7 @@ class RetinaNetRegressionHead(nn.Module):
             conv.append(conv_type(in_channels, in_channels, kernel_size=3, stride=1, padding=1))
             conv.append(nn.GroupNorm(num_groups=8, num_channels=in_channels))
             conv.append(nn.ReLU())
-            
+
         self.conv = nn.Sequential(*conv)
 
         self.bbox_reg = conv_type(in_channels, num_anchors * 2 * spatial_dims, kernel_size=3, stride=1, padding=1)
@@ -258,7 +258,7 @@ class RetinaNetRegressionHead(nn.Module):
                 # compute the regression targets for L1 loss
                 target_regression = self.box_coder.encode_single(matched_gt_boxes_per_image, anchors_per_image)
                 if torch.isnan(target_regression).any() or torch.isinf(target_regression).any():
-                    raise ValueError("target_regression is NaN or Inf.")            
+                    raise ValueError("target_regression is NaN or Inf.")
 
                 total_bbox_regression.append( bbox_regression_per_image)
                 total_target_regression.append( target_regression)
@@ -269,7 +269,7 @@ class RetinaNetRegressionHead(nn.Module):
                 )
                 total_bbox_regression.append( decode_bbox_regression_per_image)
                 total_target_regression.append(matched_gt_boxes_per_image)
-        
+
         if len(total_bbox_regression) == 0:
             losses = 0.0
             return losses
@@ -354,7 +354,7 @@ class RetinaNet(nn.Module):
             considered as positive during training.
         bg_iou_thresh (float): maximum IoU between the anchor and the GT box so that they can be
             considered as negative during training.
-        balanced_sampler_pos_fraction (float): positive fraction when do balanced sampling for classification head. 
+        balanced_sampler_pos_fraction (float): positive fraction when do balanced sampling for classification head.
             If 0, will use Focal loss and not do balanced sampling
         hard_neg_sampler (bool): if True, will torchvision balanced sampler; if False, will use nnDection hard negative balanced sampler. default True
         topk_candidates (int): Number of best detections to keep before NMS.
@@ -416,7 +416,7 @@ class RetinaNet(nn.Module):
         topk_candidates=1000,
         debug=False,
         balanced_sampler_pos_fraction=0,
-        hard_neg_sampler=True,  
+        hard_neg_sampler=True,
         box_overlap_metric="iou",
         mirror_aggregation=False,
         **kwargs,
@@ -490,7 +490,7 @@ class RetinaNet(nn.Module):
                 self.fg_bg_sampler = BalancedPositiveNegativeSampler(batch_size_per_image=64, positive_fraction=balanced_sampler_pos_fraction)
         else:
             self.fg_bg_sampler = None
-            
+
 
         self.box_coder = det_utils.BoxCoder(weights=(1.0,) * 2 * spatial_dims)
 
@@ -525,7 +525,7 @@ class RetinaNet(nn.Module):
         self.sliding_window_inferer = SlidingWindowMultiOutputInferer(
             roi_size, sw_batch_size, 0.5, mode, sigma_scale, padding_mode, cval, sw_device, device
         )
-        
+
         return
 
     def switch_inferer(
@@ -545,7 +545,7 @@ class RetinaNet(nn.Module):
 
         return detections
 
-    def compute_loss(self, targets, head_outputs, anchors, 
+    def compute_loss(self, targets, head_outputs, anchors,
                         num_anchors_per_level: Sequence[int] = None,
                         num_anchors_per_loc: int = None):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Dict[str, Tensor]
@@ -556,7 +556,7 @@ class RetinaNet(nn.Module):
                     torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=anchors_per_image.device)
                 )
                 continue
-            
+
             if isinstance(self.proposal_matcher, Matcher):
                 # if torhvision matcher
                 if self.box_overlap_metric == "giou":
@@ -692,7 +692,7 @@ class RetinaNet(nn.Module):
             features = OrderedDict([("0", features)])
         # TODO: Do we want a list or a dict?
         features = list(features.values())
-        head_outputs = self.head(features)  
+        head_outputs = self.head(features)
         head_outputs_list = head_outputs["cls_logits"]
         if sigmoid:
             head_outputs_list = [torch.sigmoid(h) for h in head_outputs_list]
@@ -726,7 +726,7 @@ class RetinaNet(nn.Module):
                 else:
                     raise ValueError(f"Expected target boxes to be of type Tensor, got {type(boxes)}.")
 
-        # transform the input: 
+        # transform the input:
         # concat multiple images to a single batch, if size not same, will pad to the max size
         # image_sizes: a list that document the original size
         images, image_sizes, targets = self.transform(images, targets)
@@ -769,29 +769,29 @@ class RetinaNet(nn.Module):
                             else:
                                 flip_axis_all = [flip_axis_0,flip_axis_1,flip_axis_2]
                             # flip image
-                            flip_images = images.clone()                            
-                            for axis in range(len(flip_axis_all)):                                
+                            flip_images = images.clone()
+                            for axis in range(len(flip_axis_all)):
                                 if flip_axis_all[axis] == 1:
                                     flip_images = flip_images.flip(dims=[2+axis])
                             head_outputs_list_flip = self.inferer(flip_images, self.forward_network)
                             # flip back result
                             for hh in range(len(head_outputs_list_flip)):
                                 head_outputs_list_flip[hh] = head_outputs_list_flip[hh].to("cpu")
-                                for axis in range(len(flip_axis_all)):                                
+                                for axis in range(len(flip_axis_all)):
                                     if flip_axis_all[axis] == 1:
                                         head_outputs_list_flip[hh] = head_outputs_list_flip[hh].flip(dims=[2+axis])
                             # inverse the center shift of box regression
-                            # after flipping, shift left becomes shift right 
+                            # after flipping, shift left becomes shift right
                             num_anchors = head_outputs_list_flip[-1].shape[1]//2//self.spatial_dims
                             for hh in range(len(head_outputs_list_flip) // 2,len(head_outputs_list_flip)):
                                 for nn in range(num_anchors):
-                                    for axis in range(len(flip_axis_all)):                                
+                                    for axis in range(len(flip_axis_all)):
                                         if flip_axis_all[axis] == 1:
                                             head_outputs_list_flip[hh][:,2*self.spatial_dims*nn+axis,...] = -head_outputs_list_flip[hh][:,2*self.spatial_dims*nn+axis,...]
 
                             # aggregate result
                             if len(head_outputs_list)==0:
-                                head_outputs_list = head_outputs_list_flip                                
+                                head_outputs_list = head_outputs_list_flip
                             else:
                                 for hh in range(len(head_outputs_list)):
                                     head_outputs_list[hh] = head_outputs_list[hh] + head_outputs_list_flip[hh]

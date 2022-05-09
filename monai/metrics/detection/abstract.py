@@ -95,7 +95,7 @@ class DetectionMetric(AbstractMetric):
             Sequence[float]: IoU thresholds; [M], M is the number of thresholds
         """
         raise NotImplementedError
-    
+
     def check_number_of_iou(self, *args) -> None:
         """
         Check if shape of input in first dimension is consistent with expected IoU values

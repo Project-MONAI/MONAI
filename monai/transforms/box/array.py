@@ -30,7 +30,7 @@ from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
 from monai.utils import (
-    optional_import, 
+    optional_import,
     convert_data_type,
     ensure_tuple_rep,
     NumpyPadMode,
@@ -108,7 +108,7 @@ class BoxAffine(Transform):
     def __init__(self, mode: str, invert_affine: bool) -> None:
         self.mode = mode
         self.invert_affine = invert_affine
-        
+
 
     def __call__(self, bbox: NdarrayOrTensor, affine: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -118,7 +118,7 @@ class BoxAffine(Transform):
         # convert bbox to torch tensor
         if affine is None:
             return bbox
-            
+
         if isinstance(bbox, np.ndarray):
             bbox_tensor = torch.from_numpy(bbox)
         else:
@@ -131,7 +131,7 @@ class BoxAffine(Transform):
 
         if self.invert_affine:
             affine_tensor = torch.inverse(affine_tensor)
-        
+
         return box_utils.box_affine(bbox_tensor, affine=affine_tensor, mode=self.mode)
 
 
@@ -247,13 +247,13 @@ class BoxToBoxMask(Transform):
         # if no box, return empty mask
         if len(label)==0:
             return np.ones([1]+image_size,dtype=np.int8)*np.int8(self.bg_label)
-        
+
         if self.bg_label >= min(label):
             raise ValueError(f"bg_label should be smaller than any foreground box label. min(box_label)={min(label)}, while bg_label={self.bg_label}")
 
         if len(label) != bbox.shape[0]:
             raise ValueError("Number of label should equal to number of bbox.")
-        
+
         bbox_mask = np.ones([len(label)]+image_size,dtype=np.int8)*np.int8(self.bg_label)
         bbox,_,_ = convert_data_type(bbox,dtype=np.int16)
         for b in range(bbox.shape[0]):
@@ -276,7 +276,7 @@ class BoxToBoxMask(Transform):
                 zoom_factor = [box_size[axis]/float(max_box_size) for axis in range(spatial_dims)]
                 bbox_only_mask = scipy.ndimage.zoom(bbox_only_mask,zoom=zoom_factor,mode='nearest',prefilter=False)
             else:
-                bbox_only_mask = np.ones(box_size,dtype=np.int8)*np.int8(label[b]) 
+                bbox_only_mask = np.ones(box_size,dtype=np.int8)*np.int8(label[b])
 
             # apply to global mask
             if spatial_dims == 2:
@@ -311,7 +311,7 @@ class BoxMaskToBox(Transform):
 
         if isinstance(bbox_mask, torch.Tensor):
             bbox_mask = bbox_mask.cpu().detach().numpy()
-        
+
         bbox = []
         label = []
         for b in range(bbox_mask.shape[0]):
@@ -493,7 +493,7 @@ class BoxCropForeground(Transform):
             box_end[axis] += self.margin[axis]
             if self.allow_smaller:
                 box_start[axis] = max(box_start[axis], 0)
-                box_end[axis] = min(box_end[axis], image_size[axis])   
+                box_end[axis] = min(box_end[axis], image_size[axis])
 
         box_start_, *_ = convert_data_type(box_start, output_type=np.ndarray, dtype=np.int16, wrap_sequence=True)
         box_end_, *_ = convert_data_type(box_end, output_type=np.ndarray, dtype=np.int16, wrap_sequence=True)
@@ -541,7 +541,7 @@ class BoxCropForeground(Transform):
 class BoxZoom(Transform):
     """
     Zooms an ND Box with same padding or slicing setting with Zoom().
-    
+
     Args:
         zoom: The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
