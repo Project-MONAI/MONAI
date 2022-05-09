@@ -37,7 +37,7 @@ class TestReplaceModule(unittest.TestCase):
         self.total = self.get_num_modules()
         self.assertGreater(self.num_relus, 0)
 
-    def get_num_modules(self, mod: Optional[torch.nn.Module] = None) -> int:
+    def get_num_modules(self, mod: Optional[type[torch.nn.Module]] = None) -> int:
         m = [m for _, m in self.net.named_modules()]
         if mod is not None:
             m = [_m for _m in m if isinstance(_m, mod)]
@@ -87,9 +87,9 @@ class TestReplaceModule(unittest.TestCase):
     def test_raises(self):
         # name doesn't exist in module
         with self.assertRaises(AttributeError):
-            replace_module(self.net, "non_existent_module", torch.nn.Softmax, strict_match=True)
+            replace_module(self.net, "non_existent_module", torch.nn.Softmax(), strict_match=True)
         with self.assertRaises(AttributeError):
-            with replace_module_temp(self.net, "non_existent_module", torch.nn.Softmax, strict_match=True):
+            with replace_module_temp(self.net, "non_existent_module", torch.nn.Softmax(), strict_match=True):
                 pass
 
 
