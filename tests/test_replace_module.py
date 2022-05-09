@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import DenseNet121
-from monai.networks.utils import replace_module, replace_module_temp
+from monai.networks.utils import replace_modules, replace_modules_temp
 from tests.utils import TEST_DEVICES
 
 TESTS = []
@@ -63,7 +63,7 @@ class TestReplaceModule(unittest.TestCase):
     def test_replace(self, name, strict_match, match_device, device):
         self.net.to(device)
         # replace module(s)
-        replaced = replace_module(self.net, name, torch.nn.Softmax(), strict_match, match_device)
+        replaced = replace_modules(self.net, name, torch.nn.Softmax(), strict_match, match_device)
         self.check_replaced_modules(name, match_device)
         # number of returned modules should equal number of softmax modules
         self.assertEqual(len(replaced), self.get_num_modules(torch.nn.Softmax))
@@ -77,7 +77,7 @@ class TestReplaceModule(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_replace_context_manager(self, name, strict_match, match_device, device):
         self.net.to(device)
-        with replace_module_temp(self.net, name, torch.nn.Softmax(), strict_match, match_device):
+        with replace_modules_temp(self.net, name, torch.nn.Softmax(), strict_match, match_device):
             self.check_replaced_modules(name, match_device)
         # Check that model was correctly reverted
         self.assertEqual(self.get_num_modules(), self.total)
@@ -87,9 +87,9 @@ class TestReplaceModule(unittest.TestCase):
     def test_raises(self):
         # name doesn't exist in module
         with self.assertRaises(AttributeError):
-            replace_module(self.net, "non_existent_module", torch.nn.Softmax(), strict_match=True)
+            replace_modules(self.net, "non_existent_module", torch.nn.Softmax(), strict_match=True)
         with self.assertRaises(AttributeError):
-            with replace_module_temp(self.net, "non_existent_module", torch.nn.Softmax(), strict_match=True):
+            with replace_modules_temp(self.net, "non_existent_module", torch.nn.Softmax(), strict_match=True):
                 pass
 
 
