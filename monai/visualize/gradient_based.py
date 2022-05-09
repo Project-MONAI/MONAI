@@ -16,7 +16,7 @@ from typing import Callable
 
 import torch
 
-from monai.networks.utils import replace_module_temp
+from monai.networks.utils import replace_modules_temp
 from monai.utils.module import optional_import
 
 trange, has_trange = optional_import("tqdm", name="trange")
@@ -122,11 +122,11 @@ class SmoothGrad(VanillaGrad):
 
 class GuidedBackpropGrad(VanillaGrad):
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
-        with replace_module_temp(self.model, "relu", _GradReLU(), strict_match=False):
+        with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
             return super().__call__(x, index)
 
 
 class GuidedBackpropSmoothGrad(SmoothGrad):
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
-        with replace_module_temp(self.model, "relu", _GradReLU(), strict_match=False):
+        with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
             return super().__call__(x, index)
