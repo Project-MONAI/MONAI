@@ -222,7 +222,7 @@ def split_into_corners(bbox: torch.Tensor, mode: str = None):
         raise RuntimeError("Should not be here")
 
 
-def box_convert_mode(bbox1: torch.Tensor, mode1: str, mode2: str) -> torch.Tensor:
+def box_convert_mode(bbox1: torch.Tensor, mode1: str = None, mode2: str = None) -> torch.Tensor:
     """
     This function converts the bbox1 in mode 1 to the mode2
     """
@@ -258,7 +258,7 @@ def box_convert_mode(bbox1: torch.Tensor, mode1: str, mode2: str) -> torch.Tenso
         elif mode2 == "cccwhd":
             bbox2 = torch.cat(
                 (
-                    (xmin+xmax+ TO_REMOVE)/2, (ymin+ymax+ TO_REMOVE)/2, (zmin+zmax+ TO_REMOVE)/2, 
+                    (xmin+xmax+ TO_REMOVE)/2, (ymin+ymax+ TO_REMOVE)/2, (zmin+zmax+ TO_REMOVE)/2,
                     xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE, zmax - zmin + TO_REMOVE
                 ), dim=-1
             )
@@ -366,7 +366,7 @@ def box_clip_to_patch(
     """
     spatial_dims = get_dimension(bbox=bbox)
     new_bbox = deepcopy(bbox)
-    
+
     if bbox.shape[0] == 0:
         return deepcopy(bbox), []
     # makes sure the bounding boxes are within the image
@@ -447,7 +447,7 @@ def box_iou(bbox1: torch.Tensor, bbox2: torch.Tensor):
 
     if bbox1.shape[0] == 0 or bbox2.shape[0] == 0:
         raise ValueError(f"Input of box_iou cannot be empty. Got bbox1.shape={bbox1.shape}, bbox2.shape={bbox12.shape}.")
-    
+
     spatial_dims = get_dimension(bbox=bbox1)
 
     # we do computation with compute_dtype to avoid overflow
@@ -521,9 +521,9 @@ def box_giou(bbox1: torch.Tensor, bbox2: torch.Tensor):
 
 
     # compute IoU and convert back to original box_dtype
-    union = area1[:, None] + area2 - inter 
+    union = area1[:, None] + area2 - inter
     iou = inter / (union+ torch.finfo(compute_dtype).eps)  # [N,M,spatial_dims]
-    
+
     # enclosure
     lt = torch.min(bbox1[:, None, :spatial_dims], bbox2[:, :spatial_dims]).to(dtype=compute_dtype)  # [N,M,spatial_dims] left top
     rb = torch.max(bbox1[:, None, spatial_dims:], bbox2[:, spatial_dims:]).to(dtype=compute_dtype)  # [N,M,spatial_dims] right bottom
@@ -592,9 +592,9 @@ def box_pair_giou(bbox1: torch.Tensor, bbox2: torch.Tensor):
 
 
     # compute IoU and convert back to original box_dtype
-    union = area1 + area2 - inter 
+    union = area1 + area2 - inter
     iou = inter / (union+ torch.finfo(compute_dtype).eps)  # [N,spatial_dims]
-    
+
     # enclosure
     lt = torch.min(bbox1[:, :spatial_dims], bbox2[:, :spatial_dims]).to(dtype=compute_dtype)  # [N,spatial_dims] left top
     rb = torch.max(bbox1[:, spatial_dims:], bbox2[:, spatial_dims:]).to(dtype=compute_dtype)  # [N,spatial_dims] right bottom
@@ -656,7 +656,7 @@ def box_center(boxes: torch.Tensor) -> torch.Tensor:
     """
     Compute center point of boxes
     Args:
-        boxes: bounding boxes (x1, y1, x2, y2, (z1, z2)) [N, dims * 2]
+        boxes: bounding boxes (x1, y1, z1, x2, y2, z2) [N, dims * 2]
     Returns:
         Tensor: center points [N, dims]
     """
@@ -669,8 +669,8 @@ def box_center_dist(boxes1: torch.Tensor, boxes2: torch.Tensor, euclidean: bool 
     """
     Distance of center points between two sets of boxes
     Arguments:
-        boxes1: boxes; (x1, y1, x2, y2, (z1, z2))[N, dim * 2]
-        boxes2: boxes; (x1, y1, x2, y2, (z1, z2))[M, dim * 2]
+        boxes1: boxes; (x1, y1, z1, x2, y2, z2)[N, dim * 2]
+        boxes2: boxes; (x1, y1, z1, x2, y2, z2)[M, dim * 2]
         euclidean: computed the euclidean distance otherwise it uses the l1
             distance
     Returns:
