@@ -20,8 +20,6 @@ from .utils import (
     one_hot,
     pixelshuffle,
     predict_segmentation,
-    replace_modules,
-    replace_modules_temp,
     save_state,
     slice_channels,
     to_norm_affine,
