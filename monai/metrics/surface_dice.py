@@ -39,12 +39,9 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         distance_metric: The metric used to compute surface distances.
             One of [``"euclidean"``, ``"chessboard"``, ``"taxicab"``].
             Defaults to ``"euclidean"``.
-        reduction: The mode to aggregate metrics.
-            One of [``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``, ``"mean_channel"``, ``"sum_channel"``,
-            ``"none"``].
-            Defaults to ``"mean"``.
-            If ``"none"`` is chosen, no aggregation will be performed.
-            The aggregation will ignore nan values.
+        reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count.
             Defaults to ``False``.
             `not_nans` is the number of batch samples for which not all class-specific NSD values were nan values.
@@ -87,9 +84,14 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self):
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
         r"""
         Aggregates the output of `_compute_tensor`.
+
+        Args:
+            reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
 
         Returns:
             If `get_not_nans` is set to ``True``, this function returns the aggregated NSD and the `not_nans` count.
@@ -100,7 +102,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
         # do metric reduction
-        f, not_nans = do_metric_reduction(data, self.reduction)
+        f, not_nans = do_metric_reduction(data, reduction or self.reduction)
         return (f, not_nans) if self.get_not_nans else f
 
 

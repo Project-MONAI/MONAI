@@ -52,12 +52,11 @@ from monai.transforms import (
     ToDeviced,
 )
 from monai.utils import set_determinism
-from tests.utils import DistTestCase, SkipIfBeforePyTorchVersion, TimedCall, skip_if_no_cuda, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_no_cuda, skip_if_quick
 
 
 @skip_if_no_cuda
 @skip_if_quick
-@SkipIfBeforePyTorchVersion((1, 7))
 class IntegrationFastTrain(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)

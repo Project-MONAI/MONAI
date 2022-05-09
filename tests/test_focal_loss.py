@@ -17,7 +17,7 @@ import torch.nn.functional as F
 
 from monai.losses import FocalLoss
 from monai.networks import one_hot
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import test_script_save
 
 
 class TestFocalLoss(unittest.TestCase):
@@ -67,11 +67,8 @@ class TestFocalLoss(unittest.TestCase):
             b = output1.cpu().detach().numpy()
             error = np.abs(a - b)
             max_error = np.maximum(error, max_error)
-            # if np.all(np.abs(a - b) > max_error):
-            #     max_error = np.abs(a - b)
 
         assert np.allclose(max_error, 0)
-        # self.assertAlmostEqual(max_error, 0.0, places=3)
 
     def test_consistency_with_cross_entropy_2d_onehot_label(self):
         """For gamma=0 the focal loss reduces to the cross entropy loss"""
@@ -261,7 +258,6 @@ class TestFocalLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             FocalLoss(include_background=False, weight=(1.0, 1.0, -1.0))(chn_input, chn_target)
 
-    @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):
         loss = FocalLoss()
         test_input = torch.ones(2, 2, 8, 8)
