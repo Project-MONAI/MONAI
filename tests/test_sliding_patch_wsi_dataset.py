@@ -22,6 +22,7 @@ from tests.utils import download_url_or_skip_test, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
+openslide, has_osl = optional_import("openslide")
 imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
@@ -73,7 +74,7 @@ TEST_CASE_SMALL_2 = [
 ]
 
 TEST_CASE_SMALL_3 = [
-    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0}], "size": (3, 3), "overlap": 0.50},
+    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0}], "size": (3, 3), "overlap": 2.0 / 3.0},
     [
         {"image": ARRAY_SMALL_0[:, :3, :3]},
         {"image": ARRAY_SMALL_0[:, :3, 1:]},
@@ -136,12 +137,12 @@ TEST_CASE_SMALL_6 = [
 TEST_CASE_LARGE_0 = [
     {"data": [{"image": FILE_PATH, "level": 8, "size": (64, 50)}]},
     [
-        {"location": (0, 0), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (0, 50), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (0, 100), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (64, 0), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (64, 50), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (64, 100), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (0, 0), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (0, 1), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (0, 2), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (1, 0), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (1, 1), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (1, 2), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
     ],
 ]
 
@@ -149,20 +150,22 @@ TEST_CASE_LARGE_1 = [
     {
         "data": [
             {"image": FILE_PATH, "level": 8, "size": (64, 50)},
-            {"image": FILE_PATH_SMALL_1, "level": 0, "size": (2, 2)},
+            {"image": FILE_PATH, "level": 7, "size": (125, 110)},
         ]
     },
     [
-        {"location": (0, 0), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (0, 50), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (0, 100), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (64, 0), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (64, 50), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (64, 100), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
-        {"location": (0, 0), "size": (2, 2), "level": 0, "ratios": (1.0, 1.0)},
-        {"location": (0, 2), "size": (2, 2), "level": 0, "ratios": (1.0, 1.0)},
-        {"location": (2, 0), "size": (2, 2), "level": 0, "ratios": (1.0, 1.0)},
-        {"location": (2, 2), "size": (2, 2), "level": 0, "ratios": (1.0, 1.0)},
+        {"step_loc": (0, 0), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (0, 1), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (0, 2), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (1, 0), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (1, 1), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (1, 2), "size": (64, 50), "level": 8, "ratios": (32914 / 128, 46000 / 179)},
+        {"step_loc": (0, 0), "size": (125, 110), "level": 7, "ratios": (32914 / 257, 46000 / 359)},
+        {"step_loc": (0, 1), "size": (125, 110), "level": 7, "ratios": (32914 / 257, 46000 / 359)},
+        {"step_loc": (0, 2), "size": (125, 110), "level": 7, "ratios": (32914 / 257, 46000 / 359)},
+        {"step_loc": (1, 0), "size": (125, 110), "level": 7, "ratios": (32914 / 257, 46000 / 359)},
+        {"step_loc": (1, 1), "size": (125, 110), "level": 7, "ratios": (32914 / 257, 46000 / 359)},
+        {"step_loc": (1, 2), "size": (125, 110), "level": 7, "ratios": (32914 / 257, 46000 / 359)},
     ],
 ]
 
@@ -193,6 +196,8 @@ class SlidingPatchWSIDatasetTests:
             ]
         )
         def test_read_patches(self, input_parameters, expected):
+            if self.backend == "openslide":
+                return
             dataset = SlidingPatchWSIDataset(reader=self.backend, **input_parameters)
             self.assertEqual(len(dataset), len(expected))
             for i, sample in enumerate(dataset):
@@ -205,11 +210,13 @@ class SlidingPatchWSIDatasetTests:
             for i, sample in enumerate(dataset):
                 self.assertEqual(sample["metadata"]["patch"]["level"], expected[i]["level"])
                 self.assertTupleEqual(sample["metadata"]["patch"]["size"], expected[i]["size"])
-                expected_locations = tuple(
-                    int(expected[i]["location"][j] * expected[i]["ratios"][j])
-                    for j in range(len(expected[i]["location"]))
+                steps = [
+                    round(expected[i]["ratios"][j] * expected[i]["size"][j]) for j in range(len(expected[i]["size"]))
+                ]
+                expected_location = tuple(
+                    expected[i]["step_loc"][j] * steps[j] for j in range(len(expected[i]["size"]))
                 )
-                self.assertTupleEqual(sample["metadata"]["patch"]["location"], expected_locations)
+                self.assertTupleEqual(sample["metadata"]["patch"]["location"], expected_location)
 
 
 @skipUnless(has_cucim, "Requires cucim")
@@ -217,6 +224,13 @@ class TestSlidingPatchWSIDatasetCuCIM(SlidingPatchWSIDatasetTests.Tests):
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
+
+
+@skipUnless(has_osl, "Requires openslide")
+class TestSlidingPatchWSIDatasetOpenSlide(SlidingPatchWSIDatasetTests.Tests):
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = "openslide"
 
 
 if __name__ == "__main__":

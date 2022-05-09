@@ -184,10 +184,10 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
         for sample in data:
-            sliding_samples = self._make_patches(sample)
+            sliding_samples = self._evaluate_patch_coordinates(sample)
             self.data.extend(sliding_samples)
 
-    def _make_patches(self, sample):
+    def _evaluate_patch_coordinates(self, sample):
         """Define the location for each patch based on sliding-window approach"""
         wsi_obj = self._get_wsi_object(sample)
         wsi_size = self.wsi_reader.get_size(wsi_obj, 0)
@@ -199,10 +199,15 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
             wsi_size_at_level = self.wsi_reader.get_size(wsi_obj, level)
             ratio = [wsi_size[i] / wsi_size_at_level[i] for i in range(len(patch_size_level))]
 
-        patch_size = [int(patch_size_level[i] * ratio[i]) for i in range(len(patch_size_level))]
-        steps = [int(patch_size[i] * (1.0 - self.overlap)) for i in range(len(patch_size_level))]
+        patch_size = [(patch_size_level[i] * ratio[i]) for i in range(len(patch_size_level))]
+        steps = [round(patch_size[i] * (1.0 - self.overlap)) for i in range(len(patch_size_level))]
         locations = list(
-            product(*[list(range(0, wsi_size[i] - patch_size[i] + 1, steps[i])) for i in range(len(patch_size_level))])
+            product(
+                *[
+                    list(range(0, wsi_size[i] - round(patch_size[i]) + 1, steps[i]))
+                    for i in range(len(patch_size_level))
+                ]
+            )
         )
         sample["size"] = patch_size_level
         sample["level"] = level
