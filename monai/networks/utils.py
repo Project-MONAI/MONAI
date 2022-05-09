@@ -42,8 +42,8 @@ __all__ = [
     "save_state",
     "convert_to_torchscript",
     "meshgrid_ij",
-    "replace_module",
-    "replace_module_temp",
+    "replace_modules",
+    "replace_modules_temp",
 ]
 
 
@@ -556,16 +556,16 @@ def meshgrid_ij(*tensors):
     return torch.meshgrid(*tensors)
 
 
-def _replace_module(
+def _replace_modules(
     parent: torch.nn.Module,
     name: str,
     new_module: torch.nn.Module,
-    out: list,
+    out: List[Tuple[str, torch.nn.Module]],
     strict_match: bool = True,
     match_device: bool = True,
 ) -> None:
     """
-    Helper function for :py:class:`monai.networks.utils.replace_module`.
+    Helper function for :py:class:`monai.networks.utils.replace_modules`.
     """
     if match_device:
         devices = list({i.device for i in parent.parameters()})
@@ -578,8 +578,8 @@ def _replace_module(
         parent_name = name[:idx]
         parent = getattr(parent, parent_name)
         name = name[idx + 1 :]
-        _out = []
-        _replace_module(parent, name, new_module, _out)
+        _out: List[Tuple[str, torch.nn.Module]] = []
+        _replace_modules(parent, name, new_module, _out)
         # prepend the parent name
         out += [(f"{parent_name}.{r[0]}", r[1]) for r in _out]
     # no "." in module name, do the actual replacing
@@ -591,10 +591,10 @@ def _replace_module(
         else:
             for mod_name, _ in parent.named_modules():
                 if name in mod_name:
-                    _replace_module(parent, mod_name, deepcopy(new_module), out, strict_match=True)
+                    _replace_modules(parent, mod_name, deepcopy(new_module), out, strict_match=True)
 
 
-def replace_module(
+def replace_modules(
     parent: torch.nn.Module,
     name: str,
     new_module: torch.nn.Module,
@@ -626,30 +626,30 @@ def replace_module(
     Raises:
         AttributeError: if `strict_match` is `True` and `name` is not a named module in `parent`.
     """
-    out = []
-    _replace_module(parent, name, new_module, out, strict_match, match_device)
+    out: List[Tuple[str, torch.nn.Module]] = []
+    _replace_modules(parent, name, new_module, out, strict_match, match_device)
     return out
 
 
 @contextmanager
-def replace_module_temp(
+def replace_modules_temp(
     parent: torch.nn.Module,
     name: str,
     new_module: torch.nn.Module,
     strict_match: bool = True,
     match_device: bool = True,
-) -> None:
+):
     """
     Temporarily replace sub-module(s) in a parent module (context manager).
 
-    See :py:class:`monai.networks.utils.replace_module`.
+    See :py:class:`monai.networks.utils.replace_modules`.
     """
-    replaced = []
+    replaced: List[Tuple[str, torch.nn.Module]] = []
     try:
         # replace
-        _replace_module(parent, name, new_module, replaced, strict_match, match_device)
+        _replace_modules(parent, name, new_module, replaced, strict_match, match_device)
         yield
     finally:
         # revert
         for name, module in replaced:
-            _replace_module(parent, name, module, [], strict_match=True, match_device=match_device)
+            _replace_modules(parent, name, module, [], strict_match=True, match_device=match_device)
