@@ -8,7 +8,6 @@ on:
   push:
     branches:
       - feature/MetaTensor
-      - 4246-integration-meta
 
 jobs:
   cron-gpu:
