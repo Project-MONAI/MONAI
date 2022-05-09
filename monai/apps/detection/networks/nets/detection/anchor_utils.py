@@ -126,39 +126,39 @@ class AnchorGenerator(nn.Module):
             )
 
         for size, stride, base_anchors in zip(grid_sizes, strides, cell_anchors):
+            # for each feature map
             device = base_anchors.device
 
-            # For output anchor, compute [x_center, x_center, y_center, y_center]
+            # For output anchor, compute [x_center, y_center, x_center, y_center]
             shifts_xyz = []
             for axis in range(self.spatial_dims):
                 shifts_xyz.append(torch.arange(0, size[axis], dtype=torch.int32, device=device) * stride[axis])
-            shifts_xyz = list(torch.meshgrid(*tuple(shifts_xyz), indexing="ij"))
+
+            shifts_xyz = list(torch.meshgrid(*tuple(shifts_xyz)))#indexing="ij"
             for axis in range(self.spatial_dims):
-                shifts_xyz[axis] = shifts_xyz[axis].reshape(-1)
+                shifts_xyz[axis] = shifts_xyz[axis].reshape(-1) # [HW] or [HWD]
 
             if self.spatial_dims == 2:
                 shifts = torch.stack((shifts_xyz[0], shifts_xyz[1], shifts_xyz[0], shifts_xyz[1]), dim=1)
             elif self.spatial_dims == 3:
                 shifts = torch.stack(
                     (shifts_xyz[0], shifts_xyz[1], shifts_xyz[2], shifts_xyz[0], shifts_xyz[1], shifts_xyz[2]), dim=1
-                )
+                )# [HW,4] or [HWD,6]
 
             # For every (base anchor, output anchor) pair,
             # offset each zero-centered base anchor by the center of the output anchor.
             anchors.append(
                 (shifts.view(-1, 1, self.spatial_dims * 2) + base_anchors.view(1, -1, self.spatial_dims * 2)).reshape(
                     -1, self.spatial_dims * 2
-                )
+                ) # [AHWD,4] or [AHWD,6]
             )
 
         return anchors
 
-    def forward(self, images, orig_image_size_list, grid_sizes: List) -> List[Tensor]:
-        image_size = images.shape[-self.spatial_dims :]
-        dtype, device = images[0].dtype, images[0].device
+    def forward(self, pad_image_size, dtype, device, orig_image_size_list, grid_sizes: List) -> List[Tensor]:
         strides = [
             [
-                torch.tensor(image_size[axis] // g[axis], dtype=torch.int64, device=device)
+                torch.tensor(pad_image_size[axis] // g[axis], dtype=torch.int64, device=device)
                 for axis in range(self.spatial_dims)
             ]
             for g in grid_sizes

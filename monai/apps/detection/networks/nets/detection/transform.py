@@ -1,11 +1,12 @@
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torchvision
 from torch import Tensor, nn
 
 from monai.data.box_utils import resize_boxes
+from monai.utils import ensure_tuple_rep
 
 # from .roi_heads import paste_masks_in_image
 
@@ -35,14 +36,16 @@ def _resize_image_and_masks(
     else:
         im_shape = torch.tensor(image.shape[-2:])
 
+    compute_dtype = image.dtype
+
     size: Optional[List[int]] = None
     scale_factor: Optional[float] = None
     recompute_scale_factor: Optional[bool] = None
     if fixed_size is not None:
         size = [fixed_size[1], fixed_size[0]]
     else:
-        min_size = torch.min(im_shape).to(dtype=torch.float32)
-        max_size = torch.max(im_shape).to(dtype=torch.float32)
+        min_size = torch.min(im_shape).to(dtype=compute_dtype)
+        max_size = torch.max(im_shape).to(dtype=compute_dtype)
         scale = torch.min(self_min_size / min_size, self_max_size / max_size)
 
         if torchvision._is_tracing():
@@ -79,15 +82,15 @@ class GeneralizedRCNNTransform(nn.Module):
     model.
 
     The transformations it perform are:
-        - input normalization (mean subtraction and std division)
         - input / target resizing to match min_size / max_size
+        - image_sizes: a list that document the original size
 
     It returns a ImageList for the inputs, and a List[Dict[Tensor]] for the targets
     """
 
     def __init__(
         self,
-        size_divisible: int = 32,
+        size_divisible: Union[Tuple[int], int]=32,
     ):
         super().__init__()
         self.size_divisible = size_divisible
@@ -122,7 +125,7 @@ class GeneralizedRCNNTransform(nn.Module):
             if targets is not None and target_index is not None:
                 targets[i] = target_index
 
-        image_sizes = [img.shape[-spatial_dims:] for img in images]
+        image_sizes = [img.shape[-spatial_dims:] for img in images] 
         images = self.batch_images(images, size_divisible=self.size_divisible)
         image_sizes_list = []
         for image_size in image_sizes:
@@ -170,13 +173,15 @@ class GeneralizedRCNNTransform(nn.Module):
     # batch_images() that is supported by ONNX tracing.
     @torch.jit.unused
     def _onnx_batch_images(self, images: List[Tensor], size_divisible: int = 32) -> Tensor:
+        compute_dtype = images[0].dtype
         max_size = []
-        for i in range(images[0].dim()):
-            max_size_i = torch.max(torch.stack([img.shape[i] for img in images]).to(torch.float32)).to(torch.int64)
+        spatial_dims = images[0].dim()-1
+        stride = ensure_tuple_rep(size_divisible, spatial_dims)
+        for i in range(spatial_dims+1):
+            max_size_i = torch.max(torch.stack([img.shape[i] for img in images]).to(compute_dtype)).to(torch.int64)
+            if i>=1:
+                max_size_i = (torch.ceil((max_size_i.to(compute_dtype)) / stride[i-1]) * stride[i-1]).to(torch.int64)
             max_size.append(max_size_i)
-        stride = size_divisible
-        max_size[1] = (torch.ceil((max_size[1].to(torch.float32)) / stride) * stride).to(torch.int64)
-        max_size[2] = (torch.ceil((max_size[2].to(torch.float32)) / stride) * stride).to(torch.int64)
         max_size = tuple(max_size)
 
         # work around for
@@ -185,7 +190,10 @@ class GeneralizedRCNNTransform(nn.Module):
         padded_imgs = []
         for img in images:
             padding = [(s1 - s2) for s1, s2 in zip(max_size, tuple(img.shape))]
-            padded_img = torch.nn.functional.pad(img, (0, padding[2], 0, padding[1], 0, padding[0]))
+            if spatial_dims==2:
+                padded_img = torch.nn.functional.pad(img, (0, padding[2], 0, padding[1], 0, padding[0]))
+            else:
+                padded_img = torch.nn.functional.pad(img, (0, padding[3], 0, padding[2], 0, padding[1], 0, padding[0]))
             padded_imgs.append(padded_img)
 
         return torch.stack(padded_imgs)
@@ -203,17 +211,20 @@ class GeneralizedRCNNTransform(nn.Module):
             # call _onnx_batch_images() instead
             return self._onnx_batch_images(images, size_divisible)
 
+        spatial_dims = images[0].dim() - 1
         max_size = self.max_by_axis([list(img.shape) for img in images])
-        stride = float(size_divisible)
+        stride = ensure_tuple_rep(size_divisible, spatial_dims)
         max_size = list(max_size)
-        max_size[1] = int(math.ceil(float(max_size[1]) / stride) * stride)
-        max_size[2] = int(math.ceil(float(max_size[2]) / stride) * stride)
-
+        for axis in range(spatial_dims):
+            max_size[1+axis] = int(math.ceil(float(max_size[1+axis]) / stride[axis]) * stride[axis])
         batch_shape = [len(images)] + max_size
         batched_imgs = images[0].new_full(batch_shape, 0)
         for i in range(batched_imgs.shape[0]):
             img = images[i]
-            batched_imgs[i, : img.shape[0], : img.shape[1], : img.shape[2]].copy_(img)
+            if spatial_dims==2:
+                batched_imgs[i, : img.shape[0], : img.shape[1], : img.shape[2]].copy_(img)
+            else:
+                batched_imgs[i, : img.shape[0], : img.shape[1], : img.shape[2], : img.shape[3]].copy_(img)
 
         return batched_imgs
 
@@ -242,16 +253,16 @@ class GeneralizedRCNNTransform(nn.Module):
     def __repr__(self) -> str:
         format_string = self.__class__.__name__ + "("
         _indent = "\n    "
-        format_string += f"{_indent}Normalize(mean={self.image_mean}, std={self.image_std})"
         format_string += f"{_indent}Resize(min_size={self.min_size}, max_size={self.max_size}, mode='bilinear')"
         format_string += "\n)"
         return format_string
 
 
 def resize_keypoints(keypoints: Tensor, original_size: List[int], new_size: List[int]) -> Tensor:
+    compute_dtype = keypoints.dtype
     ratios = [
-        torch.tensor(s, dtype=torch.float32, device=keypoints.device)
-        / torch.tensor(s_orig, dtype=torch.float32, device=keypoints.device)
+        torch.tensor(s, dtype=compute_dtype, device=keypoints.device)
+        / torch.tensor(s_orig, dtype=compute_dtype, device=keypoints.device)
         for s, s_orig in zip(new_size, original_size)
     ]
     ratio_h, ratio_w = ratios

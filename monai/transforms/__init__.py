@@ -21,9 +21,6 @@ from .box.dictionary import (
     BoxConvertToStandardd,
     BoxConvertToStandardD,
     BoxConvertToStandardDict,
-    BoxFlipD,
-    BoxFlipd,
-    BoxFlipDict,
     BoxToImageCoordinateD,
     BoxToImageCoordinated,
     BoxToImageCoordinateDict,
@@ -33,6 +30,21 @@ from .box.dictionary import (
     BoxToBoxMaskd,
     BoxToBoxMaskD,
     BoxToBoxMaskDict,
+    BoxCropForegroundd,
+    BoxCropForegroundD,
+    BoxCropForegroundDict,
+    BoxRandCropForegroundD,
+    BoxRandCropForegroundDict,
+    BoxRandCropForegroundd,
+    BoxRandZoomD, 
+    BoxRandZoomDict, 
+    BoxRandZoomd,
+    BoxRandFlipd,
+    BoxRandFlipD,
+    BoxRandFlipDict,
+    BoxRandSwapAxesd,
+    BoxRandSwapAxesD,
+    BoxRandSwapAxesDict
 )
 from .compose import Compose, OneOf
 from .croppad.array import (

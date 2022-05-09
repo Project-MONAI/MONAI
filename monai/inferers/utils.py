@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from copy import deepcopy
 from typing import Any, Callable, List, Sequence, Tuple, Union
 
@@ -171,6 +170,7 @@ def sliding_window_inference_multioutput(
     cval: float = 0.0,
     sw_device: Union[torch.device, str, None] = None,
     device: Union[torch.device, str, None] = None,
+    default_importance_map: torch.Tensor = None,
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor:
@@ -224,6 +224,7 @@ def sliding_window_inference_multioutput(
         - input must be channel-first and have a batch dim, supports N-D sliding window.
 
     """
+    compute_dtype = inputs.dtype
     num_spatial_dims = len(inputs.shape) - 2
     if overlap < 0 or overlap >= 1:
         raise AssertionError("overlap must be >= 0 and < 1.")
@@ -255,10 +256,21 @@ def sliding_window_inference_multioutput(
     num_win = len(slices)  # number of windows per image
     total_slices = num_win * batch_size  # total number of windows
 
-    # Create window-level importance map
-    importance_map = compute_importance_map(
-        get_valid_patch_size(image_size, roi_size), mode=mode, sigma_scale=sigma_scale, device=device
-    )
+    # Create window-level importance map    
+    valid_patch_size = get_valid_patch_size(image_size, roi_size)
+    if valid_patch_size ==  roi_size and default_importance_map != None:   
+        importance_map = default_importance_map.to(compute_dtype)
+    else:
+        try: 
+            importance_map = compute_importance_map(
+                valid_patch_size, mode=mode, sigma_scale=sigma_scale, device=device
+            ).to(compute_dtype)
+        except:
+            raise RuntimeError("Seems to be OOM. Please try to use smaller patch size or use mode='constant' instead of mode='gaussian'. ")
+        # importance_map cannot be 0, otherwise we may end up with nans!
+    min_non_zero = importance_map[importance_map != 0].min().item()
+    importance_map[importance_map < min_non_zero] = min_non_zero # to prevent NaN
+        
 
     # Perform predictions
     dict_key = None
@@ -292,8 +304,8 @@ def sliding_window_inference_multioutput(
                     for image_size_d, zoom_scale_d in zip(image_size, zoom_scale)
                 ]
                 # allocate memory to store the full output and the count for overlapping parts
-                output_image_list.append(torch.zeros(output_shape, dtype=torch.float32, device=device))
-                count_map_list.append(torch.zeros(output_shape, dtype=torch.float32, device=device))
+                output_image_list.append(torch.zeros(output_shape, dtype=compute_dtype, device=device))
+                count_map_list.append(torch.zeros(output_shape, dtype=compute_dtype, device=device))
                 _initialized_list[ss] = True
                 _initialized_list.append(False)
 
@@ -305,20 +317,28 @@ def sliding_window_inference_multioutput(
                         int(round(original_idx[axis].start * zoom_scale[axis - 2])),
                         int(round(original_idx[axis].stop * zoom_scale[axis - 2])),
                         None,
-                    )  
-                importance_map_step = torch.stack([importance_map.unsqueeze(0)]*seg_prob.shape[1],dim=1)
-                importance_map_step = F.interpolate(importance_map_step, scale_factor=zoom_scale)
+                    ) 
+                importance_map_step = F.interpolate(importance_map.unsqueeze(0).unsqueeze(0).to(torch.float32), scale_factor=zoom_scale).to(compute_dtype)
+                importance_map_step = importance_map_step.expand(seg_prob.shape[0:2]+importance_map_step.shape[2:])
                 output_image_list[ss][original_idx_step] += importance_map_step * seg_prob[idx - slice_g]
                 count_map_list[ss][original_idx_step] += importance_map_step
 
     # account for any overlapping sections
-    output_image_list = [output_image / count_map for output_image, count_map in zip(output_image_list, count_map_list)]
-
     for ss in range(len(output_image_list)):
+        output_image_list[ss] = ( output_image_list[ss] / count_map_list[ss] ).to(compute_dtype)
+    del count_map_list
+    
+    for ss in range(len(output_image_list)):        
+        if torch.isnan(output_image_list[ss]).any() or torch.isinf(output_image_list[ss]).any():
+            raise ValueError("Sliding window inference results contain NaN or Inf.")
+        zoom_scale = [
+                seg_prob_map_shape_d / roi_size_d
+                for seg_prob_map_shape_d, roi_size_d in zip(output_image_list[ss].shape[2:], roi_size)
+            ]
         final_slicing: List[slice] = []
         for sp in range(num_spatial_dims):
             slice_dim = slice(pad_size[sp * 2], image_size_[num_spatial_dims - sp - 1] + pad_size[sp * 2])
-            slice_dim = slice(int(round(slice_dim.start * zoom_scale[sp])), int(round(slice_dim.stop * zoom_scale[sp])))
+            slice_dim = slice(int(round(slice_dim.start * zoom_scale[num_spatial_dims - sp - 1])), int(round(slice_dim.stop * zoom_scale[num_spatial_dims - sp - 1])))
             final_slicing.insert(0, slice_dim)
         while len(final_slicing) < len(output_image_list[ss].shape):
             final_slicing.insert(0, slice(None))
@@ -330,7 +350,6 @@ def sliding_window_inference_multioutput(
             final_output[k] = v
     else:
         final_output = output_image_list
-
     return final_output
 
 

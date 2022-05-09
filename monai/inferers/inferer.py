@@ -18,6 +18,7 @@ import torch.nn as nn
 from monai.inferers.utils import sliding_window_inference, sliding_window_inference_multioutput
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple
 from monai.visualize import CAM, GradCAM, GradCAMpp
+from monai.data.utils import compute_importance_map
 
 __all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
 
@@ -152,6 +153,7 @@ class SlidingWindowInferer(Inferer):
         self.device = device
         self.progress = progress
 
+
     def __call__(
         self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
     ) -> torch.Tensor:
@@ -243,6 +245,14 @@ class SlidingWindowMultiOutputInferer(Inferer):
         self.sw_device = sw_device
         self.device = device
 
+        # compute_importance_map takes long time when computing on cpu. We thus compute it once and then save it for future usage
+        try:
+            self.default_importance_map = compute_importance_map(
+                self.roi_size, mode=mode, sigma_scale=sigma_scale, device=device
+            )
+        except:
+            raise RuntimeError(f"Seems to be {device} OOM. Please try to use smaller patch size or use mode='constant' instead of mode='gaussian'. ")
+
     def __call__(
         self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
     ) -> torch.Tensor:
@@ -266,6 +276,7 @@ class SlidingWindowMultiOutputInferer(Inferer):
             self.cval,
             self.sw_device,
             self.device,
+            self.default_importance_map,
             *args,
             **kwargs,
         )

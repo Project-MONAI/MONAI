@@ -8,6 +8,7 @@ import torchvision
 from torch import Tensor, nn
 from torchvision.models.detection._utils import BalancedPositiveNegativeSampler, Matcher
 
+import monai
 from monai.data import box_utils as box_ops
 from monai.losses.focal_loss import FocalLoss
 from monai.networks.layers.factories import Conv
@@ -20,6 +21,8 @@ from . import _utils as det_utils
 from .anchor_utils import AnchorGenerator
 from .backbone_utils import _resnet_fpn_extractor, _validate_trainable_layers
 from .transform import GeneralizedRCNNTransform
+from .sampler import HardNegativeSampler
+from .ATSS_matcher import ATSSMatcher
 
 
 # This script is modified from torchvision.models.detection.retinanet.py
@@ -79,6 +82,7 @@ class RetinaNetClassificationHead(nn.Module):
         conv = []
         for _ in range(4):
             conv.append(conv_type(in_channels, in_channels, kernel_size=3, stride=1, padding=1))
+            conv.append(nn.GroupNorm(num_groups=8, num_channels=in_channels))
             conv.append(nn.ReLU())
         self.conv = nn.Sequential(*conv)
 
@@ -98,11 +102,11 @@ class RetinaNetClassificationHead(nn.Module):
         # TorchScript doesn't support class attributes.
         # https://github.com/pytorch/vision/pull/1697#issuecomment-630255584
         self.BETWEEN_THRESHOLDS = Matcher.BETWEEN_THRESHOLDS
+        self.cls_loss = None
 
     def compute_loss(self, targets, head_outputs, matched_idxs, debug=False, fg_bg_sampler=None):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Tensor
         losses = []
-        sigmoid_focal_loss = FocalLoss(reduction="sum", gamma=0)  # it has built-in sigmoid activation
 
         cls_logits = head_outputs["cls_logits"]
 
@@ -113,53 +117,59 @@ class RetinaNetClassificationHead(nn.Module):
             # determine only the foreground
             foreground_idxs_per_image = matched_idxs_per_image >= 0
 
+
             num_foreground = foreground_idxs_per_image.sum()
+            num_gt_box = targets_per_image["boxes"].numel()
             if debug:
-                print(f"Number of positive anchors: {num_foreground}")
-            if num_foreground<5:
+                print(f"Number of positive anchors: {num_foreground}; Number of GT box: {num_gt_box}.")
+            if num_gt_box > 0 and num_foreground<5:
                 print(f"Only {num_foreground} positive anchors. Please decrease iou_thresh, adjust anchor settings, or change network first downsampling stride.")
 
 
             # create the target classification
             gt_classes_target = torch.zeros_like(cls_logits_per_image)
             gt_classes_target[
-                foreground_idxs_per_image,
-                targets_per_image["labels"][matched_idxs_per_image[foreground_idxs_per_image]],
+                foreground_idxs_per_image, # anchor idx
+                targets_per_image["labels"][matched_idxs_per_image[foreground_idxs_per_image]], # class label
             ] = 1.0
 
             if fg_bg_sampler is not None:
-                sampled_pos_inds, sampled_neg_inds = fg_bg_sampler([matched_idxs_per_image + 1])
+                if self.cls_loss == None:
+                    # when there is balanced sampler, we use BCE loss (gamma=0)
+                    self.cls_loss = torch.nn.BCEWithLogitsLoss(reduction="mean")
+                # The input of fg_bg_sampler: list of tensors containing -1, 0 or positive values.
+                # Each tensor corresponds to a specific image.
+                # -1 values are ignored, 0 are considered as negatives and > 0 as positives.
+
+                # matched_idxs_per_image (Tensor[int64]): an N tensor where N[i] is a matched gt in
+                # [0, M - 1] or a negative value indicating that prediction i could not
+                # be matched. BELOW_LOW_THRESHOLD = -1, BETWEEN_THRESHOLDS = -2
+                if isinstance(fg_bg_sampler, HardNegativeSampler):
+                    sampled_pos_inds, sampled_neg_inds = fg_bg_sampler([matched_idxs_per_image + 1],cls_logits_per_image)
+                else:
+                    sampled_pos_inds, sampled_neg_inds = fg_bg_sampler([matched_idxs_per_image + 1])
                 sampled_pos_inds = torch.where(torch.cat(sampled_pos_inds, dim=0))[0]
                 sampled_neg_inds = torch.where(torch.cat(sampled_neg_inds, dim=0))[0]
-                if len(sampled_neg_inds)>2*len(sampled_pos_inds):
-                    sampled_neg_inds = sampled_neg_inds[:2*len(sampled_pos_inds)]
-                sampled_inds = torch.cat([sampled_pos_inds, sampled_neg_inds], dim=0)
-
-                # find indices for which anchors should be ignored
-                valid_idxs_per_image = matched_idxs_per_image[sampled_inds] != self.BETWEEN_THRESHOLDS
-                valid_idxs_per_image = sampled_inds[valid_idxs_per_image]
+                # print(len(sampled_pos_inds), len(sampled_neg_inds))
+                valid_idxs_per_image = torch.cat([sampled_pos_inds, sampled_neg_inds], dim=0)
             else:
+                if self.cls_loss == None:
+                    # when there is no balanced sampler, we use focal loss (gamma=2)
+                    self.cls_loss = FocalLoss(reduction="mean", gamma=2.0)  # it has built-in sigmoid activation
                 # find indices for which anchors should be ignored
                 valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS
 
-            total_cls_logits += cls_logits_per_image[valid_idxs_per_image]
-            total_gt_classes_target += gt_classes_target[valid_idxs_per_image]
+            total_cls_logits += cls_logits_per_image[valid_idxs_per_image,:]
+            total_gt_classes_target += gt_classes_target[valid_idxs_per_image,:]
 
         total_cls_logits = torch.stack(total_cls_logits,dim=0)
         total_gt_classes_target = torch.stack(total_gt_classes_target,dim=0)
-        if fg_bg_sampler is not None:
-            losses = torch.nn.functional.binary_cross_entropy_with_logits(
-                        total_cls_logits,
-                        total_gt_classes_target,
-                        reduction="mean",
-                    )
-        else:
-            losses = sigmoid_focal_loss(
-                        total_cls_logits,
-                        total_gt_classes_target,
-                        reduction="mean",
-                    )
-
+        # print(total_cls_logits[:5],total_gt_classes_target[:5])
+        
+        losses = self.cls_loss(
+                    total_cls_logits,
+                    total_gt_classes_target,
+                ).to(total_cls_logits.dtype)
         return losses
 
     def forward(self, x):
@@ -199,7 +209,9 @@ class RetinaNetRegressionHead(nn.Module):
         conv = []
         for _ in range(4):
             conv.append(conv_type(in_channels, in_channels, kernel_size=3, stride=1, padding=1))
+            conv.append(nn.GroupNorm(num_groups=8, num_channels=in_channels))
             conv.append(nn.ReLU())
+            
         self.conv = nn.Sequential(*conv)
 
         self.bbox_reg = conv_type(in_channels, num_anchors * 2 * spatial_dims, kernel_size=3, stride=1, padding=1)
@@ -213,7 +225,7 @@ class RetinaNetRegressionHead(nn.Module):
 
         self.box_coder = det_utils.BoxCoder(weights=(1.0,) * 2 * spatial_dims)
 
-    def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
+    def compute_loss(self, targets, head_outputs, anchors, matched_idxs, giou_loss=False):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor], List[Tensor]) -> Tensor
         losses = []
 
@@ -225,6 +237,8 @@ class RetinaNetRegressionHead(nn.Module):
         for targets_per_image, bbox_regression_per_image, anchors_per_image, matched_idxs_per_image in zip(
             targets, bbox_regression, anchors, matched_idxs
         ):
+            if targets_per_image["boxes"].shape[0] == 0:
+                continue
             # determine only the foreground indices, ignore the rest
             foreground_idxs_per_image = torch.where(matched_idxs_per_image >= 0)[0]
             num_foreground = foreground_idxs_per_image.numel()
@@ -237,25 +251,41 @@ class RetinaNetRegressionHead(nn.Module):
             bbox_regression_per_image = bbox_regression_per_image[foreground_idxs_per_image, :]
             anchors_per_image = anchors_per_image[foreground_idxs_per_image, :]
             # print(anchors_per_image[0],matched_gt_boxes_per_image[0])
-
-            # compute the regression targets
-            target_regression = self.box_coder.encode_single(matched_gt_boxes_per_image, anchors_per_image)
-
-            # compute the loss
             if torch.isnan(bbox_regression_per_image).any() or torch.isinf(bbox_regression_per_image).any():
                 raise ValueError("bbox_regression_per_image is NaN or Inf.")
 
-            if torch.isnan(target_regression).any() or torch.isinf(target_regression).any():
-                raise ValueError("target_regression is NaN or Inf.")
+            if not giou_loss:
+                # compute the regression targets for L1 loss
+                target_regression = self.box_coder.encode_single(matched_gt_boxes_per_image, anchors_per_image)
+                if torch.isnan(target_regression).any() or torch.isinf(target_regression).any():
+                    raise ValueError("target_regression is NaN or Inf.")            
 
-            total_bbox_regression.append( bbox_regression_per_image)
-            total_target_regression.append( target_regression)
+                total_bbox_regression.append( bbox_regression_per_image)
+                total_target_regression.append( target_regression)
+            else:
+                # compute decoded box for GIoU Loss
+                decode_bbox_regression_per_image = self.box_coder.decode_single(
+                    bbox_regression_per_image, anchors_per_image
+                )
+                total_bbox_regression.append( decode_bbox_regression_per_image)
+                total_target_regression.append(matched_gt_boxes_per_image)
         
+        if len(total_bbox_regression) == 0:
+            losses = 0.0
+            return losses
+
+
         total_bbox_regression = torch.cat(total_bbox_regression,dim=0)
         total_target_regression = torch.cat(total_target_regression,dim=0)
-        losses = torch.nn.functional.smooth_l1_loss(
-                    total_bbox_regression, total_target_regression, beta=1 / 9, reduction="mean"
-                )
+
+        if not giou_loss:
+            losses = torch.nn.functional.smooth_l1_loss(
+                        total_bbox_regression, total_target_regression, beta=1. / 9, reduction="mean"
+                    ).to(total_bbox_regression.dtype)
+        else:
+            losses = monai.losses.giou_loss.generalized_iou_loss(
+                        total_bbox_regression, total_target_regression, reduction="mean"
+                    ).to(total_bbox_regression.dtype)
 
         return losses
 
@@ -273,7 +303,6 @@ class RetinaNetRegressionHead(nn.Module):
                 raise ValueError("bbox_regression is NaN or Inf.")
 
         return all_bbox_regression
-
 
 class RetinaNet(nn.Module):
     """
@@ -325,6 +354,9 @@ class RetinaNet(nn.Module):
             considered as positive during training.
         bg_iou_thresh (float): maximum IoU between the anchor and the GT box so that they can be
             considered as negative during training.
+        balanced_sampler_pos_fraction (float): positive fraction when do balanced sampling for classification head. 
+            If 0, will use Focal loss and not do balanced sampling
+        hard_neg_sampler (bool): if True, will torchvision balanced sampler; if False, will use nnDection hard negative balanced sampler. default True
         topk_candidates (int): Number of best detections to keep before NMS.
 
     Example:
@@ -375,6 +407,7 @@ class RetinaNet(nn.Module):
         anchor_generator=None,
         head=None,
         proposal_matcher=None,
+        atss_matcher=True,
         score_thresh=0.05,
         nms_thresh=0.5,
         detections_per_img=300,
@@ -382,6 +415,10 @@ class RetinaNet(nn.Module):
         bg_iou_thresh=0.4,
         topk_candidates=1000,
         debug=False,
+        balanced_sampler_pos_fraction=0,
+        hard_neg_sampler=True,  
+        box_overlap_metric="iou",
+        mirror_aggregation=False,
         **kwargs,
     ):
         super().__init__()
@@ -389,6 +426,7 @@ class RetinaNet(nn.Module):
         self.spatial_dims = look_up_option(spatial_dims, supported=[2, 3])
         # If 2D, directly use torchvision functions
         if self.spatial_dims == 2:
+            print("Call torchvision function torchvision.models.detection.RetinaNet for 2D network.")
             return torchvision.models.detection.RetinaNet(
                 backbone,
                 num_classes,
@@ -427,21 +465,36 @@ class RetinaNet(nn.Module):
         self.anchor_generator = anchor_generator
 
         if head is None:
-            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes)
+            head = RetinaNetHead(backbone.out_channels, self.anchor_generator.num_anchors_per_location()[0], num_classes)
         self.head = head
 
         if proposal_matcher is None:
-            proposal_matcher = Matcher(
-                fg_iou_thresh,
-                bg_iou_thresh,
-                allow_low_quality_matches=True,
-            )
+            if not atss_matcher:
+                proposal_matcher = Matcher(
+                    fg_iou_thresh,
+                    bg_iou_thresh,
+                    allow_low_quality_matches=True,
+                )
+            else:
+                if box_overlap_metric == "giou":
+                    proposal_matcher = ATSSMatcher(num_candidates=4, similarity_fn=box_ops.box_giou,center_in_gt=False,debug=debug)
+                else:
+                    proposal_matcher = ATSSMatcher(num_candidates=4, similarity_fn=box_ops.box_iou,center_in_gt=False,debug=debug)
+
         self.proposal_matcher = proposal_matcher
-        self.fg_bg_sampler = BalancedPositiveNegativeSampler(batch_size_per_image=200, positive_fraction=0.3)
+
+        if (balanced_sampler_pos_fraction != None) and balanced_sampler_pos_fraction>0 :
+            if hard_neg_sampler:
+                self.fg_bg_sampler = HardNegativeSampler(batch_size_per_image=64, positive_fraction=balanced_sampler_pos_fraction, pool_size=20, min_neg=16)
+            else:
+                self.fg_bg_sampler = BalancedPositiveNegativeSampler(batch_size_per_image=64, positive_fraction=balanced_sampler_pos_fraction)
+        else:
+            self.fg_bg_sampler = None
+            
 
         self.box_coder = det_utils.BoxCoder(weights=(1.0,) * 2 * spatial_dims)
 
-        self.transform = GeneralizedRCNNTransform()
+        self.transform = GeneralizedRCNNTransform(size_divisible=[s*16 for s in self.backbone.body.conv1.stride])
 
         self.num_classes = num_classes
         self.score_thresh = score_thresh
@@ -449,16 +502,18 @@ class RetinaNet(nn.Module):
         self.detections_per_img = detections_per_img
         self.topk_candidates = topk_candidates
         self.debug = debug
+        self.mirror_aggregation = mirror_aggregation
 
         # used only on torchscript mode
         self._has_warned = False
         self.inferer = SimpleInferer()
+        look_up_option(box_overlap_metric, ["iou", "giou"])
+        self.box_overlap_metric = box_overlap_metric
 
     def define_sliding_window_inferer(
         self,
         roi_size: Union[Sequence[int], int],
         sw_batch_size: int = 1,
-        overlap: float = 0.25,
         mode: Union[BlendMode, str] = BlendMode.CONSTANT,
         sigma_scale: Union[Sequence[float], float] = 0.125,
         padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
@@ -467,9 +522,20 @@ class RetinaNet(nn.Module):
         device: Union[torch.device, str, None] = None,
     ):
         # If this function is not called, the default self.inferer = SimpleInferer()
-        self.inferer = SlidingWindowMultiOutputInferer(
-            roi_size, sw_batch_size, overlap, mode, sigma_scale, padding_mode, cval, sw_device, device
+        self.sliding_window_inferer = SlidingWindowMultiOutputInferer(
+            roi_size, sw_batch_size, 0.5, mode, sigma_scale, padding_mode, cval, sw_device, device
         )
+        
+        return
+
+    def switch_inferer(
+        self, sliding_window=True
+    ):
+        if sliding_window:
+            self.inferer = self.sliding_window_inferer
+        else:
+            self.inferer = SimpleInferer()
+        return
 
     @torch.jit.unused
     def eager_outputs(self, losses, detections):
@@ -479,7 +545,9 @@ class RetinaNet(nn.Module):
 
         return detections
 
-    def compute_loss(self, targets, head_outputs, anchors):
+    def compute_loss(self, targets, head_outputs, anchors, 
+                        num_anchors_per_level: Sequence[int] = None,
+                        num_anchors_per_loc: int = None):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Dict[str, Tensor]
         matched_idxs = []
         for anchors_per_image, targets_per_image in zip(anchors, targets):
@@ -489,15 +557,24 @@ class RetinaNet(nn.Module):
                 )
                 continue
             
-            match_quality_matrix = box_ops.box_iou(targets_per_image["boxes"], anchors_per_image)            
+            if isinstance(self.proposal_matcher, Matcher):
+                # if torhvision matcher
+                if self.box_overlap_metric == "giou":
+                    match_quality_matrix = box_ops.box_giou(targets_per_image["boxes"], anchors_per_image)
+                else:
+                    match_quality_matrix = box_ops.box_iou(targets_per_image["boxes"], anchors_per_image)
+                matched_idxs.append(self.proposal_matcher(match_quality_matrix))
+            else:
+                # if nndetection ATSS matcher
+                match_quality_matrix, matches = self.proposal_matcher(targets_per_image["boxes"],anchors_per_image,num_anchors_per_level,num_anchors_per_loc)
+                matched_idxs.append(matches)
+
             if self.debug:
                 print(
-                    f"Max IoU between anchors and gt boxes: {torch.max(match_quality_matrix)}")
+                    f"Max {self.box_overlap_metric} between anchors and gt boxes: {torch.max(match_quality_matrix)}")
 
-            if torch.max(match_quality_matrix)<1e-4:
+            if torch.max(match_quality_matrix)==0:
                 raise ValueError(f"No GT box overlaps with anchors. Please adjust anchor setting. GT boxes are {targets_per_image['boxes']}")
-            
-            matched_idxs.append(self.proposal_matcher(match_quality_matrix))
 
         return self.head.compute_loss(
             targets, head_outputs, anchors, matched_idxs, debug=self.debug, fg_bg_sampler=self.fg_bg_sampler
@@ -508,19 +585,19 @@ class RetinaNet(nn.Module):
         all_bbox_regression = []
 
         for bbox_regression in x:
-            # 2D: Permute bbox regression output from (N, 4 * A, H, W) to (N, HWA, 4).
+            # 2D: Permute bbox regression output from (N, num_channel * A, H, W) to (N, HWA, num_channel).
             spatial_dims = self.spatial_dims
             if spatial_dims == 2:
                 N, _, H, W = bbox_regression.shape
-                bbox_regression = bbox_regression.view(N, -1, num_channel, H, W)
+                bbox_regression = bbox_regression.view(N, -1, num_channel, H, W) #(N, A, num_channel, H, W)
                 bbox_regression = bbox_regression.permute(0, 3, 4, 1, 2)
-                bbox_regression = bbox_regression.reshape(N, -1, num_channel)  # Size=(N, HWA, 4)
-            # 3D: Permute bbox regression output from (N, 6 * A, H, W) to (N, HWDA, 6).
+                bbox_regression = bbox_regression.reshape(N, -1, num_channel)  # Size=(N, HWA, num_channel)
+            # 3D: Permute bbox regression output from (N, num_channel * A, H, W, D) to (N, HWDA, num_channel).
             elif spatial_dims == 3:
                 N, _, H, W, D = bbox_regression.shape
-                bbox_regression = bbox_regression.view(N, -1, num_channel, H, W, D)
+                bbox_regression = bbox_regression.view(N, -1, num_channel, H, W, D) #(N, A, num_channel, H, W, D)
                 bbox_regression = bbox_regression.permute(0, 3, 4, 5, 1, 2)
-                bbox_regression = bbox_regression.reshape(N, -1, num_channel)  # Size=(N, HWDA, 6)
+                bbox_regression = bbox_regression.reshape(N, -1, num_channel)  # Size=(N, HWDA, num_channel)
             else:
                 ValueError("Images can only be 2D or 3D.")
 
@@ -531,10 +608,11 @@ class RetinaNet(nn.Module):
 
         return torch.cat(all_bbox_regression, dim=1)
 
-    def postprocess_detections(self, head_outputs, anchors, image_shapes):
+    def postprocess_detections(self, head_outputs, anchors, image_shapes, sigmoid=True):
         # postprocessing during inference
         class_logits = head_outputs["cls_logits"]
         box_regression = head_outputs["bbox_regression"]
+        compute_dtype = class_logits[0].dtype
 
         num_images = len(image_shapes)
 
@@ -555,23 +633,27 @@ class RetinaNet(nn.Module):
                 num_classes = logits_per_level.shape[-1]
 
                 # remove low scoring boxes
-                scores_per_level = torch.sigmoid(logits_per_level).flatten()
+                if sigmoid:
+                    scores_per_level = torch.sigmoid(logits_per_level).flatten()
+                else:
+                    scores_per_level = logits_per_level.flatten()
                 keep_idxs = scores_per_level > self.score_thresh
                 scores_per_level = scores_per_level[keep_idxs]
                 topk_idxs = torch.where(keep_idxs)[0]
 
                 # keep only topk scoring predictions
                 num_topk = min(self.topk_candidates, topk_idxs.size(0))
-                scores_per_level, idxs = scores_per_level.topk(num_topk)
+                scores_per_level, idxs = scores_per_level.to(torch.float32).topk(num_topk) # half precision not implemented for cpu float16
                 topk_idxs = topk_idxs[idxs]
 
+                # decode box
                 anchor_idxs = torch.div(topk_idxs, num_classes, rounding_mode="floor")
                 labels_per_level = topk_idxs % num_classes
 
                 boxes_per_level = self.box_coder.decode_single(
-                    box_regression_per_level[anchor_idxs], anchors_per_level[anchor_idxs]
-                )
-                boxes_per_level, keep = box_ops.box_clip_to_image(boxes_per_level, image_shape)
+                    box_regression_per_level[anchor_idxs].to(torch.float32), anchors_per_level[anchor_idxs]
+                ) # half precision not implemented for cpu float16
+                boxes_per_level, keep = box_ops.box_clip_to_image(boxes_per_level, image_shape, remove_empty = True)
 
                 image_boxes.append(boxes_per_level)
                 image_scores.append(scores_per_level[keep])
@@ -587,7 +669,7 @@ class RetinaNet(nn.Module):
             for c in range(self.num_classes):
                 image_labels_c_idx = (image_labels == c).nonzero(as_tuple=False).flatten()
                 keep_c = box_ops.non_max_suppression(
-                    image_boxes[image_labels_c_idx, :], image_scores[image_labels_c_idx], self.nms_thresh
+                    image_boxes[image_labels_c_idx, :], image_scores[image_labels_c_idx], self.nms_thresh, box_overlap_metric=self.box_overlap_metric
                 )
                 keep_c = image_labels_c_idx[keep_c[: self.detections_per_img]]
                 keep.append(keep_c)
@@ -596,23 +678,24 @@ class RetinaNet(nn.Module):
 
             detections.append(
                 {
-                    "boxes": image_boxes[keep],
-                    "scores": image_scores[keep],
+                    "boxes": image_boxes[keep].to(compute_dtype),
+                    "scores": image_scores[keep].to(compute_dtype),
                     "labels": image_labels[keep],
                 }
             )
 
         return detections
 
-    def forward_network(self, images):
+    def forward_network(self, images, sigmoid=True):
         features = self.backbone(images)
         if isinstance(features, torch.Tensor):
             features = OrderedDict([("0", features)])
-
         # TODO: Do we want a list or a dict?
         features = list(features.values())
-        head_outputs = self.head(features)
+        head_outputs = self.head(features)  
         head_outputs_list = head_outputs["cls_logits"]
+        if sigmoid:
+            head_outputs_list = [torch.sigmoid(h) for h in head_outputs_list]
         head_outputs_list += head_outputs["bbox_regression"]
         return head_outputs_list
 
@@ -643,7 +726,9 @@ class RetinaNet(nn.Module):
                 else:
                     raise ValueError(f"Expected target boxes to be of type Tensor, got {type(boxes)}.")
 
-        # transform the input
+        # transform the input: 
+        # concat multiple images to a single batch, if size not same, will pad to the max size
+        # image_sizes: a list that document the original size
         images, image_sizes, targets = self.transform(images, targets)
 
         if targets is not None:
@@ -663,9 +748,58 @@ class RetinaNet(nn.Module):
         # get the features from the backbone
         # compute the retinanet heads outputs using the features
         if self.training:
-            head_outputs_list = self.forward_network(images)
+            head_outputs_list = self.forward_network(images,sigmoid=False)
         else:
-            head_outputs_list = self.inferer(images, self.forward_network)
+            if not self.mirror_aggregation:
+                head_outputs_list = self.inferer(images, self.forward_network)
+                head_outputs_list = [h.to("cpu") for h in head_outputs_list]
+            else:
+                head_outputs_list = []
+                num_flip = 0
+                if self.spatial_dims == 2:
+                    flip_axis_2_range = [0] # not flip z-axis
+                else:
+                    flip_axis_2_range = [0,1] # may flip z-axis
+                for flip_axis_0 in [0,1]:
+                    for flip_axis_1 in [0,1]:
+                        for flip_axis_2 in flip_axis_2_range:
+                            # denote whether to flip in each axis
+                            if self.spatial_dims == 2:
+                                flip_axis_all = [flip_axis_0,flip_axis_1]
+                            else:
+                                flip_axis_all = [flip_axis_0,flip_axis_1,flip_axis_2]
+                            # flip image
+                            flip_images = images.clone()                            
+                            for axis in range(len(flip_axis_all)):                                
+                                if flip_axis_all[axis] == 1:
+                                    flip_images = flip_images.flip(dims=[2+axis])
+                            head_outputs_list_flip = self.inferer(flip_images, self.forward_network)
+                            # flip back result
+                            for hh in range(len(head_outputs_list_flip)):
+                                head_outputs_list_flip[hh] = head_outputs_list_flip[hh].to("cpu")
+                                for axis in range(len(flip_axis_all)):                                
+                                    if flip_axis_all[axis] == 1:
+                                        head_outputs_list_flip[hh] = head_outputs_list_flip[hh].flip(dims=[2+axis])
+                            # inverse the center shift of box regression
+                            # after flipping, shift left becomes shift right 
+                            num_anchors = head_outputs_list_flip[-1].shape[1]//2//self.spatial_dims
+                            for hh in range(len(head_outputs_list_flip) // 2,len(head_outputs_list_flip)):
+                                for nn in range(num_anchors):
+                                    for axis in range(len(flip_axis_all)):                                
+                                        if flip_axis_all[axis] == 1:
+                                            head_outputs_list_flip[hh][:,2*self.spatial_dims*nn+axis,...] = -head_outputs_list_flip[hh][:,2*self.spatial_dims*nn+axis,...]
+
+                            # aggregate result
+                            if len(head_outputs_list)==0:
+                                head_outputs_list = head_outputs_list_flip                                
+                            else:
+                                for hh in range(len(head_outputs_list)):
+                                    head_outputs_list[hh] = head_outputs_list[hh] + head_outputs_list_flip[hh]
+                            num_flip += 1
+                head_outputs_list = [h.to("cpu")/num_flip for h in head_outputs_list]
+                del head_outputs_list_flip,flip_images
+
+        anchor_dtype, anchor_device = head_outputs_list[0].dtype, head_outputs_list[0].device
 
         head_outputs = {}
         head_outputs["cls_logits"] = head_outputs_list[: len(head_outputs_list) // 2]
@@ -675,8 +809,10 @@ class RetinaNet(nn.Module):
         grid_sizes = [
             head_output_map.shape[-self.spatial_dims :]
             for head_output_map in head_outputs["cls_logits"]
-        ]
-        anchors = self.anchor_generator(images, image_sizes, grid_sizes)
+        ] # anchor grid, 2D/3D
+
+        anchors = self.anchor_generator(images.shape[-self.spatial_dims :], anchor_dtype, anchor_device, orig_image_size_list=image_sizes, grid_sizes=grid_sizes) # list, len(anchors) = batchsize
+
         num_anchors_per_level = [x.shape[2:].numel() for x in head_outputs["cls_logits"]]
 
         head_outputs["cls_logits"] = self.post_cat_map(head_outputs["cls_logits"], num_channel=self.num_classes)
@@ -690,7 +826,7 @@ class RetinaNet(nn.Module):
             assert targets is not None
 
             # compute the losses
-            losses = self.compute_loss(targets, head_outputs, anchors)
+            losses = self.compute_loss(targets, head_outputs, anchors, num_anchors_per_level,self.anchor_generator.num_anchors_per_location()[0])
         else:
             # recover level sizes
             HW = 0
@@ -707,7 +843,7 @@ class RetinaNet(nn.Module):
             split_anchors = [list(a.split(num_anchors_per_level)) for a in anchors]
 
             # compute the detections
-            detections = self.postprocess_detections(split_head_outputs, split_anchors, image_sizes)
+            detections = self.postprocess_detections(split_head_outputs, split_anchors, image_sizes, sigmoid=False)
             detections = self.transform.postprocess(
                 detections, [img.shape[-self.spatial_dims :] for img in images], image_sizes
             )
@@ -797,4 +933,3 @@ def retinanet_resnet_fpn(
 
     model = RetinaNet(backbone, num_classes, spatial_dims=spatial_dims, **kwargs)
     return model
-
