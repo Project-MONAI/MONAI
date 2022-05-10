@@ -180,7 +180,7 @@ class PatchWSIDatasetTests:
                 self.assertIsNone(assert_array_equal(dataset[i]["image"], expected[i]["image"]))
 
         @parameterized.expand([TEST_CASE_SPLIT_0, TEST_CASE_SPLIT_1])
-        def test_read_patches_str(self, input_parameters, expected):
+        def test_read_split_patches(self, input_parameters, expected):
             dataset = PatchWSIDataset(reader=self.backend, **input_parameters)
             for i, sample in enumerate(dataset[0]):
                 self.assertTupleEqual(sample["label"].shape, expected[i]["label"].shape)
