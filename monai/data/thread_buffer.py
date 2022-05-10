@@ -152,8 +152,8 @@ class ThreadDataLoader(DataLoader):
         # substituted with the shim types given above
         if use_thread_workers and kwargs.get("num_workers", 0) > 1:
             ctx = SpawnContext()
-            setattr(ctx, "Process", _ProcessThread)  # threads will be created which looks like processes
-            setattr(ctx, "Queue", _ProcessQueue)
+            ctx.Process = _ProcessThread  # threads will be created which looks like processes
+            ctx.Queue = _ProcessQueue  # thread queue used in place of process queue to avoid some weird cleanup errors
             self.multiprocessing_context = ctx
 
     def __iter__(self):
