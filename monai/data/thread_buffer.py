@@ -12,6 +12,7 @@
 
 from queue import Empty, Full, Queue
 from threading import Thread
+from multiprocessing.context import SpawnContext
 
 from monai.data import DataLoader, Dataset
 
@@ -76,6 +77,22 @@ class ThreadBuffer:
         finally:
             self.stop()  # ensure thread completion
 
+            
+class _ProcessThread(Thread):
+    """Shim class to make a thread look like a process to the DataLoader class."""
+    @property
+    def pid(self):
+        return id(self)
+    
+    
+class _ProcessQueue(Queue):
+    """Shim class to make a thread queue look like a process queue to the DataLoader class."""
+    def close(self):
+        pass
+    
+    def cancel_join_thread(self):
+        pass
+    
 
 class ThreadDataLoader(DataLoader):
     """
@@ -94,6 +111,10 @@ class ThreadDataLoader(DataLoader):
     between multiple workers of DataLoader. And as CUDA may not work well with the multi-processing of DataLoader,
     `ThreadDataLoader` can be useful for GPU transforms. For more details:
     https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md.
+    
+    The `use_thread_workers` will cause workers to be created as threads rather than processes although everything else
+    in terms of how the class works is unchanged. This allows multiple workers to be used in Windows for example, or in
+    any other situation where thread semantics is desired.
 
     See:
         * Fischetti et al. "Faster SGD training by minibatch persistency." ArXiv (2018) https://arxiv.org/abs/1806.07353
@@ -106,17 +127,32 @@ class ThreadDataLoader(DataLoader):
         buffer_size: number of items to buffer from the data source.
         buffer_timeout: time to wait for an item from the buffer, or to wait while the buffer is full when adding items.
         repeats: number of times to yield the same batch.
+        use_thread_workers: if True and num_workers > 1 the workers are created as threads instead of processes
         kwargs: other arguments for `DataLoader` except for `dataset`.
 
     """
 
     def __init__(
-        self, dataset: Dataset, buffer_size: int = 1, buffer_timeout: float = 0.01, repeats: int = 1, **kwargs
+        self, 
+        dataset: Dataset, 
+        buffer_size: int = 1, 
+        buffer_timeout: float = 0.01, 
+        repeats: int = 1, 
+        use_thread_workers=False, 
+        **kwargs
     ):
         super().__init__(dataset, **kwargs)
         self.buffer_size = buffer_size
         self.buffer_timeout = buffer_timeout
         self.repeats = repeats
+        
+        # if workers should be threads, create a new multiprocessing context with the process and queue types 
+        # substituted with the shim types given above
+        if use_thread_workers and kwargs.get("num_workers", 0) > 1:
+            ctx = SpawnContext()
+            setattr(ctx, "Process", _ProcessThread)  # threads will be created which looks like processes
+            setattr(ctx, "Queue", _ProcessQueue)
+            self.multiprocessing_context = ctx
 
     def __iter__(self):
         buffer = ThreadBuffer(src=super().__iter__(), buffer_size=self.buffer_size, timeout=self.buffer_timeout)
