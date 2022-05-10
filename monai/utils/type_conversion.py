@@ -119,6 +119,7 @@ def convert_to_tensor(
     """
     # avoids circular import
     from monai.data.meta_tensor import MetaTensor
+
     if isinstance(data, torch.Tensor):
         if isinstance(data, MetaTensor):
             data = data.as_tensor()
@@ -145,6 +146,7 @@ def convert_to_tensor(
 
     return data
 
+
 def convert_to_meta_tensor(
     data, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = False
 ):
@@ -164,6 +166,7 @@ def convert_to_meta_tensor(
     """
     # avoids circular import
     from monai.data.meta_tensor import MetaTensor
+
     if isinstance(data, torch.Tensor):
         out = data.to(dtype=dtype, device=device, memory_format=torch.contiguous_format)  # type: ignore
         if not isinstance(out, MetaTensor):
