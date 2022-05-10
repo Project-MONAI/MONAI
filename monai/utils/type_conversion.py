@@ -352,12 +352,17 @@ def convert_to_dst_type(
     See Also:
         :func:`convert_data_type`
     """
+    # avoids circular import
+    from monai.data.meta_tensor import MetaTensor
+
     device = dst.device if isinstance(dst, torch.Tensor) else None
     if dtype is None:
         dtype = dst.dtype
 
     output_type: Any
-    if isinstance(dst, torch.Tensor):
+    if isinstance(dst, MetaTensor):
+        output_type = MetaTensor
+    elif isinstance(dst, torch.Tensor):
         output_type = torch.Tensor
     elif isinstance(dst, np.ndarray):
         output_type = np.ndarray
