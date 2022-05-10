@@ -10,9 +10,9 @@
 # limitations under the License.
 
 
+from multiprocessing.context import SpawnContext
 from queue import Empty, Full, Queue
 from threading import Thread
-from multiprocessing.context import SpawnContext
 
 from monai.data import DataLoader, Dataset
 
@@ -80,6 +80,7 @@ class ThreadBuffer:
 
 class _ProcessThread(Thread):
     """Shim class to make a thread look like a process to the DataLoader class."""
+
     @property
     def pid(self):
         return id(self)
@@ -87,6 +88,7 @@ class _ProcessThread(Thread):
 
 class _ProcessQueue(Queue):
     """Shim class to make a thread queue look like a process queue to the DataLoader class."""
+
     def close(self):
         pass
 
@@ -139,7 +141,7 @@ class ThreadDataLoader(DataLoader):
         buffer_timeout: float = 0.01,
         repeats: int = 1,
         use_thread_workers=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(dataset, **kwargs)
         self.buffer_size = buffer_size

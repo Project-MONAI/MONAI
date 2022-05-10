@@ -96,7 +96,7 @@ class TestDataLoader(unittest.TestCase):
 
     def test_thread_workers(self):
         dataset = Dataset(data=self.datalist, transform=self.transform)
-        dataloader = ThreadDataLoader(dataset=dataset, batch_size=2, num_workers=2,use_thread_workers=True)
+        dataloader = ThreadDataLoader(dataset=dataset, batch_size=2, num_workers=2, use_thread_workers=True)
 
         for d in dataloader:
             self.assertEqual(d["image"][0], "spleen_19.nii.gz")
