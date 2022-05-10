@@ -1,0 +1,32 @@
+name: chatops
+
+# currently dispatches /black command to project-monai/monai-code-formatter
+on:
+  issue_comment:
+    types: [created, edited]
+jobs:
+  dispatch_command:
+    runs-on: ubuntu-latest
+    steps:
+      - name: dispatch
+        uses: peter-evans/slash-command-dispatch@v1.2.0
+        with:
+          token: ${{ secrets.PR_MAINTAIN }}
+          reaction-token: ${{ secrets.GITHUB_TOKEN }}
+          reactions: false
+          config: >
+            [
+              {
+                "command": "black",
+                "permission": "none",
+                "issue_type": "pull-request",
+                "allow_edits": true,
+                "repository": "project-monai/monai-code-formatter"
+              },
+              {
+                "command": "integration-test",
+                "permission": "none",
+                "issue_type": "pull-request",
+                "allow_edits": true
+              }
+            ]

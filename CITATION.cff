@@ -1,0 +1,20 @@
+# YAML 1.2
+# Metadata for citation of this software according to the CFF format (https://citation-file-format.github.io/)
+#
+---
+title: "MONAI: Medical Open Network for AI"
+abstract: "AI Toolkit for Healthcare Imaging"
+authors:
+  - name: "MONAI Consortium"
+date-released: 2022-02-16
+version: "0.8.1"
+identifiers:
+  - description: "This DOI represents all versions of MONAI, and will always resolve to the latest one."
+    type: doi
+    value: "10.5281/zenodo.4323058"
+license: "Apache-2.0"
+repository-code: "https://github.com/Project-MONAI/MONAI"
+url: "https://monai.io"
+cff-version: "1.2.0"
+message: "If you use this software, please cite it using these metadata."
+...

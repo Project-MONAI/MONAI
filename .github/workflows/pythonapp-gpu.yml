@@ -1,0 +1,150 @@
+name: build-gpu
+
+on:
+  # quick tests for pull requests and the releasing branches
+  push:
+    branches:
+      - main
+      - releasing/*
+  pull_request:
+
+concurrency:
+  # automatically cancel the previously triggered workflows when there's a newer version
+  group: build-gpu-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  GPU-quick-py3:  # GPU with full dependencies
+    if: github.repository == 'Project-MONAI/MONAI'
+    strategy:
+      matrix:
+        environment:
+          - "PT19+CUDA114"
+          - "PT17+CUDA102"
+          - "PT18+CUDA102"
+          - "PT18+CUDA112"
+          - "PT111+CUDA116"
+          - "PT110+CUDA102"
+          - "PT111+CUDA102"
+        include:
+          # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
+          - environment: PT17+CUDA102
+            pytorch: "torch==1.7.1 torchvision==0.8.2"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT18+CUDA102
+            pytorch: "torch==1.8.1 torchvision==0.9.1"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT18+CUDA112
+            # we explicitly set pytorch to -h to avoid pip install error
+            # 21.03: 1.9.0a0+df837d0
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:21.03-py3"
+          - environment: PT19+CUDA114
+            # we explicitly set pytorch to -h to avoid pip install error
+            # 21.10: 1.10.0a0+0aef44c
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:21.10-py3"
+          - environment: PT111+CUDA116
+            # we explicitly set pytorch to -h to avoid pip install error
+            # 22.04: 1.12.0a0+bd13bc6
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:22.04-py3"
+          - environment: PT110+CUDA102
+            pytorch: "torch==1.10.2 torchvision==0.11.3"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT111+CUDA102
+            pytorch: "torch==1.11.0 torchvision==0.12.0"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+    container:
+      image: ${{ matrix.base }}
+      options: --gpus all
+    runs-on: [self-hosted, linux, x64, common]
+    steps:
+    - uses: actions/checkout@v2
+    - name: apt install
+      run: |
+        # workaround for https://github.com/Project-MONAI/MONAI/issues/4200
+        apt-key del 7fa2af80 && rm -rf /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
+        apt-get update
+        apt-get install -y wget
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb
+        dpkg -i cuda-keyring_1.0-1_all.deb
+
+        if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
+          [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
+          [ ${{ matrix.environment }} = "PT110+CUDA102" ] || \
+          [ ${{ matrix.environment }} = "PT111+CUDA102" ]
+        then
+        PYVER=3.7 PYSFX=3 DISTUTILS=python3-distutils && \
+        apt-get update && apt-get install -y --no-install-recommends \
+          curl \
+          pkg-config \
+          python$PYVER \
+          python$PYVER-dev \
+          python$PYSFX-pip \
+          $DISTUTILS \
+          rsync \
+          swig \
+          unzip \
+          zip \
+          zlib1g-dev \
+          libboost-locale-dev \
+          libboost-program-options-dev \
+          libboost-system-dev \
+          libboost-thread-dev \
+          libboost-test-dev \
+          libgoogle-glog-dev \
+          libjsoncpp-dev \
+          cmake \
+          git && \
+        rm -rf /var/lib/apt/lists/* && \
+        export PYTHONIOENCODING=utf-8 LC_ALL=C.UTF-8 && \
+        rm -f /usr/bin/python && \
+        rm -f /usr/bin/python`echo $PYVER | cut -c1-1` && \
+        ln -s /usr/bin/python$PYVER /usr/bin/python && \
+        ln -s /usr/bin/python$PYVER /usr/bin/python`echo $PYVER | cut -c1-1` &&
+        curl -O https://bootstrap.pypa.io/get-pip.py && \
+        python get-pip.py && \
+        rm get-pip.py;
+        fi
+    - if: matrix.environment == 'PT19+CUDA114'
+      name: Optional Cupy dependency (cuda114)
+      run: echo "cupy-cuda114" >> requirements-dev.txt
+    - name: Install dependencies
+      run: |
+        which python
+        python -m pip install --upgrade pip wheel
+        # fixes preinstalled ruamel_yaml error from the docker image
+        rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
+        python -m pip install ${{ matrix.pytorch }}
+        python -m pip install -r requirements-dev.txt
+        python -m pip list
+    - name: Run quick tests (GPU)
+      run: |
+        git clone --depth 1 \
+          https://github.com/Project-MONAI/MONAI-extra-test-data.git /MONAI-extra-test-data
+        export MONAI_EXTRA_TEST_DATA="/MONAI-extra-test-data"
+        nvidia-smi
+        export LAUNCH_DELAY=$(python -c "import numpy; print(numpy.random.randint(30) * 10)")
+        echo "Sleep $LAUNCH_DELAY"
+        sleep $LAUNCH_DELAY
+        export CUDA_VISIBLE_DEVICES=$(coverage run -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        trap 'if pgrep python; then pkill python; fi;' ERR
+        python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
+        python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
+        python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
+        python -c "import monai; monai.config.print_config()"
+        # build for the current self-hosted CI Tesla V100
+        BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --build --quick --unittests --disttests
+        if [ ${{ matrix.environment }} = "PT110+CUDA102" ]; then
+          # test the clang-format tool downloading once
+          coverage run -m tests.clang_format_utils
+        fi
+        coverage xml
+        if pgrep python; then pkill python; fi
+      shell: bash
+    - name: Upload coverage
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./coverage.xml

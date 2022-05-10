@@ -1,0 +1,32 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 70%
+        threshold: 10
+        base: parent
+        if_no_uploads: error
+        if_not_found: success
+        if_ci_failed: error
+        only_pulls: false
+        flags: null
+        paths: null
+    patch:
+      default:
+        target: auto
+        # Allows PRs without tests, overall stats count
+        threshold: 100
+        base: auto
+        if_no_uploads: error
+        if_not_found: success
+        if_ci_failed: error
+        only_pulls: false
+        flags: null
+        paths: null
+
+# Disable comments on PR
+comment: false
+
+ignore:
+  - "versioneer.py"
+  - "monai/_version.py"

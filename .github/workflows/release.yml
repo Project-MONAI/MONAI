@@ -1,0 +1,169 @@
+name: release
+# generating and testing package artefacts from the main branch
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+jobs:
+  packaging:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8, 3.9]
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install setuptools
+      run: |
+        python -m pip install --user --upgrade setuptools wheel
+    - name: Build and test source archive and wheel file
+      run: |
+        git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+        root_dir=$PWD
+        echo "$root_dir"
+        set -e
+
+        # build tar.gz and wheel
+        python setup.py sdist bdist_wheel --build-number $(date +'%Y%m%d%H%M')
+        tmp_dir=$(mktemp -d)
+        cp dist/monai* "$tmp_dir"
+        cd "$tmp_dir"
+        ls -al
+
+        # install from tar.gz
+        python -m pip install monai*.tar.gz
+        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+        python -c 'import monai; print(monai.__file__)'
+        python -m pip uninstall -y monai
+        rm monai*.tar.gz
+
+        # install from wheel
+        python -m pip install monai*.whl
+        python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+        python -c 'import monai; print(monai.__file__)'
+
+        # clean up
+        cd "$root_dir"
+        rm -r "$tmp_dir"
+        rm -rf monai/
+        ls -al .
+    - name: Quick test installed
+      run: |
+        python -m pip install -r requirements-min.txt
+        python -m tests.min_tests
+      env:
+        QUICKTEST: True
+
+    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+      name: Upload artifacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: dist
+        path: dist/
+
+    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+      name: Check artifacts
+      run: |
+        ls -al dist/
+        rm dist/monai*.tar.gz
+        ls -al dist/
+
+    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+      name: Publish to Test PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.TEST_PYPI }}
+        repository_url: https://test.pypi.org/legacy/
+
+  versioning:
+    # compute versioning file from python setup.py
+    # upload as artifact
+    if: github.repository == 'Project-MONAI/MONAI'
+    needs: packaging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        # full history so that we can git describe
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - shell: bash
+        run: |
+          git describe
+          python setup.py build
+          cat build/lib/monai/_version.py
+      - name: Upload version
+        uses: actions/upload-artifact@v2
+        with:
+          name: _version.py
+          path: build/lib/monai/_version.py
+      - name: Clean up directory
+        shell: bash
+        run: |
+          ls -al
+          rm -rf {*,.[^.]*}
+
+  release_tag_docker:
+    if: github.repository == 'Project-MONAI/MONAI'
+    needs: versioning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download version
+        uses: actions/download-artifact@v2
+        with:
+          name: _version.py
+      - name: Set tag
+        id: versioning
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+      - name: Check tag
+        env:
+          RELEASE_VERSION: ${{ steps.versioning.outputs.tag }}
+        run: |
+          echo "$RELEASE_VERSION"
+          cat _version.py
+      - if: startsWith(github.ref, 'refs/tags/')
+        name: Install latest docker
+        run: |
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
+          sudo apt-get update
+          sudo apt-get install docker-ce
+      - if: startsWith(github.ref, 'refs/tags/')
+        name: build with the tag
+        env:
+          RELEASE_VERSION: ${{ steps.versioning.outputs.tag }}
+        shell: bash
+        run: |
+          # get tag info for versioning
+          mv _version.py monai/
+          # version checks
+          target=" \"version\": \"$RELEASE_VERSION\""
+          local=`grep "\"version\"" monai/_version.py`
+          echo "$target"
+          echo "$local"
+          if [[ "$local" == "$target" ]]; then
+            echo "matched version string"
+          else
+            echo "unmatched version string, please check the tagging branch."
+            exit 1
+          fi
+          # remove flake package as it is not needed on hub.docker.com
+          sed -i '/flake/d' requirements-dev.txt
+          docker build -t projectmonai/monai:"$RELEASE_VERSION" -f Dockerfile .
+          # distribute with a tag to hub.docker.com
+          echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
+          docker push projectmonai/monai:"$RELEASE_VERSION"
+          docker logout

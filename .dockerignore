@@ -1,0 +1,13 @@
+# Ignore the following files/folders during docker build
+
+__pycache__/
+docs/
+
+.coverage
+.coverage.*
+.coverage/
+coverage.xml
+.readthedocs.yml
+*.toml
+
+!README.md
