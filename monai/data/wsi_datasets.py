@@ -10,13 +10,13 @@
 # limitations under the License.
 
 import inspect
-from typing import Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.data import Dataset
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
-from monai.transforms import apply_transform
+from monai.transforms import GridSplit, apply_transform
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["PatchWSIDataset"]
@@ -38,6 +38,8 @@ class PatchWSIDataset(Dataset):
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
             - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
+        split_grid: a tuple define the shape of the grid upon which the image is split.
+        split_size: a tuple or an integer that defines the output sub patch sizes.
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
     Note:
@@ -59,6 +61,8 @@ class PatchWSIDataset(Dataset):
         level: Optional[int] = None,
         transform: Optional[Callable] = None,
         reader="cuCIM",
+        split_grid: Optional[Union[int, Tuple[int, int]]] = None,
+        split_size: Optional[Union[int, Tuple[int, int]]] = None,
         **kwargs,
     ):
         super().__init__(data, transform)
@@ -91,6 +95,15 @@ class PatchWSIDataset(Dataset):
         # Initialized an empty whole slide image object dict
         self.wsi_object_dict: Dict = {}
 
+        # Create the splitter to split patches into subpatches on a grid
+        self.split_size = split_size
+        if split_grid is None:
+            self.split_grid = None
+            self.splitter = None
+        else:
+            self.split_grid = ensure_tuple_rep(split_grid, 2)
+            self.splitter = GridSplit(grid=self.split_grid, size=self.split_size)  # type: ignore
+
     def _get_wsi_object(self, sample: Dict):
         image_path = sample["image"]
         if image_path not in self.wsi_object_dict:
@@ -122,7 +135,7 @@ class PatchWSIDataset(Dataset):
         location = self._get_location(sample)
         level = self._get_level(sample)
         size = self._get_size(sample)
-        return self.wsi_reader.get_data(wsi=wsi_obj, location=location, size=size, level=level)
+        return self.wsi_reader.get_data(wsi=wsi_obj, location=location[::-1], size=size, level=level)
 
     def _transform(self, index: int):
         # Get a single entry of data
@@ -131,7 +144,18 @@ class PatchWSIDataset(Dataset):
         image, metadata = self._get_data(sample)
         # Get the label
         label = self._get_label(sample)
+        output: Union[Dict, List]
+        if self.splitter:
+            # Split the extracted patch (image) into sub-patches
+            output = []
+            sub_patches = self.splitter(image)
+            metadata["sub_patch"] = {"grid": self.split_grid, "size": self.split_size}
+            for i in range(len(sub_patches)):
+                sub_meta = metadata.copy()
+                sub_meta["sub_patch"]["id"] = i
+                output.append({"image": sub_patches[i], "label": label[i : i + 1], "metadata": metadata})
+        else:
+            output = {"image": image, "label": label, "metadata": metadata}
 
-        # Create put all patch information together and apply transforms
-        patch = {"image": image, "label": label, "metadata": metadata}
-        return apply_transform(self.transform, patch) if self.transform else patch
+        # Apply transforms and output
+        return apply_transform(self.transform, output) if self.transform else output

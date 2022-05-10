@@ -90,6 +90,35 @@ TEST_CASE_5 = [
     ],
 ]
 
+TEST_CASE_SPLIT_0 = [
+    {
+        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 2, 0, 1]}],
+        "size": (2, 2),
+        "split_grid": (2, 2),
+    },
+    [
+        {"image": np.array([[[247]], [[245]], [[246]]], dtype=np.uint8), "label": np.array([0])},
+        {"image": np.array([[[246]], [[246]], [[244]]], dtype=np.uint8), "label": np.array([2])},
+        {"image": np.array([[[246]], [[246]], [[244]]], dtype=np.uint8), "label": np.array([0])},
+        {"image": np.array([[[246]], [[246]], [[244]]], dtype=np.uint8), "label": np.array([1])},
+    ],
+]
+
+TEST_CASE_SPLIT_1 = [
+    {
+        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 1]}],
+        "size": (8, 8),
+        "split_grid": (2, 2),
+        "split_size": 1,
+    },
+    [
+        {"image": np.array([[[246]], [[245]], [[250]]], dtype=np.uint8), "label": np.array([0])},
+        {"image": np.array([[[247]], [[245]], [[246]]], dtype=np.uint8), "label": np.array([0])},
+        {"image": np.array([[[246]], [[246]], [[244]]], dtype=np.uint8), "label": np.array([0])},
+        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([1])},
+    ],
+]
+
 
 @skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
 def setUpModule():  # noqa: N802
@@ -150,6 +179,15 @@ class PatchWSIDatasetTests:
                 self.assertIsNone(assert_array_equal(dataset[i]["label"], expected[i]["label"]))
                 self.assertIsNone(assert_array_equal(dataset[i]["image"], expected[i]["image"]))
 
+        @parameterized.expand([TEST_CASE_SPLIT_0, TEST_CASE_SPLIT_1])
+        def test_read_patches_str(self, input_parameters, expected):
+            dataset = PatchWSIDataset(reader=self.backend, **input_parameters)
+            for i, sample in enumerate(dataset[0]):
+                self.assertTupleEqual(sample["label"].shape, expected[i]["label"].shape)
+                self.assertTupleEqual(sample["image"].shape, expected[i]["image"].shape)
+                self.assertIsNone(assert_array_equal(sample["label"], expected[i]["label"]))
+                self.assertIsNone(assert_array_equal(sample["image"], expected[i]["image"]))
+
 
 @skipUnless(has_cucim, "Requires cucim")
 class TestPatchWSIDatasetCuCIM(PatchWSIDatasetTests.Tests):
@@ -158,7 +196,7 @@ class TestPatchWSIDatasetCuCIM(PatchWSIDatasetTests.Tests):
         cls.backend = "cucim"
 
 
-@skipUnless(has_osl, "Requires cucim")
+@skipUnless(has_osl, "Requires openslide")
 class TestPatchWSIDatasetOpenSlide(PatchWSIDatasetTests.Tests):
     @classmethod
     def setUpClass(cls):
