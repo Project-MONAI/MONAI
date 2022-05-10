@@ -93,7 +93,7 @@ class TestDataLoader(unittest.TestCase):
             else:
                 self.assertTrue(previous_batch is d, "Batch object was not repeated")
                 previous_batch = None
-                
+
     def test_thread_workers(self):
         dataset = Dataset(data=self.datalist, transform=self.transform)
         dataloader = ThreadDataLoader(dataset=dataset, batch_size=2, num_workers=2,use_thread_workers=True)

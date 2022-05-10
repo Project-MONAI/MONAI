@@ -77,22 +77,22 @@ class ThreadBuffer:
         finally:
             self.stop()  # ensure thread completion
 
-            
+
 class _ProcessThread(Thread):
     """Shim class to make a thread look like a process to the DataLoader class."""
     @property
     def pid(self):
         return id(self)
-    
-    
+
+
 class _ProcessQueue(Queue):
     """Shim class to make a thread queue look like a process queue to the DataLoader class."""
     def close(self):
         pass
-    
+
     def cancel_join_thread(self):
         pass
-    
+
 
 class ThreadDataLoader(DataLoader):
     """
@@ -111,7 +111,7 @@ class ThreadDataLoader(DataLoader):
     between multiple workers of DataLoader. And as CUDA may not work well with the multi-processing of DataLoader,
     `ThreadDataLoader` can be useful for GPU transforms. For more details:
     https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md.
-    
+
     The `use_thread_workers` will cause workers to be created as threads rather than processes although everything else
     in terms of how the class works is unchanged. This allows multiple workers to be used in Windows for example, or in
     any other situation where thread semantics is desired.
@@ -133,20 +133,20 @@ class ThreadDataLoader(DataLoader):
     """
 
     def __init__(
-        self, 
-        dataset: Dataset, 
-        buffer_size: int = 1, 
-        buffer_timeout: float = 0.01, 
-        repeats: int = 1, 
-        use_thread_workers=False, 
+        self,
+        dataset: Dataset,
+        buffer_size: int = 1,
+        buffer_timeout: float = 0.01,
+        repeats: int = 1,
+        use_thread_workers=False,
         **kwargs
     ):
         super().__init__(dataset, **kwargs)
         self.buffer_size = buffer_size
         self.buffer_timeout = buffer_timeout
         self.repeats = repeats
-        
-        # if workers should be threads, create a new multiprocessing context with the process and queue types 
+
+        # if workers should be threads, create a new multiprocessing context with the process and queue types
         # substituted with the shim types given above
         if use_thread_workers and kwargs.get("num_workers", 0) > 1:
             ctx = SpawnContext()
