@@ -15,6 +15,8 @@ import numpy as np
 import skimage.transform
 from parameterized import parameterized
 
+import torch
+
 from monai.transforms import Resize
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
@@ -64,7 +66,16 @@ class TestResize(NumpyImageTestCase2D):
         expected = np.stack(expected).astype(np.float32)
         for p in TEST_NDARRAYS:
             out = resize(p(self.imt[0]))
-            assert_allclose(out, expected, type_test=False, atol=0.9)
+            if not anti_aliasing:
+                assert_allclose(out, expected, type_test=False, atol=0.9)
+            else:
+                # skimage uses reflect padding for anti-aliasing filter. 
+                # Our implementation reuses GaussianSmooth() as anti-aliasing filter, which uses zero padding instead. 
+                # Thus their results near the image boundary will be different.
+                if isinstance(out, torch.Tensor):
+                    out = out.cpu().detach().numpy()
+                good = np.sum(np.isclose(expected, out, atol=0.9))
+                self.assertLessEqual(np.abs(good - expected.size)/float(expected.size), 0.2, "at most 20 percent mismatch ")
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_longest_shape(self, input_param, expected_shape):
