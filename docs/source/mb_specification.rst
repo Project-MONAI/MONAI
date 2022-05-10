@@ -41,7 +41,7 @@ The following files are optional but must have these names in the directory give
 * **README.md**: plain-language information on the model, how to use it, author information, etc. in Markdown format.
 * **license.txt**: software license attached to the model, can be left blank if no license needed.
 
-Other files can be included in any of the above directories. For example, `configs` can contain further configuration JSON or YAML files to define scripts for training or inference, overriding configuration values, environment definitions such as network instantiations, and so forth. One common file to include is `inference.json` which is used to define a basic inference script which uses input files with the stored network to produce prediction output files. 
+Other files can be included in any of the above directories. For example, `configs` can contain further configuration JSON or YAML files to define scripts for training or inference, overriding configuration values, environment definitions such as network instantiations, and so forth. One common file to include is `inference.json` which is used to define a basic inference script which uses input files with the stored network to produce prediction output files.
 
 Archive Format
 ==============
