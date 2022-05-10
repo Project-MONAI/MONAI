@@ -278,26 +278,26 @@ def has_cupy():
 HAS_CUPY = has_cupy()
 
 
-# def has_nvfuser():
-#     """
-#     Returns True if the user has installed a proper version of apex that contains `normalization.InstanceNorm3dNVFuser`.
-#     """
-#     InstanceNorm3dNVFuser, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
-#     if not has_nvfuser:
-#         return False
-#     if not torch.cuda.is_available():
-#         return False
-#     try:  # test nvfuser installation with a basic example
-#         layer = InstanceNorm3dNVFuser(num_features=1, affine=True).to("cuda:0")
-#         inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
-#         out = layer(inp)
-#         del inp, out
-#         return True
-#     except Exception:
-#         return False
+def has_nvfuser():
+    """
+    Returns True if the user has installed a proper version of apex that contains `normalization.InstanceNorm3dNVFuser`.
+    """
+    instancenorm_3dnvfuser, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
+    if not has_nvfuser:
+        return False
+    if not torch.cuda.is_available():
+        return False
+    try:  # test nvfuser installation with a basic example
+        layer = instancenorm_3dnvfuser(num_features=1, affine=True).to("cuda:0")
+        inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
+        out = layer(inp)
+        del inp, out
+        return True
+    except Exception:
+        return False
 
 
-# HAS_NVFUSER = has_nvfuser()
+HAS_NVFUSER = has_nvfuser()
 
 
 def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False):
