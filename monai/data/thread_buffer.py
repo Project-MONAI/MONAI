@@ -10,7 +10,6 @@
 # limitations under the License.
 
 
-from copy import deepcopy
 from multiprocessing.context import BaseContext, DefaultContext, SpawnContext
 from queue import Empty, Full, Queue
 from threading import Event, Thread
