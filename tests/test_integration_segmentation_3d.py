@@ -31,6 +31,7 @@ from monai.transforms import (
     AsDiscrete,
     Compose,
     EnsureChannelFirstd,
+    FromMetaTensord,
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
@@ -60,6 +61,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     train_transforms = Compose(
         [
             LoadImaged(keys=["img", "seg"], reader=readers[0]),
+            FromMetaTensord(["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
@@ -76,6 +78,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     val_transforms = Compose(
         [
             LoadImaged(keys=["img", "seg"], reader=readers[1]),
+            FromMetaTensord(["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
@@ -186,6 +189,7 @@ def run_inference_test(root_dir, device="cuda:0"):
     val_transforms = Compose(
         [
             LoadImaged(keys=["img", "seg"]),
+            FromMetaTensord(["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6

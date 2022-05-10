@@ -37,6 +37,7 @@ from monai.transforms import (
     EnsureType,
     EnsureTyped,
     FgBgToIndicesd,
+    FromMetaTensord,
     LoadImaged,
     RandAffined,
     RandAxisFlipd,
@@ -87,6 +88,7 @@ class IntegrationFastTrain(DistTestCase):
         train_transforms = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
+                FromMetaTensord(["image", "label"]),
                 EnsureChannelFirstd(keys=["image", "label"]),
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
                 ScaleIntensityd(keys="image"),
@@ -133,6 +135,7 @@ class IntegrationFastTrain(DistTestCase):
         val_transforms = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
+                FromMetaTensord(["image", "label"]),
                 EnsureChannelFirstd(keys=["image", "label"]),
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
                 ScaleIntensityd(keys="image"),

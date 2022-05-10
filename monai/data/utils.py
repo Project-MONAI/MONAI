@@ -467,7 +467,9 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     """
     if batch is None:
         return batch
-    if isinstance(batch, (float, int, str, bytes)):
+    if isinstance(batch, (float, int, str, bytes)) or (
+        type(batch).__module__ == "numpy" and not isinstance(batch, Iterable)
+    ):
         return batch
     if isinstance(batch, torch.Tensor):
         if detach:
@@ -477,10 +479,13 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         out_list = torch.unbind(batch, dim=0)
         # if of type MetaObj, decollate the metadata
         if isinstance(batch, MetaObj) and all(isinstance(i, MetaObj) for i in out_list):
-            metas = decollate_batch(batch.meta)
-            for i in range(len(out_list)):
-                out_list[i].meta = metas[i]  # type: ignore
-                out_list[i].is_batch = False  # type: ignore
+            batch_size = len(out_list)
+            b, _, _ = _non_zipping_check(batch.meta, detach, pad, fill_value)
+            if b == batch_size:
+                metas = decollate_batch(batch.meta)
+                for i in range(len(out_list)):
+                    out_list[i].meta = metas[i]  # type: ignore
+                    out_list[i].is_batch = False  # type: ignore
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
