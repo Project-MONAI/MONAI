@@ -10,9 +10,11 @@
 # limitations under the License.
 
 
-from multiprocessing.context import SpawnContext
+import torch
+from multiprocessing.context import SpawnContext, DefaultContext, BaseContext
 from queue import Empty, Full, Queue
-from threading import Thread
+from threading import Thread, Event
+from copy import deepcopy
 
 from monai.data import DataLoader, Dataset
 
@@ -84,6 +86,10 @@ class _ProcessThread(Thread):
     @property
     def pid(self):
         return id(self)
+    
+    def run(self):
+        super().run()
+        torch.utils.data._utils.worker._worker_info = None  # clean up global data used for processes
 
 
 class _ProcessQueue(Queue):
@@ -96,6 +102,13 @@ class _ProcessQueue(Queue):
         pass
 
 
+class _ProcessThreadContext(SpawnContext):
+    _name = "processthread"
+    
+    Process=_ProcessThread  # threads will be created which looks like processes
+    Queue=_ProcessQueue  # thread queue used in place of process queue to avoid some weird cleanup errors
+    
+    
 class ThreadDataLoader(DataLoader):
     """
     Subclass of `DataLoader` using a `ThreadBuffer` object to implement `__iter__` method asynchronously. This will
@@ -140,21 +153,19 @@ class ThreadDataLoader(DataLoader):
         buffer_size: int = 1,
         buffer_timeout: float = 0.01,
         repeats: int = 1,
-        use_thread_workers=False,
+        use_thread_workers: bool = False,
         **kwargs,
     ):
+        # if workers should be threads, create a new multiprocessing context with the process and queue types
+        # substituted with the shim types given above
+        if use_thread_workers and kwargs.get("num_workers", 0) > 1:
+            kwargs["multiprocessing_context"] = _ProcessThreadContext()
+            kwargs["persistent_workers"] = False
+        
         super().__init__(dataset, **kwargs)
         self.buffer_size = buffer_size
         self.buffer_timeout = buffer_timeout
         self.repeats = repeats
-
-        # if workers should be threads, create a new multiprocessing context with the process and queue types
-        # substituted with the shim types given above
-        if use_thread_workers and kwargs.get("num_workers", 0) > 1:
-            ctx = SpawnContext()
-            ctx.Process = _ProcessThread  # threads will be created which looks like processes
-            ctx.Queue = _ProcessQueue  # thread queue used in place of process queue to avoid some weird cleanup errors
-            self.multiprocessing_context = ctx
 
     def __iter__(self):
         buffer = ThreadBuffer(src=super().__iter__(), buffer_size=self.buffer_size, timeout=self.buffer_timeout)
