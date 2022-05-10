@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
-from tests.utils import HAS_NVFUSER, skip_if_no_cuda, skip_if_windows, test_script_save
+from tests.utils import skip_if_no_cuda, skip_if_windows, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -120,7 +120,6 @@ class TestDynUNet(unittest.TestCase):
 
 @skip_if_no_cuda
 @skip_if_windows
-@unittest.skipUnless(HAS_NVFUSER, "To use `instance_nvfuser`, `apex.normalization.InstanceNorm3dNVFuser` is needed.")
 class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
     @parameterized.expand([TEST_CASE_DYNUNET_3D[0]])
     def test_consistency(self, input_param, input_shape, _):
