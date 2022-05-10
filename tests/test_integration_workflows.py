@@ -43,6 +43,7 @@ from monai.transforms import (
     AsChannelFirstd,
     AsDiscreted,
     Compose,
+    FromMetaTensord,
     KeepLargestConnectedComponentd,
     LoadImaged,
     RandCropByPosNegLabeld,
@@ -69,6 +70,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     train_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
+            FromMetaTensord(["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
             RandCropByPosNegLabeld(
@@ -81,6 +83,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     val_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
+            FromMetaTensord(["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
             ToTensord(keys=["image", "label"]),
@@ -221,6 +224,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
     val_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
+            FromMetaTensord(["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
             ToTensord(keys=["image", "label"]),

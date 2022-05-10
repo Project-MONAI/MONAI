@@ -74,6 +74,7 @@ TEST_BASIC = [
     ],
     [[None, None], [None, None]],
     [["test"], ["test"]],
+    [np.array([64, 64]), [64, 64]],
     [[], []],
     [[("ch1", "ch2"), ("ch3",)], [["ch1", "ch3"], ["ch2", None]]],  # default pad None
 ]
