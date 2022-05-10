@@ -69,8 +69,8 @@ class TestResize(NumpyImageTestCase2D):
             if not anti_aliasing:
                 assert_allclose(out, expected, type_test=False, atol=0.9)
             else:
-                # skimage uses reflect padding for anti-aliasing filter. 
-                # Our implementation reuses GaussianSmooth() as anti-aliasing filter, which uses zero padding instead. 
+                # skimage uses reflect padding for anti-aliasing filter.
+                # Our implementation reuses GaussianSmooth() as anti-aliasing filter, which uses zero padding instead.
                 # Thus their results near the image boundary will be different.
                 if isinstance(out, torch.Tensor):
                     out = out.cpu().detach().numpy()
