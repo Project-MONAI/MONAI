@@ -10,11 +10,12 @@
 # limitations under the License.
 
 
-import torch
-from multiprocessing.context import SpawnContext, DefaultContext, BaseContext
-from queue import Empty, Full, Queue
-from threading import Thread, Event
 from copy import deepcopy
+from multiprocessing.context import BaseContext, DefaultContext, SpawnContext
+from queue import Empty, Full, Queue
+from threading import Event, Thread
+
+import torch
 
 from monai.data import DataLoader, Dataset
 
@@ -105,8 +106,8 @@ class _ProcessQueue(Queue):
 class _ProcessThreadContext(SpawnContext):
     _name = "processthread"
 
-    Process=_ProcessThread  # threads will be created which looks like processes
-    Queue=_ProcessQueue  # thread queue used in place of process queue to avoid some weird cleanup errors
+    Process = _ProcessThread  # threads will be created which looks like processes
+    Queue = _ProcessQueue  # thread queue used in place of process queue to avoid some weird cleanup errors
 
 
 class ThreadDataLoader(DataLoader):
