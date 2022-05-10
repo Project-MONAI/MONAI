@@ -86,7 +86,7 @@ class _ProcessThread(Thread):
     @property
     def pid(self):
         return id(self)
-    
+
     def run(self):
         super().run()
         torch.utils.data._utils.worker._worker_info = None  # clean up global data used for processes
@@ -104,11 +104,11 @@ class _ProcessQueue(Queue):
 
 class _ProcessThreadContext(SpawnContext):
     _name = "processthread"
-    
+
     Process=_ProcessThread  # threads will be created which looks like processes
     Queue=_ProcessQueue  # thread queue used in place of process queue to avoid some weird cleanup errors
-    
-    
+
+
 class ThreadDataLoader(DataLoader):
     """
     Subclass of `DataLoader` using a `ThreadBuffer` object to implement `__iter__` method asynchronously. This will
@@ -161,7 +161,7 @@ class ThreadDataLoader(DataLoader):
         if use_thread_workers and kwargs.get("num_workers", 0) > 1:
             kwargs["multiprocessing_context"] = _ProcessThreadContext()
             kwargs["persistent_workers"] = False
-        
+
         super().__init__(dataset, **kwargs)
         self.buffer_size = buffer_size
         self.buffer_timeout = buffer_timeout
