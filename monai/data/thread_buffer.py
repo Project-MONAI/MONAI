@@ -10,9 +10,9 @@
 # limitations under the License.
 
 
-from multiprocessing.context import BaseContext, DefaultContext, SpawnContext
+from multiprocessing.context import SpawnContext
 from queue import Empty, Full, Queue
-from threading import Event, Thread
+from threading import Thread
 
 import torch
 
