@@ -26,6 +26,7 @@ from monai.data.utils import AFFINE_TOL, compute_shape_offset, reorient_spatial_
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
+from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
     create_control_grid,
