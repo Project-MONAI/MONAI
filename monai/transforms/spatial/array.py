@@ -26,6 +26,7 @@ from monai.data.utils import AFFINE_TOL, compute_shape_offset, reorient_spatial_
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
+from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
     create_control_grid,
@@ -622,6 +623,15 @@ class Resize(Transform):
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        anti_aliasing: bool
+            Whether to apply a Gaussian filter to smooth the image prior
+            to downsampling. It is crucial to filter when downsampling
+            the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+        anti_aliasing_sigma: {float, tuple of floats}, optional
+            Standard deviation for Gaussian filtering used when anti-aliasing.
+            By default, this value is chosen as (s - 1) / 2 where s is the
+            downsampling factor, where s > 1. For the up-size case, s < 1, no
+            anti-aliasing is performed prior to rescaling.
     """
 
     backend = [TransformBackends.TORCH]
@@ -632,17 +642,23 @@ class Resize(Transform):
         size_mode: str = "all",
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
+        anti_aliasing: bool = False,
+        anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
     ) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
+        self.anti_aliasing = anti_aliasing
+        self.anti_aliasing_sigma = anti_aliasing_sigma
 
     def __call__(
         self,
         img: NdarrayOrTensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
         align_corners: Optional[bool] = None,
+        anti_aliasing: Optional[bool] = None,
+        anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -653,11 +669,23 @@ class Resize(Transform):
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            anti_aliasing: bool, optional
+                Whether to apply a Gaussian filter to smooth the image prior
+                to downsampling. It is crucial to filter when downsampling
+                the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+            anti_aliasing_sigma: {float, tuple of floats}, optional
+                Standard deviation for Gaussian filtering used when anti-aliasing.
+                By default, this value is chosen as (s - 1) / 2 where s is the
+                downsampling factor, where s > 1. For the up-size case, s < 1, no
+                anti-aliasing is performed prior to rescaling.
 
         Raises:
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
+        anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
+        anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
+
         img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if self.size_mode == "all":
             input_ndim = img_.ndim - 1  # spatial ndim
@@ -677,6 +705,20 @@ class Resize(Transform):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
+
+        if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
+            factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
+            if anti_aliasing_sigma is None:
+                # if sigma is not given, use the default sigma in skimage.transform.resize
+                anti_aliasing_sigma = torch.maximum(torch.zeros(factors.shape), (factors - 1) / 2).tolist()
+            else:
+                # if sigma is given, use the given value for downsampling axis
+                anti_aliasing_sigma = list(ensure_tuple_rep(anti_aliasing_sigma, len(spatial_size_)))
+                for axis in range(len(spatial_size_)):
+                    anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
+            anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
+            img_ = anti_aliasing_filter(img_)
+
         resized = torch.nn.functional.interpolate(
             input=img_.unsqueeze(0),
             size=spatial_size_,
