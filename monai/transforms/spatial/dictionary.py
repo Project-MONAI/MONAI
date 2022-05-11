@@ -2174,19 +2174,20 @@ class GridSplitd(MapTransform):
         self,
         keys: KeysCollection,
         grid: Tuple[int, int] = (2, 2),
-        size: Optional[Union[int, Tuple[int, int]]] = None,
+        size: Optional[Union[int, Tuple[int, int], Dict[Hashable, Union[int, Tuple[int, int], None]]]] = None,
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
         self.grid = grid
-        self.splitter = GridSplit(grid=grid, size=size)
+        self.size = size if isinstance(size, dict) else {key: size for key in self.keys}
+        self.splitter = GridSplit(grid=grid)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         d = dict(data)
         n_outputs = np.prod(self.grid)
         output: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(n_outputs)]
         for key in self.key_iterator(d):
-            result = self.splitter(d[key])
+            result = self.splitter(d[key], self.size[key])
             for i in range(n_outputs):
                 output[i][key] = result[i]
         return output
