@@ -114,12 +114,35 @@ class MetaTensor(MetaObj, torch.Tensor):
             setattr(self, attribute, val.to(self.device))
 
     @staticmethod
-    def update_meta(rets: Sequence, func, args, kwargs):
-        """Update the metadata from the output of `__torch_function__`.
-        The output could be a single object, or a sequence of them. Hence, they get
-        converted to a sequence if necessary and then processed by iterating across them.
+    def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
+        """
+        Update the metadata from the output of `MetaTensor.__torch_function__`.
 
-        For each element, if not of type `MetaTensor`, then nothing to do
+        The output of `torch.Tensor.__torch_function__` could be a single object or a
+        sequence of them. Hence, in `MetaTensor.__torch_function__` we convert them to a
+        list of not already, and then we loop across each element, processing metadata
+        as necessary. For each element, if not of type `MetaTensor`, then nothing to do.
+
+        Args:
+            rets: the output from `torch.Tensor.__torch_function__`, which has been
+                converted to a list in `MetaTensor.__torch_function__` if it wasn't
+                already a `Sequence`.
+            func: the torch function that was applied. Examples might be `torch.squeeze`
+                or `torch.Tensor.__add__`. We need this since the metadata need to be
+                treated differently if a batch of data is considered. For example,
+                slicing (`torch.Tensor.__getitem__`) the ith element of the 0th
+                dimension of a batch of data should return a ith tensor with the ith
+                metadata.
+            args: positional arguments that were passed to `func`.
+            kwargs: keyword arguments that were passed to `func`.
+
+        Returns:
+            A sequence with the same number of elements as `rets`. For each element, if
+            the input type was not `MetaTensor`, then no modifications will have been
+            made. If global parameters have been set to false (e.g.,
+            `not get_track_meta()`), then any `MetaTensor` will be converted to
+            `torch.Tensor`. Else, metadata will be propogated as necessary (see
+            :py:func:`MetaTensor._copy_meta`).
         """
         out = []
         metas = None
