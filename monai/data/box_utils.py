@@ -65,11 +65,17 @@ def get_dimension(
     Get spatial dimension for the giving setting.
     Missing input is allowed. But at least one of the input value should be given.
     Args:
-        bbox: bounding box, Nx4 or Nx6 torch tensor
+        bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray
         image_size: Length of 2 or 3. Data format is list, or np.ndarray, or tensor of int
         mode: box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
     Returns:
         spatial_dimension: 2 or 3
+
+    Example:
+        bbox = torch.zeros(10,6)
+        get_dimension(bbox, mode="xyzxyz") will return 3
+        get_dimension(bbox, mode="xyzxyz", image_size=[100,200,200]) will return 3
+        get_dimension(mode="xyzxyz") will return 3
     """
     spatial_dims_set = set()
     if image_size is not None:
@@ -97,6 +103,9 @@ def get_standard_mode(spatial_dims: int) -> str:
     Returns:
         mode name, choose from STANDARD_MODE
 
+    Example:
+        get_standard_mode(spatial_dims = 2)
+
     """
     if spatial_dims == 2:
         return STANDARD_MODE[0]
@@ -110,13 +119,16 @@ def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
     """
     This internal function outputs the corner coordinates of the bbox
     Args:
-        bbox: bounding box, Nx4 or Nx6 torch tensor
+        bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray
         mode: box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
     Returns:
         if 2D image, outputs (xmin, xmax, ymin, ymax)
         if 3D images, outputs (xmin, xmax, ymin, ymax, zmin, zmax)
         xmin for example, is a Nx1 tensor
-
+    
+    Example:
+        bbox = torch.zeros(10,6)
+        split_into_corners(bbox, mode="cccwhd")
     """
     # convert numpy to tensor if needed
     if isinstance(bbox, np.ndarray):
@@ -188,11 +200,15 @@ def box_convert_mode(
     """
     This function converts the bbox1 in mode 1 to the mode2
     Args:
-        bbox1: source bounding box, Nx4 or Nx6 torch tensor
+        bbox1: source bounding box, Nx4 or Nx6 torch tensor or ndarray
         mode1: source box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
         mode2: target box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
     Returns:
         bbox2: bounding box with target mode, does not share memory with original bbox1
+
+    Example:
+        bbox = torch.zeros(10,6)
+        box_convert_mode(bbox1=bbox, mode1="xyzxyz", mode2="cccwhd")
     """
 
     # convert numpy to tensor if needed
@@ -277,9 +293,14 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
     """
     Convert given bbox to standard mode
     Args:
-        bbox: source bounding box, Nx4 or Nx6 torch tensor
+        bbox: source bounding box, Nx4 or Nx6 torch tensor or ndarray
         mode: source box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
-    This function convert the bbox in mode 1 to 'xyxy' or 'xyzxyz'
+    Returns:
+        bbox2: bounding box with standard mode, does not share memory with original bbox1
+
+    Example:
+        bbox = torch.zeros(10,6)
+        box_convert_mode(bbox=bbox, mode="xxyyzz")
     """
     if mode is None:
         mode = get_standard_mode(int(bbox.shape[1] / 2))
@@ -320,7 +341,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     """
 #     Interpolate bbox
 #     Args:
-#         bbox: bounding box, Nx4 or Nx6 torch tensor
+#         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray
 #         mode: box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
 #         zoom: The zoom factor along the spatial axes.
 #             If a float, zoom is the same for each spatial axis.
@@ -399,7 +420,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     """
 #     This function applys affine matrixs to the bbox
 #     Args:
-#         bbox: bounding box, Nx4 or Nx6 torch tensor
+#         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray
 #         affine: affine matric to be applied to the box coordinate, (spatial_dims+1)x(spatial_dims+1)
 #         mode: box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
 #     Returns:
@@ -457,7 +478,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     """
 #     This function makes sure the bounding boxes are within the patch.
 #     Args:
-#         bbox: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #         patch_box: The coordinate of the target patch to clip, it follows standard mode
 #         remove_empty: whether to remove the boxes that are actually empty
 #     Returns:
@@ -513,7 +534,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     """
 #     This function makes sure the bounding boxes are within the image.
 #     Args:
-#         bbox: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #         remove_empty: whether to remove the boxes that are actually empty
 #     Returns:
 #         updated box
@@ -527,7 +548,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     """
 #     This function computes the area of each box
 #     Args:
-#         bbox: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #     Returns:
 #         area: 1-D tensor
 #     """
@@ -565,7 +586,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     with slight modifications.
 
 #     Args:
-#         bbox1: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox1: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #         bbox2: bounding box, Mx4 or Mx6 torch tensor. The box mode is assumed to be STANDARD_MODE
 
 #     Returns:
@@ -629,7 +650,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     with slight modifications.
 
 #     Args:
-#         bbox1: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox1: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #         bbox2: bounding box, Mx4 or Mx6 torch tensor. The box mode is assumed to be STANDARD_MODE
 
 #     Returns:
@@ -707,7 +728,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     with slight modifications.
 
 #     Args:
-#         bbox1: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox1: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #         bbox2: bounding box, Mx4 or Mx6 torch tensor. The box mode is assumed to be STANDARD_MODE
 
 #     Returns:
@@ -786,7 +807,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     written by Can Zhao, 2019
 #     if there are no boxes, return an empty list
 #     Args:
-#         bbox: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #     """
 #     look_up_option(box_overlap_metric, ["iou", "giou"])
 #     look_up_option(bbox.shape[1], [4, 6]) // 2
@@ -844,7 +865,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     """
 #     Compute center point of bbox
 #     Args:
-#         bbox: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #     Returns:
 #         Tensor: center points [N, dims]
 #     """
@@ -861,8 +882,8 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     """
 #     Distance of center points between two sets of bbox
 #     Args:
-#         bbox1: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
-#         bbox2: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox1: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
+#         bbox2: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #         euclidean: computed the euclidean distance otherwise it uses the l1
 #             distance
 #     Returns:
@@ -902,7 +923,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     """
 #     Checks which center points are within bbox
 #     Args:
-#         bbox: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #         center: center points [N, dims]
 #         eps: minimum distance to boarder of bbox
 #     Returns:
@@ -927,7 +948,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
 #     """
 #     modified from torchvision
 #     Args:
-#         bbox: source bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be STANDARD_MODE
+#         bbox: source bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be STANDARD_MODE
 #         original_size: source image size, Length of 2 or 3. Data format is list, or np.ndarray, or tensor of int
 #         original_size: target image size, Length of 2 or 3. Data format is list, or np.ndarray, or tensor of int
 #     """
