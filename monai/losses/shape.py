@@ -20,7 +20,7 @@ from torch.nn.modules.loss import _Loss
 from monai.networks import one_hot
 from monai.utils import LossReduction, convert_data_type, optional_import
 
-distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
+distance_transform_edt, _ = optional_import("scipy.ndimage", name="distance_transform_edt")
 
 
 class ShapeDistLoss(_Loss):
@@ -85,7 +85,7 @@ class ShapeDistLoss(_Loss):
             torch.Tensor: Boundary distance map of shape [WD]
         """
         # Convert to NumPy to use with SciPy
-        roi: np.ndarray = convert_data_type(mask, np.ndarray)
+        roi, _, _ = convert_data_type(mask, np.ndarray)
 
         # Compute normalized distance transform
         dt: np.ndarray = distance_transform_edt(roi)
