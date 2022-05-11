@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     import nibabel as nib
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
-    import nrrd    
+    import nrrd
 
     has_nrrd = has_itk = has_nib = has_pil = True
 else:
@@ -980,18 +980,18 @@ class WSIReader(ImageReader):
         return flat_patch_grid
 
 
-class NrrdImage(): 
+class NrrdImage():
     "Wrapper for image array and header"
-    
-    def __init__(self, 
-                 array: np.ndarray, 
-                 header: dict) -> None: 
+
+    def __init__(self,
+                 array: np.ndarray,
+                 header: dict) -> None:
         self.array = array
         self.header = header
-        
+
 
 @require_pkg(pkg_name="nrrd")
-class NrrdReader(ImageReader): 
+class NrrdReader(ImageReader):
     """
     Load NRRD format images based on pynrrd library.
 
@@ -1005,10 +1005,10 @@ class NrrdReader(ImageReader):
             https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
 
     """
-    def __init__(self, 
+    def __init__(self,
                  channel_dim: Optional[int] = None,
-                 dtype: Union[np.dtype, type, str, None] = np.float32, 
-                 **kwargs): 
+                 dtype: Union[np.dtype, type, str, None] = np.float32,
+                 **kwargs):
         self.channel_dim = channel_dim
         self.dtype = dtype
         self.kwargs = kwargs
@@ -1024,7 +1024,7 @@ class NrrdReader(ImageReader):
         """
         suffixes: Sequencec[str] = ["nrrd", "seg.nrrd"]
         return has_nrrd and is_supported_format(filename, suffixes)
-        
+
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs) -> Union[Sequence[Any], Any]:
         """
         Read image data from specified file or files.
@@ -1034,7 +1034,7 @@ class NrrdReader(ImageReader):
             data: file name or a list of file names to read.
             kwargs: additional args for actual `read` API of 3rd party libs.
 
-        """      
+        """
         img_: List = []
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -1043,7 +1043,7 @@ class NrrdReader(ImageReader):
             nrrd_image = NrrdImage(*nrrd.read(name, **kwargs_))
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
-        
+
     def get_data(self, img: Union[NrrdImage, List[NrrdImage]]) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and meta data from loaded image and return them.
@@ -1055,8 +1055,8 @@ class NrrdReader(ImageReader):
 
         """
         img_array: List[NrrdImage] = []
-        compatible_meta: Dict = {}     
-        
+        compatible_meta: Dict = {}
+
         for i in ensure_tuple(img):
             data = self._get_array_data(i)
             img_array.append(data)
@@ -1064,7 +1064,7 @@ class NrrdReader(ImageReader):
             header["original_affine"] = self._get_affine(i)
             header["affine"] = header["original_affine"].copy()
             header["spatial_shape"] = i.header["sizes"]
-            
+
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else 0
             else:
@@ -1072,17 +1072,17 @@ class NrrdReader(ImageReader):
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
-    
+
     def _get_array_data(self, img: NrrdImage) -> np.ndarray:
         """
         Get the array data as Numpy array of `self.dtype`
-        
-        Args: 
+
+        Args:
             img: A `NrrdImage` loaded from image file
-            
+
         """
         return img.array.astype(self.dtype)
-    
+
     def _get_affine(self, img: NrrdImage) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
@@ -1090,7 +1090,7 @@ class NrrdReader(ImageReader):
 
         Args:
             img: A `NrrdImage` loaded from image file
-        
+
         """
         direction = img.header["space directions"]
         origin = img.header["space origin"]
