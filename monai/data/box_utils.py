@@ -296,7 +296,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
         bbox: source bounding box, Nx4 or Nx6 torch tensor or ndarray
         mode: source box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
     Returns:
-        bbox2: bounding box with standard mode, does not share memory with original bbox1
+        bbox2: bounding box with standard mode, does not share memory with original bbox
 
     Example:
         bbox = torch.zeros(10,6)
