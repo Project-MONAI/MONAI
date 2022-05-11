@@ -78,7 +78,7 @@ def get_dimension(
         spatial_dimension: 2 or 3
 
     Example:
-        bbox = torch.zeros(10,6)
+        bbox = torch.ones(10,6)
         get_dimension(bbox, mode="xyzxyz") will return 3
         get_dimension(bbox, mode="xyzxyz", image_size=[100,200,200]) will return 3
         get_dimension(mode="xyzxyz") will return 3
@@ -133,7 +133,7 @@ def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
         xmin for example, is a Nx1 tensor
 
     Example:
-        bbox = torch.zeros(10,6)
+        bbox = torch.ones(10,6)
         split_into_corners(bbox, mode="cccwhd")
     """
     # convert numpy to tensor if needed
@@ -213,7 +213,7 @@ def box_convert_mode(
         bbox2: bounding box with target mode, does not share memory with original bbox1
 
     Example:
-        bbox = torch.zeros(10,6)
+        bbox = torch.ones(10,6)
         box_convert_mode(bbox1=bbox, mode1="xyzxyz", mode2="cccwhd")
     """
 
@@ -305,8 +305,8 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
         bbox2: bounding box with standard mode, does not share memory with original bbox
 
     Example:
-        bbox = torch.zeros(10,6)
-        box_convert_mode(bbox=bbox, mode="xxyyzz")
+        bbox = torch.ones(10,6)
+        box_convert_standard_mode(bbox=bbox, mode="xxyyzz")
     """
     if mode is None:
         mode = get_standard_mode(int(bbox.shape[1] / 2))
