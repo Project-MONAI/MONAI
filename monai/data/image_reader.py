@@ -839,6 +839,7 @@ class WSIReader(ImageReader):
             region = MetaTensor(region, meta=metadata)
 
         # Make it channel first
+        # FIXME: would be nice not to convert -> MetaTensor -> numpy
         region = EnsureChannelFirst()(region).numpy()
         del metadata["affine"]  # automatically created but not needed
 
