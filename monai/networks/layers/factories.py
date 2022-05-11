@@ -268,7 +268,7 @@ def instance_nvfuser_factory(dim):
     # test InstanceNorm3dNVFuser installation with a basic example
     has_nvfuser_flag = has_nvfuser
     if not torch.cuda.is_available():
-        has_nvfuser_flag = False
+        return nn.InstanceNorm3d
     try:
         layer = InstanceNorm3dNVFuser(num_features=1, affine=True).to("cuda:0")
         inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
