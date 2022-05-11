@@ -256,9 +256,9 @@ def box_convert_mode(
             elif mode2 == "cccwhd":
                 bbox2 = torch.cat(
                     (
-                        (xmin + xmax + TO_REMOVE) / 2,
-                        (ymin + ymax + TO_REMOVE) / 2,
-                        (zmin + zmax + TO_REMOVE) / 2,
+                        (xmin + xmax + TO_REMOVE) / 2.,
+                        (ymin + ymax + TO_REMOVE) / 2.,
+                        (zmin + zmax + TO_REMOVE) / 2.,
                         xmax - xmin + TO_REMOVE,
                         ymax - ymin + TO_REMOVE,
                         zmax - zmin + TO_REMOVE,
@@ -276,8 +276,8 @@ def box_convert_mode(
             elif mode2 == "ccwh":
                 bbox2 = torch.cat(
                     (
-                        (xmin + xmax + TO_REMOVE) / 2,
-                        (ymin + ymax + TO_REMOVE) / 2,
+                        (xmin + xmax + TO_REMOVE) / 2.,
+                        (ymin + ymax + TO_REMOVE) / 2.,
                         xmax - xmin + TO_REMOVE,
                         ymax - ymin + TO_REMOVE,
                     ),
