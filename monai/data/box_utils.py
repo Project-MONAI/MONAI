@@ -121,6 +121,48 @@ def get_standard_mode(spatial_dims: int) -> str:
         raise ValueError(f"Images should have 2 or 3 dimensions, got {spatial_dims}")
 
 
+def check_box_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
+    """
+    This function checks whether the bbox is valid.
+    It ensures the box size is non-negative.
+    Args:
+        bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray
+        mode: box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
+    Returns:
+        raise Error is mode is not supported
+        raise Error if box has negative size
+
+    Example:
+        bbox = torch.ones(10,6)
+        check_box_mode(bbox, mode="cccwhd")
+    """
+    if mode is None:
+        mode = get_standard_mode(int(bbox.shape[1] / 2))
+    mode = look_up_option(mode, supported=SUPPORT_MODE)
+    spatial_dims = get_dimension(bbox=bbox, mode=mode)
+
+    # we need box size to be non-negative
+    if mode in ["ccwh", "cccwhd", "xywh", "xyzwhd"]:
+        box_error = bbox[:, spatial_dims] < 0
+        for axis in range(1, spatial_dims):
+            box_error = box_error | (bbox[:, spatial_dims + axis] < 0)
+    elif mode in ["xxyy", "xxyyzz"]:
+        box_error = bbox[:, 1] < bbox[:, 0]
+        for axis in range(1, spatial_dims):
+            box_error = box_error | (bbox[:, 2 * axis + 1] < bbox[:, 2 * axis])
+    elif mode in ["xyxy", "xyzxyz"]:
+        box_error = bbox[:, spatial_dims] < bbox[:, 0]
+        for axis in range(1, spatial_dims):
+            box_error = box_error | (bbox[:, spatial_dims + axis] < bbox[:, axis])
+    else:
+        raise ValueError(f"Box mode {mode} not in {SUPPORT_MODE}.")
+
+    if box_error.sum() > 0:
+        raise ValueError("Given bbox has invalid values. The box size must be non-negative.")
+
+    return
+
+
 def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
     """
     This internal function outputs the corner coordinates of the bbox
@@ -217,6 +259,8 @@ def box_convert_mode(
         box_convert_mode(bbox1=bbox, mode1="xyzxyz", mode2="cccwhd")
     """
 
+    check_box_mode(bbox1, mode1)
+
     # convert numpy to tensor if needed
     if isinstance(bbox1, np.ndarray):
         bbox1 = convert_to_tensor(bbox1)
@@ -256,9 +300,9 @@ def box_convert_mode(
             elif mode2 == "cccwhd":
                 bbox2 = torch.cat(
                     (
-                        (xmin + xmax + TO_REMOVE) / 2.,
-                        (ymin + ymax + TO_REMOVE) / 2.,
-                        (zmin + zmax + TO_REMOVE) / 2.,
+                        (xmin + xmax + TO_REMOVE) / 2.0,
+                        (ymin + ymax + TO_REMOVE) / 2.0,
+                        (zmin + zmax + TO_REMOVE) / 2.0,
                         xmax - xmin + TO_REMOVE,
                         ymax - ymin + TO_REMOVE,
                         zmax - zmin + TO_REMOVE,
@@ -276,8 +320,8 @@ def box_convert_mode(
             elif mode2 == "ccwh":
                 bbox2 = torch.cat(
                     (
-                        (xmin + xmax + TO_REMOVE) / 2.,
-                        (ymin + ymax + TO_REMOVE) / 2.,
+                        (xmin + xmax + TO_REMOVE) / 2.0,
+                        (ymin + ymax + TO_REMOVE) / 2.0,
                         xmax - xmin + TO_REMOVE,
                         ymax - ymin + TO_REMOVE,
                     ),
