@@ -49,10 +49,6 @@ class _GradReLU(torch.nn.Module):
         out: torch.Tensor = _AutoGradReLU.apply(x)
         return out
 
-    def backward(self, x: torch.Tensor) -> torch.Tensor:
-        out: torch.Tensor = _AutoGradReLU.backward(x)
-        return out
-
 
 class VanillaGrad:
     def __init__(self, model: torch.nn.Module) -> None:
@@ -86,6 +82,11 @@ class VanillaGrad:
 
 
 class SmoothGrad(VanillaGrad):
+    """
+    See also:
+        - Smilkov et al. SmoothGrad: removing noise by adding noise https://arxiv.org/abs/1706.03825
+    """
+
     def __init__(
         self,
         model: torch.nn.Module,
