@@ -2178,13 +2178,18 @@ class GridSplitd(MapTransform):
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
+        self.grid = grid
         self.splitter = GridSplit(grid=grid, size=size)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         d = dict(data)
+        n_outputs = np.prod(self.grid)
+        output: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(n_outputs)]
         for key in self.key_iterator(d):
-            d[key] = self.splitter(d[key])
-        return d
+            result = self.splitter(d[key])
+            for i in range(n_outputs):
+                output[i][key] = result[i]
+        return output
 
 
 SpatialResampleD = SpatialResampleDict = SpatialResampled

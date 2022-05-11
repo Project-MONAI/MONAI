@@ -2493,39 +2493,37 @@ class GridSplit(Transform):
         # Patch size
         self.size = None if size is None else ensure_tuple_rep(size, len(self.grid))
 
-    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, image: NdarrayOrTensor) -> List[NdarrayOrTensor]:
         if self.grid == (1, 1) and self.size is None:
             if isinstance(image, torch.Tensor):
-                return torch.stack([image])
+                return [image]
             elif isinstance(image, np.ndarray):
-                return np.stack([image])  # type: ignore
+                return [image]
             else:
                 raise ValueError(f"Input type [{type(image)}] is not supported.")
 
         size, steps = self._get_params(image.shape[1:])
-        patches: NdarrayOrTensor
+        patches: List[NdarrayOrTensor]
         if isinstance(image, torch.Tensor):
-            patches = (
-                image.unfold(1, size[0], steps[0])
-                .unfold(2, size[1], steps[1])
-                .flatten(1, 2)
-                .transpose(0, 1)
-                .contiguous()
+            unfolded_image = (
+                image.unfold(1, size[0], steps[0]).unfold(2, size[1], steps[1]).flatten(1, 2).transpose(0, 1)
             )
+            # Make a list of contiguous patches
+            patches = [p.contiguous() for p in unfolded_image]
         elif isinstance(image, np.ndarray):
             x_step, y_step = steps
             c_stride, x_stride, y_stride = image.strides
             n_channels = image.shape[0]
-            patches = as_strided(
+            strided_image = as_strided(
                 image,
                 shape=(*self.grid, n_channels, size[0], size[1]),
                 strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
                 writeable=False,
             )
-            # flatten the first two dimensions
-            patches = patches.reshape(np.prod(patches.shape[:2]), *patches.shape[2:])
-            # make it a contiguous array
-            patches = np.ascontiguousarray(patches)
+            # Flatten the first two dimensions
+            strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
+            # Make a list of contiguous patches
+            patches = [np.ascontiguousarray(p) for p in strided_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
 
