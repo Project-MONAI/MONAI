@@ -27,19 +27,21 @@ if TYPE_CHECKING:
     import nibabel as nib
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
+    import nrrd    
 
-    has_itk = has_nib = has_pil = True
+    has_nrrd = has_itk = has_nib = has_pil = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
+    nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
 CuImage, _ = optional_import("cucim", name="CuImage")
 TiffFile, _ = optional_import("tifffile", name="TiffFile")
 
-__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
+__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader", "NrrdReader"]
 
 
 class ImageReader(ABC):
@@ -976,3 +978,126 @@ class WSIReader(ImageReader):
                 idx += 1
 
         return flat_patch_grid
+
+
+class NrrdImage(): 
+    "Wrapper for image array and header"
+    
+    def __init__(self, 
+                 array: np.ndarray, 
+                 header: dict) -> None: 
+        self.array = array
+        self.header = header
+        
+
+@require_pkg(pkg_name="nrrd")
+class NrrdReader(ImageReader): 
+    """
+    Load NRRD format images based on pynrrd library.
+
+    Args:
+        channel_dim: the channel dimension of the input image, default is None.
+            this is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            if None, `original_channel_dim` will be either `no_channel` or `0`.
+            NRRD files are usually "channel first".
+        dtype: dtype of the data array when loading image.
+        kwargs: additional args for `nrrd.read` API. more details about available args:
+            https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
+
+    """
+    def __init__(self, 
+                 channel_dim: Optional[int] = None,
+                 dtype: Union[np.dtype, type, str, None] = np.float32, 
+                 **kwargs): 
+        self.channel_dim = channel_dim
+        self.dtype = dtype
+        self.kwargs = kwargs
+
+    def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
+        """
+        Verify whether the specified `filename` is supported by pynrrd reader.
+
+        Args:
+            filename: file name or a list of file names to read.
+                if a list of files, verify all the suffixes.
+
+        """
+        suffixes: Sequencec[str] = ["nrrd", "seg.nrrd"]
+        return has_nrrd and is_supported_format(filename, suffixes)
+        
+    def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs) -> Union[Sequence[Any], Any]:
+        """
+        Read image data from specified file or files.
+        Note that it returns a data object or a sequence of data objects.
+
+        Args:
+            data: file name or a list of file names to read.
+            kwargs: additional args for actual `read` API of 3rd party libs.
+
+        """      
+        img_: List = []
+        filenames: Sequence[PathLike] = ensure_tuple(data)
+        kwargs_ = self.kwargs.copy()
+        kwargs_.update(kwargs)
+        for name in filenames:
+            nrrd_image = NrrdImage(*nrrd.read(name, **kwargs_))
+            img_.append(nrrd_image)
+        return img_ if len(filenames) > 1 else img_[0]
+        
+    def get_data(self, img: Union[NrrdImage, List[NrrdImage]]) -> Tuple[np.ndarray, Dict]:
+        """
+        Extract data array and meta data from loaded image and return them.
+        This function must return two objects, the first is a numpy array of image data,
+        the second is a dictionary of meta data.
+
+        Args:
+            img: an `NrrdImage` object loaded from an image file or a list of image objects.
+
+        """
+        img_array: List[NrrdImage] = []
+        compatible_meta: Dict = {}     
+        
+        for i in ensure_tuple(img):
+            data = self._get_array_data(i)
+            img_array.append(data)
+            header = dict(i.header)
+            header["original_affine"] = self._get_affine(i)
+            header["affine"] = header["original_affine"].copy()
+            header["spatial_shape"] = i.header["sizes"]
+            
+            if self.channel_dim is None:  # default to "no_channel" or -1
+                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else 0
+            else:
+                header["original_channel_dim"] = self.channel_dim
+            _copy_compatible_dict(header, compatible_meta)
+
+        return _stack_images(img_array, compatible_meta), compatible_meta
+    
+    def _get_array_data(self, img: NrrdImage) -> np.ndarray:
+        """
+        Get the array data as Numpy array of `self.dtype`
+        
+        Args: 
+            img: A `NrrdImage` loaded from image file
+            
+        """
+        return img.array.astype(self.dtype)
+    
+    def _get_affine(self, img: NrrdImage) -> np.ndarray:
+        """
+        Get the affine matrix of the image, it can be used to correct
+        spacing, orientation or execute spatial transforms.
+
+        Args:
+            img: A `NrrdImage` loaded from image file
+        
+        """
+        direction = img.header["space directions"]
+        origin = img.header["space origin"]
+        sr = min(max(direction.shape[0], 1), 3)
+        affine: np.ndarray = np.eye(sr + 1)
+        affine[:sr, :sr] = direction[:sr, :sr]
+        affine[:sr, -1] = origin[:sr]
+        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1] # nrrd to nibabel affine
+        affine = np.diag(flip_diag) @ affine
+        return affine
