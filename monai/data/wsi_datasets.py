@@ -122,7 +122,7 @@ class PatchWSIDataset(Dataset):
         location = self._get_location(sample)
         level = self._get_level(sample)
         size = self._get_size(sample)
-        return self.wsi_reader.get_data(wsi=wsi_obj, location=location[::-1], size=size, level=level)
+        return self.wsi_reader.get_data(wsi=wsi_obj, location=location, size=size, level=level)
 
     def _transform(self, index: int):
         # Get a single entry of data
