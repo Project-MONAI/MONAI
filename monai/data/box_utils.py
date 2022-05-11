@@ -28,7 +28,7 @@ CORNER_SIZE_MODE = ["xywh", "xyzwhd"]  # [xmin, ymin, xsize, ysize] and [xmin, y
 CENTER_SIZE_MODE = [
     "ccwh",
     "cccwhd",
-]  # [xcenter, ycenter, x_size, y_size] and [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+]  # [xcenter, ycenter, xsize, ysize] and [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 
 STANDARD_MODE = CORNER_CORNER_MODE  # standard box modes supported by all the box util functions
 SUPPORT_MODE = (
@@ -36,11 +36,11 @@ SUPPORT_MODE = (
 )  # supported box modes for some box util functions
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
-#      i.e., when x_min=1, x_max=2, we have w = 1
+#      i.e., when xmin=1, xmax=2, we have w = 1
 # TO_REMOVE = 1  if in 'xxyy','xxyyzz' mode, the bottom-right corner is included in the box,
-#       i.e., when x_min=1, x_max=2, we have w = 2
+#       i.e., when xmin=1, xmax=2, we have w = 2
 # Currently only TO_REMOVE = 0 has been tested. Please use TO_REMOVE = 0
-TO_REMOVE = 0  # x_max-x_min = w -TO_REMOVE.
+TO_REMOVE = 0  # xmax-xmin = w -TO_REMOVE.
 
 
 def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
