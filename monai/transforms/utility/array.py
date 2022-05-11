@@ -17,7 +17,7 @@ import logging
 import sys
 import time
 import warnings
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -207,20 +207,18 @@ class EnsureChannelFirst(Transform):
         self.strict_check = strict_check
         self.add_channel = AddChannel()
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
-        if isinstance(img, MetaTensor):
-            meta_dict = img.meta
-        if not isinstance(meta_dict, Mapping):
+        if not isinstance(img, MetaTensor):
             msg = "meta_dict not available, EnsureChannelFirst is not in use."
             if self.strict_check:
                 raise ValueError(msg)
             warnings.warn(msg)
             return img
 
-        channel_dim = meta_dict.get("original_channel_dim")
+        channel_dim = img.meta.get("original_channel_dim")
 
         if channel_dim is None:
             msg = "Unknown original_channel_dim in the meta_dict, EnsureChannelFirst is not in use."
@@ -229,8 +227,8 @@ class EnsureChannelFirst(Transform):
             warnings.warn(msg)
             return img
         if channel_dim == "no_channel":
-            return self.add_channel(img)
-        return AsChannelFirst(channel_dim=channel_dim)(img)
+            return self.add_channel(img)  # type: ignore
+        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
 
 
 class RepeatChannel(Transform):

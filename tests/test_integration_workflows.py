@@ -70,8 +70,8 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     train_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
-            FromMetaTensord(["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
+            FromMetaTensord(["image", "label"]),
             ScaleIntensityd(keys=["image", "label"]),
             RandCropByPosNegLabeld(
                 keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
@@ -83,8 +83,8 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     val_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
-            FromMetaTensord(["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
+            FromMetaTensord(["image", "label"]),
             ScaleIntensityd(keys=["image", "label"]),
             ToTensord(keys=["image", "label"]),
         ]

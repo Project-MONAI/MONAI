@@ -24,6 +24,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
@@ -291,6 +292,8 @@ class EnsureChannelFirstd(MapTransform):
 
     backend = EnsureChannelFirst.backend
 
+    @deprecated_arg(name="meta_keys", since="0.8", msg_suffix="not needed if image is type `MetaTensor`.")
+    @deprecated_arg(name="meta_key_postfix", since="0.8", msg_suffix="not needed if image is type `MetaTensor`.")
     def __init__(
         self,
         keys: KeysCollection,
@@ -302,26 +305,16 @@ class EnsureChannelFirstd(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
-                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
-                it can be a sequence of string, map to the `keys`.
-                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None and `key_{postfix}` was used to store the metadata in `LoadImaged`.
-                So need the key to extract metadata for channel dim information, default is `meta_dict`.
-                For example, for data with key `image`, metadata by default is in `image_meta_dict`.
             strict_check: whether to raise an error when the meta information is insufficient.
 
         """
         super().__init__(keys)
         self.adjuster = EnsureChannelFirst(strict_check=strict_check)
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, meta_key, meta_key_postfix in zip(self.keys, self.meta_keys, self.meta_key_postfix):
-            d[key] = self.adjuster(d[key], d[meta_key or f"{key}_{meta_key_postfix}"])
+        for key in self.key_iterator(d):
+            d[key] = self.adjuster(d[key])
         return d
 
 
@@ -416,24 +409,18 @@ class SplitDimd(MapTransform):
                 split_key = f"{key}_{postfixes[i]}"
                 if split_key in d:
                     raise RuntimeError(f"input data already contains key {split_key}.")
-                d[split_key] = r
 
-                if self.update_meta:
-                    orig_meta = d.get(PostFix.meta(key), None)
-                    if orig_meta is not None:
-                        split_meta_key = PostFix.meta(split_key)
-                        d[split_meta_key] = deepcopy(orig_meta)
-                        dim = self.splitter.dim
-                        if dim > 0:  # don't update affine if channel dim
-                            affine = d[split_meta_key]["affine"]  # type: ignore
-                            ndim = len(affine)
-                            shift: NdarrayOrTensor
-                            if isinstance(affine, torch.Tensor):
-                                shift = torch.eye(ndim, device=affine.device, dtype=affine.dtype)
-                            else:
-                                shift = np.eye(ndim)
-                            shift[dim - 1, -1] = i  # type: ignore
-                            d[split_meta_key]["affine"] = d[split_meta_key]["affine"] @ shift  # type: ignore
+                if self.update_meta and isinstance(r, MetaTensor):
+                    r.meta = deepcopy(r.meta)
+                    dim = self.splitter.dim
+                    if dim > 0:  # don't update affine if channel dim
+                        affine = r.affine
+                        ndim = len(r.affine)
+                        shift = torch.eye(ndim, device=affine.device, dtype=affine.dtype)
+                        shift[dim - 1, -1] = i
+                        r.affine = r.affine @ shift
+
+                d[split_key] = r
 
         return d
 

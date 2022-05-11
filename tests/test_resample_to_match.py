@@ -44,8 +44,8 @@ class TestResampleToMatch(unittest.TestCase):
             loader = Compose(
                 [
                     LoadImaged(("im1", "im2"), reader=reader),
-                    FromMetaTensord(("im1", "im2")),
                     EnsureChannelFirstd(("im1", "im2")),
+                    FromMetaTensord(("im1", "im2")),
                 ]
             )
             data = loader({"im1": self.fnames[0], "im2": self.fnames[1]})

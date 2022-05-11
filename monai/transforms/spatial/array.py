@@ -22,6 +22,7 @@ from numpy.lib.stride_tricks import as_strided
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, reorient_spatial_axes, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
@@ -217,6 +218,10 @@ class SpatialResample(Transform):
             if isinstance(src_affine, np.ndarray):
                 xform = np.linalg.solve(src_affine, dst_affine)
             else:
+                if isinstance(src_affine, MetaTensor):
+                    src_affine = src_affine.as_tensor()
+                if isinstance(dst_affine, MetaTensor):
+                    dst_affine = dst_affine.as_tensor()
                 xform = (
                     torch.linalg.solve(src_affine, dst_affine)
                     if pytorch_after(1, 8, 0)

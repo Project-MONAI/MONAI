@@ -77,7 +77,7 @@ class TestLoadImaged(unittest.TestCase):
 
             loader = LoadImaged(keys="img")
             loader.register(ITKReader(channel_dim=2))
-            t = Compose([FromMetaTensord("img"), EnsureChannelFirstD("img")])
+            t = Compose([EnsureChannelFirstD("img"), FromMetaTensord("img")])
             result = t(loader({"img": filename}))
             self.assertTupleEqual(result["img"].shape, (3, 32, 64, 128))
 
@@ -110,8 +110,8 @@ class TestConsistency(unittest.TestCase):
             new_xforms = Compose(
                 [
                     LoadImaged(keys, reader=reader_2),
-                    FromMetaTensord(keys),
                     EnsureChannelFirstD(keys),
+                    FromMetaTensord(keys),
                     ToMetaTensord(keys),
                 ]
             )

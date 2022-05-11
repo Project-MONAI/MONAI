@@ -48,8 +48,8 @@ class TestResampleToMatchd(unittest.TestCase):
             transforms = Compose(
                 [
                     LoadImaged(("im1", "im2")),
-                    FromMetaTensord(("im1", "im2")),
                     EnsureChannelFirstd(("im1", "im2")),
+                    FromMetaTensord(("im1", "im2")),
                     CopyItemsd(("im2", "im2_meta_dict"), names=("im3", "im3_meta_dict")),
                     ResampleToMatchd("im3", "im1_meta_dict"),
                     Lambda(update_fname),

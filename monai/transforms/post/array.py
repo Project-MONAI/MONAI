@@ -733,7 +733,7 @@ class ProbNMS(Transform):
         if self.sigma != 0:
             if not isinstance(prob_map, torch.Tensor):
                 prob_map = torch.as_tensor(prob_map, dtype=torch.float)
-            self.filter.to(prob_map)
+            self.filter.to(prob_map.device)
             prob_map = self.filter(prob_map)
 
         prob_map_shape = prob_map.shape

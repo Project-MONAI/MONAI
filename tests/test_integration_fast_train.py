@@ -88,8 +88,8 @@ class IntegrationFastTrain(DistTestCase):
         train_transforms = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                FromMetaTensord(["image", "label"]),
                 EnsureChannelFirstd(keys=["image", "label"]),
+                FromMetaTensord(["image", "label"]),
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
                 ScaleIntensityd(keys="image"),
                 CropForegroundd(keys=["image", "label"], source_key="image"),
@@ -135,8 +135,8 @@ class IntegrationFastTrain(DistTestCase):
         val_transforms = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                FromMetaTensord(["image", "label"]),
                 EnsureChannelFirstd(keys=["image", "label"]),
+                FromMetaTensord(["image", "label"]),
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
                 ScaleIntensityd(keys="image"),
                 CropForegroundd(keys=["image", "label"], source_key="image"),

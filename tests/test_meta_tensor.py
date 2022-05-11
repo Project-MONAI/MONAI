@@ -198,7 +198,6 @@ class TestMetaTensor(unittest.TestCase):
         conv = torch.nn.Conv3d(im.shape[1], 5, 3)
         conv.to(device)
         out = conv(im)
-        self.assertTrue(str(out).startswith("\nMetaData"))
         self.check(out, im, shape=False, vals=False, ids=False)
 
     @parameterized.expand(TESTS)
@@ -409,6 +408,16 @@ class TestMetaTensor(unittest.TestCase):
         for elem, im in zip(decollated, ims):
             self.assertIsInstance(elem, MetaTensor)
             self.check(elem, im, ids=False)
+
+    def test_str(self):
+        t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
+        s1 = str(t)
+        s2 = t.__repr__()
+        expected_out = (
+            "tensor([1.])\n" + "MetaData\n" + "\tfname: filename\n" + "\taffine: 1\n" + "\n" + "Is batch?: False"
+        )
+        for s in (s1, s2):
+            self.assertEqual(s, expected_out)
 
 
 if __name__ == "__main__":
