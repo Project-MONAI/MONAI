@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
 from monai.data.image_reader import WSIReader
-from monai.transforms import Compose, LoadImaged, ToTensord
+from monai.transforms import Compose, FromMetaTensord, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from monai.utils.enums import PostFix
 from tests.utils import download_url_or_skip_test, testing_data_config
@@ -193,6 +193,7 @@ class WSIReaderTests:
             train_transform = Compose(
                 [
                     LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    FromMetaTensord(keys=["image"]),
                     ToTensord(keys=["image"]),
                 ]
             )

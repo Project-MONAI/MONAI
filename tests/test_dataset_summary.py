@@ -19,6 +19,9 @@ import numpy as np
 
 from monai.data import Dataset, DatasetSummary, create_test_image_3d
 from monai.transforms import LoadImaged
+from monai.transforms.compose import Compose
+from monai.transforms.meta_utility.dictionary import FromMetaTensord
+from monai.transforms.utility.dictionary import ToNumpyd
 from monai.utils import set_determinism
 from monai.utils.enums import PostFix
 
@@ -50,12 +53,17 @@ class TestDatasetSummary(unittest.TestCase):
                 {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            dataset = Dataset(
-                data=data_dicts, transform=LoadImaged(keys=["image", "label"], meta_keys=["test1", "test2"])
+            t = Compose(
+                [
+                    LoadImaged(keys=["image", "label"]),
+                    FromMetaTensord(keys=["image", "label"]),
+                    ToNumpyd(keys=["image", "label", "image_meta_dict", "label_meta_dict"]),
+                ]
             )
+            dataset = Dataset(data=data_dicts, transform=t)
 
             # test **kwargs of `DatasetSummary` for `DataLoader`
-            calculator = DatasetSummary(dataset, num_workers=4, meta_key="test1", collate_fn=test_collate)
+            calculator = DatasetSummary(dataset, num_workers=4, meta_key="image_meta_dict", collate_fn=test_collate)
 
             target_spacing = calculator.get_target_spacing()
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))
@@ -85,7 +93,8 @@ class TestDatasetSummary(unittest.TestCase):
                 {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
+            t = Compose([LoadImaged(keys=["image", "label"]), FromMetaTensord(keys=["image", "label"])])
+            dataset = Dataset(data=data_dicts, transform=t)
 
             calculator = DatasetSummary(dataset, num_workers=4, meta_key_postfix=PostFix.meta())
 

@@ -22,6 +22,7 @@ from monai.transforms import (
     Compose,
     CopyItemsd,
     EnsureTyped,
+    FromMetaTensord,
     Invertd,
     LoadImaged,
     Orientationd,
@@ -50,6 +51,7 @@ class TestInvertd(unittest.TestCase):
         transform = Compose(
             [
                 LoadImaged(KEYS),
+                FromMetaTensord(KEYS),
                 AddChanneld(KEYS),
                 Orientationd(KEYS, "RPS"),
                 Spacingd(KEYS, pixdim=(1.2, 1.01, 0.9), mode=["bilinear", "nearest"], dtype=np.float32),
@@ -156,7 +158,7 @@ class TestInvertd(unittest.TestCase):
         reverted = item["label_inverted"].detach().cpu().numpy().astype(np.int32)
         original = LoadImaged(KEYS)(data[-1])["label"]
         n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
-        reverted_name = item[PostFix.meta("label_inverted")]["filename_or_obj"]
+        reverted_name = item["label_inverted"].meta["filename_or_obj"]
         original_name = data[-1]["label"]
         self.assertEqual(reverted_name, original_name)
         print("invert diff", reverted.size - n_good)
