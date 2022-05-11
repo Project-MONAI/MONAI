@@ -18,6 +18,7 @@ import torch
 
 from monai.networks.utils import replace_modules_temp
 from monai.utils.module import optional_import
+from monai.visualize.class_activation_maps import ModelWithHooks
 
 trange, has_trange = optional_import("tqdm", name="trange")
 
@@ -45,35 +46,38 @@ class _AutoGradReLU(torch.autograd.Function):
 
 class _GradReLU(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out: torch.Tensor = _AutoGradReLU().apply(x)
+        out: torch.Tensor = _AutoGradReLU.apply(x)
         return out
 
     def backward(self, x: torch.Tensor) -> torch.Tensor:
-        out: torch.Tensor = _AutoGradReLU().backward(x)
+        out: torch.Tensor = _AutoGradReLU.backward(x)
         return out
 
 
 class VanillaGrad:
     def __init__(self, model: torch.nn.Module) -> None:
-        self.model = model
+        if not isinstance(model, ModelWithHooks):  # Convert to model with hooks if necessary
+            self._model = ModelWithHooks(model, target_layer_names="no_layer", register_backward=True)
+        else:
+            self._model = model
 
-    def get_grad(self, x: torch.Tensor, index: torch.Tensor | int | None) -> torch.Tensor:
+    @property
+    def model(self):
+        return self._model.model
+
+    @model.setter
+    def model(self, m):
+        if not isinstance(m, ModelWithHooks):  # regular model as ModelWithHooks
+            self._model.model = m
+        else:
+            self._model = m  # replace the ModelWithHooks
+
+    def get_grad(self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph=True) -> torch.Tensor:
         if x.shape[0] != 1:
             raise ValueError("expect batch size of 1")
         x.requires_grad = True
 
-        output: torch.Tensor = self.model(x)
-
-        if index is None:
-            index = output.argmax().detach()
-
-        num_classes = output.shape[-1]
-        one_hot = torch.zeros((1, num_classes), dtype=torch.float32, device=x.device)
-        one_hot[0][index] = 1
-        one_hot.requires_grad = True
-        one_hot = torch.sum(one_hot * output)
-
-        one_hot.backward(retain_graph=True)
+        self._model(x, class_idx=index, retain_graph=retain_graph)
         grad: torch.Tensor = x.grad.detach()
         return grad
 
