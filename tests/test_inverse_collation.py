@@ -30,6 +30,7 @@ from monai.transforms import (
     RandZoomd,
     ResizeWithPadOrCropd,
     ToTensord,
+    FromMetaTensord,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
@@ -84,12 +85,12 @@ class TestInverseCollation(unittest.TestCase):
 
         b_size = 11
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107))
-        load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
+        load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS), FromMetaTensord(KEYS)])
         self.data_3d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
         b_size = 8
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10))
-        load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
+        load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS), FromMetaTensord(KEYS)])
         self.data_2d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
         self.batch_size = 7
@@ -113,7 +114,7 @@ class TestInverseCollation(unittest.TestCase):
 
         for item in loader:
             np.testing.assert_array_equal(
-                item["image_transforms"][0]["do_transforms"], item["label_transforms"][0]["do_transforms"]
+                item["image_transforms"][1]["do_transforms"], item["label_transforms"][1]["do_transforms"]
             )
 
 
