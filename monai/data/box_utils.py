@@ -21,13 +21,19 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_to_numpy, convert_to_tensor
 
-CORNER_CORNER_MODE = ["xyxy", "xyzxyz"]  # [2d_mode, 3d_mode]
-XXYYZZ_MODE = ["xxyy", "xxyyzz"]  # [2d_mode, 3d_mode]
-CORNER_SIZE_MODE = ["xywh", "xyzwhd"]  # [2d_mode, 3d_mode]
-CENTER_SIZE_MODE = ["ccwh", "cccwhd"]  # [2d_mode, 3d_mode]
+# We support several box modes, i.e., representation of a bounding box
+CORNER_CORNER_MODE = ["xyxy", "xyzxyz"]  # [xmin, ymin, xmax, ymax] and [xmin, ymin, zmin, xmax, ymax, zmax]
+XXYYZZ_MODE = ["xxyy", "xxyyzz"]  # [xmin, xmax, ymin, ymax] and [xmin, xmax, ymin, ymax, zmin, zmax]
+CORNER_SIZE_MODE = ["xywh", "xyzwhd"]  # [xmin, ymin, xsize, ysize] and [xmin, ymin, zmin, xsize, ysize, zsize]
+CENTER_SIZE_MODE = [
+    "ccwh",
+    "cccwhd",
+]  # [xcenter, ycenter, x_size, y_size] and [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 
-STANDARD_MODE = CORNER_CORNER_MODE  # [2d_mode, 3d_mode]
-SUPPORT_MODE = CORNER_CORNER_MODE + XXYYZZ_MODE + CORNER_SIZE_MODE + CENTER_SIZE_MODE
+STANDARD_MODE = CORNER_CORNER_MODE  # standard box modes supported by all the box util functions
+SUPPORT_MODE = (
+    CORNER_CORNER_MODE + XXYYZZ_MODE + CORNER_SIZE_MODE + CENTER_SIZE_MODE
+)  # supported box modes for some box util functions
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
 #      i.e., when x_min=1, x_max=2, we have w = 1
