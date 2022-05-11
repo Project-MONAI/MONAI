@@ -298,3 +298,6 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         # return the `MetaTensor`
         return MetaTensor(img, meta=meta)
+
+    def __repr__(self, *, tensor_contents=None):
+        return self.as_tensor().__repr__() + super().__repr__()
