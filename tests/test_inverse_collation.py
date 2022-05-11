@@ -21,6 +21,7 @@ from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_te
 from monai.transforms import (
     AddChanneld,
     Compose,
+    FromMetaTensord,
     LoadImaged,
     RandAffined,
     RandAxisFlipd,
@@ -30,7 +31,6 @@ from monai.transforms import (
     RandZoomd,
     ResizeWithPadOrCropd,
     ToTensord,
-    FromMetaTensord,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
