@@ -199,14 +199,7 @@ def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
         split_result = bbox.split(1, dim=-1)
     elif mode == "xyzxyz":
         xmin, ymin, zmin, xmax, ymax, zmax = bbox.split(1, dim=-1)
-        split_result = (
-            xmin,
-            xmax,
-            ymin,
-            ymax,
-            zmin,
-            zmax,
-        )
+        split_result = (xmin, xmax, ymin, ymax, zmin, zmax)
     elif mode == "xyxy":
         xmin, ymin, xmax, ymax = bbox.split(1, dim=-1)
         split_result = (xmin, xmax, ymin, ymax)
@@ -454,9 +447,7 @@ def box_affine(bbox: NdarrayOrTensor, affine: torch.Tensor, mode: Union[str, Non
 
 
 def box_clip_to_patch(
-    bbox: NdarrayOrTensor,
-    patch_box: Union[Sequence[int], torch.Tensor, np.ndarray],
-    remove_empty: bool = True,
+    bbox: NdarrayOrTensor, patch_box: Union[Sequence[int], torch.Tensor, np.ndarray], remove_empty: bool = True
 ):
     """
     This function makes sure the bounding boxes are within the patch.
@@ -512,9 +503,7 @@ def box_clip_to_patch(
 
 
 def box_clip_to_image(
-    bbox: NdarrayOrTensor,
-    image_size: Union[Sequence[int], torch.Tensor, np.ndarray],
-    remove_empty: bool = True,
+    bbox: NdarrayOrTensor, image_size: Union[Sequence[int], torch.Tensor, np.ndarray], remove_empty: bool = True
 ):
     """
     This function makes sure the bounding boxes are within the image.
@@ -786,11 +775,7 @@ def box_pair_giou(bbox1: NdarrayOrTensor, bbox2: NdarrayOrTensor) -> NdarrayOrTe
 
 
 def non_max_suppression(
-    bbox: NdarrayOrTensor,
-    scores: NdarrayOrTensor,
-    nms_thresh: float,
-    max_proposals=-1,
-    box_overlap_metric="iou",
+    bbox: NdarrayOrTensor, scores: NdarrayOrTensor, nms_thresh: float, max_proposals=-1, box_overlap_metric="iou"
 ):
     """
     written by Can Zhao, 2019
