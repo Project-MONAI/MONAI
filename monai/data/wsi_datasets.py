@@ -10,13 +10,13 @@
 # limitations under the License.
 
 import inspect
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.data import Dataset
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
-from monai.transforms import GridSplit, apply_transform
+from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["PatchWSIDataset"]
