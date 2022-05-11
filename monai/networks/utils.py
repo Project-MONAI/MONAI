@@ -15,7 +15,8 @@ import re
 import warnings
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
+from copy import deepcopy
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -41,6 +42,8 @@ __all__ = [
     "save_state",
     "convert_to_torchscript",
     "meshgrid_ij",
+    "replace_modules",
+    "replace_modules_temp",
 ]
 
 
@@ -281,14 +284,16 @@ def pixelshuffle(
             f"divisible by scale_factor ** dimensions ({factor}**{dim}={scale_divisor})."
         )
 
-    org_channels = channels // scale_divisor
+    org_channels = int(channels // scale_divisor)
     output_size = [batch_size, org_channels] + [d * factor for d in input_size[2:]]
 
-    indices = tuple(range(2, 2 + 2 * dim))
-    indices_factor, indices_dim = indices[:dim], indices[dim:]
-    permute_indices = (0, 1) + sum(zip(indices_dim, indices_factor), ())
+    indices = list(range(2, 2 + 2 * dim))
+    indices = indices[dim:] + indices[:dim]
+    permute_indices = [0, 1]
+    for idx in range(dim):
+        permute_indices.extend(indices[idx::dim])
 
-    x = x.reshape(batch_size, org_channels, *([factor] * dim + input_size[2:]))
+    x = x.reshape([batch_size, org_channels] + [factor] * dim + input_size[2:])
     x = x.permute(permute_indices).reshape(output_size)
     return x
 
@@ -502,7 +507,6 @@ def convert_to_torchscript(
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush)
             or a string containing a file path name to save the TorchScript model.
         extra_files: map from filename to contents which will be stored as part of the save model file.
-            works for PyTorch 1.7 or later.
             for more details: https://pytorch.org/docs/stable/generated/torch.jit.save.html.
         verify: whether to verify the input and output of TorchScript model.
             if `filename_or_obj` is not None, load the saved TorchScript model and verify.
@@ -519,10 +523,7 @@ def convert_to_torchscript(
     with torch.no_grad():
         script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
-            if not pytorch_after(1, 7):
-                torch.jit.save(m=script_module, f=filename_or_obj)
-            else:
-                torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
+            torch.jit.save(m=script_module, f=filename_or_obj, _extra_files=extra_files)
 
     if verify:
         if device is None:
@@ -553,3 +554,102 @@ def meshgrid_ij(*tensors):
     if pytorch_after(1, 10):
         return torch.meshgrid(*tensors, indexing="ij")
     return torch.meshgrid(*tensors)
+
+
+def _replace_modules(
+    parent: torch.nn.Module,
+    name: str,
+    new_module: torch.nn.Module,
+    out: List[Tuple[str, torch.nn.Module]],
+    strict_match: bool = True,
+    match_device: bool = True,
+) -> None:
+    """
+    Helper function for :py:class:`monai.networks.utils.replace_modules`.
+    """
+    if match_device:
+        devices = list({i.device for i in parent.parameters()})
+        # if only one device for whole of model
+        if len(devices) == 1:
+            new_module.to(devices[0])
+    idx = name.find(".")
+    # if there is "." in name, call recursively
+    if idx != -1:
+        parent_name = name[:idx]
+        parent = getattr(parent, parent_name)
+        name = name[idx + 1 :]
+        _out: List[Tuple[str, torch.nn.Module]] = []
+        _replace_modules(parent, name, new_module, _out)
+        # prepend the parent name
+        out += [(f"{parent_name}.{r[0]}", r[1]) for r in _out]
+    # no "." in module name, do the actual replacing
+    else:
+        if strict_match:
+            old_module = getattr(parent, name)
+            setattr(parent, name, new_module)
+            out += [(name, old_module)]
+        else:
+            for mod_name, _ in parent.named_modules():
+                if name in mod_name:
+                    _replace_modules(parent, mod_name, deepcopy(new_module), out, strict_match=True)
+
+
+def replace_modules(
+    parent: torch.nn.Module,
+    name: str,
+    new_module: torch.nn.Module,
+    strict_match: bool = True,
+    match_device: bool = True,
+) -> List[Tuple[str, torch.nn.Module]]:
+    """
+    Replace sub-module(s) in a parent module.
+
+    The name of the module to be replace can be nested e.g.,
+    `features.denseblock1.denselayer1.layers.relu1`. If this is the case (there are "."
+    in the module name), then this function will recursively call itself.
+
+    Args:
+        parent: module that contains the module to be replaced
+        name: name of module to be replaced. Can include ".".
+        new_module: `torch.nn.Module` to be placed at position `name` inside `parent`. This will
+            be deep copied if `strict_match == False` multiple instances are independent.
+        strict_match: if `True`, module name must `== name`. If false then
+            `name in named_modules()` will be used. `True` can be used to change just
+            one module, whereas `False` can be used to replace all modules with similar
+            name (e.g., `relu`).
+        match_device: if `True`, the device of the new module will match the model. Requires all
+            of `parent` to be on the same device.
+
+    Returns:
+        List of tuples of replaced modules. Element 0 is module name, element 1 is the replaced module.
+
+    Raises:
+        AttributeError: if `strict_match` is `True` and `name` is not a named module in `parent`.
+    """
+    out: List[Tuple[str, torch.nn.Module]] = []
+    _replace_modules(parent, name, new_module, out, strict_match, match_device)
+    return out
+
+
+@contextmanager
+def replace_modules_temp(
+    parent: torch.nn.Module,
+    name: str,
+    new_module: torch.nn.Module,
+    strict_match: bool = True,
+    match_device: bool = True,
+):
+    """
+    Temporarily replace sub-module(s) in a parent module (context manager).
+
+    See :py:class:`monai.networks.utils.replace_modules`.
+    """
+    replaced: List[Tuple[str, torch.nn.Module]] = []
+    try:
+        # replace
+        _replace_modules(parent, name, new_module, replaced, strict_match, match_device)
+        yield
+    finally:
+        # revert
+        for name, module in replaced:
+            _replace_modules(parent, name, module, [], strict_match=True, match_device=match_device)
