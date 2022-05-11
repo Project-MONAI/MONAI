@@ -600,9 +600,14 @@ def ckpt_export(
         filename = os.path.basename(i)
         # remove extension
         filename, _ = os.path.splitext(filename)
+        # because all files are stored as JSON their name parts without extension must be unique
         if filename in extra_files:
-            raise ValueError(f"filename '{filename}' is given multiple times in config file list.")
+            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
+        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
         extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
+
+    # add .json extension to all extra files which are always encoded as JSON
+    extra_files = {k + ".json": v for k, v in extra_files.items()}
 
     save_net_with_metadata(
         jit_obj=net,
