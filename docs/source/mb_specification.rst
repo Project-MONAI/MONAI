@@ -22,11 +22,11 @@ A MONAI Bundle is defined primarily as a directory with a set of specifically na
   ┃  ┗━ metadata.json
   ┣━ models
   ┃  ┣━ model.pt
-  ┃  ┣━ model.ts
-  ┃  ┗━ model.onnx
+  ┃  ┣━ *model.ts
+  ┃  ┗━ *model.onnx
   ┗━ docs
-     ┣━ README.md
-     ┗━ license.txt
+     ┣━ *README.md
+     ┗━ *license.txt
 
 
 The following files are **required** to be present with the given filenames for the directory to define a valid bundle:
