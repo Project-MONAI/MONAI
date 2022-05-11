@@ -16,6 +16,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 from tests.utils import TEST_NDARRAYS
 
@@ -84,7 +85,9 @@ class TestConvertDataSame(unittest.TestCase):
         if isinstance(in_image, torch.Tensor):
             self.assertEqual(in_image.device, orig_device)
         # check output is desired type
-        if isinstance(im_out, torch.Tensor):
+        if isinstance(im_out, MetaTensor):
+            output_type = MetaTensor
+        elif isinstance(im_out, torch.Tensor):
             output_type = torch.Tensor
         else:
             output_type = np.ndarray
