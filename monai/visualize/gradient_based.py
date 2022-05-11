@@ -57,7 +57,7 @@ class _GradReLU(torch.nn.Module):
 class VanillaGrad:
     def __init__(self, model: torch.nn.Module) -> None:
         if not isinstance(model, ModelWithHooks):  # Convert to model with hooks if necessary
-            self._model = ModelWithHooks(model, target_layer_names="no_layer", register_backward=True)
+            self._model = ModelWithHooks(model, target_layer_names=(), register_backward=True)
         else:
             self._model = model
 

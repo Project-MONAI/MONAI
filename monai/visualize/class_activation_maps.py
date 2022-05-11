@@ -89,7 +89,7 @@ class ModelWithHooks:
                     mod.register_backward_hook(self.backward_hook(name))
             if self.register_forward:
                 mod.register_forward_hook(self.forward_hook(name))
-        if len(_registered) != len(self.target_layers):
+        if self.target_layers and (len(_registered) != len(self.target_layers)):
             warnings.warn(f"Not all target_layers exist in the network module: targets: {self.target_layers}.")
 
     def backward_hook(self, name):
