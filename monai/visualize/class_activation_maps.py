@@ -139,10 +139,10 @@ class ModelWithHooks:
             self.score.sum().backward(retain_graph=retain_graph)
             for layer in self.target_layers:
                 if layer not in self.gradients:
-                    raise RuntimeError(
+                    warnings.warn(
                         f"Backward hook for {layer} is not triggered; `requires_grad` of {layer} should be `True`."
                     )
-            grad = tuple(self.gradients[layer] for layer in self.target_layers)
+            grad = tuple(self.gradients[layer] for layer in self.target_layers if layer in self.gradients)
         if train:
             self.model.train()
         return logits, acti, grad
