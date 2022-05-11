@@ -1144,7 +1144,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         bg_indices: Optional[NdarrayOrTensor] = None,
         image: Optional[NdarrayOrTensor] = None,
     ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         if fg_indices is None or bg_indices is None:
             fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
         else:
@@ -1169,8 +1168,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         bg_indices = d.pop(self.bg_indices_key, None) if self.bg_indices_key is not None else None
 
         self.randomize(label, fg_indices, bg_indices, image)
-        if not isinstance(self.spatial_size, tuple):
-            raise ValueError("spatial_size must be a valid tuple.")
         if self.centers is None:
             raise ValueError("no available ROI centers to crop.")
 
@@ -1183,8 +1180,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
                 results[i][key] = deepcopy(d[key])
             for key in self.key_iterator(d):
                 img = d[key]
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
                 orig_size = img.shape[1:]
+                roi_size = fall_back_tuple(self.spatial_size, default=orig_size)
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
                 results[i][key] = cropper(img)
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
             # add `patch_index` to the meta data
@@ -1204,7 +1202,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             orig_size = np.asarray(transform[TraceKeys.ORIG_SIZE])
             current_size = np.asarray(d[key].shape[1:])
             center = transform[TraceKeys.EXTRA_INFO]["center"]
-            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+            roi_size = fall_back_tuple(self.spatial_size, default=orig_size)
+            cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)  # type: ignore
             # get required pad to start and end
             pad_to_start = np.array([s.indices(o)[0] for s, o in zip(cropper.slices, orig_size)])
             pad_to_end = orig_size - current_size - pad_to_start
@@ -1318,7 +1317,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.label_key = label_key
-        self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
+        self.spatial_size = spatial_size
         self.ratios = ratios
         self.num_classes = num_classes
         self.num_samples = num_samples
@@ -1338,7 +1337,6 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         indices: Optional[List[NdarrayOrTensor]] = None,
         image: Optional[NdarrayOrTensor] = None,
     ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         if indices is None:
             indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         else:
@@ -1354,8 +1352,6 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         indices = d.pop(self.indices_key, None) if self.indices_key is not None else None
 
         self.randomize(label, indices, image)
-        if not isinstance(self.spatial_size, tuple):
-            raise ValueError("spatial_size must be a valid tuple.")
         if self.centers is None:
             raise ValueError("no available ROI centers to crop.")
 
@@ -1368,8 +1364,9 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
                 results[i][key] = deepcopy(d[key])
             for key in self.key_iterator(d):
                 img = d[key]
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
                 orig_size = img.shape[1:]
+                roi_size = fall_back_tuple(self.spatial_size, default=orig_size)
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
                 results[i][key] = cropper(img)
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
             # add `patch_index` to the meta data
@@ -1389,7 +1386,8 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             orig_size = np.asarray(transform[TraceKeys.ORIG_SIZE])
             current_size = np.asarray(d[key].shape[1:])
             center = transform[TraceKeys.EXTRA_INFO]["center"]
-            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+            roi_size = fall_back_tuple(self.spatial_size, default=orig_size)
+            cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)  # type: ignore
             # get required pad to start and end
             pad_to_start = np.array([s.indices(o)[0] for s, o in zip(cropper.slices, orig_size)])
             pad_to_end = orig_size - current_size - pad_to_start
