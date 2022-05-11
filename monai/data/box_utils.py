@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from copy import deepcopy
-from typing import List, Sequence, Union
+from typing import Sequence, Union
 
 import numpy as np
 import torch
@@ -106,7 +106,7 @@ def get_standard_mode(spatial_dims: int) -> str:
 
 
 def point_interp(
-    point: Union[torch.Tensor, np.ndarray], zoom: Union[Sequence[float], float]
+    point: NdarrayOrTensor, zoom: Union[Sequence[float], float]
 ) -> Union[Sequence, torch.Tensor, np.ndarray]:
     """
     Convert point position from one pixel/voxel size to another pixel/voxel size
@@ -131,7 +131,7 @@ def point_interp(
 
 
 def box_interp(
-    bbox: Union[torch.Tensor, np.ndarray], zoom: Union[Sequence[float], float], mode: Union[str, None] = None
+    bbox: NdarrayOrTensor, zoom: Union[Sequence[float], float], mode: Union[str, None] = None
 ) -> torch.Tensor:
     """
     Interpolate bbox
@@ -167,7 +167,7 @@ def box_interp(
     return bbox2
 
 
-def split_into_corners(bbox: Union[torch.Tensor, np.ndarray], mode: Union[str, None] = None):
+def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
     """
     This internal function outputs the corner coordinates of the bbox
     Args:
@@ -251,8 +251,8 @@ def split_into_corners(bbox: Union[torch.Tensor, np.ndarray], mode: Union[str, N
 
 
 def box_convert_mode(
-    bbox1: Union[torch.Tensor, np.ndarray], mode1: Union[str, None] = None, mode2: Union[str, None] = None
-) -> Union[torch.Tensor, np.ndarray]:
+    bbox1: NdarrayOrTensor, mode1: Union[str, None] = None, mode2: Union[str, None] = None
+) -> NdarrayOrTensor:
     """
     This function converts the bbox1 in mode 1 to the mode2
     Args:
@@ -342,8 +342,8 @@ def box_convert_mode(
 
 
 def box_convert_standard_mode(
-    bbox: Union[torch.Tensor, np.ndarray], mode: Union[str, None] = None
-) -> Union[torch.Tensor, np.ndarray]:
+    bbox: NdarrayOrTensor, mode: Union[str, None] = None
+) -> NdarrayOrTensor:
     """
     Convert given bbox to standard mode
     Args:
@@ -360,7 +360,7 @@ def box_convert_standard_mode(
 
 
 def point_affine(
-    point: Union[torch.Tensor, np.ndarray], affine: Union[torch.Tensor, np.ndarray], include_shift: bool = True
+    point: NdarrayOrTensor, affine: NdarrayOrTensor, include_shift: bool = True
 ) -> Union[Sequence, torch.Tensor, np.ndarray]:
     """
     Convert point position from one pixel/voxel size to another pixel/voxel size
@@ -405,7 +405,7 @@ def point_affine(
 
 
 def box_affine(
-    bbox: Union[torch.Tensor, np.ndarray], affine: torch.Tensor, mode: Union[str, None] = None
+    bbox: NdarrayOrTensor, affine: torch.Tensor, mode: Union[str, None] = None
 ) -> torch.Tensor:
     """
     This function applys affine matrixs to the bbox
@@ -458,7 +458,7 @@ def box_affine(
 
 
 def box_clip_to_patch(
-    bbox: Union[torch.Tensor, np.ndarray],
+    bbox: NdarrayOrTensor,
     patch_box: Union[Sequence[int], torch.Tensor, np.ndarray],
     remove_empty: bool = True,
 ):
@@ -516,7 +516,7 @@ def box_clip_to_patch(
 
 
 def box_clip_to_image(
-    bbox: Union[torch.Tensor, np.ndarray],
+    bbox: NdarrayOrTensor,
     image_size: Union[Sequence[int], torch.Tensor, np.ndarray],
     remove_empty: bool = True,
 ):
@@ -533,7 +533,7 @@ def box_clip_to_image(
     return box_clip_to_patch(bbox, image_box, remove_empty)
 
 
-def box_area(bbox: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+def box_area(bbox: NdarrayOrTensor) -> NdarrayOrTensor:
     """
     This function computes the area of each box
     Args:
@@ -566,8 +566,8 @@ def box_area(bbox: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.nd
 
 
 def box_iou(
-    bbox1: Union[torch.Tensor, np.ndarray], bbox2: Union[torch.Tensor, np.ndarray]
-) -> Union[torch.Tensor, np.ndarray]:
+    bbox1: NdarrayOrTensor, bbox2: NdarrayOrTensor
+) -> NdarrayOrTensor:
     """
     Compute the intersection over union of two set of boxes. This function is not differentialable.
 
@@ -632,8 +632,8 @@ def box_iou(
 
 
 def box_giou(
-    bbox1: Union[torch.Tensor, np.ndarray], bbox2: Union[torch.Tensor, np.ndarray]
-) -> Union[torch.Tensor, np.ndarray]:
+    bbox1: NdarrayOrTensor, bbox2: NdarrayOrTensor
+) -> NdarrayOrTensor:
     """
     Compute the generalized intersection over union of two set of boxes. This function is not differentialable.
 
@@ -712,8 +712,8 @@ def box_giou(
 
 
 def box_pair_giou(
-    bbox1: Union[torch.Tensor, np.ndarray], bbox2: Union[torch.Tensor, np.ndarray]
-) -> Union[torch.Tensor, np.ndarray]:
+    bbox1: NdarrayOrTensor, bbox2: NdarrayOrTensor
+) -> NdarrayOrTensor:
     """
     Compute the generalized intersection over union of two set of boxes. This function is not differentialable.
 
@@ -796,8 +796,8 @@ def box_pair_giou(
 
 
 def non_max_suppression(
-    bbox: Union[torch.Tensor, np.ndarray],
-    scores: Union[torch.Tensor, np.ndarray],
+    bbox: NdarrayOrTensor,
+    scores: NdarrayOrTensor,
     nms_thresh: float,
     max_proposals=-1,
     box_overlap_metric="iou",
@@ -860,7 +860,7 @@ def non_max_suppression(
     return pick_idx
 
 
-def box_center(bbox: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
+def box_center(bbox: NdarrayOrTensor) -> torch.Tensor:
     """
     Compute center point of bbox
     Args:
@@ -919,8 +919,8 @@ def box_center_dist(bbox1: torch.Tensor, bbox2: torch.Tensor, euclidean: bool = 
 
 
 def center_in_boxes(
-    center: Union[torch.Tensor, np.ndarray], bbox: Union[torch.Tensor, np.ndarray], eps: float = 0.01
-) -> Union[torch.Tensor, np.ndarray]:
+    center: NdarrayOrTensor, bbox: NdarrayOrTensor, eps: float = 0.01
+) -> NdarrayOrTensor:
     """
     Checks which center points are within bbox
     Args:
@@ -942,10 +942,10 @@ def center_in_boxes(
 
 
 def resize_boxes(
-    bbox: Union[torch.Tensor, np.ndarray],
+    bbox: NdarrayOrTensor,
     original_size: Union[Sequence, torch.Tensor, np.ndarray],
     new_size: Union[Sequence, torch.Tensor, np.ndarray],
-) -> Union[torch.Tensor, np.ndarray]:
+) -> NdarrayOrTensor:
     """
     modified from torchvision
     Args:
