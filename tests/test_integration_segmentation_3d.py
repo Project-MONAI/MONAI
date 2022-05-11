@@ -61,8 +61,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     train_transforms = Compose(
         [
             LoadImaged(keys=["img", "seg"], reader=readers[0]),
-            FromMetaTensord(["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
+            FromMetaTensord(["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
@@ -78,8 +78,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     val_transforms = Compose(
         [
             LoadImaged(keys=["img", "seg"], reader=readers[1]),
-            FromMetaTensord(["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
+            FromMetaTensord(["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
@@ -189,8 +189,8 @@ def run_inference_test(root_dir, device="cuda:0"):
     val_transforms = Compose(
         [
             LoadImaged(keys=["img", "seg"]),
-            FromMetaTensord(["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
+            FromMetaTensord(["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
