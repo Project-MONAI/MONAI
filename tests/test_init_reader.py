@@ -11,7 +11,7 @@
 
 import unittest
 
-from monai.data import ITKReader, NibabelReader, NumpyReader, PILReader, NrrdReader
+from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader
 from monai.transforms import LoadImage, LoadImaged
 from tests.utils import SkipIfNoModule
 
@@ -47,7 +47,7 @@ class TestInitLoadImage(unittest.TestCase):
 
         inst = PILReader()
         self.assertIsInstance(inst, PILReader)
-    
+
         inst = NrrdReader()
         self.assertIsInstance(inst, NrrdReader)
 

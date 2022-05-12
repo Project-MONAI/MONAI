@@ -999,7 +999,7 @@ class NrrdReader(ImageReader):
             If None, `original_channel_dim` will be either `no_channel` or `0`.
             NRRD files are usually "channel first".
         dtype: dtype of the data array when loading image.
-        index_order: Specify whether the returned data array should be in C-order (‘C’) or Fortran-order (‘F’). 
+        index_order: Specify whether the returned data array should be in C-order (‘C’) or Fortran-order (‘F’).
             Numpy is usually in C-order, but default on the NRRD header is F
         kwargs: additional args for `nrrd.read` API. more details about available args:
             https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
@@ -1007,10 +1007,11 @@ class NrrdReader(ImageReader):
     """
 
     def __init__(
-        self, channel_dim: Optional[int] = None, 
-        dtype: Union[np.dtype, type, str, None] = np.float32, 
+        self,
+        channel_dim: Optional[int] = None,
+        dtype: Union[np.dtype, type, str, None] = np.float32,
         index_order: str = "F",
-        **kwargs
+        **kwargs,
     ):
         self.channel_dim = channel_dim
         self.dtype = dtype
@@ -1071,8 +1072,8 @@ class NrrdReader(ImageReader):
             header = self._switch_lps_ras(header)
             header["affine"] = header["original_affine"].copy()
             header["spatial_shape"] = header["sizes"]
-            [header.pop(k) for k in ("sizes", "space origin", "space directions")] # rm duplicated data in header
-            
+            [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
+
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else 0
             else:
@@ -1104,20 +1105,20 @@ class NrrdReader(ImageReader):
         origin = img.header["space origin"]
 
         x, y = direction.shape
-        affine_diam = min(x, y)+1
+        affine_diam = min(x, y) + 1
         affine: np.ndarray = np.eye(affine_diam)
         affine[:x, :y] = direction
-        affine[:(affine_diam-1), -1] = origin # len origin is always affine_diam - 1
+        affine[: (affine_diam - 1), -1] = origin  # len origin is always affine_diam - 1
         return affine
-    
+
     def _switch_lps_ras(self, header: dict) -> dict:
         """
-        For compatibility with nibabel, switch from LPS to RAS. Adapt affine matrix and 
-        `space` argument in header accordingly. 
-        
-        Args: 
+        For compatibility with nibabel, switch from LPS to RAS. Adapt affine matrix and
+        `space` argument in header accordingly.
+
+        Args:
             header: The image meta data as dict
-            
+
         """
         if header["space"] == "left-posterior-superior":
             header["space"] = "right-anterior-superior"
@@ -1130,13 +1131,13 @@ class NrrdReader(ImageReader):
         1D arrays of header['space origin'] and header['sizes'] become inverted, e.g, [1,2,3] -> [3,2,1]
         The 2D Array for header['space directions'] is transposed: [[1,0,0],[0,2,0],[0,0,3]] -> [[3,0,0],[0,2,0],[0,0,1]]
         For more details refer to: https://pynrrd.readthedocs.io/en/latest/user-guide.html#index-ordering
-        
-        Args: 
+
+        Args:
             header: The image meta data as dict
-            
+
         """
-        
-        header["space directions"] = np.rot90(np.flip(header["space directions"] , 0))
+
+        header["space directions"] = np.rot90(np.flip(header["space directions"], 0))
         header["space origin"] = header["space origin"][::-1]
         header["sizes"] = header["sizes"][::-1]
         return header
