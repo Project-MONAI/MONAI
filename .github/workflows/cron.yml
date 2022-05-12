@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - feature-tests-metatensor
+  pull_request:
 
 jobs:
   cron-gpu:
