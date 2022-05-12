@@ -25,9 +25,9 @@ from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require
 if TYPE_CHECKING:
     import itk
     import nibabel as nib
+    import nrrd
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
-    import nrrd
 
     has_nrrd = has_itk = has_nib = has_pil = True
 else:
@@ -980,12 +980,10 @@ class WSIReader(ImageReader):
         return flat_patch_grid
 
 
-class NrrdImage():
+class NrrdImage:
     "Wrapper for image array and header"
 
-    def __init__(self,
-                 array: np.ndarray,
-                 header: dict) -> None:
+    def __init__(self, array: np.ndarray, header: dict) -> None:
         self.array = array
         self.header = header
 
@@ -1005,10 +1003,10 @@ class NrrdReader(ImageReader):
             https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
 
     """
-    def __init__(self,
-                 channel_dim: Optional[int] = None,
-                 dtype: Union[np.dtype, type, str, None] = np.float32,
-                 **kwargs):
+
+    def __init__(
+        self, channel_dim: Optional[int] = None, dtype: Union[np.dtype, type, str, None] = np.float32, **kwargs
+    ):
         self.channel_dim = channel_dim
         self.dtype = dtype
         self.kwargs = kwargs
@@ -1098,6 +1096,6 @@ class NrrdReader(ImageReader):
         affine: np.ndarray = np.eye(sr + 1)
         affine[:sr, :sr] = direction[:sr, :sr]
         affine[:sr, -1] = origin[:sr]
-        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1] # nrrd to nibabel affine
+        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1]  # nrrd to nibabel affine
         affine = np.diag(flip_diag) @ affine
         return affine
