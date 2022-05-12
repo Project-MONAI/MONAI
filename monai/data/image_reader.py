@@ -11,6 +11,7 @@
 
 import warnings
 from abc import ABC, abstractmethod
+from collections import namedtuple
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -980,14 +981,6 @@ class WSIReader(ImageReader):
         return flat_patch_grid
 
 
-class NrrdImage:
-    "Wrapper for image array and header"
-
-    def __init__(self, array: np.ndarray, header: dict) -> None:
-        self.array = array
-        self.header = header
-
-
 @require_pkg(pkg_name="nrrd")
 class NrrdReader(ImageReader):
     """
@@ -1027,7 +1020,7 @@ class NrrdReader(ImageReader):
                 if a list of files, verify all the suffixes.
 
         """
-        suffixes: Sequencec[str] = ["nrrd", "seg.nrrd"]
+        suffixes: Sequence[str] = ["nrrd", "seg.nrrd"]
         return has_nrrd and is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs) -> Union[Sequence[Any], Any]:
@@ -1045,21 +1038,24 @@ class NrrdReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, *kwargs_))
+            nrrd_image = namedtuple("nrrd_image", ["array", "header"])
+            array, header = nrrd.read(name, index_order=self.index_order, *kwargs_)
+            nrrd_image.array = array
+            nrrd_image.header = header
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img: Union[NrrdImage, List[NrrdImage]]) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, img: Union[namedtuple, List[namedtuple]]) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and meta data from loaded image and return them.
         This function must return two objects, the first is a numpy array of image data,
         the second is a dictionary of meta data.
 
         Args:
-            img: an `NrrdImage` object loaded from an image file or a list of image objects.
+            img: a nrrd image loaded from an image file or a list of image objects.
 
         """
-        img_array: List[NrrdImage] = []
+        img_array: List[namedtuple] = []
         compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):
@@ -1082,23 +1078,23 @@ class NrrdReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_array_data(self, img: NrrdImage) -> np.ndarray:
+    def _get_array_data(self, img: namedtuple) -> np.ndarray:
         """
         Get the array data as Numpy array of `self.dtype`
 
         Args:
-            img: A `NrrdImage` loaded from image file
+            img: A nrrd image loaded from image file
 
         """
         return img.array.astype(self.dtype)
 
-    def _get_affine(self, img: NrrdImage) -> np.ndarray:
+    def _get_affine(self, img: namedtuple) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
 
         Args:
-            img: A `NrrdImage` loaded from image file
+            img: A nrrd image loaded from image file
 
         """
         direction = img.header["space directions"]
@@ -1125,7 +1121,7 @@ class NrrdReader(ImageReader):
             header["original_affine"] = orientation_ras_lps(header["original_affine"])
         return header
 
-    def _convert_F_to_C_order(self, header: dict) -> dict:
+    def _convert_f_to_c_order(self, header: dict) -> dict:
         """
         All header fields of a NRRD are specified in `F` (Fortran) order, even if the image was read as C-ordered array.
         1D arrays of header['space origin'] and header['sizes'] become inverted, e.g, [1,2,3] -> [3,2,1]
