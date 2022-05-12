@@ -14,7 +14,7 @@ import unittest
 
 from monai.apps import CrossValidation, DecathlonDataset
 from monai.data import MetaTensor
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
+from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd
 from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
@@ -23,12 +23,7 @@ class TestCrossValidation(unittest.TestCase):
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         train_transform = Compose(
-            [
-                LoadImaged(keys=["image", "label"]),
-                AddChanneld(keys=["image", "label"]),
-                ScaleIntensityd(keys="image"),
-                ToTensord(keys=["image", "label"]),
-            ]
+            [LoadImaged(keys=["image", "label"]), AddChanneld(keys=["image", "label"]), ScaleIntensityd(keys="image")]
         )
         val_transform = LoadImaged(keys=["image", "label"])
 
