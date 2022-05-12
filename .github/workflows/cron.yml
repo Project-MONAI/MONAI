@@ -7,8 +7,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature-tests-metatensor
-  pull_request:
+      - feature/MetaTensor
 
 jobs:
   cron-gpu:
