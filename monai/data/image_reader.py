@@ -995,20 +995,26 @@ class NrrdReader(ImageReader):
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
-            this is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
-            if None, `original_channel_dim` will be either `no_channel` or `0`.
+            This is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            If None, `original_channel_dim` will be either `no_channel` or `0`.
             NRRD files are usually "channel first".
         dtype: dtype of the data array when loading image.
+        index_order: Specify whether the returned data array should be in C-order (‘C’) or Fortran-order (‘F’). 
+            Numpy is usually in C-order, but default on the NRRD header is F
         kwargs: additional args for `nrrd.read` API. more details about available args:
             https://github.com/mhe/pynrrd/blob/master/nrrd/reader.py
 
     """
 
     def __init__(
-        self, channel_dim: Optional[int] = None, dtype: Union[np.dtype, type, str, None] = np.float32, **kwargs
+        self, channel_dim: Optional[int] = None, 
+        dtype: Union[np.dtype, type, str, None] = np.float32, 
+        index_order: str = "F",
+        **kwargs
     ):
         self.channel_dim = channel_dim
         self.dtype = dtype
+        self.index_order = index_order
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
@@ -1038,7 +1044,7 @@ class NrrdReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            nrrd_image = NrrdImage(*nrrd.read(name, **kwargs_))
+            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, *kwargs_))
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
 
@@ -1059,10 +1065,14 @@ class NrrdReader(ImageReader):
             data = self._get_array_data(i)
             img_array.append(data)
             header = dict(i.header)
+            if self.index_order == "C":
+                header = self._convert_F_to_C_order(header)
             header["original_affine"] = self._get_affine(i)
+            header = self._switch_lps_ras(header)
             header["affine"] = header["original_affine"].copy()
-            header["spatial_shape"] = i.header["sizes"]
-
+            header["spatial_shape"] = header["sizes"]
+            [header.pop(k) for k in ("sizes", "space origin", "space directions")] # rm duplicated data in header
+            
             if self.channel_dim is None:  # default to "no_channel" or -1
                 header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else 0
             else:
@@ -1092,10 +1102,41 @@ class NrrdReader(ImageReader):
         """
         direction = img.header["space directions"]
         origin = img.header["space origin"]
-        sr = min(max(direction.shape[0], 1), 3)
-        affine: np.ndarray = np.eye(sr + 1)
-        affine[:sr, :sr] = direction[:sr, :sr]
-        affine[:sr, -1] = origin[:sr]
-        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1]  # nrrd to nibabel affine
-        affine = np.diag(flip_diag) @ affine
+
+        x, y = direction.shape
+        affine_diam = min(x, y)+1
+        affine: np.ndarray = np.eye(affine_diam)
+        affine[:x, :y] = direction
+        affine[:(affine_diam-1), -1] = origin # len origin is always affine_diam - 1
         return affine
+    
+    def _switch_lps_ras(self, header: dict) -> dict:
+        """
+        For compatibility with nibabel, switch from LPS to RAS. Adapt affine matrix and 
+        `space` argument in header accordingly. 
+        
+        Args: 
+            header: The image meta data as dict
+            
+        """
+        if header["space"] == "left-posterior-superior":
+            header["space"] = "right-anterior-superior"
+            header["original_affine"] = orientation_ras_lps(header["original_affine"])
+        return header
+
+    def _convert_F_to_C_order(self, header: dict) -> dict:
+        """
+        All header fields of a NRRD are specified in `F` (Fortran) order, even if the image was read as C-ordered array.
+        1D arrays of header['space origin'] and header['sizes'] become inverted, e.g, [1,2,3] -> [3,2,1]
+        The 2D Array for header['space directions'] is transposed: [[1,0,0],[0,2,0],[0,0,3]] -> [[3,0,0],[0,2,0],[0,0,1]]
+        For more details refer to: https://pynrrd.readthedocs.io/en/latest/user-guide.html#index-ordering
+        
+        Args: 
+            header: The image meta data as dict
+            
+        """
+        
+        header["space directions"] = np.rot90(np.flip(header["space directions"] , 0))
+        header["space origin"] = header["space origin"][::-1]
+        header["sizes"] = header["sizes"][::-1]
+        return header
