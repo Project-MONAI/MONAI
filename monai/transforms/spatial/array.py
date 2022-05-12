@@ -2541,12 +2541,7 @@ class GridSplit(Transform):
         input_size = self.size if size is None else ensure_tuple_rep(size, len(self.grid))
 
         if self.grid == (1, 1) and input_size is None:
-            if isinstance(image, torch.Tensor):
-                return [image]
-            elif isinstance(image, np.ndarray):
-                return [image]
-            else:
-                raise ValueError(f"Input type [{type(image)}] is not supported.")
+            return [image]
 
         split_size, steps = self._get_params(image.shape[1:], input_size)
         patches: List[NdarrayOrTensor]
