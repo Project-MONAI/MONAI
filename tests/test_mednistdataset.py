@@ -52,7 +52,7 @@ class TestMedNISTDataset(unittest.TestCase):
         data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False, seed=42)
         _test_dataset(data)
         self.assertEqual(data[0]["class_name"], "AbdomenCT")
-        self.assertEqual(data[0]["label"].cpu().item(), 0)
+        self.assertEqual(data[0]["label"], 0)
         shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
         try:
             MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
