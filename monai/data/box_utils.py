@@ -16,10 +16,8 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-
-# from monai.utils.misc import ensure_tuple_rep
 from monai.utils.module import look_up_option
-from monai.utils.type_conversion import convert_to_numpy, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 # We support several box modes, i.e., representation of a bounding box
 CORNER_CORNER_MODE = ["xyxy", "xyzxyz"]  # [xmin, ymin, xmax, ymax] and [xmin, ymin, zmin, xmax, ymax, zmax]
@@ -31,7 +29,7 @@ CENTER_SIZE_MODE = [
 ]  # [xcenter, ycenter, xsize, ysize] and [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 
 STANDARD_MODE = CORNER_CORNER_MODE  # standard box modes supported by all the box util functions
-SUPPORT_MODE = (
+SUPPORTED_MODE = (
     CORNER_CORNER_MODE + XXYYZZ_MODE + CORNER_SIZE_MODE + CENTER_SIZE_MODE
 )  # supported box modes for some box util functions
 
@@ -39,7 +37,7 @@ SUPPORT_MODE = (
 #      i.e., when xmin=1, xmax=2, we have w = 1
 # TO_REMOVE = 1  if in 'xxyy','xxyyzz' mode, the bottom-right corner is included in the box,
 #       i.e., when xmin=1, xmax=2, we have w = 2
-# Currently only TO_REMOVE = 0 has been tested. Please use TO_REMOVE = 0
+# Currently only TO_REMOVE = 0 has been tested. Please keep TO_REMOVE = 0
 TO_REMOVE = 0  # xmax-xmin = w -TO_REMOVE.
 
 
@@ -49,17 +47,10 @@ def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> l
     Args:
         in_sequence: Sequence or torch.Tensor or np.ndarray
     Returns:
-        in_sequence_list: a list
+        a list
 
     """
-    in_sequence_list = deepcopy(in_sequence)
-    if isinstance(in_sequence, torch.Tensor):
-        in_sequence_list = in_sequence_list.detach().cpu().numpy().tolist()
-    elif isinstance(in_sequence, np.ndarray):
-        in_sequence_list = in_sequence_list.tolist()
-    elif not isinstance(in_sequence, list):
-        in_sequence_list = list(in_sequence_list)
-    return in_sequence_list
+    return in_sequence.tolist() if isinstance(in_sequence, (torch.Tensor, np.ndarray)) else list(in_sequence)
 
 
 def get_dimension(
@@ -70,15 +61,17 @@ def get_dimension(
     """
     Get spatial dimension for the giving setting.
     Missing input is allowed. But at least one of the input value should be given.
+    It raises ValueError if the dimensions of multiple inputs do not match with each other.
     Args:
         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray
         image_size: Length of 2 or 3. Data format is list, or np.ndarray, or tensor of int
-        mode: box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
+        mode: box mode, choose from SUPPORTED_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
     Returns:
         spatial_dimension: 2 or 3
 
     Example:
         bbox = torch.ones(10,6)
+        get_dimension(bbox, mode="xyxy") will raise ValueError
         get_dimension(bbox, mode="xyzxyz") will return 3
         get_dimension(bbox, mode="xyzxyz", image_size=[100,200,200]) will return 3
         get_dimension(mode="xyzxyz") will return 3
@@ -127,10 +120,11 @@ def check_box_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
     It ensures the box size is non-negative.
     Args:
         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray
-        mode: box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
+        mode: box mode, choose from SUPPORTED_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
     Returns:
         raise Error is mode is not supported
-        raise Error if box has negative size
+        return False if box has negative size
+        return True if no issue found
 
     Example:
         bbox = torch.ones(10,6)
@@ -138,7 +132,7 @@ def check_box_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
     """
     if mode is None:
         mode = get_standard_mode(int(bbox.shape[1] / 2))
-    mode = look_up_option(mode, supported=SUPPORT_MODE)
+    mode = look_up_option(mode, supported=SUPPORTED_MODE)
     spatial_dims = get_dimension(bbox=bbox, mode=mode)
 
     # we need box size to be non-negative
@@ -155,12 +149,12 @@ def check_box_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
         for axis in range(1, spatial_dims):
             box_error = box_error | (bbox[:, spatial_dims + axis] < bbox[:, axis])
     else:
-        raise ValueError(f"Box mode {mode} not in {SUPPORT_MODE}.")
+        raise ValueError(f"Box mode {mode} not in {SUPPORTED_MODE}.")
 
     if box_error.sum() > 0:
-        raise ValueError("Given bbox has invalid values. The box size must be non-negative.")
+        return False
 
-    return
+    return True
 
 
 def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
@@ -168,7 +162,7 @@ def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
     This internal function outputs the corner coordinates of the bbox
     Args:
         bbox: bounding box, Nx4 or Nx6 torch tensor or ndarray
-        mode: box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
+        mode: box mode, choose from SUPPORTED_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
     Returns:
         if 2D image, outputs (xmin, xmax, ymin, ymax)
         if 3D images, outputs (xmin, xmax, ymin, ymax, zmin, zmax)
@@ -179,31 +173,27 @@ def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
         split_into_corners(bbox, mode="cccwhd")
     """
     # convert numpy to tensor if needed
-    if isinstance(bbox, np.ndarray):
-        bbox = convert_to_tensor(bbox)
-        numpy_bool = True
-    else:
-        numpy_bool = False
+    bbox_t, *_ = convert_data_type(bbox, torch.Tensor)
 
     # convert to float32 when computing torch.clamp, which does not support float16
-    box_dtype = bbox.dtype
+    box_dtype = bbox_t.dtype
     compute_dtype = torch.float32
 
     if mode is None:
-        mode = get_standard_mode(int(bbox.shape[1] / 2))
-    mode = look_up_option(mode, supported=SUPPORT_MODE)
+        mode = get_standard_mode(int(bbox_t.shape[1] / 2))
+    mode = look_up_option(mode, supported=SUPPORTED_MODE)
 
     # split tensor into corners
     if mode in ["xxyy", "xxyyzz"]:
-        split_result = bbox.split(1, dim=-1)
+        split_result = bbox_t.split(1, dim=-1)
     elif mode == "xyzxyz":
-        xmin, ymin, zmin, xmax, ymax, zmax = bbox.split(1, dim=-1)
+        xmin, ymin, zmin, xmax, ymax, zmax = bbox_t.split(1, dim=-1)
         split_result = (xmin, xmax, ymin, ymax, zmin, zmax)
     elif mode == "xyxy":
-        xmin, ymin, xmax, ymax = bbox.split(1, dim=-1)
+        xmin, ymin, xmax, ymax = bbox_t.split(1, dim=-1)
         split_result = (xmin, xmax, ymin, ymax)
     elif mode == "xyzwhd":
-        xmin, ymin, zmin, w, h, d = bbox.split(1, dim=-1)
+        xmin, ymin, zmin, w, h, d = bbox_t.split(1, dim=-1)
         split_result = (
             xmin,
             xmin + (w - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype),
@@ -213,10 +203,10 @@ def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
             zmin + (d - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype),
         )
     elif mode == "xywh":
-        xmin, ymin, w, h = bbox.split(1, dim=-1)
+        xmin, ymin, w, h = bbox_t.split(1, dim=-1)
         split_result = (xmin, xmin + (w - TO_REMOVE).clamp(min=0), ymin, ymin + (h - TO_REMOVE).clamp(min=0))
     elif mode == "cccwhd":
-        xc, yc, zc, w, h, d = bbox.split(1, dim=-1)
+        xc, yc, zc, w, h, d = bbox_t.split(1, dim=-1)
         split_result = (
             xc - ((w - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype),
             xc + ((w - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype),
@@ -226,7 +216,7 @@ def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
             zc + ((d - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype),
         )
     elif mode == "ccwh":
-        xc, yc, w, h = bbox.split(1, dim=-1)
+        xc, yc, w, h = bbox_t.split(1, dim=-1)
         split_result = (
             xc - ((w - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype),
             xc + ((w - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype),
@@ -237,68 +227,64 @@ def split_into_corners(bbox: NdarrayOrTensor, mode: Union[str, None] = None):
         raise RuntimeError("Should not be here")
 
     # convert tensor back to numpy if needed
-    if numpy_bool:
-        split_result = convert_to_numpy(split_result)
+    split_result, *_ = convert_to_dst_type(src=split_result, dst=bbox)
     return split_result
 
 
 def box_convert_mode(
-    bbox1: NdarrayOrTensor, mode1: Union[str, None] = None, mode2: Union[str, None] = None
+    bbox: NdarrayOrTensor, src_mode: Union[str, None] = None, dst_mode: Union[str, None] = None
 ) -> NdarrayOrTensor:
     """
-    This function converts the bbox1 in mode 1 to the mode2
+    This function converts the bbox in src_mode to the dst_mode
     Args:
-        bbox1: source bounding box, Nx4 or Nx6 torch tensor or ndarray
-        mode1: source box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
-        mode2: target box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
+        bbox: source bounding box, Nx4 or Nx6 torch tensor or ndarray
+        src_mode: source box mode, choose from SUPPORTED_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
+        dst_mode: target box mode, choose from SUPPORTED_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
     Returns:
-        bbox2: bounding box with target mode, does not share memory with original bbox1
+        bbox_dst: bounding box with target mode, does not share memory with original bbox
 
     Example:
         bbox = torch.ones(10,6)
-        box_convert_mode(bbox1=bbox, mode1="xyzxyz", mode2="cccwhd")
+        box_convert_mode(bbox=bbox, src_mode="xyzxyz", dst_mode="cccwhd")
     """
 
-    check_box_mode(bbox1, mode1)
+    if not check_box_mode(bbox, src_mode):
+        raise ValueError("Given bbox has invalid values. The box size must be non-negative.")
 
     # convert numpy to tensor if needed
-    if isinstance(bbox1, np.ndarray):
-        bbox1 = convert_to_tensor(bbox1)
-        numpy_bool = True
-    else:
-        numpy_bool = False
+    bbox_t, *_ = convert_data_type(bbox, torch.Tensor)
 
-    # check whether the bbox and the new mode is valid
-    if mode1 is None:
-        mode1 = get_standard_mode(int(bbox1.shape[1] / 2))
-    if mode2 is None:
-        mode2 = get_standard_mode(int(bbox1.shape[1] / 2))
-    mode1 = look_up_option(mode1, supported=SUPPORT_MODE)
-    mode2 = look_up_option(mode2, supported=SUPPORT_MODE)
+    # check whether the bbox_t and the new mode is valid
+    if src_mode is None:
+        src_mode = get_standard_mode(int(bbox_t.shape[1] / 2))
+    if dst_mode is None:
+        dst_mode = get_standard_mode(int(bbox_t.shape[1] / 2))
+    src_mode = look_up_option(src_mode, supported=SUPPORTED_MODE)
+    dst_mode = look_up_option(dst_mode, supported=SUPPORTED_MODE)
 
-    spatial_dims = get_dimension(bbox=bbox1, mode=mode1)
-    if len(mode1) != len(mode2):
+    spatial_dims = get_dimension(bbox=bbox_t, mode=src_mode)
+    if len(src_mode) != len(dst_mode):
         raise ValueError("The dimension of the new mode should have the same spatial dimension as the old mode.")
 
     # if mode not changed, return original box
-    if mode1 == mode2:
-        bbox2 = deepcopy(bbox1)
-    # convert mode for bbox
-    elif mode2 in ["xxyy", "xxyyzz"]:
-        corners = split_into_corners(bbox1, mode1)
-        bbox2 = torch.cat(corners, dim=-1)
+    if src_mode == dst_mode:
+        bbox_t_dst = deepcopy(bbox_t)
+    # convert mode for bbox_t
+    elif dst_mode in ["xxyy", "xxyyzz"]:
+        corners = split_into_corners(bbox_t, src_mode)
+        bbox_t_dst = torch.cat(corners, dim=-1)
     else:
         if spatial_dims == 3:
-            xmin, xmax, ymin, ymax, zmin, zmax = split_into_corners(bbox1, mode1)
-            if mode2 == "xyzxyz":
-                bbox2 = torch.cat((xmin, ymin, zmin, xmax, ymax, zmax), dim=-1)
-            elif mode2 == "xyzwhd":
-                bbox2 = torch.cat(
+            xmin, xmax, ymin, ymax, zmin, zmax = split_into_corners(bbox_t, src_mode)
+            if dst_mode == "xyzxyz":
+                bbox_t_dst = torch.cat((xmin, ymin, zmin, xmax, ymax, zmax), dim=-1)
+            elif dst_mode == "xyzwhd":
+                bbox_t_dst = torch.cat(
                     (xmin, ymin, zmin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE, zmax - zmin + TO_REMOVE),
                     dim=-1,
                 )
-            elif mode2 == "cccwhd":
-                bbox2 = torch.cat(
+            elif dst_mode == "cccwhd":
+                bbox_t_dst = torch.cat(
                     (
                         (xmin + xmax + TO_REMOVE) / 2.0,
                         (ymin + ymax + TO_REMOVE) / 2.0,
@@ -310,15 +296,15 @@ def box_convert_mode(
                     dim=-1,
                 )
             else:
-                raise ValueError("We support only bbox mode in " + str(SUPPORT_MODE) + f", got {mode2}")
+                raise ValueError("We support only bbox mode in " + str(SUPPORTED_MODE) + f", got {dst_mode}")
         elif spatial_dims == 2:
-            xmin, xmax, ymin, ymax = split_into_corners(bbox1.clone(), mode1)
-            if mode2 == "xyxy":
-                bbox2 = torch.cat((xmin, ymin, xmax, ymax), dim=-1)
-            elif mode2 == "xywh":
-                bbox2 = torch.cat((xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=-1)
-            elif mode2 == "ccwh":
-                bbox2 = torch.cat(
+            xmin, xmax, ymin, ymax = split_into_corners(bbox_t.clone(), src_mode)
+            if dst_mode == "xyxy":
+                bbox_t_dst = torch.cat((xmin, ymin, xmax, ymax), dim=-1)
+            elif dst_mode == "xywh":
+                bbox_t_dst = torch.cat((xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=-1)
+            elif dst_mode == "ccwh":
+                bbox_t_dst = torch.cat(
                     (
                         (xmin + xmax + TO_REMOVE) / 2.0,
                         (ymin + ymax + TO_REMOVE) / 2.0,
@@ -328,15 +314,14 @@ def box_convert_mode(
                     dim=-1,
                 )
             else:
-                raise ValueError("We support only bbox mode in " + str(SUPPORT_MODE) + f", got {mode2}")
+                raise ValueError("We support only bbox mode in " + str(SUPPORTED_MODE) + f", got {dst_mode}")
         else:
             raise ValueError(f"Images should have 2 or 3 dimensions, got {spatial_dims}")
 
     # convert tensor back to numpy if needed
-    if numpy_bool:
-        bbox2 = convert_to_numpy(bbox2)
+    bbox_dst, *_ = convert_to_dst_type(src=bbox_t_dst, dst=bbox)
 
-    return bbox2
+    return bbox_dst
 
 
 def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = None) -> NdarrayOrTensor:
@@ -344,9 +329,9 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
     Convert given bbox to standard mode
     Args:
         bbox: source bounding box, Nx4 or Nx6 torch tensor or ndarray
-        mode: source box mode, choose from SUPPORT_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
+        mode: source box mode, choose from SUPPORTED_MODE. If mode is not given, this func will assume mode is STANDARD_MODE
     Returns:
-        bbox2: bounding box with standard mode, does not share memory with original bbox
+        bbox_standard: bounding box with standard mode, does not share memory with original bbox
 
     Example:
         bbox = torch.ones(10,6)
@@ -354,7 +339,7 @@ def box_convert_standard_mode(bbox: NdarrayOrTensor, mode: Union[str, None] = No
     """
     if mode is None:
         mode = get_standard_mode(int(bbox.shape[1] / 2))
-    mode = look_up_option(mode, supported=SUPPORT_MODE)
+    mode = look_up_option(mode, supported=SUPPORTED_MODE)
     spatial_dims = get_dimension(bbox=bbox, mode=mode)
     mode_standard = get_standard_mode(spatial_dims)
-    return box_convert_mode(bbox1=bbox, mode1=mode, mode2=mode_standard)
+    return box_convert_mode(bbox=bbox, src_mode=mode, dst_mode=mode_standard)

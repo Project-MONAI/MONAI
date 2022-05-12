@@ -118,10 +118,10 @@ class TestCreateBoxList(unittest.TestCase):
             expected_box = convert_data_type(expected_box, dtype=np.float16)[0]
 
         # test box_convert_mode, box_convert_standard_mode
-        result2 = box_convert_mode(bbox1=bbox1, mode1=mode1, mode2=mode2)
+        result2 = box_convert_mode(bbox=bbox1, src_mode=mode1, dst_mode=mode2)
         assert_allclose(result2, expected_box, type_test=True, device_test=True, atol=0.0)
 
-        result1 = box_convert_mode(bbox1=result2, mode1=mode2, mode2=mode1)
+        result1 = box_convert_mode(bbox=result2, src_mode=mode2, dst_mode=mode1)
         assert_allclose(result1, bbox1, type_test=True, device_test=True, atol=0.0)
 
         result_standard = box_convert_standard_mode(bbox=bbox1, mode=mode1)
