@@ -13,6 +13,7 @@ Decorators and context managers for NVIDIA Tools Extension to profile MONAI comp
 """
 
 from collections import defaultdict
+from collections.abc import Iterable
 from functools import wraps
 from typing import Any, Optional, Tuple, Union
 
@@ -21,7 +22,9 @@ from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import Dataset
 
-from monai.utils import ensure_tuple, optional_import
+# from monai.transforms.compose import Compose
+from monai.utils.misc import ensure_tuple
+from monai.utils.module import optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
@@ -53,12 +56,26 @@ class Range:
         name: Optional[str] = None,
         methods: Optional[Union[str, Tuple[str, ...]]] = None,
         append_method_name: Optional[bool] = None,
+        recursive=False,
     ) -> None:
         self.name = name
         self.methods = methods
         self.append_method_name = append_method_name
+        self.recursive = recursive
 
     def __call__(self, obj: Any):
+        if self.recursive is True:
+            if type(obj).__name__ == "Compose":
+                annotated_transforms = [Range(recursive=False)(t) for t in obj.transforms]
+                return Range(self.name, recursive=False)(type(obj)(annotated_transforms))
+
+            if isinstance(obj, Iterable):
+                annotated_transforms = [Range(recursive=False)(t) for t in obj]
+                return Range(self.name, recursive=False)(annotated_transforms)
+
+            self.recursive = False
+            print("`recursive=True` only works for Iterables or Compose. Falling back to `recursive=False`")
+
         # Define the name to be associated to the range if not provided
         if self.name is None:
             name = type(obj).__name__
