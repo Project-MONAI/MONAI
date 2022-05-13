@@ -28,7 +28,7 @@ import torch
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
 from monai.data.folder_layout import FolderLayout
-from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
+from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSampleMode, GridSamplePadMode
@@ -37,11 +37,13 @@ from monai.utils import InterpolateMode, OptionalImportError, ensure_tuple, look
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
+nrrd, _ = optional_import("nrrd")
 
 __all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
 
 SUPPORTED_READERS = {
     "itkreader": ITKReader,
+    "nrrdreader": NrrdReader,
     "numpyreader": NumpyReader,
     "pilreader": PILReader,
     "nibabelreader": NibabelReader,
@@ -85,7 +87,7 @@ class LoadImage(Transform):
         - User-specified reader in the constructor of `LoadImage`.
         - Readers from the last to the first in the registered list.
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
-          (npz, npy -> NumpyReader), (DICOM file -> ITKReader).
+          (npz, npy -> NumpyReader), (nrrd -> NrrdReader), (DICOM file -> ITKReader).
 
     See also:
 

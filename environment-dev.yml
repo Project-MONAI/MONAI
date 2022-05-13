@@ -45,6 +45,7 @@ dependencies:
   - pyyaml
   - fire
   - jsonschema
+  - pynrrd
   - pip
   - pip:
     # pip for itk as conda-forge version only up to v5.1
