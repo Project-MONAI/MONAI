@@ -158,7 +158,7 @@ class TestPatchWSIDatasetCuCIM(PatchWSIDatasetTests.Tests):
         cls.backend = "cucim"
 
 
-@skipUnless(has_osl, "Requires cucim")
+@skipUnless(has_osl, "Requires openslide")
 class TestPatchWSIDatasetOpenSlide(PatchWSIDatasetTests.Tests):
     @classmethod
     def setUpClass(cls):
