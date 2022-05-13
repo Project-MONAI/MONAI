@@ -13,7 +13,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -1045,7 +1045,7 @@ class NrrdReader(ImageReader):
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img: Union[namedtuple, List[namedtuple]]) -> Tuple[np.ndarray, Dict]:
+    def get_data(self, img: Union[NamedTuple, List[NamedTuple]]) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and meta data from loaded image and return them.
         This function must return two objects, the first is a numpy array of image data,
@@ -1055,7 +1055,7 @@ class NrrdReader(ImageReader):
             img: a nrrd image loaded from an image file or a list of image objects.
 
         """
-        img_array: List[namedtuple] = []
+        img_array: List[NamedTuple] = []
         compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):
@@ -1063,7 +1063,7 @@ class NrrdReader(ImageReader):
             img_array.append(data)
             header = dict(i.header)
             if self.index_order == "C":
-                header = self._convert_F_to_C_order(header)
+                header = self._convert_f_to_c_order(header)
             header["original_affine"] = self._get_affine(i)
             header = self._switch_lps_ras(header)
             header["affine"] = header["original_affine"].copy()
@@ -1078,7 +1078,7 @@ class NrrdReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_array_data(self, img: namedtuple) -> np.ndarray:
+    def _get_array_data(self, img: NamedTuple) -> np.ndarray:
         """
         Get the array data as Numpy array of `self.dtype`
 
@@ -1088,7 +1088,7 @@ class NrrdReader(ImageReader):
         """
         return img.array.astype(self.dtype)
 
-    def _get_affine(self, img: namedtuple) -> np.ndarray:
+    def _get_affine(self, img: NamedTuple) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
