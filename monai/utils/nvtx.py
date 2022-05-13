@@ -45,6 +45,8 @@ class Range:
             Otherwise, it look up predefined methods: "forward", "__call__", "__next__", "__getitem__"
         append_method_name: if append the name of the methods to be decorated to the range's name
             If None (default), it appends the method's name only if we are annotating more than one method.
+        recursive: if set to True, it will recursively annotate every individual module in a list
+            or in a chain of modules (chained using Compose). Default to False.
 
     """
 
@@ -55,7 +57,7 @@ class Range:
         name: Optional[str] = None,
         methods: Optional[Union[str, Tuple[str, ...]]] = None,
         append_method_name: Optional[bool] = None,
-        recursive=False,
+        recursive: bool = False,
     ) -> None:
         self.name = name
         self.methods = methods
