@@ -22,7 +22,6 @@ from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import Dataset
 
-# from monai.transforms.compose import Compose
 from monai.utils.misc import ensure_tuple
 from monai.utils.module import optional_import
 
@@ -65,7 +64,9 @@ class Range:
 
     def __call__(self, obj: Any):
         if self.recursive is True:
-            if type(obj).__name__ == "Compose":
+            from monai.transforms.compose import Compose
+
+            if isinstance(obj, Compose):
                 annotated_transforms = [Range(recursive=False)(t) for t in obj.transforms]
                 return Range(self.name, recursive=False)(type(obj)(annotated_transforms))
 
