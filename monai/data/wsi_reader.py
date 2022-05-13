@@ -174,7 +174,7 @@ class BaseWSIReader(ImageReader):
             # Verify location
             if location is None:
                 location = (0, 0)
-            wsi_size = self.get_size(each_wsi, level)
+            wsi_size = self.get_size(each_wsi, 0)
             if location[0] > wsi_size[0] or location[1] > wsi_size[1]:
                 raise ValueError(f"Location is outside of the image: location={location}, image size={wsi_size}")
 
