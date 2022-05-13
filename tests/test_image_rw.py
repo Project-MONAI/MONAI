@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.data.image_reader import ITKReader, NibabelReader, PILReader, NrrdReader
+from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILReader
 from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
 from monai.transforms import LoadImage, SaveImage, moveaxis
 from monai.utils import OptionalImportError
@@ -147,7 +147,7 @@ class TestLoadSaveNrrd(unittest.TestCase):
             filepath = f"testfile_{ndim}d"
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
-                )
+            )
             saver(p(test_data), {"filename_or_obj": f"{filepath}{output_ext}", "spatial_shape": test_data.shape})
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             loader = LoadImage(reader=reader)
@@ -156,12 +156,12 @@ class TestLoadSaveNrrd(unittest.TestCase):
 
     @parameterized.expand(itertools.product([NrrdReader, ITKReader], [ITKWriter, ITKWriter]))
     def test_2d(self, reader, writer):
-        test_data = np.random.randn(8,8).astype(np.float32)
+        test_data = np.random.randn(8, 8).astype(np.float32)
         self.nrrd_rw(test_data, reader, writer, np.float32)
 
     @parameterized.expand(itertools.product([NrrdReader, ITKReader], [ITKWriter, ITKWriter]))
     def test_3d(self, reader, writer):
-        test_data = np.random.randn(8,8,8).astype(np.float32)
+        test_data = np.random.randn(8, 8, 8).astype(np.float32)
         self.nrrd_rw(test_data, reader, writer, np.float32)
 
 

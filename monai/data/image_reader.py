@@ -1107,7 +1107,7 @@ class NrrdReader(ImageReader):
         For compatibility with nibabel, switch from LPS to RAS. Adapt affine matrix and
         `space` argument in header accordingly. If no information of space is given in the header,
         LPS is assumed and thus converted to RAS. If information about space is given,
-        but is not LPS, the unchanged header is returned. 
+        but is not LPS, the unchanged header is returned.
 
         Args:
             header: The image meta data as dict
