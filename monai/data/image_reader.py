@@ -58,7 +58,7 @@ class ImageReader(ABC):
         img_data, meta_data = image_reader.get_data(img_obj)
 
     - The `read` call converts image filenames into image objects,
-    - The `get_data` call fetches the image data, as well as meta data.
+    - The `get_data` call fetches the image data, as well as metadata.
     - A reader should implement `verify_suffix` with the logic of checking the input filename
       by the filename extensions.
 
@@ -94,9 +94,9 @@ class ImageReader(ABC):
     @abstractmethod
     def get_data(self, img) -> Tuple[np.ndarray, Dict]:
         """
-        Extract data array and meta data from loaded image and return them.
+        Extract data array and metadata from loaded image and return them.
         This function must return two objects, the first is a numpy array of image data,
-        the second is a dictionary of meta data.
+        the second is a dictionary of metadata.
 
         Args:
             img: an image object loaded from an image file or a list of image objects.
@@ -150,7 +150,7 @@ class ITKReader(ImageReader):
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
-            This is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            This is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
             If None, `original_channel_dim` will be either `no_channel` or `-1`.
 
                 - Nifti file is usually "channel last", so there is no need to specify this argument.
@@ -251,11 +251,11 @@ class ITKReader(ImageReader):
 
     def get_data(self, img):
         """
-        Extract data array and meta data from loaded image and return them.
-        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        Extract data array and metadata from loaded image and return them.
+        This function returns two objects, first is numpy array of image data, second is dict of metadata.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
-        and the meta data of the first image is used to represent the output meta data.
+        and the metadata of the first image is used to represent the output metadata.
 
         Args:
             img: an ITK image object loaded from an image file or a list of ITK image objects.
@@ -281,7 +281,7 @@ class ITKReader(ImageReader):
 
     def _get_meta_dict(self, img) -> Dict:
         """
-        Get all the meta data of the image and convert to dict type.
+        Get all the metadata of the image and convert to dict type.
 
         Args:
             img: an ITK image object loaded from an image file.
@@ -363,7 +363,7 @@ class NibabelReader(ImageReader):
         as_closest_canonical: if True, load the image as closest to canonical axis format.
         squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
         channel_dim: the channel dimension of the input image, default is None.
-            this is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            this is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
             if None, `original_channel_dim` will be either `no_channel` or `-1`.
             most Nifti files are usually "channel last", no need to specify this argument for them.
         dtype: dtype of the output data array when loading with Nibabel library.
@@ -425,11 +425,11 @@ class NibabelReader(ImageReader):
 
     def get_data(self, img):
         """
-        Extract data array and meta data from loaded image and return them.
-        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        Extract data array and metadata from loaded image and return them.
+        This function returns two objects, first is numpy array of image data, second is dict of metadata.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
-        and the meta data of the first image is used to present the output meta data.
+        and the metadata of the first image is used to present the output metadata.
 
         Args:
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
@@ -463,7 +463,7 @@ class NibabelReader(ImageReader):
 
     def _get_meta_dict(self, img) -> Dict:
         """
-        Get the all the meta data of the image and convert to dict type.
+        Get the all the metadata of the image and convert to dict type.
 
         Args:
             img: a Nibabel image object loaded from an image file.
@@ -590,11 +590,11 @@ class NumpyReader(ImageReader):
 
     def get_data(self, img):
         """
-        Extract data array and meta data from loaded image and return them.
-        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        Extract data array and metadata from loaded image and return them.
+        This function returns two objects, first is numpy array of image data, second is dict of metadata.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
-        and the meta data of the first image is used to represent the output meta data.
+        and the metadata of the first image is used to represent the output metadata.
 
         Args:
             img: a Numpy array loaded from a file or a list of Numpy arrays.
@@ -676,11 +676,11 @@ class PILReader(ImageReader):
 
     def get_data(self, img):
         """
-        Extract data array and meta data from loaded image and return them.
-        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        Extract data array and metadata from loaded image and return them.
+        This function returns two objects, first is numpy array of image data, second is dict of metadata.
         It computes `spatial_shape` and stores it in meta dict.
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
-        and the meta data of the first image is used to represent the output meta data.
+        and the metadata of the first image is used to represent the output metadata.
         Note that it will swap axis 0 and 1 after loading the array because the `HW` definition in PIL
         is different from other common medical packages.
 
@@ -703,7 +703,7 @@ class PILReader(ImageReader):
 
     def _get_meta_dict(self, img) -> Dict:
         """
-        Get the all the meta data of the image and convert to dict type.
+        Get the all the metadata of the image and convert to dict type.
         Args:
             img: a PIL Image object loaded from an image file.
 
@@ -996,7 +996,7 @@ class NrrdReader(ImageReader):
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
-            This is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            This is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
             If None, `original_channel_dim` will be either `no_channel` or `0`.
             NRRD files are usually "channel first".
         dtype: dtype of the data array when loading image.
@@ -1052,9 +1052,9 @@ class NrrdReader(ImageReader):
 
     def get_data(self, img: Union[NrrdImage, List[NrrdImage]]) -> Tuple[np.ndarray, Dict]:
         """
-        Extract data array and meta data from loaded image and return them.
+        Extract data array and metadata from loaded image and return them.
         This function must return two objects, the first is a numpy array of image data,
-        the second is a dictionary of meta data.
+        the second is a dictionary of metadata.
 
         Args:
             img: a `NrrdImage` loaded from an image file or a list of image objects.
@@ -1110,7 +1110,7 @@ class NrrdReader(ImageReader):
         but is not LPS, the unchanged header is returned.
 
         Args:
-            header: The image meta data as dict
+            header: The image metadata as dict
 
         """
         if "space" not in header or header["space"] == "left-posterior-superior":
@@ -1126,7 +1126,7 @@ class NrrdReader(ImageReader):
         For more details refer to: https://pynrrd.readthedocs.io/en/latest/user-guide.html#index-ordering
 
         Args:
-            header: The image meta data as dict
+            header: The image metadata as dict
 
         """
 

@@ -706,7 +706,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
     the minimum size to limit the randomly generated ROI. Suppose all the expected fields
-    specified by `keys` have same shape, and add `patch_index` to the corresponding meta data.
+    specified by `keys` have same shape, and add `patch_index` to the corresponding metadata.
     It will return a list of dictionaries for all the cropped images.
 
     Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
@@ -729,14 +729,14 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
-        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
             used to add `patch_index` to the meta dict.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -791,7 +791,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
             for key in self.key_iterator(cropped):
                 cropped[self.trace_key(key)][-1][TraceKeys.CLASS_NAME] = self.__class__.__name__  # type: ignore
                 cropped[self.trace_key(key)][-1][TraceKeys.ID] = id(self)  # type: ignore
-            # add `patch_index` to the meta data
+            # add `patch_index` to the metadata
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in cropped:
@@ -936,14 +936,14 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
             If its components have non-positive values, the corresponding size of `img` will be used.
         num_samples: number of samples (image patches) to take in the returned list.
         center_coord_key: if specified, the actual sampling location will be stored with the corresponding key.
-        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
             used to add `patch_index` to the meta dict.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -1007,7 +1007,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
                     results[i][self.center_coord_key] = center
         # fill in the extra keys with unmodified data
         for i in range(self.num_samples):
-            # add `patch_index` to the meta data
+            # add `patch_index` to the metadata
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in results[i]:
@@ -1045,7 +1045,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
     Suppose all the expected fields specified by `keys` have same shape,
-    and add `patch_index` to the corresponding meta data.
+    and add `patch_index` to the corresponding metadata.
     And will return a list of dictionaries for all the cropped images.
 
     If a dimension of the expected spatial size is bigger than the input image size,
@@ -1078,14 +1078,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
             and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
             a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
-        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
             used to add `patch_index` to the meta dict.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
@@ -1185,7 +1185,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
                 results[i][key] = cropper(img)
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
-            # add `patch_index` to the meta data
+            # add `patch_index` to the metadata
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in results[i]:
@@ -1281,14 +1281,14 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             `image_threshold`, and randomly select crop centers based on them, expect to be 1 dim array
             of spatial indices after flattening. a typical usage is to call `ClassesToIndices` transform first
             and cache the results for better performance.
-        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
             used to add `patch_index` to the meta dict.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will remain
@@ -1369,7 +1369,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
                 results[i][key] = cropper(img)
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
-            # add `patch_index` to the meta data
+            # add `patch_index` to the metadata
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in results[i]:

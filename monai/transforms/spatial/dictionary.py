@@ -190,13 +190,13 @@ class SpatialResampled(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
             meta_src_keys: the key of the corresponding ``src_affine`` in the metadata dictionary.
@@ -314,7 +314,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
-            template_key: key to meta data that output should be resampled to match.
+            template_key: key to metadata that output should be resampled to match.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -474,13 +474,13 @@ class Spacingd(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
             allow_missing_keys: don't raise exception if key is missing.
@@ -612,13 +612,13 @@ class Orientationd(MapTransform, InvertibleTransform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
             allow_missing_keys: don't raise exception if key is missing.

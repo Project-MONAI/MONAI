@@ -274,7 +274,7 @@ class SpatialResample(Transform):
 
 
 class ResampleToMatch(SpatialResample):
-    """Resample an image to match given meta data. The affine matrix will be aligned,
+    """Resample an image to match given metadata. The affine matrix will be aligned,
     and the size of the output image will match."""
 
     def __call__(  # type: ignore
