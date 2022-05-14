@@ -106,7 +106,7 @@ class LoadImage(Transform):
     ) -> None:
         """
         Args:
-            reader: reader to load image file and meta data
+            reader: reader to load image file and metadata
                 - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
                 - if `reader` is a string, it's treated as a class name or dotted path
                 (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
@@ -115,7 +115,7 @@ class LoadImage(Transform):
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
-            ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
+            ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
@@ -123,7 +123,7 @@ class LoadImage(Transform):
         Note:
 
             - The transform returns an image data array if `image_only` is True,
-              or a tuple of two elements containing the data array, and the meta data in a dictionary format otherwise.
+              or a tuple of two elements containing the data array, and the metadata in a dictionary format otherwise.
             - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
               readers. This might introduce overheads when handling the exceptions of trying the incompatible loaders.
               In this case, it is therefore recommended setting the most appropriate reader as
@@ -176,7 +176,7 @@ class LoadImage(Transform):
 
     def register(self, reader: ImageReader):
         """
-        Register image reader to load image file and meta data.
+        Register image reader to load image file and metadata.
 
         Args:
             reader: reader instance to be registered with this loader.
@@ -188,7 +188,7 @@ class LoadImage(Transform):
 
     def __call__(self, filename: Union[Sequence[PathLike], PathLike], reader: Optional[ImageReader] = None):
         """
-        Load image file and meta data from the given filename(s).
+        Load image file and metadata from the given filename(s).
         If `reader` is not specified, this class automatically chooses readers based on the
         reversed order of registered readers `self.readers`.
 
@@ -199,7 +199,7 @@ class LoadImage(Transform):
                 and will stack them together as multi-channels data.
                 if provided directory path instead of file path, will treat it as
                 DICOM images series and read.
-            reader: runtime reader to load image file and meta data.
+            reader: runtime reader to load image file and metadata.
 
         """
         filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects

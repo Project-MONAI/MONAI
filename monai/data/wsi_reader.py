@@ -40,7 +40,7 @@ class BaseWSIReader(ImageReader):
         img_data, meta_data = image_reader.get_data(wsi)
 
     - The `read` call converts an image filename into whole slide image object,
-    - The `get_data` call fetches the image data, as well as meta data.
+    - The `get_data` call fetches the image data, as well as metadata.
 
     The following methods needs to be implemented for any concrete implementation of this class:
 
