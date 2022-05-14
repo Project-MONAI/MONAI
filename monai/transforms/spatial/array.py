@@ -138,8 +138,8 @@ class SpatialResample(Transform):
         src_affine: Optional[NdarrayOrTensor] = None,
         dst_affine: Optional[NdarrayOrTensor] = None,
         spatial_size: Optional[Union[Sequence[int], np.ndarray, int]] = None,
-        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        mode: Union[GridSampleMode, str, None] = None,
+        padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
     ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
@@ -279,7 +279,7 @@ class SpatialResample(Transform):
 
 
 class ResampleToMatch(SpatialResample):
-    """Resample an image to match given meta data. The affine matrix will be aligned,
+    """Resample an image to match given metadata. The affine matrix will be aligned,
     and the size of the output image will match."""
 
     def __call__(  # type: ignore
@@ -287,8 +287,8 @@ class ResampleToMatch(SpatialResample):
         img: NdarrayOrTensor,
         src_meta: Optional[Dict] = None,
         dst_meta: Optional[Dict] = None,
-        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        mode: Union[GridSampleMode, str, None] = None,
+        padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
     ):
@@ -2540,62 +2540,62 @@ class GridSplit(Transform):
         # Patch size
         self.size = None if size is None else ensure_tuple_rep(size, len(self.grid))
 
-    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
-        if self.grid == (1, 1) and self.size is None:
-            if isinstance(image, torch.Tensor):
-                return torch.stack([image])
-            elif isinstance(image, np.ndarray):
-                return np.stack([image])  # type: ignore
-            else:
-                raise ValueError(f"Input type [{type(image)}] is not supported.")
+    def __call__(
+        self, image: NdarrayOrTensor, size: Optional[Union[int, Tuple[int, int], np.ndarray]] = None
+    ) -> List[NdarrayOrTensor]:
+        input_size = self.size if size is None else ensure_tuple_rep(size, len(self.grid))
 
-        size, steps = self._get_params(image.shape[1:])
-        patches: NdarrayOrTensor
+        if self.grid == (1, 1) and input_size is None:
+            return [image]
+
+        split_size, steps = self._get_params(image.shape[1:], input_size)
+        patches: List[NdarrayOrTensor]
         if isinstance(image, torch.Tensor):
-            patches = (
-                image.unfold(1, size[0], steps[0])
-                .unfold(2, size[1], steps[1])
+            unfolded_image = (
+                image.unfold(1, split_size[0], steps[0])
+                .unfold(2, split_size[1], steps[1])
                 .flatten(1, 2)
                 .transpose(0, 1)
-                .contiguous()
             )
+            # Make a list of contiguous patches
+            patches = [p.contiguous() for p in unfolded_image]
         elif isinstance(image, np.ndarray):
             x_step, y_step = steps
             c_stride, x_stride, y_stride = image.strides
             n_channels = image.shape[0]
-            patches = as_strided(
+            strided_image = as_strided(
                 image,
-                shape=(*self.grid, n_channels, size[0], size[1]),
+                shape=(*self.grid, n_channels, split_size[0], split_size[1]),
                 strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
                 writeable=False,
             )
-            # flatten the first two dimensions
-            patches = patches.reshape(np.prod(patches.shape[:2]), *patches.shape[2:])
-            # make it a contiguous array
-            patches = np.ascontiguousarray(patches)
+            # Flatten the first two dimensions
+            strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
+            # Make a list of contiguous patches
+            patches = [np.ascontiguousarray(p) for p in strided_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
 
         return patches
 
-    def _get_params(self, image_size: Union[Sequence[int], np.ndarray]):
+    def _get_params(
+        self, image_size: Union[Sequence[int], np.ndarray], size: Optional[Union[Sequence[int], np.ndarray]] = None
+    ):
         """
         Calculate the size and step required for splitting the image
         Args:
             The size of the input image
         """
-        if self.size is not None:
-            # Set the split size to the given default size
-            if any(self.size[i] > image_size[i] for i in range(len(self.grid))):
-                raise ValueError("The image size ({image_size})is smaller than the requested split size ({self.size})")
-            split_size = self.size
-        else:
+        if size is None:
             # infer each sub-image size from the image size and the grid
-            split_size = tuple(image_size[i] // self.grid[i] for i in range(len(self.grid)))
+            size = tuple(image_size[i] // self.grid[i] for i in range(len(self.grid)))
+
+        if any(size[i] > image_size[i] for i in range(len(self.grid))):
+            raise ValueError(f"The image size ({image_size})is smaller than the requested split size ({size})")
 
         steps = tuple(
-            (image_size[i] - split_size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
+            (image_size[i] - size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
             for i in range(len(self.grid))
         )
 
-        return split_size, steps
+        return size, steps

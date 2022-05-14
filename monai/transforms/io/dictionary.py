@@ -38,7 +38,7 @@ class LoadImaged(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadImage`,
     It can load both image data and metadata. When loading a list of files in one key,
     the arrays will be stacked and a new dimension will be added as the first dimension
-    In this case, the meta data of the first image will be used to represent the stacked result.
+    In this case, the metadata of the first image will be used to represent the stacked result.
     The affine transform of all the stacked images should be same.
     The output metadata field will be created as ``meta_keys`` or ``key_{meta_key_postfix}``.
 
@@ -86,7 +86,7 @@ class LoadImaged(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            reader: reader to load image file and meta data
+            reader: reader to load image file and metadata
                 - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
                 - if `reader` is a string, it's treated as a class name or dotted path
                 (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
@@ -94,7 +94,7 @@ class LoadImaged(MapTransform):
                 a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
             dtype: if not None, convert the loaded image data to this data type.
-            ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
+            ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
             allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
