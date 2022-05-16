@@ -22,8 +22,7 @@ from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import Dataset
 
-from monai.utils.misc import ensure_tuple
-from monai.utils.module import optional_import
+from monai.utils import ensure_tuple, optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
