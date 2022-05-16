@@ -78,7 +78,7 @@ def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> l
 
 def get_dimension(
     boxes: Union[torch.Tensor, np.ndarray, None] = None,
-    image_size: Union[Sequence[int], torch.Tensor, np.ndarray, None] = None,
+    spatial_size: Union[Sequence[int], torch.Tensor, np.ndarray, None] = None,
 ) -> int:
     """
     Get spatial dimension for the giving setting.
@@ -86,29 +86,29 @@ def get_dimension(
     It raises ValueError if the dimensions of multiple inputs do not match with each other.
     Args:
         boxes: bounding box, Nx4 or Nx6 torch tensor or ndarray
-        image_size: Length of 2 or 3. Data format is list, or np.ndarray, or tensor of int
+        spatial_size: Length of 2 or 3. Data format is list, or np.ndarray, or tensor of int
     Returns:
         spatial_dimension: 2 or 3
 
     Example:
         boxes = torch.ones(10,6)
-        get_dimension(boxes, image_size=[100,200,200]) will return 3
+        get_dimension(boxes, spatial_size=[100,200,200]) will return 3
         get_dimension(boxes) will return 3
     """
     spatial_dims_set = set()
-    if image_size is not None:
-        spatial_dims_set.add(len(image_size))
+    if spatial_size is not None:
+        spatial_dims_set.add(len(spatial_size))
     if boxes is not None:
         spatial_dims_set.add(int(boxes.shape[1] / 2))
     spatial_dims_list = list(spatial_dims_set)
     if len(spatial_dims_list) == 0:
-        raise ValueError("At least one of boxes, image_size, and mode needs to be non-empty.")
+        raise ValueError("At least one of boxes, spatial_size, and mode needs to be non-empty.")
     elif len(spatial_dims_list) == 1:
         spatial_dims = int(spatial_dims_list[0])
         spatial_dims = look_up_option(spatial_dims, supported=[2, 3])
         return int(spatial_dims)
     else:
-        raise ValueError("The dimension of boxes, image_size, mode should match with each other.")
+        raise ValueError("The dimension of boxes, spatial_size, mode should match with each other.")
 
 
 def convert_box_mode(
