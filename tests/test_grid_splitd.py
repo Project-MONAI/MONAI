@@ -26,16 +26,16 @@ A1 = torch.cat([A11, A12], 2)
 A2 = torch.cat([A21, A22], 2)
 A = torch.cat([A1, A2], 1)
 
-TEST_CASE_0 = [{"keys": "image", "grid": (2, 2)}, {"image": A}, torch.stack([A11, A12, A21, A22])]
-TEST_CASE_1 = [{"keys": "image", "grid": (2, 1)}, {"image": A}, torch.stack([A1, A2])]
-TEST_CASE_2 = [{"keys": "image", "grid": (1, 2)}, {"image": A1}, torch.stack([A11, A12])]
-TEST_CASE_3 = [{"keys": "image", "grid": (1, 2)}, {"image": A2}, torch.stack([A21, A22])]
-TEST_CASE_4 = [{"keys": "image", "grid": (1, 1), "size": (2, 2)}, {"image": A}, torch.stack([A11])]
-TEST_CASE_5 = [{"keys": "image", "grid": (1, 1), "size": 4}, {"image": A}, torch.stack([A])]
-TEST_CASE_6 = [{"keys": "image", "grid": (2, 2), "size": 2}, {"image": A}, torch.stack([A11, A12, A21, A22])]
-TEST_CASE_7 = [{"keys": "image", "grid": (1, 1)}, {"image": A}, torch.stack([A])]
+TEST_CASE_0 = [{"keys": "image", "grid": (2, 2)}, {"image": A}, [A11, A12, A21, A22]]
+TEST_CASE_1 = [{"keys": "image", "grid": (2, 1)}, {"image": A}, [A1, A2]]
+TEST_CASE_2 = [{"keys": "image", "grid": (1, 2)}, {"image": A1}, [A11, A12]]
+TEST_CASE_3 = [{"keys": "image", "grid": (1, 2)}, {"image": A2}, [A21, A22]]
+TEST_CASE_4 = [{"keys": "image", "grid": (1, 1), "size": {"image": (2, 2)}}, {"image": A}, [A11]]
+TEST_CASE_5 = [{"keys": "image", "grid": (1, 1), "size": {"image": 4}}, {"image": A}, [A]]
+TEST_CASE_6 = [{"keys": "image", "grid": (2, 2), "size": {"image": 2}}, {"image": A}, [A11, A12, A21, A22]]
+TEST_CASE_7 = [{"keys": "image", "grid": (1, 1)}, {"image": A}, [A]]
 TEST_CASE_8 = [
-    {"keys": "image", "grid": (2, 2), "size": 2},
+    {"keys": "image", "grid": (2, 2), "size": {"image": 2}},
     {"image": torch.arange(12).reshape(1, 3, 4).to(torch.float32)},
     torch.Tensor([[[[0, 1], [4, 5]]], [[[2, 3], [6, 7]]], [[[4, 5], [8, 9]]], [[[6, 7], [10, 11]]]]).to(torch.float32),
 ]
@@ -55,18 +55,10 @@ for p in TEST_NDARRAYS:
 TEST_CASE_MC_0 = [
     {"keys": "image", "grid": (2, 2)},
     [{"image": A}, {"image": A}],
-    [torch.stack([A11, A12, A21, A22]), torch.stack([A11, A12, A21, A22])],
+    [[A11, A12, A21, A22], [A11, A12, A21, A22]],
 ]
-TEST_CASE_MC_1 = [
-    {"keys": "image", "grid": (2, 1)},
-    [{"image": A}, {"image": A}, {"image": A}],
-    [torch.stack([A1, A2])] * 3,
-]
-TEST_CASE_MC_2 = [
-    {"keys": "image", "grid": (1, 2)},
-    [{"image": A1}, {"image": A2}],
-    [torch.stack([A11, A12]), torch.stack([A21, A22])],
-]
+TEST_CASE_MC_1 = [{"keys": "image", "grid": (2, 1)}, [{"image": A}, {"image": A}, {"image": A}], [[A1, A2]] * 3]
+TEST_CASE_MC_2 = [{"keys": "image", "grid": (1, 2)}, [{"image": A1}, {"image": A2}], [[A11, A12], [A21, A22]]]
 
 TEST_MULTIPLE = []
 for p in TEST_NDARRAYS:
@@ -82,8 +74,9 @@ class TestGridSplitd(unittest.TestCase):
         for k, v in img_dict.items():
             input_dict[k] = in_type(v)
         splitter = GridSplitd(**input_parameters)
-        output = splitter(input_dict)[input_parameters["keys"]]
-        assert_allclose(output, expected, type_test=False)
+        output = splitter(input_dict)
+        for output_patch, expected_patch in zip(output, expected):
+            assert_allclose(output_patch[input_parameters["keys"]], expected_patch, type_test=False)
 
     @parameterized.expand(TEST_MULTIPLE)
     def test_split_patch_multiple_call(self, in_type, input_parameters, img_list, expected_list):
@@ -92,8 +85,9 @@ class TestGridSplitd(unittest.TestCase):
             input_dict = {}
             for k, v in img_dict.items():
                 input_dict[k] = in_type(v)
-            output = splitter(input_dict)[input_parameters["keys"]]
-            assert_allclose(output, expected, type_test=False)
+            output = splitter(input_dict)
+            for output_patch, expected_patch in zip(output, expected):
+                assert_allclose(output_patch[input_parameters["keys"]], expected_patch, type_test=False)
 
 
 if __name__ == "__main__":
