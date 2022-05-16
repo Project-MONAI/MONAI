@@ -26,8 +26,8 @@ from monai.data.box_mode import (
     CornerSizeMode,
 )
 from monai.utils import look_up_option
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 from monai.utils.enums import BoundingBoxMode
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
 #      i.e., when xmin=1, xmax=2, we have w = 1
@@ -37,7 +37,7 @@ from monai.utils.enums import BoundingBoxMode
 TO_REMOVE = box_mode.TO_REMOVE
 
 # We support the conversion between several box modes, i.e., representation of a bounding box
-# BOXMODE_MAPPING maps string box mode to teh corresponding BoxMode class
+# BOXMODE_MAPPING maps string box mode to the corresponding BoxMode class
 BOXMODE_MAPPING = {
     BoundingBoxMode.XYXY: CornerCornerMode_TypeA(),  # [xmin, ymin, xmax, ymax]
     BoundingBoxMode.XYZXYZ: CornerCornerMode_TypeA(),  # [xmin, ymin, zmin, xmax, ymax, zmax]
@@ -54,6 +54,17 @@ StandardMode = CornerCornerMode_TypeA
 
 
 def get_boxmode(mode: Union[str, BoxMode, None] = None) -> BoxMode:
+    """
+    This function returns BoxMode object from giving mode according to BOXMODE_MAPPING
+    Args:
+        mode: source box mode. If mode is not given, this func will assume mode is StandardMode()
+    Returns:
+        BoxMode object
+
+    Example:
+        mode = "xyzxyz"
+        get_boxmode(mode) will return CornerCornerMode_TypeA()
+    """
     if isinstance(mode, BoxMode):
         return mode
     elif isinstance(mode, str):
@@ -127,9 +138,6 @@ def convert_box_mode(
         boxes = torch.ones(10,6)
         box_convert_mode(boxes=boxes, src_mode="xyzxyz", dst_mode="cccwhd")
     """
-
-    # if not check_box_mode(boxes, src_mode):
-    #     raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
 
     # if mode not changed, return original box
     src_boxmode = get_boxmode(src_mode)
