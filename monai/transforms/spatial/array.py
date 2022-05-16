@@ -533,6 +533,7 @@ class Orientation(Transform):
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
         affine_: np.ndarray
+        affine_np: np.ndarray
         if isinstance(data_array, MetaTensor):
             affine_np, *_ = convert_data_type(data_array.affine, np.ndarray)
             affine_ = to_affine_nd(sr, affine_np)
