@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from copy import deepcopy
-from typing import Sequence, Union, Tuple
 from abc import ABC, abstractmethod
+from copy import deepcopy
+from typing import Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -25,10 +25,11 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, 
 # TO_REMOVE = 1  if in 'xxyy','xxyyzz' mode, the bottom-right corner is included in the box,
 #       i.e., when xmin=1, xmax=2, we have w = 2
 # Currently, only `TO_REMOVE = 0.` is supported
-TO_REMOVE = 0.  # xmax-xmin = w -TO_REMOVE.
+TO_REMOVE = 0.0  # xmax-xmin = w -TO_REMOVE.
+
 
 class BoxMode:
-    def __int__(self,):
+    def __int__(self):
         # The mapping that maps spatial dimension to mode string name
         self.dim_to_str_mapping = {2: None, 3: None}
 
@@ -55,9 +56,11 @@ class BoxMode:
             boxes = torch.ones(10,6)
             boxmode.get_dim_from_boxes(boxes) will return 3
         """
-        if int(boxes.shape[1]) not in [4,6]:
-            raise ValueError(f"Currently we support only boxes with shape [N,4] or [N,6], got boxes with shape {boxes.shape}.")
-        spatial_dims = int(boxes.shape[1]//2)
+        if int(boxes.shape[1]) not in [4, 6]:
+            raise ValueError(
+                f"Currently we support only boxes with shape [N,4] or [N,6], got boxes with shape {boxes.shape}."
+            )
+        spatial_dims = int(boxes.shape[1] // 2)
         return spatial_dims
 
     def get_dim_from_corner(self, c: Sequence) -> int:
@@ -72,9 +75,11 @@ class BoxMode:
             c = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
             boxmode.get_dim_from_corner(c) will return 2
         """
-        if len(c) not in [4,6]:
-            raise ValueError(f"Currently we support only boxes with shape [N,4] or [N,6], got box corner tuple with length {len(c)}.")
-        spatial_dims = int(len(c)//2)
+        if len(c) not in [4, 6]:
+            raise ValueError(
+                f"Currently we support only boxes with shape [N,4] or [N,6], got box corner tuple with length {len(c)}."
+            )
+        spatial_dims = int(len(c) // 2)
         return spatial_dims
 
     def check_corner(self, c: Sequence) -> bool:
@@ -90,7 +95,7 @@ class BoxMode:
             boxmode.check_corner(c) will return True
         """
         spatial_dims = self.get_dim_from_corner(c)
-        box_error = c[spatial_dims] < c[ 0]
+        box_error = c[spatial_dims] < c[0]
         for axis in range(1, spatial_dims):
             box_error = box_error | (c[spatial_dims + axis] < c[axis])
         if box_error.sum() > 0:
@@ -133,10 +138,11 @@ class CornerCornerMode_TypeA(BoxMode):
     Also represented as "xyxy" or "xyzxyz"
     [xmin, ymin, xmax, ymax] or [xmin, ymin, zmin, xmax, ymax, zmax]
     """
-    def __int__(self,):
+
+    def __int__(self):
         self.dim_to_str_mapping = {2: "xyxy", 3: "xyzxyx"}
 
-    def box_to_corner(self, boxes: torch.Tensor) -> Tuple:        
+    def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
         spatial_dims = self.get_dim_from_boxes(boxes)
         if spatial_dims == 3:
             xmin, ymin, zmin, xmax, ymax, zmax = boxes.split(1, dim=-1)
@@ -156,12 +162,14 @@ class CornerCornerMode_TypeA(BoxMode):
         if spatial_dims == 2:
             return torch.cat((c[0], c[1], c[2], c[3]), dim=-1)
 
+
 class CornerCornerMode_TypeB(BoxMode):
     """
     Also represented as "xxyy" or "xxyyzz"
     [xmin, xmax, ymin, ymax] or [xmin, xmax, ymin, ymax, zmin, zmax]
     """
-    def __int__(self,):
+
+    def __int__(self):
         self.dim_to_str_mapping = {2: "xxyy", 3: "xxyyzz"}
 
     def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
@@ -184,13 +192,15 @@ class CornerCornerMode_TypeB(BoxMode):
         if spatial_dims == 2:
             return torch.cat((c[0], c[2], c[1], c[3]), dim=-1)
 
+
 class CornerCornerMode_TypeC(BoxMode):
     """
     Also represented as "xyxy" or "xyxyzz"
     [xmin, ymin, xmax, ymax] or [xmin, ymin, xmax, ymax, zmin, zmax]
     """
-    def __int__(self,):
-        self.dim_to_str_mapping = {2: "xyxy", 3: "xyxyzz"}        
+
+    def __int__(self):
+        self.dim_to_str_mapping = {2: "xyxy", 3: "xyxyzz"}
 
     def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
         spatial_dims = self.get_dim_from_boxes(boxes)
@@ -212,12 +222,14 @@ class CornerCornerMode_TypeC(BoxMode):
         if spatial_dims == 2:
             return torch.cat((c[0], c[1], c[2], c[3]), dim=-1)
 
+
 class CornerSizeMode(BoxMode):
     """
     Also represented as "xywh" or "xyzwhd"
     [xmin, ymin, xsize, ysize] or [xmin, ymin, zmin, xsize, ysize, zsize]
     """
-    def __int__(self,):
+
+    def __int__(self):
         self.dim_to_str_mapping = {2: "xywh", 3: "xyzwhd"}
 
     def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
@@ -242,21 +254,16 @@ class CornerSizeMode(BoxMode):
         else:
             raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
 
-
     def corner_to_box(self, c: Sequence) -> torch.Tensor:
         spatial_dims = self.get_dim_from_corner(c)
         if spatial_dims == 3:
             xmin, ymin, zmin, xmax, ymax, zmax = c[0], c[1], c[2], c[3], c[4], c[5]
             return torch.cat(
-                    (xmin, ymin, zmin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE, zmax - zmin + TO_REMOVE),
-                    dim=-1,
-                )
+                (xmin, ymin, zmin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE, zmax - zmin + TO_REMOVE), dim=-1
+            )
         if spatial_dims == 2:
             xmin, ymin, xmax, ymax = c[0], c[1], c[2], c[3]
-            return torch.cat(
-                    (xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE),
-                    dim=-1,
-                )
+            return torch.cat((xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=-1)
 
 
 class CenterSizeMode(BoxMode):
@@ -264,7 +271,8 @@ class CenterSizeMode(BoxMode):
     Also represented as "ccwh" or "cccwhd"
     [xmin, ymin, xsize, ysize] or [xmin, ymin, zmin, xsize, ysize, zsize]
     """
-    def __int__(self,):
+
+    def __int__(self):
         self.dim_to_str_mapping = {2: "ccwh", 3: "cccwhd"}
 
     def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
@@ -295,7 +303,7 @@ class CenterSizeMode(BoxMode):
             raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
 
     def corner_to_box(self, c: Sequence) -> torch.Tensor:
-        spatial_dims = int(len(c)//2)
+        spatial_dims = int(len(c) // 2)
         if spatial_dims == 3:
             xmin, ymin, zmin, xmax, ymax, zmax = c[0], c[1], c[2], c[3], c[4], c[5]
             return torch.cat(

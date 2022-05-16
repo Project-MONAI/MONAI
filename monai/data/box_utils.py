@@ -9,26 +9,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from copy import deepcopy
-from typing import Sequence, Union, Tuple
 from abc import ABC, abstractmethod
+from copy import deepcopy
+from typing import Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.utils.module import look_up_option
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 from monai.data import box_mode
 from monai.data.box_mode import (
     BoxMode,
-    CornerCornerMode_TypeA, 
-    CornerCornerMode_TypeB, 
-    CornerCornerMode_TypeC, 
-    CornerSizeMode, 
-    CenterSizeMode
-    )
-
+    CenterSizeMode,
+    CornerCornerMode_TypeA,
+    CornerCornerMode_TypeB,
+    CornerCornerMode_TypeC,
+    CornerSizeMode,
+)
+from monai.utils.module import look_up_option
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
 #      i.e., when xmin=1, xmax=2, we have w = 1
@@ -40,15 +39,15 @@ TO_REMOVE = box_mode.TO_REMOVE
 # We support the conversion between several box modes, i.e., representation of a bounding box
 # BOXMODE_MAPPING maps string box mode to teh corresponding BoxMode class
 BOXMODE_MAPPING = {
-    "xyxy": CornerCornerMode_TypeA(), # [xmin, ymin, xmax, ymax]
-    "xyzxyz": CornerCornerMode_TypeA(), # [xmin, ymin, zmin, xmax, ymax, zmax]
-    "xxyy": CornerCornerMode_TypeB(), # [xmin, xmax, ymin, ymax]
-    "xxyyzz": CornerCornerMode_TypeB(), # [xmin, xmax, ymin, ymax, zmin, zmax]
-    "xyxyzz": CornerCornerMode_TypeC(), # [xmin, ymin, xmax, ymax, zmin, zmax]
-    "xywh": CornerSizeMode(), # [xmin, ymin, xsize, ysize]
-    "xyzwhd": CornerSizeMode(), # [xmin, ymin, zmin, xsize, ysize, zsize]
-    "ccwh": CenterSizeMode(), # [xcenter, ycenter, xsize, ysize]
-    "cccwhd": CenterSizeMode() # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+    "xyxy": CornerCornerMode_TypeA(),  # [xmin, ymin, xmax, ymax]
+    "xyzxyz": CornerCornerMode_TypeA(),  # [xmin, ymin, zmin, xmax, ymax, zmax]
+    "xxyy": CornerCornerMode_TypeB(),  # [xmin, xmax, ymin, ymax]
+    "xxyyzz": CornerCornerMode_TypeB(),  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    "xyxyzz": CornerCornerMode_TypeC(),  # [xmin, ymin, xmax, ymax, zmin, zmax]
+    "xywh": CornerSizeMode(),  # [xmin, ymin, xsize, ysize]
+    "xyzwhd": CornerSizeMode(),  # [xmin, ymin, zmin, xsize, ysize, zsize]
+    "ccwh": CenterSizeMode(),  # [xcenter, ycenter, xsize, ysize]
+    "cccwhd": CenterSizeMode(),  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 }
 # The standard box mode we use in all the box util functions
 StandardMode = CornerCornerMode_TypeA
@@ -63,6 +62,7 @@ def get_boxmode(mode: Union[str, BoxMode, None] = None) -> BoxMode:
         return StandardMode()
     else:
         raise ValueError("mode has to be chosen from [str, BoxMode, None].")
+
 
 def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
     """
@@ -180,8 +180,6 @@ def box_convert_mode(
     # if not check_box_mode(boxes, src_mode):
     #     raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
 
-    
-
     # if mode not changed, return original box
     src_boxmode = get_boxmode(src_mode)
     dst_boxmode = get_boxmode(dst_mode)
@@ -194,7 +192,7 @@ def box_convert_mode(
 
         corners = src_boxmode.box_to_corner(boxes_t)
         boxes_t_dst = dst_boxmode.corner_to_box(corners)
-    
+
         # convert tensor back to numpy if needed
         boxes_dst, *_ = convert_to_dst_type(src=boxes_t_dst, dst=boxes)
         return boxes_dst
