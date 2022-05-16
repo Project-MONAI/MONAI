@@ -516,7 +516,8 @@ class Orientation(Transform):
 
         Returns:
             data_array [reoriented in `self.axcodes`]. Output type will be `MetaTensor`
-                unless `get_track_meta() == False`.
+                unless `get_track_meta() == False`, in which case it will be
+                `torch.Tensor`.
 
         """
         spatial_shape = data_array.shape[1:]
