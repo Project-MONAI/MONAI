@@ -47,7 +47,7 @@ class BoxMode:
         Example:
             BoxMode.get_name(spatial_dims = 2)
         """
-        return cls.name[spatial_dims]
+        return cls.name[spatial_dims].value
 
     @abstractmethod
     def boxes_to_corners(self, boxes: torch.Tensor) -> Tuple:

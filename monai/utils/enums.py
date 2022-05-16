@@ -313,7 +313,7 @@ class JITMetadataKeys(Enum):
     DESCRIPTION = "description"
 
 
-class BoundingBoxMode:
+class BoundingBoxMode(Enum):
     XYXY = "xyxy"  # [xmin, ymin, xmax, ymax]
     XYZXYZ = "xyzxyz"  # [xmin, ymin, zmin, xmax, ymax, zmax]
     XXYY = "xxyy"  # [xmin, xmax, ymin, ymax]
