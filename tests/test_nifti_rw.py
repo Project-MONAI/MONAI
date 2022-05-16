@@ -118,7 +118,9 @@ class TestNiftiLoadRead(unittest.TestCase):
         data = LoadImage(reader="NibabelReader", as_closest_canonical=False)(test_image)
         header = data.meta
         data, original_affine, new_affine = Spacing([0.8, 0.8, 0.8])(data[None], header["affine"], mode="nearest")
-        data, _, new_affine = Orientation("ILP")(data, new_affine)
+        data.affine = new_affine
+        data = Orientation("ILP")(data)
+        new_affine = data.affine
         if os.path.exists(test_image):
             os.remove(test_image)
         writer_obj = NibabelWriter()

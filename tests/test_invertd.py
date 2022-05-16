@@ -51,9 +51,9 @@ class TestInvertd(unittest.TestCase):
         transform = Compose(
             [
                 LoadImaged(KEYS),
-                FromMetaTensord(KEYS),
                 AddChanneld(KEYS),
                 Orientationd(KEYS, "RPS"),
+                FromMetaTensord(KEYS),
                 Spacingd(KEYS, pixdim=(1.2, 1.01, 0.9), mode=["bilinear", "nearest"], dtype=np.float32),
                 ScaleIntensityd("image", minv=1, maxv=10),
                 RandFlipd(KEYS, prob=0.5, spatial_axis=[1, 2]),
