@@ -28,11 +28,11 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    bbox = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]
+    boxes = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]
     image_size = [4, 4, 4]
     TESTS.append(
         [
-            {"bbox": p(bbox), "image_size": image_size, "mode": "xyzwhd", "half": False},
+            {"boxes": p(boxes), "image_size": image_size, "mode": "xyzwhd", "half": False},
             "xyzwhd",
             p([[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]),
             p([0, 12, 12]),
@@ -40,7 +40,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"bbox": p(bbox), "image_size": image_size, "mode": "xyzwhd", "half": True},
+            {"boxes": p(boxes), "image_size": image_size, "mode": "xyzwhd", "half": True},
             "xyzxyz",
             p([[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 3, 3], [0, 1, 1, 2, 3, 4]]),
             p([0, 12, 12]),
@@ -48,7 +48,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"bbox": p(bbox), "image_size": image_size, "mode": "xyzwhd", "half": False},
+            {"boxes": p(boxes), "image_size": image_size, "mode": "xyzwhd", "half": False},
             "xxyyzz",
             p([[0, 0, 0, 0, 0, 0], [0, 2, 1, 3, 0, 3], [0, 2, 1, 3, 1, 4]]),
             p([0, 12, 12]),
@@ -56,7 +56,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"bbox": p(bbox), "image_size": image_size, "mode": "xyzxyz", "half": False},
+            {"boxes": p(boxes), "image_size": image_size, "mode": "xyzxyz", "half": False},
             "xyzwhd",
             p([[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 1, 3], [0, 1, 1, 2, 1, 2]]),
             p([0, 6, 4]),
@@ -64,7 +64,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"bbox": p(bbox), "image_size": image_size, "mode": "xyzxyz", "half": True},
+            {"boxes": p(boxes), "image_size": image_size, "mode": "xyzxyz", "half": True},
             "xyzxyz",
             p([[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]),
             p([0, 6, 4]),
@@ -72,7 +72,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"bbox": p(bbox), "image_size": image_size, "mode": "xyzxyz", "half": False},
+            {"boxes": p(boxes), "image_size": image_size, "mode": "xyzxyz", "half": False},
             "xxyyzz",
             p([[0, 0, 0, 0, 0, 0], [0, 2, 1, 2, 0, 3], [0, 2, 1, 2, 1, 3]]),
             p([0, 6, 4]),
@@ -80,7 +80,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"bbox": p(bbox), "image_size": image_size, "mode": "xxyyzz", "half": False},
+            {"boxes": p(boxes), "image_size": image_size, "mode": "xxyyzz", "half": False},
             "xxyyzz",
             p([[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]),
             p([0, 2, 1]),
@@ -88,7 +88,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"bbox": p(bbox), "image_size": image_size, "mode": "xxyyzz", "half": True},
+            {"boxes": p(boxes), "image_size": image_size, "mode": "xxyyzz", "half": True},
             "xyzxyz",
             p([[0, 0, 0, 0, 0, 0], [0, 0, 2, 1, 2, 3], [0, 1, 2, 1, 2, 3]]),
             p([0, 2, 1]),
@@ -96,7 +96,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"bbox": p(bbox), "image_size": image_size, "mode": "xxyyzz", "half": False},
+            {"boxes": p(boxes), "image_size": image_size, "mode": "xxyyzz", "half": False},
             "xyzwhd",
             p([[0, 0, 0, 0, 0, 0], [0, 0, 2, 1, 2, 1], [0, 1, 2, 1, 1, 1]]),
             p([0, 2, 1]),
@@ -107,25 +107,26 @@ for p in TEST_NDARRAYS:
 class TestCreateBoxList(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, input_data, mode2, expected_box, expected_area):
-        bbox1 = convert_data_type(input_data["bbox"], dtype=np.float32)[0]
+        expected_box = convert_data_type(expected_box, dtype=np.float32)[0]
+        boxes1 = convert_data_type(input_data["boxes"], dtype=np.float32)[0]
         mode1 = input_data["mode"]
         # image_size = input_data["image_size"]
         half_bool = input_data["half"]
 
         # test float16
         if half_bool:
-            bbox1 = convert_data_type(bbox1, dtype=np.float16)[0]
+            boxes1 = convert_data_type(boxes1, dtype=np.float16)[0]
             expected_box = convert_data_type(expected_box, dtype=np.float16)[0]
 
         # test box_convert_mode, box_convert_standard_mode
-        result2 = box_convert_mode(bbox=bbox1, src_mode=mode1, dst_mode=mode2)
+        result2 = box_convert_mode(boxes=boxes1, src_mode=mode1, dst_mode=mode2)
         assert_allclose(result2, expected_box, type_test=True, device_test=True, atol=0.0)
 
-        result1 = box_convert_mode(bbox=result2, src_mode=mode2, dst_mode=mode1)
-        assert_allclose(result1, bbox1, type_test=True, device_test=True, atol=0.0)
+        result1 = box_convert_mode(boxes=result2, src_mode=mode2, dst_mode=mode1)
+        assert_allclose(result1, boxes1, type_test=True, device_test=True, atol=0.0)
 
-        result_standard = box_convert_standard_mode(bbox=bbox1, mode=mode1)
-        expected_box_standard = box_convert_standard_mode(bbox=expected_box, mode=mode2)
+        result_standard = box_convert_standard_mode(boxes=boxes1, mode=mode1)
+        expected_box_standard = box_convert_standard_mode(boxes=expected_box, mode=mode2)
         assert_allclose(result_standard, expected_box_standard, type_test=True, device_test=True, atol=0.0)
 
 
