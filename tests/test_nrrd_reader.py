@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from unittest.case import skipUnless
 
 import numpy as np
 from parameterized import parameterized
@@ -43,6 +44,7 @@ TEST_CASE_8 = [
 ]
 
 
+@skipUnless(has_nrrd, "nrrd required")
 class TestNrrdReader(unittest.TestCase):
     def test_verify_suffix(self):
         reader = NrrdReader()
