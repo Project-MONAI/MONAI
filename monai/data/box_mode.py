@@ -16,9 +16,9 @@ import torch
 
 from monai.utils.enums import BoundingBoxMode
 
-# TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
+# TO_REMOVE = 0 if the bottom-right corner pixel/voxel is not included in the box,
 #      i.e., when xmin=1, xmax=2, we have w = 1
-# TO_REMOVE = 1  if in 'xxyy','xxyyzz' mode, the bottom-right corner is included in the box,
+# TO_REMOVE = 1  if the bottom-right corner pixel/voxel is included in the box,
 #       i.e., when xmin=1, xmax=2, we have w = 2
 # Currently, only `TO_REMOVE = 0.` is supported
 TO_REMOVE = 0.0  # xmax-xmin = w -TO_REMOVE.
