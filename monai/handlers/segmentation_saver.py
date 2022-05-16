@@ -30,10 +30,10 @@ else:
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
-    It can extract the input image meta data(filename, affine, original_shape, etc.) and resample the predictions
-    based on the meta data.
+    It can extract the input image metadata(filename, affine, original_shape, etc.) and resample the predictions
+    based on the metadata.
     The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
-    where the input image name is extracted from the meta data dictionary. If no meta data provided,
+    where the input image name is extracted from the metadata dictionary. If no metadata provided,
     use index from 0 as the filename prefix.
     The predictions can be PyTorch Tensor with [B, C, H, W, [D]] shape or a list of Tensor without batch dim.
 
@@ -111,7 +111,7 @@ class SegmentationSaver:
                 `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
                 `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
             batch_transform: a callable that is used to extract the `meta_data` dictionary of the input images
-                from `ignite.engine.state.batch`. the purpose is to extract necessary information from the meta data:
+                from `ignite.engine.state.batch`. the purpose is to extract necessary information from the metadata:
                 filename, affine, original_shape, etc.
                 `engine.state` and `batch_transform` inherit from the ignite concept:
                 https://pytorch.org/ignite/concepts.html#state, explanation and usage example are in the tutorial:

@@ -591,7 +591,7 @@ def ckpt_export(
     else:
         copy_model_state(dst=net, src=ckpt_file_ if key_in_ckpt_ == "" else ckpt_file_[key_in_ckpt_])
 
-    # convert to TorchScript model and save with meta data, config content
+    # convert to TorchScript model and save with metadata, config content
     net = convert_to_torchscript(model=net)
 
     extra_files: Dict = {}
