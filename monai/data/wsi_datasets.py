@@ -149,6 +149,7 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         data: the list of input samples including image, location, and label (see the note below for more details).
         size: the size of patch to be extracted from the whole slide image.
         level: the level at which the patches to be extracted (default to 0).
+        overlap: the relative amount of overlap (between 0 and 1) for patches in each direction. Defaults to 0.
         transform: transforms to be executed on input data.
         reader: the module to be used for loading whole slide imaging. Defaults to cuCIM. If `reader` is
 
