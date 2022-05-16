@@ -27,7 +27,6 @@ from monai.data.box_mode import (
     CornerSizeMode,
 )
 from monai.utils import look_up_option
-from monai.utils.enums import BoundingBoxMode
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 # TO_REMOVE = 0.0 if the bottom-right corner pixel/voxel is not included in the box,
