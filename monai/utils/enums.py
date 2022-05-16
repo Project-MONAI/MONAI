@@ -311,3 +311,14 @@ class JITMetadataKeys(Enum):
     TIMESTAMP = "timestamp"
     VERSION = "version"
     DESCRIPTION = "description"
+
+class BoundingBoxMode:
+    XYXY = "xyxy",  # [xmin, ymin, xmax, ymax]
+    XYZXYZ = "xyzxyz"  # [xmin, ymin, zmin, xmax, ymax, zmax]
+    XXYY = "xxyy"  # [xmin, xmax, ymin, ymax]
+    XXYYZZ = "xxyyzz"  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    XYXYZZ = "xyxyzz"  # [xmin, ymin, xmax, ymax, zmin, zmax]
+    XYWH = "xywh"  # [xmin, ymin, xsize, ysize]
+    XYZWHD = "xyzwhd"  # [xmin, ymin, zmin, xsize, ysize, zsize]
+    CCWH = "ccwh"  # [xcenter, ycenter, xsize, ysize]
+    CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]

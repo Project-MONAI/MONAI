@@ -13,6 +13,7 @@ from abc import abstractmethod
 from typing import Sequence, Tuple
 
 import torch
+from monai.utils.enums import BoundingBoxMode
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
 #      i.e., when xmin=1, xmax=2, we have w = 1
@@ -134,7 +135,7 @@ class CornerCornerMode_TypeA(BoxMode):
     """
 
     def __int__(self):
-        self.dim_to_str_mapping = {2: "xyxy", 3: "xyzxyx"}
+        self.dim_to_str_mapping = {2: BoundingBoxMode.XYXY, 3: BoundingBoxMode.XYZXYZ}
 
     def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
         spatial_dims = self.get_dim_from_boxes(boxes)
@@ -164,7 +165,7 @@ class CornerCornerMode_TypeB(BoxMode):
     """
 
     def __int__(self):
-        self.dim_to_str_mapping = {2: "xxyy", 3: "xxyyzz"}
+        self.dim_to_str_mapping = {2: BoundingBoxMode.XXYY, 3: BoundingBoxMode.XXYYZZ}
 
     def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
         spatial_dims = self.get_dim_from_boxes(boxes)
@@ -194,7 +195,7 @@ class CornerCornerMode_TypeC(BoxMode):
     """
 
     def __int__(self):
-        self.dim_to_str_mapping = {2: "xyxy", 3: "xyxyzz"}
+        self.dim_to_str_mapping = {2: BoundingBoxMode.XYXY, 3: BoundingBoxMode.XYXYZZ}
 
     def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
         spatial_dims = self.get_dim_from_boxes(boxes)
@@ -224,7 +225,7 @@ class CornerSizeMode(BoxMode):
     """
 
     def __int__(self):
-        self.dim_to_str_mapping = {2: "xywh", 3: "xyzwhd"}
+        self.dim_to_str_mapping = {2: BoundingBoxMode.XYWH, 3: BoundingBoxMode.XYZWHD}
 
     def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
         # convert to float32 when computing torch.clamp, which does not support float16
@@ -267,7 +268,7 @@ class CenterSizeMode(BoxMode):
     """
 
     def __int__(self):
-        self.dim_to_str_mapping = {2: "ccwh", 3: "cccwhd"}
+        self.dim_to_str_mapping = {2: BoundingBoxMode.CCWH, 3: BoundingBoxMode.CCCWHD}
 
     def box_to_corner(self, boxes: torch.Tensor) -> Tuple:
         # convert to float32 when computing torch.clamp, which does not support float16

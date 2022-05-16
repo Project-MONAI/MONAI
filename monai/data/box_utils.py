@@ -27,6 +27,7 @@ from monai.data.box_mode import (
 )
 from monai.utils import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+from monai.utils.enums import BoundingBoxMode
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
 #      i.e., when xmin=1, xmax=2, we have w = 1
@@ -38,15 +39,15 @@ TO_REMOVE = box_mode.TO_REMOVE
 # We support the conversion between several box modes, i.e., representation of a bounding box
 # BOXMODE_MAPPING maps string box mode to teh corresponding BoxMode class
 BOXMODE_MAPPING = {
-    "xyxy": CornerCornerMode_TypeA(),  # [xmin, ymin, xmax, ymax]
-    "xyzxyz": CornerCornerMode_TypeA(),  # [xmin, ymin, zmin, xmax, ymax, zmax]
-    "xxyy": CornerCornerMode_TypeB(),  # [xmin, xmax, ymin, ymax]
-    "xxyyzz": CornerCornerMode_TypeB(),  # [xmin, xmax, ymin, ymax, zmin, zmax]
-    "xyxyzz": CornerCornerMode_TypeC(),  # [xmin, ymin, xmax, ymax, zmin, zmax]
-    "xywh": CornerSizeMode(),  # [xmin, ymin, xsize, ysize]
-    "xyzwhd": CornerSizeMode(),  # [xmin, ymin, zmin, xsize, ysize, zsize]
-    "ccwh": CenterSizeMode(),  # [xcenter, ycenter, xsize, ysize]
-    "cccwhd": CenterSizeMode(),  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+    BoundingBoxMode.XYXY: CornerCornerMode_TypeA(),  # [xmin, ymin, xmax, ymax]
+    BoundingBoxMode.XYZXYZ: CornerCornerMode_TypeA(),  # [xmin, ymin, zmin, xmax, ymax, zmax]
+    BoundingBoxMode.XXYY: CornerCornerMode_TypeB(),  # [xmin, xmax, ymin, ymax]
+    BoundingBoxMode.XXYYZZ: CornerCornerMode_TypeB(),  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    BoundingBoxMode.XYXYZZ: CornerCornerMode_TypeC(),  # [xmin, ymin, xmax, ymax, zmin, zmax]
+    BoundingBoxMode.XYWH: CornerSizeMode(),  # [xmin, ymin, xsize, ysize]
+    BoundingBoxMode.XYZWHD: CornerSizeMode(),  # [xmin, ymin, zmin, xsize, ysize, zsize]
+    BoundingBoxMode.CCWH: CenterSizeMode(),  # [xcenter, ycenter, xsize, ysize]
+    BoundingBoxMode.CCCWHD: CenterSizeMode(),  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 }
 # The standard box mode we use in all the box util functions
 StandardMode = CornerCornerMode_TypeA
