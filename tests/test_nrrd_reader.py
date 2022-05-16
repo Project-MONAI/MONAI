@@ -13,11 +13,13 @@ import os
 import tempfile
 import unittest
 
-import nrrd
 import numpy as np
 from parameterized import parameterized
 
 from monai.data import NrrdReader
+from monai.utils.module import optional_import
+
+nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
 TEST_CASE_1 = [(4, 4), "test_image.nrrd", (4, 4), np.uint8]
 TEST_CASE_2 = [(4, 4, 4), "test_image.nrrd", (4, 4, 4), np.uint16]
