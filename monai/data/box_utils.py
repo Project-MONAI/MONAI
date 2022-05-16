@@ -70,7 +70,7 @@ def get_dimension(
         boxes: bounding box, Nx4 or Nx6 torch tensor or ndarray
         corners: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor or ndarray
         spatial_size: The spatial size of the image where the boxes are attached.
-                len(spatial_size) should be 2 or 3. Data format is list, or np.ndarray, or tensor of int
+                len(spatial_size) should be in [2, 3].
     Returns:
         spatial_dims: 2 or 3
 
@@ -109,7 +109,7 @@ def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **
     """
     This function returns BoxMode object from giving mode according to BOXMODE_MAPPING
     Args:
-        mode: source box mode. If mode is not given, this func will assume mode is StandardMode()
+        mode: source box mode. If mode is not given, this func will assume mode is StandardMode
     Returns:
         BoxMode object
 
@@ -155,14 +155,36 @@ def check_corners(corners: Sequence) -> bool:
 
 
 def convert_box_mode(
-    boxes: NdarrayOrTensor, src_mode: Union[str, BoxMode, None] = None, dst_mode: Union[str, BoxMode, None] = None
+    boxes: NdarrayOrTensor,
+    src_mode: Union[str, BoxMode, Type[BoxMode], None] = None,
+    dst_mode: Union[str, BoxMode, Type[BoxMode], None] = None,
 ) -> NdarrayOrTensor:
     """
     This function converts the boxes in src_mode to the dst_mode
     Args:
         boxes: source bounding box, Nx4 or Nx6 torch tensor or ndarray
-        src_mode: source box mode. If mode is not given, this func will assume mode is StandardMode()
-        dst_mode: target box mode. If mode is not given, this func will assume mode is StandardMode()
+        src_mode: source box mode. If mode is not given, this func will assume mode is StandardMode.
+            It can be:
+            #. str: choose from monai.utils.enums.BoundingBoxMode, including
+                "xyxy": [xmin, ymin, xmax, ymax]
+                "xyzxyz": [xmin, ymin, zmin, xmax, ymax, zmax]
+                "xxyy": [xmin, xmax, ymin, ymax]
+                "xxyyzz": [xmin, xmax, ymin, ymax, zmin, zmax]
+                "xyxyzz": [xmin, ymin, xmax, ymax, zmin, zmax]
+                "xywh": [xmin, ymin, xsize, ysize]
+                "xyzwhd": [xmin, ymin, zmin, xsize, ysize, zsize]
+                "ccwh": [xcenter, ycenter, xsize, ysize]
+                "cccwhd": [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+            #. BoxMode class: choose from
+                CornerCornerModeTypeA: "xyxy", "xyzxyz"
+                CornerCornerModeTypeB: "xxyy", "xxyyzz"
+                CornerCornerModeTypeC: "xyxy", "xyxyzz"
+                CornerSizeMode: "xywh", "xyzwhd"
+                CenterSizeMode: "ccwh", "cccwhd"
+            #. BoxMode instance
+            #. None: will assume mode is StandardMode
+        dst_mode: target box mode. If mode is not given, this func will assume mode is StandardMode.
+            Data type same as src_mode.
     Returns:
         boxes_dst: bounding box with target mode, does not share memory with original boxes
 
@@ -196,12 +218,33 @@ def convert_box_mode(
         return boxes_dst
 
 
-def convert_box_to_standard_mode(boxes: NdarrayOrTensor, mode: Union[str, BoxMode, None] = None) -> NdarrayOrTensor:
+def convert_box_to_standard_mode(
+    boxes: NdarrayOrTensor, mode: Union[str, BoxMode, Type[BoxMode], None] = None
+) -> NdarrayOrTensor:
     """
     Convert given boxes to standard mode
     Args:
         boxes: source bounding box, Nx4 or Nx6 torch tensor or ndarray
-        mode: source box mode. If mode is not given, this func will assume mode is StandardMode()
+        mode: source box mode. If mode is not given, this func will assume mode is StandardMode
+        It can be:
+            #. str: choose from monai.utils.enums.BoundingBoxMode, including
+                "xyxy": [xmin, ymin, xmax, ymax]
+                "xyzxyz": [xmin, ymin, zmin, xmax, ymax, zmax]
+                "xxyy": [xmin, xmax, ymin, ymax]
+                "xxyyzz": [xmin, xmax, ymin, ymax, zmin, zmax]
+                "xyxyzz": [xmin, ymin, xmax, ymax, zmin, zmax]
+                "xywh": [xmin, ymin, xsize, ysize]
+                "xyzwhd": [xmin, ymin, zmin, xsize, ysize, zsize]
+                "ccwh": [xcenter, ycenter, xsize, ysize]
+                "cccwhd": [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+            #. BoxMode class: choose from
+                CornerCornerModeTypeA: "xyxy", "xyzxyz"
+                CornerCornerModeTypeB: "xxyy", "xxyyzz"
+                CornerCornerModeTypeC: "xyxy", "xyxyzz"
+                CornerSizeMode: "xywh", "xyzwhd"
+                CenterSizeMode: "ccwh", "cccwhd"
+            #. BoxMode instance
+            #. None: will assume mode is StandardMode
     Returns:
         boxes_standard: bounding box with standard mode, does not share memory with original boxes
 
