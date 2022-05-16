@@ -168,7 +168,8 @@ def convert_box_mode(
     Args:
         boxes: source bounding box, Nx4 or Nx6 torch tensor or ndarray
         src_mode: source box mode. If mode is not given, this func will assume mode is StandardMode.
-            It can be:
+        dst_mode: target box mode. If mode is not given, this func will assume mode is StandardMode.
+        src_mode and dst_mode can be:
             #. str: choose from monai.utils.enums.BoundingBoxMode, including
                 "xyxy": boxes has format [xmin, ymin, xmax, ymax]
                 "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
@@ -187,14 +188,12 @@ def convert_box_mode(
                 CenterSizeMode: equivalent to "ccwh" or "cccwhd"
             #. BoxMode instance
             #. None: will assume mode is StandardMode
-        dst_mode: target box mode. If mode is not given, this func will assume mode is StandardMode.
-            Data type same as src_mode.
     Returns:
         boxes_dst: bounding box with target mode, does not share memory with original boxes
 
     Example:
         boxes = torch.ones(10,6)
-        box_convert_mode(boxes=boxes, src_mode="xyzxyz", dst_mode="cccwhd")
+        box_convert_mode(boxes=boxes, src_mode="xyzxyz", dst_mode=CenterSizeMode)
     """
 
     # if mode not changed, return original box
