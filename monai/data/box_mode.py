@@ -9,16 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
-from copy import deepcopy
-from typing import Sequence, Tuple, Union
+from abc import abstractmethod
+from typing import Sequence, Tuple
 
-import numpy as np
 import torch
-
-from monai.config.type_definitions import NdarrayOrTensor
-from monai.utils.module import look_up_option
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 # TO_REMOVE = 0 if in 'xxyy','xxyyzz' mode, the bottom-right corner is not included in the box,
 #      i.e., when xmin=1, xmax=2, we have w = 1

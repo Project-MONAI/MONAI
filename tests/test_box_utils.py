@@ -17,7 +17,7 @@ import numpy as np
 # import torch
 from parameterized import parameterized
 
-from monai.data.box_utils import box_convert_mode, box_convert_standard_mode
+from monai.data.box_utils import convert_box_mode, convert_box_to_standard_mode
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
@@ -118,15 +118,15 @@ class TestCreateBoxList(unittest.TestCase):
             boxes1 = convert_data_type(boxes1, dtype=np.float16)[0]
             expected_box = convert_data_type(expected_box, dtype=np.float16)[0]
 
-        # test box_convert_mode, box_convert_standard_mode
-        result2 = box_convert_mode(boxes=boxes1, src_mode=mode1, dst_mode=mode2)
+        # test convert_box_mode, convert_box_to_standard_mode
+        result2 = convert_box_mode(boxes=boxes1, src_mode=mode1, dst_mode=mode2)
         assert_allclose(result2, expected_box, type_test=True, device_test=True, atol=0.0)
 
-        result1 = box_convert_mode(boxes=result2, src_mode=mode2, dst_mode=mode1)
+        result1 = convert_box_mode(boxes=result2, src_mode=mode2, dst_mode=mode1)
         assert_allclose(result1, boxes1, type_test=True, device_test=True, atol=0.0)
 
-        result_standard = box_convert_standard_mode(boxes=boxes1, mode=mode1)
-        expected_box_standard = box_convert_standard_mode(boxes=expected_box, mode=mode2)
+        result_standard = convert_box_to_standard_mode(boxes=boxes1, mode=mode1)
+        expected_box_standard = convert_box_to_standard_mode(boxes=expected_box, mode=mode2)
         assert_allclose(result_standard, expected_box_standard, type_test=True, device_test=True, atol=0.0)
 
 
