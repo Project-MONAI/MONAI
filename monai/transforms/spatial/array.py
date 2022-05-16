@@ -520,6 +520,14 @@ class Orientation(Transform):
                 `torch.Tensor`.
 
         """
+        # if the input isn't MetaTensor and output isn't desired to be one either,
+        # nothing to do.
+        if not isinstance(data_array, MetaTensor) and not get_track_meta():
+            warnings.warn(
+                "`Orientation` applied to non-MetaTensor object and metadata tracking is off, transform does nothing."
+            )
+            return data_array
+
         spatial_shape = data_array.shape[1:]
         sr = len(spatial_shape)
         if sr <= 0:
@@ -569,7 +577,7 @@ class Orientation(Transform):
 
         if isinstance(data_array, MetaTensor):
             data_array.affine = new_affine
-        elif get_track_meta():
+        else:
             data_array = MetaTensor(data_array, affine=new_affine)
 
         return data_array
