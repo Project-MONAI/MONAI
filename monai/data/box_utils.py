@@ -20,9 +20,9 @@ from monai.data import box_mode
 from monai.data.box_mode import (
     BoxMode,
     CenterSizeMode,
-    CornerCornerMode_TypeA,
-    CornerCornerMode_TypeB,
-    CornerCornerMode_TypeC,
+    CornerCornerModeTypeA,
+    CornerCornerModeTypeB,
+    CornerCornerModeTypeC,
     CornerSizeMode,
 )
 from monai.utils import look_up_option
@@ -39,18 +39,18 @@ TO_REMOVE = box_mode.TO_REMOVE
 # We support the conversion between several box modes, i.e., representation of a bounding box
 # BOXMODE_MAPPING maps string box mode to the corresponding BoxMode class
 BOXMODE_MAPPING = {
-    BoundingBoxMode.XYXY: CornerCornerMode_TypeA(),  # [xmin, ymin, xmax, ymax]
-    BoundingBoxMode.XYZXYZ: CornerCornerMode_TypeA(),  # [xmin, ymin, zmin, xmax, ymax, zmax]
-    BoundingBoxMode.XXYY: CornerCornerMode_TypeB(),  # [xmin, xmax, ymin, ymax]
-    BoundingBoxMode.XXYYZZ: CornerCornerMode_TypeB(),  # [xmin, xmax, ymin, ymax, zmin, zmax]
-    BoundingBoxMode.XYXYZZ: CornerCornerMode_TypeC(),  # [xmin, ymin, xmax, ymax, zmin, zmax]
+    BoundingBoxMode.XYXY: CornerCornerModeTypeA(),  # [xmin, ymin, xmax, ymax]
+    BoundingBoxMode.XYZXYZ: CornerCornerModeTypeA(),  # [xmin, ymin, zmin, xmax, ymax, zmax]
+    BoundingBoxMode.XXYY: CornerCornerModeTypeB(),  # [xmin, xmax, ymin, ymax]
+    BoundingBoxMode.XXYYZZ: CornerCornerModeTypeB(),  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    BoundingBoxMode.XYXYZZ: CornerCornerModeTypeC(),  # [xmin, ymin, xmax, ymax, zmin, zmax]
     BoundingBoxMode.XYWH: CornerSizeMode(),  # [xmin, ymin, xsize, ysize]
     BoundingBoxMode.XYZWHD: CornerSizeMode(),  # [xmin, ymin, zmin, xsize, ysize, zsize]
     BoundingBoxMode.CCWH: CenterSizeMode(),  # [xcenter, ycenter, xsize, ysize]
     BoundingBoxMode.CCCWHD: CenterSizeMode(),  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 }
 # The standard box mode we use in all the box util functions
-StandardMode = CornerCornerMode_TypeA
+StandardMode = CornerCornerModeTypeA
 
 
 def get_boxmode(mode: Union[str, BoxMode, None] = None) -> BoxMode:
@@ -63,7 +63,7 @@ def get_boxmode(mode: Union[str, BoxMode, None] = None) -> BoxMode:
 
     Example:
         mode = "xyzxyz"
-        get_boxmode(mode) will return CornerCornerMode_TypeA()
+        get_boxmode(mode) will return CornerCornerModeTypeA()
     """
     if isinstance(mode, BoxMode):
         return mode

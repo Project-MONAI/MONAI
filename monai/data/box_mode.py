@@ -129,7 +129,7 @@ class BoxMode:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class CornerCornerMode_TypeA(BoxMode):
+class CornerCornerModeTypeA(BoxMode):
     """
     Also represented as "xyxy" or "xyzxyz"
     [xmin, ymin, xmax, ymax] or [xmin, ymin, zmin, xmax, ymax, zmax]
@@ -159,7 +159,7 @@ class CornerCornerMode_TypeA(BoxMode):
             return torch.cat((c[0], c[1], c[2], c[3]), dim=-1)
 
 
-class CornerCornerMode_TypeB(BoxMode):
+class CornerCornerModeTypeB(BoxMode):
     """
     Also represented as "xxyy" or "xxyyzz"
     [xmin, xmax, ymin, ymax] or [xmin, xmax, ymin, ymax, zmin, zmax]
@@ -189,7 +189,7 @@ class CornerCornerMode_TypeB(BoxMode):
             return torch.cat((c[0], c[2], c[1], c[3]), dim=-1)
 
 
-class CornerCornerMode_TypeC(BoxMode):
+class CornerCornerModeTypeC(BoxMode):
     """
     Also represented as "xyxy" or "xyxyzz"
     [xmin, ymin, xmax, ymax] or [xmin, ymin, xmax, ymax, zmin, zmax]
