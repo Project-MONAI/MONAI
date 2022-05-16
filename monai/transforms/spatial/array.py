@@ -26,6 +26,7 @@ from monai.data.utils import AFFINE_TOL, compute_shape_offset, reorient_spatial_
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
+from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
     create_control_grid,
@@ -136,8 +137,8 @@ class SpatialResample(Transform):
         src_affine: Optional[NdarrayOrTensor] = None,
         dst_affine: Optional[NdarrayOrTensor] = None,
         spatial_size: Optional[Union[Sequence[int], np.ndarray, int]] = None,
-        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        mode: Union[GridSampleMode, str, None] = None,
+        padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
     ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
@@ -273,7 +274,7 @@ class SpatialResample(Transform):
 
 
 class ResampleToMatch(SpatialResample):
-    """Resample an image to match given meta data. The affine matrix will be aligned,
+    """Resample an image to match given metadata. The affine matrix will be aligned,
     and the size of the output image will match."""
 
     def __call__(  # type: ignore
@@ -281,8 +282,8 @@ class ResampleToMatch(SpatialResample):
         img: NdarrayOrTensor,
         src_meta: Optional[Dict] = None,
         dst_meta: Optional[Dict] = None,
-        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        mode: Union[GridSampleMode, str, None] = None,
+        padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
     ):
@@ -622,6 +623,15 @@ class Resize(Transform):
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        anti_aliasing: bool
+            Whether to apply a Gaussian filter to smooth the image prior
+            to downsampling. It is crucial to filter when downsampling
+            the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+        anti_aliasing_sigma: {float, tuple of floats}, optional
+            Standard deviation for Gaussian filtering used when anti-aliasing.
+            By default, this value is chosen as (s - 1) / 2 where s is the
+            downsampling factor, where s > 1. For the up-size case, s < 1, no
+            anti-aliasing is performed prior to rescaling.
     """
 
     backend = [TransformBackends.TORCH]
@@ -632,17 +642,23 @@ class Resize(Transform):
         size_mode: str = "all",
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
+        anti_aliasing: bool = False,
+        anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
     ) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
+        self.anti_aliasing = anti_aliasing
+        self.anti_aliasing_sigma = anti_aliasing_sigma
 
     def __call__(
         self,
         img: NdarrayOrTensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
         align_corners: Optional[bool] = None,
+        anti_aliasing: Optional[bool] = None,
+        anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -653,11 +669,23 @@ class Resize(Transform):
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            anti_aliasing: bool, optional
+                Whether to apply a Gaussian filter to smooth the image prior
+                to downsampling. It is crucial to filter when downsampling
+                the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+            anti_aliasing_sigma: {float, tuple of floats}, optional
+                Standard deviation for Gaussian filtering used when anti-aliasing.
+                By default, this value is chosen as (s - 1) / 2 where s is the
+                downsampling factor, where s > 1. For the up-size case, s < 1, no
+                anti-aliasing is performed prior to rescaling.
 
         Raises:
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
+        anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
+        anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
+
         img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if self.size_mode == "all":
             input_ndim = img_.ndim - 1  # spatial ndim
@@ -677,6 +705,20 @@ class Resize(Transform):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
+
+        if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
+            factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
+            if anti_aliasing_sigma is None:
+                # if sigma is not given, use the default sigma in skimage.transform.resize
+                anti_aliasing_sigma = torch.maximum(torch.zeros(factors.shape), (factors - 1) / 2).tolist()
+            else:
+                # if sigma is given, use the given value for downsampling axis
+                anti_aliasing_sigma = list(ensure_tuple_rep(anti_aliasing_sigma, len(spatial_size_)))
+                for axis in range(len(spatial_size_)):
+                    anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
+            anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
+            img_ = anti_aliasing_filter(img_)
+
         resized = torch.nn.functional.interpolate(
             input=img_.unsqueeze(0),
             size=spatial_size_,
@@ -2493,62 +2535,62 @@ class GridSplit(Transform):
         # Patch size
         self.size = None if size is None else ensure_tuple_rep(size, len(self.grid))
 
-    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
-        if self.grid == (1, 1) and self.size is None:
-            if isinstance(image, torch.Tensor):
-                return torch.stack([image])
-            elif isinstance(image, np.ndarray):
-                return np.stack([image])  # type: ignore
-            else:
-                raise ValueError(f"Input type [{type(image)}] is not supported.")
+    def __call__(
+        self, image: NdarrayOrTensor, size: Optional[Union[int, Tuple[int, int], np.ndarray]] = None
+    ) -> List[NdarrayOrTensor]:
+        input_size = self.size if size is None else ensure_tuple_rep(size, len(self.grid))
 
-        size, steps = self._get_params(image.shape[1:])
-        patches: NdarrayOrTensor
+        if self.grid == (1, 1) and input_size is None:
+            return [image]
+
+        split_size, steps = self._get_params(image.shape[1:], input_size)
+        patches: List[NdarrayOrTensor]
         if isinstance(image, torch.Tensor):
-            patches = (
-                image.unfold(1, size[0], steps[0])
-                .unfold(2, size[1], steps[1])
+            unfolded_image = (
+                image.unfold(1, split_size[0], steps[0])
+                .unfold(2, split_size[1], steps[1])
                 .flatten(1, 2)
                 .transpose(0, 1)
-                .contiguous()
             )
+            # Make a list of contiguous patches
+            patches = [p.contiguous() for p in unfolded_image]
         elif isinstance(image, np.ndarray):
             x_step, y_step = steps
             c_stride, x_stride, y_stride = image.strides
             n_channels = image.shape[0]
-            patches = as_strided(
+            strided_image = as_strided(
                 image,
-                shape=(*self.grid, n_channels, size[0], size[1]),
+                shape=(*self.grid, n_channels, split_size[0], split_size[1]),
                 strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
                 writeable=False,
             )
-            # flatten the first two dimensions
-            patches = patches.reshape(np.prod(patches.shape[:2]), *patches.shape[2:])
-            # make it a contiguous array
-            patches = np.ascontiguousarray(patches)
+            # Flatten the first two dimensions
+            strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
+            # Make a list of contiguous patches
+            patches = [np.ascontiguousarray(p) for p in strided_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
 
         return patches
 
-    def _get_params(self, image_size: Union[Sequence[int], np.ndarray]):
+    def _get_params(
+        self, image_size: Union[Sequence[int], np.ndarray], size: Optional[Union[Sequence[int], np.ndarray]] = None
+    ):
         """
         Calculate the size and step required for splitting the image
         Args:
             The size of the input image
         """
-        if self.size is not None:
-            # Set the split size to the given default size
-            if any(self.size[i] > image_size[i] for i in range(len(self.grid))):
-                raise ValueError("The image size ({image_size})is smaller than the requested split size ({self.size})")
-            split_size = self.size
-        else:
+        if size is None:
             # infer each sub-image size from the image size and the grid
-            split_size = tuple(image_size[i] // self.grid[i] for i in range(len(self.grid)))
+            size = tuple(image_size[i] // self.grid[i] for i in range(len(self.grid)))
+
+        if any(size[i] > image_size[i] for i in range(len(self.grid))):
+            raise ValueError(f"The image size ({image_size})is smaller than the requested split size ({size})")
 
         steps = tuple(
-            (image_size[i] - split_size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
+            (image_size[i] - size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
             for i in range(len(self.grid))
         )
 
-        return split_size, steps
+        return size, steps

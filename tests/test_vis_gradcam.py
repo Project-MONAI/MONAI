@@ -85,7 +85,7 @@ class TestGradientClassActivationMap(unittest.TestCase):
                 x.requires_grad = False
         cam = GradCAM(nn_module=model, target_layers="class_layers.relu")
         image = torch.rand((2, 1, 48, 64))
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(IndexError):
             cam(x=image)
 
 
