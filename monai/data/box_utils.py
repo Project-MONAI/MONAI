@@ -59,6 +59,7 @@ def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> l
 
 def get_dimension(
     boxes: Union[torch.Tensor, np.ndarray, None] = None,
+    points: Union[torch.Tensor, np.ndarray, None] = None,
     corners: Union[Sequence, None] = None,
     spatial_size: Union[Sequence[int], torch.Tensor, np.ndarray, None] = None,
 ) -> int:
@@ -68,6 +69,7 @@ def get_dimension(
     It raises ValueError if the dimensions of multiple inputs do not match with each other.
     Args:
         boxes: bounding box, Nx4 or Nx6 torch tensor or ndarray
+        points: points, Nx2 or Nx3 torch tensor or ndarray
         corners: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor or ndarray
         spatial_size: The spatial size of the image where the boxes are attached.
                 len(spatial_size) should be in [2, 3].
@@ -77,27 +79,36 @@ def get_dimension(
     Example:
         boxes = torch.ones(10,6)
         get_dimension(boxes, spatial_size=[100,200,200]) will return 3
+        get_dimension(boxes, spatial_size=[100,200]) will raise ValueError
         get_dimension(boxes) will return 3
     """
     spatial_dims_set = set()
-    if spatial_size is not None:
-        if len(spatial_size) not in SUPPORTED_SPATIAL_DIMS:
-            raise ValueError(
-                f"Currently we support only boxes on 2-D and 3-D images, got image spatial_size {spatial_size}."
-            )
-        spatial_dims_set.add(len(spatial_size))
-    if corners is not None:
-        if len(corners) not in [4, 6]:
-            raise ValueError(
-                f"Currently we support only boxes with shape [N,4] or [N,6], got box corner tuple with length {len(corners)}."
-            )
-        spatial_dims_set.add(len(corners) // 2)
+
     if boxes is not None:
         if int(boxes.shape[1]) not in [4, 6]:
             raise ValueError(
                 f"Currently we support only boxes with shape [N,4] or [N,6], got boxes with shape {boxes.shape}."
             )
         spatial_dims_set.add(int(boxes.shape[1] / 2))
+    if points is not None:
+        if int(points.shape[1]) not in SUPPORTED_SPATIAL_DIMS:
+            raise ValueError(
+                f"Currently we support only points with shape [N,2] or [N,3], got boxes with shape {points.shape}."
+            )
+        spatial_dims_set.add(int(points.shape[1]))
+    if corners is not None:
+        if len(corners) not in [4, 6]:
+            raise ValueError(
+                f"Currently we support only boxes with shape [N,4] or [N,6], got box corner tuple with length {len(corners)}."
+            )
+        spatial_dims_set.add(len(corners) // 2)
+    if spatial_size is not None:
+        if len(spatial_size) not in SUPPORTED_SPATIAL_DIMS:
+            raise ValueError(
+                f"Currently we support only boxes on 2-D and 3-D images, got image spatial_size {spatial_size}."
+            )
+        spatial_dims_set.add(len(spatial_size))
+
     spatial_dims_list = list(spatial_dims_set)
     if len(spatial_dims_list) == 0:
         raise ValueError("At least one of the inputs needs to be non-empty.")
