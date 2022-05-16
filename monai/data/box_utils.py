@@ -36,7 +36,7 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 # Currently, only `TO_REMOVE = 0.0` is supported
 TO_REMOVE = box_mode.TO_REMOVE
 
-# We support 2_d or 3-D bounding boxes
+# We support 2-D or 3-D bounding boxes
 SUPPORTED_SPATIAL_DIMS = [2, 3]
 
 # We support the conversion between several box modes, i.e., representation of a bounding box
