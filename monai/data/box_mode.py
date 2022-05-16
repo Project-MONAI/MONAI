@@ -27,7 +27,7 @@ TO_REMOVE = 0.0  # xmax-xmin = w -TO_REMOVE.
 class BoxMode:
     def __int__(self):
         # The mapping that maps spatial dimension to mode string name
-        self.dim_to_str_mapping = {2: None, 3: None}
+        self.dim_to_str_mapping = {2: "", 3: ""}
 
     def get_str_mode(self, spatial_dims: int) -> str:
         """
@@ -143,19 +143,20 @@ class CornerCornerModeTypeA(BoxMode):
         if spatial_dims == 3:
             xmin, ymin, zmin, xmax, ymax, zmax = boxes.split(1, dim=-1)
             corner = xmin, ymin, zmin, xmax, ymax, zmax
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             xmin, ymin, xmax, ymax = boxes.split(1, dim=-1)
             corner = xmin, ymin, xmax, ymax
         if self.check_corner(corner):
             return corner
         else:
             raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
+            return
 
     def corner_to_box(self, c: Sequence) -> torch.Tensor:
         spatial_dims = self.get_dim_from_corner(c)
         if spatial_dims == 3:
             return torch.cat((c[0], c[1], c[2], c[3], c[4], c[5]), dim=-1)
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             return torch.cat((c[0], c[1], c[2], c[3]), dim=-1)
 
 
@@ -173,19 +174,20 @@ class CornerCornerModeTypeB(BoxMode):
         if spatial_dims == 3:
             xmin, xmax, ymin, ymax, zmin, zmax = boxes.split(1, dim=-1)
             corner = xmin, ymin, zmin, xmax, ymax, zmax
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             xmin, xmax, ymin, ymax = boxes.split(1, dim=-1)
             corner = xmin, ymin, xmax, ymax
         if self.check_corner(corner):
             return corner
         else:
             raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
+            return
 
     def corner_to_box(self, c: Sequence) -> torch.Tensor:
         spatial_dims = self.get_dim_from_corner(c)
         if spatial_dims == 3:
             return torch.cat((c[0], c[3], c[1], c[4], c[2], c[5]), dim=-1)
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             return torch.cat((c[0], c[2], c[1], c[3]), dim=-1)
 
 
@@ -203,19 +205,20 @@ class CornerCornerModeTypeC(BoxMode):
         if spatial_dims == 3:
             xmin, ymin, xmax, ymax, zmin, zmax = boxes.split(1, dim=-1)
             corner = xmin, ymin, zmin, xmax, ymax, zmax
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             xmin, ymin, xmax, ymax = boxes.split(1, dim=-1)
             corner = xmin, ymin, xmax, ymax
         if self.check_corner(corner):
             return corner
         else:
             raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
+            return
 
     def corner_to_box(self, c: Sequence) -> torch.Tensor:
         spatial_dims = self.get_dim_from_corner(c)
         if spatial_dims == 3:
             return torch.cat((c[0], c[1], c[3], c[4], c[2], c[5]), dim=-1)
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             return torch.cat((c[0], c[1], c[2], c[3]), dim=-1)
 
 
@@ -240,7 +243,7 @@ class CornerSizeMode(BoxMode):
             ymax = ymin + (h - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             zmax = zmin + (d - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             corner = xmin, ymin, zmin, xmax, ymax, zmax
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             xmin, ymin, w, h = boxes.split(1, dim=-1)
             xmax = xmin + (w - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             ymax = ymin + (h - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
@@ -249,6 +252,7 @@ class CornerSizeMode(BoxMode):
             return corner
         else:
             raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
+            return
 
     def corner_to_box(self, c: Sequence) -> torch.Tensor:
         spatial_dims = self.get_dim_from_corner(c)
@@ -257,7 +261,7 @@ class CornerSizeMode(BoxMode):
             return torch.cat(
                 (xmin, ymin, zmin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE, zmax - zmin + TO_REMOVE), dim=-1
             )
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             xmin, ymin, xmax, ymax = c[0], c[1], c[2], c[3]
             return torch.cat((xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=-1)
 
@@ -286,7 +290,7 @@ class CenterSizeMode(BoxMode):
             zmin = zc - ((d - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             zmax = zc + ((d - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             corner = xmin, ymin, zmin, xmax, ymax, zmax
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             xc, yc, w, h = boxes.split(1, dim=-1)
             xmin = xc - ((w - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             xmax = xc + ((w - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
@@ -297,6 +301,7 @@ class CenterSizeMode(BoxMode):
             return corner
         else:
             raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
+            return
 
     def corner_to_box(self, c: Sequence) -> torch.Tensor:
         spatial_dims = int(len(c) // 2)
@@ -313,7 +318,7 @@ class CenterSizeMode(BoxMode):
                 ),
                 dim=-1,
             )
-        if spatial_dims == 2:
+        elif spatial_dims == 2:
             xmin, ymin, xmax, ymax = c[0], c[1], c[2], c[3]
             return torch.cat(
                 (
