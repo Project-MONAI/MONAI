@@ -24,6 +24,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
 from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -578,12 +579,6 @@ class Orientationd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
-    This transform assumes the ``data`` dictionary has a key for the input
-    data's metadata and contains `affine` field.  The key is formed by ``key_{meta_key_postfix}``.
-
-    After reorienting the input array, this transform will write the new affine
-    to the `affine` field of metadata which is formed by ``key_{meta_key_postfix}``.
-
     This transform assumes the channel-first input format.
     In the case of using this transform for normalizing the orientations of images,
     it should be used before any anisotropic spatial transforms.
@@ -591,6 +586,8 @@ class Orientationd(MapTransform, InvertibleTransform):
 
     backend = Orientation.backend
 
+    @deprecated_arg(name="meta_keys", since="0.8")
+    @deprecated_arg(name="meta_key_postfix", since="0.8")
     def __init__(
         self,
         keys: KeysCollection,
@@ -612,19 +609,7 @@ class Orientationd(MapTransform, InvertibleTransform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
-                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
-                it can be a sequence of string, map to the `keys`.
-                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
-                to the key data, default is `meta_dict`, the metadata is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta_dict` dictionary's `affine` field.
             allow_missing_keys: don't raise exception if key is missing.
-
-        Raises:
-            TypeError: When ``meta_key_postfix`` is not a ``str``.
 
         See Also:
             `nibabel.orientations.ornt2axcodes`.
@@ -632,42 +617,27 @@ class Orientationd(MapTransform, InvertibleTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
-        if not isinstance(meta_key_postfix, str):
-            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
-        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
-        if len(self.keys) != len(self.meta_keys):
-            raise ValueError("meta_keys should have the same length as keys.")
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(
-        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
-    ) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
-        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            meta_key = meta_key or f"{key}_{meta_key_postfix}"
-            # create metadata if necessary
-            if meta_key not in d:
-                d[meta_key] = {"affine": None}
-            meta_data = d[meta_key]
-            d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
-            self.push_transform(d, key, extra_info={"meta_key": meta_key, "old_affine": old_affine})
-            d[meta_key]["affine"] = new_affine
+        for key in self.key_iterator(d):
+            old_affine = d[key].affine.clone() if isinstance(d[key], MetaTensor) else torch.eye(4)
+            d[key] = self.ornt_transform(d[key])
+            self.push_transform(d, key, extra_info={"old_affine": old_affine})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            meta_data: Dict = d[transform[TraceKeys.EXTRA_INFO]["meta_key"]]  # type: ignore
             orig_affine = transform[TraceKeys.EXTRA_INFO]["old_affine"]
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
             inverse_transform = Orientation(
                 axcodes=orig_axcodes, as_closest_canonical=False, labels=self.ornt_transform.labels
             )
             # Apply inverse
-            d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
-            meta_data["affine"] = new_affine
+            d[key] = inverse_transform(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
 
