@@ -1105,7 +1105,7 @@ class MapLabelValue:
 
 class IntensityStats(Transform):
     """
-    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    Compute statistics for the intensity values of input image and store into the metadata dictionary.
     For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
     `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
 
@@ -1115,7 +1115,7 @@ class IntensityStats(Transform):
             mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
             if a callable function, will execute the function on input image.
         key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
-            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            metadata dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
             as the key, where index counts from 0.
         channel_wise: whether to compute statistics for every channel of input image separately.
             if True, return a list of values for every operation, default to False.
@@ -1137,7 +1137,7 @@ class IntensityStats(Transform):
 
         Args:
             img: input image to compute intensity stats.
-            meta_data: meta data dictionary to store the statistics data, if None, will create an empty dictionary.
+            meta_data: metadata dictionary to store the statistics data, if None, will create an empty dictionary.
             mask: if not None, mask the image to extract only the interested area to compute statistics.
                 mask must have the same shape as input `img`.
 

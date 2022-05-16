@@ -614,12 +614,12 @@ class AddGuidanceFromPointsDeepEditd(Transform):
     Args:
         ref_image: key to reference image to fetch current and original image details.
         guidance: output key to store guidance.
-        meta_keys: explicitly indicate the key of the meta data dictionary of `ref_image`.
+        meta_keys: explicitly indicate the key of the metadata dictionary of `ref_image`.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             if None, will try to construct meta_keys by `{ref_image}_{meta_key_postfix}`.
-        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
 

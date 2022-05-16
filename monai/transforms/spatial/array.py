@@ -137,8 +137,8 @@ class SpatialResample(Transform):
         src_affine: Optional[NdarrayOrTensor] = None,
         dst_affine: Optional[NdarrayOrTensor] = None,
         spatial_size: Optional[Union[Sequence[int], np.ndarray, int]] = None,
-        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        mode: Union[GridSampleMode, str, None] = None,
+        padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
     ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
@@ -274,7 +274,7 @@ class SpatialResample(Transform):
 
 
 class ResampleToMatch(SpatialResample):
-    """Resample an image to match given meta data. The affine matrix will be aligned,
+    """Resample an image to match given metadata. The affine matrix will be aligned,
     and the size of the output image will match."""
 
     def __call__(  # type: ignore
@@ -282,8 +282,8 @@ class ResampleToMatch(SpatialResample):
         img: NdarrayOrTensor,
         src_meta: Optional[Dict] = None,
         dst_meta: Optional[Dict] = None,
-        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        mode: Union[GridSampleMode, str, None] = None,
+        padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
     ):
