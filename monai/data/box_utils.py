@@ -143,7 +143,7 @@ def check_corners(corners: Sequence) -> bool:
         bool, whether the box is valid
     Example:
         corners = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
-        boxmode.check_corner(corners) will return True
+        check_corner(corners) will return True
     """
     spatial_dims = get_dimension(corners=corners)
     box_error = corners[spatial_dims] < corners[0]
