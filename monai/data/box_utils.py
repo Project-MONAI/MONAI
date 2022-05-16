@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
 from copy import deepcopy
-from typing import Sequence, Union
+from typing import Sequence, Type, Union
 
 import numpy as np
 import torch
@@ -29,50 +30,20 @@ from monai.utils import look_up_option
 from monai.utils.enums import BoundingBoxMode
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
-# TO_REMOVE = 0 if the bottom-right corner pixel/voxel is not included in the box,
-#      i.e., when xmin=1, xmax=2, we have w = 1
-# TO_REMOVE = 1  if the bottom-right corner pixel/voxel is included in the box,
-#       i.e., when xmin=1, xmax=2, we have w = 2
-# Currently, only `TO_REMOVE = 0.` is supported
+# TO_REMOVE = 0.0 if the bottom-right corner pixel/voxel is not included in the box,
+#      i.e., when xmin=1., xmax=2., we have w = 1.
+# TO_REMOVE = 1.0  if the bottom-right corner pixel/voxel is included in the box,
+#       i.e., when xmin=1., xmax=2., we have w = 2.
+# Currently, only `TO_REMOVE = 0.0` is supported
 TO_REMOVE = box_mode.TO_REMOVE
 
+# We support 2_d or 3-D bounding boxes
+SUPPORTED_SPATIAL_DIMS = [2, 3]
+
 # We support the conversion between several box modes, i.e., representation of a bounding box
-# BOXMODE_MAPPING maps string box mode to the corresponding BoxMode class
-BOXMODE_MAPPING = {
-    BoundingBoxMode.XYXY: CornerCornerModeTypeA(),  # [xmin, ymin, xmax, ymax]
-    BoundingBoxMode.XYZXYZ: CornerCornerModeTypeA(),  # [xmin, ymin, zmin, xmax, ymax, zmax]
-    BoundingBoxMode.XXYY: CornerCornerModeTypeB(),  # [xmin, xmax, ymin, ymax]
-    BoundingBoxMode.XXYYZZ: CornerCornerModeTypeB(),  # [xmin, xmax, ymin, ymax, zmin, zmax]
-    BoundingBoxMode.XYXYZZ: CornerCornerModeTypeC(),  # [xmin, ymin, xmax, ymax, zmin, zmax]
-    BoundingBoxMode.XYWH: CornerSizeMode(),  # [xmin, ymin, xsize, ysize]
-    BoundingBoxMode.XYZWHD: CornerSizeMode(),  # [xmin, ymin, zmin, xsize, ysize, zsize]
-    BoundingBoxMode.CCWH: CenterSizeMode(),  # [xcenter, ycenter, xsize, ysize]
-    BoundingBoxMode.CCCWHD: CenterSizeMode(),  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
-}
+SUPPORTED_MODES = [CornerCornerModeTypeA, CornerCornerModeTypeB, CornerCornerModeTypeC, CornerSizeMode, CenterSizeMode]
 # The standard box mode we use in all the box util functions
 StandardMode = CornerCornerModeTypeA
-
-
-def get_boxmode(mode: Union[str, BoxMode, None] = None) -> BoxMode:
-    """
-    This function returns BoxMode object from giving mode according to BOXMODE_MAPPING
-    Args:
-        mode: source box mode. If mode is not given, this func will assume mode is StandardMode()
-    Returns:
-        BoxMode object
-
-    Example:
-        mode = "xyzxyz"
-        get_boxmode(mode) will return CornerCornerModeTypeA()
-    """
-    if isinstance(mode, BoxMode):
-        return mode
-    elif isinstance(mode, str):
-        return BOXMODE_MAPPING[mode]
-    elif mode is None:
-        return StandardMode()
-    else:
-        raise ValueError("mode has to be chosen from [str, BoxMode, None].")
 
 
 def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
@@ -89,6 +60,7 @@ def convert_to_list(in_sequence: Union[Sequence, torch.Tensor, np.ndarray]) -> l
 
 def get_dimension(
     boxes: Union[torch.Tensor, np.ndarray, None] = None,
+    corners: Union[Sequence, None] = None,
     spatial_size: Union[Sequence[int], torch.Tensor, np.ndarray, None] = None,
 ) -> int:
     """
@@ -97,9 +69,11 @@ def get_dimension(
     It raises ValueError if the dimensions of multiple inputs do not match with each other.
     Args:
         boxes: bounding box, Nx4 or Nx6 torch tensor or ndarray
-        spatial_size: Length of 2 or 3. Data format is list, or np.ndarray, or tensor of int
+        corners: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor or ndarray
+        spatial_size: The spatial size of the image where the boxes are attached.
+                len(spatial_size) should be 2 or 3. Data format is list, or np.ndarray, or tensor of int
     Returns:
-        spatial_dimension: 2 or 3
+        spatial_dims: 2 or 3
 
     Example:
         boxes = torch.ones(10,6)
@@ -109,7 +83,17 @@ def get_dimension(
     spatial_dims_set = set()
     if spatial_size is not None:
         spatial_dims_set.add(len(spatial_size))
+    if corners is not None:
+        if len(corners) not in [4, 6]:
+            raise ValueError(
+                f"Currently we support only boxes with shape [N,4] or [N,6], got box corner tuple with length {len(corners)}."
+            )
+        spatial_dims_set.add(len(corners) // 2)
     if boxes is not None:
+        if int(boxes.shape[1]) not in [4, 6]:
+            raise ValueError(
+                f"Currently we support only boxes with shape [N,4] or [N,6], got boxes with shape {boxes.shape}."
+            )
         spatial_dims_set.add(int(boxes.shape[1] / 2))
     spatial_dims_list = list(spatial_dims_set)
     if len(spatial_dims_list) == 0:
@@ -120,6 +104,55 @@ def get_dimension(
         return int(spatial_dims)
     else:
         raise ValueError("The dimension of boxes, spatial_size, mode should match with each other.")
+
+
+def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **kwargs) -> BoxMode:
+    """
+    This function returns BoxMode object from giving mode according to BOXMODE_MAPPING
+    Args:
+        mode: source box mode. If mode is not given, this func will assume mode is StandardMode()
+    Returns:
+        BoxMode object
+
+    Example:
+        mode = "xyzxyz"
+        get_boxmode(mode) will return CornerCornerModeTypeA()
+    """
+    if isinstance(mode, BoxMode):
+        return mode
+    elif inspect.isclass(mode) and issubclass(mode, BoxMode):
+        return mode(*args, **kwargs)
+    elif isinstance(mode, str):
+        for m in SUPPORTED_MODES:
+            for n in SUPPORTED_SPATIAL_DIMS:
+                if m.get_name(n) == mode:
+                    return m(*args, **kwargs)
+    elif mode is None:
+        return StandardMode(*args, **kwargs)
+    else:
+        raise ValueError(f"Unsupported box mode: {mode}.")
+
+
+def check_corners(corners: Sequence) -> bool:
+    """
+    check the validity for the given box corners
+    Args:
+        corners: corners of a box, 4-element or 6-element tuple, each element is a Nx1 torch tensor
+        (xmin, ymin, xmax, ymax) or (xmin, ymin, zmin, xmax, ymax, zmax)
+    Returns:
+        bool, whether the box is valid
+    Example:
+        corners = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
+        boxmode.check_corner(corners) will return True
+    """
+    spatial_dims = get_dimension(corners=corners)
+    box_error = corners[spatial_dims] < corners[0]
+    for axis in range(1, spatial_dims):
+        box_error = box_error | (corners[spatial_dims + axis] < corners[axis])
+    if box_error.sum() > 0:
+        return False
+    else:
+        return True
 
 
 def convert_box_mode(
@@ -149,8 +182,15 @@ def convert_box_mode(
         # convert numpy to tensor if needed
         boxes_t, *_ = convert_data_type(boxes, torch.Tensor)
 
-        corners = src_boxmode.box_to_corner(boxes_t)
-        boxes_t_dst = dst_boxmode.corner_to_box(corners)
+        # convert boxes to corners
+        corners = src_boxmode.boxes_to_corners(boxes_t)
+
+        # check validity of corners
+        if not check_corners(corners):
+            raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
+
+        # convert corners to boxes
+        boxes_t_dst = dst_boxmode.corners_to_boxes(corners)
 
         # convert tensor back to numpy if needed
         boxes_dst, *_ = convert_to_dst_type(src=boxes_t_dst, dst=boxes)
