@@ -19,7 +19,8 @@ from monai.transforms import (
     Compose,
     CuCIM,
     Flip,
-    FlipD,
+    Flipd,
+    OneOf,
     RandAdjustContrast,
     RandCuCIM,
     RandFlip,
@@ -29,7 +30,7 @@ from monai.transforms import (
     ToNumpy,
     TorchVision,
     ToTensor,
-    ToTensorD,
+    ToTensord,
 )
 from monai.utils import Range, optional_import
 from tests.utils import HAS_CUPY
@@ -49,6 +50,26 @@ TEST_CASE_TORCH_0 = [torch.randn(3, 3)]
 TEST_CASE_TORCH_1 = [torch.randn(3, 10, 10)]
 
 TEST_CASE_WRAPPER = [np.random.randn(3, 10, 10)]
+
+TEST_CASE_RECURSIVE_0 = [
+    torch.randn(3, 3),
+    Compose([ToNumpy(), Flip(), RandAdjustContrast(prob=0.0), RandFlip(prob=1.0), ToTensor()]),
+]
+TEST_CASE_RECURSIVE_1 = [
+    torch.randn(3, 3),
+    Compose([ToNumpy(), Flip(), Compose([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)]), ToTensor()]),
+]
+TEST_CASE_RECURSIVE_2 = [
+    torch.randn(3, 3),
+    Compose(
+        [
+            ToNumpy(),
+            Flip(),
+            OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1], log_stats=True),
+            ToTensor(),
+        ]
+    ),
+]
 
 
 @unittest.skipUnless(has_nvtx, "Required torch._C._nvtx for NVTX Range!")
@@ -80,7 +101,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_DICT_0, TEST_CASE_DICT_1])
     def test_tranform_dict(self, input):
-        transforms = Compose([Range("random flip dict")(FlipD(keys="image")), Range()(ToTensorD("image"))])
+        transforms = Compose([Range("random flip dict")(Flipd(keys="image")), Range()(ToTensord("image"))])
         # Apply transforms
         output = transforms(input)["image"]
 
@@ -128,12 +149,9 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         # Check the outputs
         np.testing.assert_equal(output.get(), output_r.get())
 
-    @parameterized.expand([TEST_CASE_TORCH_0, TEST_CASE_ARRAY_0])
-    def test_recursive_tranforms(self, input):
-        transform_list = [ToNumpy(), Flip(), RandAdjustContrast(prob=0.0), RandFlip(prob=1.0), ToTensor()]
-
-        transforms = Compose(transform_list)
-        transforms_range = Range(recursive=True)(Compose(transform_list))
+    @parameterized.expand([TEST_CASE_RECURSIVE_0, TEST_CASE_RECURSIVE_1, TEST_CASE_RECURSIVE_2])
+    def test_recursive_tranforms(self, input, transforms):
+        transforms_range = Range(recursive=True)(transforms)
 
         # Apply transforms
         output = transforms(input)
@@ -142,6 +160,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         output_r = transforms_range(input)
 
         # Check the outputs
+        self.assertEqual(transforms.log_stats, transforms_range.log_stats)
         np.testing.assert_equal(output.numpy(), output_r.numpy())
 
     @parameterized.expand([TEST_CASE_ARRAY_1])

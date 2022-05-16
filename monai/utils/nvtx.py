@@ -65,18 +65,36 @@ class Range:
 
     def __call__(self, obj: Any):
         if self.recursive is True:
-            from monai.transforms.compose import Compose
-
-            if isinstance(obj, Compose):
-                annotated_transforms = [Range(recursive=False)(t) for t in obj.transforms]
-                return Range(self.name, recursive=False)(type(obj)(annotated_transforms))
-
             if isinstance(obj, Iterable):
-                annotated_transforms = [Range(recursive=False)(t) for t in obj]
+                annotated_transforms = [Range(recursive=True)(t) for t in obj]
                 return Range(self.name, recursive=False)(annotated_transforms)
 
+            from monai.transforms.compose import Compose, OneOf
+
+            if isinstance(obj, OneOf):
+                annotated_transforms = [Range(recursive=True)(t) for t in obj.transforms]
+                return Range(self.name, recursive=False)(
+                    OneOf(
+                        annotated_transforms,
+                        weights=obj.weights,
+                        map_items=obj.map_items,
+                        unpack_items=obj.unpack_items,
+                        log_stats=obj.log_stats,
+                    )
+                )
+
+            if isinstance(obj, Compose):
+                annotated_transforms = [Range(recursive=True)(t) for t in obj.transforms]
+                return Range(self.name, recursive=False)(
+                    Compose(
+                        annotated_transforms,
+                        map_items=obj.map_items,
+                        unpack_items=obj.unpack_items,
+                        log_stats=obj.log_stats,
+                    )
+                )
+
             self.recursive = False
-            print("`recursive=True` only works for Iterables or Compose. Falling back to `recursive=False`")
 
         # Define the name to be associated to the range if not provided
         if self.name is None:
