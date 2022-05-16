@@ -81,6 +81,10 @@ def get_dimension(
     """
     spatial_dims_set = set()
     if spatial_size is not None:
+        if len(spatial_size) not in SUPPORTED_SPATIAL_DIMS:
+            raise ValueError(
+                f"Currently we support only boxes on 2-D and 3-D images, got image spatial_size {spatial_size}."
+            )
         spatial_dims_set.add(len(spatial_size))
     if corners is not None:
         if len(corners) not in [4, 6]:
@@ -96,13 +100,13 @@ def get_dimension(
         spatial_dims_set.add(int(boxes.shape[1] / 2))
     spatial_dims_list = list(spatial_dims_set)
     if len(spatial_dims_list) == 0:
-        raise ValueError("At least one of boxes, spatial_size, and mode needs to be non-empty.")
+        raise ValueError("At least one of the inputs needs to be non-empty.")
     elif len(spatial_dims_list) == 1:
         spatial_dims = int(spatial_dims_list[0])
         spatial_dims = look_up_option(spatial_dims, supported=[2, 3])
         return int(spatial_dims)
     else:
-        raise ValueError("The dimension of boxes, spatial_size, mode should match with each other.")
+        raise ValueError("The dimensions of multiple inputs should match with each other.")
 
 
 def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **kwargs) -> BoxMode:
