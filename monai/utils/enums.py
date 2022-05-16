@@ -314,7 +314,7 @@ class JITMetadataKeys(Enum):
 
 
 class BoundingBoxMode:
-    XYXY = ("xyxy",)  # [xmin, ymin, xmax, ymax]
+    XYXY = "xyxy"  # [xmin, ymin, xmax, ymax]
     XYZXYZ = "xyzxyz"  # [xmin, ymin, zmin, xmax, ymax, zmax]
     XXYY = "xxyy"  # [xmin, xmax, ymin, ymax]
     XXYYZZ = "xxyyzz"  # [xmin, xmax, ymin, ymax, zmin, zmax]
