@@ -13,6 +13,7 @@ from typing import Hashable, Mapping, Optional, Tuple
 
 import torch
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.utils.enums import TraceKeys
 
@@ -54,30 +55,38 @@ class TraceableTransform(Transform):
     def push_transform(
         self, data: Mapping, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
     ) -> None:
-        """PUsh to a stack of applied transforms for that key."""
+        """Push to a stack of applied transforms for that key."""
+        im = data[key]
+
         if not self.tracing:
             return
         info = {TraceKeys.CLASS_NAME: self.__class__.__name__, TraceKeys.ID: id(self)}
         if orig_size is not None:
             info[TraceKeys.ORIG_SIZE] = orig_size
-        elif key in data and hasattr(data[key], "shape"):
-            info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
+        elif key in data and hasattr(im, "shape"):
+            info[TraceKeys.ORIG_SIZE] = im.shape[1:]
         if extra_info is not None:
             info[TraceKeys.EXTRA_INFO] = extra_info
         # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
         if hasattr(self, "_do_transform"):  # RandomizableTransform
             info[TraceKeys.DO_TRANSFORM] = self._do_transform  # type: ignore
-        # If this is the first, create list
-        if self.trace_key(key) not in data:
-            if not isinstance(data, dict):
-                data = dict(data)
-            data[self.trace_key(key)] = []
-        data[self.trace_key(key)].append(info)
+
+        if isinstance(im, MetaTensor):
+            im.push_transform(info)
+        else:
+            # If this is the first, create list
+            if self.trace_key(key) not in data:
+                if not isinstance(data, dict):
+                    data = dict(data)
+                data[self.trace_key(key)] = []
+            data[self.trace_key(key)].append(info)
 
     def pop_transform(self, data: Mapping, key: Hashable = None):
         """Remove the most recent applied transform."""
         if not self.tracing:
             return
+        if isinstance(data[key], MetaTensor):
+            return data[key].pop_transform()
         return data.get(self.trace_key(key), []).pop()
 
 
@@ -133,7 +142,10 @@ class InvertibleTransform(TraceableTransform):
         """Get most recent transform."""
         if not self.tracing:
             raise RuntimeError("Transform Tracing must be enabled to get the most recent transform.")
-        transform = data[self.trace_key(key)][-1]
+        if isinstance(data[key], MetaTensor):
+            transform = data[key].transforms[-1]
+        else:
+            transform = data[self.trace_key(key)][-1]
         self.check_transforms_match(transform)
         return transform
 

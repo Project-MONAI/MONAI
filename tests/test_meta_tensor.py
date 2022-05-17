@@ -22,9 +22,11 @@ import torch
 from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
-from monai.data.meta_obj import get_track_meta, get_track_transforms, set_track_meta, set_track_transforms
+from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import decollate_batch, list_data_collate
+from monai.transforms import Compose, DivisiblePadd, Orientationd
+from monai.transforms.meta_utility.dictionary import FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
 from monai.utils.module import pytorch_after
 from tests.utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, skip_if_no_cuda
@@ -216,10 +218,6 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(get_track_meta(), False)
         set_track_meta(True)
         self.assertEqual(get_track_meta(), True)
-        set_track_transforms(False)
-        self.assertEqual(get_track_transforms(), False)
-        set_track_transforms(True)
-        self.assertEqual(get_track_transforms(), True)
 
     @parameterized.expand(TEST_DEVICES)
     def test_torchscript(self, device):
@@ -408,6 +406,84 @@ class TestMetaTensor(unittest.TestCase):
         for elem, im in zip(decollated, ims):
             self.assertIsInstance(elem, MetaTensor)
             self.check(elem, im, ids=False)
+
+    def test_transforms(self):
+        key = "im"
+        _, im = self.get_im()
+        tr = Compose([Orientationd(key, "RA"), DivisiblePadd(key, 16), ToMetaTensord(key), FromMetaTensord(key)])
+        num_tr = len(tr.transforms)
+        data = {key: im}
+
+        # apply one at a time
+        is_meta = isinstance(im, MetaTensor)
+        for i, _tr in enumerate(tr.transforms):
+            data = _tr(data)
+            if isinstance(_tr, FromMetaTensord):
+                is_meta = False
+            elif isinstance(_tr, ToMetaTensord):
+                is_meta = True
+            if is_meta:
+                self.assertEqual(len(data), 1)  # im
+                self.assertIsInstance(data[key], MetaTensor)
+                n_applied = len(data[key].transforms)
+            else:
+                self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+                self.assertIsInstance(data[key], torch.Tensor)
+                self.assertNotIsInstance(data[key], MetaTensor)
+                n_applied = len(data[PostFix.transforms(key)])
+
+            self.assertEqual(n_applied, i + 1)
+
+        # inverse one at a time
+        is_meta = isinstance(im, MetaTensor)
+        for i, _tr in enumerate(tr.transforms[::-1]):
+            data = _tr.inverse(data)
+            if isinstance(_tr, FromMetaTensord):
+                is_meta = True
+            elif isinstance(_tr, ToMetaTensord):
+                is_meta = False
+            if is_meta:
+                self.assertEqual(len(data), 1)  # im
+                self.assertIsInstance(data[key], MetaTensor)
+                n_applied = len(data[key].transforms)
+            else:
+                self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+                self.assertIsInstance(data[key], torch.Tensor)
+                self.assertNotIsInstance(data[key], MetaTensor)
+                n_applied = len(data[PostFix.transforms(key)])
+
+            self.assertEqual(n_applied, num_tr - i - 1)
+
+        # apply all in one go
+        data = tr({key: im})
+        if isinstance(tr.transforms[-1], ToMetaTensord):
+            self.assertEqual(len(data), 1)
+            self.assertIsInstance(data[key], MetaTensor)
+            n_applied = len(data[key].transforms)
+        else:
+            self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+            self.assertIsInstance(data[key], torch.Tensor)
+            self.assertNotIsInstance(data[key], MetaTensor)
+            n_applied = len(data[PostFix.transforms(key)])
+
+        self.assertEqual(n_applied, num_tr)
+
+        # inverse all in one go
+        data = tr.inverse(data)
+        self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+        self.assertIsInstance(data[key], torch.Tensor)
+        self.assertNotIsInstance(data[key], MetaTensor)
+        n_applied = len(data[PostFix.transforms(key)])
+
+        self.assertEqual(n_applied, 0)
+
+    def test_construct_with_pre_applied_transforms(self):
+        key = "im"
+        _, im = self.get_im()
+        tr = Compose([Orientationd(key, "RA"), DivisiblePadd(key, 16)])
+        data = tr({key: im})
+        m = MetaTensor(im, transforms=data[PostFix.transforms(key)])
+        self.assertEqual(len(m.transforms), len(tr.transforms))
 
 
 if __name__ == "__main__":

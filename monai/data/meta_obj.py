@@ -15,9 +15,8 @@ from copy import deepcopy
 from typing import Any, Callable, Sequence
 
 _TRACK_META = True
-_TRACK_TRANSFORMS = True
 
-__all__ = ["get_track_meta", "get_track_transforms", "set_track_meta", "set_track_transforms", "MetaObj"]
+__all__ = ["get_track_meta", "set_track_meta", "MetaObj"]
 
 
 def set_track_meta(val: bool) -> None:
@@ -26,9 +25,8 @@ def set_track_meta(val: bool) -> None:
     its data by using subclasses of `MetaObj`. If `False`, then data will be returned
     with empty metadata.
 
-    If both `set_track_meta` and `set_track_transforms` are set to
-    `False`, then standard data objects will be returned (e.g., `torch.Tensor` and
-    `np.ndarray`) as opposed to our enhanced objects.
+    If `set_track_meta` is `False`, then standard data objects will be returned (e.g.,
+    `torch.Tensor` and `np.ndarray`) as opposed to our enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
     if you are experiencing any problems regarding metadata, and aren't interested in
@@ -38,56 +36,20 @@ def set_track_meta(val: bool) -> None:
     _TRACK_META = val
 
 
-def set_track_transforms(val: bool) -> None:
-    """
-    Boolean to set whether transforms are tracked. If `True`, applied transforms will be
-    associated its data by using subclasses of `MetaObj`. If `False`, then transforms
-    won't be tracked.
-
-    If both `set_track_meta` and `set_track_transforms` are set to
-    `False`, then standard data objects will be returned (e.g., `torch.Tensor` and
-    `np.ndarray`) as opposed to our enhanced objects.
-
-    By default, this is `True`, and most users will want to leave it this way. However,
-    if you are experiencing any problems regarding transforms, and aren't interested in
-    preserving transforms, then you can disable it.
-    """
-    global _TRACK_TRANSFORMS
-    _TRACK_TRANSFORMS = val
-
-
 def get_track_meta() -> bool:
     """
     Return the boolean as to whether metadata is tracked. If `True`, metadata will be
     associated its data by using subclasses of `MetaObj`. If `False`, then data will be
     returned with empty metadata.
 
-    If both `set_track_meta` and `set_track_transforms` are set to
-    `False`, then standard data objects will be returned (e.g., `torch.Tensor` and
-    `np.ndarray`) as opposed to our enhanced objects.
+    If `set_track_meta` is `False`, then standard data objects will be returned (e.g.,
+    `torch.Tensor` and `np.ndarray`) as opposed to our enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
     if you are experiencing any problems regarding metadata, and aren't interested in
     preserving metadata, then you can disable it.
     """
     return _TRACK_META
-
-
-def get_track_transforms() -> bool:
-    """
-    Return the boolean as to whether transforms are tracked. If `True`, applied
-    transforms will be associated its data by using subclasses of `MetaObj`. If `False`,
-    then transforms won't be tracked.
-
-    If both `set_track_meta` and `set_track_transforms` are set to
-    `False`, then standard data objects will be returned (e.g., `torch.Tensor` and
-    `np.ndarray`) as opposed to our enhanced objects.
-
-    By default, this is `True`, and most users will want to leave it this way. However,
-    if you are experiencing any problems regarding transforms, and aren't interested in
-    preserving transforms, then you can disable it.
-    """
-    return _TRACK_TRANSFORMS
 
 
 class MetaObj:
@@ -177,6 +139,7 @@ class MetaObj:
         id_in = id(input_objs[0]) if len(input_objs) > 0 else None
         deep_copy = id(self) != id_in
         self._copy_attr("meta", input_objs, self.get_default_meta, deep_copy)
+        self._copy_attr("transforms", input_objs, self.get_default_transforms, deep_copy)
         self.is_batch = input_objs[0].is_batch if len(input_objs) > 0 else False
 
     def get_default_meta(self) -> dict:
@@ -187,6 +150,14 @@ class MetaObj:
         """
         return {}
 
+    def get_default_transforms(self) -> list:
+        """Get the default applied transforms.
+
+        Returns:
+            default applied transforms.
+        """
+        return []
+
     def __repr__(self) -> str:
         """String representation of class."""
         out: str = super().__repr__()
@@ -196,6 +167,14 @@ class MetaObj:
             out += "".join(f"\t{k}: {v}\n" for k, v in self.meta.items())
         else:
             out += "None"
+
+        out += "\nTransforms\n"
+        if self.transforms is not None:
+            for i in self.transforms:
+                out += f"\t{str(i)}\n"
+        else:
+            out += "None"
+
         out += f"\nIs batch?: {self.is_batch}"
 
         return out
@@ -209,6 +188,22 @@ class MetaObj:
     def meta(self, d: dict) -> None:
         """Set the meta."""
         self._meta = d
+
+    @property
+    def transforms(self) -> list:
+        """Get the applied transforms."""
+        return self._transforms
+
+    @transforms.setter
+    def transforms(self, t: list) -> None:
+        """Set the applied transforms."""
+        self._transforms = t
+
+    def push_transform(self, t: Any) -> None:
+        self._transforms.append(t)
+
+    def pop_transform(self) -> Any:
+        return self._transforms.pop()
 
     @property
     def is_batch(self) -> bool:

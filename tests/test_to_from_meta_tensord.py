@@ -131,9 +131,7 @@ class TestToFromMetaTensord(unittest.TestCase):
 
         # FROM -> inverse
         d_meta_dict_meta = t_from_meta.inverse(d_dict)
-        self.assertEqual(
-            sorted(d_meta_dict_meta.keys()), ["m1", PostFix.transforms("m1"), "m2", PostFix.transforms("m2"), "m3"]
-        )
+        self.assertEqual(sorted(d_meta_dict_meta.keys()), ["m1", "m2", "m3"])
         self.check(d_meta_dict_meta["m3"], m3, ids=False)  # unchanged (except deep copy in inverse)
         self.check(d_meta_dict_meta["m1"], m1, ids=False)
         meta_out = {k: v for k, v in d_meta_dict_meta["m1"].meta.items() if k != "affine"}
@@ -143,12 +141,8 @@ class TestToFromMetaTensord(unittest.TestCase):
 
         # TO -> Forward
         t_to_meta = ToMetaTensord(["m1", "m2"])
-        del d_dict["m1_transforms"]
-        del d_dict["m2_transforms"]
         d_dict_meta = t_to_meta(d_dict)
-        self.assertEqual(
-            sorted(d_dict_meta.keys()), ["m1", PostFix.transforms("m1"), "m2", PostFix.transforms("m2"), "m3"]
-        )
+        self.assertEqual(sorted(d_dict_meta.keys()), ["m1", "m2", "m3"])
         self.check(d_dict_meta["m3"], m3, ids=True)  # unchanged (except deep copy in inverse)
         self.check(d_dict_meta["m1"], m1, ids=False)
         meta_out = {k: v for k, v in d_dict_meta["m1"].meta.items() if k != "affine"}
