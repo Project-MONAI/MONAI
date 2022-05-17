@@ -12,7 +12,6 @@
 import unittest
 
 import numpy as np
-
 from parameterized import parameterized
 
 from monai.data.box_mode import (
