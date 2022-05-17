@@ -153,17 +153,20 @@ def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **
     """
     if isinstance(mode, BoxMode):
         return mode
-    elif inspect.isclass(mode) and issubclass(mode, BoxMode):
-        return mode(*args, **kwargs)
+
+    boxmode: Type[BoxMode]
+    if inspect.isclass(mode) and issubclass(mode, BoxMode):
+        boxmode = mode
     elif isinstance(mode, str):
         for m in SUPPORTED_MODES:
             for n in SUPPORTED_SPATIAL_DIMS:
                 if m.get_name(n) == mode:
-                    return m(*args, **kwargs)
+                    boxmode = m
     elif mode is None:
-        return StandardMode(*args, **kwargs)
+        boxmode = StandardMode
     else:
         raise ValueError(f"Unsupported box mode: {mode}.")
+    return boxmode(*args, **kwargs)
 
 
 def check_corners(corners: Sequence) -> bool:

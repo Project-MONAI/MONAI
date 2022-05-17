@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import Dict, Sequence, Tuple
 
 import torch
@@ -25,7 +25,7 @@ from monai.utils.enums import BoundingBoxMode
 TO_REMOVE = 0.0  # xmax-xmin = w -TO_REMOVE.
 
 
-class BoxMode:
+class BoxMode(ABC):
     """
     An abstract class of a ``BoxMode``.
     A BoxMode is callable that converts box mode of boxes.
@@ -34,10 +34,10 @@ class BoxMode:
         #. remember to define ``name`` which is a dictionary that maps spatial_dims to box mode string
     """
 
-    name: Dict[int, BoundingBoxMode] = {}
-
     def __init__(self):
         pass
+
+    name: Dict[int, BoundingBoxMode] = {}
 
     @classmethod
     def get_name(cls, spatial_dims: int) -> str:
@@ -63,7 +63,7 @@ class BoxMode:
         Example:
             boxmode = BoxMode()
             boxes = torch.ones(10,6)
-            boxmode.boxes_to_corners(boxes) will a 6-element tuple, each element is a 10x1 tensor
+            boxmode.boxes_to_corners(boxes) will return a 6-element tuple, each element is a 10x1 tensor
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
@@ -96,7 +96,7 @@ class CornerCornerModeTypeA(BoxMode):
         spatial_dims = monai.data.box_utils.get_dimension(boxes=boxes)
         if spatial_dims == 3:
             xmin, ymin, zmin, xmax, ymax, zmax = boxes.split(1, dim=-1)
-            corners = xmin, ymin, zmin, xmax, ymax, zmax
+            return xmin, ymin, zmin, xmax, ymax, zmax
         elif spatial_dims == 2:
             xmin, ymin, xmax, ymax = boxes.split(1, dim=-1)
             corners = xmin, ymin, xmax, ymax
@@ -105,9 +105,10 @@ class CornerCornerModeTypeA(BoxMode):
     def corners_to_boxes(self, corners: Sequence) -> torch.Tensor:
         spatial_dims = monai.data.box_utils.get_dimension(corners=corners)
         if spatial_dims == 3:
-            return torch.cat((corners[0], corners[1], corners[2], corners[3], corners[4], corners[5]), dim=-1)
+            boxes = torch.cat((corners[0], corners[1], corners[2], corners[3], corners[4], corners[5]), dim=-1)
         elif spatial_dims == 2:
-            return torch.cat((corners[0], corners[1], corners[2], corners[3]), dim=-1)
+            boxes = torch.cat((corners[0], corners[1], corners[2], corners[3]), dim=-1)
+        return boxes
 
 
 class CornerCornerModeTypeB(BoxMode):
@@ -122,7 +123,7 @@ class CornerCornerModeTypeB(BoxMode):
         spatial_dims = monai.data.box_utils.get_dimension(boxes=boxes)
         if spatial_dims == 3:
             xmin, xmax, ymin, ymax, zmin, zmax = boxes.split(1, dim=-1)
-            corners = xmin, ymin, zmin, xmax, ymax, zmax
+            return xmin, ymin, zmin, xmax, ymax, zmax
         elif spatial_dims == 2:
             xmin, xmax, ymin, ymax = boxes.split(1, dim=-1)
             corners = xmin, ymin, xmax, ymax
@@ -131,9 +132,10 @@ class CornerCornerModeTypeB(BoxMode):
     def corners_to_boxes(self, corners: Sequence) -> torch.Tensor:
         spatial_dims = monai.data.box_utils.get_dimension(corners=corners)
         if spatial_dims == 3:
-            return torch.cat((corners[0], corners[3], corners[1], corners[4], corners[2], corners[5]), dim=-1)
+            boxes = torch.cat((corners[0], corners[3], corners[1], corners[4], corners[2], corners[5]), dim=-1)
         elif spatial_dims == 2:
-            return torch.cat((corners[0], corners[2], corners[1], corners[3]), dim=-1)
+            boxes = torch.cat((corners[0], corners[2], corners[1], corners[3]), dim=-1)
+        return boxes
 
 
 class CornerCornerModeTypeC(BoxMode):
@@ -148,7 +150,7 @@ class CornerCornerModeTypeC(BoxMode):
         spatial_dims = monai.data.box_utils.get_dimension(boxes=boxes)
         if spatial_dims == 3:
             xmin, ymin, xmax, ymax, zmin, zmax = boxes.split(1, dim=-1)
-            corners = xmin, ymin, zmin, xmax, ymax, zmax
+            return xmin, ymin, zmin, xmax, ymax, zmax
         elif spatial_dims == 2:
             xmin, ymin, xmax, ymax = boxes.split(1, dim=-1)
             corners = xmin, ymin, xmax, ymax
@@ -157,9 +159,10 @@ class CornerCornerModeTypeC(BoxMode):
     def corners_to_boxes(self, corners: Sequence) -> torch.Tensor:
         spatial_dims = monai.data.box_utils.get_dimension(corners=corners)
         if spatial_dims == 3:
-            return torch.cat((corners[0], corners[1], corners[3], corners[4], corners[2], corners[5]), dim=-1)
+            boxes = torch.cat((corners[0], corners[1], corners[3], corners[4], corners[2], corners[5]), dim=-1)
         elif spatial_dims == 2:
-            return torch.cat((corners[0], corners[1], corners[2], corners[3]), dim=-1)
+            boxes = torch.cat((corners[0], corners[1], corners[2], corners[3]), dim=-1)
+        return boxes
 
 
 class CornerSizeMode(BoxMode):
@@ -181,7 +184,7 @@ class CornerSizeMode(BoxMode):
             xmax = xmin + (w - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             ymax = ymin + (h - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             zmax = zmin + (d - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
-            corners = xmin, ymin, zmin, xmax, ymax, zmax
+            return xmin, ymin, zmin, xmax, ymax, zmax
         elif spatial_dims == 2:
             xmin, ymin, w, h = boxes.split(1, dim=-1)
             xmax = xmin + (w - TO_REMOVE).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
@@ -193,12 +196,13 @@ class CornerSizeMode(BoxMode):
         spatial_dims = monai.data.box_utils.get_dimension(corners=corners)
         if spatial_dims == 3:
             xmin, ymin, zmin, xmax, ymax, zmax = corners[0], corners[1], corners[2], corners[3], corners[4], corners[5]
-            return torch.cat(
+            boxes = torch.cat(
                 (xmin, ymin, zmin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE, zmax - zmin + TO_REMOVE), dim=-1
             )
         elif spatial_dims == 2:
             xmin, ymin, xmax, ymax = corners[0], corners[1], corners[2], corners[3]
-            return torch.cat((xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=-1)
+            boxes = torch.cat((xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=-1)
+        return boxes
 
 
 class CenterSizeMode(BoxMode):
@@ -223,7 +227,7 @@ class CenterSizeMode(BoxMode):
             ymax = yc + ((h - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             zmin = zc - ((d - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
             zmax = zc + ((d - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
-            corners = xmin, ymin, zmin, xmax, ymax, zmax
+            return xmin, ymin, zmin, xmax, ymax, zmax
         elif spatial_dims == 2:
             xc, yc, w, h = boxes.split(1, dim=-1)
             xmin = xc - ((w - TO_REMOVE) / 2.0).to(dtype=compute_dtype).clamp(min=0).to(dtype=box_dtype)
@@ -237,7 +241,7 @@ class CenterSizeMode(BoxMode):
         spatial_dims = monai.data.box_utils.get_dimension(corners=corners)
         if spatial_dims == 3:
             xmin, ymin, zmin, xmax, ymax, zmax = corners[0], corners[1], corners[2], corners[3], corners[4], corners[5]
-            return torch.cat(
+            boxes = torch.cat(
                 (
                     (xmin + xmax + TO_REMOVE) / 2.0,
                     (ymin + ymax + TO_REMOVE) / 2.0,
@@ -250,7 +254,7 @@ class CenterSizeMode(BoxMode):
             )
         elif spatial_dims == 2:
             xmin, ymin, xmax, ymax = corners[0], corners[1], corners[2], corners[3]
-            return torch.cat(
+            boxes = torch.cat(
                 (
                     (xmin + xmax + TO_REMOVE) / 2.0,
                     (ymin + ymax + TO_REMOVE) / 2.0,
@@ -259,3 +263,4 @@ class CenterSizeMode(BoxMode):
                 ),
                 dim=-1,
             )
+        return boxes
