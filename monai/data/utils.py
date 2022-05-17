@@ -203,6 +203,7 @@ def iter_patch(
     arr: np.ndarray,
     patch_size: Union[Sequence[int], int] = 0,
     start_pos: Sequence[int] = (),
+    overlap: float = 0.0,
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
@@ -250,7 +251,7 @@ def iter_patch(
     # patches which are only in the padded regions
     iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
 
-    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded):
+    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, overlap):
         # compensate original image padding
         coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
         yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
