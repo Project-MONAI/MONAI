@@ -94,7 +94,11 @@ class TestNormTransform(unittest.TestCase):
         np.testing.assert_allclose(norm, expected, atol=1e-6)
         if torch.cuda.is_available():
             norm = normalize_transform(
-                input_shape, device=torch.device("cuda:0"), dtype=torch.float32, align_corners=align_corners
+                input_shape,
+                device=torch.device("cuda:0"),
+                dtype=torch.float32,
+                align_corners=align_corners,
+                zero_centered=zero_centered,
             )
             norm = norm.detach().cpu().numpy()
             np.testing.assert_allclose(norm, expected, atol=1e-4)
