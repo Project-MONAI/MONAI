@@ -70,6 +70,10 @@ TEST_CASE_RECURSIVE_2 = [
         ]
     ),
 ]
+TEST_CASE_RECURSIVE_LIST = [
+    torch.randn(3, 3),
+    [ToNumpy(), Flip(), RandAdjustContrast(prob=0.0), RandFlip(prob=1.0), ToTensor()],
+]
 
 
 @unittest.skipUnless(has_nvtx, "Required torch._C._nvtx for NVTX Range!")
@@ -151,7 +155,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_RECURSIVE_0, TEST_CASE_RECURSIVE_1, TEST_CASE_RECURSIVE_2])
     def test_recursive_tranforms(self, input, transforms):
-        transforms_range = Range(recursive=True)(transforms)
+        transforms_range = Range(name="Recursive Compose", recursive=True)(transforms)
 
         # Apply transforms
         output = transforms(input)
@@ -160,7 +164,22 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         output_r = transforms_range(input)
 
         # Check the outputs
+        self.assertEqual(transforms.map_items, transforms_range.map_items)
+        self.assertEqual(transforms.unpack_items, transforms_range.unpack_items)
         self.assertEqual(transforms.log_stats, transforms_range.log_stats)
+        np.testing.assert_equal(output.numpy(), output_r.numpy())
+
+    @parameterized.expand([TEST_CASE_RECURSIVE_LIST])
+    def test_recursive_list_tranforms(self, input, transform_list):
+        transforms_list_range = Range(recursive=True)(transform_list)
+
+        # Apply transforms
+        output = Compose(transform_list)(input)
+
+        # Apply transforms with Range
+        output_r = Compose(transforms_list_range)(input)
+
+        # Check the outputs
         np.testing.assert_equal(output.numpy(), output_r.numpy())
 
     @parameterized.expand([TEST_CASE_ARRAY_1])

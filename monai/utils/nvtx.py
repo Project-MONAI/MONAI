@@ -13,7 +13,6 @@ Decorators and context managers for NVIDIA Tools Extension to profile MONAI comp
 """
 
 from collections import defaultdict
-from collections.abc import Iterable
 from functools import wraps
 from typing import Any, Optional, Tuple, Union
 
@@ -65,34 +64,14 @@ class Range:
 
     def __call__(self, obj: Any):
         if self.recursive is True:
-            if isinstance(obj, Iterable):
-                annotated_transforms = [Range(recursive=True)(t) for t in obj]
-                return Range(self.name, recursive=False)(annotated_transforms)
+            if isinstance(obj, (list, tuple)):
+                return type(obj)(Range(recursive=True)(t) for t in obj)
 
-            from monai.transforms.compose import Compose, OneOf
-
-            if isinstance(obj, OneOf):
-                annotated_transforms = [Range(recursive=True)(t) for t in obj.transforms]
-                return Range(self.name, recursive=False)(
-                    OneOf(
-                        annotated_transforms,
-                        weights=obj.weights,
-                        map_items=obj.map_items,
-                        unpack_items=obj.unpack_items,
-                        log_stats=obj.log_stats,
-                    )
-                )
+            from monai.transforms.compose import Compose
 
             if isinstance(obj, Compose):
-                annotated_transforms = [Range(recursive=True)(t) for t in obj.transforms]
-                return Range(self.name, recursive=False)(
-                    Compose(
-                        annotated_transforms,
-                        map_items=obj.map_items,
-                        unpack_items=obj.unpack_items,
-                        log_stats=obj.log_stats,
-                    )
-                )
+                obj.transforms = Range(recursive=True)(obj.transforms)
+                return Range(self.name, recursive=False)(obj)
 
             self.recursive = False
 
