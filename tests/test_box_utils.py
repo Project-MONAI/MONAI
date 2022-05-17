@@ -17,20 +17,29 @@ import numpy as np
 # import torch
 from parameterized import parameterized
 
-from monai.data.box_mode import CornerCornerModeTypeA, CornerCornerModeTypeB, CornerSizeMode
+from monai.data.box_mode import (
+    CenterSizeMode,
+    CornerCornerModeTypeA,
+    CornerCornerModeTypeB,
+    CornerCornerModeTypeC,
+    CornerSizeMode,
+)
 from monai.data.box_utils import convert_box_mode, convert_box_to_standard_mode
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
-
-# box_affine, box_area, box_center, box_center_dist, box_clip_to_image,
-# box_giou, box_interp, box_iou, box_pair_giou, center_in_boxes,
-# convert_to_list, non_max_suppression, resize_boxes,
-
 
 TESTS = []
 for p in TEST_NDARRAYS:
     boxes = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]
     spatial_size = [4, 4, 4]
+    TESTS.append(
+        [
+            {"boxes": p(boxes), "spatial_size": spatial_size, "mode": "cccwhd", "half": False},
+            CornerSizeMode,
+            p([[0, 0, 0, 0, 0, 0], [-1, 0, -1.5, 2, 2, 3], [-1, 0, -0.5, 2, 2, 3]]),
+            p([0, 12, 12]),
+        ]
+    )
     TESTS.append(
         [
             {"boxes": p(boxes), "spatial_size": spatial_size, "mode": "xyzwhd", "half": False},
@@ -52,6 +61,14 @@ for p in TEST_NDARRAYS:
             {"boxes": p(boxes), "spatial_size": spatial_size, "mode": "xyzwhd", "half": False},
             "xxyyzz",
             p([[0, 0, 0, 0, 0, 0], [0, 2, 1, 3, 0, 3], [0, 2, 1, 3, 1, 4]]),
+            p([0, 12, 12]),
+        ]
+    )
+    TESTS.append(
+        [
+            {"boxes": p(boxes), "spatial_size": spatial_size, "mode": "xyzwhd", "half": False},
+            CornerCornerModeTypeC,
+            p([[0, 0, 0, 0, 0, 0], [0, 1, 2, 3, 0, 3], [0, 1, 2, 3, 1, 4]]),
             p([0, 12, 12]),
         ]
     )
@@ -100,6 +117,14 @@ for p in TEST_NDARRAYS:
             {"boxes": p(boxes), "spatial_size": spatial_size, "mode": "xxyyzz", "half": False},
             "xyzwhd",
             p([[0, 0, 0, 0, 0, 0], [0, 0, 2, 1, 2, 1], [0, 1, 2, 1, 1, 1]]),
+            p([0, 2, 1]),
+        ]
+    )
+    TESTS.append(
+        [
+            {"boxes": p(boxes), "spatial_size": spatial_size, "mode": "xxyyzz", "half": False},
+            CenterSizeMode(),
+            p([[0, 0, 0, 0, 0, 0], [0.5, 1, 2.5, 1, 2, 1], [0.5, 1.5, 2.5, 1, 1, 1]]),
             p([0, 2, 1]),
         ]
     )
