@@ -9,12 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# import random
 import unittest
 
 import numpy as np
 
-# import torch
 from parameterized import parameterized
 
 from monai.data.box_mode import (
@@ -136,7 +134,6 @@ class TestCreateBoxList(unittest.TestCase):
         expected_box = convert_data_type(expected_box, dtype=np.float32)[0]
         boxes1 = convert_data_type(input_data["boxes"], dtype=np.float32)[0]
         mode1 = input_data["mode"]
-        # spatial_size = input_data["spatial_size"]
         half_bool = input_data["half"]
 
         # test float16
