@@ -158,6 +158,7 @@ def normalize_transform(
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
         zero_centered: whether the coordinates are normalized from a zero-centered range, default to `False`.
+            Setting this flag and `align_corners` will jointly specify the normalizaiton source range.
     """
     norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
