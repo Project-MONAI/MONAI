@@ -158,8 +158,8 @@ def iter_wsi_patch_location(
     padded: bool = False,
 ):
     """
-    Yield successive tuple of location defining a patch of size `patch_size` from an image of size `image_size`, and if
-    it is downsampled by `downsample` ratio with the relative overalpping amount of `overlap`.
+    Yield successive tuple of locations defining a patch of size `patch_size` from an image of size `image_size`,
+    with the relative overalpping of `overlap`. The patch is in the resolution level related to `downsample` ratio.
     The iteration starts from position `start_pos` in the whole slide image, or starting at the origin if this isn't
     provided.
 
