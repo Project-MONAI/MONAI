@@ -126,7 +126,7 @@ class TestToFromMetaTensord(unittest.TestCase):
         self.check(d_dict["m1"], m1.as_tensor(), ids=False)
         meta_out = {k: v for k, v in d_dict["m1_meta_dict"].items() if k != "affine"}
         aff_out = d_dict["m1_meta_dict"]["affine"]
-        self.check(aff_out, m1_aff, ids=True)
+        self.check(aff_out, m1_aff, ids=False)
         self.assertEqual(meta_out, m1_meta)
 
         # FROM -> inverse
