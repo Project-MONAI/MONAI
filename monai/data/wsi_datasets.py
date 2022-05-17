@@ -200,7 +200,15 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         wsi_size = self.wsi_reader.get_size(wsi_obj, 0)
         downsample = self.wsi_reader.get_downsample(wsi_obj, level)
 
-        locations = list(iter_wsi_patch_location(wsi_size, patch_size, downsample, self.overlap))
+        locations = list(
+            iter_wsi_patch_location(
+                image_size=wsi_size,
+                patch_size=patch_size,
+                start_pos=(0, 0),
+                downsample=downsample,
+                overlap=self.overlap,
+            )
+        )
         sample["size"] = patch_size
         sample["level"] = level
         n_patches = len(locations)

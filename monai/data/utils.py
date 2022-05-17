@@ -120,7 +120,10 @@ def get_random_patch(
 
 
 def iter_patch_slices(
-    dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()
+    image_size: Sequence[int],
+    patch_size: Union[Sequence[int], int],
+    start_pos: Sequence[int] = (),
+    overlap: float = 0.0,
 ) -> Generator[Tuple[slice, ...], None, None]:
     """
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
@@ -128,67 +131,32 @@ def iter_patch_slices(
     patch is chosen in a contiguous grid using a first dimension as least significant ordering.
 
     Args:
-        dims: dimensions of array to iterate over
+        image_size: dimensions of array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap between patches, which is between 0.0 and 1.0. Defaults to 0.0.
 
     Yields:
         Tuples of slice objects defining each patch
     """
 
     # ensure patchSize and startPos are the right length
-    ndim = len(dims)
-    patch_size_ = get_valid_patch_size(dims, patch_size)
+    ndim = len(image_size)
+    patch_size_ = get_valid_patch_size(image_size, patch_size)
     start_pos = ensure_tuple_size(start_pos, ndim)
 
+    # calculate steps, which depends on the amount of overlap
+    steps = tuple(round(p * (1.0 - overlap)) for p in patch_size_)
+
+    # calculate the last starting positions
+    end_pos = tuple(s - p + 1 for s, p in zip(image_size, patch_size_))
+
     # collect the ranges to step over each dimension
-    ranges = tuple(starmap(range, zip(start_pos, dims, patch_size_)))
+    ranges = tuple(starmap(range, zip(start_pos, end_pos, steps)))
 
     # choose patches by applying product to the ranges
     for position in product(*ranges[::-1]):  # reverse ranges order to iterate in index order
         yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size_))
-
-
-def iter_wsi_patch_location(
-    image_size: Sequence[int],
-    patch_size: Union[Sequence[int], int],
-    downsample: float = 1.0,
-    overlap: float = 0.0,
-    start_pos: Sequence[int] = (),
-    padded: bool = False,
-):
-    """
-    Yield successive tuple of locations defining a patch of size `patch_size` from an image of size `image_size`,
-    with the relative overalpping of `overlap`. The patch is in the resolution level related to `downsample` ratio.
-    The iteration starts from position `start_pos` in the whole slide image, or starting at the origin if this isn't
-    provided.
-
-    Args:
-        image_size: dimensions of image
-        downsample: the downsample ratio the
-        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
-        downsample: the relative amount of overlap for patches
-        start_pos: starting position in the image, default is 0 for each dimension
-        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
-            Note that the padding depends on the functionality of the underlying whole slide imaging reader,
-            and is not guranteed for all images.
-
-    Yields:
-        Tuple of patch location
-    """
-    ndim = len(image_size)
-    patch_size = get_valid_patch_size(image_size, patch_size)
-    start_pos = ensure_tuple_size(start_pos, ndim)
-
-    # Get the patch size at level=0
-    patch_size_0 = [p * downsample for p in patch_size]
-    # Calculate steps, which depends on the amount of overlap
-    steps = [round(p * (1.0 - overlap)) for p in patch_size_0]
-    # Calculate the last permitted location (depending on the padding)
-    end_pos = image_size if padded else [image_size[i] - round(patch_size_0[i]) + 1 for i in range(ndim)]
-    # Evaluate the starting locations for patches
-    ranges = tuple(starmap(range, zip(start_pos, end_pos, steps)))
-    return product(*ranges)
 
 
 def dense_patch_slices(
@@ -291,6 +259,50 @@ def iter_patch(
     if copy_back:
         slices = tuple(slice(p, p + s) for p, s in zip(patch_size_, arr.shape))
         arr[...] = arrpad[slices]
+
+
+def iter_wsi_patch_location(
+    image_size: Sequence[int],
+    patch_size: Union[Sequence[int], int],
+    start_pos: Sequence[int] = (),
+    overlap: float = 0.0,
+    downsample: float = 1.0,
+    padded: bool = False,
+):
+    """
+    Yield successive tuple of locations defining a patch of size `patch_size` from an image of size `image_size`,
+    with the relative overalpping of `overlap`. The patch is in the resolution level related to `downsample` ratio.
+    The iteration starts from position `start_pos` in the whole slide image, or starting at the origin if this isn't
+    provided.
+
+    Args:
+        image_size: dimensions of image
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        start_pos: starting position in the image, default is 0 for each dimension
+        overlap: the amount of overlap between patches, which is between 0.0 and 1.0. Defaults to 0.0.
+        downsample: the downsample ratio
+        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
+            Note that the padding depends on the functionality of the underlying whole slide imaging reader,
+            and is not guranteed for all images.
+
+    Yields:
+        Tuple of patch location
+    """
+    ndim = len(image_size)
+    patch_size = get_valid_patch_size(image_size, patch_size)
+    start_pos = ensure_tuple_size(start_pos, ndim)
+
+    # get the patch size at level=0
+    patch_size_ = tuple(p * downsample for p in patch_size)
+
+    # calculate steps, which depends on the amount of overlap
+    steps = tuple(round(p * (1.0 - overlap)) for p in patch_size_)
+
+    # calculate the last starting location (depending on the padding)
+    end_pos = image_size if padded else tuple(s - round(p) + 1 for s, p in zip(image_size, patch_size_))
+
+    # evaluate the starting locations for patches
+    return product(*tuple(starmap(range, zip(start_pos, end_pos, steps))))
 
 
 def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[int], int]) -> Tuple[int, ...]:
