@@ -18,7 +18,17 @@ import numpy as np
 from nibabel.processing import resample_to_output
 from parameterized import parameterized
 
-from monai.transforms import AddChanneld, Compose, FromMetaTensord, LoadImaged, Orientationd, Spacingd, ToNumpyd
+from monai.transforms import (
+    AddChanneld,
+    Compose,
+    FromMetaTensord,
+    LoadImaged,
+    Orientationd,
+    Spacingd,
+    ToNumpyd,
+    ToTensord,
+)
+from monai.transforms.meta_utility.dictionary import ToMetaTensord
 from monai.utils.enums import PostFix
 
 FILES = tuple(
@@ -28,18 +38,22 @@ FILES = tuple(
 
 
 class TestLoadSpacingOrientation(unittest.TestCase):
-    @parameterized.expand(FILES)
-    def test_load_spacingd(self, filename):
+    @staticmethod
+    def load_image(filename):
         data = {"image": filename}
         t = Compose(
             [
                 LoadImaged(keys="image"),
-                FromMetaTensord(keys="image"),
                 AddChanneld(keys="image"),
+                FromMetaTensord(keys="image"),
                 ToNumpyd(keys=["image", "image_meta_dict"]),
             ]
         )
-        data_dict = t(data)
+        return t(data)
+
+    @parameterized.expand(FILES)
+    def test_load_spacingd(self, filename):
+        data_dict = self.load_image(filename)
         t = time.time()
         res_dict = Spacingd(keys="image", pixdim=(1, 0.2, 1), diagonal=True, padding_mode="zeros")(data_dict)
         t1 = time.time()
@@ -55,16 +69,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
 
     @parameterized.expand(FILES)
     def test_load_spacingd_rotate(self, filename):
-        data = {"image": filename}
-        t = Compose(
-            [
-                LoadImaged(keys="image"),
-                FromMetaTensord(keys="image"),
-                AddChanneld(keys="image"),
-                ToNumpyd(keys=["image", "image_meta_dict"]),
-            ]
-        )
-        data_dict = t(data)
+        data_dict = self.load_image(filename)
         affine = data_dict[PostFix.meta("image")]["affine"]
         data_dict[PostFix.meta("image")]["original_affine"] = data_dict[PostFix.meta("image")]["affine"] = (
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
@@ -88,16 +93,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
             np.testing.assert_allclose(ref.get_fdata()[..., :-1], res_dict["image"][0], atol=0.05)
 
     def test_load_spacingd_non_diag(self):
-        data = {"image": FILES[1]}
-        t = Compose(
-            [
-                LoadImaged(keys="image"),
-                FromMetaTensord(keys="image"),
-                AddChanneld(keys="image"),
-                ToNumpyd(keys=["image", "image_meta_dict"]),
-            ]
-        )
-        data_dict = t(data)
+        data_dict = self.load_image(FILES[1])
         affine = data_dict[PostFix.meta("image")]["affine"]
         data_dict[PostFix.meta("image")]["original_affine"] = data_dict[PostFix.meta("image")]["affine"] = (
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
@@ -116,16 +112,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         )
 
     def test_load_spacingd_rotate_non_diag(self):
-        data = {"image": FILES[0]}
-        t = Compose(
-            [
-                LoadImaged(keys="image"),
-                FromMetaTensord(keys="image"),
-                AddChanneld(keys="image"),
-                ToNumpyd(keys=["image", "image_meta_dict"]),
-            ]
-        )
-        data_dict = t(data)
+        data_dict = self.load_image(FILES[0])
         res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
         np.testing.assert_allclose(
             res_dict[PostFix.meta("image")]["affine"],
@@ -133,40 +120,38 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         )
 
     def test_load_spacingd_rotate_non_diag_ornt(self):
-        data = {"image": FILES[0]}
+        data_dict = self.load_image(FILES[0])
         t = Compose(
             [
-                LoadImaged(keys="image"),
+                Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border"),
+                ToTensord(keys=["image", "image_meta_dict"]),
+                ToMetaTensord(keys="image"),
+                Orientationd(keys="image", axcodes="LPI"),
                 FromMetaTensord(keys="image"),
-                AddChanneld(keys="image"),
-                ToNumpyd(keys=["image", "image_meta_dict"]),
             ]
         )
-        data_dict = t(data)
-        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
-        res_dict = Orientationd(keys="image", axcodes="LPI")(res_dict)
+        res_dict = t(data_dict)
         np.testing.assert_allclose(
             res_dict[PostFix.meta("image")]["affine"],
             np.array([[-1.0, 0.0, 0.0, 32.0], [0.0, -2.0, 0.0, 40.0], [0.0, 0.0, -3.0, 32.0], [0.0, 0.0, 0.0, 1.0]]),
         )
 
     def test_load_spacingd_non_diag_ornt(self):
-        data = {"image": FILES[1]}
-        t = Compose(
-            [
-                LoadImaged(keys="image"),
-                FromMetaTensord(keys="image"),
-                AddChanneld(keys="image"),
-                ToNumpyd(keys=["image", "image_meta_dict"]),
-            ]
-        )
-        data_dict = t(data)
+        data_dict = self.load_image(FILES[1])
         affine = data_dict[PostFix.meta("image")]["affine"]
         data_dict[PostFix.meta("image")]["original_affine"] = data_dict[PostFix.meta("image")]["affine"] = (
             np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]]) @ affine
         )
-        res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
-        res_dict = Orientationd(keys="image", axcodes="LPI")(res_dict)
+        t = Compose(
+            [
+                Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border"),
+                ToTensord(keys=["image", "image_meta_dict"]),
+                ToMetaTensord(keys="image"),
+                Orientationd(keys="image", axcodes="LPI"),
+                FromMetaTensord(keys="image"),
+            ]
+        )
+        res_dict = t(data_dict)
         np.testing.assert_allclose(
             res_dict[PostFix.meta("image")]["affine"],
             np.array(

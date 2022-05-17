@@ -127,9 +127,9 @@ def _default_transforms(image_key, label_key, pixdim):
         [
             LoadImaged(keys=keys),
             AsChannelFirstd(keys=keys),
+            Orientationd(keys=keys, axcodes="RAS"),
             FromMetaTensord(keys=keys),
             ToNumpyd(keys=keys + [PostFix.meta(k) for k in keys]),
-            Orientationd(keys=keys, axcodes="RAS"),
             Spacingd(keys=keys, pixdim=pixdim, mode=mode),
         ]
     )

@@ -22,6 +22,7 @@ from numpy.lib.stride_tricks import as_strided
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, reorient_spatial_axes, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
@@ -467,6 +468,7 @@ class Orientation(Transform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
+    @deprecated_arg(name="image_only", since="0.8")
     def __init__(
         self,
         axcodes: Optional[str] = None,
@@ -485,7 +487,6 @@ class Orientation(Transform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            image_only: if True return only the image volume, otherwise return (image, affine, new_affine).
 
         Raises:
             ValueError: When ``axcodes=None`` and ``as_closest_canonical=True``. Incompatible values.
@@ -500,39 +501,47 @@ class Orientation(Transform):
         self.axcodes = axcodes
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
-        self.image_only = image_only
 
-    def __call__(
-        self, data_array: NdarrayOrTensor, affine: Optional[NdarrayOrTensor] = None
-    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
+    def __call__(self, data_array: torch.Tensor) -> torch.Tensor:
         """
-        original orientation of `data_array` is defined by `affine`.
+        If input type is `MetaTensor`, original affine is extacted with `data_array.affine`.
+        If input type is `torch.Tensor`, original affine is assumed to be identity.
 
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
-            affine (matrix): (N+1)x(N+1) original affine matrix for spatially ND `data_array`. Defaults to identity.
 
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
             ValueError: When ``axcodes`` spatiality differs from ``data_array``.
 
         Returns:
-            data_array [reoriented in `self.axcodes`] if `self.image_only`, else
-            (data_array [reoriented in `self.axcodes`], original axcodes, current axcodes).
+            data_array [reoriented in `self.axcodes`]. Output type will be `MetaTensor`
+                unless `get_track_meta() == False`, in which case it will be
+                `torch.Tensor`.
 
         """
+        # if the input isn't MetaTensor and output isn't desired to be one either,
+        # nothing to do.
+        if not isinstance(data_array, MetaTensor) and not get_track_meta():
+            warnings.warn(
+                "`Orientation` applied to non-MetaTensor object and metadata tracking is off, transform does nothing."
+            )
+            return data_array
+
         spatial_shape = data_array.shape[1:]
         sr = len(spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
         affine_: np.ndarray
-        if affine is None:
-            # default to identity
-            affine_np = affine = np.eye(sr + 1, dtype=np.float64)
-            affine_ = np.eye(sr + 1, dtype=np.float64)
-        else:
-            affine_np, *_ = convert_data_type(affine, np.ndarray)
+        affine_np: np.ndarray
+        if isinstance(data_array, MetaTensor):
+            affine_np, *_ = convert_data_type(data_array.affine, np.ndarray)
             affine_ = to_affine_nd(sr, affine_np)
+        else:
+            warnings.warn("`data_array` is not of type `MetaTensor, assuming affine to be identity.")
+            # default to identity
+            affine_np = np.eye(sr + 1, dtype=np.float64)
+            affine_ = np.eye(sr + 1, dtype=np.float64)
 
         src = nib.io_orientation(affine_)
         if self.as_closest_canonical:
@@ -553,28 +562,26 @@ class Orientation(Transform):
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
-        _is_tensor = isinstance(data_array, torch.Tensor)
+
         spatial_ornt[:, 0] += 1  # skip channel dim
         spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
         axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
         if axes:
-            data_array = (
-                torch.flip(data_array, dims=axes) if _is_tensor else np.flip(data_array, axis=axes)  # type: ignore
-            )
+            data_array = torch.flip(data_array, dims=axes)
         full_transpose = np.arange(len(data_array.shape))
         full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
         if not np.all(full_transpose == np.arange(len(data_array.shape))):
-            if _is_tensor:
-                data_array = data_array.permute(full_transpose.tolist())  # type: ignore
-            else:
-                data_array = data_array.transpose(full_transpose)  # type: ignore
-        out, *_ = convert_to_dst_type(src=data_array, dst=data_array)
-        new_affine = to_affine_nd(affine_np, new_affine)
-        new_affine, *_ = convert_to_dst_type(src=new_affine, dst=affine, dtype=torch.float32)
+            data_array = data_array.permute(full_transpose.tolist())
 
-        if self.image_only:
-            return out
-        return out, affine, new_affine
+        new_affine = to_affine_nd(affine_np, new_affine)
+        new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
+
+        if isinstance(data_array, MetaTensor):
+            data_array.affine = new_affine
+        else:
+            data_array = MetaTensor(data_array, affine=new_affine)
+
+        return data_array
 
 
 class Flip(Transform):
