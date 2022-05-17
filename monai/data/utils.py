@@ -149,6 +149,48 @@ def iter_patch_slices(
         yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size_))
 
 
+def iter_wsi_patch_location(
+    image_size: Sequence[int],
+    patch_size: Union[Sequence[int], int],
+    downsample: float = 1.0,
+    overlap: float = 0.0,
+    start_pos: Sequence[int] = (),
+    padded: bool = False,
+):
+    """
+    Yield successive tuple of location defining a patch of size `patch_size` from an image of size `image_size`, and if
+    it is downsampled by `downsample` ratio with the relative overalpping amount of `overlap`.
+    The iteration starts from position `start_pos` in the whole slide image, or starting at the origin if this isn't
+    provided.
+
+    Args:
+        image_size: dimensions of image
+        downsample: the downsample ratio the
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        downsample: the relative amount of overlap for patches
+        start_pos: starting position in the image, default is 0 for each dimension
+        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
+            Note that the padding depends on the functionality of the underlying whole slide imaging reader,
+            and is not guranteed for all images.
+
+    Yields:
+        Tuple of patch location
+    """
+    ndim = len(image_size)
+    patch_size = get_valid_patch_size(image_size, patch_size)
+    start_pos = ensure_tuple_size(start_pos, ndim)
+
+    # Get the patch size at level=0
+    patch_size_0 = [p * downsample for p in patch_size]
+    # Calculate steps, which depends on the amount of overlap
+    steps = [round(p * (1.0 - overlap)) for p in patch_size_0]
+    # Calculate the last permitted location (depending on the padding)
+    end_pos = image_size if padded else [image_size[i] - round(patch_size_0[i]) + 1 for i in range(ndim)]
+    # Evaluate the starting locations for patches
+    ranges = tuple(starmap(range, zip(start_pos, end_pos, steps)))
+    return product(*ranges)
+
+
 def dense_patch_slices(
     image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
 ) -> List[Tuple[slice, ...]]:

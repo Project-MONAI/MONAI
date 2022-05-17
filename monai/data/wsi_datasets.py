@@ -17,6 +17,7 @@ import numpy as np
 
 from monai.data import Dataset
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
+from monai.data.utils import iter_wsi_patch_location
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
 
@@ -193,26 +194,14 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
     def _evaluate_patch_coordinates(self, sample):
         """Define the location for each patch based on sliding-window approach"""
         wsi_obj = self._get_wsi_object(sample)
-        wsi_size = self.wsi_reader.get_size(wsi_obj, 0)
-
-        patch_size_level = self._get_size(sample)
+        patch_size = self._get_size(sample)
         level = self._get_level(sample)
-        ratio = [1.0] * len(patch_size_level)
-        if level > 0:
-            wsi_size_at_level = self.wsi_reader.get_size(wsi_obj, level)
-            ratio = [wsi_size[i] / wsi_size_at_level[i] for i in range(len(patch_size_level))]
 
-        patch_size = [(patch_size_level[i] * ratio[i]) for i in range(len(patch_size_level))]
-        steps = [round(patch_size[i] * (1.0 - self.overlap)) for i in range(len(patch_size_level))]
-        locations = list(
-            product(
-                *[
-                    list(range(0, wsi_size[i] - round(patch_size[i]) + 1, steps[i]))
-                    for i in range(len(patch_size_level))
-                ]
-            )
-        )
-        sample["size"] = patch_size_level
+        wsi_size = self.wsi_reader.get_size(wsi_obj, 0)
+        downsample = self.wsi_reader.get_downsample(wsi_obj, level)
+
+        locations = list(iter_wsi_patch_location(wsi_size, patch_size, downsample, self.overlap))
+        sample["size"] = patch_size
         sample["level"] = level
         n_patches = len(locations)
         return [{**sample, "location": locations[i], "patch_num": i, "n_patches": n_patches} for i in range(n_patches)]
