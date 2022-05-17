@@ -16,8 +16,8 @@ from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from monai.data import Dataset
-from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.data.utils import iter_wsi_patch_location
+from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
 
