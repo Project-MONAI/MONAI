@@ -222,11 +222,11 @@ class TestSlidingPatchWSIDatasetCuCIM(SlidingPatchWSIDatasetTests.Tests):
         cls.backend = "cucim"
 
 
-# @skipUnless(has_osl, "Requires openslide")
-# class TestSlidingPatchWSIDatasetOpenSlide(SlidingPatchWSIDatasetTests.Tests):
-#     @classmethod
-#     def setUpClass(cls):
-#         cls.backend = "openslide"
+@skipUnless(has_osl, "Requires openslide")
+class TestSlidingPatchWSIDatasetOpenSlide(SlidingPatchWSIDatasetTests.Tests):
+    @classmethod
+    def setUpClass(cls):
+        cls.backend = "openslide"
 
 
 if __name__ == "__main__":
