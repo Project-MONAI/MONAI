@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import inspect
-from itertools import product
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
