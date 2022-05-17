@@ -1790,8 +1790,8 @@ class Affine(Transform):
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             normalized: indicating whether the provided `affine` is defined to include a normalization
-                transform converting the coordinates from `[-(size-1)/2, (size-1)/2]` to
-                `[0, size - 1]` or `[-1, 1]` to be compatible with the underlying resampling API.
+                transform converting the coordinates from `[-(size-1)/2, (size-1)/2]` (defined in ``create_grid``) to
+                `[0, size - 1]` or `[-1, 1]` in order to be compatible with the underlying resampling API.
                 If `normalized=False`, additional coordinate normalization will be applied before resampling.
                 See also: :py:func:`monai.networks.utils.normalize_transform`.
             device: device on which the tensor will be allocated.
@@ -1804,7 +1804,7 @@ class Affine(Transform):
             ``as_tensor_output`` is deprecated.
         .. deprecated:: 0.8.1
             ``norm_coords`` is deprecated, please use ``normalized`` instead
-            (the new flag is a negation, ``norm_coords``==``not normalized``).
+            (the new flag is a negation, i.e., ``norm_coords == not normalized``).
 
         """
         self.affine_grid = AffineGrid(

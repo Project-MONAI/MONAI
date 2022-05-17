@@ -455,10 +455,11 @@ class AffineTransform(nn.Module):
             reverse_indexing: whether to reverse the spatial indexing of image and coordinates.
                 set to `False` if `theta` follows pytorch's default "D, H, W" convention.
                 set to `True` if `theta` follows `scipy.ndimage` default "i, j, k" convention.
-            zero_centered: whether the coordinates are treated from a zero-centered range, Default to `None`.
-                With `zero_centered=True`, for example, the center of rotation will be the spatial center of the input,
-                with `zero_centered=False`, the center of rotation will be the origin of the input.
-                This option is only available when `normalized=False`, where the default behaviour is `False`.
+            zero_centered: whether the affine is applied to coordinates in a zero-centered value range,
+                Default to `None`. With `zero_centered=True`, for example, the center of rotation will be the
+                spatial center of the input; with `zero_centered=False`, the center of rotation will be the
+                origin of the input. This option is only available when `normalized=False`,
+                where the default behaviour is `False`.
                 See also: :py:func:`monai.networks.utils.normalize_transform`.
         """
         super().__init__()
