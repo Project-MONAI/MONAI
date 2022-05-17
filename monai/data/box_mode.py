@@ -34,7 +34,10 @@ class BoxMode:
         #. remember to define ``name`` which is a dictionary that maps spatial_dims to box mode string
     """
 
-    name: Dict[int, str] = {}
+    name: Dict[int, BoundingBoxMode] = {}
+
+    def __init__(self):
+        pass
 
     @classmethod
     def get_name(cls, spatial_dims: int) -> str:

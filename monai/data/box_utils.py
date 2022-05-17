@@ -125,6 +125,25 @@ def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **
     This function returns BoxMode object from giving mode according to BOXMODE_MAPPING
     Args:
         mode: source box mode. If mode is not given, this func will assume mode is StandardMode
+        It can be:
+            #. str: choose from monai.utils.enums.BoundingBoxMode, including
+                "xyxy": boxes has format [xmin, ymin, xmax, ymax]
+                "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
+                "xxyy": boxes has format [xmin, xmax, ymin, ymax]
+                "xxyyzz": boxes has format [xmin, xmax, ymin, ymax, zmin, zmax]
+                "xyxyzz": boxes has format [xmin, ymin, xmax, ymax, zmin, zmax]
+                "xywh": boxes has format [xmin, ymin, xsize, ysize]
+                "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
+                "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
+                "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+            #. BoxMode class: choose from
+                CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
+                CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
+                CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
+                CornerSizeMode: equivalent to "xywh" or "xyzwhd"
+                CenterSizeMode: equivalent to "ccwh" or "cccwhd"
+            #. BoxMode instance
+            #. None: will assume mode is StandardMode
     Returns:
         BoxMode object
 
